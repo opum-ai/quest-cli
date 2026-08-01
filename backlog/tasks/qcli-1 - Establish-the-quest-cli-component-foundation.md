@@ -1,11 +1,11 @@
 ---
 id: QCLI-1
 title: Establish the quest-cli component foundation
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-01 17:07'
-updated_date: '2026-08-01 17:22'
+updated_date: '2026-08-01 17:27'
 labels:
   - 'doc:stories/establish-the-quest-cli-component-foundation'
 dependencies: []
@@ -24,10 +24,10 @@ Set up quest-cli as the future implementation repository for the quest npm packa
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The repository charter identifies quest-cli as owner of the quest package, executable, component contracts, tests, and releases
-- [ ] #2 The backlog contains a traceable successor for every unfinished former OCLI research item and keeps product implementation gated on the Lore release evidence
-- [ ] #3 Lore docs define local boundaries with quest-doc, quest-web, opum-doc, and lore-doc and include a context-free pickup runbook
-- [ ] #4 No product implementation or runtime dependency is added, and Lore strict validation, strict checks, and git diff checks pass
+- [x] #1 The repository charter identifies quest-cli as owner of the quest package, executable, component contracts, tests, and releases
+- [x] #2 The backlog contains a traceable successor for every unfinished former OCLI research item and keeps product implementation gated on the Lore release evidence
+- [x] #3 Lore docs define local boundaries with quest-doc, quest-web, opum-doc, and lore-doc and include a context-free pickup runbook
+- [x] #4 No product implementation or runtime dependency is added, and Lore strict validation, strict checks, and git diff checks pass
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -35,3 +35,15 @@ Set up quest-cli as the future implementation repository for the quest npm packa
 <!-- SECTION:PLAN:BEGIN -->
 1. Create the component charter, repository decision, campaign Story, migration ledger, and handover. 2. Populate a future QCLI research campaign mirroring the unfinished OCLI work with explicit provenance. 3. Link local tasks to the Story and preserve the release gate. 4. Reconcile and run strict validation.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Acceptance evidence: the accepted component ADR and charter assign the quest package/command, contracts, tests, migration, projection, and releases to quest-cli. Backlog lists QCLI-2 plus QCLI-2.1 through QCLI-2.8, mapping every unfinished OCLI research item and retaining the Lore activation gate. The repository inventory contains only instructions, Backlog/Lore configuration, tasks, and documentation—no package manifest, src tree, executable scaffold, or runtime dependency. lore validate/check --strict checked 14 files with 0 errors/0 warnings; git diff --check passed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Established the clean quest-cli component foundation without product implementation, created the complete QCLI successor research graph, and documented ownership, provenance, research gates, and a paste-ready handover. Verified all 14 concepts strictly and confirmed no product scaffold or runtime dependency was added.
+<!-- SECTION:FINAL_SUMMARY:END -->
