@@ -19,6 +19,7 @@ tasks:
   - qcli-2.6
   - qcli-2.7
   - qcli-2.8
+  - qcli-2.9
 ---
 
 # Prepare Quest's clean-room research foundation
@@ -57,6 +58,7 @@ may not implement or publish Quest.
 | [QCLI-2.6](../../backlog/tasks/qcli-2.6%20-%20Model-Quest-Git-filesystem-and-concurrency-threats.md) | Model Quest Git, filesystem, and concurrency threats | To Do |
 | [QCLI-2.7](../../backlog/tasks/qcli-2.7%20-%20Track-Lore-dependencies-and-Quest-activation-evidence.md) | Track Lore dependencies and Quest activation evidence | To Do |
 | [QCLI-2.8](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md) | Synthesize Quest CLI research into activation-ready component contracts | To Do |
+| [QCLI-2.9](../../backlog/tasks/qcli-2.9%20-%20Resolve-the-%60quest%60-npm-package-allocation-and-provenance-gate.md) | Resolve the `quest` npm package allocation and provenance gate | To Do |
 <!-- lore:tasks:end -->
 
 ## Notes
