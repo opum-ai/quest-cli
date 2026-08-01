@@ -50,13 +50,13 @@ may not implement or publish Quest.
 |---|---|---|
 | [QCLI-2](../../backlog/tasks/qcli-2%20-%20Prepare-Quests-clean-room-research-foundation-before-implementation.md) | Prepare Quest's clean-room research foundation before implementation | To Do |
 | [QCLI-2.1](../../backlog/tasks/qcli-2.1%20-%20Revalidate-Quest-research-provenance-and-the-migration-boundary.md) | Revalidate Quest research provenance and the migration boundary | To Do |
-| [QCLI-2.2](../../backlog/tasks/qcli-2.2%20-%20Reconcile-legacy-Opum-requirements-into-Quest-decisions.md) | Reconcile legacy Opum requirements into Quest decisions | To Do |
+| [QCLI-2.2](../../backlog/tasks/qcli-2.2%20-%20Reconcile-legacy-Opum-requirements-into-Quest-decisions.md) | Reconcile legacy Opum requirements into Quest CLI candidates | To Do |
 | [QCLI-2.3](../../backlog/tasks/qcli-2.3%20-%20Turn-prototype-failures-into-Quest-black-box-scenarios.md) | Turn prototype failures into Quest black-box scenarios | To Do |
-| [QCLI-2.4](../../backlog/tasks/qcli-2.4%20-%20Define-Quest-actors-workflows-and-domain-language.md) | Define Quest actors, workflows, and domain language | To Do |
+| [QCLI-2.4](../../backlog/tasks/qcli-2.4%20-%20Define-Quest-actors-workflows-and-domain-language.md) | Define Quest CLI actors, workflows, and domain-language candidates | To Do |
 | [QCLI-2.5](../../backlog/tasks/qcli-2.5%20-%20Research-Backlog-migration-fidelity-through-public-contracts.md) | Research Backlog migration fidelity through public contracts | To Do |
 | [QCLI-2.6](../../backlog/tasks/qcli-2.6%20-%20Model-Quest-Git-filesystem-and-concurrency-threats.md) | Model Quest Git, filesystem, and concurrency threats | To Do |
 | [QCLI-2.7](../../backlog/tasks/qcli-2.7%20-%20Track-Lore-dependencies-and-Quest-activation-evidence.md) | Track Lore dependencies and Quest activation evidence | To Do |
-| [QCLI-2.8](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md) | Synthesize Quest research into activation-ready contracts | To Do |
+| [QCLI-2.8](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md) | Synthesize Quest CLI research into activation-ready component contracts | To Do |
 <!-- lore:tasks:end -->
 
 ## Notes
@@ -64,3 +64,13 @@ may not implement or publish Quest.
 Follow the dependency order in QCLI-2. Start with provenance revalidation.
 `quest-doc` owns product-wide decisions; this Story owns only the component
 research outputs needed to implement them later.
+
+Read the controlling
+[component ADR](../adr/use-quest-cli-for-the-quest-package-and-command.md),
+[component charter](../reference/quest-cli-component-charter.md),
+[research specification](../specs/quest-cli-pre-implementation-research-program.md),
+[normative migration ledger](../reference/former-ocli-to-qcli-migration-ledger.md),
+and [context-free handover](../runbooks/quest-cli-research-handover.md) before
+selecting a QCLI task. The
+[Lore-owned integration and release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
+controls later implementation activation.

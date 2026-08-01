@@ -24,7 +24,8 @@ worker can implement after Lore ships; it does not contain product code.
 ### Allowed work
 
 - revalidate the source register and quarantine boundary;
-- reconcile approved legacy Opum requirements into current Quest decisions;
+- reconcile admitted legacy Opum requirements into Quest CLI component
+  candidates and route product-wide proposals to `quest-doc`;
 - translate observable defect narratives into black-box scenarios;
 - define actors, workflows, domain language, and authority;
 - study Backlog migration through public user contracts and owner data;
@@ -69,8 +70,20 @@ migration fidelity, projection behavior, and versioned Lore integration.
 ### Evidence classes
 
 Use **allowed**, **contextual**, **superseded**, **deferred**, **excluded**, and
-**quarantined** exactly as defined by the adopted source register. A class
-applies to the named slice, not every file in a repository.
+**quarantined** as provisional terms from the dated
+[Opum fleet and prior-art inventory](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md).
+That OCLI register is historical input, not an adopted current Quest source
+register. A class applies only to the named slice, not every file in a
+repository, and no slice may inform a current requirement until QCLI-2.1
+revalidates and admits it.
+
+### External activation authority
+
+The maintained Lore integration boundary and release-gate policy is
+[owned by lore-doc](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
+This program records only component dependency status and evidence
+consumption. It does not redefine Lore's gate or assert that Lore, Quest, or a
+Quest package has been released.
 
 ### Verification bar
 

@@ -28,6 +28,8 @@ product implementation remains blocked on Lore release evidence.
   `/Volumes/external/repos/opum-doc`.
 - Lore gate owners: `/Volumes/external/repos/lore-doc` and live
   `/Volumes/external/repos/lore-cli`.
+- Canonical Lore policy:
+  [Quest integration and Lore release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
 - Read repository instructions; run `backlog instructions overview` and the
   lifecycle-specific guide, then `lore instructions`.
 - Preserve unexplained worktree changes and never normalize state through a
@@ -53,11 +55,10 @@ product implementation remains blocked on Lore release evidence.
 ### Activation check for a later implementation session
 
 Implementation remains prohibited until `quest-doc`'s canonical handover and
-the current Lore-owned release gate both pass from live evidence. At minimum,
-verify an immutable protected Lore release, clean installs and packaged binary
-sanity on supported targets, no relevant release blocker, and accepted runtime,
-graph, recovery, scale, and export evidence. A local build or dated document is
-not enough.
+the current Lore-owned release gate both pass from live owner evidence. Follow
+the linked Lore Spec and its owner-held evidence; do not reconstruct or copy
+the gate here. A local build, a dated snapshot, or a consumer summary is not
+proof that the gate passed.
 
 ### Ready-to-paste prompt
 

@@ -22,6 +22,23 @@ gates belong to `lore-doc`; Opum SaaS and commercial policy belong to
 This repository currently contains planning, provenance, and research only.
 Product source and runtime dependencies remain gated on the full Lore release.
 
+## Start here
+
+- [Prepare Quest's clean-room research foundation](stories/prepare-quests-clean-room-research-foundation.md)
+  is the sole active component research campaign.
+- [Use quest-cli for the Quest package and command](adr/use-quest-cli-for-the-quest-package-and-command.md)
+  is the controlling component decision.
+- [Quest CLI pre-implementation research program](specs/quest-cli-pre-implementation-research-program.md)
+  defines the current research-only contract.
+- [Quest CLI component charter](reference/quest-cli-component-charter.md)
+  routes product, website, Lore, and Opum decisions to their owners.
+- [Former OCLI to QCLI migration ledger](reference/former-ocli-to-qcli-migration-ledger.md)
+  is the normative exact component-provenance map.
+- [Quest CLI research handover](runbooks/quest-cli-research-handover.md)
+  is the context-free pickup path.
+- [Audit Quest CLI documentation authority](stories/audit-quest-cli-documentation-authority.md)
+  records the repository-local part of the cross-product audit.
+
 <!-- lore:index:begin -->
 - [adr](adr/index.md)
 - [reference](reference/index.md)

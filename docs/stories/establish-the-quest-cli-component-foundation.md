@@ -19,8 +19,9 @@ tasks:
 
 Establish `quest-cli` as the clean component home for the preferred npm package
 `quest` and executable `quest`, without prematurely adding product source.
-Adopt the admitted research from the former `opum-cli` campaign through an
-explicit migration ledger and create a context-free QCLI pickup path.
+Map candidate inputs from the former `opum-cli` campaign through an explicit
+migration ledger and create a context-free QCLI pickup path. QCLI-2.1, not this
+completed foundation Story, decides which dated source slices are admitted.
 
 ## Acceptance criteria
 
