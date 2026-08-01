@@ -1,0 +1,199 @@
+---
+name: backlog-handover
+version: "0.9.1-qcli.1"
+description: "Multi-session burndown campaign driver for this project's Backlog.md queue. Each restore session recomputes the ready set from native Backlog dependencies, drains as many non-conflicting tasks as it safely can — dispatched in parallel waves to isolated worker subagents in git worktrees, gated by a mandatory top-tier reviewer, merged one at a time by the orchestrator — then writes a grounded handover so the next session continues with '/clear' + restore. Explicit invocation only: this is the heavyweight campaign driver, NOT routine Backlog.md work. Ordinary task reads, creates, edits, and single-task execution use the plain `backlog` CLI per CLAUDE.md."
+disable-model-invocation: true
+---
+
+# Backlog Handover — DAG-parallel campaign driver
+
+Burn down this project's Backlog.md queue across many small sessions, each draining as much as it safely can. Input: $ARGUMENTS
+
+The orchestrator (this session) never implements or reviews anything itself — it computes what is safe to run in parallel, manages worktrees, dispatches subagents, and serializes the shared-state steps (merge, task settlement, campaign-doc writes) that cannot be parallelized. The user drives the whole campaign with only:
+
+```
+/clear  →  /backlog-handover restore  →  (repeat until the queue is empty)
+```
+
+**This skill is invoked explicitly, never inferred.** "Work through the backlog" in this project usually means ordinary `backlog task` usage, not a parallel campaign — hence `disable-model-invocation: true`.
+
+---
+
+## Requirements
+
+- **Always**: git; the `backlog` CLI (this project's sole system of record — see CLAUDE.md).
+- **Optional**: remote `origin` (push/PR/prune steps skipped without one); `gh` authenticated, for PRs; `treehouse` CLI for pooled worktree reuse (plain `git worktree add` is the fallback).
+- **Full wave-parallel execution**: the session must be able to dispatch parallel subagents via the Agent tool with per-call model selection (mid-tier workers, top-tier reviewer). Without it, degrade gracefully — see Execution Model.
+
+Read `backlog instructions overview` at the start of every campaign session, per CLAUDE.md. Workers and reviewers are told to read `task-execution` and `task-finalization` respectively.
+
+### Statusline (optional)
+
+ECK is not required by this skill. Guard every call so a non-ECK environment degrades silently:
+
+```bash
+[ -n "$ECK_HOME" ] && [ -x "$ECK_HOME/update-stage.sh" ] && bash "$ECK_HOME/update-stage.sh" "Waves (4/6)"
+```
+
+Reset with the same command and no argument at completion (success or error).
+
+| Stage | Subject            | Statusline      |
+| ----- | ------------------ | --------------- |
+| 1     | Stage 1: Locate    | Locate (1/6)    |
+| 2     | Stage 2: Verify    | Verify (2/6)    |
+| 3     | Stage 3: Reconcile | Reconcile (3/6) |
+| 4     | Stage 4: Waves     | Waves (4/6)     |
+| 5     | Stage 5: Re-arm    | Re-arm (5/6)    |
+| 6     | Stage 6: Report    | Report (6/6)    |
+
+(Restore mode — the driver. Init reuses it as Inventory / Confirm / Create / Handover; Write and Status are single-stage.)
+
+---
+
+## Usage
+
+```bash
+/backlog-handover init      # one-time: build the campaign doc from the open queue, write the first handover
+/backlog-handover restore   # THE DRIVER: verify ground truth, drain wave after wave, re-arm
+/backlog-handover write     # bailout: session ending with work unfinished — write a grounded handover
+/backlog-handover status    # read-only: queue partition, campaign doc, handover, branch/worktree state
+```
+
+Mode detection: an explicit mode argument wins. Otherwise infer: continue/resume/burn-down language → `restore`; set-up-a-campaign language → `init`; session-ending-with-work-unfinished → `write`. Genuinely bare or ambiguous → `status` — the only safe default when intent cannot be determined, never a way to silently ignore a clear request to act.
+
+---
+
+## Execution Model
+
+Three tiers, fixed roles — do NOT blur them:
+
+| Tier | Who | Does | Never does |
+| ---- | --- | ---- | ---------- |
+| **Orchestrator** | This session (top-tier model, Agent-tool parallel dispatch) | Computes the ready/conflict graph; creates and manages every worktree; dispatches workers/reviewers; runs the serialized merge queue; performs every task settlement (AC checks, final summary, terminal status) and every campaign-doc write | Implements code, writes a review verdict, edits a task's code inside its worktree. Its only hands-on contact with a task branch is worktree lifecycle and the final merge |
+| **Worker** | Mid-tier agent (e.g. `model: sonnet`), dispatched per task via the Agent tool, worktree path given as explicit cwd | One task: read it, plan, implement, self-verify against real gates, record plan/notes/comments on its own task, commit, push | Create or remove its own worktree; merge; check acceptance criteria; write the final summary; move the task to a terminal status; edit the campaign doc; create new tasks |
+| **Reviewer** | Top-tier agent (e.g. `model: opus` or strongest available), dispatched into the worker's existing worktree | The **mandatory** gate for every task and the judgment call for every escalation; independently re-runs verification; returns a structured per-criterion verdict | Resolve conflicts or write fixes itself — it decides disposition and hands fixes to a fresh worker; write to Backlog or git itself — the orchestrator records its verdict |
+
+**Degraded mode** (no parallel dispatch, or no per-call model selection): wave size = 1, a single plain feature branch (no worktree management — only one task ever in flight), implement yourself, and run the review as an explicit adversarial self-review pass — the review step still happens, never skipped. **Default to one wave (= one task) unless the user asks for more**: in degraded mode the implementation transcript accumulates in this session's own context, so the old one-task-per-session bound applies again. Every other rule (merge serialization, settlement centralization, escalation criteria, wave-log format) is unchanged — this is the same algorithm at both ends, not two procedures.
+
+Why waves instead of one task per session: the one-task rule existed to stop a single acting model's context from degrading. Here the orchestrator never does the straining work — implementation and review live in fresh subagents whose transcripts never enter its context — so the unit that must stay small is the *wave* (a bounded, conflict-disjoint batch), not the task.
+
+---
+
+## Conventions
+
+| Thing | Convention |
+| ----- | ---------- |
+| **System of record** | Backlog.md, via the `backlog` CLI **only**. Never edit files under `backlog/` directly (CLAUDE.md). There is no second tracker: no GitHub Issues, no `tracker:*` primitives |
+| **Bulk read** | Two-tier, and this is a real constraint: `backlog task list --json` returns id/title/status/labels/ordinal but **not** dependencies, description, or acceptance criteria. Get the roster from one `task list --json`, then `backlog task view <ID> --json` **only for campaign-labelled, non-Done candidates** — never the whole backlog, never once per task in a loop over everything |
+| **Campaign membership** | Label `campaign`. Applied at init to every queued task; the ready-set computation only ever considers labelled tasks, so ad-hoc tasks created outside the campaign are never swept into a wave |
+| **Dependencies** | Backlog's **native** `dependencies` field (`--dep` at create, `--dep` at edit — note edit *replaces* the list). This is the dependency graph; do not maintain a parallel Deps table |
+| **Stage state** | Backlog has three statuses, the campaign has six stages. Status carries the coarse state, labels carry the sub-stage — see the state table below |
+| **Campaign doc** | A Backlog document: `backlog doc create "Backlog campaign tracker" -p campaigns -t other`, thereafter `backlog doc update <docId> --content "..."`. Lands under `backlog/docs/`. **Never** in the lore-managed `docs/` tree, and never hand-edited |
+| **Handover** | Active: `.claude/handovers/HANDOVER-{YYYY-MM-DD}-backlog-campaign.md` (gitignored). Consumed → `archive/handovers/` (tracked; on name collision suffix `-2`, `-3`, …). One active handover per topic. Conventions are inlined here — this project has no separate `handover` skill |
+| **Wave** | The atomic dispatch unit: a conflict-disjoint subset of the ready set, implemented and reviewed in parallel, merged serially |
+| **Wave size cap** | Default 6 concurrent workers regardless of ready-set size — bounds worktree/disk cost, reviewer throughput, and how many sequential rebase-merges one drift check must reconstruct if a session dies mid-wave. A wave shrinking to 1 is the algorithm correctly degrading to sequential, not a bug |
+| **Worktrees** | Orchestrator-managed. `treehouse` lease when the CLI is present, else `git worktree add`. Full lifecycle in `reference/wave-loop.md` |
+| **Feature branch** | `feat/qcli-<N>-<slug>` or `fix/qcli-<N>-<slug>` per change type. Created by the orchestrator as part of worktree setup — the worker is dispatched *into* an already-branched worktree and never runs `git checkout -b` |
+| **Default branch** | `dev` (this repo's integration branch). Resolve as `git symbolic-ref --short refs/remotes/origin/HEAD` stripped of `origin/`; fall back to `dev`, then `main`. If that symbolic ref is missing, run `git remote set-head origin -a` once rather than guessing |
+| **Commits** | Project commit conventions; always a `Refs: QCLI-<N>` trailer |
+| **PR** | Optional audit trail, not a second approval wait. `gh pr merge <branch> --squash --delete-branch` after rebase + re-verify + re-push. **There is no `Closes #N` auto-close for Backlog tasks** — settlement always moves the task to `Done` explicitly. No `gh`/no remote → local `git merge --ff-only` |
+| **Review gate** | Mandatory. Every branch needs an `approve` verdict before it is eligible for the merge queue |
+| **Write concurrency** | Worker writes to its **own** task (`--plan`, `--append-notes`, `--comment`) are parallel-safe. AC checks, final summary, terminal status, `--dep` edits, and campaign-doc writes are **orchestrator-only and serialized** |
+
+### Campaign stage → Backlog state
+
+| Stage | Status | Labels |
+| ----- | ------ | ------ |
+| Queued | `To Do` | `campaign` |
+| Dispatched | `In Progress` | `campaign`, `wave-<N>` |
+| In review | `In Progress` | `campaign`, `wave-<N>`, `in-review` |
+| Merge-pending | `In Progress` | `campaign`, `wave-<N>`, `merge-pending` |
+| Done | `Done` | `campaign`, `wave-<N>` (ACs checked, final summary set) |
+| Blocked / needs human | `To Do` | `campaign`, `needs-human` (reason recorded in the campaign doc) |
+
+Everything Backlog can express natively lives in Backlog. The campaign doc holds only what it cannot: human-confirmed priority order, cluster assignments, the wave log, in-flight worktree/branch pointers, and needs-human reasons.
+
+---
+
+## Project rules that override the upstream design
+
+This skill is a fork of an ECK/GitHub-Issues skill. Three of this project's mandated rules change its behaviour — do not "restore" the upstream shape:
+
+1. **No autonomous follow-up tasks.** `backlog instructions task-finalization` states: *do not create or start follow-up tasks without user approval.* Wave-level integration findings and out-of-scope discoveries are therefore **surfaced to the user at R6**, never auto-filed. The orchestrator drafts the proposed task (title, description, ACs) in the campaign doc and the report, and waits.
+2. **No archiving of completed work.** Same guide: *tasks in the terminal status stay there until periodic cleanup.* Never run `backlog task archive` or `backlog task complete` on campaign tasks.
+3. **Finalization order is fixed.** Verify objectively → `--check-ac <index>` (only what evidence proves) → `--check-dod` → `--append-notes` → `--final-summary` → status `Done`. Never check an AC from code presence, grep output, or implementation intent.
+
+---
+
+## Init Mode
+
+**I1: Inventory.** One `backlog task list --json` for the roster; `backlog task view <ID> --json` for each non-Done candidate. Classify honestly: *agent-resolvable now* (joins the campaign) vs *needs a human / product decision / blocked* (recorded in the campaign doc's needs-human section with the reason, label `needs-human`). A task whose acceptance criteria cannot be objectively verified by an agent alone does not belong in the queue — it only manufactures a stuck wave later. Assign each queued task a one-word cluster (subsystem/topic) as label `cluster:<name>`.
+
+**I2: Confirm with the user.** Propose an order (lowest-risk/highest-information first: doc-only → small code → spikes) and get explicit confirmation via AskUserQuestion. Record it verbatim in the campaign doc. State plainly that it is the wave-builder's tie-break, not a strict execution order.
+
+**I3: Create the campaign doc + directories.** `backlog doc create "Backlog campaign tracker" -p campaigns -t other`, populated from `reference/templates.md`. Apply `campaign` and `cluster:*` labels to queued tasks. Ensure `.claude/handovers/` is gitignored and `mkdir -p archive/handovers`. Commit the gitignore change on the default branch.
+
+**I4: Write the first handover.** Run Write mode, then tell the user the driver loop: `/clear` → `/backlog-handover restore`.
+
+---
+
+## Restore Mode — the driver
+
+**R1: Locate.** Newest `.claude/handovers/HANDOVER-*-backlog-campaign.md`. No handover but the campaign doc exists → say so and proceed from the doc alone (the handover is an accelerator; Backlog + the campaign doc are the record). Neither exists → suggest `init`; STOP.
+
+**R2: Verify ground truth.** A crashed session may have left branches at *different* lifecycle stages simultaneously. Re-verify everything before acting:
+
+1. `git fetch`; default branch moved past the grounding SHA? Working tree clean? Unpushed commits?
+2. `git worktree list --porcelain` **and** `git branch --list 'feat/qcli-*' 'fix/qcli-*'` (local + remote) — enumerate every leftover, not just what the handover mentions. `git worktree add` hard-fails if a branch is already checked out in a stale worktree. With treehouse in play, `treehouse status --json`: a lease whose holder matches this campaign's labels is an in-flight member left by a crashed session — leases survive with zero processes running, so they never show as "in use". A campaign-labelled lease with no matching `In Progress` task is the orphan signal.
+3. `gh pr list --state all` for every leftover branch — an open unmerged PR means a session died between opening it and the merge queue.
+4. Cross-check every leftover against Backlog state: `In Progress` + `wave-N` means implementation may be mid-flight or done-but-unreviewed — check the worktree's own `git log` to disambiguate. Classify each as *matches Backlog* (resume at its recorded stage) or *orphaned* (report it, reconcile in R3, do NOT silently delete).
+
+Produce a short drift table (`claim → record said → now`). If drift invalidates the plan, adapt and say so — never execute stale instructions.
+
+**R3: Reconcile.** Completed-but-unrecorded work found in R2 goes into Backlog (notes, ACs where evidence exists, final summary, status) and the campaign doc's wave log before any new wave starts. A leftover worktree matching an `In Progress` task resumes from that task's recorded stage rather than restarting.
+
+**R4: The wave loop — drain until done or blocked.** Full mechanics in `reference/wave-loop.md`. In brief: compute the dependency and conflict graphs → acquire worktrees → mark the acquired members dispatched → implement in parallel → review pipelined per completed implementer → merge strictly serially with rebase and mandatory re-verification → wave-level integration review → settle every task → loop or stop.
+
+The orchestrator's context grows only by a roughly constant per-wave increment (dispatch prompts, terse structured returns, verdicts, merge SHAs, one doc delta). This does **not** hold in degraded mode, hence its one-wave budget.
+
+**R5: Re-arm** (once, when the loop terminates).
+
+1. Archive the consumed handover to `archive/handovers/` (collision suffix `-2`, `-3`, …); commit on the default branch.
+2. Write one fresh handover reflecting the session's *cumulative* state across all waves (Write mode) — unless the queue is now empty, in which case R6's campaign-complete handling applies (archive only, no new handover).
+3. `git push origin <default>` — unconditional; the archive commit is new even when the wave loop already pushed (no remote → skip).
+
+**R6: Report.** Summarize every task resolved this session, grouped by wave, with evidence and merged SHAs. **Put escalations and needs-human items first and visually distinct** — those are the only things needing the user's attention. Then, separately, **propose** any follow-up tasks the integration review surfaced and ask whether to create them (never create unprompted). State queue counts (resolved / in-flight / blocked / ready-now) and end with the literal next command: `/clear` then `/backlog-handover restore`.
+
+**Queue empty instead?** Campaign complete: summarize resolved work across every wave, archive the final handover (no new one), note completion in the campaign doc, and suggest `init` for a fresh queue. Do not archive the tasks themselves.
+
+---
+
+## Write Mode (bailout / init's final stage)
+
+**W1: Ground truth.** Verify with commands, never memory: current branch + HEAD SHA, `git status --porcelain`, unpushed commits, **every** branch/worktree/PR touched this session, campaign-doc state.
+
+**W2: Flush durable facts first.** Implementation decisions and evidence → task notes/comments. Reviewer verdicts → PR bodies and the wave log. Campaign state → the campaign doc. The handover holds pointers, not facts.
+
+**W3: Write the handover** using the template in `reference/templates.md`. No invented content: every SHA and status verified in W1, gaps stated as gaps. Failed approaches are mandatory when anything failed. **Never persist a "next wave" plan** — the next restore recomputes the ready set live, and a stale plan is worse than none. No secrets or machine-specific paths in anything committed.
+
+**W4: Confirm.** Output the path, waves/tasks resolved this session, and the driver-loop reminder.
+
+---
+
+## Status Mode
+
+Read-only: campaign doc, full queue partition (Done count, in-flight with per-branch/worktree stage, blocked/needs-human, ready-now count), active handover file(s), every campaign branch, `git worktree list` (plus `treehouse status --json` when in play), open PRs, default-branch ahead/behind, dirty files.
+
+Under wave-parallel execution, **several simultaneous branches, worktrees, and open PRs mid-wave are the expected steady state**, not a violation. The actual anomaly is a branch/worktree/PR with no corresponding `In Progress` campaign task — flag it, with the fix (reconcile per R3, or clean up if truly abandoned).
+
+---
+
+## Reference
+
+- `reference/wave-loop.md` — R4 in full: graph computation, worktree lifecycle, dispatch prompts, review stage, the serialized merge queue, settlement, stop conditions
+- `reference/escalation.md` — escalation policy and the error-handling table
+- `reference/templates.md` — campaign-doc skeleton and handover template
+
+## Provenance
+
+Forked from `opum-doc` `.claude/skills/backlog-handover` v0.9.1-ocli.1, which itself forked `salient-data/skadilabs` `.claude/skills/backlog-handover` v0.9.1 and rebound it from GitHub Issues onto Backlog.md (removing ECK primitive references, `.claude/project-constants.md`, and the companion `handover`/`tracker` skills; inlining their conventions; fixing the upstream dispatch-marking-before-worktree-acquisition defect; removing autonomous follow-up filing and archive-on-complete). This copy's only change is the task-ID/branch/lease prefix rebind from `OCLI`/`ocli` to `QCLI`/`qcli` for this repo's Backlog project (`task_prefix: qcli` in `backlog/config.yml`) — no other behavioral change.
