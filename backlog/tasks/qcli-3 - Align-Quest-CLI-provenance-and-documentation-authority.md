@@ -1,11 +1,11 @@
 ---
 id: QCLI-3
 title: Align Quest CLI provenance and documentation authority
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-01 17:53'
-updated_date: '2026-08-01 17:54'
+updated_date: '2026-08-01 18:18'
 labels:
   - audit
   - documentation
@@ -34,11 +34,11 @@ Remediate quest-cli component documentation under the cross-product authority au
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The OCLI-to-QCLI ledger covers every former record with exactly one successor or explicit non-adoption disposition and no parallel active campaign
-- [ ] #2 The root index and active research Story directly link the component ADR, charter, research Spec, migration ledger, and context-free handover
-- [ ] #3 Lore release-gate detail is owned by lore-doc and consumed here only as a named activation obligation
-- [ ] #4 No product source, dependency, package scaffold, implementation task, or release claim is added
-- [ ] #5 Lore sync, strict validation, strict checking, Lore agents check, Story/task rollup, git diff check, and semantic review pass
+- [x] #1 The OCLI-to-QCLI ledger covers every former record with exactly one successor or explicit non-adoption disposition and no parallel active campaign
+- [x] #2 The root index and active research Story directly link the component ADR, charter, research Spec, migration ledger, and context-free handover
+- [x] #3 Lore release-gate detail is owned by lore-doc and consumed here only as a named activation obligation
+- [x] #4 No product source, dependency, package scaffold, implementation task, or release claim is added
+- [x] #5 Lore sync, strict validation, strict checking, Lore agents check, Story/task rollup, git diff check, and semantic review pass
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -46,3 +46,15 @@ Remediate quest-cli component documentation under the cross-product authority au
 <!-- SECTION:PLAN:BEGIN -->
 1. Verify QCLI task mapping and component authority against quest-doc and opum-doc. 2. Complete non-adoption/successor dispositions and replace duplicated Lore gate wording with an owner pointer. 3. Connect root and active-Story navigation across the component ADR, charter, Spec, ledger, and handover. 4. Synchronize, run strict gates and stale-language review, finalize with evidence, and commit documentation/task changes only.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verification on 2026-08-01: the normative migration ledger covers OCLI-1 through OCLI-6, including exact QCLI successors for all component slices and explicit non-adoption for portfolio/setup/audit records. Root and live-Story graph context reaches the ADR, charter, Spec, ledger, and handover. Copied Lore gate criteria were replaced by the lore-doc owner link. lore sync completed; lore validate --strict and lore check --strict reported 15 files with zero errors/warnings; lore agents --check was up to date; lore orphans reported zero; both Story rollups matched live Backlog; git diff --check passed. Semantic diff and repository inventory confirmed documentation/Backlog files only, with no product source, runtime dependency, package scaffold, implementation activation, or release claim.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Established quest-cli as the sole normative OCLI-to-QCLI component-provenance owner, scoped research tasks to component candidates, made dated OCLI evidence provisional pending QCLI-2.1, linked the Lore-owned gate instead of copying it, and connected all current component navigation. Strict Lore, task, agent, orphan, and Git checks passed; no Quest implementation or release surface was added.
+<!-- SECTION:FINAL_SUMMARY:END -->
