@@ -1,10 +1,10 @@
 ---
 id: QCLI-2.2
-title: Reconcile legacy Opum requirements into Quest decisions
+title: Reconcile legacy Opum requirements into Quest CLI candidates
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-01 17:23'
+updated_date: '2026-08-01 18:16'
 labels:
   - campaign
   - research
@@ -25,12 +25,23 @@ ordinal: 4000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Extract product-owned functional intent from approved legacy Opum decisions and task narratives, then classify what survives, changes, or is deferred in Quest. Work only from admitted authored requirements and observable narratives; do not inspect or port legacy implementation source or tests.
+Extract component-relevant functional intent from admitted legacy Opum decisions and task narratives, then classify it as Quest CLI contract candidates. Work only from admitted authored requirements and observable narratives; do not inspect or port legacy implementation source or tests. Route every product-wide vocabulary, execution-graph, architecture, or roadmap change to the canonical quest-doc specification.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 A source-attributed matrix covers every admitted legacy decision, specification, guide, task narrative, and prototype review used
-- [ ] #2 Each candidate requirement is classified reusable, adapted, superseded, deferred, or rejected against the current Quest, Lore, and Opum boundaries
-- [ ] #3 The result preserves supported execution-graph invariants while explicitly rejecting the former product name, repository home, and command namespace
+- [ ] #2 Each component candidate is classified reusable, adapted, superseded, deferred, or rejected against the current Quest, Lore, and Opum boundaries
+- [ ] #3 Any change to Quest-wide semantics, vocabulary, architecture, or roadmap is proposed to quest-doc and is not treated as normative in quest-cli
+- [ ] #4 The result preserves supported CLI execution invariants while rejecting the former product name, repository home, and command namespace
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @codex
+created: 2026-08-01 18:16
+---
+Authority audit: scope is now limited to Quest CLI component candidates; quest-doc remains the sole product-wide decision owner.
+---
+<!-- COMMENTS:END -->

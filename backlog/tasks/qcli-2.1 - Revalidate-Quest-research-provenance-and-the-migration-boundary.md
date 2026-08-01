@@ -4,7 +4,7 @@ title: Revalidate Quest research provenance and the migration boundary
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-01 17:23'
+updated_date: '2026-08-01 18:16'
 labels:
   - campaign
   - research
@@ -12,7 +12,8 @@ labels:
   - clean-room
   - migration
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
-dependencies: []
+dependencies:
+  - QCLI-1
 documentation:
   - docs/stories/prepare-quests-clean-room-research-foundation.md
 parent_task_id: QCLI-2
@@ -33,3 +34,13 @@ Adopt and revalidate the completed OCLI-3.1 provenance register after the opum-c
 - [ ] #2 The former opum-cli repository is identified as opum-doc research provenance, not the Quest implementation home
 - [ ] #3 quest-cli remains free of excluded or quarantined source and tests
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @codex
+created: 2026-08-01 18:16
+---
+Authority audit: QCLI-1 is now an explicit dependency, matching the canonical research specification. Dated OCLI source classifications remain provisional until this task revalidates them.
+---
+<!-- COMMENTS:END -->
