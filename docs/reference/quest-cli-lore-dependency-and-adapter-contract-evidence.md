@@ -54,9 +54,11 @@ The Lore-wide integration boundary and release-gate policy is owned by
 implementation on accepted Lore release evidence" (status **To Do** as of
 2026-08-04, re-verified live via `backlog task view LDOC-4 --plain` in the
 local `lore-doc` clone). This matrix links that gate as the controlling
-external authority and does not reproduce its release-gate predicate,
-integration-obligation list, or open questions here — those are `lore-doc`'s
-to own, and they are mutable. `lore-doc`'s own remote stayed
+external authority and does not reproduce its release-gate predicate, or
+either list, in full here — those lists are `lore-doc`'s to own, and they
+are mutable; row 5 of the matrix below quotes one fragment of each solely
+to name the specific gap it evidences, not to restate either list.
+`lore-doc`'s own remote stayed
 `salient-data/lore-doc`, unlike `lore-cli` and `quest-cli`, which both
 transferred to `opum-ai` on 2026-08-04 — re-verified live via `git remote -v`
 in the local clone, confirming the distinction the source register already
@@ -81,7 +83,7 @@ vocabulary (which classifies *sources*). These classify a Quest CLI
 | Quest CLI choice | Lore dependency | Owning Lore task / spec / runbook / evidence | Classification | Evidence pointer (dated 2026-08-04) |
 | --- | --- | --- | --- | --- |
 | Whether *any* Quest product implementation may activate | The Lore-wide release-gate predicate must report Pass from live owner evidence | `LDOC-4` (task, `lore-doc`) + [Quest integration and Lore release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md) (Spec, `lore-doc`, link only) | Requiring owner input | `LDOC-4` re-verified **To Do** via `backlog task view LDOC-4 --plain` in `/Volumes/external/repos/lore-doc`. A dated observation, not a substitute for the next live check (see Activation handover, below). |
-| Which published Lore release Quest research currently targets | `lore-cli`'s package/command identity and immutable `0.1.0` release evidence | [Lore CLI release truth](https://github.com/opum-ai/lore-cli/blob/dev/docs/reference/lore-cli-release-truth.md) (Reference, `lore-cli`) + task `LCLI-296` | Evidence-complete | Re-verified live: `npm view @opum-ai/lore version` → `0.1.0`; `lore --version` → `0.1.0`; `git rev-list -n1 v0.1.0` → `e621d209be2cc8867d1c38c7c78b4b4acc96d82e`, matching the release-truth record's tag/commit and the source register's own citation. This is component-level (`lore-cli`) evidence, distinct from — and only one of four conditions feeding — the program-level gate row above; a fully evidenced component release does not by itself open `LDOC-4`. |
+| Which published Lore release Quest research currently targets | `lore-cli`'s package/command identity and immutable `0.1.0` release evidence | [Lore CLI release truth](https://github.com/opum-ai/lore-cli/blob/dev/docs/reference/lore-cli-release-truth.md) (Reference, `lore-cli`) + task `LCLI-296` | Evidence-complete | Re-verified live: `npm view @opum-ai/lore version` → `0.1.0`; `lore --version` → `0.1.0`; `git rev-list -n1 v0.1.0` → `e621d209be2cc8867d1c38c7c78b4b4acc96d82e`, matching the release-truth record's tag/commit and the source register's own citation. This is component-level (`lore-cli`) evidence, distinct from — and only one of the further, separately-held conditions feeding — the program-level gate row above; a fully evidenced component release does not by itself open `LDOC-4`. |
 | Whether a *future* Lore version bump can be trusted the same way `0.1.0` was | `lore-cli`'s automated-publish control (`publish: true` dispatch) remains unprotected | Task `LCLI-278` (`lore-cli`) + [Lore CLI release truth](https://github.com/opum-ai/lore-cli/blob/dev/docs/reference/lore-cli-release-truth.md) ("Evidence required to call Lore released," condition 6) | Blocked on a named owner result | `LCLI-278` re-verified **To Do** via `backlog task view LCLI-278 --plain` in `/Volumes/external/repos/lore-cli` — GitHub's billing plan blocks required-reviewer protection on the `release` Environment; `0.1.0` itself was authorized via a one-time interactive bootstrap, which this row does not call into question. |
 | The versioned Lore import/link/adapter behavior quest-cli's charter commits it to build | The concrete contract `lore-cli`'s current `BacklogAdapter` places on any task-tracker backend it invokes | `src/adapters/backlog.ts` (`lore-cli`, tag `v0.1.0`) — reviewed in full in Part 2, below | Provisionally researchable | The contract itself is fully describable now from admissible source (Part 2). Quest's compliance path is not yet decided, and several sub-requirements resolve only via a `lore-doc` boundary decision (Part 2's classification). |
 | Whether Lore treats a future Quest CLI as a drop-in `backlog`-shaped target or builds it a distinct adapter | No committed answer exists on either side yet | [Quest integration and Lore release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md) ("Integration obligations": "A Lore adapter for Quest is activated only through its owning component task after the public contract is accepted..."; "Open questions": "accepted jointly but implemented by the owning components") | Requiring owner input | Confirmed live 2026-08-04 by source inspection (Part 2's central finding): `lore-cli`'s only adapter type today is `BacklogAdapter`, referenced by name in 27 of its own source files; no generic pluggable interface exists to implement against. Building a second adapter is unstarted on Lore's side as of this revision. |
@@ -212,7 +214,7 @@ lines 827-833) and runs before any other method:
 
 1. `<binary> --version` exits `0` and prints a bare semver.
 2. that semver compares `>=` a pinned floor, `MIN_BACKLOG_VERSION =
-   "1.49.0"` (line 47) — the source's own comment (lines 30-45) warns this
+   "1.49.0"` (line 47) — the source's own comment (lines 34-46) warns this
    floor alone is "a sanity floor only" and does not by itself prove JSON
    capability, since "a pre-`--json` stock release can still report a
    version at or above this floor."
@@ -290,7 +292,8 @@ separate documentation-refs array.
 `BacklogAdapter` is `lore-cli`'s **only** adapter type. `grep -rl
 BacklogAdapter src/` inside the local clone returns 27 files that import
 or type against it by name, including every command that touches tasks
-(`sync`, `check`, `link`, `unlink`, `tasks`, `orphans`, and others). `grep
+(`sync`, `check`, `link` — which also implements the inverse `unlink`
+command — `tasks`, `orphans`, and others). `grep
 -rl "TaskAdapter\|pluggable\|task-tracker\|tracker backend" src/
 docs/specs/ docs/adr/` returns **zero** hits. `docs/specs/lore-design.md`
 (§2.3, "Adapters are isolated and lazy-loaded") frames `adapters/
@@ -381,12 +384,19 @@ Contextual, citable for nothing.
 ### Admissibility discipline applied in this document
 
 Every fact in Part 2 attributed to Lore's own requirements is cited to
-`lore-cli` source (`src/adapters/backlog.ts`) or `lore-cli`'s own published,
-non-Backlog-derived surface (`cli-contract.md`, `okf-projection-contract.md`,
-`lore-design.md` §2.3, `lore-cli-release-truth.md`,
-`release-publishing.md`) — the admissible half of the 2026-08-04 split
-rule recorded in the
+`lore-cli` source (`src/adapters/backlog.ts`) or `lore-cli`'s own published
+surface (`cli-contract.md`, `okf-projection-contract.md`, `lore-design.md`
+§2.3, `lore-cli-release-truth.md`) — the admissible half of the 2026-08-04
+split rule recorded in the
 [research source register](quest-cli-research-source-register.md#lore-cli--the-lore-command).
+`release-publishing.md` is cited only as Part 3's release-evidence source
+(the drift table, above); it is **not** listed here as uniformly
+non-Backlog-derived, because its own "## Prerequisites" section states a
+Backlog.md release-history fact as fact — "Backlog.md `v1.49.0`, published
+2026-08-02, is the first tagged release containing PR #790/BACK-545" — not
+as a Lore requirement. The register now names that specific passage as an
+explicit citability carve-out; this document does not cite, quote, or rely
+on it anywhere.
 `docs/adr/0002-backlog-integration-json-only.md`,
 `docs/adr/0009-story-task-coupling-reconciliation.md`,
 `docs/adr/0012-backlog-coexistence-git-ownership.md`,
@@ -394,10 +404,24 @@ rule recorded in the
 `docs/reference/backlog-json-schema.md`, and
 `docs/runbooks/backlog-json-patch.md` were read, where read at all, for
 question discovery only — identifying which requirements to look for in
-the admissible source — and are cited nowhere in this document. No claim
-here about how Backlog.md itself behaves is sourced from Lore; Backlog.md
-behavior claims are `QCLI-2.5`'s independently re-derived territory, not
-this document's.
+the admissible source — and are cited nowhere in this document.
+
+Three source-comment quotes reproduced in Part 2 incidentally describe how
+Backlog.md currently behaves: §1's note that `edit`'s `--json` is
+"unsupported, LORE-57" (`src/adapters/backlog.ts:753`); §3's version-floor
+comment warning "a pre-`--json` stock release can still report a version at
+or above this floor" (within the comment block at `src/adapters/
+backlog.ts:34-46`); and §4's `createTask` comment that "`--plain` suppresses
+the `Created task <ID>` line lore captures, and create emits no JSON
+envelope" (`src/adapters/backlog.ts:919-920`). Each is reproduced strictly
+as **Lore's own stated rationale for its own invocation convention** —
+evidence of what Lore requires and why — not as this document's assertion
+about Backlog.md,
+and none is load-bearing for any requirement in the AC5 table above. No
+claim here is *admitted as evidence about Backlog.md*: any Backlog.md
+behavior claim a Quest requirement needs must still be independently
+re-derived from Backlog.md's public surface at the pinned v1.49.3 —
+`QCLI-2.5`'s territory, not this document's.
 
 ## Notes
 

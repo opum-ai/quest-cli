@@ -484,11 +484,19 @@ named slice, never to every file in its repository.
   `docs/reference/lore-cli-release-truth.md` and
   `docs/runbooks/release-publishing.md`.
 - **Exact revision or retrieval date:** tag `v0.1.0`; re-read live 2026-08-04
-  by `QCLI-2.7`, which also confirmed both are non-Backlog-derived (neither
-  asserts a Backlog.md behavior claim) and that ordinary content evolution
-  in these two files between the tag and current `dev` HEAD (release
-  evidence is expected to keep accruing) is not itself adapter-surface
-  drift.
+  by `QCLI-2.7`, which found these two documents split the same way the
+  lore-cli source-admissibility split rule above splits lore-cli source:
+  `lore-cli-release-truth.md:63` ("Lore now requires the published
+  JSON-capable Backlog.md release at or past `1.49.0`") states a Lore
+  requirement and is citable. `release-publishing.md`'s "## Prerequisites"
+  section (lines 133-137) is different — it states a **Backlog.md
+  release-history fact** as fact, not as a Lore requirement: "Backlog.md
+  `v1.49.0`, published 2026-08-02, is the first tagged release containing PR
+  #790/BACK-545." That specific passage is a named carve-out from this
+  slice's citability (see Exclusions, below); the two documents are not
+  uniformly "non-Backlog-derived." Ordinary content evolution in these two
+  files between the tag and current `dev` HEAD (release evidence is
+  expected to keep accruing) is not itself adapter-surface drift.
 - **Ownership rationale:** `lore-cli` is the owning implementation and
   release-evidence authority for the Lore tool quest-cli integrates with,
   per the component charter's routing table ("Lore implementation and
@@ -502,13 +510,19 @@ named slice, never to every file in its repository.
   [dependency matrix](quest-cli-lore-dependency-and-adapter-contract-evidence.md).
   Citing this evidence establishes only that `lore-cli 0.1.0` is released;
   it does not by itself open the program-level `lore-doc`/`LDOC-4`
-  implementation-activation gate, which requires three further,
-  separately-held conditions (see the linked gate Spec — not restated
-  here).
-- **Exclusions:** does not extend to either document's own cross-links into
-  the Backlog corpus slice above, should any accrue later; does not
-  authorize treating a dated read of these two documents as a substitute
-  for a live re-check at activation time.
+  implementation-activation gate, which requires further, separately-held
+  conditions (see the linked gate Spec — not restated here).
+- **Exclusions:** named carve-out, in effect now (not hypothetical) —
+  `release-publishing.md`'s "## Prerequisites" section, specifically its
+  Backlog.md-`v1.49.0` release-history bullet (lines 133-137), is excluded
+  from this slice's citability: it states a Backlog.md release-history fact,
+  not a Lore requirement, and any Quest assertion needing that fact must
+  instead be independently re-derived from Backlog.md's public surface at
+  the pinned v1.49.3, per the standing rule above. Beyond that carve-out,
+  this slice does not extend to either document's own cross-links into the
+  Backlog corpus slice above; nor does it authorize treating a dated read of
+  these two documents as a substitute for a live re-check at activation
+  time.
 - **Reclassification triggers:** a new Lore release changing any recorded
   fact (SHA-256 values, Trusted Publisher binding, `LCLI-278`'s status); a
   further owner decision.
