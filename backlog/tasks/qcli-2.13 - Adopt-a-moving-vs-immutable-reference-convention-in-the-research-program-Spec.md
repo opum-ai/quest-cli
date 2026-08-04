@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-04 14:35'
-updated_date: '2026-08-04 15:30'
+updated_date: '2026-08-04 15:45'
 labels:
   - campaign
   - research
@@ -68,6 +68,26 @@ Validation (run from the worktree root after the edit, before lore sync):
 All three: zero errors, zero warnings, zero orphans.
 
 AC4 scope note: the register is QCLI-2.11's file this wave, read-only to me. My edit cross-references the register by name/heading FROM the Spec; I did not and could not add the reverse link (register -> Spec) since I don't own that file. See --comment for the orchestrator on whether a true bidirectional cross-reference requires a follow-up edit to the register.
+
+Follow-up fix for integration review finding F3 (AC4 half-satisfied):
+AC4 requires the register -> Spec direction (register's GitHub-redirect
+reclassification trigger cross-referenced as the specific instance of the
+Spec's general convention). Only the Spec -> register direction existed
+(the Spec's "Relationship to the source register" subsection already
+linked to the register's lore-cli slice). Fixed by appending one clause to
+that register bullet (docs/reference/quest-cli-research-source-register.md,
+"lore-cli / the `lore` command" slice, Reclassification triggers bullet)
+stating that the GitHub rename/transfer-redirect trigger is the specific,
+single-instance case of the research program Spec's Verification-bar
+moving-vs-immutable-references convention, with an anchored relative link
+to docs/specs/quest-cli-pre-implementation-research-program.md#moving-vs-immutable-references.
+No reclassification, no narrowing of any permitted use, no other slice
+touched. The Spec side's existing "Relationship to the source register"
+subsection was left as-is (already accurate, no restructuring needed).
+lore check --strict, lore validate --strict, and lore orphans all report
+zero errors/warnings/orphans after the change. In my judgment this now
+fully satisfies AC4 as worded (mutual cross-reference exists in both
+directions); orchestrator to confirm at settlement.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
