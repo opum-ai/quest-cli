@@ -39,6 +39,9 @@ Product source and runtime dependencies remain gated on the full Lore release.
   research unless it is classified there.
 - [Quest CLI research handover](runbooks/quest-cli-research-handover.md)
   is the context-free pickup path.
+- [Quest CLI Lore dependency and adapter contract evidence](reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md)
+  tracks Lore-dependent Quest choices with owning evidence and reviews the
+  lore-cli adapter contract quest-cli must honor.
 - [Audit Quest CLI documentation authority](stories/audit-quest-cli-documentation-authority.md)
   records the repository-local part of the cross-product audit.
 
