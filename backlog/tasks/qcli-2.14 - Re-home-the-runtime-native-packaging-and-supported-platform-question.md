@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude-worker'
 created_date: '2026-08-04 14:35'
-updated_date: '2026-08-04 16:48'
+updated_date: '2026-08-04 18:59'
 labels:
   - campaign
   - research
@@ -64,4 +64,6 @@ AC4: double-checked via git diff — Open Questions section of the Spec is byte-
 AC5: after 'lore sync' (regenerated docs/log.md only; no managed-block changes needed since neither edited doc carries Story-coupling managed blocks) and committing docs/log.md separately: 'lore check --strict --plain' -> '21 files, 0 errors, 0 warnings' (exit 0); 'lore validate --strict --plain' -> '21 files, 0 errors, 0 warnings, 6 skipped' (exit 0); 'lore orphans --plain' -> '0 orphan tasks, 0 dangling links' (exit 0). Baseline (pre-edit) was also 0/0/0, so the gate was never red.
 
 Out-of-scope discovery (not acted on): none new. QCLI-2.7's document already records its own out-of-scope discovery (ADR-0009 citation-slice gap) from its own prior pass; not re-touched here.
+
+Fix-pass (F1, second review, blocking): docs/specs/quest-cli-pre-implementation-research-program.md line ~72 read '...outside the QCLI-2.2-QCLI-2.7 synthesis chain that QCLI-2.8 draws on...'. Stale on arrival: commit 94529f0 (this branch's merge-base) had already widened QCLI-2.8's live Dependencies to QCLI-2.2-2.7 plus QCLI-2.11,2.12,2.13,2.14 (owner-approved) before this branch's content commit 3d55e9d added the sentence. The underlying claim (neither QCLI-2.9 nor QCLI-2.10 is a QCLI-2.8 input; neither resolves either open question) was and remains true -- only the range naming the old dependency set was wrong. Fixed by dropping the stale range clause: now reads '...outside the synthesis chain that QCLI-2.8 draws on...'. Did not restate QCLI-2.8's full live input set inline, and did not touch the separate pre-existing Dependency-order table row for QCLI-2.8 (line ~68, same stale QCLI-2.2-QCLI-2.7 range) -- that row is a distinct, pre-existing finding explicitly deferred to an owner decision, out of scope here. No task scope claimed, no open question closed. Verified backlog task view QCLI-2.8 --plain live Dependencies field: QCLI-2.2, QCLI-2.3, QCLI-2.4, QCLI-2.5, QCLI-2.6, QCLI-2.7, QCLI-2.11, QCLI-2.12, QCLI-2.13, QCLI-2.14. Gates after fix: lore check --strict -> 21 files, 0 errors, 0 warnings (exit 0); lore validate --strict -> 21 files, 0 errors, 0 warnings, 6 skipped (exit 0); lore orphans -> 0 orphan tasks, 0 dangling links (exit 0). No managed-block regeneration triggered; git status clean after gates. Commit 9c78335, Refs: QCLI-2.14.
 <!-- SECTION:NOTES:END -->
