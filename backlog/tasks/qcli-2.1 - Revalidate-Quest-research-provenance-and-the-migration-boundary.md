@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:31'
+updated_date: '2026-08-04 06:38'
 labels:
   - campaign
   - research
@@ -52,6 +52,34 @@ Adopt and revalidate the completed OCLI-3.1 provenance register after the opum-c
 9. Commit in small logical slices with `Refs: QCLI-2.1` trailers, confirm nothing lore/backlog left unstaged, and push the branch.
 <!-- SECTION:PLAN:END -->
 
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Revalidation complete. Authored docs/reference/quest-cli-research-source-register.md (lore-managed Reference, scaffolded via `lore new reference`) as the current per-slice admission authority, superseding the OCLI-3.1 capsule (opum-doc:docs/reference/dated-opum-fleet-and-prior-art-inventory.md) as the thing Quest research must check before citing a source.
+
+Classification decisions (all re-verified live 2026-08-04, not copied from the prior capsule):
+- opum-doc (formerly opum-cli): Contextual — confirmed via `git remote -v` in the local checkout (salient-data/opum-doc). Explicitly recorded as OCLI-provenance owner, NOT the Quest implementation home (AC2). Legacy Opum CLI implementation source/tests possibly still in its Git history remain excluded from inspection regardless of the rename.
+- Dated fleet inventory + its two recovery commits (7b82afc, d42c016): Allowed — both commits confirmed reachable in opum-doc via `git show --stat`.
+- Historical OCLI Story/Spec/Runbook/task records: Allowed per-record, gated by the migration ledger's row-by-row disposition (never blanket).
+- Quarantined legacy artifacts (unversioned opum-cli/fast-mcp-opum fleet copies): Quarantined, not re-inspected, carried forward unchanged.
+- Deferred Opum prototype surfaces (MCP, hosted UI/app): Deferred, no current QCLI task may treat as a requirement source.
+- Backlog.md implementation source/internal tests: Excluded per the owner's explicit 2026-08-04 ruling — rationale is authorship independence, not licensing (MIT would legally permit reading; owner declined the offered reclassification). Verified locally installed build is v1.49.3 (`backlog --version`, `npm view backlog.md version` both 1.49.3, license MIT, repo MrLesk/Backlog.md).
+- Backlog.md public surface (published docs, --help, --plain/--json output, on-disk artifacts): Allowed, pinned to v1.49.3.
+- lore-cli / `lore`: Allowed (public CLI surface only). CORRECTION to the orchestrator-supplied evidence: the repository is `github.com/opum-ai/lore-cli` (private), not `salient-data/lore-cli` — verified via `git remote -v` in the local lore-cli checkout and `gh api repos/opum-ai/lore-cli` (full_name opum-ai/lore-cli). `gh api repos/salient-data/lore-cli` resolves to the same repo id (1275776424) via GitHub's rename redirect, confirming salient-data/lore-cli is a stale identity for the same repo, not a second one. Release v0.1.0 publishedAt 2026-08-04T02:44:47Z confirmed via `gh release view`. Locally installed `lore` binary symlinks to npm package @opum-ai/lore@0.1.0 (MIT) — this is the real published package; the unscoped npm names `lore`/`lore-cli` are an unrelated third party (github.com/lore/lore, a React/Redux framework), confirmed via `npm view`.
+- npm name occupancy (quest v0.4.0/Clever/quest; quest-cli v1.0.0 unattributed; lore/lore-cli unrelated; @salient-data/quest, @salient-data/quest-cli, @salient-data/lore-cli all 404): Excluded as source material, recorded only as naming-conflict evidence for QCLI-2.9 — did not attempt to resolve the naming question myself.
+- quest-doc and lore-doc canonical records: Allowed/Contextual respectively, cited for consistency, not restated or overridden here. No finding in this register proposes a change to Quest-wide vocabulary/architecture/roadmap.
+- quest-cli's own current repository inventory: attested via `git ls-files` + `git status --porcelain=v1 --untracked-files=all` (clean, no untracked files) as AC3 evidence — no package manifest, src tree, executable scaffold, or runtime dependency present.
+
+Verification actually run:
+- `lore sync --plain` -> regenerated docs/log.md, docs/reference/index.md, docs/stories/{audit-quest-cli-documentation-authority,prepare-quests-clean-room-research-foundation}.md, committed backlog/ (1 file, this task's status). Incidentally cleared pre-existing status/managed-block drift on stories/audit-quest-cli-documentation-authority.md left over from QCLI-4 (unrelated to this task's content, fixed because `lore sync` is required before `lore check`).
+- `lore check --strict --plain` -> "16 files, 0 errors, 0 warnings", exit 0 (after fixing one broken relative link this task introduced, from ../adr/ path correction).
+- `lore validate --strict --plain` -> "16 files, 0 errors, 0 warnings, 6 skipped", exit 0.
+- `lore orphans --plain` -> "0 orphan tasks, 0 dangling links", exit 0.
+- `git status --porcelain=v1 --untracked-files=all` (quest-cli) -> clean before this task's own edits; confirms AC3's baseline.
+
+Committed at 108eb64 (Refs: QCLI-2.1); backlog status commit auto-made by `lore sync` at bce0dec.
+<!-- SECTION:NOTES:END -->
+
 ## Comments
 
 <!-- COMMENTS:BEGIN -->
@@ -59,5 +87,15 @@ author: @codex
 created: 2026-08-01 18:16
 ---
 Authority audit: QCLI-1 is now an explicit dependency, matching the canonical research specification. Dated OCLI source classifications remain provisional until this task revalidates them.
+---
+
+author: @claude
+created: 2026-08-04 06:38
+---
+Two things worth reviewer attention:
+
+1. Repository-identity correction: the orchestrator's dated evidence said "salient-data/lore-cli published GitHub release tag v0.1.0". Live verification (git remote -v, gh api repos/opum-ai/lore-cli, gh api repos/salient-data/lore-cli) shows the actual current repository is `opum-ai/lore-cli` (private) — `salient-data/lore-cli` resolves to the same repo id only via GitHub's rename redirect, i.e. it's a stale identity, not a live second location. The v0.1.0 release timestamp (2026-08-04T02:44:47Z) matches; only the owning org differs from what was supplied. Recorded in the register's lore-cli entry with the correction and the exact commands used. Flagging in case this affects how QCLI-2.7 or the component charter's Lore routing table should later phrase lore-cli's org.
+
+2. Incidental drift fix: `lore check` failed at task start due to pre-existing reconciliation drift on docs/stories/audit-quest-cli-documentation-authority.md (status/managed block stale from QCLI-4 completing without a subsequent `lore sync`), unrelated to this task's content. Running the mandated `lore sync` before `lore check` cleared it as a side effect. No authored prose on that Story was touched — only its lore-managed status/block. Noted here in case a reviewer wants that attributed to a separate follow-up rather than folded into this task's commit.
 ---
 <!-- COMMENTS:END -->
