@@ -25,7 +25,11 @@
 - 2026-08-04T10:59:44-05:00 2e0995d799b51ad082846cb959209d46a60f55f8 docs: sync log.md after wave-3 follow-up merges
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
-- 2026-08-04T14:06:12-05:00 d9ca12ef3a40df68817257240546677e72e3f268 docs: sync managed blocks after adding the QCLI-2.6 threat model
+- 2026-08-04T14:06:57-05:00 739aa7e808ad7c8e6ba50aa9895e3fe3bb6c5c33 QCLI-2.6: Model Quest Git, filesystem, and concurrency threats (#13)
+- 2026-08-04T14:07:24-05:00 3207b38549c677a6261309c4a41324de49a4520d docs: sync log after QCLI-2.12 register and ledger edits
+- 2026-08-04T14:07:24-05:00 40ab7f67667f9439b8315624b85c2b33a142bf99 docs: sync log with QCLI-2.12's own commits
+- 2026-08-04T14:07:24-05:00 d6bfb1fc2793e70d75e2f278d52c9834606d52a9 docs: sync log after QCLI-2.12 review follow-up fixes
+- 2026-08-04T14:07:24-05:00 f49c8db9946f9d5d08c137fbcab531302f05e5e2 docs: sync log after QCLI-2.12 implementation notes
 
 ## docs/adr
 
@@ -49,8 +53,14 @@
 - 2026-08-04T10:58:20-05:00 63b1e0a33e4b67d87d6034e9b72f127fce10d106 QCLI-2.4 follow-up: add moving-reference recheck clause for quest-doc citation (#10)
 - 2026-08-04T10:59:08-05:00 c09ed473c8432d418c941a3201e33a5e1f1fed3c QCLI-2.13 follow-up: complete AC4 with register-side back-reference (#11)
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
-- 2026-08-04T14:06:05-05:00 742843bd5e0d0643e07c4d8a732f626a4dad6f6d docs(qcli-2.6): add Quest CLI Git, filesystem, and concurrency threat model
-- 2026-08-04T14:06:12-05:00 d9ca12ef3a40df68817257240546677e72e3f268 docs: sync managed blocks after adding the QCLI-2.6 threat model
+- 2026-08-04T14:06:57-05:00 739aa7e808ad7c8e6ba50aa9895e3fe3bb6c5c33 QCLI-2.6: Model Quest Git, filesystem, and concurrency threats (#13)
+- 2026-08-04T14:07:21-05:00 1ae96d1a78eea24b45233eea597441631df48234 docs(source-register): record QCLI-2.12's coherence-gap closures in summary and Notes
+- 2026-08-04T14:07:21-05:00 abf4b73a64624bca1af53d731b5554bfd06b64d0 docs(source-register): unify Backlog-corpus catch-all and add release-gate precedence rule
+- 2026-08-04T14:07:21-05:00 b943ca19b5a2e181c4e37a71ff96eb3f18fea973 docs(migration-ledger): admit owner-ruled register amendments recorded after QCLI-2.1
+- 2026-08-04T14:07:21-05:00 c449cee6e1fff07ce0d643f95e598d264706d6e9 docs(source-register): close npm-name and Prior-QCLI-records enumeration gaps
+- 2026-08-04T14:07:24-05:00 04ad2d842317bdbe73c40e7d72b05cc7edebdb78 docs(source-register): record the Backlog-corpus catch-all's actual superseded wording
+- 2026-08-04T14:07:24-05:00 c05b268b0256f6f8d81093bc783d0f9338e427e0 docs(source-register): add the Quest package/command ADR to Prior-QCLI-research-records enumeration
+- 2026-08-04T14:07:24-05:00 d791c5dae1a9c70b70449038ebd7c8d15ed970db docs(source-register): widen quest-doc canonical-product-records permitted use to name all four admitted uses
 
 ## docs/runbooks
 
@@ -77,4 +87,3 @@
 - 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
-- 2026-08-04T14:06:12-05:00 d9ca12ef3a40df68817257240546677e72e3f268 docs: sync managed blocks after adding the QCLI-2.6 threat model

@@ -52,8 +52,19 @@ authors the current black-box corpus. **Condition fired (QCLI-2.3,
 17 scenarios (BB-01..BB-17). This sentence's historical claim about the
 seeds themselves is left standing, not deleted, per this ledger's own
 preservation rules below. No source slice is admitted into current
-research until QCLI-2.1 verifies its identity, revision, ownership, permitted
-use, exclusions, and contamination boundary.
+research until QCLI-2.1's initial revalidation, or a later task's
+owner-ruled amendment to the [research source
+register](quest-cli-research-source-register.md), verifies its identity,
+revision, ownership, permitted use, exclusions, and contamination boundary.
+**Amended 2026-08-04 by `QCLI-2.12`:** QCLI-2.1 is the register's founding
+admission event, not its only one — QCLI-2.7 has since, entirely under
+explicit owner ruling recorded the same day, added two slices (the lore-cli
+source-admissibility split rule and the lore-cli release-gate-evidence
+slice), widened a third (npm package name occupancy), and retired the
+lore-cli Backlog.md corpus slice's closed document list for a standing
+catch-all; each such amendment is itself the six-field verification this
+sentence requires, performed by the amending task under owner ruling rather
+than by QCLI-2.1.
 
 ### Preservation rules
 

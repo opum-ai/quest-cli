@@ -9,7 +9,7 @@ tags:
   - clean-room
   - research
   - source-register
-summary: Revalidates the OCLI-3.1 register per slice; QCLI-2.7 added the lore-cli split rule, closed two evidence gaps, and fixed a content-identity defect.
+summary: Revalidates the OCLI-3.1 register per slice; QCLI-2.7 added the lore-cli split rule and closed two evidence gaps; QCLI-2.12 closed admission-authority coherence gaps without reclassifying any source.
 timestamp: 2026-08-04T13:29:14.000Z
 ---
 
@@ -353,7 +353,22 @@ named slice, never to every file in its repository.
   evidence relevant to the Lore activation gate; citing its existence and
   version here does not itself verify the gate — matching that evidence
   against the owning repository and the gate's requirements is `QCLI-2.7`'s
-  scope, not performed by this register.
+  scope, not performed by this register. **Widened 2026-08-04 by
+  `QCLI-2.12`** to close an asymmetry with the npm package name occupancy
+  slice's own widened permitted use (below): also cite `@opum-ai/lore`'s
+  ordinary registry metadata — license, claimed repository, maintainer
+  identity, description text, and publish/version history, each retrieved
+  via `npm view @opum-ai/lore <field>` — as package-naming-pattern and
+  allocation evidence, for example `QCLI-2.9`'s [packaging
+  contract](quest-cli-packaging-contract.md) citing `@opum-ai/lore`'s
+  maintainer identity to confirm the observed `<name>-cli` repository /
+  `@opum-ai/<name>` package / `<name>` executable sibling pattern, never as a
+  Quest runtime dependency or implementation-source claim. This widening is
+  registry-metadata only, the same class of data and exactly as narrow as
+  the npm-occupancy slice's own equivalent widening; it does not touch
+  `@opum-ai/lore`'s package source or tests, which stay governed exclusively
+  by the CLI-surface / source-admissibility rules in this slice and the
+  split rule below, unchanged.
 - **Exclusions:** **amended 2026-08-04 by the owner's split rule** (see "The
   lore-cli source-admissibility split rule," immediately below) — design
   derivation from lore-cli's own TypeScript implementation source is now
@@ -446,8 +461,18 @@ named slice, never to every file in its repository.
   `docs/reference/backlog-json-schema.md`,
   `docs/reference/historical-upstream-backlog-json-tag-watch.md`,
   `docs/runbooks/backlog-json-patch.md`, **and, by the catch-all clause
-  below, any further lore-cli document deriving from Backlog.md source that
-  this register has not yet individually read.**
+  below, any further lore-cli document a worker discovers asserting an
+  uncited claim about how Backlog.md behaves that this register has not yet
+  individually read.** (This field and Exclusions, below, previously stated
+  the catch-all in two materially different formulations: this field read
+  "any further lore-cli document deriving from Backlog.md source" (the
+  original, now-superseded wording, recorded here verbatim per this
+  project's inline-supersession convention), while Exclusions used "does it
+  assert a Backlog.md behavior fact without independent public-surface
+  attribution?" as its test; unified 2026-08-04 by `QCLI-2.12` on the
+  Exclusions formulation — the sentence above now states that formulation
+  too — which is also the test the Ownership rationale and Exclusions
+  fields below already apply in practice.)
 - **Exact revision or retrieval date:** tag `v0.1.0`, local clone read
   2026-08-04 (owner ruling date); the two newly-named documents
   (`docs/adr/0009-story-task-coupling-reconciliation.md` and
@@ -556,7 +581,24 @@ named slice, never to every file in its repository.
   this slice does not extend to either document's own cross-links into the
   Backlog corpus slice above; nor does it authorize treating a dated read of
   these two documents as a substitute for a live re-check at activation
-  time.
+  time. **Precedence when a document is reachable by both slices, stated
+  explicitly (closes `QCLI-2.12` AC2):** both `lore-cli-release-truth.md` and
+  `release-publishing.md` are, in principle, also reachable by the lore-cli
+  Backlog.md corpus slice's catch-all above — a worker could ask, of either
+  document, whether it asserts an uncited Backlog.md-behavior claim. Where
+  that happens, this slice's own explicit, name-scoped classification and
+  carve-out govern for these two documents specifically, not the catch-all:
+  the catch-all exists to sweep in a lore-cli document this register has not
+  yet individually read and classified, and both documents are individually
+  read, named, and classified right here. Applying that precedence: only the
+  named Prerequisites bullet above is excluded from citability; the rest of
+  `release-publishing.md` — including the release-mechanics and drift
+  content `QCLI-2.7`'s [dependency and adapter contract
+  evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) Part
+  3 drift table cites it for ("What the 29 commits touch in `docs/`",
+  recording `release-publishing.md` as expected-to-evolve release evidence)
+  — remains Allowed and citable under this slice, exactly as it already was
+  before this clarification.
 - **Reclassification triggers:** a new Lore release changing any recorded
   fact (SHA-256 values, Trusted Publisher binding, `LCLI-278`'s status); a
   further owner decision.
@@ -569,8 +611,12 @@ named slice, never to every file in its repository.
   `github.com/Clever/quest`), `quest-cli` (v1.0.0, no repository/description
   field published), `lore` (v0.13.0, `github.com/lore/lore`), `lore-cli`
   (v0.13.2, same `github.com/lore/lore`); `@salient-data/quest`,
-  `@salient-data/quest-cli`, and `@salient-data/lore-cli` (each `404 Not
-  Found`).
+  `@salient-data/quest-cli`, `@salient-data/lore-cli`, and `@opum-ai/quest-cli`
+  (each `404 Not Found`). **Added 2026-08-04 by `QCLI-2.12`:**
+  `@opum-ai/quest-cli` — `QCLI-2.9`'s [packaging
+  contract](quest-cli-packaging-contract.md) cites this 404 observation (the
+  un-dropped-suffix form, recorded there only to confirm the dropped-suffix
+  pattern also holds for `quest`) but this slice had not yet named it.
 - **Exact revision or retrieval date:** retrieved live 2026-08-04 via `npm
   view <pkg> version/repository/license/description` for each name.
 - **Ownership rationale:** no `opum-ai` ownership or contribution to any of
@@ -629,9 +675,41 @@ named slice, never to every file in its repository.
 - **Ownership rationale:** `quest-doc` owns Quest promise, roadmap,
   cross-repository architecture, and provenance policy per the component
   charter's routing table.
-- **Permitted use:** align this register's terms and boundary statements with
-  `quest-doc`'s canonical clean-room provenance and migration-ledger
-  sections; cite when a rule here implements a `quest-doc`-level rule.
+- **Permitted use:** **clarified 2026-08-04 by `QCLI-2.12`; corrected
+  2026-08-04 in the same task's review-driven follow-up, after an
+  independent reviewer found the first clarification's "Two admissible
+  uses" count excluded uses this register's own dependents already relied
+  on** — this slice's Allowed classification governs citation of the
+  records enumerated above by *any* QCLI deliverable, not only this
+  register's own text; the original wording below was phrased in this
+  register's own first person and did not say so explicitly. At least the
+  following four admissible uses are already relied on by merged work, none
+  narrowing any other — this enumeration is a floor already exercised, not
+  asserted exhaustive: (1) **this register's own use**, unchanged — align
+  this register's terms and boundary statements with `quest-doc`'s
+  canonical clean-room provenance and migration-ledger sections; cite when
+  a rule here implements a `quest-doc`-level rule; (2)
+  `docs/specs/quest-clean-room-execution-graph.md`'s "Core behavioral
+  contract" vocabulary section (task, event, repository, workspace, actor,
+  and related terms; that document's lines 58–74) — a different document
+  section and use than (1) — as `QCLI-2.4`'s [component glossary, actors,
+  and workflows](quest-cli-component-glossary-actors-and-workflows.md)
+  cites it (that document's lines 86–91), to ground quest-cli's own
+  component-level vocabulary against `quest-doc`'s existing canonical terms
+  before proposing anything new to `quest-doc`; (3) the same execution
+  graph's "Runtime authority and product boundary" section (its lines
+  39–57, distinct from use (2)'s "Core behavioral contract" section) — as
+  the same component glossary cites it for "Execution records... tasks,"
+  "lifecycle events," the "Knowledge records... Lore" vs. "Execution
+  records... Quest" distinction, and "Rebuildable local projection" (that
+  document's lines 114, 128, 141, and 143 respectively); and (4)
+  `quest-doc`'s [repository and authority
+  map](https://github.com/salient-data/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md)
+  Reference — cited by the same component glossary both directly (its
+  "Recheck clause," lines 247–274, and Notes, lines 275–295) and as the
+  document grounding that glossary's negative-existence claim that
+  `quest-doc`'s own repository has no actor-model glossary, as of the
+  2026-08-04 observed commit (that document's lines 54 and 250).
 - **Exclusions:** this register does not restate or override `quest-doc`'s
   canonical policy. No finding in this register proposes a change to
   Quest-wide vocabulary, architecture, or roadmap; if one arose it would be a
@@ -710,12 +788,36 @@ named slice, never to every file in its repository.
 
 - **Classification:** Allowed.
 - **Repository or URL:** this repository — `QCLI-1`, `QCLI-3`, `QCLI-4`, and
-  the component charter, migration ledger, and research Spec they produced.
+  the component charter, migration ledger, and research Spec they produced;
+  also `QCLI-2.2`'s [legacy Opum requirement reconciliation for Quest
+  CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md), this
+  register itself (`quest-cli-research-source-register.md`), and the
+  accepted ADR [Use quest-cli for the Quest package and
+  command](../adr/use-quest-cli-for-the-quest-package-and-command.md)
+  (created `e2b90e2`, amended under `QCLI-5` at `942da73`) — a fourth
+  product of the same `QCLI-1`/`QCLI-3`/`QCLI-4` lineage. **Added
+  2026-08-04 by `QCLI-2.12`:** the reconciliation doc and this register
+  were already cited under this slice by `QCLI-2.3`'s [black-box acceptance
+  scenarios](quest-cli-black-box-acceptance-scenarios.md) evidence table;
+  **added 2026-08-04 in this same task's review-driven follow-up:** the ADR
+  is already cited under this exact slice — "Allowed — 'Prior QCLI research
+  records'" — by `QCLI-2.2`'s own [legacy Opum requirement
+  reconciliation](legacy-opum-requirement-reconciliation-for-quest-cli.md)
+  (its evidence table, row "Use quest-cli for the Quest package and command
+  (ADR)", line 68). None of the three were previously named in this
+  enumeration; the register's prose elsewhere (this slice's own Ownership
+  rationale cross-reference, and the "quest-cli repository and npm package
+  identity" slice above) already cited the ADR without enumerating it here.
 - **Exact revision or retrieval date:** local HEAD `0cf0f34` (this branch's
   base), read live 2026-08-04.
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
-  documentation authority, `QCLI-4` recorded the OCLI-1 supersession.
+  documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
+  `QCLI-2.2` reconciled legacy Opum requirements into current quest-cli
+  decisions, the accepted ADR fixed the package/repository/command identity
+  those decisions and this register both depend on, and this register is
+  the per-slice admission authority every other citation in this document,
+  and the rest of this list, depends on.
 - **Permitted use:** this revalidation is based on their findings and must
   stay consistent with them; it does not replace them.
 - **Exclusions:** none beyond ordinary Backlog/Lore edit discipline (use the
@@ -766,3 +868,24 @@ clone, or any Quarantined artifact, and made no mutation inside
 `/Volumes/external/repos/lore-cli`, `/Volumes/external/repos/lore-doc`, or
 `/Volumes/external/repos/quest-doc` — those three were read-only sources for
 this edit.
+
+`QCLI-2.12`'s 2026-08-04 edit closed three admission-authority coherence
+gaps surfaced by reading the three wave-2 merges together: unified the
+lore-cli Backlog corpus slice's catch-all onto one formulation, added an
+explicit precedence rule to the lore-cli release-gate-evidence slice for
+`release-publishing.md` (reachable by both that slice and the Backlog corpus
+catch-all), enumerated `@opum-ai/quest-cli` in the npm-occupancy slice and
+widened the lore-cli slice's permitted use to cover `@opum-ai/lore` registry
+metadata, added the register itself and `QCLI-2.2`'s legacy-requirement
+reconciliation to the Prior QCLI research records slice's own enumeration,
+and clarified the `quest-doc` canonical product records slice's permitted
+use to state its cross-deliverable scope and its coverage of the execution
+graph's Core behavioral contract vocabulary. It reclassified no source — no
+Classification field changed value — and narrowed no permitted use a merged
+deliverable relies on; every citation checked against `quest-cli-packaging-
+contract.md` (`QCLI-2.9`), `quest-cli-black-box-acceptance-scenarios.md`
+(`QCLI-2.3`), `quest-cli-component-glossary-actors-and-workflows.md`
+(`QCLI-2.4`), and `quest-cli-lore-dependency-and-adapter-contract-
+evidence.md` (`QCLI-2.7`) by reading the live files, not from memory. It
+opened no Backlog.md implementation source, no Quarantined artifact, and
+made no mutation outside this repository's own `docs/` tree.
