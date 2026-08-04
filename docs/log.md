@@ -14,6 +14,7 @@
 - 2026-08-04T08:23:54-05:00 e17b5273b7e94e37e7a03b6efd486ef37a5fa565 docs(qcli-2.7): add Lore dependency and adapter contract evidence
 - 2026-08-04T08:24:10-05:00 e69bb9b5438f50b66121ec714a1638204fdc3c0f chore(docs): reconcile pre-existing sync drift via lore sync
 - 2026-08-04T08:25:30-05:00 fe569b6dcf8d3d650d1d140081aace9aa6c6842f chore(docs): sync log after implementation-notes commit
+- 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
 
 ## docs/adr
 
@@ -29,6 +30,7 @@
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-04T08:23:54-05:00 e17b5273b7e94e37e7a03b6efd486ef37a5fa565 docs(qcli-2.7): add Lore dependency and adapter contract evidence
 - 2026-08-04T08:24:01-05:00 c03c63b073a0f9e806b89b019939afa9feee0d32 docs(qcli-2.7): record the lore-cli source-admissibility split rule
+- 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
 
 ## docs/runbooks
 
