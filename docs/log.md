@@ -23,6 +23,7 @@
 - 2026-08-04T10:41:39-05:00 f30b0c50a5f7104e271607f897ab7dea8a98eb1c docs: sync log.md — fix dangling pre-squash SHA, add missing wave-3 merge entries
 - 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
 - 2026-08-04T10:59:44-05:00 2e0995d799b51ad082846cb959209d46a60f55f8 docs: sync log.md after wave-3 follow-up merges
+- 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
 
 ## docs/adr
 
@@ -50,6 +51,7 @@
 
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
+- 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
 
 ## docs/specs
 
@@ -68,3 +70,4 @@
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
 - 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
 - 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
+- 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)

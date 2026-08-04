@@ -3,6 +3,7 @@
 <!-- lore:index:begin -->
 - [Former OCLI to QCLI migration ledger](former-ocli-to-qcli-migration-ledger.md)
 - [Legacy Opum requirement reconciliation for Quest CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md)
+- [Quest CLI Backlog migration fidelity contract](quest-cli-backlog-migration-fidelity-contract.md)
 - [Quest CLI black-box acceptance scenarios](quest-cli-black-box-acceptance-scenarios.md)
 - [Quest CLI component charter](quest-cli-component-charter.md)
 - [Quest CLI component glossary, actors, and workflows](quest-cli-component-glossary-actors-and-workflows.md)
