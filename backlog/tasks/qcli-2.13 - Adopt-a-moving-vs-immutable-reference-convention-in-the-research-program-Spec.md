@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-04 14:35'
-updated_date: '2026-08-04 15:06'
+updated_date: '2026-08-04 15:30'
 labels:
   - campaign
   - research
@@ -13,6 +13,8 @@ labels:
   - verification
   - no-implementation
   - 'cluster:convention'
+  - wave-3
+  - in-review
 dependencies: []
 parent_task_id: QCLI-2
 priority: medium
