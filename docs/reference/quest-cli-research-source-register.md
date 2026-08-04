@@ -790,20 +790,34 @@ named slice, never to every file in its repository.
 - **Repository or URL:** this repository — `QCLI-1`, `QCLI-3`, `QCLI-4`, and
   the component charter, migration ledger, and research Spec they produced;
   also `QCLI-2.2`'s [legacy Opum requirement reconciliation for Quest
-  CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md) and this
-  register itself (`quest-cli-research-source-register.md`). **Added
-  2026-08-04 by `QCLI-2.12`:** both were already cited under this slice by
-  `QCLI-2.3`'s [black-box acceptance
-  scenarios](quest-cli-black-box-acceptance-scenarios.md) evidence table but
-  were not previously named in this enumeration.
+  CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md), this
+  register itself (`quest-cli-research-source-register.md`), and the
+  accepted ADR [Use quest-cli for the Quest package and
+  command](../adr/use-quest-cli-for-the-quest-package-and-command.md)
+  (created `e2b90e2`, amended under `QCLI-5` at `942da73`) — a fourth
+  product of the same `QCLI-1`/`QCLI-3`/`QCLI-4` lineage. **Added
+  2026-08-04 by `QCLI-2.12`:** the reconciliation doc and this register
+  were already cited under this slice by `QCLI-2.3`'s [black-box acceptance
+  scenarios](quest-cli-black-box-acceptance-scenarios.md) evidence table;
+  **added 2026-08-04 in this same task's review-driven follow-up:** the ADR
+  is already cited under this exact slice — "Allowed — 'Prior QCLI research
+  records'" — by `QCLI-2.2`'s own [legacy Opum requirement
+  reconciliation](legacy-opum-requirement-reconciliation-for-quest-cli.md)
+  (its evidence table, row "Use quest-cli for the Quest package and command
+  (ADR)", line 68). None of the three were previously named in this
+  enumeration; the register's prose elsewhere (this slice's own Ownership
+  rationale cross-reference, and the "quest-cli repository and npm package
+  identity" slice above) already cited the ADR without enumerating it here.
 - **Exact revision or retrieval date:** local HEAD `0cf0f34` (this branch's
   base), read live 2026-08-04.
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
   documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
   `QCLI-2.2` reconciled legacy Opum requirements into current quest-cli
-  decisions, and this register is the per-slice admission authority every
-  other citation in this document, and the rest of this list, depends on.
+  decisions, the accepted ADR fixed the package/repository/command identity
+  those decisions and this register both depend on, and this register is
+  the per-slice admission authority every other citation in this document,
+  and the rest of this list, depends on.
 - **Permitted use:** this revalidation is based on their findings and must
   stay consistent with them; it does not replace them.
 - **Exclusions:** none beyond ordinary Backlog/Lore edit discipline (use the
