@@ -3,7 +3,7 @@ id: doc-1
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-04 06:01'
-updated_date: '2026-08-04 14:36'
+updated_date: '2026-08-04 16:06'
 ---
 # Backlog campaign tracker
 
@@ -194,11 +194,13 @@ guarantee that any task lands in any particular wave.
 | cluster:requirements | Legacy Opum requirement reconciliation | QCLI-2.2 |
 | cluster:lore-gate | Lore dependency/evidence matrix + adapter alignment | QCLI-2.7 |
 | cluster:packaging | npm package allocation/provenance | QCLI-2.9 |
-| cluster:scenarios | Black-box acceptance scenarios | QCLI-2.3 |
-| cluster:domain | Actors/workflows/domain language | QCLI-2.4 |
+| cluster:scenarios | Black-box acceptance scenarios | QCLI-2.3 (Done) |
+| cluster:domain | Actors/workflows/domain language | QCLI-2.4 (Done) |
 | cluster:migration | Backlog migration fidelity + adoption playbook | QCLI-2.5, QCLI-2.10 |
 | cluster:threat-model | Git/filesystem/concurrency threat model | QCLI-2.6 |
 | cluster:synthesis | Final activation-ready synthesis | QCLI-2.8 |
+| cluster:provenance (wave-2 follow-up) | Cross-task staleness correction + register coherence | QCLI-2.11 (Done), QCLI-2.12 |
+| cluster:convention | Moving-vs-immutable reference convention + scope re-homing | QCLI-2.13 (Done), QCLI-2.14 |
 
 ### Shared-file rule for concurrent doc waves
 
@@ -229,6 +231,21 @@ restore #2, QCLI-2.1, QCLI-2.2, QCLI-2.7, and QCLI-2.9 are Done; six remain
 (QCLI-2.3, 2.4, 2.5, 2.6, 2.8, 2.10) plus the QCLI-2 parent epic. QCLI-2.2's
 settlement unblocked QCLI-2.3 and QCLI-2.4.
 
+## Frontier
+
+The ready set is ALWAYS recomputed live from `backlog task list --json` plus
+each candidate's `task view --json` at the start of every restore/wave — never
+trust a persisted "next wave" plan. Informational hint only: as of the end of
+wave 3 (including its follow-up fix batch), QCLI-2.1, 2.2, 2.3, 2.4, 2.7, 2.9,
+2.11, and 2.13 are Done (8 of 14 subtasks); six remain (QCLI-2.5, 2.6, 2.8,
+2.10, 2.12, 2.14) plus the QCLI-2 parent epic. Dependency-clear as of this
+writing: **QCLI-2.5** (deps 2.1+2.4, both Done, `cluster:migration`),
+**QCLI-2.6** (deps 2.2+2.3+2.4, all Done, `cluster:threat-model`), **QCLI-2.12**
+(deps 2.11, Done, `cluster:provenance`), **QCLI-2.14** (deps 2.13, Done,
+`cluster:convention`) — four disjoint clusters, a full wave under the size cap.
+Still blocked: QCLI-2.10 (needs 2.5), QCLI-2.8 (needs 2.5+2.6, plus everything
+else already Done).
+
 ## In flight
 
 Cleared at settlement; non-empty only mid-wave or after a crash.
@@ -236,39 +253,67 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
-None — wave 2 fully settled. All three treehouse worktrees returned to the
-pool; all branches deleted local and remote (verified explicitly — see the
-conventions section, `--delete-branch` cannot be trusted).
+None — wave 3 (and its follow-up fix batch) fully settled. All seven
+treehouse worktrees used this session returned to the pool; all branches
+deleted local and remote (verified explicitly for every one of PRs #5-#11 —
+`gh pr merge --delete-branch` failed its local half on all seven, exactly the
+known trap; each was completed manually: return worktree, `git branch -d`,
+`git push origin --delete`, then `git ls-remote` to confirm).
 
 ## Needs a human / blocked
 
-No task is labelled `needs-human`. No escalation occurred in wave 2 — every
-`request_changes` closed inside its fix-cycle budget.
+No task is labelled `needs-human`. No escalation occurred in wave 3 or its
+follow-up batch — every review reached `approve`, one after exactly one
+`request_changes` cycle (QCLI-2.3, a single false commit-pin).
 
-## Proposed follow-ups — APPROVED AND FILED 2026-08-04
+## Proposed follow-ups — status as of end of wave 3, 2026-08-04
 
-The owner approved all four wave-2 integration-review proposals on 2026-08-04
-and they are now filed. Nothing remains awaiting approval.
+**A and C — FILED, DISPATCHED, DONE.** QCLI-2.11 and QCLI-2.13 (both from the
+wave-2 integration review's four proposals) ran in wave 3, were approved, and
+are settled `Done`. See the wave-3 log entry below.
 
-| Was | Task | Cluster | Deps |
-| --- | --- | --- | --- |
-| A | QCLI-2.11 Correct wave-2 cross-task staleness in the three merged deliverables | `cluster:provenance` | none |
-| B | QCLI-2.12 Close the register's admission-authority coherence gaps | `cluster:provenance` | QCLI-2.11 |
-| C | QCLI-2.13 Adopt a moving-vs-immutable reference convention in the Spec | `cluster:convention` | none |
-| D | QCLI-2.14 Re-home the runtime/native-packaging/supported-platform question | `cluster:convention` | QCLI-2.13 |
+**B and D — still queued, not yet dispatched.** QCLI-2.12 (`cluster:provenance`,
+deps: QCLI-2.11 — now Done, so QCLI-2.12 is dependency-clear) and QCLI-2.14
+(`cluster:convention`, deps: QCLI-2.13 — now Done, so QCLI-2.14 is also
+dependency-clear). Both are ready for the next wave.
 
-Clusters are deliberate: A and B both edit the source register, and C and D
-both edit the research program Spec, so each pair is serialized by the
-conflict graph while the two pairs run in parallel. Expect QCLI-2.11 +
-QCLI-2.13 in one wave, then QCLI-2.12 + QCLI-2.14.
+**NEW — awaiting owner approval, surfaced by the wave-3 integration review
+(finding F2).** Do not dispatch until approved; this project forbids
+autonomous follow-up task creation, and expanding an existing queued task's
+acceptance criteria is the same kind of scope commitment. Proposed: **extend
+QCLI-2.12** (not a new sibling task — same file, same forbidden-to-reclassify
+constraint, same reviewer context QCLI-2.12 already carries) with two
+additional acceptance criteria:
 
-**Not done, deliberately: QCLI-2.8's dependency list was left untouched.**
-QCLI-2.8 synthesizes from QCLI-2.2-2.7 and will inherit the defects QCLI-2.11,
-QCLI-2.12, and QCLI-2.14 correct — in particular QCLI-2.14's dangling cession,
-which QCLI-2.8 would otherwise follow to an answer that does not exist. Adding
-those edges would change QCLI-2.8's scheduling, and `--dep` at edit *replaces*
-the list rather than appending, so this is left as an explicit decision for the
-next session to raise with the owner rather than made silently here.
+> **AC#6** — Every in-repo document cited by a merged QCLI-2.x deliverable
+> under the register's `Prior QCLI research records` slice is enumerated by
+> that slice, specifically the research source register itself (cited by
+> QCLI-2.3) and QCLI-2.2's legacy requirement reconciliation (also cited by
+> QCLI-2.3) — neither is currently named in the slice's own enumeration.
+>
+> **AC#7** — The `quest-doc canonical product records` slice's permitted use
+> states explicitly whether it governs only the register's own citations or
+> any QCLI deliverable's, and confirms it covers the execution graph's
+> behavioral-contract vocabulary as QCLI-2.4 actually cites it (a different
+> document section / use than the slice's register-first-person wording
+> straightforwardly enumerates). No permitted use is narrowed below what a
+> merged deliverable already relies on.
+
+Both gaps were newly exercised by wave 3's two new documents (QCLI-2.3,
+QCLI-2.4) citing the register in ways wave 1/2 never did — not a defect
+introduced by QCLI-2.11 (which correctly reclassified nothing) but a coverage
+gap the register's existing enumeration doesn't reach. Full detail in the
+wave-3 log entry below.
+
+**Still not done, deliberately, carried forward a second session: QCLI-2.8's
+dependency list remains untouched.** QCLI-2.8 synthesizes from QCLI-2.2-2.7 and
+will inherit the defects QCLI-2.11-2.14 correct unless its dependency list is
+widened — this was flagged as an explicit owner decision at the end of wave 2
+and has still not been raised with the owner (this session ran wave 3 and its
+follow-ups without revisiting it). `--dep` at edit *replaces* the list rather
+than appending, so widening it requires citing the full current list plus the
+new edges, not just the new edges. Raise at the next opportunity; do not do it
+silently.
 
 ## Campaign conventions learned in wave 2
 
@@ -307,6 +352,62 @@ Recorded because each cost real time and will recur.
    so worktrees pinned at the wave base showed `To Do` and two workers
    reported the discrepancy. R4d's ordering exists to make a crashed session
    reconcilable — an uncommitted marking defeats it.
+
+## Campaign conventions learned in wave 3
+
+Recorded because each cost real time and will recur.
+
+1. **Never infer a verdict from an idle notification, in either direction,
+   for any agent role.** Every single reviewer AND worker this wave (not just
+   reviewers, as wave 2 first found) went idle without its payload arriving in
+   the same message — the actual report always arrived in a separate,
+   subsequent message only after an explicit "resend your verdict" ask. This
+   happened for all four wave-3 reviewers, the integration reviewer, and two
+   of the three follow-up reviewers. Treat "idle" as "the agent stopped
+   running," nothing more; always explicitly re-request output that hasn't
+   arrived rather than proceeding on silence or assuming approval.
+2. **Cross-pool worktree orphans exist and are invisible to scoped
+   `treehouse status`/`prune`.** R2 found a leftover worktree in a *different*
+   treehouse pool (`quest-cli-033df3`) than the one this session's config
+   resolved to (`quest-cli-f11e72`) — already-merged, clean, unleased, but
+   `treehouse prune` (scoped to the repo) never listed it; only
+   `treehouse prune --all` (global, cross-pool) or `treehouse destroy <exact
+   path>` found/reclaimed it. Check `git worktree list` against
+   `treehouse status --json` explicitly at every restore; a worktree entry
+   with no corresponding pool member is the signal, not an error message.
+3. **A squash-merged branch's own `lore sync` commit always goes dangling in
+   `docs/log.md` after squash — every time, not occasionally.** All seven
+   wave-3 PRs (#5-#11) exhibited this: the branch's pre-squash SHA appears in
+   `log.md` but does not exist on `dev` post-squash-merge. The fix
+   (`lore sync` on `dev` directly, once per merge batch) is mechanical and
+   was applied after the main wave (4 merges) and again after the follow-up
+   batch (3 merges) — do it after *every* batch of squash-merges, not once
+   per wave.
+4. **Correct the wave-2-era assumption that `lore sync` auto-commits
+   `docs/`.** It does not, in this environment/version: auto-commit is scoped
+   to `commit backlog/`, and only fires when `lore link`/`unlink` left it
+   dirty. `docs/log.md`, `docs/reference/index.md`, and Story managed blocks
+   are regenerated into the working tree and must be committed explicitly by
+   whoever ran the sync. Confirmed independently by three different workers/
+   reviewers via `--help`, `--dry-run --json`, and a full-history search for
+   any lore-authored commit (found none). Every future dispatch prompt in this
+   campaign should state this plainly rather than the old assumption.
+5. **The wave-level integration review earns its cost even when every
+   single-task review was clean.** Wave 3's four tasks each got an
+   independent `approve` with zero unresolved findings, yet the integration
+   pass still found six real cross-task issues (one provably false citation
+   in an already-approved doc, one AC satisfied only in one of two required
+   directions, one dangling log SHA, one fired-but-unclosed forward-condition
+   in a *different* wave's document, one ownership pointer between two
+   siblings merged 90 seconds apart, one register-coverage gap newly exercised
+   by this wave's citations) — replicating wave 2's finding that this class of
+   defect is structurally invisible to single-task review.
+6. **Narrow-fix-and-re-review is cheap when scoped to one clause/file.** All
+   three wave-3 follow-up fixes (each single-file or two-file, single-clause
+   to medium edits, with the reviewer's finding pasted verbatim into the
+   worker's brief) reached `approve` on the first pass — no `request_changes`
+   cycles, unlike the original wave's one retry. Tight scoping plus a
+   verbatim finding, not a re-derived summary, appears to be why.
 
 ## Wave log
 
@@ -442,3 +543,94 @@ in identical wording the defect QCLI-2.7 corrected in the register. QCLI-2.7
 could not reach it (already merged, outside its edit scope). A fourth sweep of
 the remaining seventeen slices found no further instance: two slices state weak
 methods but are correctly *bounded* to what those methods support.
+
+### Wave 3 — 2026-08-04 — QCLI-2.3, QCLI-2.4, QCLI-2.11, QCLI-2.13 — all merged and settled, plus a full follow-up fix batch
+
+Base `dev @ 98f1f27`. Four members — two newly ready (QCLI-2.3, QCLI-2.4, both
+unblocked when QCLI-2.2 settled) and two of wave 2's four approved follow-ups
+(QCLI-2.11, QCLI-2.13, exactly as predicted) — disjoint clusters, disjoint
+authored files (QCLI-2.3/2.4 each authored a new doc; QCLI-2.11 owned the
+three sibling reference docs it corrects; QCLI-2.13 owned the research
+program Spec). Merged serially in ordinal order, each rebased onto the moving
+`dev` with mandatory re-verification; every branch's own Backlog task file
+conflicted against the dispatch/in-review label commits (expected, resolved
+by taking the branch's content and reapplying labels via the `backlog` CLI,
+never by hand-editing):
+
+| Task | PR | Squash commit | Review |
+| --- | --- | --- | --- |
+| QCLI-2.3 | #5 | `4ed6ee1` | approve, pass 2 (pass 1 `request_changes` on one false commit-pin) |
+| QCLI-2.4 | #6 | `0d127ee` | approve, pass 1 |
+| QCLI-2.11 | #7 | `3b5cd8c` | approve, pass 1 |
+| QCLI-2.13 | #8 | `eaa8a0c` | approve, pass 1 |
+
+Final state after the main wave: `lore check --strict` 21 files 0/0;
+`lore validate --strict` 21 files 0/0 6 skipped; `lore orphans` 0/0. Still no
+test/build/lint gate in this repository.
+
+**The one review-cycle finding.** QCLI-2.3 cited the OCLI-3.3 task narrative's
+last-touch commit as `5da8949` — an unrelated, later commit that never
+touches that file. True commit (`3023468`) was already correctly dated in the
+same citation; only the hash was wrong. Reviewer's evidence-backed finding,
+fixed in one token by a fresh worker, re-confirmed on re-review including the
+stronger check the original defect lacked (`git show --stat <sha>` path
+presence, not mere reachability — the same standard QCLI-2.11 was
+simultaneously establishing for the register).
+
+**QCLI-2.11's premise-mismatch, independently re-derived and confirmed
+correct.** The task text said 4 of 8 `d7ca18f` citation sites lacked a read
+date; the worker found and fixed 5, flagging the discrepancy via `--comment`
+rather than silently matching the stated count. The reviewer recomputed the
+count from `dev` independently (catching a date that wrapped onto a
+following line, which a naive single-line grep would have miscounted) and
+confirmed 5 was right and the task text's 4 was the error.
+
+**QCLI-2.13's AC4 — confirmed correct-as-scoped on the original pass, then
+completed by a follow-up.** AC4 required the convention to be
+"cross-referenced from the source register's GitHub-redirect reclassification
+trigger" — the original implementation built only the Spec→register
+direction (correctly declining to edit the register, owned by QCLI-2.11 that
+wave). The wave-level integration review adjudicated the literal wording as
+requiring the missing register→Spec direction specifically, not merely
+"nice-to-have bidirectionality," and recommended a one-clause fix. See below.
+
+**Wave-level integration review — six cross-task findings, all resolved or
+queued this session.**
+
+| # | Finding | Disposition |
+| - | --- | --- |
+| F1 | QCLI-2.3 pointed command-vocabulary/JSON-envelope/exit-code ownership at QCLI-2.4, which explicitly disclaims that scope 90 seconds later | **Fixed** — narrow follow-up, repointed to QCLI-2.8 AC2 + Spec Required Outputs |
+| F2 | Register `Prior QCLI research records` slice doesn't enumerate two documents QCLI-2.3 cites under it; `quest-doc canonical product records` slice's permitted use may not cover how QCLI-2.4 actually cites it | **Proposed** as two new ACs on QCLI-2.12 — awaiting owner approval, see Proposed follow-ups above |
+| F3 | QCLI-2.13's AC4 satisfied in only one direction (Spec→register) | **Fixed** — narrow follow-up, register-side back-reference added, empirically proven to resolve (broken-link/broken-anchor negative control) |
+| F4 | `docs/log.md` cited a pre-squash SHA absent from `dev`'s object graph after QCLI-2.13's squash merge | **Fixed** — mechanical `lore sync` on `dev` |
+| F5 | Migration ledger's wave-1 forward-condition ("...until QCLI-2.3 authors the current black-box corpus") fired but was never closed | **Fixed** — narrow follow-up, inline-supersession amendment, dated, citing QCLI-2.3, original text preserved |
+| F6 | QCLI-2.3's and QCLI-2.4's new docs cited moving references (`opum-doc`/`quest-doc` HEAD SHAs) without the recheck-clause convention QCLI-2.13 introduced in the same wave | **Fixed** — two narrow follow-ups, one per document, each with an independently-verified-runnable recheck clause |
+
+Two checks came back clean with no finding: QCLI-2.11's citation-standard
+(content-verification vs. reachability) was correctly applied by both new
+documents, and the register's internal coherence (classification/permitted-use
+fields) survived wave 3 with no contradiction — F2 is a coverage gap in the
+register's enumeration, not an internal inconsistency.
+
+**Follow-up fix batch — three narrow fixes, each one worker+reviewer cycle,
+zero `request_changes`.** Branched off `dev @ f30b0c5` (post-F4 mechanical
+fix), merged serially:
+
+| Fix | Task | PR | Squash commit | Review |
+| --- | --- | --- | --- | --- |
+| F1+F2(F6a)+F5 | QCLI-2.3 | #9 | `883b445` | approve, pass 1 |
+| F6b | QCLI-2.4 | #10 | `63b1e0a` | approve, pass 1 |
+| F3 | QCLI-2.13 | #11 | `c09ed47` | approve, pass 1 |
+
+One more mechanical `lore sync` on `dev` after this batch (three more
+pre-squash SHAs went dangling, exactly as F4 predicted would recur — see
+conventions item 3). Final state after settlement: `lore check --strict` 21
+files 0/0; `lore validate --strict` 21 files 0/0 6 skipped; `lore orphans`
+0/0.
+
+**Relay reliability — same defect as wave 2, now confirmed to affect workers
+too, not only reviewers.** Every agent's idle notification this wave arrived
+without its payload; the actual report always required an explicit
+"resend your verdict/report" message. No verdict was ever inferred from
+silence or an idle signal — each was asked for explicitly and the true
+verdict recorded only once received in full.
