@@ -10,10 +10,14 @@
 - 2026-08-01T18:49:13-05:00 a27ff5f4f6e94e70151df674badc3c2d164a2931 docs: track Quest package allocation research
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:56:05-05:00 06604942b7c6b73ebaa473b9d7f61568036d6682 docs: correct legacy-artifact provenance and revision-pin errors
+- 2026-08-04T08:56:05-05:00 f98a082d1d3dc4781c245927a2e08f0a84a1ab87 docs: reconcile legacy Opum requirements into Quest CLI candidates
 
 ## docs/adr
 
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 
 ## docs/reference
 
@@ -21,6 +25,9 @@
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:56:05-05:00 06604942b7c6b73ebaa473b9d7f61568036d6682 docs: correct legacy-artifact provenance and revision-pin errors
+- 2026-08-04T08:56:05-05:00 f98a082d1d3dc4781c245927a2e08f0a84a1ab87 docs: reconcile legacy Opum requirements into Quest CLI candidates
 
 ## docs/runbooks
 
@@ -39,3 +46,5 @@
 - 2026-08-01T18:49:13-05:00 a27ff5f4f6e94e70151df674badc3c2d164a2931 docs: track Quest package allocation research
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:56:05-05:00 f98a082d1d3dc4781c245927a2e08f0a84a1ab87 docs: reconcile legacy Opum requirements into Quest CLI candidates
