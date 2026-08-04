@@ -2,9 +2,10 @@
 id: QCLI-2.13
 title: Adopt a moving-vs-immutable reference convention in the research program Spec
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-04 14:35'
-updated_date: '2026-08-04 15:07'
+updated_date: '2026-08-04 15:06'
 labels:
   - campaign
   - research
@@ -12,8 +13,6 @@ labels:
   - verification
   - no-implementation
   - 'cluster:convention'
-  - wave-3
-  - in-review
 dependencies: []
 parent_task_id: QCLI-2
 priority: medium
@@ -43,3 +42,38 @@ Documentation only. This binds new and amended documents; it requires no retroac
 - [ ] #4 The convention is cross-referenced from the source registers GitHub-redirect reclassification trigger as the general case of that specific rule
 - [ ] #5 lore check --strict, lore validate --strict, and lore orphans report zero errors, zero warnings, and zero orphans
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Baseline: confirmed lore check/validate/orphans all clean pre-edit (19 files, 0/0/0). Verified precedents live: QCLI-2.9's mandatory release-time recheck clause exists in docs/reference/quest-cli-packaging-contract.md under '#### Mandatory release-time recheck clause (AC1)' (lines ~143-155); QCLI-2.7's AC6 reclassification trigger exists in docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md under Part 3, 'Reclassification trigger, stated explicitly (AC6)' (lines ~360-367). Read the source register's 'lore-cli / the lore command' slice, whose Reclassification triggers bullet (lines ~354-361) states the GitHub rename/transfer redirect rule this task generalizes.
+2. Expand the Spec's existing '### Verification bar' section (it already exists, under '## Design') with new subsections: (a) Moving vs. immutable references - defines the distinction and the two required phrasings verbatim from the task description; (b) Recheck clause requirement - requires a recheck clause for any conclusion resting on a moving reference, citing QCLI-2.9's and QCLI-2.7's clauses by file+heading as the reference model; (c) Scope - binds new/amended documents only, no retroactive rewrite; (d) Relationship to the source register - cross-references the register's lore-cli slice GitHub-redirect trigger as the specific instance this generalizes (link only, since the register is QCLI-2.11's file this wave, not mine - I cannot add the reverse link from the register into this Spec; I will flag that asymmetry via --comment for the orchestrator).
+3. Run lore check --strict, lore validate --strict, lore orphans; fix any issues.
+4. Verify each AC against the edited text with objective evidence (quote the section).
+5. lore sync (real, once) as final step before push.
+6. Record notes/comments on the task, commit with Refs: QCLI-2.13, push branch.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented: expanded the existing '### Verification bar' section in docs/specs/quest-cli-pre-implementation-research-program.md with four new subsections under it: 'Moving vs. immutable references' (AC1 - defines the distinction and states both required phrasings verbatim), 'Recheck clause requirement' (AC2 - requires a recheck clause for any conclusion resting on a moving reference; cites QCLI-2.9's 'Mandatory release-time recheck clause (AC1)' in docs/reference/quest-cli-packaging-contract.md and QCLI-2.7's 'Reclassification trigger, stated explicitly (AC6)' in docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md as the reference model, both independently re-read and confirmed present verbatim before citing), 'Scope of the convention' (AC3 - binds new/amended documents, no retroactive rewrite required), and 'Relationship to the source register' (AC4 - cross-references the register's 'lore-cli / the lore command' slice Reclassification-triggers GitHub rename/transfer redirect rule as the specific instance this generalizes).
+
+Validation (run from the worktree root after the edit, before lore sync):
+- lore check --strict -> '19 files, 0 errors, 0 warnings'
+- lore validate --strict -> '19 files, 0 errors, 0 warnings, 6 skipped' (skips are index.md/log.md, not concepts)
+- lore orphans -> 'orphans: 0 orphan tasks, 0 dangling links'
+All three: zero errors, zero warnings, zero orphans.
+
+AC4 scope note: the register is QCLI-2.11's file this wave, read-only to me. My edit cross-references the register by name/heading FROM the Spec; I did not and could not add the reverse link (register -> Spec) since I don't own that file. See --comment for the orchestrator on whether a true bidirectional cross-reference requires a follow-up edit to the register.
+<!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @claude
+created: 2026-08-04 15:06
+---
+AC4 asymmetry for orchestrator review: I added a one-directional cross-reference FROM the Spec's new 'Relationship to the source register' subsection TO the research source register's 'lore-cli / the lore command' slice (its Reclassification-triggers GitHub rename/transfer redirect rule), naming it by heading/description per my dispatch instructions. I do not own docs/reference/quest-cli-research-source-register.md this wave (QCLI-2.11 does), so I did not add a reverse pointer from that register slice back to this Spec's new convention. If AC4 is read as requiring a true bidirectional cross-reference (the register's trigger explicitly pointing at the generalized convention, not just the generalization pointing at the trigger), that requires a small follow-up edit inside QCLI-2.11's file -- a one-line addition to the register's 'lore-cli / the lore command' slice noting that its GitHub-redirect trigger is now the specific instance of the Verification bar's general moving-vs-immutable convention. Flagging for orchestrator settlement rather than editing a file I don't own this wave.
+---
+<!-- COMMENTS:END -->
