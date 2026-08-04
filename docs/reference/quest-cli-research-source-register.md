@@ -9,7 +9,7 @@ tags:
   - clean-room
   - research
   - source-register
-summary: Revalidates the OCLI-3.1 register per slice; QCLI-2.7 added the lore-cli split rule, closed two evidence gaps, and fixed a content-identity defect.
+summary: Revalidates the OCLI-3.1 register per slice; QCLI-2.7 added the lore-cli split rule and closed two evidence gaps; QCLI-2.12 closed admission-authority coherence gaps without reclassifying any source.
 timestamp: 2026-08-04T13:29:14.000Z
 ---
 
@@ -832,3 +832,24 @@ clone, or any Quarantined artifact, and made no mutation inside
 `/Volumes/external/repos/lore-cli`, `/Volumes/external/repos/lore-doc`, or
 `/Volumes/external/repos/quest-doc` — those three were read-only sources for
 this edit.
+
+`QCLI-2.12`'s 2026-08-04 edit closed three admission-authority coherence
+gaps surfaced by reading the three wave-2 merges together: unified the
+lore-cli Backlog corpus slice's catch-all onto one formulation, added an
+explicit precedence rule to the lore-cli release-gate-evidence slice for
+`release-publishing.md` (reachable by both that slice and the Backlog corpus
+catch-all), enumerated `@opum-ai/quest-cli` in the npm-occupancy slice and
+widened the lore-cli slice's permitted use to cover `@opum-ai/lore` registry
+metadata, added the register itself and `QCLI-2.2`'s legacy-requirement
+reconciliation to the Prior QCLI research records slice's own enumeration,
+and clarified the `quest-doc` canonical product records slice's permitted
+use to state its cross-deliverable scope and its coverage of the execution
+graph's Core behavioral contract vocabulary. It reclassified no source — no
+Classification field changed value — and narrowed no permitted use a merged
+deliverable relies on; every citation checked against `quest-cli-packaging-
+contract.md` (`QCLI-2.9`), `quest-cli-black-box-acceptance-scenarios.md`
+(`QCLI-2.3`), `quest-cli-component-glossary-actors-and-workflows.md`
+(`QCLI-2.4`), and `quest-cli-lore-dependency-and-adapter-contract-
+evidence.md` (`QCLI-2.7`) by reading the live files, not from memory. It
+opened no Backlog.md implementation source, no Quarantined artifact, and
+made no mutation outside this repository's own `docs/` tree.
