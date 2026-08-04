@@ -2,9 +2,10 @@
 id: QCLI-2.12
 title: Close the research source register's admission-authority coherence gaps
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 16:57'
+updated_date: '2026-08-04 16:50'
 labels:
   - campaign
   - research
@@ -13,8 +14,6 @@ labels:
   - correction
   - no-implementation
   - 'cluster:provenance'
-  - wave-4
-  - in-review
 dependencies:
   - QCLI-2.11
 parent_task_id: QCLI-2
@@ -47,3 +46,16 @@ Documentation only. Do not reclassify any source, and do not narrow any permitte
 - [ ] #6 Every in-repo document cited by a merged QCLI-2.x deliverable under the register's `Prior QCLI research records` slice is enumerated by that slice, specifically the research source register itself (cited by QCLI-2.3) and QCLI-2.2's legacy requirement reconciliation (also cited by QCLI-2.3) — neither is currently named in the slice's own enumeration
 - [ ] #7 The `quest-doc canonical product records` slice's permitted use states explicitly whether it governs only the register's own citations or any QCLI deliverable's, and confirms it covers the execution graph's behavioral-contract vocabulary as QCLI-2.4 actually cites it (a different document section / use than the slice's register-first-person wording straightforwardly enumerates). No permitted use is narrowed below what a merged deliverable already relies on
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. AC1: In the register's 'lore-cli Backlog.md corpus' slice, unify the catch-all's two divergent formulations. The Exclusions field already states the operative test ("asserts an uncited claim about how Backlog.md behaves") and the Ownership rationale field already restates it the same way; only the Repository/URL field diverges ("any further lore-cli document deriving from Backlog.md source"). Rewrite the Repository/URL field's catch-all clause to match the Exclusions/Ownership-rationale formulation verbatim, noting the unification.
+2. AC2: In the register's 'lore-cli release-gate evidence' slice, append an explicit precedence rule to the Exclusions field: when a document (release-publishing.md) is reachable by both this slice and the Backlog-corpus catch-all above, this slice's own named classification/carve-out governs (a named, individually-classified document is not swept in by the catch-all, which exists for undiscovered documents). State that only the named Prerequisites bullet is excluded and the rest of release-publishing.md, including the content QCLI-2.7's Part 3 drift table cites, stays Allowed/citable.
+3. AC3: (a) Add `@opum-ai/quest-cli` (404, cited by QCLI-2.9's packaging contract) to the npm package name occupancy slice's Repository/URL enumeration. (b) Widen the lore-cli slice's Permitted use to admit `@opum-ai/lore`'s ordinary registry metadata (license, repository, maintainer identity, description, publish history) as naming-pattern/allocation evidence, mirroring the npm-occupancy slice's own widened field list, to cover QCLI-2.9's citation of @opum-ai/lore maintainer identity. Verify both against quest-cli-packaging-contract.md's actual citations first.
+4. AC4: In the migration ledger's 'Source provenance boundary' section, amend the closing sentence ("No source slice is admitted... until QCLI-2.1 verifies...") to state that QCLI-2.1 is the founding admission event, not the only one, and that later owner-ruled register amendments (naming QCLI-2.7's two added slices, one widened slice, and the retired closed-list-for-catch-all, each dated 2026-08-04 under owner ruling) are themselves the required six-field verification for their own amendments.
+5. AC6: In the register's 'Prior QCLI research records' slice, add to Repository/URL: QCLI-2.2's legacy-opum-requirement-reconciliation-for-quest-cli.md and the register itself (quest-cli-research-source-register.md) — both cited under this slice by QCLI-2.3's black-box-scenarios evidence table (verified via grep) but not currently named in the enumeration. Light touch to Ownership rationale for coherence.
+6. AC7: In the register's 'quest-doc canonical product records' slice, rewrite Permitted use to state explicitly that the slice governs citation by any QCLI deliverable, not only this register's own alignment language (the original wording is retained as one named use), and add explicit coverage of the execution graph's 'Core behavioral contract' vocabulary section as QCLI-2.4's component-glossary document actually cites it (verified via grep) — a different section/use than the original provenance/migration-ledger wording enumerates. No narrowing.
+7. Verification: for each AC, quote exact before/after text in notes; re-verify QCLI-2.9/2.3/2.4/2.7 citations with grep/read (not memory). Diff Classification lines before/after (must be identical) and confirm slice count unchanged (no new #### headings added). Run `lore check --strict`, `lore validate --strict` on both files, and `lore orphans`; if `lore sync` is needed for managed blocks, run it and git add the regenerated files explicitly (no auto-commit in this environment).
+8. Commit in small logical commits (one or two per AC cluster) with `Refs: QCLI-2.12` trailers, append notes with decisions/verification evidence, then push the branch.
+<!-- SECTION:PLAN:END -->
