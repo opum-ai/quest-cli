@@ -28,6 +28,7 @@
 - 2026-08-04T14:06:57-05:00 739aa7e808ad7c8e6ba50aa9895e3fe3bb6c5c33 QCLI-2.6: Model Quest Git, filesystem, and concurrency threats (#13)
 - 2026-08-04T14:08:28-05:00 d55eaf7428ca2904481d40aabd0a90c96513c690 QCLI-2.12: Close the research source register's admission-authority coherence gaps (#14)
 - 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
+- 2026-08-04T14:22:49-05:00 086ee746fa095baec8e7d725430e608276168c5d docs: sync log.md after wave-4 merges
 
 ## docs/adr
 
