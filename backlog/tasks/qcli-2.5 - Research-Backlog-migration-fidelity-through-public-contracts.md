@@ -4,7 +4,7 @@ title: Research Backlog migration fidelity through public contracts
 status: In Progress
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 16:41'
+updated_date: '2026-08-04 17:02'
 labels:
   - campaign
   - research
@@ -14,6 +14,7 @@ labels:
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:migration'
   - wave-4
+  - in-review
 dependencies:
   - QCLI-2.1
   - QCLI-2.4
