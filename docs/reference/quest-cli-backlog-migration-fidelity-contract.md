@@ -30,7 +30,7 @@ installed copy. Every fact below was produced only from: published
 documentation (`https://backlog.md`, which redirects to
 `github.com/MrLesk/Backlog.md`'s README — read as documentation prose, not
 as source); `backlog --help` and every command's and subcommand's own
-`--help`; `--plain`/`--json` command output; and on-disk artifacts produced
+`--help`; `--plain`/`--json` command output; on-disk artifacts produced
 by actually running the installed `backlog` binary against three throwaway
 scratch repositories created solely for this task,
 `/tmp/qcli-2.5-scratch/repo` (default `init` configuration),
@@ -43,7 +43,14 @@ outside this worktree, none committed to it, and none the same directory as
 this repository's own `backlog/` (the live campaign's system of record) or
 the quarantined local Backlog.md clone at
 `/Volumes/external/repos/Backlog.md` (never opened, per the
-[research source register](quest-cli-research-source-register.md#local-backlogmd-clone-volumesexternalreposbacklogmd)).
+[research source register](quest-cli-research-source-register.md#local-backlogmd-clone-volumesexternalreposbacklogmd));
+and process-level responses from running that same installed binary against
+those scratch repositories — specifically `mcp start`'s stdio JSON-RPC
+responses (used substantively below: the server's self-reported version and
+its EOF-shutdown behavior) and `curl` probes of the `browser` command's
+local HTTP server (recorded below as evidence of what `browser` serves, but
+— as the Execution evidence `browser` row itself states — not treated as a
+citable public contract).
 
 **Pinned research revision (AC6):** `backlog.md` **v1.49.3** — confirmed as
 both the locally installed build and the register's own pin via `backlog
@@ -191,7 +198,7 @@ transcript captured live 2026-08-04; none is inferred.
 
 ### Execution evidence (AC5)
 
-Every row is a command actually run against one of the two scratch
+Every row is a command actually run against one of the three scratch
 repositories on 2026-08-04. "Effect" states the on-disk or process-level
 result observed directly (file diff, `git log`, `git status`, `curl`/stdio
 response, or the exact stdout/stderr), not an inference from source.
