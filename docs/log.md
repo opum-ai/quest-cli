@@ -21,6 +21,7 @@
 - 2026-08-04T10:29:40-05:00 3b5cd8c5526480c6482dda978307c41aa8c14e05 QCLI-2.11: Correct wave-2 cross-task staleness in the three merged deliverables (#7)
 - 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
 - 2026-08-04T10:41:39-05:00 f30b0c50a5f7104e271607f897ab7dea8a98eb1c docs: sync log.md — fix dangling pre-squash SHA, add missing wave-3 merge entries
+- 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
 
 ## docs/adr
 
@@ -40,9 +41,9 @@
 - 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
 - 2026-08-04T10:28:30-05:00 0d127ee50a630d68e6667683f25a6a106ffb94c1 QCLI-2.4: Define Quest CLI actors, workflows, and domain-language candidates (#6)
 - 2026-08-04T10:29:40-05:00 3b5cd8c5526480c6482dda978307c41aa8c14e05 QCLI-2.11: Correct wave-2 cross-task staleness in the three merged deliverables (#7)
-- 2026-08-04T10:48:24-05:00 5ba4067a8d700f08f551a8c8f9ee0e26e111698c docs: repoint black-box scenario doc's exit-vocabulary owner to QCLI-2.8
-- 2026-08-04T10:49:07-05:00 38d0a4e154d8d79367fc5a01fdaa851d5fa40962 docs: add moving-reference recheck clause to black-box scenario provenance
-- 2026-08-04T10:49:17-05:00 da49314f14a297ef4458b9a9213e0298bbb63953 docs: close the migration ledger's fired QCLI-2.3 forward-condition
+- 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
+- 2026-08-04T10:58:20-05:00 63b1e0a33e4b67d87d6034e9b72f127fce10d106 QCLI-2.4 follow-up: add moving-reference recheck clause for quest-doc citation (#10)
+- 2026-08-04T10:59:08-05:00 c09ed473c8432d418c941a3201e33a5e1f1fed3c QCLI-2.13 follow-up: complete AC4 with register-side back-reference (#11)
 
 ## docs/runbooks
 
