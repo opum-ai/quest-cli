@@ -66,6 +66,26 @@ catch-all; each such amendment is itself the six-field verification this
 sentence requires, performed by the amending task under owner ruling rather
 than by QCLI-2.1.
 
+**Extended 2026-08-04 by this `QCLI-2.12` follow-up (F4):** this note named
+only QCLI-2.7's amendments, but QCLI-2.12 itself (same commit, `d55eaf7`)
+also amended the register: it widened the lore-cli slice's Permitted use to
+admit `@opum-ai/lore`'s ordinary registry metadata (maintainer identity,
+license, publish history), added `@opum-ai/quest-cli` to the npm package
+name occupancy slice's enumeration, and added members to the "Prior QCLI
+research records" slice's own enumeration (the reconciliation doc, this
+register, and the accepted ADR — later joined, in a further follow-up, by
+three more already-cited documents). The owner has confirmed (2026-08-04)
+that none of these needed a fresh ruling: the metadata widening and the
+npm-occupancy addition formalize admissions already permitted by QCLI-2.7's
+existing owner-ruled widenings of those same two slices (the lore-cli
+slice's split rule and the npm-occupancy slice's field widening) and
+already exercised in practice by QCLI-2.9's contemporaneous citations of
+`@opum-ai/lore` maintainer identity and the `@opum-ai/quest-cli` 404
+observation; the Prior-QCLI-research-records additions change no
+Classification and admit no new source, only naming, under this slice's
+existing Allowed status, documents merged deliverables already relied on.
+None of the three is a new admission.
+
 ### Preservation rules
 
 - Do not rename or duplicate OCLI IDs, check their acceptance criteria, or mark
