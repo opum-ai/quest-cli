@@ -39,13 +39,23 @@ Before routing any **cross-repo ownership, package-status, or infrastructure/DNS
 question, consult the fleet record in `salient-data/opum-doc` (branch `dev`):
 
 - `docs/reference/fleet-peer-routing-and-session-invocation.md` — which peer owns
-  which answer, and how live sessions actually reach each other.
+  which answer, and how live sessions actually reach each other. Read it there;
+  do **not** transcribe its procedures into this repo. Copied prose goes stale
+  silently — a pointer cannot.
 - `docs/adr/make-saws-the-single-owner-of-infrastructure-and-dns.md` — the
-  **authority** for infrastructure and DNS across every provider. An
-  infrastructure change is not real until reflected in `saws`.
+  authority for infrastructure and DNS across every provider.
+  **This repository creates, modifies, and deletes no DNS record — in any zone,
+  for any provider, including preview and ephemeral hostnames — and provisions
+  no infrastructure.** Route the request to `saws`; do not perform it here and
+  reconcile later.
 
-`opum-doc` is private; confirm read access when you pull. Cite it by path and
-branch, not by a pinned SHA — its head moves.
+**Every repository in this estate is private.** Every `github.com` link above
+and below is **access-gated** and returns 404 without access — a 404 is not
+evidence the path is wrong. Never place these links on a public surface, where
+they are broken by construction.
+
+Cite `opum-doc` by path and branch, not by a pinned SHA — its head moves, and
+has moved four times in a single working session.
 
 **Verified in this repo on 2026-08-04** (re-verify before relying on any of it):
 
@@ -82,5 +92,9 @@ Only prose a reader would act on today gets corrected in place.
 
 When a `*-doc` peer and a `*-cli` peer disagree, that is **drift, i.e. a
 defect** — the `*-cli` peer is authoritative for what currently ships, the
-`*-doc` peer stays normative owner of what the contract is. Report the
-divergence to both owners rather than silently promoting either.
+`*-doc` peer stays normative owner of what the contract is.
+
+**Do not promote either side — not silently, and not loudly.** Announcing the
+promotion does not license it. Report the divergence to both owners and leave
+the conflict standing until an owner resolves it; a documented conflict is a
+correct state, a unilaterally resolved one is not.
