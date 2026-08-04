@@ -91,6 +91,72 @@ Research documentation must pass strict Lore validation/checks and diff checks.
 Any executable research probe operates only on disposable or explicitly
 owner-approved data and records the public contract used.
 
+#### Moving vs. immutable references
+
+A recurring failure mode in this program: a worker runs a real command, gets a
+real answer, and writes it down using a word ("HEAD", "current") that silently
+converts a dated observation into a standing claim. This subsection generalizes
+the fix rather than repairing sites one at a time.
+
+- **Moving reference** — a fact that can change on the next observation without
+  any document edit: branch HEAD, working-tree state, `npm view` availability,
+  Backlog task status, an ahead/behind count, and anything else that is a
+  re-runnable query result rather than a fixed record. A moving reference is
+  recorded as:
+
+  ```text
+  <value> (observed <date>; moving reference, re-verify before relying)
+  ```
+
+- **Immutable anchor** — a fact that re-observation cannot change: a Git tag, a
+  commit SHA, a published package version, a release timestamp. An immutable
+  anchor may be stated flat, with no qualifying phrase, because there is
+  nothing for a later re-check to overturn.
+
+#### Recheck clause requirement
+
+Any document whose conclusion depends on a moving reference must carry a
+recheck clause naming the exact commands to re-run and what a changed result
+obligates. Two implementations already in the corpus are the reference model
+for this shape, independently invented before this rule was generalized:
+
+- `QCLI-2.9`'s mandatory release-time recheck clause in the
+  [Quest CLI packaging contract](../reference/quest-cli-packaging-contract.md)
+  ("Mandatory release-time recheck clause (AC1)") — names the exact `npm view`
+  and `gh api` commands a release-time worker must re-run, and states that a
+  changed result is a new fact for the owner to rule on, not grounds for a
+  worker to substitute a name unilaterally.
+- `QCLI-2.7`'s AC6 reclassification trigger in
+  [Quest CLI Lore dependency and adapter contract evidence](../reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md)
+  ("Reclassification trigger, stated explicitly (AC6)") — names the exact
+  `git diff --stat` command whose non-empty result must trigger
+  re-classification of every finding it touches before further reliance.
+
+A recheck clause is incomplete if it states only that re-verification is
+needed; it must name the literal command(s) to re-run and the disposition of a
+changed result (who rules on it, and what a worker may not do unilaterally).
+
+#### Scope of the convention
+
+This convention binds new and amended documents. It requires no retroactive
+rewrite of existing documents — sites already flagged in the current corpus are
+brought into compliance as a side effect of the tasks already doing that work,
+not by this Spec reaching back into documents it does not own.
+
+#### Relationship to the source register
+
+This is the general case of a rule the
+[research source register](../reference/quest-cli-research-source-register.md)
+already states for one instance: the "lore-cli / the `lore` command" slice's
+Reclassification triggers bullet, which independently records that a GitHub
+rename/transfer redirect makes a stale org reference resolve silently, so any
+citation using an org name must be re-verified against the live
+`git remote`/`gh api` identity rather than assumed correct because a lookup
+under the old name succeeded. That trigger is the specific, single-instance
+form of the moving-vs-immutable distinction above (a `git remote`/`gh api`
+identity check is a moving reference); this subsection is the general rule it
+is an instance of.
+
 ## Open questions
 
 - Product license and contributor provenance.
