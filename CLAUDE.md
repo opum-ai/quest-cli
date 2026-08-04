@@ -53,10 +53,16 @@ branch, not by a pinned SHA — its head moves.
   still **redirects and resolves silently**, so a link that works is *not* proof
   it names the current owner.
 - **`@opum-ai/quest` is NOT published** — registry returns 404 and there is no
-  root `package.json`. Never describe Quest as installable or released.
+  root `package.json`. Do not describe Quest as installable or released, **and
+  do not create the thing that would make the description true**: no
+  `package.json`, no `bin` entry, no install instructions, no package
+  reservation, no release. Describing nothing while adding scaffolding
+  satisfies the wording and breaks the rule.
 - Org ownership is **not uniform**: `lore-cli` and `quest-cli` are `opum-ai`;
   `lore-doc`, `quest-doc`, `quest-web`, and `opum-doc` remain `salient-data`.
-  Check per repository rather than assuming a pattern.
+  Check per repository — and check with something a redirect cannot fake:
+  `gh api repos/<org>/<repo> --jq .full_name` returns the *current* name even
+  when queried under the old one. A 200 from the old URL is not a check.
 - The unscoped `quest` and `lore` names on npm belong to **unrelated third
   parties**. Always use the `@opum-ai/` scope.
 
@@ -64,7 +70,15 @@ Existing `salient-data/*` references under `docs/` are frequently **deliberate
 supersession records** — the ADR's original decision text, the migration
 ledger's transfer history, and the source register's redirect-hazard notes.
 Do not "fix" those; the inline-supersession convention exists so the prior
-state stays legible. Correct only references asserting a *current* fact.
+state stays legible.
+
+The test is **not** "does this sentence assert a current fact" — superseded
+decision text reads exactly like a current assertion, which is how it gets
+rewritten. Ask instead: **is this text recording what was once decided, or
+telling a reader what is true now?** A numbered decision inside an ADR, a
+ledger's history paragraph, or a register slice documenting a hazard is a
+record — leave it and amend it inline, dated, citing the directing task.
+Only prose a reader would act on today gets corrected in place.
 
 When a `*-doc` peer and a `*-cli` peer disagree, that is **drift, i.e. a
 defect** — the `*-cli` peer is authoritative for what currently ships, the
