@@ -9,8 +9,8 @@ tags:
   - clean-room
   - research
   - source-register
-summary: Revalidates the OCLI-3.1 register per source slice; QCLI-2.7 added the lore-cli split rule and closed two evidence-classification gaps.
-timestamp: 2026-08-04T13:21:06.000Z
+summary: Revalidates the OCLI-3.1 register per slice; QCLI-2.7 added the lore-cli split rule, closed two evidence gaps, and fixed a content-identity defect.
+timestamp: 2026-08-04T13:29:14.000Z
 ---
 
 # Quest CLI research source register
@@ -84,11 +84,30 @@ named slice, never to every file in its repository.
 - **Repository or URL:** `opum-doc:docs/reference/dated-opum-fleet-and-prior-art-inventory.md`
   ([link](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md)).
 - **Exact revision or retrieval date:** authored 2026-07-31, refreshed
-  2026-08-01T02:35Z and 2026-08-01T04:14Z at commits `7b82afc` and `d42c016`;
-  both commits' reachability re-verified live 2026-08-04 via `git show
-  7b82afc --stat` / `git show d42c016 --stat` in the local `opum-doc`
-  checkout (both succeed, both `Refs: OCLI-3.1`); file content unchanged
-  since `d42c016` as of `opum-doc` HEAD `d7ca18f`.
+  2026-08-01T02:35Z and 2026-08-01T04:14Z at commits `7b82afc` and `d42c016`
+  — **corrected 2026-08-04 by `QCLI-2.7`, superseding this slice's prior
+  claim.** The prior text asserted "file content unchanged since `d42c016`
+  as of `opum-doc` HEAD `d7ca18f`," verified only by commit *reachability*
+  (`git show 7b82afc --stat` / `git show d42c016 --stat` succeeding), never
+  by confirming those commits actually touch the cited path. `QCLI-2.2`'s
+  review falsified that claim and `QCLI-2.7` independently re-verified it
+  live in the local `opum-doc` checkout: `git cat-file -e
+  7b82afc:docs/reference/dated-opum-fleet-and-prior-art-inventory.md` and
+  the same at `d42c016` both report the path **absent** at that revision —
+  `7b82afc`/`d42c016` authored and refreshed the file at its **former**
+  path, `docs/reference/opum-fleet-and-prior-art-inventory.md` (292 lines
+  immediately before the rename). Commit `846f054` (2026-08-01,
+  unattributed as a Git rename — recorded as a 292-line delete plus a
+  120-line add, a ~59% condensation, not an edit-in-place) created the
+  current path. Commit `bee848a` (2026-08-04) made one further, one-line
+  edit at the current path (a stale `salient-data/quest-cli` link repointed
+  to `opum-ai/quest-cli`, part of the org-transfer sweep) — so the file was
+  **not** unchanged even as of the previously-cited `d7ca18f` in the sense
+  the wording implied; it was current relative to `d7ca18f` only because
+  `d7ca18f` itself predates `bee848a`. Re-verified live 2026-08-04 by
+  `QCLI-2.7` against `opum-doc`'s then-current `HEAD` `7b512d9`: unchanged
+  since `bee848a`, 120 lines, `git diff 846f054..HEAD -- <current path>`
+  shows exactly the one-line link fix and nothing else.
 - **Ownership rationale:** authored by the repository owner during OCLI-3.1;
   retained by `opum-doc` as the designated OCLI-provenance owner per the
   migration ledger.
@@ -516,12 +535,25 @@ named slice, never to every file in its repository.
   is now only the **rationale** for `quest-cli` going scoped as
   `@opum-ai/quest`, not an open allocation question this register must
   resolve.
-- **Permitted use:** cite existence, version, license, and claimed repository
-  only, as naming-conflict evidence for `QCLI-2.9`'s package-allocation
-  resolution.
+- **Permitted use:** cite existence, version, license, claimed repository,
+  **maintainer identities, description text, and publish/version history**
+  — all `npm view <pkg>`-surfaced registry metadata, never package source or
+  tests — as naming-conflict and allocation-constraint evidence for
+  `QCLI-2.9`'s package-allocation resolution. **Widened 2026-08-04 by
+  `QCLI-2.7`:** the register previously enumerated only existence, version,
+  license, and repository; `QCLI-2.9`'s own AC1 requires "current ownership,
+  maintainers, package history, [and] allocation or transfer constraints,"
+  which the narrower list did not clearly cover even though maintainer
+  identity and publish history are the same class of registry metadata as
+  version/license/repository (retrieved the same way, via `npm view`, with
+  no package source or test inspection either way). `QCLI-2.9` dates and
+  cites its own maintainer/history observations independently; this entry
+  only widens what this register admits, it does not itself assert those
+  facts.
 - **Exclusions:** no inspection of `quest`, `quest-cli`, `lore`, or
-  `lore-cli` package source or tests under any circumstance; this register
-  does not resolve the naming question — that is `QCLI-2.9`'s scope.
+  `lore-cli` package source or tests under any circumstance, regardless of
+  which registry-metadata field is cited; this register does not resolve
+  the naming question — that is `QCLI-2.9`'s scope.
 - **Reclassification triggers:** `QCLI-2.9`'s resolution of the npm package
   allocation and provenance gate; any of these names becoming available or
   transferring to `opum-ai` (the target org per the owner's 2026-08-04
