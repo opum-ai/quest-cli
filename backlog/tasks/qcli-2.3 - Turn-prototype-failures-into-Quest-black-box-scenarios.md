@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 15:12'
+updated_date: '2026-08-04 15:23'
 labels:
   - campaign
   - research
@@ -66,4 +66,6 @@ Gates (worktree root, after 'lore sync' run exactly once):
 Note: 'lore sync' (real, run once) did NOT itself commit docs/ changes in this environment -- only its help text's 'commit backlog/' behavior fires when backlog/ is left dirty by lore link/unlink, which this task never ran. The regenerated docs/log.md, docs/reference/index.md, and the Story's managed task-status block were committed by this task as an ordinary commit (b4f0871), same discipline as any other doc change. Recording this as an observation for the orchestrator/other workers, not acted on beyond committing my own regenerated files.
 
 No files owned by sibling tasks this wave (quest-cli-packaging-contract.md, quest-cli-research-source-register.md, legacy-opum-requirement-reconciliation-for-quest-cli.md, quest-cli-pre-implementation-research-program.md) were edited -- read-only citations only.
+
+Fix pass (post-review, request_changes): corrected false commit pin in docs/reference/quest-cli-black-box-acceptance-scenarios.md line ~53. The OCLI-3.3 task-narrative citation named commit 5da8949 as the file's last-touch commit; that SHA is unrelated (2026-08-04 docs commit touching docs/log.md, fleet-peer-routing-and-session-invocation.md, and an ADR — not the OCLI-3.3 task file). Independently re-verified against the local opum-doc clone (/Volumes/external/repos/opum-doc, branch dev, fetched+pulled fresh): 'git log -1 --format=%H %ad %s --date=iso -- "backlog/tasks/ocli-3.3 - Turn-prototype-failures-into-black-box-regression-scenarios.md"' resolves to 3023468a22f78ca51e37855395f1931f9e29d3b0, dated 2026-08-01 13:49:31 -0500 — exact match to the date already in the doc. Changed only the hash (5da8949 -> 3023468); the date and every other citation/table row/prose sentence in the file is untouched (git diff shows a single one-line change). Re-ran all three gates after the edit: lore check --strict -> 20 files, 0 errors, 0 warnings; lore validate --strict -> 20 files, 0 errors, 0 warnings, 6 skipped; lore orphans -> 0 orphan tasks, 0 dangling links. All clean.
 <!-- SECTION:NOTES:END -->
