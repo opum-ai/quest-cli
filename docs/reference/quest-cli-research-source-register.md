@@ -353,7 +353,22 @@ named slice, never to every file in its repository.
   evidence relevant to the Lore activation gate; citing its existence and
   version here does not itself verify the gate — matching that evidence
   against the owning repository and the gate's requirements is `QCLI-2.7`'s
-  scope, not performed by this register.
+  scope, not performed by this register. **Widened 2026-08-04 by
+  `QCLI-2.12`** to close an asymmetry with the npm package name occupancy
+  slice's own widened permitted use (below): also cite `@opum-ai/lore`'s
+  ordinary registry metadata — license, claimed repository, maintainer
+  identity, description text, and publish/version history, each retrieved
+  via `npm view @opum-ai/lore <field>` — as package-naming-pattern and
+  allocation evidence, for example `QCLI-2.9`'s [packaging
+  contract](quest-cli-packaging-contract.md) citing `@opum-ai/lore`'s
+  maintainer identity to confirm the observed `<name>-cli` repository /
+  `@opum-ai/<name>` package / `<name>` executable sibling pattern, never as a
+  Quest runtime dependency or implementation-source claim. This widening is
+  registry-metadata only, the same class of data and exactly as narrow as
+  the npm-occupancy slice's own equivalent widening; it does not touch
+  `@opum-ai/lore`'s package source or tests, which stay governed exclusively
+  by the CLI-surface / source-admissibility rules in this slice and the
+  split rule below, unchanged.
 - **Exclusions:** **amended 2026-08-04 by the owner's split rule** (see "The
   lore-cli source-admissibility split rule," immediately below) — design
   derivation from lore-cli's own TypeScript implementation source is now
@@ -446,8 +461,14 @@ named slice, never to every file in its repository.
   `docs/reference/backlog-json-schema.md`,
   `docs/reference/historical-upstream-backlog-json-tag-watch.md`,
   `docs/runbooks/backlog-json-patch.md`, **and, by the catch-all clause
-  below, any further lore-cli document deriving from Backlog.md source that
-  this register has not yet individually read.**
+  below, any further lore-cli document a worker discovers asserting an
+  uncited claim about how Backlog.md behaves that this register has not yet
+  individually read.** (This field and Exclusions, below, previously stated
+  the catch-all in two materially different formulations — this one and
+  Exclusions' "does it assert a Backlog.md behavior fact without independent
+  public-surface attribution?" test; unified 2026-08-04 by `QCLI-2.12` on the
+  Exclusions formulation, which is also the test the Ownership rationale and
+  Exclusions fields below already apply in practice.)
 - **Exact revision or retrieval date:** tag `v0.1.0`, local clone read
   2026-08-04 (owner ruling date); the two newly-named documents
   (`docs/adr/0009-story-task-coupling-reconciliation.md` and
@@ -556,7 +577,24 @@ named slice, never to every file in its repository.
   this slice does not extend to either document's own cross-links into the
   Backlog corpus slice above; nor does it authorize treating a dated read of
   these two documents as a substitute for a live re-check at activation
-  time.
+  time. **Precedence when a document is reachable by both slices, stated
+  explicitly (closes `QCLI-2.12` AC2):** both `lore-cli-release-truth.md` and
+  `release-publishing.md` are, in principle, also reachable by the lore-cli
+  Backlog.md corpus slice's catch-all above — a worker could ask, of either
+  document, whether it asserts an uncited Backlog.md-behavior claim. Where
+  that happens, this slice's own explicit, name-scoped classification and
+  carve-out govern for these two documents specifically, not the catch-all:
+  the catch-all exists to sweep in a lore-cli document this register has not
+  yet individually read and classified, and both documents are individually
+  read, named, and classified right here. Applying that precedence: only the
+  named Prerequisites bullet above is excluded from citability; the rest of
+  `release-publishing.md` — including the release-mechanics and drift
+  content `QCLI-2.7`'s [dependency and adapter contract
+  evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) Part
+  3 drift table cites it for ("What the 29 commits touch in `docs/`",
+  recording `release-publishing.md` as expected-to-evolve release evidence)
+  — remains Allowed and citable under this slice, exactly as it already was
+  before this clarification.
 - **Reclassification triggers:** a new Lore release changing any recorded
   fact (SHA-256 values, Trusted Publisher binding, `LCLI-278`'s status); a
   further owner decision.
