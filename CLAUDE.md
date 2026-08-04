@@ -32,3 +32,41 @@ coupling, managed blocks, and cross-links stay coherent.
 - **Just-in-time detail:** run `lore instructions` for the canonical agent loop, then
   `lore instructions <topic>` (`linking`, `sync`, `check`, `validation`).
 <!-- lore:agents:end -->
+
+## Fleet routing — read before answering cross-repo questions
+
+Before routing any **cross-repo ownership, package-status, or infrastructure/DNS**
+question, consult the fleet record in `salient-data/opum-doc` (branch `dev`):
+
+- `docs/reference/fleet-peer-routing-and-session-invocation.md` — which peer owns
+  which answer, and how live sessions actually reach each other.
+- `docs/adr/make-saws-the-single-owner-of-infrastructure-and-dns.md` — the
+  **authority** for infrastructure and DNS across every provider. An
+  infrastructure change is not real until reflected in `saws`.
+
+`opum-doc` is private; confirm read access when you pull. Cite it by path and
+branch, not by a pinned SHA — its head moves.
+
+**Verified in this repo on 2026-08-04** (re-verify before relying on any of it):
+
+- This repo is **`opum-ai/quest-cli`**, not `salient-data/quest-cli`. The old URL
+  still **redirects and resolves silently**, so a link that works is *not* proof
+  it names the current owner.
+- **`@opum-ai/quest` is NOT published** — registry returns 404 and there is no
+  root `package.json`. Never describe Quest as installable or released.
+- Org ownership is **not uniform**: `lore-cli` and `quest-cli` are `opum-ai`;
+  `lore-doc`, `quest-doc`, `quest-web`, and `opum-doc` remain `salient-data`.
+  Check per repository rather than assuming a pattern.
+- The unscoped `quest` and `lore` names on npm belong to **unrelated third
+  parties**. Always use the `@opum-ai/` scope.
+
+Existing `salient-data/*` references under `docs/` are frequently **deliberate
+supersession records** — the ADR's original decision text, the migration
+ledger's transfer history, and the source register's redirect-hazard notes.
+Do not "fix" those; the inline-supersession convention exists so the prior
+state stays legible. Correct only references asserting a *current* fact.
+
+When a `*-doc` peer and a `*-cli` peer disagree, that is **drift, i.e. a
+defect** — the `*-cli` peer is authoritative for what currently ships, the
+`*-doc` peer stays normative owner of what the contract is. Report the
+divergence to both owners rather than silently promoting either.
