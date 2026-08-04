@@ -4,7 +4,7 @@ title: Synthesize Quest CLI research into activation-ready component contracts
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-01 18:16'
+updated_date: '2026-08-04 06:00'
 labels:
   - campaign
   - research
@@ -12,6 +12,7 @@ labels:
   - contracts
   - activation-gate
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - 'cluster:synthesis'
 dependencies:
   - QCLI-2.2
   - QCLI-2.3

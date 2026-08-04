@@ -4,7 +4,7 @@ title: Turn prototype failures into Quest black-box scenarios
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-01 17:23'
+updated_date: '2026-08-04 06:00'
 labels:
   - campaign
   - research
@@ -12,6 +12,7 @@ labels:
   - prototype
   - clean-room
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - 'cluster:scenarios'
 dependencies:
   - QCLI-2.1
   - QCLI-2.2

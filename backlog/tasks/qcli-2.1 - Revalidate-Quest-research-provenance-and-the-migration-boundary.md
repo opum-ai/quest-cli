@@ -4,7 +4,7 @@ title: Revalidate Quest research provenance and the migration boundary
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-01 18:16'
+updated_date: '2026-08-04 06:00'
 labels:
   - campaign
   - research
@@ -12,6 +12,7 @@ labels:
   - clean-room
   - migration
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - 'cluster:provenance'
 dependencies:
   - QCLI-1
 documentation:

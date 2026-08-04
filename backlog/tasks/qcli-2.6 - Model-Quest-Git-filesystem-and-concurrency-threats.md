@@ -4,7 +4,7 @@ title: 'Model Quest Git, filesystem, and concurrency threats'
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-01 17:23'
+updated_date: '2026-08-04 06:00'
 labels:
   - campaign
   - research
@@ -12,6 +12,7 @@ labels:
   - git
   - concurrency
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - 'cluster:threat-model'
 dependencies:
   - QCLI-2.2
   - QCLI-2.3

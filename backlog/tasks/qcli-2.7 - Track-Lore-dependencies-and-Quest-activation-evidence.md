@@ -4,7 +4,7 @@ title: Track Lore dependencies and Quest activation evidence
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-01 18:16'
+updated_date: '2026-08-04 06:00'
 labels:
   - campaign
   - research
@@ -12,6 +12,7 @@ labels:
   - evidence
   - activation-gate
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - 'cluster:lore-gate'
 dependencies:
   - QCLI-2.1
 documentation:

@@ -4,7 +4,7 @@ title: Resolve the `quest` npm package allocation and provenance gate
 status: To Do
 assignee: []
 created_date: '2026-08-01 23:48'
-updated_date: '2026-08-01 23:48'
+updated_date: '2026-08-04 06:00'
 labels:
   - research
   - packaging
@@ -14,6 +14,8 @@ labels:
   - follow-up
   - no-publication
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - campaign
+  - 'cluster:packaging'
 dependencies:
   - QCLI-2.1
 references:
