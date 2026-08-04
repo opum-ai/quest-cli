@@ -1,9 +1,10 @@
 ---
 id: QCLI-2.14
 title: 'Re-home the runtime, native-packaging, and supported-platform question'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-04 14:35'
+updated_date: '2026-08-04 16:41'
 labels:
   - campaign
   - research
@@ -11,6 +12,7 @@ labels:
   - convention
   - no-implementation
   - 'cluster:convention'
+  - wave-4
 dependencies:
   - QCLI-2.13
 parent_task_id: QCLI-2

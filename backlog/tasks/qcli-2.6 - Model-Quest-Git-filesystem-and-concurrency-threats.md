@@ -1,10 +1,10 @@
 ---
 id: QCLI-2.6
 title: 'Model Quest Git, filesystem, and concurrency threats'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:00'
+updated_date: '2026-08-04 16:41'
 labels:
   - campaign
   - research
@@ -13,6 +13,7 @@ labels:
   - concurrency
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:threat-model'
+  - wave-4
 dependencies:
   - QCLI-2.2
   - QCLI-2.3

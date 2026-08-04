@@ -1,10 +1,10 @@
 ---
 id: QCLI-2.12
 title: Close the research source register's admission-authority coherence gaps
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 16:38'
+updated_date: '2026-08-04 16:41'
 labels:
   - campaign
   - research
@@ -13,6 +13,7 @@ labels:
   - correction
   - no-implementation
   - 'cluster:provenance'
+  - wave-4
 dependencies:
   - QCLI-2.11
 parent_task_id: QCLI-2
