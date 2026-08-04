@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-04 12:18'
-updated_date: '2026-08-04 12:18'
+updated_date: '2026-08-04 12:20'
 labels:
   - documentation
   - authority
@@ -14,10 +14,12 @@ labels:
   - quest
   - identity
   - no-implementation
+  - 'doc:stories/audit-quest-cli-documentation-authority'
 dependencies: []
 documentation:
   - docs/reference/quest-cli-component-charter.md
   - docs/adr/use-quest-cli-for-the-quest-package-and-command.md
+  - docs/stories/audit-quest-cli-documentation-authority.md
 priority: high
 type: docs
 ordinal: 14000
