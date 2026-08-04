@@ -27,7 +27,7 @@ the current successor to former `OCLI-3.8` ("research synthesis") per the
 
 Every requirement below traces to the [research source
 register](quest-cli-research-source-register.md) or to one of the ten
-dependency deliverables named in the Provenance section, per this task's own
+dependencies named in the Provenance section, per this task's own
 acceptance criterion #1. No requirement, scenario, or contract term in this
 document was authored from memory of a prior wave, from a legacy Opum or
 Backlog.md implementation, or from any source the register does not
@@ -53,10 +53,10 @@ blocker (AC3) — none is resolved by drafting this synthesis.
 
 | Source | Repository / path | Revision | Contributes |
 | --- | --- | --- | --- |
-| Quest CLI research source register | [`quest-cli-research-source-register.md`](quest-cli-research-source-register.md) (this repo) | this branch, as revalidated by `QCLI-2.1` and amended by `QCLI-2.7`/`QCLI-2.12` | The per-slice admission authority for every citation in this document and in all ten dependency deliverables below |
+| Quest CLI research source register | [`quest-cli-research-source-register.md`](quest-cli-research-source-register.md) (this repo) | this branch, as revalidated by `QCLI-2.1` and amended by `QCLI-2.7`/`QCLI-2.11`/`QCLI-2.12`/`QCLI-2.13` | The per-slice admission authority for every citation in this document and in all ten dependencies below |
 | Quest CLI component charter | [`quest-cli-component-charter.md`](quest-cli-component-charter.md) (this repo) | this branch | The owned-surface authority ("Owns here" list, routing table, first-release non-goals, "Sources of truth") every contract below is grounded against |
 | Former OCLI to QCLI migration ledger | [`former-ocli-to-qcli-migration-ledger.md`](former-ocli-to-qcli-migration-ledger.md) (this repo) | this branch | Row-gating authority establishing this task as `OCLI-3.8`'s current successor; the preservation rules this document follows |
-| Quest CLI pre-implementation research program | [`quest-cli-pre-implementation-research-program.md`](../specs/quest-cli-pre-implementation-research-program.md) (Spec, this repo) | this branch | The program's Allowed/Prohibited work lists, Required Outputs, the Dependency order table naming this task's ten dependencies, the Moving vs. immutable references and Recheck clause conventions this document follows, and the Open Questions this document treats as still open |
+| Quest CLI pre-implementation research program | [`quest-cli-pre-implementation-research-program.md`](../specs/quest-cli-pre-implementation-research-program.md) (Spec, this repo) | this branch | The program's Allowed/Prohibited work lists, Required Outputs, the Dependency order table naming six of this task's ten dependencies (`QCLI-2.2`–`QCLI-2.7`; the Spec's table predates `QCLI-2.11`–`QCLI-2.14`'s creation and carries no row for them — the full ten-item set is named in this task's own Backlog record, not in this table), the Moving vs. immutable references and Recheck clause conventions this document follows, and the Open Questions this document treats as still open |
 | Use quest-cli for the Quest package and command | [ADR](../adr/use-quest-cli-for-the-quest-package-and-command.md) (this repo) | this branch, incl. the 2026-08-04 `QCLI-5` amendment | Current package/repository/command identity and its own explicit conditionality statement, cited by the CLI identity contract below |
 | Prepare Quest's clean-room research foundation | [Story](../stories/prepare-quests-clean-room-research-foundation.md) (this repo) | this branch | The campaign's own acceptance criteria this document's structure answers to |
 | `QCLI-2.2` — Legacy Opum requirement reconciliation for Quest CLI | [`legacy-opum-requirement-reconciliation-for-quest-cli.md`](legacy-opum-requirement-reconciliation-for-quest-cli.md) (this repo) | this branch, as corrected by `QCLI-2.11` | The 16-row legacy-candidate classification (Reusable/Adapted/Superseded/Deferred/Rejected) this document's CLI identity, lifecycle, and Git mutation contracts build on; the sole product-wide routing (candidate #6) this document re-affirms |
@@ -64,16 +64,20 @@ blocker (AC3) — none is resolved by drafting this synthesis.
 | `QCLI-2.4` — Quest CLI component glossary, actors, and workflows | [`quest-cli-component-glossary-actors-and-workflows.md`](quest-cli-component-glossary-actors-and-workflows.md) (this repo) | this branch, as corrected by its own wave-3 follow-up | The candidate vocabulary and six end-to-end workflows this document's lifecycle and projection contracts cite; the component-level actor-responsibility table that corroborates, without resolving, candidate #6 |
 | `QCLI-2.5` — Quest CLI Backlog migration fidelity contract | [`quest-cli-backlog-migration-fidelity-contract.md`](quest-cli-backlog-migration-fidelity-contract.md) (this repo) | this branch, as corrected by its own review and wave-4 follow-up | The six fidelity-contract properties (deterministic dry runs, reversible ID mapping, collision handling, source immutability, one-writer coexistence, rollback evidence) this document's migration contract restates functionally |
 | `QCLI-2.6` — Quest CLI Git, filesystem, and concurrency threat model | [`quest-cli-git-filesystem-and-concurrency-threat-model.md`](quest-cli-git-filesystem-and-concurrency-threat-model.md) (this repo) | this branch | The five named mutation invariants (`INV-1`–`INV-5`) this document's Git mutation contract restates verbatim, and the topology/repository-removal grounding this document's projection contract cites |
-| `QCLI-2.7` — Quest CLI Lore dependency and adapter contract evidence | [`quest-cli-lore-dependency-and-adapter-contract-evidence.md`](quest-cli-lore-dependency-and-adapter-contract-evidence.md) (this repo) | this branch, as corrected by its own review passes and by `QCLI-2.14` | The live Lore activation-evidence matrix (Part 1) this document's activation-gate section cites without restating; the 18-row `AC5` adapter-requirement classification (Part 2) this document's Lore integration and JSON/exits contracts draw on |
+| `QCLI-2.7` — Quest CLI Lore dependency and adapter contract evidence | [`quest-cli-lore-dependency-and-adapter-contract-evidence.md`](quest-cli-lore-dependency-and-adapter-contract-evidence.md) (this repo) | this branch, as corrected by its own review passes and by `QCLI-2.14` | The live Lore activation-evidence matrix (Part 1) this document's activation-gate section cites without restating; the 15-row `AC5` adapter-requirement classification (Part 2) this document's Lore integration and JSON/exits contracts draw on |
 
 `QCLI-2.11`, `QCLI-2.12`, `QCLI-2.13`, and `QCLI-2.14` produced no
 deliverable of their own to cite separately — each is a correction pass
 against the register, the migration ledger, the research program Spec, and
 the `QCLI-2.2`/`QCLI-2.3`/`QCLI-2.4`/`QCLI-2.7` deliverables named above.
-This document read the corrected **live text** of every one of those
-documents, not the correction tasks' own implementation notes; see
-"Reconciliation across the ten dependency deliverables," below, for the
-specific corrections verified present.
+The Spec's Dependency order table, cited in the Provenance table above,
+names only the six deliverables `QCLI-2.2`–`QCLI-2.7`; the full ten-item
+dependency set — those six plus these four correction passes — is named in
+this task's own Backlog record (`QCLI-2.8`'s `Dependencies` field), not in
+the Spec's table. This document read the corrected **live text** of every
+one of those documents, not the correction tasks' own implementation notes;
+see "Reconciliation across the ten dependencies," below, for the specific
+corrections verified present.
 
 `QCLI-2.9`'s [packaging contract](quest-cli-packaging-contract.md) is
 **not** one of this task's ten named dependencies and is not cited as a
@@ -200,7 +204,7 @@ source. Where a sub-question remains genuinely open, it is named under
 *Grounded in:* the [register](quest-cli-research-source-register.md#quest-cli-repository-and-npm-package-identity-owner-decision-2026-08-04)'s
 "quest-cli repository and npm package identity" slice; the
 [component charter](quest-cli-component-charter.md)'s "Owns here" list
-(lines 23–24, 31); the accepted [ADR](../adr/use-quest-cli-for-the-quest-package-and-command.md)
+(lines 23–24) and "First-release non-goals" (line 47); the accepted [ADR](../adr/use-quest-cli-for-the-quest-package-and-command.md)
 decision items 2–3 and its 2026-08-04 amendment; `QCLI-2.2`'s
 [reconciliation](legacy-opum-requirement-reconciliation-for-quest-cli.md)
 AC4 (Rejected identity vs. preserved execution invariants) and candidate
@@ -392,8 +396,10 @@ itself), and its Findings.
   mapping step or re-scanning the source project.
 
 *Explicitly open:* whether or how to preserve Backlog-era Git history
-itself (`QCLI-2.5`'s own owner-supplied-fixture finding, not a Backlog
-command surfaces); whether Quest needs a feature analogous to Backlog's
+itself (`QCLI-2.5`'s own owner-supplied-fixture finding: no Backlog.md
+command surfaces that history as a record to preserve, so preserving it is
+a Quest-side migration design decision, not an inherited requirement);
+whether Quest needs a feature analogous to Backlog's
 cross-branch task-state overlay (`QCLI-2.5`'s own explicit unsupported
 gap — real and currently active in Backlog.md, but its reconciliation
 algorithm is not derivable from any admissible source); Quest's own
@@ -444,14 +450,14 @@ line 30 ("versioned Lore import/link/adapter behavior"); `QCLI-2.7`'s
 [Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
 Part 1 (the "Optional Lore link" dependency's "Provisionally researchable"
 classification) and Part 2 (the full adapter review and its `AC5`
-18-row classification table); `QCLI-2.4`'s glossary "Optional Lore link"
+15-row classification table); `QCLI-2.4`'s glossary "Optional Lore link"
 workflow row.
 
 - Lore participation is optional by default: no Quest-only workflow in the
   component's own lifecycle (claim and deliver, lease expiry and
   reclamation, human review gate, projection rebuild) depends on Lore being
-  reachable (`QCLI-2.4` workflow table; charter routing table, "Neither
-  writes the other's private files or database").
+  reachable (`QCLI-2.4` workflow table; charter "Sources of truth" section,
+  "Neither writes the other's private files or database").
 - A Lore link, when invoked, must fail loud on unreachability or a stale
   concept ID and leave the task's own authoritative state untouched
   (`QCLI-2.4` glossary, Optional Lore link workflow row).
@@ -566,13 +572,18 @@ blocker gated on external work — never resolved by naming it here.
    - **(b) Legacy Opum evidence retention and remote disposition.** A
      separate, narrower question belonging to `opum-doc`, not quest-cli:
      the register's "Former `opum-cli` repository identity" slice names
-     `opum-doc` task `OCLI-7` ("Decide legacy Opum evidence preservation
-     and remote disposition"), still To Do, blocked on `QCLI-2.1` (Done).
-     `QCLI-2.2`'s reconciliation already corrected the record that `OCLI-7`
-     decides retention/disposition of already-registered legacy sources,
-     not their historical existence (which is no longer in question). This
-     document does not perform, substitute for, or reopen that decision.
-     **Status:** blocked on a named owner task outside this component.
+     `opum-doc` task `OCLI-7` under the Story title "Decide legacy Opum
+     evidence disposition," blocked on `QCLI-2.1` (Done); the register
+     itself records neither a status nor `OCLI-7`'s fuller task title.
+     `QCLI-2.2`'s reconciliation, as observed 2026-08-04, names `OCLI-7`'s
+     fuller title ("Decide legacy Opum evidence preservation and remote
+     disposition") and records it as still To Do — a moving reference,
+     re-verify before relying — and already corrected the record that
+     `OCLI-7` decides retention/disposition of already-registered legacy
+     sources, not their historical existence (which is no longer in
+     question). This document does not perform, substitute for, or reopen
+     that decision. **Status:** blocked on a named owner task outside this
+     component.
 
 ### Proposed component delivery graph (dormant)
 
@@ -589,7 +600,7 @@ runtime dependencies, generated CLI or package scaffolding").
 
 | Phase | Candidate scope | Builds on (contracts) | Blocked by | Status |
 | --- | --- | --- | --- | --- |
-| 0 — Activation precondition | The Lore-owned release gate reports Pass from live `lore-doc` owner evidence; `LCLI-278`'s automated-publish control is resolved or an equivalent out-of-file control is approved | n/a | The Lore-wide gate (owner-held, see "Activation gate and dormancy," above) | Not started; gate unpassed as of this document's 2026-08-04 re-verification |
+| 0 — Activation precondition | The Lore-owned release gate reports Pass from live `lore-doc` owner evidence; `LCLI-278`'s automated-publish control is resolved or an equivalent out-of-band control is approved | n/a | The Lore-wide gate (owner-held, see "Activation gate and dormancy," above) | Not started; gate unpassed as of this document's 2026-08-04 re-verification |
 | 1 — Component decisions (no code) | Resolve the JSON-envelope shape, the not-found signal convention, canonical ID grammar, product license, and explicit ownership of the platform and runtime open questions | CLI identity; JSON and exits | The seven categories in "Unresolved component decisions," above; not blocked on the Lore gate itself | Proposal only |
 | 2 — Core execution engine | Claims, leases, gate mechanism (excluding actor eligibility), event-derived state, operation-owned Git mutation satisfying `INV-1`–`INV-5` | Lifecycle; Git mutation | Phase 1's ID-grammar and envelope decisions | Proposal only, depends on Phase 1 |
 | 3 — Local projection | Rebuildable projection, freshness/staleness reporting, resume-not-restart synchronization per `BB-07`/`BB-08` | Projection | Phase 2 | Proposal only, depends on Phase 2 |
@@ -635,7 +646,7 @@ release gate reporting Pass, and a later, explicitly authorized session's
 live re-verification of that fact — never a reuse of any dated observation
 recorded in this document or in any of its ten dependencies.
 
-### Reconciliation across the ten dependency deliverables
+### Reconciliation across the ten dependencies
 
 This document's own research pass verified, against the **live** text of
 the corrected documents (not the correction tasks' own implementation
@@ -691,7 +702,7 @@ explicit instruction not to edit the register.
 This document opened no Backlog.md implementation source or internal
 tests, the local Backlog.md clone, any Quarantined legacy Opum artifact, or
 the Deferred `jeremy-newhouse/opum-engine` prototype surfaces. It read the
-ten dependency deliverables' own **final, live** text in full, not a
+ten dependencies' own **final, live** text in full, not a
 summary or a prior wave's memory of them, and re-verified `LDOC-4`'s and
 `LCLI-278`'s live Backlog status independently in the local `lore-doc` and
 `lore-cli` clones, read-only, on 2026-08-04. It made no repository,
