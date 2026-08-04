@@ -5,6 +5,7 @@
 - [Legacy Opum requirement reconciliation for Quest CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md)
 - [Quest CLI black-box acceptance scenarios](quest-cli-black-box-acceptance-scenarios.md)
 - [Quest CLI component charter](quest-cli-component-charter.md)
+- [Quest CLI component glossary, actors, and workflows](quest-cli-component-glossary-actors-and-workflows.md)
 - [Quest CLI Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
 - [Quest CLI packaging contract](quest-cli-packaging-contract.md)
 - [Quest CLI research source register](quest-cli-research-source-register.md)
