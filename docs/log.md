@@ -19,6 +19,7 @@
 - 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
 - 2026-08-04T10:28:30-05:00 0d127ee50a630d68e6667683f25a6a106ffb94c1 QCLI-2.4: Define Quest CLI actors, workflows, and domain-language candidates (#6)
 - 2026-08-04T10:29:40-05:00 3b5cd8c5526480c6482dda978307c41aa8c14e05 QCLI-2.11: Correct wave-2 cross-task staleness in the three merged deliverables (#7)
+- 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
 
 ## docs/adr
 
@@ -48,7 +49,7 @@
 
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
-- 2026-08-04T10:30:03-05:00 a902e3f9e92d0bee416cfc9a955139685b14db47 docs(specs): add moving-vs-immutable reference convention to Verification bar
+- 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
 
 ## docs/stories
 
