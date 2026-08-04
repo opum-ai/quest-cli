@@ -838,14 +838,15 @@ named slice, never to every file in its repository.
   Verified via `git log --format='%h %cI' -1 -- <path>` for each of the
   nine members, and every resulting SHA cross-checked against `git show -s
   --format=%cI <sha>` (date) and `git show --stat <sha>` (confirms the
-  commit actually touches the named path). None of the nine remains pinned
-  to the branch base `0cf0f34` (2026-08-04 01:02:11 -0500) — the point of
-  reference every member was checked against — except this register's own
-  self-pin below and, **as of a fourth `QCLI-2.12` follow-up pass**, the
-  migration ledger's pin immediately below, both of which are dated, not
-  commit-pinned, by necessity (see that bullet for why). The
-  **component charter** (`quest-cli-component-charter.md`) and the accepted
-  **ADR** ([Use quest-cli for the Quest package and
+  commit actually touches the named path). Two of the nine members are
+  self-referential rather than commit-pinned, by necessity, and are
+  addressed on their own terms below: this register's own self-pin, and,
+  **as of a fourth `QCLI-2.12` follow-up pass**, the migration ledger's pin
+  (see that bullet for why). The remaining seven are commit-pinned, and
+  none of them remains pinned to the branch base `0cf0f34` (2026-08-04
+  01:02:11 -0500) — the point of reference every member was checked
+  against. The **component charter** (`quest-cli-component-charter.md`)
+  and the accepted **ADR** ([Use quest-cli for the Quest package and
   command](../adr/use-quest-cli-for-the-quest-package-and-command.md)) are
   both last amended at `942da73` (2026-08-04 07:21:12 -0500, the `QCLI-5`
   org-identity commit, which touches both documents in one edit). The
@@ -856,46 +857,53 @@ named slice, never to every file in its repository.
   below already exists to handle: an exact-SHA pin of a document this task
   amends in the same pass it records the pin is invalidated the instant a
   later commit in that pass touches the document again, and this is not a
-  matter of choosing the right SHA — it has now happened three times,
-  identically. First, the pin to `0cf0f34` was invalidated within the same
-  pass that wrote it (this task's own subsequent edits moved the ledger
-  past that base). Second, the corrected re-pin from this task's second
-  follow-up (B1) was invalidated when that same pass's own B3 correction to
-  the ledger (`0181c79`) landed after the pin was written. Third, this
-  field's own exhaustive from-scratch re-pin (commit `8a2a64d`) named
-  `0181c79`, only for this same third pass's own ledger correction (commit
-  `e6363fe`, 2026-08-04 15:07:26 -0500 — six seconds after the register
-  commit that pinned it) to land in the same pass and invalidate that pin
-  again. The ledger is therefore pinned the same structural way this
-  register pins itself below, rather than to a commit: to its own current
-  state on this branch, as amended live through this same edit or through
-  any later commit in this same pass, read live 2026-08-04 — a commit
-  cannot meaningfully pin a document to a state contemporaneously edited by
-  the same pass recording the pin. The **research Spec**
-  (`../specs/quest-cli-pre-implementation-research-program.md`) is last
-  amended at `157ad56` (2026-08-04 14:09:46 -0500, `QCLI-2.14` — the same
-  commit that amends the Lore dependency evidence document below).
-  `QCLI-2.2`'s [legacy Opum requirement
+  matter of choosing the right SHA — it has happened twice as a same-pass
+  self-invalidation, plus once more as a related cross-pass staleness
+  carrying the identical root cause. **First (same-pass):** this branch's
+  own F2/F3 commit (`89bc8c5`, 2026-08-04 14:30:46 -0500) pinned the ledger
+  to `0cf0f34`, only for that same pass's own F4 commit (`fe5c58f`,
+  14:30:56 -0500 — ten seconds later) to amend the ledger and invalidate
+  the pin it had just written. **Second (same-pass):** this field's own
+  exhaustive from-scratch re-pin (commit `8a2a64d`, 15:07:20 -0500) named
+  `0181c79` as the ledger's current state, only for that same third pass's
+  own ledger correction (commit `e6363fe`, 15:07:26 -0500 — six seconds
+  later) to land in the same pass and invalidate that pin again. **Third
+  (cross-pass, not same-pass):** the second follow-up pass's B1 re-pin
+  (`ba45307`, 14:47:54 -0500) named `0181c79` as the ledger's most recent
+  amendment — accurately: that same pass's own B3 correction to the ledger
+  (`0181c79`, 14:47:01 -0500) had landed 53 seconds *earlier*, not after,
+  so B1's pin was correct at the moment it was written and was not
+  invalidated by B3 at all. It went stale afterward, in the following
+  (third) pass, when `e6363fe` landed. The ledger is therefore pinned the
+  same structural way this register pins itself below, rather than to a
+  commit: to its own current state on this branch, as amended live through
+  this same edit or through any later commit in this same pass, read live
+  2026-08-04 — a commit cannot meaningfully pin a document to a state
+  contemporaneously edited by the same pass recording the pin. The
+  **research Spec** (`../specs/quest-cli-pre-implementation-research-program.md`)
+  is last amended at `157ad56` (2026-08-04 14:09:46 -0500, `QCLI-2.14` —
+  the same commit that amends the Lore dependency evidence document
+  below). `QCLI-2.2`'s [legacy Opum requirement
   reconciliation](legacy-opum-requirement-reconciliation-for-quest-cli.md)
   is last amended at `3b5cd8c` (2026-08-04 10:29:40 -0500, `QCLI-2.11`'s
   cross-task staleness fix). `QCLI-2.3`'s [black-box acceptance
   scenarios](quest-cli-black-box-acceptance-scenarios.md) is last amended
-  at `883b445` (2026-08-04 10:57:21 -0500, `QCLI-2.3` follow-up — the same
-  commit that amends the migration ledger above). `QCLI-2.4`'s [component
+  at `883b445` (2026-08-04 10:57:21 -0500, `QCLI-2.3` follow-up; that
+  commit also touched the migration ledger, though the ledger is no longer
+  commit-pinned — see its bullet above). `QCLI-2.4`'s [component
   glossary, actors, and
   workflows](quest-cli-component-glossary-actors-and-workflows.md) is last
   amended at `63b1e0a` (2026-08-04 10:58:20 -0500, `QCLI-2.4` follow-up).
   `QCLI-2.7`'s [Lore dependency and adapter contract
   evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) is
   last amended at `157ad56` (2026-08-04 14:09:46 -0500, `QCLI-2.14` — the
-  same commit that amends the research Spec above). Five distinct SHAs
-  appear above (`942da73`, `157ad56`, `3b5cd8c`, `883b445`, `63b1e0a`),
-  independently re-verified for this pass; all read live 2026-08-04,
-  current content. **A sixth SHA, `0181c79`, appeared here through this
-  field's third pass but no longer does: the fourth `QCLI-2.12` follow-up
-  pass replaced the migration ledger's exact-SHA pin above with a
-  self-referential one, for the same structural reason this register pins
-  itself below.** **This register itself
+  same commit that amends the research Spec above). Five distinct SHAs are
+  used as member pins above (`942da73`, `157ad56`, `3b5cd8c`, `883b445`,
+  `63b1e0a`), independently re-verified for this pass; all read live
+  2026-08-04, current content. `0181c79` was used as the migration
+  ledger's pin through this field's third pass and is no longer a pin — it
+  survives above only as a historical reference, in the account above of
+  why the ledger's exact-SHA pin was dropped. **This register itself
   (`quest-cli-research-source-register.md`), also enumerated in Repository
   or URL above, is self-referential and cites no external commit: it is
   pinned to its own current state on this branch, as amended live through
