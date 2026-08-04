@@ -53,7 +53,7 @@ may not implement or publish Quest.
 | [QCLI-2.1](../../backlog/tasks/qcli-2.1%20-%20Revalidate-Quest-research-provenance-and-the-migration-boundary.md) | Revalidate Quest research provenance and the migration boundary | Done |
 | [QCLI-2.2](../../backlog/tasks/qcli-2.2%20-%20Reconcile-legacy-Opum-requirements-into-Quest-decisions.md) | Reconcile legacy Opum requirements into Quest CLI candidates | Done |
 | [QCLI-2.3](../../backlog/tasks/qcli-2.3%20-%20Turn-prototype-failures-into-Quest-black-box-scenarios.md) | Turn prototype failures into Quest black-box scenarios | In Progress |
-| [QCLI-2.4](../../backlog/tasks/qcli-2.4%20-%20Define-Quest-actors-workflows-and-domain-language.md) | Define Quest CLI actors, workflows, and domain-language candidates | To Do |
+| [QCLI-2.4](../../backlog/tasks/qcli-2.4%20-%20Define-Quest-actors-workflows-and-domain-language.md) | Define Quest CLI actors, workflows, and domain-language candidates | In Progress |
 | [QCLI-2.5](../../backlog/tasks/qcli-2.5%20-%20Research-Backlog-migration-fidelity-through-public-contracts.md) | Research Backlog migration fidelity through public contracts | To Do |
 | [QCLI-2.6](../../backlog/tasks/qcli-2.6%20-%20Model-Quest-Git-filesystem-and-concurrency-threats.md) | Model Quest Git, filesystem, and concurrency threats | To Do |
 | [QCLI-2.7](../../backlog/tasks/qcli-2.7%20-%20Track-Lore-dependencies-and-Quest-activation-evidence.md) | Track Lore dependencies and Quest activation evidence | Done |

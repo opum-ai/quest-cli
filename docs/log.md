@@ -16,6 +16,7 @@
 - 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
 - 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
 - 2026-08-04T09:36:25-05:00 f7c93c8fb764df3a58069cb558ad579628c3b78b chore(backlog): file the four approved wave-2 follow-ups
+- 2026-08-04T10:25:44-05:00 2bdbb1c1ef04618b55be6d83d2e577ae95987406 docs: sync managed blocks for QCLI-2.3
 
 ## docs/adr
 
@@ -32,7 +33,9 @@
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
 - 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
 - 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
-- 2026-08-04T10:11:02-05:00 1fbc50c97b524bc5756546fb19e8061b740c512c docs(reference): add Quest CLI black-box acceptance scenarios corpus
+- 2026-08-04T10:25:44-05:00 2218c9fae76e55f5ed8d5a33a772196270485564 docs(reference): add Quest CLI black-box acceptance scenarios corpus
+- 2026-08-04T10:25:44-05:00 222d4dcaa335e7d4659358430649910be0a348e7 fix(reference): correct false commit pin for OCLI-3.3 last-touch citation
+- 2026-08-04T10:25:44-05:00 2bdbb1c1ef04618b55be6d83d2e577ae95987406 docs: sync managed blocks for QCLI-2.3
 
 ## docs/runbooks
 
@@ -54,3 +57,4 @@
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
 - 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
+- 2026-08-04T10:25:44-05:00 2bdbb1c1ef04618b55be6d83d2e577ae95987406 docs: sync managed blocks for QCLI-2.3
