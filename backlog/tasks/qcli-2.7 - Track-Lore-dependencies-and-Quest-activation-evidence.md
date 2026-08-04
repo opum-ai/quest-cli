@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude-worker'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 13:24'
+updated_date: '2026-08-04 13:30'
 labels:
   - campaign
   - research
@@ -86,6 +86,16 @@ lore orphans --plain -> "orphans: 0 orphan tasks, 0 dangling links"
 Commits: e17b527 (new Reference doc), c03c63b (register split rule + gap closures), e69bb9b (pre-existing lore-sync drift reconciliation: docs/log.md + two Story managed blocks, unrelated hand edits).
 
 Out of scope, reported not acted on: docs/adr/0009's Backlog-behavior claims (recorded in the register's catch-all, not independently re-derived -- that re-derivation is QCLI-2.5's job at the public v1.49.3 surface if ever needed). Runtime/native-packaging/supported-platform Lore-precedent evidence explicitly left to QCLI-2.9, not evaluated in the Part 1 matrix, per the wave's cluster-scope split.
+
+Post-report correction (team-lead relay from QCLI-2.2's review): fixed a falsified content-identity claim in the register's "dated Opum fleet and prior-art inventory" slice. The prior text asserted file content "unchanged since d42c016 as of opum-doc HEAD d7ca18f", verified only by commit reachability (git show <sha> --stat succeeding), never by confirming those commits touch the cited path. Independently re-verified in /Volumes/external/repos/opum-doc (not taking the report on faith): git cat-file -e confirms the path is ABSENT at both 7b82afc and d42c016 -- those commits authored/refreshed the file at its FORMER path docs/reference/opum-fleet-and-prior-art-inventory.md (292 lines). Commit 846f054 condensed+renamed to the current path (120 lines, recorded as a plain delete+add, not a detected Git rename). Commit bee848a (2026-08-04) made one further one-line link-URL fix, postdating the previously-cited d7ca18f -- so even the "as of d7ca18f" framing concealed that the file had already moved again by the time of my session. Corrected the slice with the verified lineage and re-pinned to opum-doc's current live HEAD 7b512d9.
+
+Swept the rest of the register (grep for unchanged/reachab/--stat/byte-identical/matches/confirmed) for the same reachability-vs-content-identity failure class: found none. The "Git recovery commits" slice's own reachability-only claim is safe by construction (its permitted use is "recover the historical text AT that commit", which reachability genuinely establishes -- no current-state identity claim is layered on top). The lore-cli release-identity claims (npm/tag/version match) were independently re-verified live by me via direct commands, not inherited.
+
+Also widened the "npm package name occupancy" slice's permitted-use enumeration per QCLI-2.9's review: added maintainer identities, description text, and publish/version history (same class of npm-registry metadata as version/license/repository, retrieved the same way via npm view, no package source/test inspection either way) since QCLI-2.9's own AC1 requires citing exactly those facts. QCLI-2.9 still dates and cites its own observations; this only widens what the register admits.
+
+Gates re-run clean after both fixes: lore check --strict --plain -> "17 files, 0 errors, 0 warnings"; lore validate --strict --plain -> "17 files, 0 errors, 0 warnings, 6 skipped"; lore orphans --plain -> "orphans: 0 orphan tasks, 0 dangling links".
+
+Commit: e0ea127. Pushed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
