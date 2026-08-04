@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 22:35'
+updated_date: '2026-08-04 23:07'
 labels:
   - campaign
   - research
@@ -103,6 +103,8 @@ Fixed all non-blocking findings in the same file:
 Left standing, not acted on (per this task's scope and the review pass's own instructions): the residual register-enumeration gap noting QCLI-2.5 and QCLI-2.6 are not listed in the register's "Prior QCLI research records" slice, flagged in the previous review as an observation for the settlement session, not a defect in this deliverable -- no action taken here, consistent with AC1's "or an approved research output" branch already covering both and this task's scope boundary against editing the register.
 
 Verification: `lore validate --strict --plain docs/reference/quest-cli-component-contracts-and-delivery-graph.md` -> "1 file, 0 errors, 0 warnings, 0 skipped" (exit 0). `lore check --strict --plain` (repo root) -> "24 files, 0 errors, 0 warnings" (exit 0). `lore validate --strict --plain` (repo root) -> "24 files, 0 errors, 0 warnings, 6 skipped" (exit 0). `lore orphans --plain` -> "0 orphan tasks, 0 dangling links" (exit 0). Only docs/reference/quest-cli-component-contracts-and-delivery-graph.md changed (`git status --short` confirms); no other file touched, no acceptance criterion checked, no status change, no summary written, register and ledger untouched.
+
+Wave-level integration-review follow-up (branch fix/qcli-2.8-2.10-integration-review-followup, commits 44e22ac/fca2097): fixed cross-doc coherence issues found between this document and QCLI-2.10's playbook. In component-contracts-and-delivery-graph.md: restored the fidelity contract's dropped human-consented-remediation escape clause and 'including for convenience' wording in the Source immutability bullet (Migration contract); restored the dropped 'must not run concurrently with a live Backlog.md write session' precondition sentence in the One-writer coexistence bullet; added a caveat paragraph after the Provenance table disclosing that QCLI-2.5's fidelity contract, QCLI-2.6's threat model, and the Story are not yet enumerated in the register's 'Prior QCLI research records' slice (same gap class QCLI-2.12 closed elsewhere; reported to the register's owner, register not edited); added a version-pin sentence at the head of the Migration contract section deferring to QCLI-2.5's own AC6 pin/recheck clause; added an additive, non-dependency cross-reference from the Phase 4 delivery-graph row to QCLI-2.10's playbook as its operational procedure. Ran lore check --strict / validate --strict / orphans clean after the edits; did not run lore sync (an unrelated pre-existing unsynced log.md entry for a prior commit trips a portability warning under --strict once synced, out of this task's scope -- reported separately, not fixed here).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

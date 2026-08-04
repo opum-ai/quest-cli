@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-04 06:23'
-updated_date: '2026-08-04 22:57'
+updated_date: '2026-08-04 23:07'
 labels:
   - campaign
   - research
@@ -186,4 +186,6 @@ relying on it as a principal source. This is the same enumeration-gap
 class QCLI-2.12 closed for QCLI-2.2/2.3/2.4/2.7's outputs; the fidelity
 contract itself is the visible remaining gap. Belongs to the register's
 owner, not to this task.
+
+Wave-level integration-review follow-up (branch fix/qcli-2.8-2.10-integration-review-followup, commits 44e22ac/fca2097): fixed cross-doc coherence issues found between this playbook and QCLI-2.8's synthesis. Reattributed the browser /api/tasks HTTP-endpoint restriction (What this playbook deliberately does not carry over) to QCLI-2.5's own self-imposed enumeration clause rather than the register (the register's actual exclusion is narrower: source-only observation is inadmissible, running the tool is fine); cross-referenced the synthesis's own residual-gap note that already identifies the same self-imposed-restriction pattern for a different evidence class. Replaced 'phase' with 'step' in the 4 places this document used it for cutover-procedure steps (frontmatter summary, AC2 bullet, 'Single writer per step' heading and body), reserving 'Phase' for the synthesis's delivery-graph node numbering. Removed two mistargeted 'below' pointers (Step 4, Step 6 table cells) whose linked sections are in the fidelity contract, not below in this document. Fixed the Lifecycle folder definition, which claimed 'four' record locations for tasks/drafts while enumerating backlog/archive/milestones/ alongside them (not a task or draft location). Added an additive, non-dependency cross-reference from the Scope section to the synthesis's Phase 4 delivery-graph node. Ran lore check --strict / validate --strict / orphans clean after the edits; did not run lore sync (see QCLI-2.8's notes for why).
 <!-- SECTION:NOTES:END -->
