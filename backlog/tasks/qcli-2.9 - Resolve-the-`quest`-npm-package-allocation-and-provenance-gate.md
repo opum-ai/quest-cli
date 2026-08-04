@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 23:48'
-updated_date: '2026-08-04 13:07'
+updated_date: '2026-08-04 13:18'
 labels:
   - research
   - packaging
@@ -102,4 +102,6 @@ Gates run from this worktree after 'lore sync' (which also auto-committed backlo
 - 'lore orphans --plain' -> '0 orphan tasks, 0 dangling links' (exit 0)
 
 Out of scope, not touched: docs/index.md's hand-authored 'Start here' list was left unedited (the new doc is already reachable via docs/reference/index.md's managed block, auto-added by 'lore sync') to avoid a shared-file edit against concurrent QCLI-2.2/QCLI-2.7 work this wave.
+
+Review fix pass (2026-08-04 13:18:29Z): corrected the quest release-count figure from 29 to 26 in both the contract (docs/reference/quest-cli-packaging-contract.md, 'quest package history' paragraph) and the Implementation Notes bullet above ('npm view quest time -> ... 29 releases ...') — that bullet's '29 releases' is superseded by this correction; re-observed live via 'npm view quest versions --json' (26 entries: 0.0.2..0.4.0) and 'npm view quest time' (26 version keys), independent re-count matches. Also added one sentence to the contract's AC2 section noting AC1 compels citing maintainer identities, descriptions, and publish histories for quest/quest-cli beyond the register's 'npm package name occupancy' slice's narrower permitted use ('cite existence, version, license, and claimed repository only'); this is registry metadata, not package content, so clean-room is unaffected, and the permitted-use widening itself is routed to QCLI-2.7 as the register's owner this wave -- the register itself was not opened for editing. Also reworked the conflicting/reference-names table so unclaimed-name rows put 'E404 Not Found — unclaimed' under Version instead of Repository, so it reads as a name-availability fact rather than a repository fact. No other changes made; the other four ACs were not re-verified in this pass per explicit instruction.
 <!-- SECTION:NOTES:END -->
