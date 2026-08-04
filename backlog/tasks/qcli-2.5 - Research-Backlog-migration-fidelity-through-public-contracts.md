@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.5
 title: Research Backlog migration fidelity through public contracts
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 19:25'
+updated_date: '2026-08-04 20:16'
 labels:
   - campaign
   - research
@@ -14,8 +14,6 @@ labels:
   - clean-room
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:migration'
-  - wave-4
-  - in-review
 dependencies:
   - QCLI-2.1
   - QCLI-2.4
@@ -41,12 +39,12 @@ Any Quest-wide vocabulary, architecture, or roadmap consequence is a proposal to
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The inventory covers active, completed, archived, draft, hierarchy, dependencies, milestones, lifecycle metadata, plans, criteria, notes, comments, references, timestamps, and final summaries
-- [ ] #2 Every field maps to a public read contract, owner-supplied fixture, deliberate transformation, or explicit unsupported gap
-- [ ] #3 The contract defines deterministic dry runs, reversible ID mapping, collision handling, source immutability, one-writer coexistence, and rollback evidence
-- [ ] #4 The full backlog CLI surface at the pinned revision is enumerated exhaustively — every command, subcommand, flag, and option reachable from `backlog --help` and from each command's own help — with a stated method proving nothing was omitted
-- [ ] #5 Every enumerated command is exercised end to end against a throwaway scratch repository, with observed output shape, exit code, and on-disk effect recorded as evidence; commands that could not be safely exercised are listed with the reason
-- [ ] #6 The pinned research revision is recorded as backlog.md v1.49.3, and the report states that Backlog implementation source and internal tests were not inspected
+- [x] #1 The inventory covers active, completed, archived, draft, hierarchy, dependencies, milestones, lifecycle metadata, plans, criteria, notes, comments, references, timestamps, and final summaries
+- [x] #2 Every field maps to a public read contract, owner-supplied fixture, deliberate transformation, or explicit unsupported gap
+- [x] #3 The contract defines deterministic dry runs, reversible ID mapping, collision handling, source immutability, one-writer coexistence, and rollback evidence
+- [x] #4 The full backlog CLI surface at the pinned revision is enumerated exhaustively — every command, subcommand, flag, and option reachable from `backlog --help` and from each command's own help — with a stated method proving nothing was omitted
+- [x] #5 Every enumerated command is exercised end to end against a throwaway scratch repository, with observed output shape, exit code, and on-disk effect recorded as evidence; commands that could not be safely exercised are listed with the reason
+- [x] #6 The pinned research revision is recorded as backlog.md v1.49.3, and the report states that Backlog implementation source and internal tests were not inspected
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -96,4 +94,12 @@ Fix: ran 'draft create' for real, twice, against a new third throwaway scratch r
 Verification: 'lore sync --plain' -> 'updated docs/log.md' / '1 file changed'. 'lore check --strict --plain' -> '22 files, 0 errors, 0 warnings', exit 0. 'lore validate --strict --plain' -> '22 files, 0 errors, 0 warnings, 6 skipped', exit 0. 'lore orphans --plain' -> '0 orphan tasks, 0 dangling links', exit 0. 'git status --porcelain' confirms only docs/log.md and the contract document changed; no other file touched.
 
 Wave-4 integration review follow-up fix (2026-08-04, branch fix/qcli-2.5-followup-f5-f6): fixed two findings in this document's own text, both stale-prose defects, no new research or evidence gathered. F5 -- line ~194 ('Execution evidence (AC5)' intro) still said 'one of the two scratch repositories' after the B1 fix-pass added a third scratch repo (/tmp/qcli-2.5-fix-scratch/repo); changed 'two' to 'three' so it matches the intro's and Notes' own 'three throwaway scratch repositories' language. F6 -- the 'produced only from' enumeration (lines ~29-33) named published documentation, --help output, and --plain/--json output, and on-disk artifacts, but the Execution evidence section also substantively uses mcp start's stdio JSON-RPC initialize response (server self-reported version, EOF-shutdown behavior) and curl HTTP probes of the browser command's local server -- neither was named in the admissibility enumeration. Amended the enumeration to add 'process-level responses from running that same installed binary ... specifically mcp start's stdio JSON-RPC responses ... and curl probes of the browser command's local HTTP server', explicitly carrying forward the existing browser Execution-evidence row's own disclaimer that the HTTP API is not treated as a citable public contract, while noting mcp start's response is used substantively. Verified: lore check --strict --plain -> '23 files, 0 errors, 0 warnings', exit 0. lore validate --strict --plain -> '23 files, 0 errors, 0 warnings, 6 skipped', exit 0. lore orphans --plain -> '0 orphan tasks, 0 dangling links', exit 0. git status confirms only docs/reference/quest-cli-backlog-migration-fidelity-contract.md changed.
+
+Settlement (orchestrator, wave 4): Merged as PR #12, squash commit 407ea61. Reviewer verdict on 2nd pass: approve — all 6 ACs independently confirmed, including reproduction of ~20 distinct claims against fresh scratch repos and script-verified exhaustive CLI-surface enumeration (49 nodes = 18 root + 31 leaves). Clean-room compliance (no source/test inspection, no quarantined-clone access, scratch-repo-only exercise, v1.49.3 pin) explicitly confirmed. Gates: lore check --strict 22 files 0/0; lore validate --strict 22 files 0/0 6 skipped; lore orphans 0/0. Wave-4 integration review found 2 non-blocking documentation-accuracy findings (F5: stale scratch-repo count; F6: evidence-source enumeration gap) — both fixed and merged separately as PR #16 (squash commit 418c5eb), reviewed and approved.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Delivered docs/reference/quest-cli-backlog-migration-fidelity-contract.md: an exhaustive Backlog.md migration fidelity contract and gaps report, produced entirely from public-contract observation (help text, --plain/--json output, on-disk artifacts from 3 throwaway scratch repos) at pinned revision v1.49.3, with zero implementation-source or internal-test inspection. Covers the full 15-category inventory, a 20-row field disposition table, all 6 required contract properties, exhaustive 49-node CLI surface enumeration with a stated completeness method, end-to-end execution evidence for every node, and 13 findings including a real (unmanufactured) active/archive ID-collision hazard. A wave-4 integration-review follow-up (PR #16) corrected a stale scratch-repo count and completed the evidence-source enumeration.
+<!-- SECTION:FINAL_SUMMARY:END -->

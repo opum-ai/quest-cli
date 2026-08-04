@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.6
 title: 'Model Quest Git, filesystem, and concurrency threats'
-status: In Progress
+status: Done
 assignee:
   - '@jeremy-newhouse'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 19:06'
+updated_date: '2026-08-04 20:17'
 labels:
   - campaign
   - research
@@ -14,8 +14,6 @@ labels:
   - concurrency
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:threat-model'
-  - wave-4
-  - in-review
 dependencies:
   - QCLI-2.2
   - QCLI-2.3
@@ -36,9 +34,9 @@ Create an implementation-independent threat model for authoritative task and eve
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The model covers dirty worktrees, partial writes, retries, duplicate events, aliases, clocks and leases, races, divergence, hostile paths, encoding, case sensitivity, subdirectories, and repository removal
-- [ ] #2 Mutation invariants require atomicity, idempotency, conflict detection, operation-owned staging and commits, and zero mutation from read-only commands
-- [ ] #3 Real-clone and fault-injection scenarios are specified without inheriting prototype layouts or algorithms
+- [x] #1 The model covers dirty worktrees, partial writes, retries, duplicate events, aliases, clocks and leases, races, divergence, hostile paths, encoding, case sensitivity, subdirectories, and repository removal
+- [x] #2 Mutation invariants require atomicity, idempotency, conflict detection, operation-owned staging and commits, and zero mutation from read-only commands
+- [x] #3 Real-clone and fault-injection scenarios are specified without inheriting prototype layouts or algorithms
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -74,4 +72,12 @@ Pre-sync, 'lore check --strict' showed the expected status-drift/managed-block-d
 No sibling-owned file was edited (register, migration ledger, research program Spec, Lore dependency and adapter contract evidence doc, QCLI-2.5's/2.14's deliverables). No Backlog.md implementation source/tests, local Backlog.md clone, Quarantined artifact, or lore-cli Backlog.md-corpus document was opened. No product source, runtime dependency, executable scaffolding, package manifest, or release artifact was added.
 
 Out-of-scope discovery (not acted on, reported per instructions): none found. This task's own dependencies (QCLI-2.2, QCLI-2.3, QCLI-2.4) were all already Done and internally consistent with each other and with the charter/register/ledger at the time of reading; no drift or defect was observed in them during this task's research.
+
+Settlement (orchestrator, wave 4): Merged as PR #13, squash commit 739aa7e. Reviewer verdict: approve, 1st pass, no blocking findings — all 3 ACs independently confirmed, including a 13-item AC1 spot-check (all substantive, not headers-only) and a 7-of-12-scenario AC3 spot-check for genuine fault-injection specificity, plus verbatim citation verification against every cited source (BB-01..17, reconciliation candidates, charter, glossary). No storage design or implementation smuggled in as a requirement — actively hunted for and confirmed absent. Gates: lore check --strict 22 files 0/0; lore validate --strict 22 files 0/0 6 skipped; lore orphans 0/0. Wave-4 integration review raised no blocking cross-task finding against this document; one informational note (register's Prior QCLI research records slice not yet enumerating QCLI-2.2/2.3/2.4's deliverables cited under it) was resolved as part of the QCLI-2.12 follow-up work (F2).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Delivered docs/reference/quest-cli-git-filesystem-and-concurrency-threat-model.md: an implementation-independent threat model for authoritative task/event records coordinated through Git across worktrees and clones. Covers all 13 required threat categories (dirty worktrees through repository removal), 5 named mutation invariants (atomicity, idempotency, conflict detection, operation-owned staging, zero mutation from reads) with a full threat-to-invariant-to-scenario traceability table, and 12 real-clone/fault-injection scenarios distinct in shape and content from QCLI-2.3's black-box corpus. Selects no physical storage design, consistent with the task's implementation-independence requirement.
+<!-- SECTION:FINAL_SUMMARY:END -->

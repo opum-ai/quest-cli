@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.12
 title: Close the research source register's admission-authority coherence gaps
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 19:07'
+updated_date: '2026-08-04 20:17'
 labels:
   - campaign
   - research
@@ -14,8 +14,6 @@ labels:
   - correction
   - no-implementation
   - 'cluster:provenance'
-  - wave-4
-  - in-review
 dependencies:
   - QCLI-2.11
 parent_task_id: QCLI-2
@@ -40,13 +38,13 @@ Documentation only. Do not reclassify any source, and do not narrow any permitte
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The Backlog-corpus catch-all states one test, in one formulation, in both fields that reference it
-- [ ] #2 The release-gate-evidence slice carries an explicit precedence rule for a document reachable by both it and the Backlog-corpus catch-all, and that rule preserves the existing release-publishing.md drift-table citations as admissible
-- [ ] #3 Every npm name cited by a merged wave-2 deliverable is enumerated in some slice whose permitted use covers the fields actually cited, specifically @opum-ai/quest-cli and @opum-ai/lore maintainer identity
-- [ ] #4 The migration ledgers source-provenance boundary admits owner-ruled register amendments recorded after QCLI-2.1
-- [ ] #5 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
-- [ ] #6 Every in-repo document cited by a merged QCLI-2.x deliverable under the register's `Prior QCLI research records` slice is enumerated by that slice, specifically the research source register itself (cited by QCLI-2.3) and QCLI-2.2's legacy requirement reconciliation (also cited by QCLI-2.3) — neither is currently named in the slice's own enumeration
-- [ ] #7 The `quest-doc canonical product records` slice's permitted use states explicitly whether it governs only the register's own citations or any QCLI deliverable's, and confirms it covers the execution graph's behavioral-contract vocabulary as QCLI-2.4 actually cites it (a different document section / use than the slice's register-first-person wording straightforwardly enumerates). No permitted use is narrowed below what a merged deliverable already relies on
+- [x] #1 The Backlog-corpus catch-all states one test, in one formulation, in both fields that reference it
+- [x] #2 The release-gate-evidence slice carries an explicit precedence rule for a document reachable by both it and the Backlog-corpus catch-all, and that rule preserves the existing release-publishing.md drift-table citations as admissible
+- [x] #3 Every npm name cited by a merged wave-2 deliverable is enumerated in some slice whose permitted use covers the fields actually cited, specifically @opum-ai/quest-cli and @opum-ai/lore maintainer identity
+- [x] #4 The migration ledgers source-provenance boundary admits owner-ruled register amendments recorded after QCLI-2.1
+- [x] #5 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
+- [x] #6 Every in-repo document cited by a merged QCLI-2.x deliverable under the register's `Prior QCLI research records` slice is enumerated by that slice, specifically the research source register itself (cited by QCLI-2.3) and QCLI-2.2's legacy requirement reconciliation (also cited by QCLI-2.3) — neither is currently named in the slice's own enumeration
+- [x] #7 The `quest-doc canonical product records` slice's permitted use states explicitly whether it governs only the register's own citations or any QCLI deliverable's, and confirms it covers the execution graph's behavioral-contract vocabulary as QCLI-2.4 actually cites it (a different document section / use than the slice's register-first-person wording straightforwardly enumerates). No permitted use is narrowed below what a merged deliverable already relies on
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -103,4 +101,14 @@ F4/F5 (non-blocking, out of scope for this fix pass) — not touched; left for t
 Re-verification after all three fixes: zero Classification field values changed (grep -c "Classification:" = 19 before and after; diff of Classification lines against pre-fix-pass commit 9a843d9 is empty); slice count unchanged at 19 Classification fields / 18 #### headings + 1 ### npm-occupancy heading (matching the reviewer's correction that the true count is 19:19, not 18); migration ledger and the two QCLI-2.14-owned files (quest-cli-lore-dependency-and-adapter-contract-evidence.md, quest-cli-pre-implementation-research-program.md) untouched. Gate outputs (final, after all commits): `lore check --strict` -> "21 files, 0 errors, 0 warnings"; `lore validate --strict` -> "21 files, 0 errors, 0 warnings, 6 skipped"; `lore orphans` -> "0 orphan tasks, 0 dangling links". `lore sync` regenerated docs/log.md only (managed block picking up the new commits); committed explicitly as commit 9570959 (no auto-commit in this environment).
 
 Commits this follow-up pass: da9c529 (F3), 77b01f2 (F1), d6a67e5 (F2), 9570959 (log sync).
+
+Settlement (orchestrator, wave 4): Original task merged as PR #14, squash commit d55eaf7, after a fix-and-re-review cycle for F1 (quest-doc slice's exhaustive 'Two admissible uses' wording excluded citations QCLI-2.4 relies on) and F2 (ADR missing from Prior-QCLI-records enumeration). Reviewer verdict on 2nd pass: approve — all 7 ACs independently re-confirmed against live sources, zero Classification-field changes, slice-to-Classification count 19:19, no new permitted-use narrowing. Gates: lore check --strict 21 files 0/0; lore validate --strict 21 files 0/0 6 skipped; lore orphans 0/0.
+
+ESCALATED, UNRESOLVED AS OF SETTLEMENT — separate from the 7 ACs above, which are satisfied by the merged PR #14 content. The wave-4 integration review found 3 further cross-task gaps in this deliverable (F2: register's Prior-QCLI-records slice still didn't enumerate QCLI-2.3/2.4/2.7's deliverables cited under it by QCLI-2.6/QCLI-2.5; F3: the slice's Exact-revision-date field predated its own enumerated members; F4: the ledger's admission-rule note omitted QCLI-2.12's own same-day register amendments). A narrow follow-up branch (fix/qcli-2.12-followup-f2-f3-f4) attempted these across 3 fix-and-review cycles: pass 1 fixed the original F2/F3/F4 but a reviewer found the F3 fix left the revision-pin stale for 4 of 9 enumerated members (B1) plus 2 more issues (B2, B3); pass 2 fixed B2/B3 and 4 of the stale pins but the reviewer found the pin field is structurally self-defeating — pinning the co-edited migration ledger by SHA is invalidated by any ledger edit later in the same pass (this happened again in pass 2 itself); pass 3 did an exhaustive 9-member re-audit but the SAME structural trap recurred once more (the register's ledger-pin commit landed 6 seconds before a ledger content commit in the same pass). Final reviewer verdict: escalate, with two proposed durable fixes: (a) self-pin the ledger the way the register already self-pins itself ('as amended live on this branch'), since a co-edited sibling document has the same self-reference problem; or (b) enforce strict edit ordering (all ledger edits first, register re-pin last, lore sync last). Branch fix/qcli-2.12-followup-f2-f3-f4 is pushed to origin (last commit 5dd001e) and left UNMERGED pending a human decision on the fix pattern. See the campaign doc's needs-human section.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Delivered 3 coherence fixes to docs/reference/quest-cli-research-source-register.md and docs/reference/former-ocli-to-qcli-migration-ledger.md: unified the Backlog-corpus catch-all's two divergent formulations to one test; added an explicit precedence rule for documents reachable by both the catch-all and the release-gate-evidence slice; closed 2 npm-name enumeration gaps (@opum-ai/quest-cli, @opum-ai/lore maintainer identity); widened the migration ledger's amendment-admission boundary past QCLI-2.1; and closed 2 further register admission-authority coverage gaps (F2 proposal, owner-approved) in the Prior-QCLI-records and quest-doc-canonical-product-records slices. Zero source reclassifications; slice-to-Classification count held at 19:19 throughout. A wave-4 integration-review follow-up (register/ledger revision-pin staleness and an authority mis-attribution) escalated to human review after exhausting its fix-cycle budget on a structural self-reference issue — see notes.
+<!-- SECTION:FINAL_SUMMARY:END -->
