@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:38'
+updated_date: '2026-08-04 06:41'
 labels:
   - campaign
   - research
@@ -78,6 +78,17 @@ Verification actually run:
 - `git status --porcelain=v1 --untracked-files=all` (quest-cli) -> clean before this task's own edits; confirms AC3's baseline.
 
 Committed at 108eb64 (Refs: QCLI-2.1); backlog status commit auto-made by `lore sync` at bce0dec.
+
+Orchestrator correction folded in (owner input received mid-task, 2026-08-04):
+
+- lore-cli npm package confirmed as @opum-ai/lore (this task's own earlier verification already had this right — no change needed there).
+- NEW: owner decided quest-cli itself moves to the opum-ai GitHub org and publishes as @opum-ai/quest, executable stays `quest`. Verified live: @opum-ai/quest currently 404s on npm (unclaimed) via `npm view @opum-ai/quest version`; this repo's own `git remote -v` still shows salient-data/quest-cli (transfer not yet executed). Recorded as a new Allowed source-register slice "quest-cli repository and npm package identity (owner decision, 2026-08-04)".
+- Recorded that this owner decision exercises (not contradicts) ADR decision #2's owner-approved-scope fallback, and that it SUPERSEDES the ADR's decision #1 (salient-data/quest-cli as canonical) — classified as a Superseded finding in the register. Did NOT rewrite docs/adr/use-quest-cli-for-the-quest-package-and-command.md itself; that stays out of QCLI-2.1's scope per explicit orchestrator instruction, and is the orchestrator's job to surface to the owner.
+- Recorded that unscoped npm `quest` (v0.4.0, occupied by an unrelated party) is now only the rationale for going scoped, not an open allocation question — final resolution stays QCLI-2.9's job, not touched further here.
+- Recorded @opum-ai/lore v0.1.0 as immutable published release evidence relevant to the Lore activation gate, explicitly leaving gate-evidence verification against the owning repository to QCLI-2.7.
+- Added a reclassification-trigger note that a GitHub rename/transfer redirect makes a stale org reference silently resolve (gh api repos/salient-data/lore-cli returns opum-ai/lore-cli's data without erroring) — any org-qualified citation must be re-verified against live git remote/gh api identity, not assumed correct because an old-name lookup succeeded.
+
+Re-verified after edits: `lore sync` (1 file changed: docs/log.md), `lore check --strict` -> "16 files, 0 errors, 0 warnings" exit 0, `lore validate --strict` -> "16 files, 0 errors, 0 warnings, 6 skipped" exit 0. Committed at b25c891 (Refs: QCLI-2.1) and pushed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -97,5 +108,11 @@ Two things worth reviewer attention:
 1. Repository-identity correction: the orchestrator's dated evidence said "salient-data/lore-cli published GitHub release tag v0.1.0". Live verification (git remote -v, gh api repos/opum-ai/lore-cli, gh api repos/salient-data/lore-cli) shows the actual current repository is `opum-ai/lore-cli` (private) — `salient-data/lore-cli` resolves to the same repo id only via GitHub's rename redirect, i.e. it's a stale identity, not a live second location. The v0.1.0 release timestamp (2026-08-04T02:44:47Z) matches; only the owning org differs from what was supplied. Recorded in the register's lore-cli entry with the correction and the exact commands used. Flagging in case this affects how QCLI-2.7 or the component charter's Lore routing table should later phrase lore-cli's org.
 
 2. Incidental drift fix: `lore check` failed at task start due to pre-existing reconciliation drift on docs/stories/audit-quest-cli-documentation-authority.md (status/managed block stale from QCLI-4 completing without a subsequent `lore sync`), unrelated to this task's content. Running the mandated `lore sync` before `lore check` cleared it as a side effect. No authored prose on that Story was touched — only its lore-managed status/block. Noted here in case a reviewer wants that attributed to a separate follow-up rather than folded into this task's commit.
+---
+
+author: @claude
+created: 2026-08-04 06:41
+---
+Follow-up to comment #2, after the orchestrator's mid-task correction: the owner's 2026-08-04 decision to move quest-cli to the opum-ai GitHub org and @opum-ai/quest npm package is now recorded in the register as a classified Allowed/Superseded finding (new "quest-cli repository and npm package identity" slice). Per the orchestrator's explicit instruction I did NOT amend docs/adr/use-quest-cli-for-the-quest-package-and-command.md's decision #1 (which still names salient-data/quest-cli as canonical) — that ADR edit is intentionally left for the orchestrator/owner to action separately. Flagging here so it isn't lost: the ADR text and the register now disagree on record until that follow-up lands.
 ---
 <!-- COMMENTS:END -->
