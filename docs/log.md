@@ -16,6 +16,7 @@
 - 2026-08-04T08:25:30-05:00 fe569b6dcf8d3d650d1d140081aace9aa6c6842f chore(docs): sync log after implementation-notes commit
 - 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
 - 2026-08-04T08:30:27-05:00 c41e1ec547af8ce7bc5e0bdf6438500ed28f2b4d chore(docs): sync log after correction notes commit
+- 2026-08-04T08:45:27-05:00 09d08d2973a47d01616b23b85a7a393ada9e237b chore(docs): sync log after review fix-pass commits
 
 ## docs/adr
 

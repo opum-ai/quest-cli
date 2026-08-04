@@ -95,16 +95,23 @@ named slice, never to every file in its repository.
   7b82afc:docs/reference/dated-opum-fleet-and-prior-art-inventory.md` and
   the same at `d42c016` both report the path **absent** at that revision —
   `7b82afc`/`d42c016` authored and refreshed the file at its **former**
-  path, `docs/reference/opum-fleet-and-prior-art-inventory.md` (292 lines
-  immediately before the rename). Commit `846f054` (2026-08-01,
-  unattributed as a Git rename — recorded as a 292-line delete plus a
-  120-line add, a ~59% condensation, not an edit-in-place) created the
-  current path. Commit `bee848a` (2026-08-04) made one further, one-line
-  edit at the current path (a stale `salient-data/quest-cli` link repointed
-  to `opum-ai/quest-cli`, part of the org-transfer sweep) — so the file was
-  **not** unchanged even as of the previously-cited `d7ca18f` in the sense
-  the wording implied; it was current relative to `d7ca18f` only because
-  `d7ca18f` itself predates `bee848a`. Re-verified live 2026-08-04 by
+  path, `docs/reference/opum-fleet-and-prior-art-inventory.md` — 284 lines
+  at `7b82afc`, growing to 287 lines at `d42c016`. A later commit,
+  `c5ebee8` ("docs: establish Opum SaaS documentation hub," 2026-08-01),
+  grew it further to 292 lines; that is its size immediately before the
+  rename (`846f054^` is `c5ebee8`, confirmed via `git show
+  846f054^:docs/reference/opum-fleet-and-prior-art-inventory.md | wc -l`).
+  Commit `846f054` (2026-08-01, unattributed as a Git rename — recorded as
+  a 292-line delete plus a 120-line add, a ~59% condensation, not an
+  edit-in-place) created the current path. Commit `bee848a` (2026-08-04)
+  made one further, one-line edit at the current path (a stale
+  `salient-data/quest-cli` link repointed to `opum-ai/quest-cli`, part of
+  the org-transfer sweep) — so the file was unchanged from `846f054`
+  through `d7ca18f` (consistent with, not contradicting, `QCLI-2.2`'s own
+  true and properly-bounded "unchanged `846f054` → HEAD `d7ca18f`" claim),
+  but `d7ca18f` was already a stale pin by 2026-08-04: `bee848a` made one
+  further one-line edit after it, which is why re-verification against a
+  fresher HEAD mattered. Re-verified live 2026-08-04 by
   `QCLI-2.7` against `opum-doc`'s then-current `HEAD` `7b512d9`: unchanged
   since `bee848a`, 120 lines, `git diff 846f054..HEAD -- <current path>`
   shows exactly the one-line link fix and nothing else.
@@ -149,8 +156,18 @@ named slice, never to every file in its repository.
 - **Classification:** Allowed.
 - **Repository or URL:** `opum-doc` @ `7b82afc03a225f292ed81f916752d318fe237da8`
   and `d42c01666bc8868c4fe2b55218edbf56e205841f`.
-- **Exact revision or retrieval date:** authored 2026-07-31; reachability
-  re-verified live 2026-08-04 in the local `opum-doc` checkout.
+- **Exact revision or retrieval date:** authored 2026-07-31; **corrected
+  2026-08-04 by `QCLI-2.7`'s review fix pass** — the prior text described
+  this slice's own permitted-use claim (a 14-row remote register, a 24-row
+  fleet register) as "reachability re-verified," which establishes only
+  that the two commits exist and touch the cited path, not that they
+  contain 14 and 24 data rows. Content-verified live 2026-08-04 in the
+  local `opum-doc` checkout instead: `git show 7b82afc:<former path>` and
+  `git show d42c016:<former path>` each show the "Normative source
+  register" table with 14 data rows (one header, one separator, 14 content
+  rows) and the "Four-host fleet" table with 24 data rows, at **both**
+  commits — the claim is correct, only the verification method recorded
+  here was overstated.
 - **Ownership rationale:** authored during OCLI-3.1 by the repository owner.
 - **Permitted use:** recover the full historical 14-row remote register and
   24-row fleet register text for audit and citation only.
@@ -551,9 +568,14 @@ named slice, never to every file in its repository.
   resolve.
 - **Permitted use:** cite existence, version, license, claimed repository,
   **maintainer identities, description text, and publish/version history**
-  — all `npm view <pkg>`-surfaced registry metadata, never package source or
-  tests — as naming-conflict and allocation-constraint evidence for
-  `QCLI-2.9`'s package-allocation resolution. **Widened 2026-08-04 by
+  — registry metadata limited to the fields enumerated above, retrieved via
+  `npm view <pkg>`, never package source or tests — as naming-conflict and
+  allocation-constraint evidence for `QCLI-2.9`'s package-allocation
+  resolution. This enumeration is exhaustive, not illustrative: it does not
+  extend to other `npm view`-surfaced fields such as `readme` (the full
+  authored README) or `dependencies` (the dependency graph), both of which
+  are authored/source-adjacent package content, not registry metadata, and
+  remain outside this slice's citability. **Widened 2026-08-04 by
   `QCLI-2.7`:** the register previously enumerated only existence, version,
   license, and repository; `QCLI-2.9`'s own AC1 requires "current ownership,
   maintainers, package history, [and] allocation or transfer constraints,"
