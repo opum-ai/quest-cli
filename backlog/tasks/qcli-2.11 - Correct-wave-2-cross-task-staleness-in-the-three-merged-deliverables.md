@@ -4,7 +4,7 @@ title: Correct wave-2 cross-task staleness in the three merged deliverables
 status: In Progress
 assignee: []
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 14:59'
+updated_date: '2026-08-04 15:12'
 labels:
   - campaign
   - research
@@ -13,6 +13,7 @@ labels:
   - no-implementation
   - 'cluster:provenance'
   - wave-3
+  - in-review
 dependencies: []
 parent_task_id: QCLI-2
 priority: high
