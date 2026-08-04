@@ -37,6 +37,7 @@
 - 2026-08-04T18:50:59-05:00 8c3133ed9aacfcda116d5076ca8fefab20f7eb74 docs: sync managed blocks after Story-to-Task coupling fix
 - 2026-08-04T18:51:22-05:00 3936fbeb4ae207fdb3b489899ab1ecfcb73772c5 docs: sync log.md
 - 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
+- 2026-08-04T18:55:47-05:00 39dc0eab714d32a04e7d5c9c3f662fc329934abc docs: sync managed blocks after wave-5 settlement
 
 ## docs/adr
 
@@ -98,3 +99,4 @@
 - 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
 - 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
 - 2026-08-04T18:50:59-05:00 8c3133ed9aacfcda116d5076ca8fefab20f7eb74 docs: sync managed blocks after Story-to-Task coupling fix
+- 2026-08-04T18:55:47-05:00 39dc0eab714d32a04e7d5c9c3f662fc329934abc docs: sync managed blocks after wave-5 settlement
