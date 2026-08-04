@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 13:09'
+updated_date: '2026-08-04 13:30'
 labels:
   - campaign
   - research
@@ -77,6 +77,8 @@ lore validate --strict --plain: '17 files, 0 errors, 0 warnings, 6 skipped' (exi
 lore orphans --plain: 'orphans: 0 orphan tasks, 0 dangling links' (exit 0)
 
 Did not edit docs/reference/quest-cli-research-source-register.md (QCLI-2.7's this wave) or any file outside this task's own new document and its own Backlog task record. Did not open Backlog.md source, the local Backlog.md clone, or any Quarantined/Excluded artifact.
+
+Review fix pass (2026-08-04T13:30Z): the five OCLI-3.2 artifacts (ADR-042, SPEC-FEAT-011, legacy usage guide/research digest, OPUM-328, OPUM-338-342) are NOT unlocatable. They are named, with candidate value and caution, in the 'Authoritative owned requirement sources' table (~line 202) of docs/reference/opum-fleet-and-prior-art-inventory.md at opum-doc commit d42c016 -- the former, pre-846f054-condensation path, recoverable via 'git show d42c016:docs/reference/opum-fleet-and-prior-art-inventory.md'. That commit is admitted: the register's own 'Git recovery commits 7b82afc/d42c016' slice classifies it Allowed, with permitted use 'recover the full historical 14-row remote register and 24-row fleet register text for audit and citation only.' The original search only covered the opum-doc working tree and stopped there; it never reached this already-admitted Git-history slice. This supersedes the earlier note's claims that 'none are named in the source register or the dated fleet inventory either' and that the artifacts were 'rejected... for lack of an admitted, locatable source' -- both false. Disposition unchanged (still not carried forward as a requirements source), but on the corrected ground: the Git-recovery slice that names them permits audit/citation only and its own exclusion states it is 'not a live source of current Quest requirements,' so citing it (as the corrected Finding section now does) is permitted while treating it as a design source is not. Also withdrew the document's OCLI-7 'whether these artifacts ever existed' framing -- OCLI-7's own AC2 scopes it to retention/remote disposition of already-registered sources, not their existence, which is no longer in question. Separately corrected the AC1 matrix's Dated Opum fleet and prior-art inventory revision cell: it previously claimed content 'unchanged at opum-doc HEAD d7ca18f' since commits 7b82afc/d42c016 at the CURRENT dated- path, which is false (that path did not exist at 7b82afc/d42c016; git cat-file -e confirms ABSENT). Verified lineage: 7b82afc/d42c016 authored/refreshed the content at the FORMER path docs/reference/opum-fleet-and-prior-art-inventory.md (287 lines at d42c016); commit 846f054 condensed it into the current dated- path (120 lines); unchanged 846f054-HEAD d7ca18f (0-line diff via git diff). This error originated in and is corrected only within this document's own row; the register's matching error (lines 87-91) is QCLI-2.7's to fix this wave and was not touched here. Also added the Git recovery commits and OCLI-7 rows to the AC1 matrix, and clarified that candidate #6's product-wide actor-model routing to quest-doc does not foreclose QCLI-2.4's own AC2 component-level actor-responsibility mapping.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
