@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 15:27'
+updated_date: '2026-08-04 15:45'
 labels:
   - campaign
   - research
@@ -78,6 +78,12 @@ Post-sync final gate verification (2026-08-04, worktree root, after the single t
 - 'lore validate --strict --plain' -> '20 files, 0 errors, 0 warnings, 6 skipped' (exit 0).
 - 'lore orphans --plain' -> '0 orphan tasks, 0 dangling links' (exit 0).
 All three verification gates pass with zero errors/warnings/orphans. Committed as 990f3fb (doc), 60e7d6a (backlog notes/plan/comment), and 02ef488 (post-sync docs/log.md, docs/reference/index.md, Story regeneration), each with a 'Refs: QCLI-2.4' trailer. Pushing feat/qcli-2.4-domain-language next; leaving status In Progress and all AC checkboxes unchecked per this wave's centralized-settlement instruction.
+
+Follow-up fix (integration review finding F6, post-merge wave-level review): docs/reference/quest-cli-component-glossary-actors-and-workflows.md cited quest-doc's local clone `HEAD 7d4d60c2854a533bbba63e6b69320587b8f88e83` three times (~lines 45-46, 53, 253-254 pre-fix) using standing-fact phrasing ("as of this HEAD", "at HEAD"), which the research program Spec's new "Verification bar" / "Moving vs. immutable references" section (QCLI-2.13, merged same wave) identifies as exactly the antipattern it generalizes a fix for, and requires a recheck clause for any document whose conclusion depends on a moving reference.
+
+Fix applied on fix/qcli-2.4-followup-recheck-clause (worktree, not main checkout): reworded all three citations to the Spec's required phrasing -- `7d4d60c2854a533bbba63e6b69320587b8f88e83 (observed 2026-08-04; moving reference, re-verify before relying)` -- and added a new "Recheck clause for the quest-doc citation" subsection (modeled on QCLI-2.9's mandatory release-time recheck clause in quest-cli-packaging-contract.md and QCLI-2.7's AC6 reclassification trigger in quest-cli-lore-dependency-and-adapter-contract-evidence.md, both named as reference models by the Spec's new section). The clause names the exact commands to re-run against a live quest-doc clone (`git -C <quest-doc-clone> log -1 --format='%H %ci' -- docs/specs/quest-clean-room-execution-graph.md`; same for docs/reference/quest-repository-and-authority-map.md; `git -C <quest-doc-clone> log -1 --format='%H' -- docs/`) and states what a changed result obligates: re-reading both files live and re-confirming (a) the base-vocabulary grounding and (b) the negative "no actor-model glossary exists" claim, without authorizing silent continued reliance on the 2026-08-04 observation or unilateral edits to quest-doc's own content.
+
+No other content in this document changed. Scope was limited to this file only per the follow-up task's boundary (sibling follow-ups on the register, packaging contract, legacy-reconciliation doc, the Spec, and the black-box scenarios doc ran in parallel on other files).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
