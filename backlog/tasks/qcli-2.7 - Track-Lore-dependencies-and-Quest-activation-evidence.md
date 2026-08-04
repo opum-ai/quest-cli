@@ -1,10 +1,11 @@
 ---
 id: QCLI-2.7
 title: Track Lore dependencies and Quest activation evidence
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 12:55'
+updated_date: '2026-08-04 12:59'
 labels:
   - campaign
   - research
@@ -13,6 +14,7 @@ labels:
   - activation-gate
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:lore-gate'
+  - wave-2
 dependencies:
   - QCLI-2.1
 documentation:

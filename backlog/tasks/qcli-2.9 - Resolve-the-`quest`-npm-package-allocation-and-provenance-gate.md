@@ -1,10 +1,11 @@
 ---
 id: QCLI-2.9
 title: Resolve the `quest` npm package allocation and provenance gate
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-01 23:48'
-updated_date: '2026-08-04 12:56'
+updated_date: '2026-08-04 13:23'
 labels:
   - research
   - packaging
@@ -16,6 +17,8 @@ labels:
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - campaign
   - 'cluster:packaging'
+  - wave-2
+  - merge-pending
 dependencies:
   - QCLI-2.1
 references:

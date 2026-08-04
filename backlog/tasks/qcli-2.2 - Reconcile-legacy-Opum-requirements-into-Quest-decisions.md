@@ -1,10 +1,11 @@
 ---
 id: QCLI-2.2
 title: Reconcile legacy Opum requirements into Quest CLI candidates
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 12:56'
+updated_date: '2026-08-04 13:12'
 labels:
   - campaign
   - research
@@ -13,6 +14,8 @@ labels:
   - clean-room
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:requirements'
+  - wave-2
+  - in-review
 dependencies:
   - QCLI-2.1
 documentation:
