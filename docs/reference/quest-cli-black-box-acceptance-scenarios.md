@@ -101,9 +101,18 @@ Each scenario states five fields, matching `QCLI-2.3` AC2 exactly:
   conflict distinct from success / a structured error distinct from both),
   not as literal exit-code integers or a fixed schema — the concrete
   command vocabulary, JSON envelope shape, and exit-code table are
-  `QCLI-2.4`'s and later contract work's scope, not fixed by this
-  document (component charter: "command vocabulary, deterministic JSON,
-  human output, and exit behavior" is owned here, but not yet authored).
+  [`QCLI-2.8`](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md)
+  AC2's scope ("CLI identity, lifecycle, JSON and exits, Git mutation,
+  migration, projection, and Lore integration are specified functionally")
+  and the [research program Spec](../specs/quest-cli-pre-implementation-research-program.md)'s
+  Required Outputs ("The final synthesis must cover... CLI JSON/exits...
+  safe Git mutation..."), not fixed by this document (component charter:
+  "command vocabulary, deterministic JSON, human output, and exit
+  behavior" is owned here, but not yet authored). `QCLI-2.4`'s glossary is
+  not the owner here: its own terms are explicitly candidates only, "not a
+  frozen schema, command, or exit-code table" (its own wording) — this
+  document's earlier pointer to `QCLI-2.4` for this scope was wrong and is
+  corrected here per the wave-3 integration review.
 - **Allowed effects** — exactly which filesystem and Git mutations may
   occur, and the explicit statement of what must remain untouched.
 - **Recovery checks** — what a read-only inspection must show afterward,
