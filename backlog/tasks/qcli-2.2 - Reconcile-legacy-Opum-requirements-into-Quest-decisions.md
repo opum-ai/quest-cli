@@ -4,7 +4,7 @@ title: Reconcile legacy Opum requirements into Quest CLI candidates
 status: To Do
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:00'
+updated_date: '2026-08-04 12:56'
 labels:
   - campaign
   - research
@@ -27,6 +27,8 @@ ordinal: 4000
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 Extract component-relevant functional intent from admitted legacy Opum decisions and task narratives, then classify it as Quest CLI contract candidates. Work only from admitted authored requirements and observable narratives; do not inspect or port legacy implementation source or tests. Route every product-wide vocabulary, execution-graph, architecture, or roadmap change to the canonical quest-doc specification.
+
+Scope boundary for wave 2 (2026-08-04, restore #2): QCLI-2.7 and QCLI-2.9 run concurrently. QCLI-2.7 owns all edits to docs/reference/quest-cli-research-source-register.md this wave — cite it read-only, do not edit it. Your deliverable is a new reference document of your own. The register is the admission authority: a source may inform a QCLI requirement only if the register classifies it Allowed. Read it before citing anything.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

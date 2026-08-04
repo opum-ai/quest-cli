@@ -3,7 +3,7 @@ id: doc-1
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-04 06:01'
-updated_date: '2026-08-04 07:07'
+updated_date: '2026-08-04 12:58'
 ---
 # Backlog campaign tracker
 
@@ -74,6 +74,57 @@ re-ask.
    reclassification trigger is tied to the owner's ruling, not to the clone's
    existence; deleting the clone does not lift the rule.
 
+## Owner rulings — 2026-08-04, restore #2
+
+7. **Lore adapter alignment folds into QCLI-2.7**, rather than becoming a new
+   task. The component charter (`quest-cli-component-charter.md:30`) states
+   quest-cli owns "versioned Lore import/link/adapter behavior", but no
+   campaign task produced the adapter-contract evidence QCLI-2.8's AC2 would
+   synthesize from — QCLI-2.7 was framed one-directionally (does Lore's
+   release gate hold?) and never asked what Lore requires *of a task CLI*.
+   QCLI-2.7 gained ACs #4/#5/#6/#7 to close that gap. It stays research:
+   describe the contract and name the divergences, never implement an adapter.
+8. **The SPLIT RULE for lore-cli source admissibility.** The register
+   previously excluded all design derivation from lore-cli TypeScript. That
+   single exclusion is now split in two:
+   - **Admissible** — lore-cli source and lore-cli's own ADRs as evidence of
+     what **Lore requires of any task-tracker backend**: the adapter interface
+     shape, the structured-output envelope and schema-version expectation,
+     capability-probe and fail-loud semantics, the write path, new-identifier
+     capture, and the back-reference/metadata-storage constraint. This is
+     Opum-owned MIT code describing Lore's own design, and quest-cli is
+     chartered to honor it.
+   - **Not admissible** — any assertion about **how Backlog.md behaves**, even
+     when lore-cli source or a lore-cli ADR states it. Rulings 1 and 5 are
+     unchanged. Every Quest assertion about Backlog.md must still be
+     independently re-derived from the public surface at v1.49.3.
+   - The line, stated for reuse: **cite Lore for what Lore needs; never cite
+     Lore for what Backlog does.** QCLI-2.7 records this rule in the register.
+9. **QCLI-2.9's name decision is closed — the task shifts from deciding to
+   evidencing.** Restore #1 flagged that QCLI-2.9's ACs might no longer fit
+   because the owner had already chosen `@opum-ai/quest`. On re-reading, all
+   five ACs remain satisfiable as written (AC3's "scoped fallback" reads as the
+   already-accepted `@opum-ai/quest`), so the task is dispatchable with a
+   framing note rather than an AC rewrite. If gathered evidence contradicts the
+   decision, the worker records the contradiction and reports it — it does not
+   act on or reverse it.
+
+## Reconciliation — restore #2, 2026-08-04
+
+Drift found between the restore-#1 handover's claims and live ground truth, all
+resolved before wave 2 was built:
+
+| Handover claim | Verified state at restore #2 |
+| --- | --- |
+| Grounded at `dev @ d99cf9c` | `dev @ de4693d`, clean, in sync with `origin/dev` — five commits landed after the handover was written |
+| "Transfer **not yet executed** — `git remote -v` still says `salient-data/quest-cli`" | **Executed.** `origin` is `git@github.com:opum-ai/quest-cli.git` |
+| Pending decision 1: charter `:23` and ADR decision #1 contradict the register; "fix before QCLI-2.9 runs" | **Resolved by QCLI-5** (Done, commit `942da73`), which executed this doc's restore-#1 proposed follow-up 1 and amended a fourth and fifth site the proposal had missed (the migration ledger's repository-history note, and the register's own classification-vocabulary example) |
+| Wave 1 "branch deleted" | Local branch was deleted; the **remote** copy `origin/feat/qcli-2.1-revalidate-provenance` survived `gh pr merge --delete-branch`. Pruned at restore #2. Treat remote-branch deletion as unverified until checked |
+
+Restore-#1 proposed follow-up 1 is therefore **discharged**. Proposed follow-ups
+2 and 3 are folded into QCLI-2.7's expanded scope (the register work its AC7
+requires) rather than being filed as separate tasks.
+
 ## Dated evidence — 2026-08-04
 
 Verified by the orchestrator and re-derived independently by the QCLI-2.1
@@ -89,20 +140,34 @@ worker. Each is dated because each can drift.
 | npm `quest` | **Occupied** at v0.4.0 (`Clever/quest`, "simple request library for node"). Now only the *rationale* for going scoped, not an open allocation question | QCLI-2.9 |
 | npm `quest-cli` | Occupied at v1.0.0, ISC, no repository or description | QCLI-2.9 |
 | npm `@opum-ai/quest` | **404 — unclaimed.** This is the owner's chosen name | QCLI-2.9 |
+| quest-cli repository | **`opum-ai/quest-cli`** — transfer executed and verified live at restore #2 | QCLI-5 (Done) |
 
-**Owner decision, 2026-08-04:** quest-cli moves to the `opum-ai` GitHub org and
-publishes in the `opum-ai` npm org as **`@opum-ai/quest`**, executable still
-`quest`. The transfer has **not** been executed — `git remote -v` still reports
-`salient-data/quest-cli`.
+### lore-cli release/development drift — measured at restore #2
+
+Orchestrator-verified, and the starting evidence for QCLI-2.7's AC6:
+
+| Measurement | Value | Command |
+| --- | --- | --- |
+| Published npm `@opum-ai/lore` | `0.1.0` | `npm view @opum-ai/lore version` |
+| Locally installed `lore` | `0.1.0` | `lore --version` |
+| Tag `v0.1.0` commit | `e621d209be2cc8867d1c38c7c78b4b4acc96d82e` | `git rev-list -n1 v0.1.0` |
+| lore-cli `dev` HEAD | `405606891a227a9012b87de625d909eba56fec6b`, **29 commits ahead** of `v0.1.0`; the tag is **not** an ancestor of `dev` | `git rev-list --left-right --count v0.1.0...HEAD` |
+| Documented CLI/adapter surface drift since `v0.1.0` | **None.** `docs/reference/cli-surface.md`, `cli-contract.md`, `okf-projection-contract.md`, and `.lore/schemas/` are byte-unchanged | `git diff --stat v0.1.0..HEAD -- …` |
+| What the 29 unreleased commits do change | `architecture.md`, `lore-cli-release-truth.md`, `tech-stack.md`, `release-publishing.md`, ladybugdb benchmark strategy, and the release story — graph-platform work, not CLI surface | `git diff --stat v0.1.0..HEAD -- docs` |
+
+Reading: the register's pin on the **published** artifact is still accurate,
+and the adapter contract quest-cli must honor has not moved. QCLI-2.7 must
+re-verify this rather than inherit it — the measurement is dated and the
+development line is active.
 
 ## Frontier
 
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
-trust a persisted "next wave" plan. Informational hint only: as of the end of
-restore #1, QCLI-2.1 is Done; 9 remain. QCLI-2.2, QCLI-2.7, and QCLI-2.9 became
-dependency-clear when QCLI-2.1 settled, and their clusters (requirements,
-lore-gate, packaging) are disjoint.
+trust a persisted "next wave" plan. Informational hint only: as of the start of
+restore #2, QCLI-2.1 is Done and 9 remain; QCLI-2.2, QCLI-2.7, and QCLI-2.9 are
+dependency-clear with disjoint clusters, and everything else is blocked behind
+QCLI-2.2 or QCLI-2.4.
 
 ## Confirmed queue order
 
@@ -126,13 +191,32 @@ guarantee that any task lands in any particular wave.
 | --- | --- | --- |
 | cluster:provenance | Source/provenance register revalidation | QCLI-2.1 (Done) |
 | cluster:requirements | Legacy Opum requirement reconciliation | QCLI-2.2 |
-| cluster:lore-gate | Lore dependency/evidence matrix | QCLI-2.7 |
+| cluster:lore-gate | Lore dependency/evidence matrix + adapter alignment | QCLI-2.7 |
 | cluster:packaging | npm package allocation/provenance | QCLI-2.9 |
 | cluster:scenarios | Black-box acceptance scenarios | QCLI-2.3 |
 | cluster:domain | Actors/workflows/domain language | QCLI-2.4 |
 | cluster:migration | Backlog migration fidelity + adoption playbook | QCLI-2.5, QCLI-2.10 |
 | cluster:threat-model | Git/filesystem/concurrency threat model | QCLI-2.6 |
 | cluster:synthesis | Final activation-ready synthesis | QCLI-2.8 |
+
+### Shared-file rule for concurrent doc waves
+
+Cluster disjointness is not sufficient in this repository, because every task
+authors into the same `docs/` bundle and every `lore sync` regenerates the same
+managed artifacts. Two rules make a multi-member wave safe:
+
+1. **Authored-file ownership is assigned per wave.** Exactly one member may edit
+   any given pre-existing document. For wave 2, QCLI-2.7 owns
+   `docs/reference/quest-cli-research-source-register.md`; QCLI-2.2 and
+   QCLI-2.9 cite it read-only and each author a new document of their own.
+2. **Generated-file conflicts are mechanical, never hand-merged.**
+   `docs/log.md`, `docs/index.md`, `docs/reference/index.md`, and the owning
+   Story's `<!-- lore:tasks:begin -->` managed block are regenerated by
+   `lore sync`, which is idempotent and derives from live Backlog state. A
+   rebase conflict in any of them is resolved by re-running `lore sync` on the
+   rebased worktree and re-running the gates — never by editing the conflicted
+   region. Hand-editing inside a managed block is silently overwritten by the
+   next sync.
 
 ## In flight
 
@@ -141,51 +225,30 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
-None — wave 1 settled, worktree returned to the pool, branch deleted.
+None — wave 1 settled; wave 2 dispatch pending at the time of this write.
 
 ## Needs a human / blocked
 
-No task is labelled `needs-human`. Three **owner decisions** are pending, and
-two of them gate wave 2's quality:
+No task is labelled `needs-human`. All three owner decisions pending at the end
+of restore #1 are now resolved:
 
-1. **Two governing documents now contradict the register** (recorded inside it
-   as Superseded findings, deliberately not resolved by QCLI-2.1):
-   - `docs/reference/quest-cli-component-charter.md:23` still reads "preferred
-     npm package `quest` and executable `quest`"
-   - `docs/adr/use-quest-cli-for-the-quest-package-and-command.md` decision #1
-     still names `salient-data/quest-cli` as the canonical repository
-   Dispatching QCLI-2.9 before these are reconciled means building packaging
-   research on top of documents that disagree with each other.
-2. **QCLI-2.9's acceptance criteria may no longer fit.** Its title and ACs are
-   framed around *resolving* the unscoped `quest` allocation; the owner has
-   already decided `@opum-ai/quest`. AC1 ("Dated registry evidence records
-   current ownership … for the preferred quest package name") and AC3
-   ("accepted unscoped name or scoped fallback") need re-reading against a
-   decision that is already made.
-3. **The Lore activation gate may now be satisfied.** See the wave log.
+1. Charter/ADR contradiction — **resolved** by QCLI-5 (Done).
+2. QCLI-2.9's acceptance criteria — **resolved** by ruling 9: they fit as
+   written; the task is dispatchable with a framing note.
+3. The Lore activation gate — **assigned**, not assumed. QCLI-2.7 owns formal
+   confirmation and must verify rather than inherit the restore-#1 finding.
 
 ## Proposed follow-ups (awaiting user approval)
 
 Never created unprompted — this project requires approval before follow-up work
 is filed. Each entry is a ready-to-run proposal.
 
-1. **Amend the charter and the ADR to the `opum-ai` identity.** Update charter
-   `:23` to `@opum-ai/quest` (executable still `quest`) and ADR decision #1 to
-   `opum-ai/quest-cli`, recording the supersession inline per the migration
-   ledger's stated convention rather than rewriting history. Scope: two files,
-   both lore-managed. Should land **before** QCLI-2.9 runs.
-2. **Classify lore-cli's release-gate documents in the register.**
-   `reference/lore-cli-release-truth.md` and `runbooks/release-publishing.md`
-   are named as QCLI-2.7's evidence but carry no class from the register's own
-   six-term vocabulary, so the register's admission rule cannot be satisfied
-   for QCLI-2.7's own primary source. Fails closed, so it is not urgent, but
-   QCLI-2.7 will hit it. Could fold into QCLI-2.7 rather than a new task.
-3. **Add a catch-all to the lore-cli Contextual slice.** It enumerates five
-   Backlog documents as a closed list;
-   `reference/historical-upstream-backlog-json-tag-watch.md` is a sixth in the
-   same corpus (upstream tag-watch provenance, not source-derived, so no
-   laundering risk). A clause covering "any further lore-cli document deriving
-   from Backlog.md source" would close the gap permanently.
+*(Restore-#1 follow-up 1 was discharged by QCLI-5. Follow-ups 2 and 3 —
+classifying lore-cli's release-gate documents, and adding a catch-all to the
+lore-cli Contextual slice — are folded into QCLI-2.7's AC7 register work rather
+than filed separately, since ruling 8 requires touching the same slice.)*
+
+None currently open.
 
 ## Wave log
 
@@ -193,7 +256,8 @@ is filed. Each entry is a ready-to-run proposal.
 
 Base `dev @ 0cf0f34`, rebased onto `3107d3a`, merged as squash commit
 **`1f51cce`** via PR #1. Worktree leased from the treehouse pool and returned;
-branch `feat/qcli-2.1-revalidate-provenance` deleted.
+branch `feat/qcli-2.1-revalidate-provenance` deleted locally — the **remote**
+copy survived and was pruned at restore #2.
 
 Delivered `docs/reference/quest-cli-research-source-register.md` — 17 source
 slices, each carrying an explicit `Classification` plus the six provenance
@@ -241,3 +305,29 @@ worker's completion notification before dispatching review.
 Wave-level integration review: **not run, by construction.** Wave 1 had a single
 member, so there is no cross-task surface a single-task review could have
 missed. Not a skipped gate.
+
+### Interlude — QCLI-5 — 2026-08-04 — outside the campaign, merged to `dev`
+
+Not a campaign task (no `campaign` label) and not dispatched by this skill, but
+it discharged restore-#1's proposed follow-up 1 and lifted the gate on
+QCLI-2.9. Commit `942da73`. Amended five sites across four documents: the ADR
+gained an inline dated amendment superseding decision #1's
+`salient-data/quest-cli` and recording decision #2's scope fallback as
+*exercised* rather than overridden; the charter now states `@opum-ai/quest`
+with the executable still `quest`; the register's "not yet transferred" claim
+became the completed transfer with two reclassification triggers marked fired;
+and the migration ledger's repository-history note gained the transfer plus an
+explicit statement that `quest-doc`, `lore-doc`, `opum-doc`, and `quest-web`
+remain in `salient-data` — verified live before any link was touched.
+
+Two reusable findings from its notes: `lore link` takes a **concept id, not a
+path** — a path argument fails with "not in the bundle" while still exiting
+`0`, so the exit code alone does not prove a link landed. And `lore orphans`
+will report a task with no owning doc, which is the check that catches it.
+
+### Wave 2 — 2026-08-04 — QCLI-2.2, QCLI-2.7, QCLI-2.9 — dispatched
+
+Three members, disjoint clusters, disjoint authored files. QCLI-2.7 carries the
+folded-in adapter alignment (rulings 7 and 8) and owns the source register this
+wave. QCLI-2.9 carries the closed-decision framing (ruling 9). Outcome recorded
+at settlement.
