@@ -3,7 +3,7 @@ id: doc-1
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-04 06:01'
-updated_date: '2026-08-04 20:23'
+updated_date: '2026-08-04 22:03'
 ---
 # Backlog campaign tracker
 
@@ -211,7 +211,7 @@ guarantee that any task lands in any particular wave.
 | cluster:migration | Backlog migration fidelity + adoption playbook | QCLI-2.5 (Done), QCLI-2.10 |
 | cluster:threat-model | Git/filesystem/concurrency threat model | QCLI-2.6 (Done) |
 | cluster:synthesis | Final activation-ready synthesis | QCLI-2.8 |
-| cluster:provenance (wave-2 follow-up) | Cross-task staleness correction + register coherence | QCLI-2.11 (Done), QCLI-2.12 (Done — see "Needs a human" for an unresolved integration-review follow-up) |
+| cluster:provenance (wave-2 follow-up) | Cross-task staleness correction + register coherence | QCLI-2.11 (Done), QCLI-2.12 (Done — its integration-review follow-up, PR #17, resolved and merged this session; see "Needs a human") |
 | cluster:convention | Moving-vs-immutable reference convention + scope re-homing | QCLI-2.13 (Done), QCLI-2.14 (Done) |
 
 ### Shared-file rule for concurrent doc waves
@@ -305,69 +305,48 @@ was not deleted.
 
 ## Needs a human / blocked
 
-**One item, from wave 4.** `fix/qcli-2.12-followup-f2-f3-f4` — a narrow
-follow-up branch addressing 3 findings (F2, F3, F4) the wave-4 integration
-review raised against QCLI-2.12's already-merged register/ledger work —
-escalated after exhausting the campaign's 2-retry fix-cycle budget (3 total
-review passes, all independently re-verified by the orchestrator's
-dispatched reviewers, not rubber-stamped).
+**None currently outstanding.** One item, resolved this session — kept below
+as history since it took 6 fix-and-review passes to close and the pattern
+(SHA-pinning a co-edited sibling document) could recur elsewhere.
 
-What happened, in order:
-- Pass 1 fixed the original F2 (register enumeration gap, now confirmed
-  complete and stayed that way through all 3 passes) and F3/F4, but a
-  reviewer found the F3 fix left the register's revision-pin field stale for
-  4 of 9 enumerated members (finding B1), plus 2 more issues (B2, B3).
-- Pass 2 fixed B2 and B3 cleanly and closed 4 of the stale pins, but the
-  reviewer found the SAME field still had 1 stale pin — because the pass's
-  own edit to the co-owned migration ledger (commit for finding B3) landed
-  *after* the register had already pinned the ledger to an earlier SHA, in
-  the same pass.
-- Pass 3 ran an exhaustive from-scratch audit of all 9 enumerated members
-  before editing anything, closed every pin correctly identified stale as of
-  pass 2 — but the exact same trap fired a third time: the register's
-  ledger-pin commit (`8a2a64d`) landed 6 seconds before a ledger content
-  commit in the same pass (`e6363fe`), invalidating the pin the moment it
-  was written.
+### Resolved: register/ledger revision-pin self-reference trap
 
-**Root cause (per the final reviewer, independently re-derived and
-corroborated by the orchestrator's own reading of the pattern across all
-three passes):** the register's revision-pin field cites the migration
+`fix/qcli-2.12-followup-f2-f3-f4` — a narrow follow-up branch addressing 3
+findings (F2, F3, F4) the wave-4 integration review raised against
+QCLI-2.12's already-merged register/ledger work — escalated after
+exhausting the campaign's 2-retry fix-cycle budget (3 total review passes,
+all independently re-verified by the orchestrator's dispatched reviewers,
+not rubber-stamped).
+
+**Root cause:** the register's revision-pin field cited the migration
 ledger by exact commit SHA, but QCLI-2.12's own fix passes routinely edit
 the ledger in the same pass as the register. Any SHA pin of a co-edited
-sibling document is structurally invalidated by construction — the only
-question is whether the specific edit ordering within a given pass happens
-to dodge it, and three passes running have not.
+sibling document is structurally invalidated by construction — three
+unguided passes each fixed the previously-flagged staleness while
+introducing a fresh instance of the same trap.
 
-**Two proposed durable fixes, from the final reviewer — a human should pick
-one, not an automated pass:**
-- **(a)** Pin the migration ledger the way the register already
-  self-pins itself (`docs/reference/quest-cli-research-source-register.md`
-  currently reads "pinned to its own current state on this branch, as
-  amended live through this same edit" for its own self-reference) — since a
-  co-edited sibling has the identical self-reference problem as the
-  document itself.
-- **(b)** Enforce strict edit ordering within any future fix pass touching
-  both files: all ledger content edits first, the register's revision-pin
-  rewrite last, `lore sync` last of all.
+**Owner decision (this restore, via AskUserQuestion):** Option A — pin the
+migration ledger the way the register already self-pins itself ("to its own
+current state on this branch, as amended live through this same edit"),
+rather than (b) strict edit ordering or (c) abandoning the follow-up. Chosen
+because (b) had already failed identically three times (a discipline
+problem, not a structural fix) and the user's stated goal was finishing
+research/design durably, not iterating further on manual ordering.
 
-**What is NOT blocked by this.** QCLI-2.12 the *task* is settled `Done` —
-its own 7 acceptance criteria were independently confirmed twice (original
-review, then re-review after the F1/F2 AC-level fixes) against the
-already-merged PR #14 content, before the integration review even ran.
-Neither QCLI-2.8 nor QCLI-2.10 (the two remaining subtasks) depend on this
-follow-up branch merging. The register and ledger currently on `dev` are
-internally coherent (all `lore` gates clean, zero Classification drift) —
-they simply still carry the minor staleness/attribution gaps (F2/F3/F4) this
-follow-up was trying to close, which is a quality gap, not a correctness
-defect blocking downstream work.
+**Outcome:** two more fix-and-review cycles were needed after the decision
+(pass 5 found a false git-history timing claim in the pin's forensic
+narrative, blocking; pass 6 fixed it and 2 non-blocking wording issues) —
+both within the normal 2-retry cap. Final reviewer verdict: **approve**,
+independently re-deriving every timing claim from git history rather than
+trusting the worker's report. The migration ledger's citation now carries no
+commit SHA; the other 8 enumerated members keep their pins unchanged
+(verified byte-identical to pass 3's exhaustive re-audit). Zero
+Classification-field changes, zero permitted-use narrowing. Gates: `lore
+check --strict` 23 files 0/0; `lore validate --strict` (both files) 0/0;
+`lore orphans` 0/0.
 
-**Recommended path for the next session:** ask the owner to pick fix pattern
-(a) or (b) above (or propose a third), then either resume
-`fix/qcli-2.12-followup-f2-f3-f4` with one more directed pass, or abandon it
-and re-attempt fresh with the chosen pattern stated up front in the worker's
-brief. Do not dispatch a fourth automated pass without a human's chosen
-pattern in hand — that would just be a fourth iteration of the same
-unguided trial the cap exists to stop.
+Merged as PR #17, squash commit `c8dfdca`. Full pass-by-pass history is in
+QCLI-2.12's task notes.
 
 ## Proposed follow-ups — status as of end of wave 4, 2026-08-04
 
@@ -397,8 +376,9 @@ narrow/mechanical, none required a new task or product decision:
   **fixed directly by the orchestrator**, mechanical `lore sync` on `dev`.
 - F2/F3/F4 (register/ledger enumeration + revision-pin + attribution gaps)
   — **F2 fixed and confirmed stable across all 3 fix passes.** F3/F4
-  ultimately **escalated** — see "Needs a human / blocked" above. This is
-  the one wave-4 finding still open.
+  escalated after 3 unguided passes, then **resolved this session** (Option
+  A self-pin, PR #17) — see "Needs a human / blocked" above. No wave-4
+  finding remains open.
 - F5/F6 (QCLI-2.5's deliverable: stale scratch-repo count, incomplete
   evidence-source enumeration) — **fixed and merged**, PR #16, approved on
   first re-review.
@@ -925,3 +905,4 @@ files 0/0 6 skipped; `lore orphans` 0/0.
 wave running.** Every idle notification this wave arrived without its
 payload; every verdict was obtained only after an explicit resend request.
 No exceptions this wave either.
+
