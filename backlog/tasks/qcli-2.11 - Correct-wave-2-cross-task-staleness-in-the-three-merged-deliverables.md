@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@jdnewhouse'
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 15:10'
+updated_date: '2026-08-04 15:29'
 labels:
   - campaign
   - research
@@ -13,6 +13,8 @@ labels:
   - correction
   - no-implementation
   - 'cluster:provenance'
+  - wave-3
+  - in-review
 dependencies: []
 parent_task_id: QCLI-2
 priority: high
