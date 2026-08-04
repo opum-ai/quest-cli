@@ -33,6 +33,7 @@
 - 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
 - 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
 - 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
+- 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
 
 ## docs/adr
 
@@ -62,8 +63,7 @@
 - 2026-08-04T15:16:00-05:00 418c5eb7d3369d1dd19fe817bc9892e07fb2652e QCLI-2.5 follow-up: fix stale scratch-repo count and evidence-source enumeration (#16)
 - 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
 - 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
-- 2026-08-04T17:45:48-05:00 100326090951852ca8bbc94a3c1c81a404ce8051 QCLI-2.10: author the Backlog-to-Quest adoption and migration playbook
-- 2026-08-04T17:45:55-05:00 5770417713c506c00ed09efc06827115c2c1243b QCLI-2.10 fix pass: correct false admissibility claim, mistargeted citations
+- 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
 
 ## docs/runbooks
 
