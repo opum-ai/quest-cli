@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 15:26'
+updated_date: '2026-08-04 15:47'
 labels:
   - campaign
   - research
@@ -70,4 +70,16 @@ Note: 'lore sync' (real, run once) did NOT itself commit docs/ changes in this e
 No files owned by sibling tasks this wave (quest-cli-packaging-contract.md, quest-cli-research-source-register.md, legacy-opum-requirement-reconciliation-for-quest-cli.md, quest-cli-pre-implementation-research-program.md) were edited -- read-only citations only.
 
 Fix pass (post-review, request_changes): corrected false commit pin in docs/reference/quest-cli-black-box-acceptance-scenarios.md line ~53. The OCLI-3.3 task-narrative citation named commit 5da8949 as the file's last-touch commit; that SHA is unrelated (2026-08-04 docs commit touching docs/log.md, fleet-peer-routing-and-session-invocation.md, and an ADR — not the OCLI-3.3 task file). Independently re-verified against the local opum-doc clone (/Volumes/external/repos/opum-doc, branch dev, fetched+pulled fresh): 'git log -1 --format=%H %ad %s --date=iso -- "backlog/tasks/ocli-3.3 - Turn-prototype-failures-into-black-box-regression-scenarios.md"' resolves to 3023468a22f78ca51e37855395f1931f9e29d3b0, dated 2026-08-01 13:49:31 -0500 — exact match to the date already in the doc. Changed only the hash (5da8949 -> 3023468); the date and every other citation/table row/prose sentence in the file is untouched (git diff shows a single one-line change). Re-ran all three gates after the edit: lore check --strict -> 20 files, 0 errors, 0 warnings; lore validate --strict -> 20 files, 0 errors, 0 warnings, 6 skipped; lore orphans -> 0 orphan tasks, 0 dangling links. All clean.
+
+Follow-up fix pass (wave-3 integration review, branch fix/qcli-2.3-followup-owner-and-recheck): applied the reviewer's three cross-task findings.
+
+F1 (misdirected ownership pointer): docs/reference/quest-cli-black-box-acceptance-scenarios.md's "Structured result and exit" field definition pointed the concrete command vocabulary/JSON envelope/exit-code table's ownership at QCLI-2.4 -- wrong, since QCLI-2.4's own glossary states its terms are candidates only ("not a frozen schema, command, or exit-code table", verified live in that file, not edited here). Repointed to QCLI-2.8 AC2 ("CLI identity, lifecycle, JSON and exits, Git mutation, migration, projection, and Lore integration are specified functionally") and the research program Spec's Required Outputs section ("The final synthesis must cover... CLI JSON/exits...").
+
+F6/F2 (missing recheck clause on a moving reference): the two `opum-doc HEAD c9b6741` provenance-table citations (dated fleet inventory, OCLI-3.3 task narrative) now read `... (observed 2026-08-04; moving reference, re-verify before relying)` per the Spec's new "Moving vs. immutable references" convention (merged this wave); the two commit SHAs used as historical anchors (bee848a, 846f054) and the OCLI-3.3 file's own last-touch commit (3023468) are left unqualified as immutable anchors, correctly. Added a new "Recheck clause (moving reference)" subsection naming the exact `git fetch`/`git rev-parse`/`git diff` commands to re-run against /Volumes/external/repos/opum-doc branch dev, and what a non-empty diff on the seeds section or the OCLI-3.3 file obligates (re-derive the affected traceability row(s); report, don't silently reconcile) -- modeled on QCLI-2.9's mandatory release-time recheck clause and QCLI-2.7's AC6 reclassification trigger, both cited as reference shapes by the Spec.
+
+F5 (stale forward-condition in a wave-1 file, different task's territory): docs/reference/former-ocli-to-qcli-migration-ledger.md's "Source provenance boundary" sentence ("The inventory's 11 scenario seeds remain historical evidence until QCLI-2.3 authors the current black-box corpus") had its firing condition satisfied by this task's own merged deliverable. Amended in place, dated 2026-08-04, citing QCLI-2.3, linking the Reference doc -- the original sentence is left standing (not deleted), per the ledger's own preservation-rules convention (inline, dated, scoped supersession, same shape as the existing OCLI-1/QCLI-4 row). Nothing else in that file touched.
+
+Scope discipline: touched only these two files; did not touch the register, packaging contract, legacy-reconciliation doc, the Spec, or QCLI-2.4's glossary (sibling follow-ups own those).
+
+Gates (worktree root, after lore sync): lore check --strict -> 21 files, 0 errors, 0 warnings; lore validate --strict -> 21 files, 0 errors, 0 warnings, 6 skipped; lore orphans -> 0 orphan tasks, 0 dangling links. All clean.
 <!-- SECTION:NOTES:END -->
