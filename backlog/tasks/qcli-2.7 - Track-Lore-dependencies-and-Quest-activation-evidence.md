@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude-worker'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 13:30'
+updated_date: '2026-08-04 13:44'
 labels:
   - campaign
   - research
@@ -96,6 +96,26 @@ Also widened the "npm package name occupancy" slice's permitted-use enumeration 
 Gates re-run clean after both fixes: lore check --strict --plain -> "17 files, 0 errors, 0 warnings"; lore validate --strict --plain -> "17 files, 0 errors, 0 warnings, 6 skipped"; lore orphans --plain -> "orphans: 0 orphan tasks, 0 dangling links".
 
 Commit: e0ea127. Pushed.
+
+Review fix pass (2026-08-04, worktree 2): supersedes two false verification claims and four small imprecisions the reviewer found in this task's own deliverable and register edits. Re-verified every underlying fact myself before editing (release-publishing.md lines 130-140 and lore-cli-release-truth.md:63 re-read live in /Volumes/external/repos/lore-cli; the three source-comment quotes re-located in this document; unlink's absence as a separate source file confirmed; the version-floor comment block's real line range confirmed at 34-46).
+
+BLOCKING F1 (register, "lore-cli release-gate evidence" slice, ~line 486-511): the prior text claimed QCLI-2.7 "confirmed both are non-Backlog-derived (neither asserts a Backlog.md behavior claim)" and framed a Backlog cross-link exclusion as hypothetical ("should any accrue later"). Both were false: release-publishing.md's own "## Prerequisites" section (lines 133-137) states a dated Backlog.md release-history fact ("Backlog.md v1.49.0, published 2026-08-02, is the first tagged release containing PR #790/BACK-545") as fact, not as a Lore requirement -- exactly the class of fact the slice's own Permitted use admits ("package/tag/workflow/registry/install facts"), which opened a live laundering path. Fixed: the "Exact revision or retrieval date" bullet now states the split explicitly -- lore-cli-release-truth.md:63 is a Lore requirement and citable; release-publishing.md's Prerequisites bullet is a Backlog.md release-history fact and is not. The Exclusions bullet now names that exact passage (release-publishing.md, "## Prerequisites", lines 133-137) as an explicit carve-out "in effect now (not hypothetical)," and drops the "should any accrue later" framing. lore-cli-release-truth.md:63 itself is unchanged and remains correctly framed as a Lore requirement, per the split rule -- not touched.
+
+BLOCKING F2 (deliverable, "Admissibility discipline applied in this document", ~line 384-423): the prior text stated "No claim here about how Backlog.md itself behaves is sourced from Lore" and listed release-publishing.md under a "non-Backlog-derived surface" enumeration. Both were false: three verbatim lore-cli source-comment quotes this document itself reproduces do contain Backlog.md-behavior assertions -- SS1's "unsupported, LORE-57" note on edit's --json support (src/adapters/backlog.ts:753), SS3's version-floor comment "a pre-`--json` stock release can still report a version at or above this floor" (backlog.ts:34-46), and SS4's createTask comment "`--plain` suppresses the `Created task <ID>` line lore captures, and create emits no JSON envelope" (backlog.ts:919-920). None is a substantive leak -- each is Lore's own stated rationale for its own invocation convention, not load-bearing for any Quest requirement in the AC5 table -- but the blanket sentence was simply false on its own document's contents. Fixed: qualified the disclaimer to name the three quotes, state they are reproduced strictly as Lore's rationale for its own convention and are not admitted as evidence about Backlog.md, and that any Backlog.md claim a Quest requirement needs must still be independently re-derived from Backlog.md's public surface at v1.49.3 (QCLI-2.5's job). release-publishing.md is no longer listed as uniformly non-Backlog-derived; the paragraph now explains why (same Prerequisites passage as F1) and confirms this document does not cite, quote, or rely on that passage anywhere -- true on inspection.
+
+LOW 1: deliverable ~line 84 ("only one of four conditions feeding") and register ~line 505/513 ("three further, separately-held conditions") both restated the mutable owner-held gate predicate's condition count. Both now read "further, separately-held conditions" with no number.
+
+LOW 2: deliverable ~line 56-59 said the matrix does not reproduce the release-gate predicate, integration-obligation list, or open questions, while matrix row 5 (~line 87) quotes one fragment of each list verbatim -- in tension, though not contradictory (quoting one item is not reproducing the list). Reworded line 56-59 to say the document does not reproduce either list "in full" and to note row 5 quotes one fragment of each solely to name the specific gap it evidences.
+
+NIT 3: this task's own implementation notes above state the new Reference is "415 lines"; it was 419 at review time (git show at the reviewed commit confirms). Not re-editing that note's text (superseding per this note instead, per project convention) -- recording the correction here. The file is now 441 lines after this fix pass's edits.
+
+NIT 4: "Central finding" section (~line 292-295) listed `unlink` alongside `sync`/`check`/`link`/`tasks`/`orphans` as if it were a separate file among the 27; there is no src/commands/unlink.ts -- unlink is implemented inside link.ts, itself already one of the 27. Reworded to "`link` -- which also implements the inverse `unlink` command --" so the list names files, not commands, consistently.
+
+NIT 5: SS3's version-floor citation said "the source's own comment (lines 30-45)"; the actual JSDoc block is backlog.ts:34-46 (opening /** at 34, closing */ at 46; confirmed via `sed -n '25,50p' src/adapters/backlog.ts` in the local lore-cli clone). Corrected to lines 34-46.
+
+Gates re-run clean after all fixes (lore sync run first): lore check --strict --plain -> "17 files, 0 errors, 0 warnings"; lore validate --strict --plain -> "17 files, 0 errors, 0 warnings, 6 skipped"; lore orphans --plain -> "orphans: 0 orphan tasks, 0 dangling links (none -- every task has an owning doc, every linked task is live)".
+
+Scope discipline: did not touch the AC5 18-row table's classifications, did not restructure either document, did not open/read/cite the quarantined local Backlog.md clone, did not write to lore-cli/lore-doc/opum-doc/quest-doc (read-only re-verification only), did not touch QCLI-2.2 or QCLI-2.9 deliverables, did not check ACs or move status.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
