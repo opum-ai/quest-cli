@@ -808,8 +808,43 @@ named slice, never to every file in its repository.
   enumeration; the register's prose elsewhere (this slice's own Ownership
   rationale cross-reference, and the "quest-cli repository and npm package
   identity" slice above) already cited the ADR without enumerating it here.
-- **Exact revision or retrieval date:** local HEAD `0cf0f34` (this branch's
-  base), read live 2026-08-04.
+  **Added 2026-08-04 by this `QCLI-2.12` follow-up (F2):** `QCLI-2.3`'s own
+  [black-box acceptance
+  scenarios](quest-cli-black-box-acceptance-scenarios.md) and `QCLI-2.4`'s
+  [component glossary, actors, and
+  workflows](quest-cli-component-glossary-actors-and-workflows.md) are
+  already cited under this exact slice by `QCLI-2.6`'s [Git, filesystem,
+  and concurrency threat
+  model](quest-cli-git-filesystem-and-concurrency-threat-model.md) evidence
+  table (the rows for each document, both reading "Allowed — 'Prior QCLI
+  research records'"); `QCLI-2.7`'s [Lore dependency and adapter contract
+  evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) is
+  read by `QCLI-2.5`'s [Backlog migration fidelity
+  contract](quest-cli-backlog-migration-fidelity-contract.md) Notes, for
+  citation-discipline consistency with prior QCLI Reference outputs rather
+  than as a design source for that document's own findings — the same
+  non-replacing relationship this slice's own Permitted use already states
+  below. None of these three was previously named in this enumeration
+  despite already being relied on, under this slice's Allowed
+  classification, by merged deliverables.
+- **Exact revision or retrieval date:** `QCLI-1`/`QCLI-3`/`QCLI-4`'s own
+  products — the component charter, migration ledger, and research Spec —
+  are pinned to local HEAD `0cf0f34` (this branch's base, their actual
+  origin), read live 2026-08-04. **Corrected 2026-08-04 by this
+  `QCLI-2.12` follow-up (F3):** the later-added members above do not share
+  that pin — `0cf0f34` (2026-08-04 01:02:11 -0500) predates every one of
+  them, confirmed via `git merge-base --is-ancestor <sha> 0cf0f34`
+  returning nonzero (not-an-ancestor) for each. Each is instead pinned to
+  its own merge or creation commit: `QCLI-2.2`'s reconciliation at
+  `09c202d` (2026-08-04 08:56:56 -0500); the ADR's `QCLI-5` amendment at
+  `942da73` (2026-08-04 07:21:12 -0500);
+  `quest-cli-black-box-acceptance-scenarios.md` at `4ed6ee1` (2026-08-04
+  10:27:00 -0500, `QCLI-2.3`'s merge);
+  `quest-cli-component-glossary-actors-and-workflows.md` at `0d127ee`
+  (2026-08-04 10:28:30 -0500, `QCLI-2.4`'s merge); and
+  `quest-cli-lore-dependency-and-adapter-contract-evidence.md` at
+  `2246c46` (2026-08-04 08:58:45 -0500, `QCLI-2.7`'s merge). All read live
+  2026-08-04.
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
   documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
