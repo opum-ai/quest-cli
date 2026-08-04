@@ -11,6 +11,8 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:23:54-05:00 e17b5273b7e94e37e7a03b6efd486ef37a5fa565 docs(qcli-2.7): add Lore dependency and adapter contract evidence
+- 2026-08-04T08:24:10-05:00 e69bb9b5438f50b66121ec714a1638204fdc3c0f chore(docs): reconcile pre-existing sync drift via lore sync
 
 ## docs/adr
 
@@ -24,6 +26,8 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:23:54-05:00 e17b5273b7e94e37e7a03b6efd486ef37a5fa565 docs(qcli-2.7): add Lore dependency and adapter contract evidence
+- 2026-08-04T08:24:01-05:00 c03c63b073a0f9e806b89b019939afa9feee0d32 docs(qcli-2.7): record the lore-cli source-admissibility split rule
 
 ## docs/runbooks
 
@@ -43,3 +47,4 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:24:10-05:00 e69bb9b5438f50b66121ec714a1638204fdc3c0f chore(docs): reconcile pre-existing sync drift via lore sync
