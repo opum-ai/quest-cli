@@ -24,6 +24,7 @@
 - 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
 - 2026-08-04T10:59:44-05:00 2e0995d799b51ad082846cb959209d46a60f55f8 docs: sync log.md after wave-3 follow-up merges
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
+- 2026-08-04T11:55:30-05:00 435a077d47e4cc8d03f324f3b14e49835360bb10 docs: sync log after QCLI-2.12 register and ledger edits
 
 ## docs/adr
 
@@ -46,6 +47,10 @@
 - 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
 - 2026-08-04T10:58:20-05:00 63b1e0a33e4b67d87d6034e9b72f127fce10d106 QCLI-2.4 follow-up: add moving-reference recheck clause for quest-doc citation (#10)
 - 2026-08-04T10:59:08-05:00 c09ed473c8432d418c941a3201e33a5e1f1fed3c QCLI-2.13 follow-up: complete AC4 with register-side back-reference (#11)
+- 2026-08-04T11:54:51-05:00 cad41b17ed8c9b08e0c94cd38d58001cef34fd26 docs(source-register): unify Backlog-corpus catch-all and add release-gate precedence rule
+- 2026-08-04T11:55:11-05:00 670f4952521c64e026e7f96d1b17c590ac742bfb docs(source-register): close npm-name and Prior-QCLI-records enumeration gaps
+- 2026-08-04T11:55:20-05:00 50922e028ce06a03761c8d76da089fb651e673f9 docs(source-register): record QCLI-2.12's coherence-gap closures in summary and Notes
+- 2026-08-04T11:55:25-05:00 ad776bbf544ae1a1ed888b4e40c8110039fa199f docs(migration-ledger): admit owner-ruled register amendments recorded after QCLI-2.1
 
 ## docs/runbooks
 
