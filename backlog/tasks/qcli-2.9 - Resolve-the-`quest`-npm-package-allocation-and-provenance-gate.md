@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 23:48'
-updated_date: '2026-08-04 13:23'
+updated_date: '2026-08-04 13:06'
 labels:
   - research
   - packaging
@@ -28,6 +28,7 @@ documentation:
   - docs/reference/quest-cli-component-charter.md
   - docs/specs/quest-cli-pre-implementation-research-program.md
   - docs/stories/prepare-quests-clean-room-research-foundation.md
+  - docs/reference/quest-cli-packaging-contract.md
 parent_task_id: QCLI-2
 priority: high
 type: spike
@@ -56,3 +57,13 @@ Scope boundary for wave 2: QCLI-2.7 owns all edits to docs/reference/quest-cli-r
 - [ ] #4 Package metadata, install copy, and public claims remain conditional on immutable protected release evidence
 - [ ] #5 No package reservation, transfer, publication, remote-policy change, or release occurs without separate explicit owner authorization
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Read the source register, component charter, and ADR (owner already decided @opum-ai/quest on 2026-08-04 per QCLI-5) — cite read-only, do not edit the register (QCLI-2.7 owns it this wave).
+2. Independently re-run live npm view / gh api registry evidence (quest, quest-cli, @opum-ai/quest, @opum-ai/quest-cli, @salient-data/quest[-cli], lore, lore-cli, @opum-ai/lore) and verify the opum-ai/quest-cli transfer identity (git remote -v, gh api against both org paths, checking for the stale-redirect trap) — date and command every observation.
+3. Author a new Reference doc docs/reference/quest-cli-packaging-contract.md via 'lore new reference' covering: AC1 dated evidence + mandatory release-time recheck clause, AC2 provenance classification (citing the register's existing Excluded/Allowed calls, no source reuse), AC3 recorded @opum-ai/quest identity with executable quest, AC4 conditional public-claim language tied to the ADR's protected-immutable-release consequence, AC5 explicit no-registry-action statement.
+4. Run lore sync then lore check --strict / lore validate --strict / lore orphans and capture real output.
+5. Record dated evidence and gate output in task notes; report any contradictions (none expected) without acting on them.
+<!-- SECTION:PLAN:END -->
