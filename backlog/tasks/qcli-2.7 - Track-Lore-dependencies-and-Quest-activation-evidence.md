@@ -3,9 +3,9 @@ id: QCLI-2.7
 title: Track Lore dependencies and Quest activation evidence
 status: In Progress
 assignee:
-  - '@claude'
+  - '@claude-worker'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 12:59'
+updated_date: '2026-08-04 13:11'
 labels:
   - campaign
   - research
@@ -53,6 +53,17 @@ This task OWNS all edits to docs/reference/quest-cli-research-source-register.md
 - [ ] #6 Drift between lore-cli published/pinned revision and its current development line is recorded with dated evidence, and any change to the documented adapter surface is flagged as a reclassification trigger
 - [ ] #7 The split rule for lore-cli source admissibility is recorded in the research source register, and every adapter finding cites Lore for what Lore requires without citing Lore for any claim about Backlog.md behavior
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Research (done): re-read the research source register, component charter, migration ledger, research-program Spec, Story, and handover runbook; re-verify live drift evidence in lore-cli (npm/local version, tag commit, dev HEAD, ahead/behind, ancestor check, diff --stat of cli-surface.md/cli-contract.md/okf-projection-contract.md, src/adapters/backlog.ts, src/, and docs/ between v0.1.0 and dev HEAD); read src/adapters/backlog.ts in full (probe, envelope schemas, BacklogAdapter interface, createBacklogAdapter, status-flow parsing) plus lore-design.md and architecture.md sec 3 for adapter-boundary framing; read lore-doc's quest-integration-and-lore-release-gate.md and LDOC-4's live status (To Do) without copying its checklist; discover ADR-0009 as an additional Backlog-behavior-tainted lore-cli document (states 'Backlog.md drops unknown frontmatter keys on edit' uncited) alongside the already-known historical-upstream-backlog-json-tag-watch.md gap.
+2. Author one new Reference concept via 'lore new reference' under docs/reference/ with two parts: Part 1 the Lore dependency and activation-evidence matrix (AC1-3: links the lore-doc gate without restating it, names owning Lore task/spec/runbook/evidence per dependency, classifies each Quest choice evidence-complete/provisionally-researchable/blocked-on-named-owner-result/requires-owner-input, and states live owner re-verification is required before activation); Part 2 the lore-cli adapter contract review (AC4-6: invocation surface, structured-output envelope + schemaVersion, capability-probe + fail-loud semantics, write path + new-id capture, existence-check contract, back-reference/metadata-storage constraint, each cited to src/adapters/backlog.ts at tag v0.1.0/commit e621d20; AC5 three-way classification against Quest's chartered contract with every divergence named explicitly, including the hard finding that lore-cli has no generic TaskAdapter abstraction today -- BacklogAdapter is the only adapter type -- so a second backend is a lore-doc boundary question, not solely a Quest one; AC6 dated drift table).
+3. Edit docs/reference/quest-cli-research-source-register.md (AC7, sole owner this wave): record the split rule verbatim as its own subsection; classify lore-cli-release-truth.md and release-publishing.md (currently named but unclassified per the known gap); extend the Backlog-corpus closed list with a catch-all clause covering any further lore-cli document deriving from Backlog.md source, naming historical-upstream-backlog-json-tag-watch.md and the newly discovered ADR-0009 as instances; do not restate or duplicate any Lore gate criteria.
+4. Add a one-line pointer to the new Reference doc from docs/index.md's hand-authored 'Start here' section (docs/reference/index.md's own listing is lore-managed and regenerates via sync); no edits to the campaign Story's managed blocks.
+5. Run 'lore sync' then the verification gates ('lore check --strict --plain', 'lore validate --strict --plain', 'lore orphans --plain'); fix to zero errors/warnings.
+6. Record implementation notes (decisions, split-rule refusals with rationale, literal gate output) via --append-notes; commit in small logical commits with 'Refs: QCLI-2.7'; push the branch as the last action. Do not check ACs, write a final summary, or move the task to Done.
+<!-- SECTION:PLAN:END -->
 
 ## Comments
 
