@@ -81,9 +81,13 @@ six in total, including a fourth Permitted-use clarification (the
 three below because those are the ones needing the owner's same-day
 confirmation that follows, not the full list. The owner has confirmed
 (2026-08-04) that none of these three needed a fresh ruling: the metadata
-widening and the npm-occupancy addition formalize admissions already
-permitted by QCLI-2.7's existing owner-ruled widening of the npm-occupancy
-slice's own permitted use, applied here by symmetry. **Corrected 2026-08-04
+widening formalizes an admission already permitted by QCLI-2.7's existing
+owner-ruled widening of the npm-occupancy slice's own permitted use,
+applied here by symmetry; the npm-occupancy addition formalizes an
+admission already permitted by that same slice's *pre-widening* permitted
+use and its Excluded classification, on a basis the corrected text below
+sets out in full — not the widening itself, and not by symmetry.
+**Corrected 2026-08-04
 by a second `QCLI-2.12` follow-up fix pass (B3):** this sentence previously
 named the lore-cli slice's split rule as a second, joint basis alongside
 that widening — wrong. The register's own text grounds the lore-cli
@@ -94,9 +98,21 @@ design derivation from lore-cli's own TypeScript source as evidence of what
 Lore requires of a task-tracker backend (`src/adapters/backlog.ts` and
 lore-cli's non-Backlog-derived ADRs/Specs); it says nothing about citing
 registry metadata, and the register itself describes the split rule as
-unchanged by the metadata widening. The npm-occupancy addition (enumerating
-`@opum-ai/quest-cli`) rests directly on that slice's own pre-existing
-widening, needing no symmetry argument at all. Both amendments were also
+unchanged by the metadata widening. **Corrected 2026-08-04 by this same
+`QCLI-2.12` follow-up (third pass):** this sentence previously attributed
+the npm-occupancy addition to "that slice's own pre-existing widening" —
+also imprecise, and for the same reason as the correction above:
+`QCLI-2.7`'s widening added *fields* (maintainer identity,
+description, publish history) to the slice's Permitted use, not *names* to
+its Repository or URL enumeration, so it is not what admits
+`@opum-ai/quest-cli`. The npm-occupancy addition (enumerating
+`@opum-ai/quest-cli`) instead rests on the slice's *pre-widening* Permitted
+use, which already covered "existence, version, license, and repository"
+before `QCLI-2.7` ever ran — sufficient on its own to ground the
+404-existence observation `QCLI-2.9` cites — together with the slice's
+Excluded classification, under which naming one more occupied name in
+Repository or URL admits no new source either way, needing no symmetry
+argument at all. Both amendments were also
 already exercised in practice by `QCLI-2.9`'s contemporaneous citations of
 `@opum-ai/lore` maintainer identity and the `@opum-ai/quest-cli` 404
 observation; the Prior-QCLI-research-records additions change no
