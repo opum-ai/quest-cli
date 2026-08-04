@@ -49,8 +49,8 @@ tests or algorithms").
 
 | Source | Repository / path | Revision | Register classification | Used for |
 | --- | --- | --- | --- | --- |
-| Dated Opum fleet and prior-art inventory | `opum-doc:docs/reference/dated-opum-fleet-and-prior-art-inventory.md` | `opum-doc` HEAD `c9b6741` (`c9b67411a07fa5e70a29f2d3ca324c173677b0dd`, 2026-08-04 10:07:27 -0500), re-verified live 2026-08-04: unchanged since commit `bee848a` (2026-08-04 07:49:11 -0500, a one-line link-fix), which itself is the only change since the `846f054` condensation (`git diff 846f054..HEAD -- <path>` shows exactly that one line; `wc -l` = 120) | Allowed — register's own "Dated Opum fleet and prior-art inventory" slice | The 11 "Unique prototype scenario seeds" (lines 89-108), used only as independently-reauthored prompts, per that slice's explicit permitted use naming `QCLI-2.3` |
-| `OCLI-3.3` task narrative | `opum-doc:backlog/tasks/ocli-3.3 - Turn-prototype-failures-into-black-box-regression-scenarios.md` | `opum-doc` HEAD `c9b6741`, file last touched at commit `3023468` (2026-08-01 13:49:31 -0500), read 2026-08-04 | Allowed — register's "Historical OCLI Story/Spec/Runbook/task records" slice, gated by the migration ledger's row-by-row disposition (row `OCLI-3.3 → QCLI-2.3`) | Sole content predecessor; confirms it is historical, unexecuted, and that `QCLI-2.3` is its sole active successor; supplies the AC-field vocabulary (preconditions, interleaving, structured result/exit, effects, recovery) this document's own scenario shape independently converges on, and the observation that first-release scenarios must be distinguished from deferred MCP/dashboard/explorer/hosted-service ones |
+| Dated Opum fleet and prior-art inventory | `opum-doc:docs/reference/dated-opum-fleet-and-prior-art-inventory.md` | `opum-doc` HEAD `c9b6741` (`c9b67411a07fa5e70a29f2d3ca324c173677b0dd`, 2026-08-04 10:07:27 -0500) (observed 2026-08-04; moving reference, re-verify before relying), re-verified live 2026-08-04: unchanged since commit `bee848a` (2026-08-04 07:49:11 -0500, a one-line link-fix), which itself is the only change since the `846f054` condensation (`git diff 846f054..HEAD -- <path>` shows exactly that one line; `wc -l` = 120) | Allowed — register's own "Dated Opum fleet and prior-art inventory" slice | The 11 "Unique prototype scenario seeds" (lines 89-108), used only as independently-reauthored prompts, per that slice's explicit permitted use naming `QCLI-2.3`; see the recheck clause below |
+| `OCLI-3.3` task narrative | `opum-doc:backlog/tasks/ocli-3.3 - Turn-prototype-failures-into-black-box-regression-scenarios.md` | `opum-doc` HEAD `c9b6741` (observed 2026-08-04; moving reference, re-verify before relying), file last touched at the immutable commit `3023468` (2026-08-01 13:49:31 -0500), read 2026-08-04 | Allowed — register's "Historical OCLI Story/Spec/Runbook/task records" slice, gated by the migration ledger's row-by-row disposition (row `OCLI-3.3 → QCLI-2.3`) | Sole content predecessor; confirms it is historical, unexecuted, and that `QCLI-2.3` is its sole active successor; supplies the AC-field vocabulary (preconditions, interleaving, structured result/exit, effects, recovery) this document's own scenario shape independently converges on, and the observation that first-release scenarios must be distinguished from deferred MCP/dashboard/explorer/hosted-service ones; see the recheck clause below |
 | Quest CLI component charter | `docs/reference/quest-cli-component-charter.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | The current-boundary authority every scenario category below is grounded against (the "Owns here" list; the first-release non-goals used to justify the Deferred section) |
 | Legacy Opum requirement reconciliation for Quest CLI | `docs/reference/legacy-opum-requirement-reconciliation-for-quest-cli.md` (this repo, `QCLI-2.2`, owned this wave by `QCLI-2.11`) | this branch | Allowed — "Prior QCLI research records" | Confirms which candidate mechanisms (claims, leases, gates, read-only purity, operation-owned commits, canonical IDs/aliases) are current quest-cli scope (Reusable/Adapted) versus routed elsewhere (candidate #6, actor semantics, routed to `quest-doc` — not designed here) |
 | Former OCLI to QCLI migration ledger | `docs/reference/former-ocli-to-qcli-migration-ledger.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | Row-gating authority for `OCLI-3.3`'s admission and the explicit statement that its 11 seeds "remain historical evidence until QCLI-2.3 authors the current black-box corpus" |
@@ -64,6 +64,51 @@ register-cited existence and disposition (see the Deferred section). No
 Backlog.md behavior claim appears anywhere in this document — it is out of
 this task's scope (`QCLI-2.5`'s), and none was needed to author these
 scenarios.
+
+#### Recheck clause (moving reference)
+
+The `opum-doc` HEAD pin above (`c9b6741`) is a moving reference, not an
+immutable anchor: `opum-doc`'s `dev` branch can advance past it at any time
+after this observation, independent of any edit to this document — the two
+commit SHAs it names (`bee848a`, `846f054`) and the OCLI-3.3 file's
+last-touch commit (`3023468`) are themselves immutable anchors and need no
+recheck, but the claim that `c9b6741` is still the current tip, and that
+nothing has changed downstream of it, does. Per the research program
+Spec's
+["Recheck clause requirement"](../specs/quest-cli-pre-implementation-research-program.md#recheck-clause-requirement),
+before relying on this document's 11-seed traceability table or its
+provenance claims, a later worker MUST re-run, live, in
+`/Volumes/external/repos/opum-doc` on branch `dev`:
+
+- `git fetch origin && git rev-parse origin/dev` — compare the result
+  against `c9b67411a07fa5e70a29f2d3ca324c173677b0dd`. A match means
+  nothing has moved and every citation above still holds as observed.
+- If it differs: `git diff
+  c9b67411a07fa5e70a29f2d3ca324c173677b0dd..origin/dev --
+  docs/reference/dated-opum-fleet-and-prior-art-inventory.md`. A non-empty
+  result touching the "Unique prototype scenario seeds" section
+  (originally lines 89-108) means the seed wording this document's
+  traceability table maps from may have changed. That is a new fact for
+  `QCLI-2.3`'s owner (or the wave's integration reviewer) to rule on —
+  the affected traceability row(s) must be re-derived against the new
+  text; a worker may not silently reconcile the discrepancy or assume the
+  independently authored scenarios (BB-01..BB-17) are still correctly
+  attributed. A diff outside that section does not by itself invalidate
+  this document.
+- If it differs: `git diff c9b67411a07fa5e70a29f2d3ca324c173677b0dd..origin/dev
+  -- "backlog/tasks/ocli-3.3 - Turn-prototype-failures-into-black-box-regression-scenarios.md"`.
+  This file is historical and frozen by the migration ledger's own
+  disposition (row `OCLI-3.3 → QCLI-2.3`); any non-empty result is itself
+  a surprise finding to report, not something to silently trust or act on
+  unilaterally.
+
+A changed inventory does not retroactively invalidate an independently
+authored scenario — AC3's independence claim never depended on the
+inventory staying fixed, only on it never having been copied from. It
+only means this document's *citations* need re-verification, exactly the
+distinction the Spec's
+["Moving vs. immutable references"](../specs/quest-cli-pre-implementation-research-program.md#moving-vs-immutable-references)
+subsection draws.
 
 ### Seed-to-category traceability
 
@@ -101,9 +146,18 @@ Each scenario states five fields, matching `QCLI-2.3` AC2 exactly:
   conflict distinct from success / a structured error distinct from both),
   not as literal exit-code integers or a fixed schema — the concrete
   command vocabulary, JSON envelope shape, and exit-code table are
-  `QCLI-2.4`'s and later contract work's scope, not fixed by this
-  document (component charter: "command vocabulary, deterministic JSON,
-  human output, and exit behavior" is owned here, but not yet authored).
+  [`QCLI-2.8`](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md)
+  AC2's scope ("CLI identity, lifecycle, JSON and exits, Git mutation,
+  migration, projection, and Lore integration are specified functionally")
+  and the [research program Spec](../specs/quest-cli-pre-implementation-research-program.md)'s
+  Required Outputs ("The final synthesis must cover... CLI JSON/exits...
+  safe Git mutation..."), not fixed by this document (component charter:
+  "command vocabulary, deterministic JSON, human output, and exit
+  behavior" is owned here, but not yet authored). `QCLI-2.4`'s glossary is
+  not the owner here: its own terms are explicitly candidates only, "not a
+  frozen schema, command, or exit-code table" (its own wording) — this
+  document's earlier pointer to `QCLI-2.4` for this scope was wrong and is
+  corrected here per the wave-3 integration review.
 - **Allowed effects** — exactly which filesystem and Git mutations may
   occur, and the explicit statement of what must remain untouched.
 - **Recovery checks** — what a read-only inspection must show afterward,

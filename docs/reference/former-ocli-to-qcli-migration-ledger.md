@@ -45,7 +45,13 @@ The dated
 historical OCLI Story/Spec/Runbook, OCLI task records, and Git recovery commits
 `7b82afc` and `d42c016` are provenance inputs, not maintained Quest contracts.
 The inventory's 11 scenario seeds remain historical evidence until QCLI-2.3
-authors the current black-box corpus. No source slice is admitted into current
+authors the current black-box corpus. **Condition fired (QCLI-2.3,
+2026-08-04):** QCLI-2.3 has authored that corpus —
+[Quest CLI black-box acceptance scenarios](quest-cli-black-box-acceptance-scenarios.md)
+— independently reauthoring all 11 seeds as prompts (never copied) across
+17 scenarios (BB-01..BB-17). This sentence's historical claim about the
+seeds themselves is left standing, not deleted, per this ledger's own
+preservation rules below. No source slice is admitted into current
 research until QCLI-2.1 verifies its identity, revision, ownership, permitted
 use, exclusions, and contamination boundary.
 
