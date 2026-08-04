@@ -20,7 +20,7 @@ task is created.
 
 ### Owns here
 
-- preferred npm package `quest` and executable `quest`;
+- npm package `@opum-ai/quest` and executable `quest`;
 - command vocabulary, deterministic JSON, human output, and exit behavior;
 - task/event/workspace schemas and local configuration;
 - dependency readiness, claims, leases, gates, lifecycle, and evidence;

@@ -63,5 +63,10 @@ use, exclusions, and contamination boundary.
   QCLI-4) — never a blanket flip of the original disposition.
 
 Repository history: `salient-data/opum-cli` was renamed in place to
-`salient-data/opum-doc` on 2026-08-01. GitHub redirects the old name, but active
-links should use the current repository identity.
+`salient-data/opum-doc` on 2026-08-01. `salient-data/quest-cli` was transferred
+to `opum-ai/quest-cli` on 2026-08-04 (QCLI-5), matching the
+`salient-data/lore-cli` → `opum-ai/lore-cli` transfer. GitHub redirects the old
+names, but active links should use the current repository identity — a redirect
+resolves a stale reference silently, so a wrong org reads as correct until
+someone checks. The other components named here — `quest-doc`, `lore-doc`,
+`opum-doc`, and `quest-web` — remain in `salient-data`.

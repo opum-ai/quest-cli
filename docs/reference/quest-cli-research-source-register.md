@@ -41,7 +41,7 @@ named slice, never to every file in its repository.
 | --- | --- | --- |
 | Allowed | Exact owner decision, authored requirement, public contract, or attested data slice; cite the named slice and dated revision, revalidate before use | Dated fleet inventory, Backlog.md public surface, lore-cli's published CLI surface, the 2026-08-04 owner decision on quest-cli's `opum-ai` identity |
 | Contextual | Owned or public material with a different product boundary; explain history or risk only | The `opum-doc` repository itself; the Lore-owned release gate |
-| Superseded | Formerly accepted direction replaced by a named decision; preserve rationale, do not reactivate | Migration ledger's OCLI-1 row (backlog-handover skill port, QCLI-4, commit `287c2b8`) — recorded there, not duplicated here; the component ADR's decision #1 (`salient-data/quest-cli` as canonical), superseded by the owner's `opum-ai` identity decision — recorded as a finding in this register, ADR text itself left for a separate task |
+| Superseded | Formerly accepted direction replaced by a named decision; preserve rationale, do not reactivate | Migration ledger's OCLI-1 row (backlog-handover skill port, QCLI-4, commit `287c2b8`) — recorded there, not duplicated here; the component ADR's decision #1 (`salient-data/quest-cli` as canonical), superseded by the owner's `opum-ai` identity decision — recorded as a finding in this register and amended inline in the ADR itself by QCLI-5 on 2026-08-04 |
 | Deferred | Plausible later surface outside the first release; preserve the question and revisit trigger | Opum MCP/hosted-UI prototype surfaces |
 | Excluded | Backlog.md implementation source/tests or unapproved source material; no inspection, copying, execution, or design derivation | Backlog.md implementation source/tests; unrelated npm-squatted packages |
 | Quarantined | Dirty, unversioned, snapshot-derived, secret-adjacent, or attribution-ambiguous material; identity and previously captured metadata only | Legacy unversioned Opum fleet artifacts |
@@ -454,11 +454,13 @@ named slice, never to every file in its repository.
 - **Classification:** Allowed (per the classification vocabulary's own
   Allowed example, "the 2026-08-04 owner decision on quest-cli's `opum-ai`
   identity").
-- **Repository or URL:** target `github.com/opum-ai/quest-cli` (not yet
-  transferred — this repository's own `origin` remote still reads
-  `git@github.com:salient-data/quest-cli.git` as of this revalidation,
-  confirmed live via `git remote -v` on 2026-08-04); target npm package
-  `@opum-ai/quest`.
+- **Repository or URL:** `github.com/opum-ai/quest-cli` — **transfer executed
+  2026-08-04** at the owner's direction under `QCLI-5`. This repository's own
+  `origin` remote now reads `git@github.com:opum-ai/quest-cli.git`, confirmed
+  live via `git remote -v`; the former `salient-data/quest-cli` path resolves
+  to the same repository through GitHub's post-transfer redirect, exactly as
+  `salient-data/lore-cli` does. Target npm package `@opum-ai/quest`, still
+  unpublished and unreserved.
 - **Exact revision or retrieval date:** owner decision communicated
   2026-08-04; `@opum-ai/quest` confirmed unclaimed (`404 Not Found`) via
   `npm view @opum-ai/quest version` on 2026-08-04, i.e. the target scoped
@@ -477,25 +479,19 @@ named slice, never to every file in its repository.
   a later task plans or executes the actual repository/package transfer;
   informs `QCLI-2.9`'s final package-allocation resolution as a settled
   input, not an open question to re-litigate.
-- **Exclusions:** this register does not amend the ADR or the component
-  charter. The ADR's decision #1 (`salient-data/quest-cli` as "the canonical
-  component repository and local worktree") is now **superseded** by this
-  owner decision, and that supersession is recorded here as a classified
-  provenance/identity finding only — rewriting the ADR itself is out of
-  QCLI-2.1's scope. The component charter
-  (`docs/reference/quest-cli-component-charter.md:23`) similarly still
-  states a "preferred npm package `quest` and executable `quest`", which
-  likewise now disagrees with `@opum-ai/quest` and is equally **superseded**
-  by this owner decision; that text also stays unedited pending a separate
-  follow-up task, per the same out-of-scope instruction as the ADR. This
-  register also does not execute the transfer, publish the package, or treat
-  the transfer as already completed; both remain future actions gated on
-  their own task.
-- **Reclassification triggers:** the repository transfer actually completing
-  (git remote changing to `opum-ai/quest-cli`); `@opum-ai/quest` being
-  published; a follow-up task formally superseding the ADR's decision #1
-  text or the component charter's `:23` npm-package text; `QCLI-2.9` closing
-  package allocation on a different name.
+- **Exclusions:** `QCLI-2.1` did not amend the ADR or the component charter;
+  it recorded both disagreements here as classified findings only, rewriting
+  either document being out of its scope. **`QCLI-5` has since performed those
+  amendments (2026-08-04):** the ADR carries an inline, dated amendment
+  superseding decision #1's `salient-data/quest-cli` and recording decision
+  #2's scope fallback as exercised, and the component charter now states
+  `@opum-ai/quest`. This register still does not reserve, publish, or release
+  the package — `@opum-ai/quest` remains unclaimed, and the final allocation
+  record is `QCLI-2.9`'s.
+- **Reclassification triggers:** the repository transfer completing —
+  **fired 2026-08-04**, recorded above; the ADR and charter amendments —
+  **fired 2026-08-04** under `QCLI-5`; `@opum-ai/quest` being published (not
+  yet); `QCLI-2.9` closing package allocation on a different name.
 
 #### Prior QCLI research records
 

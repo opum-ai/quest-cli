@@ -53,6 +53,31 @@ there is a demonstrated second consumer.
    runtime dependencies, executable scaffolding, and publication wait for the
    canonical Lore release and clean-room activation gates.
 
+**Amendment — 2026-08-04 (QCLI-5).** Decision item 1's repository identity is
+**superseded**. At the owner's direction the repository was transferred from
+`salient-data/quest-cli` to `opum-ai/quest-cli`; `opum-ai/quest-cli` is now the
+canonical component repository. GitHub redirects the former path, but active
+references should use the current identity — a redirect makes a stale reference
+succeed silently, which is how the parallel `salient-data/lore-cli` →
+`opum-ai/lore-cli` transfer initially went unnoticed. The local worktree at
+`/Volumes/external/repos/quest-cli` is unchanged. Nothing else in decision item
+1 is affected.
+
+Decision item 2 is **not** superseded — it is now **exercised**. It already
+provided that "an owner-approved scope is the fallback while the executable
+remains `quest`". That fallback is taken: the package is `@opum-ai/quest`,
+matching `lore-cli`'s observed pattern of repository `<name>-cli` publishing as
+`@opum-ai/<name>`, and the executable remains `quest`. The unscoped `quest` is
+occupied on the public registry by an unrelated party (v0.4.0), which is now
+only the *rationale* for going scoped rather than an open allocation question.
+`@opum-ai/quest` is unclaimed as of this amendment and is **not** reserved,
+published, or released by it — decision item 6's gate still stands, and the
+final allocation record remains QCLI-2.9's.
+
+Decision items 3, 4, and 5 stand unchanged. The provenance classification of
+every source slice behind this ADR lives in
+[the research source register](../reference/quest-cli-research-source-register.md).
+
 ## Consequences
 
 Quest has a clean name and implementation home while the former OCLI history
