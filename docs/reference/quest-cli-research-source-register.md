@@ -607,8 +607,12 @@ named slice, never to every file in its repository.
   `github.com/Clever/quest`), `quest-cli` (v1.0.0, no repository/description
   field published), `lore` (v0.13.0, `github.com/lore/lore`), `lore-cli`
   (v0.13.2, same `github.com/lore/lore`); `@salient-data/quest`,
-  `@salient-data/quest-cli`, and `@salient-data/lore-cli` (each `404 Not
-  Found`).
+  `@salient-data/quest-cli`, `@salient-data/lore-cli`, and `@opum-ai/quest-cli`
+  (each `404 Not Found`). **Added 2026-08-04 by `QCLI-2.12`:**
+  `@opum-ai/quest-cli` — `QCLI-2.9`'s [packaging
+  contract](quest-cli-packaging-contract.md) cites this 404 observation (the
+  un-dropped-suffix form, recorded there only to confirm the dropped-suffix
+  pattern also holds for `quest`) but this slice had not yet named it.
 - **Exact revision or retrieval date:** retrieved live 2026-08-04 via `npm
   view <pkg> version/repository/license/description` for each name.
 - **Ownership rationale:** no `opum-ai` ownership or contribution to any of
@@ -667,9 +671,23 @@ named slice, never to every file in its repository.
 - **Ownership rationale:** `quest-doc` owns Quest promise, roadmap,
   cross-repository architecture, and provenance policy per the component
   charter's routing table.
-- **Permitted use:** align this register's terms and boundary statements with
+- **Permitted use:** **clarified 2026-08-04 by `QCLI-2.12`** — this slice's
+  Allowed classification governs citation of the records enumerated above by
+  *any* QCLI deliverable, not only this register's own text; the original
+  wording below was phrased in this register's own first person and did not
+  say so explicitly. Two admissible uses, both already relied on by merged
+  work and neither narrowing the other: (1) **this register's own use**,
+  unchanged — align this register's terms and boundary statements with
   `quest-doc`'s canonical clean-room provenance and migration-ledger
-  sections; cite when a rule here implements a `quest-doc`-level rule.
+  sections; cite when a rule here implements a `quest-doc`-level rule; and
+  (2) `docs/specs/quest-clean-room-execution-graph.md`'s "Core behavioral
+  contract" vocabulary section (task, event, repository, workspace, actor,
+  and related terms) — a different document section and use than (1) — as
+  `QCLI-2.4`'s [component glossary, actors, and
+  workflows](quest-cli-component-glossary-actors-and-workflows.md) already
+  cites it, to ground quest-cli's own component-level vocabulary against
+  `quest-doc`'s existing canonical terms before proposing anything new to
+  `quest-doc`.
 - **Exclusions:** this register does not restate or override `quest-doc`'s
   canonical policy. No finding in this register proposes a change to
   Quest-wide vocabulary, architecture, or roadmap; if one arose it would be a
@@ -748,12 +766,22 @@ named slice, never to every file in its repository.
 
 - **Classification:** Allowed.
 - **Repository or URL:** this repository — `QCLI-1`, `QCLI-3`, `QCLI-4`, and
-  the component charter, migration ledger, and research Spec they produced.
+  the component charter, migration ledger, and research Spec they produced;
+  also `QCLI-2.2`'s [legacy Opum requirement reconciliation for Quest
+  CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md) and this
+  register itself (`quest-cli-research-source-register.md`). **Added
+  2026-08-04 by `QCLI-2.12`:** both were already cited under this slice by
+  `QCLI-2.3`'s [black-box acceptance
+  scenarios](quest-cli-black-box-acceptance-scenarios.md) evidence table but
+  were not previously named in this enumeration.
 - **Exact revision or retrieval date:** local HEAD `0cf0f34` (this branch's
   base), read live 2026-08-04.
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
-  documentation authority, `QCLI-4` recorded the OCLI-1 supersession.
+  documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
+  `QCLI-2.2` reconciled legacy Opum requirements into current quest-cli
+  decisions, and this register is the per-slice admission authority every
+  other citation in this document, and the rest of this list, depends on.
 - **Permitted use:** this revalidation is based on their findings and must
   stay consistent with them; it does not replace them.
 - **Exclusions:** none beyond ordinary Backlog/Lore edit discipline (use the
