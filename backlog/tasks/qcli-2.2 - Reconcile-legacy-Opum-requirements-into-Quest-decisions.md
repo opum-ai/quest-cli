@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 13:04'
+updated_date: '2026-08-04 13:09'
 labels:
   - campaign
   - research
@@ -54,6 +54,30 @@ Scope boundary for wave 2 (2026-08-04, restore #2): QCLI-2.7 and QCLI-2.9 run co
 7. Scaffold the new Reference doc with 'lore new reference', author prose outside managed blocks, run lore sync then check/validate/orphans --strict --plain, fix findings.
 8. Record decisions, sources admitted/rejected, and literal gate output in --append-notes; commit in small logical commits with a Refs: QCLI-2.2 trailer; push the branch last.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Deliverable: docs/reference/legacy-opum-requirement-reconciliation-for-quest-cli.md (new Reference, scaffolded via 'lore new reference').
+
+Admitted sources used (all Allowed per the read-only register, cited not edited): OCLI-3.2 and OCLI-3 task narratives in opum-doc (gated by migration ledger rows OCLI-3.2->QCLI-2.2 and OCLI-3->QCLI-2), their coupled historical Spec/Story/Runbook (historical-ocli-pre-release-research-program.md, historical-ocli-clean-room-research-origin.md, historical-ocli-research-campaign-handover.md), the dated Opum fleet and prior-art inventory (Allowed; used as the AC1 prototype-review input for the jeremy-newhouse/opum-engine PR heads and 11 scenario seeds, both left Deferred), and this repo's own component charter, migration ledger, accepted ADR, and research-program spec.
+
+Key finding (recorded as an out-of-scope discovery per the coordinator's instructions): OCLI-3.2's own AC1 names five legacy artifacts as its intended evidence base -- ADR-042, SPEC-FEAT-011, 'the legacy usage guide/research digest', OPUM-328, and OPUM-338 through OPUM-342. A case-insensitive grep across the entire opum-doc working tree (HEAD d7ca18f) found zero matches outside OCLI-3.2's own task file; none are named in the source register or the dated fleet inventory either. Per the register's own admission rule ('no source slice informs a QCLI requirement unless it is listed here as Allowed'), these five artifacts are rejected from this reconciliation for lack of an admitted, locatable source -- not searched for in Quarantined/Deferred territory, since that would itself violate the admission rule. Flagged for the owner via opum-doc's OCLI-7 (legacy evidence disposition, still To Do).
+
+Classification (AC2): built a 16-row candidate matrix. Reusable: deterministic JSON/exit behavior, operation-owned commits (both already independently owned by the current charter). Adapted: event-derived state, explicit workspaces, Git CAS claims, TTL leases, the gate mechanism (excluding actor semantics), read-only purity, canonical task identity -- concepts carried forward, no legacy design ported. Superseded: Backlog-as-authority, Python/opum-engine as product home. Rejected: the old 'opum pm' command nesting (AC4), and the five unlocatable artifacts above. Deferred: hosted services/RBAC/MCP/dashboard/explorer/broad platform scope, and the opum-engine prototype PR surfaces.
+
+AC3 routing: exactly one candidate (accountable-human delegation / actor responsibilities) crosses into Quest-wide actor-model territory per the charter's own closing sentence; the document explicitly declines to classify it as a quest-cli-normative decision and routes it to quest-doc, without authoring anything into quest-doc itself.
+
+AC4: rejected former product name (Opum/opum package), former repository home (opum-cli, not the Quest implementation home per the register; current opum-ai/quest-cli origin re-verified live), and former command namespace (opum pm nesting), while listing which CLI execution invariants are preserved as independently-authored candidates only (no schema/format frozen).
+
+Gates (all run from this worktree, literal output):
+lore sync --plain: 'updated docs/log.md / updated docs/reference/index.md / updated docs/stories/audit-quest-cli-documentation-authority.md / committed backlog/: 1 file / 3 files changed' -- the Story status/managed-block reconciliation for QCLI-5 (already Done) was pre-existing drift unrelated to this task's edits, picked up by sync's normal whole-bundle reconciliation.
+lore check --strict --plain: '17 files, 0 errors, 0 warnings' (exit 0)
+lore validate --strict --plain: '17 files, 0 errors, 0 warnings, 6 skipped' (exit 0)
+lore orphans --plain: 'orphans: 0 orphan tasks, 0 dangling links' (exit 0)
+
+Did not edit docs/reference/quest-cli-research-source-register.md (QCLI-2.7's this wave) or any file outside this task's own new document and its own Backlog task record. Did not open Backlog.md source, the local Backlog.md clone, or any Quarantined/Excluded artifact.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 
