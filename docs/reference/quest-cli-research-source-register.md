@@ -464,11 +464,15 @@ named slice, never to every file in its repository.
   below, any further lore-cli document a worker discovers asserting an
   uncited claim about how Backlog.md behaves that this register has not yet
   individually read.** (This field and Exclusions, below, previously stated
-  the catch-all in two materially different formulations — this one and
-  Exclusions' "does it assert a Backlog.md behavior fact without independent
-  public-surface attribution?" test; unified 2026-08-04 by `QCLI-2.12` on the
-  Exclusions formulation, which is also the test the Ownership rationale and
-  Exclusions fields below already apply in practice.)
+  the catch-all in two materially different formulations: this field read
+  "any further lore-cli document deriving from Backlog.md source" (the
+  original, now-superseded wording, recorded here verbatim per this
+  project's inline-supersession convention), while Exclusions used "does it
+  assert a Backlog.md behavior fact without independent public-surface
+  attribution?" as its test; unified 2026-08-04 by `QCLI-2.12` on the
+  Exclusions formulation — the sentence above now states that formulation
+  too — which is also the test the Ownership rationale and Exclusions
+  fields below already apply in practice.)
 - **Exact revision or retrieval date:** tag `v0.1.0`, local clone read
   2026-08-04 (owner ruling date); the two newly-named documents
   (`docs/adr/0009-story-task-coupling-reconciliation.md` and
