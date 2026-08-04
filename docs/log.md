@@ -25,6 +25,7 @@
 - 2026-08-04T10:59:44-05:00 2e0995d799b51ad082846cb959209d46a60f55f8 docs: sync log.md after wave-3 follow-up merges
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
 - 2026-08-04T11:55:30-05:00 435a077d47e4cc8d03f324f3b14e49835360bb10 docs: sync log after QCLI-2.12 register and ledger edits
+- 2026-08-04T11:55:54-05:00 2b8439613d55043daf84163f9809f07986deac35 docs: sync log with QCLI-2.12's own commits
 
 ## docs/adr
 
