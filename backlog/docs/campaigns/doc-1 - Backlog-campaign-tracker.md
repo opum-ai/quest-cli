@@ -3,7 +3,7 @@ id: doc-1
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-04 06:01'
-updated_date: '2026-08-04 14:16'
+updated_date: '2026-08-04 14:36'
 ---
 # Backlog campaign tracker
 
@@ -245,78 +245,30 @@ conventions section, `--delete-branch` cannot be trusted).
 No task is labelled `needs-human`. No escalation occurred in wave 2 — every
 `request_changes` closed inside its fix-cycle budget.
 
-## Proposed follow-ups (awaiting user approval)
+## Proposed follow-ups — APPROVED AND FILED 2026-08-04
 
-Never created unprompted — this project requires approval before follow-up work
-is filed. All four came from the wave-2 integration review, which read the
-three merged deliverables together and found what no single-task review could.
-Proposals A and B share files and are mechanical; they belong in one pass.
+The owner approved all four wave-2 integration-review proposals on 2026-08-04
+and they are now filed. Nothing remains awaiting approval.
 
-**A. Correct wave-2 cross-task staleness in the three merged deliverables.**
-Six known-location defects where one sibling's merge invalidated another's
-text. QCLI-2.9 lines 166 and 189 quote the register's pre-widening permitted
-use (accurate when written and reviewed; superseded by QCLI-2.7's merge), and
-line 189's framing must change from "unresolved tension routed to QCLI-2.7" to
-"QCLI-2.7 closed this" — it is now internally inconsistent with its own
-evidence table 120 lines above. The register's false parenthetical asserting
-`846f054^` is `c5ebee8` (it is `3023468`; every claim it supports is true).
-QCLI-2.2 line 64's "reachability re-verified" method claim, which the register
-has since repudiated in identical wording and which QCLI-2.2's own lines
-108-113 already contradict. And the `d7ca18f` currency contradiction at
-register lines 61 and 138 against line 112, plus QCLI-2.2's eight sites.
-ACs: no document states or paraphrases the superseded four-field enumeration;
-the register attributes `c5ebee8` via `git log -1 846f054^ -- <former path>`;
-QCLI-2.2 line 64 records content verification; no document asserts `d7ca18f`
-as HEAD and every citation carries a read date; gates clean.
+| Was | Task | Cluster | Deps |
+| --- | --- | --- | --- |
+| A | QCLI-2.11 Correct wave-2 cross-task staleness in the three merged deliverables | `cluster:provenance` | none |
+| B | QCLI-2.12 Close the register's admission-authority coherence gaps | `cluster:provenance` | QCLI-2.11 |
+| C | QCLI-2.13 Adopt a moving-vs-immutable reference convention in the Spec | `cluster:convention` | none |
+| D | QCLI-2.14 Re-home the runtime/native-packaging/supported-platform question | `cluster:convention` | QCLI-2.13 |
 
-**B. Close the register's admission-authority coherence gaps.**
-(i) The Backlog-corpus catch-all is stated twice with materially different
-triggers — "deriving from Backlog.md source" versus "asserting an uncited
-claim about how Backlog.md behaves" — and `release-publishing.md`, named in
-both places, resolves differently under each, with no precedence rule.
-(ii) QCLI-2.7's metadata widening left an **Excluded** slice permitting more
-registry fields than an **Allowed** one, and two names QCLI-2.9 cites
-(`@opum-ai/quest-cli`; `@opum-ai/lore`'s maintainer identity) fall outside
-every slice's enumerated permitted use. (iii) The migration ledger names
-QCLI-2.1 as sole admission verifier, which QCLI-2.7's owner-ruled amendments
-have outgrown.
-ACs: one catch-all test stated identically in both fields; an explicit
-precedence rule preserving QCLI-2.7's existing `release-publishing.md`
-citations; every npm name cited by a merged deliverable enumerated in some
-slice covering the fields actually cited; the ledger admits owner-ruled
-amendments recorded after QCLI-2.1; slice/Classification count stays 1:1.
+Clusters are deliberate: A and B both edit the source register, and C and D
+both edit the research program Spec, so each pair is serialized by the
+conflict graph while the two pairs run in parallel. Expect QCLI-2.11 +
+QCLI-2.13 in one wave, then QCLI-2.12 + QCLI-2.14.
 
-**C. Adopt a moving-vs-immutable reference convention in the research program
-Spec.** Ten instances across three documents, two waves, and five task
-executions of a dated observation written as a standing fact — always the same
-conversion, always via the word "HEAD" or "current". The corpus has already
-invented the fix twice independently (QCLI-2.9's release-time recheck clause,
-QCLI-2.7's AC6 reclassification trigger), and it is the general case of the
-register's existing GitHub-redirect trigger. Proposed rule: a moving reference
-(branch HEAD, working-tree state, `npm view` availability, task status, an
-ahead/behind count) is recorded as `<value> (observed <date>; moving reference
-— re-verify before relying)`; an immutable anchor (tag, commit SHA, published
-version, release timestamp) may be stated flat. Any conclusion resting on a
-moving reference carries a recheck clause naming the commands to re-run.
-ACs: the Verification bar defines the distinction and required phrasing;
-requires a recheck clause and cites the two existing implementations as the
-model; binds new and amended documents only, no retroactive rewrite;
-cross-referenced from the register's redirect trigger as its general case.
-
-**D. Re-home the runtime / native-packaging / supported-platform question.**
-QCLI-2.7 cedes this to QCLI-2.9; QCLI-2.9's scope (AC1-AC5) is npm allocation
-and provenance only, its merged deliverable addresses none of it, and the
-research program Spec holds both halves as open questions — one explicitly
-gated on completed Lore evidence, i.e. post-activation. The question is
-currently *cited as owned* while being *in fact unowned*, which is worse than
-visibly open because the pointer suppresses the re-derivation that would
-surface it. QCLI-2.8 synthesizes from QCLI-2.2-2.7 and would inherit the
-pointer without inheriting an answer. Root cause: the Spec's dependency table
-stops at QCLI-2.8 and has no row for QCLI-2.9 or QCLI-2.10.
-ACs: QCLI-2.7's cession no longer names QCLI-2.9 as owner; it names the Spec's
-open questions and states plainly that no current task owns them; the Spec's
-dependency table gains rows for QCLI-2.9 and QCLI-2.10 or records why not; no
-new scope claimed and no open question silently closed.
+**Not done, deliberately: QCLI-2.8's dependency list was left untouched.**
+QCLI-2.8 synthesizes from QCLI-2.2-2.7 and will inherit the defects QCLI-2.11,
+QCLI-2.12, and QCLI-2.14 correct — in particular QCLI-2.14's dangling cession,
+which QCLI-2.8 would otherwise follow to an answer that does not exist. Adding
+those edges would change QCLI-2.8's scheduling, and `--dep` at edit *replaces*
+the list rather than appending, so this is left as an explicit decision for the
+next session to raise with the owner rather than made silently here.
 
 ## Campaign conventions learned in wave 2
 

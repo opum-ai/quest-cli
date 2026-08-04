@@ -14,6 +14,7 @@
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
 - 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
 - 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
+- 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
 
 ## docs/adr
 
@@ -50,3 +51,4 @@
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
