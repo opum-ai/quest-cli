@@ -11,14 +11,16 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
-- 2026-08-04T08:23:54-05:00 e17b5273b7e94e37e7a03b6efd486ef37a5fa565 docs(qcli-2.7): add Lore dependency and adapter contract evidence
-- 2026-08-04T08:24:10-05:00 e69bb9b5438f50b66121ec714a1638204fdc3c0f chore(docs): reconcile pre-existing sync drift via lore sync
-- 2026-08-04T08:25:30-05:00 fe569b6dcf8d3d650d1d140081aace9aa6c6842f chore(docs): sync log after implementation-notes commit
-- 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
-- 2026-08-04T08:30:27-05:00 c41e1ec547af8ce7bc5e0bdf6438500ed28f2b4d chore(docs): sync log after correction notes commit
-- 2026-08-04T08:45:27-05:00 09d08d2973a47d01616b23b85a7a393ada9e237b chore(docs): sync log after review fix-pass commits
-- 2026-08-04T08:49:01-05:00 61759e1ff9beeedbada9aa5c6c9f0b128a955f15 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
-- 2026-08-04T08:50:17-05:00 c016227422327f10602769b2ce77f1ca98a27085 chore(docs): sync log after supplement fix-pass commits
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T08:57:43-05:00 01fc3d2be74e5a3fb5b96af34d1d338bc4a1ec85 chore(docs): sync log after supplement fix-pass commits
+- 2026-08-04T08:57:43-05:00 0f865d841b119ecef91391c40d804fbe49409648 chore(docs): sync log after supplement fix-pass verification
+- 2026-08-04T08:57:43-05:00 124b3539fc4abd5c9cdcde17446c8a4a59319844 chore(docs): reconcile pre-existing sync drift via lore sync
+- 2026-08-04T08:57:43-05:00 65265157a83e7bfff4c0d8bbd3bbb215c82820ea docs(qcli-2.7): add Lore dependency and adapter contract evidence
+- 2026-08-04T08:57:43-05:00 82fb2e5c064d8a18b84a853043063d93f68b9b1e chore(docs): sync log after implementation-notes commit
+- 2026-08-04T08:57:43-05:00 8a8a1f6495713423d5a0ac8e6d37a2e410f0c8cb chore(docs): sync log after correction notes commit
+- 2026-08-04T08:57:43-05:00 b3170008045302242165b27eeab1f2a22ad71771 docs(qcli-2.7): fix falsified content-identity claim in register
+- 2026-08-04T08:57:43-05:00 c85fa2a5e9070b5c1e44bdc22491149c3dfbdfa2 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
+- 2026-08-04T08:57:43-05:00 fd2a8ad18a07da0a3a33186b2d17bee14827182d chore(docs): sync log after review fix-pass commits
 
 ## docs/adr
 
@@ -32,11 +34,12 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
-- 2026-08-04T08:23:54-05:00 e17b5273b7e94e37e7a03b6efd486ef37a5fa565 docs(qcli-2.7): add Lore dependency and adapter contract evidence
-- 2026-08-04T08:24:01-05:00 c03c63b073a0f9e806b89b019939afa9feee0d32 docs(qcli-2.7): record the lore-cli source-admissibility split rule
-- 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
-- 2026-08-04T08:45:09-05:00 16b60d7d05cac594cef4ec2571b0eb28ef138fb7 docs(qcli-2.7): fix falsified admissibility claims from review fix pass
-- 2026-08-04T08:49:01-05:00 61759e1ff9beeedbada9aa5c6c9f0b128a955f15 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T08:57:43-05:00 232d8728d515d0492f45a2d240bb4495f25f37fd docs(qcli-2.7): record the lore-cli source-admissibility split rule
+- 2026-08-04T08:57:43-05:00 65265157a83e7bfff4c0d8bbd3bbb215c82820ea docs(qcli-2.7): add Lore dependency and adapter contract evidence
+- 2026-08-04T08:57:43-05:00 76894e6c2af08a22ae379ad805bf9794ce5d4456 docs(qcli-2.7): fix falsified admissibility claims from review fix pass
+- 2026-08-04T08:57:43-05:00 b3170008045302242165b27eeab1f2a22ad71771 docs(qcli-2.7): fix falsified content-identity claim in register
+- 2026-08-04T08:57:43-05:00 c85fa2a5e9070b5c1e44bdc22491149c3dfbdfa2 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
 
 ## docs/runbooks
 
@@ -56,4 +59,4 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
-- 2026-08-04T08:24:10-05:00 e69bb9b5438f50b66121ec714a1638204fdc3c0f chore(docs): reconcile pre-existing sync drift via lore sync
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
