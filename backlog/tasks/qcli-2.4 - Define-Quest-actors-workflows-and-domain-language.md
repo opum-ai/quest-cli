@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.4
 title: 'Define Quest CLI actors, workflows, and domain-language candidates'
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 15:45'
+updated_date: '2026-08-04 16:01'
 labels:
   - campaign
   - research
@@ -15,7 +15,6 @@ labels:
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:domain'
   - wave-3
-  - in-review
 dependencies:
   - QCLI-2.2
 documentation:
@@ -34,10 +33,10 @@ Define the Quest CLI component from human and agent perspectives before local sc
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A component glossary identifies the execution entities, lifecycle concepts, identities, claims, evidence, workspaces, and projections used by the CLI
-- [ ] #2 Component actor responsibilities distinguish accountable humans, delegated agents, reviewers, maintainers, Lore, Git, and derived local projections
-- [ ] #3 End-to-end CLI workflows identify authoritative writes, derived reads, human gates, failure recovery, and whether Lore is optional or required
-- [ ] #4 Any product-wide vocabulary or actor-model change is routed to quest-doc and remains non-normative until accepted there
+- [x] #1 A component glossary identifies the execution entities, lifecycle concepts, identities, claims, evidence, workspaces, and projections used by the CLI
+- [x] #2 Component actor responsibilities distinguish accountable humans, delegated agents, reviewers, maintainers, Lore, Git, and derived local projections
+- [x] #3 End-to-end CLI workflows identify authoritative writes, derived reads, human gates, failure recovery, and whether Lore is optional or required
+- [x] #4 Any product-wide vocabulary or actor-model change is routed to quest-doc and remains non-normative until accepted there
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -84,6 +83,8 @@ Follow-up fix (integration review finding F6, post-merge wave-level review): doc
 Fix applied on fix/qcli-2.4-followup-recheck-clause (worktree, not main checkout): reworded all three citations to the Spec's required phrasing -- `7d4d60c2854a533bbba63e6b69320587b8f88e83 (observed 2026-08-04; moving reference, re-verify before relying)` -- and added a new "Recheck clause for the quest-doc citation" subsection (modeled on QCLI-2.9's mandatory release-time recheck clause in quest-cli-packaging-contract.md and QCLI-2.7's AC6 reclassification trigger in quest-cli-lore-dependency-and-adapter-contract-evidence.md, both named as reference models by the Spec's new section). The clause names the exact commands to re-run against a live quest-doc clone (`git -C <quest-doc-clone> log -1 --format='%H %ci' -- docs/specs/quest-clean-room-execution-graph.md`; same for docs/reference/quest-repository-and-authority-map.md; `git -C <quest-doc-clone> log -1 --format='%H' -- docs/`) and states what a changed result obligates: re-reading both files live and re-confirming (a) the base-vocabulary grounding and (b) the negative "no actor-model glossary exists" claim, without authorizing silent continued reliance on the 2026-08-04 observation or unilateral edits to quest-doc's own content.
 
 No other content in this document changed. Scope was limited to this file only per the follow-up task's boundary (sibling follow-ups on the register, packaging contract, legacy-reconciliation doc, the Spec, and the black-box scenarios doc ran in parallel on other files).
+
+Settlement (orchestrator, wave 3, 2026-08-04): reviewer independently confirmed all 4 ACs, including a full re-derivation of the external quest-doc citation (clone HEAD exact match 7d4d60c, clean tree, every quoted phrase verbatim, register-Allowed slice, and the load-bearing negative claim checked against all 14 files in that repo). Merged as squash commit 0d127ee (PR #6). Wave-3 integration review found one cross-task issue (F6: missing recheck clause on the same quest-doc HEAD citation) — a narrow follow-up fix was implemented, independently reviewed (approve, recheck-clause commands re-run live), and merged as squash commit 63b1e0a (PR #10). Gates on final merged dev: lore check --strict 21 files 0/0; lore validate --strict 21 files 0/0 6 skipped; lore orphans 0/0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -101,3 +102,9 @@ created: 2026-08-04 15:11
 Quest-wide proposal routed to quest-doc, per AC4: this task's component-level actor-responsibility mapping (docs/reference/quest-cli-component-glossary-actors-and-workflows.md, AC2 table) is quest-cli-scoped only. It does not settle QCLI-2.2's already-identified reconciliation candidate #6 -- the product-wide, cross-repository actor model (who counts as an accountable human, a delegated agent, a reviewer/approver, and how those roles relate to a gate, as a decision binding quest-doc/quest-web/a future Opum component, not only quest-cli). If a later task pursues candidate #6, the proposal belongs in quest-doc's own repository, informed by (not copied from) this document's component-level table. This is a re-affirmation of an already-routed candidate, not a new product-wide finding -- no other glossary term, actor row, or workflow in this document proposes a change to Quest-wide vocabulary, architecture, or roadmap; the base vocabulary (task/event/workspace/claim/lease/gate/delivery-evidence/human-ownership/delegation) is cited to quest-doc's own already-adopted docs/specs/quest-clean-room-execution-graph.md, not newly proposed here.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added docs/reference/quest-cli-component-glossary-actors-and-workflows.md: a 7-category component glossary (execution entities, lifecycle concepts, identities, claims, evidence, workspaces, projections), a 7-role actor-responsibility table, and 6 end-to-end workflows, each naming authoritative writes, derived reads, human gates, failure recovery, and Lore optional/required status. Grounded in the component charter, QCLI-2.2's/QCLI-2.7's deliverables, and quest-doc's canonical execution-graph spec (register-Allowed, cited read-only). Routes the sole product-wide finding (cross-repo actor model) to quest-doc as non-normative. A wave-3 follow-up fix added a moving-reference recheck clause for the quest-doc HEAD citation, per the convention QCLI-2.13 introduced in the same wave. Verified via 2 independent review passes, each re-deriving external evidence rather than trusting prior claims.
+<!-- SECTION:FINAL_SUMMARY:END -->

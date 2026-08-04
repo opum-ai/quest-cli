@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.3
 title: Turn prototype failures into Quest black-box scenarios
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 15:47'
+updated_date: '2026-08-04 16:00'
 labels:
   - campaign
   - research
@@ -15,7 +15,6 @@ labels:
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:scenarios'
   - wave-3
-  - in-review
 dependencies:
   - QCLI-2.1
   - QCLI-2.2
@@ -35,9 +34,9 @@ Convert approved prototype dogfood and review findings into independently author
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Scenarios cover lease and heartbeat failures, human gates, read-only purity, recovery, hostile paths, dirty worktrees, canonical IDs, and operation-owned Git effects
-- [ ] #2 Each scenario defines preconditions, action or concurrency interleaving, structured result and exit, allowed effects, and recovery checks
-- [ ] #3 No prototype test, fixture, source organization, or algorithm is copied or treated as normative
+- [x] #1 Scenarios cover lease and heartbeat failures, human gates, read-only purity, recovery, hostile paths, dirty worktrees, canonical IDs, and operation-owned Git effects
+- [x] #2 Each scenario defines preconditions, action or concurrency interleaving, structured result and exit, allowed effects, and recovery checks
+- [x] #3 No prototype test, fixture, source organization, or algorithm is copied or treated as normative
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -82,4 +81,12 @@ F5 (stale forward-condition in a wave-1 file, different task's territory): docs/
 Scope discipline: touched only these two files; did not touch the register, packaging contract, legacy-reconciliation doc, the Spec, or QCLI-2.4's glossary (sibling follow-ups own those).
 
 Gates (worktree root, after lore sync): lore check --strict -> 21 files, 0 errors, 0 warnings; lore validate --strict -> 21 files, 0 errors, 0 warnings, 6 skipped; lore orphans -> 0 orphan tasks, 0 dangling links. All clean.
+
+Settlement (orchestrator, wave 3, 2026-08-04): reviewer independently confirmed all 3 ACs across 2 review passes (pass 1 request_changes on one isolated false commit-pin, pass 2 approve). Merged as squash commit 4ed6ee1 (PR #5, backlog-tasks-into-scenarios). Wave-3 integration review then found 3 cross-task issues (F1 misdirected ownership pointer, F2/F6 missing recheck clause, F5 stale ledger forward-condition) — a narrow follow-up fix was implemented, independently reviewed (approve), and merged as squash commit 883b445 (PR #9). Gates on final merged dev: lore check --strict 21 files 0/0; lore validate --strict 21 files 0/0 6 skipped; lore orphans 0/0.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added docs/reference/quest-cli-black-box-acceptance-scenarios.md: 17 independently authored black-box scenarios (BB-01..BB-17) covering all 8 AC1 categories, each with all 5 AC2 fields, sourced from opum-doc's dated fleet-and-prior-art inventory and the OCLI-3.3 task narrative (both register-Allowed, cited as prompts only, nothing copied). Seed 10 (stdio MCP) correctly left Deferred per the register. A wave-3 follow-up fix corrected a misdirected ownership pointer (command vocabulary belongs to QCLI-2.8, not QCLI-2.4), added a moving-reference recheck clause for the opum-doc HEAD citation, and closed the migration ledger's fired forward-condition inline (dated, cited, original text preserved). Verified via 3 independent review passes (2 on the original implementation, 1 on the follow-up), each re-deriving evidence rather than trusting prior claims.
+<!-- SECTION:FINAL_SUMMARY:END -->

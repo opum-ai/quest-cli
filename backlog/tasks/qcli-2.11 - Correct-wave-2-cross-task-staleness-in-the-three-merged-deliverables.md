@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.11
 title: Correct wave-2 cross-task staleness in the three merged deliverables
-status: In Progress
+status: Done
 assignee:
   - '@jdnewhouse'
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 15:29'
+updated_date: '2026-08-04 16:01'
 labels:
   - campaign
   - research
@@ -14,7 +14,6 @@ labels:
   - no-implementation
   - 'cluster:provenance'
   - wave-3
-  - in-review
 dependencies: []
 parent_task_id: QCLI-2
 priority: high
@@ -38,11 +37,11 @@ Sites:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Neither line 166 nor line 189 of the packaging contract states or paraphrases the superseded four-field enumeration; both reflect the current exhaustive field list, and line 189 records the gap as closed by QCLI-2.7 rather than open
-- [ ] #2 The source register states 846f054^ is 3023468 and attributes c5ebee8 via the command that actually establishes it, retaining the true 292-line and ancestry claims
-- [ ] #3 The legacy-requirement reconciliation records content verification rather than reachability for the Git recovery commits, consistent with the registers corrected slice and with the documents own body
-- [ ] #4 No document asserts d7ca18f as opum-doc HEAD; every citation of it is phrased as a dated pin and carries a read date
-- [ ] #5 lore check --strict, lore validate --strict, and lore orphans all report zero errors, zero warnings, and zero orphans, and no claim is altered beyond the corrections named in this task
+- [x] #1 Neither line 166 nor line 189 of the packaging contract states or paraphrases the superseded four-field enumeration; both reflect the current exhaustive field list, and line 189 records the gap as closed by QCLI-2.7 rather than open
+- [x] #2 The source register states 846f054^ is 3023468 and attributes c5ebee8 via the command that actually establishes it, retaining the true 292-line and ancestry claims
+- [x] #3 The legacy-requirement reconciliation records content verification rather than reachability for the Git recovery commits, consistent with the registers corrected slice and with the documents own body
+- [x] #4 No document asserts d7ca18f as opum-doc HEAD; every citation of it is phrased as a dated pin and carries a read date
+- [x] #5 lore check --strict, lore validate --strict, and lore orphans all report zero errors, zero warnings, and zero orphans, and no claim is altered beyond the corrections named in this task
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -169,6 +168,8 @@ GATES (run from the worktree root after all edits, before commit):
   orphans: 0 orphan tasks, 0 dangling links
   (none — every task has an owning doc, every linked task is live)
 All three exit 0. No claim altered beyond the four Sites' named corrections.
+
+Settlement (orchestrator, wave 3, 2026-08-04): reviewer independently confirmed all 5 ACs, including external re-verification of the 846f054^/3023468/c5ebee8 chain against a live /Volumes/external/repos/opum-doc clone (byte-identical blob diff, not just line count), and byte-identical Classification/Permitted-use fields versus dev confirming zero unauthorized reclassification. The worker's own premise-mismatch correction (5 undated d7ca18f sites found, not the task text's stated 4) was independently re-derived and confirmed correct. Merged as squash commit 3b5cd8c (PR #7). Gates on final merged dev: lore check --strict 21 files 0/0; lore validate --strict 21 files 0/0 6 skipped; lore orphans 0/0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -189,3 +190,9 @@ undated rows (not just four) plus the three that already had dates, for eight to
 than leaving one out to match the task text's count. Author @jdnewhouse
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Corrected 4 cross-task staleness sites surfaced by the wave-2 integration review, across quest-cli-packaging-contract.md, quest-cli-research-source-register.md, and legacy-opum-requirement-reconciliation-for-quest-cli.md: (1) reflects QCLI-2.7's widened 7-field permitted-use list and records the gap as closed rather than open; (2) fixes a false 846f054^ commit attribution (was c5ebee8, is 3023468) with the correct establishing command; (3) records content verification rather than reachability for the Git recovery commits; (4) rephrases all d7ca18f citations as dated pins (8 sites total — the worker found and fixed one more than the task text's stated 4, flagged and independently confirmed correct). No source reclassified, no permitted use narrowed. Verified via a single, thorough review pass with full external re-derivation.
+<!-- SECTION:FINAL_SUMMARY:END -->

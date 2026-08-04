@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.13
 title: Adopt a moving-vs-immutable reference convention in the research program Spec
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-04 14:35'
-updated_date: '2026-08-04 15:45'
+updated_date: '2026-08-04 16:02'
 labels:
   - campaign
   - research
@@ -14,7 +14,6 @@ labels:
   - no-implementation
   - 'cluster:convention'
   - wave-3
-  - in-review
 dependencies: []
 parent_task_id: QCLI-2
 priority: medium
@@ -38,11 +37,11 @@ Documentation only. This binds new and amended documents; it requires no retroac
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The research program Spec Verification bar defines the moving-versus-immutable distinction and states the required phrasing for each
-- [ ] #2 It requires a recheck clause for any conclusion resting on a moving reference, and cites the two existing implementations in the corpus as the reference model
-- [ ] #3 It states that the convention binds new and amended documents and requires no retroactive rewrite of existing ones
-- [ ] #4 The convention is cross-referenced from the source registers GitHub-redirect reclassification trigger as the general case of that specific rule
-- [ ] #5 lore check --strict, lore validate --strict, and lore orphans report zero errors, zero warnings, and zero orphans
+- [x] #1 The research program Spec Verification bar defines the moving-versus-immutable distinction and states the required phrasing for each
+- [x] #2 It requires a recheck clause for any conclusion resting on a moving reference, and cites the two existing implementations in the corpus as the reference model
+- [x] #3 It states that the convention binds new and amended documents and requires no retroactive rewrite of existing ones
+- [x] #4 The convention is cross-referenced from the source registers GitHub-redirect reclassification trigger as the general case of that specific rule
+- [x] #5 lore check --strict, lore validate --strict, and lore orphans report zero errors, zero warnings, and zero orphans
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -88,6 +87,8 @@ lore check --strict, lore validate --strict, and lore orphans all report
 zero errors/warnings/orphans after the change. In my judgment this now
 fully satisfies AC4 as worded (mutual cross-reference exists in both
 directions); orchestrator to confirm at settlement.
+
+Settlement (orchestrator, wave 3, 2026-08-04): reviewer independently confirmed ACs 1-3 and 5 on the original implementation (merged as squash commit eaa8a0c, PR #8), and judged AC4 confirmed-as-scoped but only one-directional (Spec cites the register; the register did not cite the Spec back). Wave-3 integration review adjudicated AC4's wording as requiring the register->Spec direction specifically, and recommended a narrow one-clause fix. A follow-up worker added that clause to the register's GitHub-redirect reclassification-trigger bullet; its reviewer independently proved the cross-reference link/anchor resolves (via a broken-link/broken-anchor negative control in a scratch copy) and confirmed a genuine mutual cross-reference now exists, explicitly stating AC4 is fully satisfiable. Follow-up merged as squash commit c09ed47 (PR #11). Gates on final merged dev: lore check --strict 21 files 0/0; lore validate --strict 21 files 0/0 6 skipped; lore orphans 0/0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -99,3 +100,9 @@ created: 2026-08-04 15:06
 AC4 asymmetry for orchestrator review: I added a one-directional cross-reference FROM the Spec's new 'Relationship to the source register' subsection TO the research source register's 'lore-cli / the lore command' slice (its Reclassification-triggers GitHub rename/transfer redirect rule), naming it by heading/description per my dispatch instructions. I do not own docs/reference/quest-cli-research-source-register.md this wave (QCLI-2.11 does), so I did not add a reverse pointer from that register slice back to this Spec's new convention. If AC4 is read as requiring a true bidirectional cross-reference (the register's trigger explicitly pointing at the generalized convention, not just the generalization pointing at the trigger), that requires a small follow-up edit inside QCLI-2.11's file -- a one-line addition to the register's 'lore-cli / the lore command' slice noting that its GitHub-redirect trigger is now the specific instance of the Verification bar's general moving-vs-immutable convention. Flagging for orchestrator settlement rather than editing a file I don't own this wave.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added a Verification bar expansion to the research program Spec (docs/specs/quest-cli-pre-implementation-research-program.md) generalizing a pattern the corpus had already invented twice: moving references (branch HEAD, working-tree state, task status) must be recorded as dated observations with a recheck clause naming exact commands to re-run; immutable anchors (tags, SHAs, published versions) may be stated flat. A mutual cross-reference now exists between the Spec and the source register's GitHub-redirect reclassification trigger, completed via a follow-up fix after the integration review found the original implementation satisfied only one direction. No reclassification, no narrowing of any permitted use. Verified via 2 review passes on the original implementation plus 1 on the follow-up, including an empirical proof (broken-link/broken-anchor negative control) that the new cross-reference link actually resolves.
+<!-- SECTION:FINAL_SUMMARY:END -->
