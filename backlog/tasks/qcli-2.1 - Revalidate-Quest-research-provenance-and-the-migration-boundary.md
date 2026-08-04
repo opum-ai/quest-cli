@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:41'
+updated_date: '2026-08-04 06:56'
 labels:
   - campaign
   - research
@@ -89,6 +89,25 @@ Orchestrator correction folded in (owner input received mid-task, 2026-08-04):
 - Added a reclassification-trigger note that a GitHub rename/transfer redirect makes a stale org reference silently resolve (gh api repos/salient-data/lore-cli returns opum-ai/lore-cli's data without erroring) — any org-qualified citation must be re-verified against live git remote/gh api identity, not assumed correct because an old-name lookup succeeded.
 
 Re-verified after edits: `lore sync` (1 file changed: docs/log.md), `lore check --strict` -> "16 files, 0 errors, 0 warnings" exit 0, `lore validate --strict` -> "16 files, 0 errors, 0 warnings, 6 skipped" exit 0. Committed at b25c891 (Refs: QCLI-2.1) and pushed.
+
+Fix-pass after reviewer request_changes (commit 04265ca, Refs: QCLI-2.1):
+
+- Finding 1 (major/blocker): added an explicit "- **Classification:** <...>" bullet as the first field of all 15 slices, not just the 5 flagged as missing. For the 10 slices already implied by the vocabulary table's example column, used exactly the implied class (verified by mapping every example-column phrase to exactly one slice: 4 Allowed, 2 Contextual, 1 Deferred, 2 Excluded, 1 Quarantined -> 10). For the 5 unclassified slices, applied the class recorded in this task's own prior notes, all Allowed: Historical OCLI Story/Spec/Runbook/task records (per-record, gated by the migration ledger, never blanket), Git recovery commits 7b82afc/d42c016, quest-doc canonical product records (the Allowed half of "Allowed/Contextual respectively" - lore-doc already had an implied Contextual class from the vocab table), Prior QCLI research records, and Current repository inventory (AC3 attestation). No slice needed a genuine split; register now self-applies its own admission rule without the vocab table's example column being load-bearing.
+- Finding 2 (minor): moved "quest-cli repository and npm package identity (owner decision, 2026-08-04)" from ### Lore tooling to ### quest-cli internal state (now its first subsection).
+- Finding 3 (nit): reworded both stale "Salient Data" org references (npm package name occupancy slice's ownership rationale and reclassification triggers) to name `opum-ai` as the current org, with `salient-data` named as the historical association since the distinction matters there.
+- Finding 4 (nit): reworded the intro's "supersedes the dated fleet inventory... as the current admission authority" to "replaces... as the admission authority... (the inventory itself remains Allowed for citation, see below)", removing the collision with the Superseded class definition.
+- Ruling A: added a new Contextual slice "lore-cli Backlog.md corpus (ADRs, reference, runbooks)" under Lore tooling, covering ADR-0002, ADR-0012, backlog-cli-contract.md, backlog-json-schema.md, backlog-json-patch.md. Permitted use is question-discovery only, citation of nothing, per the owner's 2026-08-04 ruling (ADR-0012 verified behaviors against Backlog.md source itself). Recorded that lore-cli-release-truth.md and release-publishing.md are separately classified QCLI-2.7 evidence, not touched by this taint.
+- Ruling B: added a new Quarantined slice "Local Backlog.md clone (/Volumes/external/repos/Backlog.md)" under ### Backlog.md, with an explicit proximity-hazard rationale (single relative path from sibling checkouts) for why it needs its own entry rather than relying on the general Backlog.md-source exclusion, and a reclassification trigger tied to the owner's clean-room ruling, not to the clone's existence.
+- Out-of-scope disagreements: confirmed the ADR decision #1 disagreement was already recorded as a Superseded finding in the quest-cli identity slice; the component charter's :23 "preferred npm package quest and executable quest" disagreement was NOT previously recorded anywhere in the register, so added it (also as a Superseded finding, same slice) without touching the charter file itself. Neither the charter nor the ADR was edited.
+
+Verification actually run after the edits:
+- `lore sync --plain` -> "updated docs/log.md, 1 file changed" (no backlog/ change, so no auto-commit this pass; docs/log.md staged and committed alongside the register edit).
+- `lore check --strict --plain` -> "16 files, 0 errors, 0 warnings", exit 0.
+- `lore validate --strict --plain` -> "16 files, 0 errors, 0 warnings, 6 skipped", exit 0.
+- `lore orphans --plain` -> "0 orphan tasks, 0 dangling links", exit 0.
+- Programmatically re-read all slice blocks and confirmed all 17 slices (15 original + 2 new from rulings A/B) carry all seven required fields (Classification, Repository or URL, Exact revision or retrieval date, Ownership rationale, Permitted use, Exclusions, Reclassification triggers) - zero missing.
+
+Committed at 04265ca (Refs: QCLI-2.1); pushing to origin feat/qcli-2.1-revalidate-provenance next.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
