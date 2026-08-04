@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@jeremy-newhouse'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 16:57'
+updated_date: '2026-08-04 19:06'
 labels:
   - campaign
   - research
@@ -14,6 +14,8 @@ labels:
   - concurrency
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:threat-model'
+  - wave-4
+  - in-review
 dependencies:
   - QCLI-2.2
   - QCLI-2.3
