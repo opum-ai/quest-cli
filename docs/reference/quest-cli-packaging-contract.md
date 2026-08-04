@@ -70,16 +70,16 @@ precisely because that fact is time-bound.
 | --- | --- | --- | --- | --- | --- |
 | `quest` | `0.4.0` | `git+https://github.com/Clever/quest.git` | *(no `license` field published)* | `azylman`, `cleverdrone`, `jefff`, `jonahkagan`, `rgarcia` (5) | "simple request library for node" |
 | `quest-cli` | `1.0.0` | *(none published)* | `ISC` | `edamghy <damriabdellah@gmail.com>` (1) | *(none published)* |
-| `@opum-ai/quest-cli` | — | `E404 Not Found` — unclaimed | — | — | — |
-| `@salient-data/quest` | — | `E404 Not Found` — unclaimed | — | — | — |
-| `@salient-data/quest-cli` | — | `E404 Not Found` — unclaimed | — | — | — |
+| `@opum-ai/quest-cli` | `E404 Not Found` — unclaimed | — | — | — | — |
+| `@salient-data/quest` | `E404 Not Found` — unclaimed | — | — | — | — |
+| `@salient-data/quest-cli` | `E404 Not Found` — unclaimed | — | — | — | — |
 | `lore` | `0.13.0` | `git+https://github.com/lore/lore.git` | — | — | — |
 | `lore-cli` | `0.13.2` | `git+https://github.com/lore/lore.git` | — | — | — |
 | `@opum-ai/lore` | `0.1.0` | `git+https://github.com/opum-ai/lore-cli.git` | `MIT` | `jeremy-newhouse <jeremy.newhouse@salientdata.ai>` (1) | bin `lore` → `bin/lore.cjs` |
 
 `quest` package history (`npm view quest time`): first published `0.0.2` on
 2012-11-01, most recent `0.4.0` on 2018-09-04, `modified` (last registry
-metadata touch) 2022-06-25 — 29 releases across roughly six years, then no
+metadata touch) 2022-06-25 — 26 releases across roughly six years, then no
 published activity for the eight years since, though the registry entry
 itself remains live and resolvable, not deleted or deprecated.
 
@@ -182,6 +182,15 @@ license, because the constraint recorded in the register for Backlog.md
 MIT or ISC license on an unrelated package would make copying *legally*
 permissible, not *provenance-clean*, and this program's admission authority
 requires the latter.
+
+AC1's required fields — maintainer identities, descriptions, and publish
+histories for `quest` and `quest-cli` — extend beyond the register's "npm
+package name occupancy" slice, whose enumerated permitted use is narrower
+("cite existence, version, license, and claimed repository only"); this
+document reads and cites that wider field set as ordinary registry metadata,
+not package content, so clean-room is unaffected, but the permitted-use
+widening itself is routed to `QCLI-2.7` as the register's owner this wave
+rather than performed here.
 
 ### Recorded name (AC3)
 
