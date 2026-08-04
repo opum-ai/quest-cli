@@ -22,6 +22,7 @@
 - 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
 - 2026-08-04T10:41:39-05:00 f30b0c50a5f7104e271607f897ab7dea8a98eb1c docs: sync log.md — fix dangling pre-squash SHA, add missing wave-3 merge entries
 - 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
+- 2026-08-04T10:59:44-05:00 2e0995d799b51ad082846cb959209d46a60f55f8 docs: sync log.md after wave-3 follow-up merges
 
 ## docs/adr
 
