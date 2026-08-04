@@ -372,6 +372,10 @@ named slice, never to every file in its repository.
   `opum-ai/lore-cli`'s data without erroring) — any citation using an org
   name must be re-verified against the live `git remote`/`gh api` identity,
   not assumed correct merely because a lookup under the old name succeeded.
+  This trigger is the specific, single-instance case of the [research
+  program Spec](../specs/quest-cli-pre-implementation-research-program.md#moving-vs-immutable-references)'s
+  Verification-bar moving-vs-immutable-references convention (a `git
+  remote`/`gh api` identity check is a moving reference).
 
 #### The lore-cli source-admissibility split rule (owner ruling, 2026-08-04)
 
