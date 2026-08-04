@@ -32,7 +32,7 @@
 - 2026-08-04T15:16:00-05:00 418c5eb7d3369d1dd19fe817bc9892e07fb2652e QCLI-2.5 follow-up: fix stale scratch-repo count and evidence-source enumeration (#16)
 - 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
 - 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
-- 2026-08-04T17:44:28-05:00 7990e5fc9dc6bbfe3d32e529f68533f0e88f92bd docs: sync managed blocks after QCLI-2.8 synthesis document
+- 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
 
 ## docs/adr
 
@@ -61,9 +61,9 @@
 - 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
 - 2026-08-04T15:16:00-05:00 418c5eb7d3369d1dd19fe817bc9892e07fb2652e QCLI-2.5 follow-up: fix stale scratch-repo count and evidence-source enumeration (#16)
 - 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
-- 2026-08-04T17:44:28-05:00 7990e5fc9dc6bbfe3d32e529f68533f0e88f92bd docs: sync managed blocks after QCLI-2.8 synthesis document
-- 2026-08-04T17:44:28-05:00 b131ba17ddf160f37a3bdd946d9664a9626c2b89 docs(reference): synthesize QCLI-2.2-2.7 research into component contracts and a dormant delivery graph
-- 2026-08-04T17:44:28-05:00 e8797b6ea69cd4d97fdd94f59069d4c97e6c890c QCLI-2.8 review fix: correct row counts, provenance attribution, and citations
+- 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
+- 2026-08-04T17:45:48-05:00 100326090951852ca8bbc94a3c1c81a404ce8051 QCLI-2.10: author the Backlog-to-Quest adoption and migration playbook
+- 2026-08-04T17:45:55-05:00 5770417713c506c00ed09efc06827115c2c1243b QCLI-2.10 fix pass: correct false admissibility claim, mistargeted citations
 
 ## docs/runbooks
 
@@ -92,4 +92,4 @@
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
 - 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
-- 2026-08-04T17:44:28-05:00 7990e5fc9dc6bbfe3d32e529f68533f0e88f92bd docs: sync managed blocks after QCLI-2.8 synthesis document
+- 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
