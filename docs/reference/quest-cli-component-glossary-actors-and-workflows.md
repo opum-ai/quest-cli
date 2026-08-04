@@ -42,18 +42,21 @@ restated or re-classified), and `QCLI-2.7`'s
 (cited here read-only for its central finding that no generic Lore↔task-tracker
 adapter abstraction exists today). It also cites `quest-doc`'s own canonical
 [Quest clean-room execution graph](https://github.com/salient-data/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
-(Spec, `quest-doc`, local clone `/Volumes/external/repos/quest-doc`, HEAD
-`7d4d60c2854a533bbba63e6b69320587b8f88e83`, re-read 2026-08-04, clean tree per
-`git status`) — an Allowed source per the
+(Spec, `quest-doc`, local clone `/Volumes/external/repos/quest-doc`, commit
+`7d4d60c2854a533bbba63e6b69320587b8f88e83` (observed 2026-08-04; moving
+reference, re-verify before relying), clean tree per `git status` at that
+observation) — an Allowed source per the
 [research source register](quest-cli-research-source-register.md#quest-doc-canonical-product-records)
 ("align this register's terms... cite when a rule here implements a
 `quest-doc`-level rule") — as the authority for which vocabulary is *already*
 Quest-wide (adopted there) versus what remains component-scoped candidate
-language this document may originate. `quest-doc`'s own repository holds no
-actor-model glossary as of this HEAD (`quest-repository-and-authority-map.md`
-mentions "reviewer" once, in its own review-routing rule, not as a Quest
-domain-actor definition), so no term below overwrites or contradicts an
-existing `quest-doc` decision.
+language this document may originate. As of that observed commit,
+`quest-doc`'s own repository held no actor-model glossary
+(`quest-repository-and-authority-map.md` mentions "reviewer" once, in its own
+review-routing rule, not as a Quest domain-actor definition), so no term
+below overwrites or contradicts an existing `quest-doc` decision as of that
+observation — see "Recheck clause for the `quest-doc` citation," below, for
+what a changed result obligates.
 
 ## Details
 
@@ -241,6 +244,34 @@ If a later task pursues the product-wide actor model, the proposal belongs in
 `quest-doc`'s own repository, informed by — but not copied from — the
 component-level mapping in this document.
 
+### Recheck clause for the `quest-doc` citation
+
+This document's negative claim in "Scope and authorship boundary" — that
+`quest-doc`'s own repository holds no actor-model glossary — and its
+grounding of the base vocabulary (task, event, workspace, claim, lease, gate,
+delivery evidence, human ownership, delegation) in `quest-doc`'s execution
+graph both depend on the moving `quest-doc` state observed 2026-08-04 at
+commit `7d4d60c2854a533bbba63e6b69320587b8f88e83`. A later worker relying on
+either claim must re-run, against a live `quest-doc` clone:
+
+```
+git -C <quest-doc-clone> log -1 --format='%H %ci' -- docs/specs/quest-clean-room-execution-graph.md
+git -C <quest-doc-clone> log -1 --format='%H %ci' -- docs/reference/quest-repository-and-authority-map.md
+git -C <quest-doc-clone> log -1 --format='%H' -- docs/
+```
+
+If either of the first two commands reports a commit other than
+`7d4d60c2854a533bbba63e6b69320587b8f88e83` for its file, or the third
+command's overall `docs/` HEAD has advanced past that commit, that is a new
+fact — not grounds to keep relying on this document's 2026-08-04 observation.
+A worker who finds a changed result must re-read both files live and confirm
+(a) the base vocabulary this glossary builds on still matches what
+`quest-doc`'s execution graph adopts, and (b) no actor-model glossary has
+since been added to `quest-doc`'s own repository. A changed result on either
+point obligates a correction to this document; it does not by itself
+authorize a worker to rewrite `quest-doc`'s own content, and it does not
+authorize silently continuing to cite the 2026-08-04 observation as current.
+
 ## Notes
 
 This task read the component charter, `QCLI-2.2`'s legacy requirement
@@ -250,8 +281,10 @@ research program Spec, and the Story — all in this repository — plus, in the
 local `/Volumes/external/repos/quest-doc` clone (Allowed per the source
 register's "quest-doc canonical product records" slice), the Quest
 clean-room execution graph Spec and the repository-and-authority-map
-Reference, both re-read live 2026-08-04 against a clean tree at HEAD
-`7d4d60c2854a533bbba63e6b69320587b8f88e83`. It opened no Backlog.md
+Reference, both re-read live 2026-08-04 against a clean tree at commit
+`7d4d60c2854a533bbba63e6b69320587b8f88e83` (observed 2026-08-04; moving
+reference, re-verify before relying — see "Recheck clause for the
+`quest-doc` citation," above). It opened no Backlog.md
 implementation source or internal tests, no legacy Opum implementation
 source, no artifact classified Quarantined by the source register, and no
 `lore-cli` Backlog.md-corpus document. It did not edit the source register
