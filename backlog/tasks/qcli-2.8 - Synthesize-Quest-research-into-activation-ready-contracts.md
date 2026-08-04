@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.8
 title: Synthesize Quest CLI research into activation-ready component contracts
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 23:07'
+updated_date: '2026-08-04 23:55'
 labels:
   - campaign
   - research
@@ -14,6 +14,7 @@ labels:
   - activation-gate
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:synthesis'
+  - wave-5
 dependencies:
   - QCLI-2.2
   - QCLI-2.3
@@ -41,10 +42,10 @@ Integrate admitted research into reviewed, implementation-independent Quest CLI 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every component requirement and scenario traces to the revalidated provenance register or an approved research output
-- [ ] #2 CLI identity, lifecycle, JSON and exits, Git mutation, migration, projection, and Lore integration are specified functionally without copying excluded implementation
-- [ ] #3 Unresolved licensing, runtime, platform, ID grammar, scale, governance, and archival choices remain explicit component decisions, product-owner proposals, or blockers
-- [ ] #4 Any Quest-wide semantic change is routed to quest-doc; all implementation tasks remain unassigned and inactive until canonical activation evidence passes
+- [x] #1 Every component requirement and scenario traces to the revalidated provenance register or an approved research output
+- [x] #2 CLI identity, lifecycle, JSON and exits, Git mutation, migration, projection, and Lore integration are specified functionally without copying excluded implementation
+- [x] #3 Unresolved licensing, runtime, platform, ID grammar, scale, governance, and archival choices remain explicit component decisions, product-owner proposals, or blockers
+- [x] #4 Any Quest-wide semantic change is routed to quest-doc; all implementation tasks remain unassigned and inactive until canonical activation evidence passes
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -105,6 +106,12 @@ Left standing, not acted on (per this task's scope and the review pass's own ins
 Verification: `lore validate --strict --plain docs/reference/quest-cli-component-contracts-and-delivery-graph.md` -> "1 file, 0 errors, 0 warnings, 0 skipped" (exit 0). `lore check --strict --plain` (repo root) -> "24 files, 0 errors, 0 warnings" (exit 0). `lore validate --strict --plain` (repo root) -> "24 files, 0 errors, 0 warnings, 6 skipped" (exit 0). `lore orphans --plain` -> "0 orphan tasks, 0 dangling links" (exit 0). Only docs/reference/quest-cli-component-contracts-and-delivery-graph.md changed (`git status --short` confirms); no other file touched, no acceptance criterion checked, no status change, no summary written, register and ledger untouched.
 
 Wave-level integration-review follow-up (branch fix/qcli-2.8-2.10-integration-review-followup, commits 44e22ac/fca2097): fixed cross-doc coherence issues found between this document and QCLI-2.10's playbook. In component-contracts-and-delivery-graph.md: restored the fidelity contract's dropped human-consented-remediation escape clause and 'including for convenience' wording in the Source immutability bullet (Migration contract); restored the dropped 'must not run concurrently with a live Backlog.md write session' precondition sentence in the One-writer coexistence bullet; added a caveat paragraph after the Provenance table disclosing that QCLI-2.5's fidelity contract, QCLI-2.6's threat model, and the Story are not yet enumerated in the register's 'Prior QCLI research records' slice (same gap class QCLI-2.12 closed elsewhere; reported to the register's owner, register not edited); added a version-pin sentence at the head of the Migration contract section deferring to QCLI-2.5's own AC6 pin/recheck clause; added an additive, non-dependency cross-reference from the Phase 4 delivery-graph row to QCLI-2.10's playbook as its operational procedure. Ran lore check --strict / validate --strict / orphans clean after the edits; did not run lore sync (an unrelated pre-existing unsynced log.md entry for a prior commit trips a portability warning under --strict once synced, out of this task's scope -- reported separately, not fixed here).
+
+Settlement (orchestrator, wave 5). Merged as PR #18, squash commit 8749119. Reviewer verdict on 2nd pass (after 1 fix cycle within the normal 2-retry cap): approve — all 4 ACs independently re-confirmed with named evidence against live source text (reviewer spot-verified ~25 citations beyond the fix list). Two non-blocking nits left as-is (a licensing-source misattribution not affecting the document's conclusion; a stale line-count mention in this task's own notes). Gates: lore check --strict 24 files 0/0; lore validate --strict 24 files 0/0 6 skipped; lore orphans 0/0.
+
+A subsequent wave-level integration review found 9 cross-document coherence issues against this deliverable's sibling (QCLI-2.10) and 2 orchestrator-scope items; all 9 narrow issues were fixed and re-reviewed (approved first pass) in a follow-up branch, merged as PR #20, squash commit 8935551 — see that PR and QCLI-2.10's notes for the full finding list (C1-C7, S1, S4 applied to this document: C2/C3 restored dropped clauses from the fidelity-contract restatement, C4 added a register-enumeration-gap disclosure, C5 added a cross-reference to QCLI-2.10, C6 removed a "phase" terminology overload from the sibling document, C7 added a version-pin/recheck pointer). One real (not narrow) coherence gap the integration review surfaced — the register's "Prior QCLI research records" slice not enumerating QCLI-2.5, QCLI-2.6, QCLI-2.9, this task's own output, or QCLI-2.10's — is out of scope for this task (its own boundary excludes editing the register) and is proposed as a follow-up task in the campaign doc, pending owner approval.
+
+Orchestrator-scope item also found and fixed directly: the owning Story's (prepare-quests-clean-room-research-foundation) frontmatter tasks: list and this task's doc: back-reference label were both missing prior to this settlement (along with QCLI-2.10-2.14) — fixed via lore link, commit 8c3133e (amended from 1ebf5b6 to remove an MDX-portability-lint-breaking commit message; force-pushed with the user's explicit approval after the working tree state was re-verified unchanged).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -122,3 +129,11 @@ created: 2026-08-04 22:18
 Out-of-scope finding for the register's owner (not acted on, per this task's scope boundary: the register is not to be edited here). The research source register's "Backlog.md public surface" slice enumerates published documentation, `backlog --help`/per-command help, `--plain`/`--json` output, and on-disk artifacts produced by running the tool as the admissible evidence classes for Backlog.md -- it does not explicitly name process-level responses from running the installed binary (for example, `mcp start`'s stdio JSON-RPC response, or the equivalent HTTP responses `QCLI-2.5` also recorded from the `browser` command) as an admissible class either way. `QCLI-2.5`'s Backlog migration fidelity contract already relies on this evidence substantively (the server's self-reported version and its EOF-shutdown behavior) under an enumeration clause that document added to its own text during a wave-4 follow-up fix, not to the register's. This synthesis document's own contracts do not depend on that evidence class, so nothing in QCLI-2.8 is affected either way; flagging so the register's owner can decide whether to formalize the class explicitly.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Synthesized admitted research from QCLI-2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.11, 2.12, 2.13, 2.14 into docs/reference/quest-cli-component-contracts-and-delivery-graph.md: functional component contracts for CLI identity, lifecycle, JSON/exits, Git mutation, migration, projection, and Lore integration (no frozen implementation details); a dormant delivery graph (Phases 0-6) gated on the owner-held Lore release gate, authorizing no task, assignment, or activation; and explicit unresolved decisions across licensing, runtime, platform, ID grammar, scale, governance, and archival. Every claim traces to the register or a named research output, with zero citations from Excluded/Quarantined/Contextual sources.
+
+Reviewed and approved after one fix cycle (row-count and provenance-attribution corrections). A wave-level integration review then found and closed 9 cross-document coherence issues against this document's sibling (QCLI-2.10) in a follow-up (PR #20) — dropped clauses restored, a register-enumeration-gap disclosure added, terminology and cross-reference fixes applied. One real (not narrow) coherence gap — the register not yet enumerating this document or several of its research inputs — is proposed as a follow-up task, not fixed here (out of this task's scope).
+<!-- SECTION:FINAL_SUMMARY:END -->

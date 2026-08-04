@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.10
 title: Author the Backlog-to-Quest adoption and migration playbook
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-04 06:23'
-updated_date: '2026-08-04 23:07'
+updated_date: '2026-08-04 23:55'
 labels:
   - campaign
   - research
@@ -16,6 +16,7 @@ labels:
   - no-implementation
   - 'cluster:migration'
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - wave-5
 dependencies:
   - QCLI-2.5
 documentation:
@@ -42,12 +43,12 @@ Any Quest-wide vocabulary, architecture, or roadmap consequence is a proposal to
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A per-project cutover sequence states preconditions, ordered steps, the observable success signal for each step, and the abort condition that stops the migration
-- [ ] #2 The coexistence window is specified: which tool is the single writer at each phase, how a reader detects drift, and what happens when both have written
-- [ ] #3 Dry-run and rollback are defined with the evidence each must produce, such that a project can prove it returned to its pre-migration state
-- [ ] #4 The playbook covers active, completed, archived, and draft records plus parent/subtask hierarchy, dependencies, and milestones, and names any record class it deliberately does not carry over
-- [ ] #5 No importer, script, or executable scaffolding is produced; the deliverable is a documented procedure and its evidence contract
-- [ ] #6 Every Backlog-side step cites a public interface (documentation, command help, --plain/--json output, or an on-disk artifact) at the pinned revision; no Backlog implementation source is cited
+- [x] #1 A per-project cutover sequence states preconditions, ordered steps, the observable success signal for each step, and the abort condition that stops the migration
+- [x] #2 The coexistence window is specified: which tool is the single writer at each phase, how a reader detects drift, and what happens when both have written
+- [x] #3 Dry-run and rollback are defined with the evidence each must produce, such that a project can prove it returned to its pre-migration state
+- [x] #4 The playbook covers active, completed, archived, and draft records plus parent/subtask hierarchy, dependencies, and milestones, and names any record class it deliberately does not carry over
+- [x] #5 No importer, script, or executable scaffolding is produced; the deliverable is a documented procedure and its evidence contract
+- [x] #6 Every Backlog-side step cites a public interface (documentation, command help, --plain/--json output, or an on-disk artifact) at the pinned revision; no Backlog implementation source is cited
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -188,4 +189,18 @@ contract itself is the visible remaining gap. Belongs to the register's
 owner, not to this task.
 
 Wave-level integration-review follow-up (branch fix/qcli-2.8-2.10-integration-review-followup, commits 44e22ac/fca2097): fixed cross-doc coherence issues found between this playbook and QCLI-2.8's synthesis. Reattributed the browser /api/tasks HTTP-endpoint restriction (What this playbook deliberately does not carry over) to QCLI-2.5's own self-imposed enumeration clause rather than the register (the register's actual exclusion is narrower: source-only observation is inadmissible, running the tool is fine); cross-referenced the synthesis's own residual-gap note that already identifies the same self-imposed-restriction pattern for a different evidence class. Replaced 'phase' with 'step' in the 4 places this document used it for cutover-procedure steps (frontmatter summary, AC2 bullet, 'Single writer per step' heading and body), reserving 'Phase' for the synthesis's delivery-graph node numbering. Removed two mistargeted 'below' pointers (Step 4, Step 6 table cells) whose linked sections are in the fidelity contract, not below in this document. Fixed the Lifecycle folder definition, which claimed 'four' record locations for tasks/drafts while enumerating backlog/archive/milestones/ alongside them (not a task or draft location). Added an additive, non-dependency cross-reference from the Scope section to the synthesis's Phase 4 delivery-graph node. Ran lore check --strict / validate --strict / orphans clean after the edits; did not run lore sync (see QCLI-2.8's notes for why).
+
+Settlement (orchestrator, wave 5). Merged as PR #19, squash commit de41389. Reviewer verdict on 2nd pass (after 1 fix cycle within the normal 2-retry cap, fixing a false admissibility claim for the fidelity-contract citation): approve — all 6 ACs independently re-confirmed with named evidence, including live re-verification of the pinned Backlog revision (v1.49.3, both backlog --version and npm view) and 4 --help surfaces corroborating the playbook's flag claims first-hand. Gates: lore check --strict 24 files 0/0; lore validate --strict (file) 0/0; lore orphans 0/0.
+
+A subsequent wave-level integration review found 9 cross-document coherence issues against this deliverable's sibling (QCLI-2.8) and 2 orchestrator-scope items; all 9 narrow issues were fixed and re-reviewed (approved first pass) in a follow-up branch, merged as PR #20, squash commit 8935551 — see that PR and QCLI-2.8's notes for the full finding list. Applied to this document: C1 (reattributed a self-imposed restriction to its actual source instead of the register), C5 (added a cross-reference to QCLI-2.8's delivery graph), C6 (removed "phase" terminology overload, 4 occurrences), S1 (fixed two mistargeted "below" pointers), S4 (fixed the Lifecycle-folder definition's count/enumeration mismatch). One real (not narrow) coherence gap the integration review surfaced — the register's "Prior QCLI research records" slice not enumerating this document's foundation (QCLI-2.5's fidelity contract), QCLI-2.6, QCLI-2.9, QCLI-2.8, or itself — is out of scope for this task (its own boundary excludes editing the register) and is proposed as a follow-up task in the campaign doc, pending owner approval. This task's own notes already disclosed the QCLI-2.5-specific instance of this gap accurately before settlement.
+
+Orchestrator-scope item also found and fixed directly: the owning Story's (prepare-quests-clean-room-research-foundation) frontmatter tasks: list and this task's doc: back-reference label were both missing prior to this settlement (along with QCLI-2.11-2.14) — fixed via lore link, commit 8c3133e.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored docs/reference/quest-cli-backlog-adoption-and-migration-playbook.md: a tool-neutral, operational playbook turning QCLI-2.5's Backlog migration fidelity contract into a procedure an existing Backlog.md project can follow to adopt Quest. Covers a 9-step cutover sequence with observable success signals and abort conditions, the coexistence window (single writer per step, drift detection, both-written disposition), dry-run/rollback evidence contracts provable by fingerprint comparison, and full record-class coverage (active/completed/archived/draft, hierarchy, dependencies, milestones) with named exclusions. No importer, script, or executable scaffolding produced.
+
+Reviewed and approved after one fix cycle (a citation correctly reattributed rather than falsely claimed as register-covered). A wave-level integration review then found and closed 9 cross-document coherence issues against this document's sibling (QCLI-2.8) in a follow-up (PR #20). One real (not narrow) coherence gap — the register not yet enumerating the fidelity contract this playbook is built on, among other unenumerated research outputs — is proposed as a follow-up task, not fixed here (out of this task's scope); this document already discloses that specific gap accurately.
+<!-- SECTION:FINAL_SUMMARY:END -->
