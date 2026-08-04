@@ -31,6 +31,8 @@
 - 2026-08-04T14:22:49-05:00 086ee746fa095baec8e7d725430e608276168c5d docs: sync log.md after wave-4 merges
 - 2026-08-04T15:16:00-05:00 418c5eb7d3369d1dd19fe817bc9892e07fb2652e QCLI-2.5 follow-up: fix stale scratch-repo count and evidence-source enumeration (#16)
 - 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
+- 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
+- 2026-08-04T17:44:28-05:00 7990e5fc9dc6bbfe3d32e529f68533f0e88f92bd docs: sync managed blocks after QCLI-2.8 synthesis document
 
 ## docs/adr
 
@@ -58,15 +60,10 @@
 - 2026-08-04T14:08:28-05:00 d55eaf7428ca2904481d40aabd0a90c96513c690 QCLI-2.12: Close the research source register's admission-authority coherence gaps (#14)
 - 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
 - 2026-08-04T15:16:00-05:00 418c5eb7d3369d1dd19fe817bc9892e07fb2652e QCLI-2.5 follow-up: fix stale scratch-repo count and evidence-source enumeration (#16)
-- 2026-08-04T16:58:00-05:00 2de9c817de6404c6a9f59579179386a56b144eff docs: name QCLI-2.12's own register amendments in the ledger's admission note (F4)
-- 2026-08-04T16:58:00-05:00 baeaf7dd766953e0f351b49bfb4f1e58d8086101 docs: enumerate three cited documents and re-scope the register's revision pin (F2, F3)
-- 2026-08-04T16:58:47-05:00 023571f92f0db252203641b5aabb040598ed0b93 docs: exhaustively re-pin all nine Prior-QCLI-research-records members
-- 2026-08-04T16:58:47-05:00 10d2c228e90a4afbefa7c84fe9ca5051f692036c docs: drop the register's exact-SHA pin of the co-edited migration ledger
-- 2026-08-04T16:58:47-05:00 42213aea0d99148caccb3d5b07df21d5659de12c docs: correct ledger's npm-occupancy authority attribution
-- 2026-08-04T16:58:47-05:00 7df69efdb68c7af7817d6ae7d6fc77304ba4d45b docs: fix mis-ordered commits and self-contradicting SHA count in the ledger-pin narrative (review pass 5)
-- 2026-08-04T16:58:47-05:00 ba60545b4a1575ae12dccf7510b5aaa91f8ecc2a docs: re-scope the register's revision pin to cover all six current members (B1, B2)
-- 2026-08-04T16:58:47-05:00 d92db537cd103999157f9c83d10257ecff92fc1c docs: stop pinning the migration ledger by SHA; self-pin it like the register (review pass 6)
-- 2026-08-04T16:58:47-05:00 fbb4f07554f01c3d92692d9fce6cceecead1bd92 docs: correct ledger's mis-attributed authority basis for the lore-cli metadata widening (B3)
+- 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
+- 2026-08-04T17:44:28-05:00 7990e5fc9dc6bbfe3d32e529f68533f0e88f92bd docs: sync managed blocks after QCLI-2.8 synthesis document
+- 2026-08-04T17:44:28-05:00 b131ba17ddf160f37a3bdd946d9664a9626c2b89 docs(reference): synthesize QCLI-2.2-2.7 research into component contracts and a dormant delivery graph
+- 2026-08-04T17:44:28-05:00 e8797b6ea69cd4d97fdd94f59069d4c97e6c890c QCLI-2.8 review fix: correct row counts, provenance attribution, and citations
 
 ## docs/runbooks
 
@@ -95,3 +92,4 @@
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
 - 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
+- 2026-08-04T17:44:28-05:00 7990e5fc9dc6bbfe3d32e529f68533f0e88f92bd docs: sync managed blocks after QCLI-2.8 synthesis document
