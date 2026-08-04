@@ -18,6 +18,7 @@
 - 2026-08-04T09:36:25-05:00 f7c93c8fb764df3a58069cb558ad579628c3b78b chore(backlog): file the four approved wave-2 follow-ups
 - 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
 - 2026-08-04T10:28:30-05:00 0d127ee50a630d68e6667683f25a6a106ffb94c1 QCLI-2.4: Define Quest CLI actors, workflows, and domain-language candidates (#6)
+- 2026-08-04T10:29:40-05:00 3b5cd8c5526480c6482dda978307c41aa8c14e05 QCLI-2.11: Correct wave-2 cross-task staleness in the three merged deliverables (#7)
 
 ## docs/adr
 
@@ -36,9 +37,7 @@
 - 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
 - 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
 - 2026-08-04T10:28:30-05:00 0d127ee50a630d68e6667683f25a6a106ffb94c1 QCLI-2.4: Define Quest CLI actors, workflows, and domain-language candidates (#6)
-- 2026-08-04T10:28:52-05:00 a5a61c902d6d05eb3ef0e3a5401d7ef4f461b9f8 docs(packaging-contract): reflect QCLI-2.7's widened permitted-use field list
-- 2026-08-04T10:28:52-05:00 d23fd9fb11d36f761b89239ef7a1751921b2265f docs(legacy-reconciliation): content-verify Git recovery commits; date d7ca18f pins
-- 2026-08-04T10:28:52-05:00 ef8eea527565c78483f6746739a8eb1bc18d5d53 docs(source-register): fix 846f054^ attribution and d7ca18f currency framing
+- 2026-08-04T10:29:40-05:00 3b5cd8c5526480c6482dda978307c41aa8c14e05 QCLI-2.11: Correct wave-2 cross-task staleness in the three merged deliverables (#7)
 
 ## docs/runbooks
 
@@ -49,6 +48,7 @@
 
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
+- 2026-08-04T10:30:03-05:00 a902e3f9e92d0bee416cfc9a955139685b14db47 docs(specs): add moving-vs-immutable reference convention to Verification bar
 
 ## docs/stories
 
