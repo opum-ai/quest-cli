@@ -841,15 +841,37 @@ named slice, never to every file in its repository.
   commit actually touches the named path). None of the nine remains pinned
   to the branch base `0cf0f34` (2026-08-04 01:02:11 -0500) — the point of
   reference every member was checked against — except this register's own
-  self-pin below, which is dated, not commit-pinned, by necessity. The
+  self-pin below and, **as of a fourth `QCLI-2.12` follow-up pass**, the
+  migration ledger's pin immediately below, both of which are dated, not
+  commit-pinned, by necessity (see that bullet for why). The
   **component charter** (`quest-cli-component-charter.md`) and the accepted
   **ADR** ([Use quest-cli for the Quest package and
   command](../adr/use-quest-cli-for-the-quest-package-and-command.md)) are
   both last amended at `942da73` (2026-08-04 07:21:12 -0500, the `QCLI-5`
   org-identity commit, which touches both documents in one edit). The
-  **migration ledger** (`former-ocli-to-qcli-migration-ledger.md`) is last
-  amended at `0181c79` (2026-08-04 14:47:01 -0500, this branch's own B3
-  correction). The **research Spec**
+  **migration ledger** (`former-ocli-to-qcli-migration-ledger.md`) —
+  **corrected 2026-08-04 by a fourth `QCLI-2.12` follow-up pass, dropping
+  its exact-SHA pin entirely** — is co-edited by this same task's own fix
+  passes, the identical structural condition this register's own self-pin
+  below already exists to handle: an exact-SHA pin of a document this task
+  amends in the same pass it records the pin is invalidated the instant a
+  later commit in that pass touches the document again, and this is not a
+  matter of choosing the right SHA — it has now happened three times,
+  identically. First, the pin to `0cf0f34` was invalidated within the same
+  pass that wrote it (this task's own subsequent edits moved the ledger
+  past that base). Second, the corrected re-pin from this task's second
+  follow-up (B1) was invalidated when that same pass's own B3 correction to
+  the ledger (`0181c79`) landed after the pin was written. Third, this
+  field's own exhaustive from-scratch re-pin (commit `8a2a64d`) named
+  `0181c79`, only for this same third pass's own ledger correction (commit
+  `e6363fe`, 2026-08-04 15:07:26 -0500 — six seconds after the register
+  commit that pinned it) to land in the same pass and invalidate that pin
+  again. The ledger is therefore pinned the same structural way this
+  register pins itself below, rather than to a commit: to its own current
+  state on this branch, as amended live through this same edit or through
+  any later commit in this same pass, read live 2026-08-04 — a commit
+  cannot meaningfully pin a document to a state contemporaneously edited by
+  the same pass recording the pin. The **research Spec**
   (`../specs/quest-cli-pre-implementation-research-program.md`) is last
   amended at `157ad56` (2026-08-04 14:09:46 -0500, `QCLI-2.14` — the same
   commit that amends the Lore dependency evidence document below).
@@ -866,10 +888,14 @@ named slice, never to every file in its repository.
   `QCLI-2.7`'s [Lore dependency and adapter contract
   evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) is
   last amended at `157ad56` (2026-08-04 14:09:46 -0500, `QCLI-2.14` — the
-  same commit that amends the research Spec above). Six distinct SHAs
-  appear above (`942da73`, `0181c79`, `157ad56`, `3b5cd8c`, `883b445`,
-  `63b1e0a`), independently re-verified for this pass; all read live
-  2026-08-04, current content. **This register itself
+  same commit that amends the research Spec above). Five distinct SHAs
+  appear above (`942da73`, `157ad56`, `3b5cd8c`, `883b445`, `63b1e0a`),
+  independently re-verified for this pass; all read live 2026-08-04,
+  current content. **A sixth SHA, `0181c79`, appeared here through this
+  field's third pass but no longer does: the fourth `QCLI-2.12` follow-up
+  pass replaced the migration ledger's exact-SHA pin above with a
+  self-referential one, for the same structural reason this register pins
+  itself below.** **This register itself
   (`quest-cli-research-source-register.md`), also enumerated in Repository
   or URL above, is self-referential and cites no external commit: it is
   pinned to its own current state on this branch, as amended live through
