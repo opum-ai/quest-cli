@@ -13,8 +13,7 @@
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
 - 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
-- 2026-08-04T08:59:23-05:00 1c9b32d2ec8b378a1e9818bc65521f39d07266af docs: fix packaging-contract release count and clean-room field-scope note
-- 2026-08-04T08:59:23-05:00 53f7f893b69706b9a69041d1d5e85b9f0dfe881c docs: add Quest CLI packaging contract with dated npm evidence
+- 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
 
 ## docs/adr
 
@@ -30,8 +29,7 @@
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
 - 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
-- 2026-08-04T08:59:23-05:00 1c9b32d2ec8b378a1e9818bc65521f39d07266af docs: fix packaging-contract release count and clean-room field-scope note
-- 2026-08-04T08:59:23-05:00 53f7f893b69706b9a69041d1d5e85b9f0dfe881c docs: add Quest CLI packaging contract with dated npm evidence
+- 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
 
 ## docs/runbooks
 

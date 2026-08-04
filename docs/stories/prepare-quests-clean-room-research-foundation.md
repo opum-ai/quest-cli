@@ -8,7 +8,7 @@ tags:
   - campaign
 summary: Complete the independently authored Quest research campaign before implementation activates.
 timestamp: 2026-08-01T17:11:23.688Z
-status: in-progress
+status: todo
 tasks:
   - qcli-2
   - qcli-2.1
@@ -51,14 +51,14 @@ may not implement or publish Quest.
 |---|---|---|
 | [QCLI-2](../../backlog/tasks/qcli-2%20-%20Prepare-Quests-clean-room-research-foundation-before-implementation.md) | Prepare Quest's clean-room research foundation before implementation | To Do |
 | [QCLI-2.1](../../backlog/tasks/qcli-2.1%20-%20Revalidate-Quest-research-provenance-and-the-migration-boundary.md) | Revalidate Quest research provenance and the migration boundary | Done |
-| [QCLI-2.2](../../backlog/tasks/qcli-2.2%20-%20Reconcile-legacy-Opum-requirements-into-Quest-decisions.md) | Reconcile legacy Opum requirements into Quest CLI candidates | In Progress |
+| [QCLI-2.2](../../backlog/tasks/qcli-2.2%20-%20Reconcile-legacy-Opum-requirements-into-Quest-decisions.md) | Reconcile legacy Opum requirements into Quest CLI candidates | Done |
 | [QCLI-2.3](../../backlog/tasks/qcli-2.3%20-%20Turn-prototype-failures-into-Quest-black-box-scenarios.md) | Turn prototype failures into Quest black-box scenarios | To Do |
 | [QCLI-2.4](../../backlog/tasks/qcli-2.4%20-%20Define-Quest-actors-workflows-and-domain-language.md) | Define Quest CLI actors, workflows, and domain-language candidates | To Do |
 | [QCLI-2.5](../../backlog/tasks/qcli-2.5%20-%20Research-Backlog-migration-fidelity-through-public-contracts.md) | Research Backlog migration fidelity through public contracts | To Do |
 | [QCLI-2.6](../../backlog/tasks/qcli-2.6%20-%20Model-Quest-Git-filesystem-and-concurrency-threats.md) | Model Quest Git, filesystem, and concurrency threats | To Do |
-| [QCLI-2.7](../../backlog/tasks/qcli-2.7%20-%20Track-Lore-dependencies-and-Quest-activation-evidence.md) | Track Lore dependencies and Quest activation evidence | In Progress |
+| [QCLI-2.7](../../backlog/tasks/qcli-2.7%20-%20Track-Lore-dependencies-and-Quest-activation-evidence.md) | Track Lore dependencies and Quest activation evidence | Done |
 | [QCLI-2.8](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md) | Synthesize Quest CLI research into activation-ready component contracts | To Do |
-| [QCLI-2.9](../../backlog/tasks/qcli-2.9%20-%20Resolve-the-%60quest%60-npm-package-allocation-and-provenance-gate.md) | Resolve the `quest` npm package allocation and provenance gate | In Progress |
+| [QCLI-2.9](../../backlog/tasks/qcli-2.9%20-%20Resolve-the-%60quest%60-npm-package-allocation-and-provenance-gate.md) | Resolve the `quest` npm package allocation and provenance gate | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
