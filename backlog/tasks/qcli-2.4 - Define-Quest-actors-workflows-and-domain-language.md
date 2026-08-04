@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 15:12'
+updated_date: '2026-08-04 15:27'
 labels:
   - campaign
   - research
@@ -14,6 +14,8 @@ labels:
   - ux
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:domain'
+  - wave-3
+  - in-review
 dependencies:
   - QCLI-2.2
 documentation:
