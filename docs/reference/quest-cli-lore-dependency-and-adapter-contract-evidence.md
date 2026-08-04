@@ -90,10 +90,23 @@ vocabulary (which classifies *sources*). These classify a Quest CLI
 
 Runtime, native-packaging, and supported-platform choices that might take
 `lore-cli`'s own distribution precedent as evidence are explicitly **not**
-evaluated in this matrix — that evidence-consumption question belongs to
-[`QCLI-2.9`](../../backlog/tasks/qcli-2.9%20-%20Resolve-the-%60quest%60-npm-package-allocation-and-provenance-gate.md),
-concurrent this wave, per the campaign's cluster-scope split. Backlog.md's
-own migration-fidelity dependencies are
+evaluated in this matrix, and this document cedes that
+evidence-consumption question to no task: **no current QCLI task owns
+it.** It stays where the research program Spec already holds it, split
+across two
+[Open questions](../specs/quest-cli-pre-implementation-research-program.md#open-questions)
+entries with two different gates —
+"Runtime and native packaging after Lore's completed evidence is
+reviewed" stays explicitly gated on completed Lore evidence
+(post-activation, structurally outside any current wave), while "Final
+npm package ownership and supported platform matrix" carries no such
+Lore-evidence gate. `QCLI-2.9` is not the owner of either: its
+[Dependency order](../specs/quest-cli-pre-implementation-research-program.md#dependency-order)
+row records its delivered scope as npm package allocation and
+provenance only — its merged
+[packaging contract](quest-cli-packaging-contract.md) contains no
+runtime, native-packaging, or supported-platform content, and none was
+claimed here. Backlog.md's own migration-fidelity dependencies are
 [`QCLI-2.5`](../../backlog/tasks/qcli-2.5%20-%20Research-Backlog-migration-fidelity-through-public-contracts.md)'s,
 not Lore dependencies, and are out of scope here.
 
