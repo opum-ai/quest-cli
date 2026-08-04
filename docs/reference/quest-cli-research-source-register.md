@@ -58,7 +58,11 @@ named slice, never to every file in its repository.
   local `opum-cli`).
 - **Exact revision or retrieval date:** rename effective 2026-08-01; re-verified
   live 2026-08-04 by running `git remote -v` in the local checkout, which
-  returns `git@github.com:salient-data/opum-doc.git`, at local HEAD `d7ca18f`.
+  returns `git@github.com:salient-data/opum-doc.git`, pinned at `opum-doc`'s
+  HEAD as observed 2026-08-04, `d7ca18f` — a moving branch reference, not
+  asserted current beyond that observation (see the dated Opum fleet and
+  prior-art inventory slice below, which records `d7ca18f` as already
+  superseded by `bee848a`/`7b512d9` later the same day).
 - **Ownership rationale:** the repository-rename decision recorded in the
   accepted ADR [Use quest-cli for the Quest package and command](../adr/use-quest-cli-for-the-quest-package-and-command.md)
   and in `quest-doc`'s canonical provenance ledger; `opum-doc` is the owner of
@@ -99,8 +103,15 @@ named slice, never to every file in its repository.
   at `7b82afc`, growing to 287 lines at `d42c016`. A later commit,
   `c5ebee8` ("docs: establish Opum SaaS documentation hub," 2026-08-01),
   grew it further to 292 lines; that is its size immediately before the
-  rename (`846f054^` is `c5ebee8`, confirmed via `git show
-  846f054^:docs/reference/opum-fleet-and-prior-art-inventory.md | wc -l`).
+  rename. `846f054^` is `3023468` ("chore(backlog): sync task changes"),
+  confirmed via `git log -1 --format='%H %s' 846f054^`; `c5ebee8` is not
+  `846f054`'s immediate parent but is the last commit to touch the former
+  path before the rename — established via `git log -1 846f054^ --
+  docs/reference/opum-fleet-and-prior-art-inventory.md`, which returns
+  `c5ebee8` — and remains an ancestor of `846f054` (`git merge-base
+  --is-ancestor c5ebee8 846f054` succeeds). The file is unchanged at 292
+  lines from `c5ebee8` through `846f054^`/`3023468`, confirmed via `git show
+  846f054^:docs/reference/opum-fleet-and-prior-art-inventory.md | wc -l`.
   Commit `846f054` (2026-08-01, unattributed as a Git rename — recorded as
   a 292-line delete plus a 120-line add, a ~59% condensation, not an
   edit-in-place) created the current path. Commit `bee848a` (2026-08-04)
@@ -135,8 +146,10 @@ named slice, never to every file in its repository.
   row-by-row disposition; never blanket-allowed across all records.
 - **Repository or URL:** `opum-doc:docs/{stories,specs,adr,runbooks}/*.md`
   and `opum-doc:backlog/tasks/ocli-*.md`.
-- **Exact revision or retrieval date:** `opum-doc` HEAD `d7ca18f`, retrieved
-  2026-08-04.
+- **Exact revision or retrieval date:** `opum-doc`, pinned at `d7ca18f` as
+  observed 2026-08-04 — a moving branch reference, not asserted current
+  beyond that observation (see the dated Opum fleet and prior-art inventory
+  slice above, which records `d7ca18f` as already superseded the same day).
 - **Ownership rationale:** `opum-doc` is the retained owner of OCLI
   historical Backlog/Lore records per the migration ledger and `quest-doc`'s
   provenance ledger.
