@@ -163,7 +163,7 @@ anything and does not edit the register.
 
 | Slice | Classification | Basis |
 | --- | --- | --- |
-| `quest` npm package (`Clever/quest`) | Excluded | Register: "npm package name occupancy" — unrelated third-party Node request library; existence, version, license, and repository are naming-conflict evidence only, never a codebase Quest may consume |
+| `quest` npm package (`Clever/quest`) | Excluded | Register: "npm package name occupancy" — unrelated third-party Node request library; existence, version, license, claimed repository, maintainer identities, description text, and publish/version history are naming-conflict evidence only, never a codebase Quest may consume |
 | `quest-cli` npm package (`edamghy`) | Excluded | Same register slice — unrelated third-party package sharing this repository's own name |
 | `lore` / `lore-cli` npm packages | Excluded | Same register slice — unrelated React/Redux framework, no relation to Lore tooling |
 | `@opum-ai/lore` npm package | Allowed | Register's `lore-cli` slice — cited only as the observed sibling naming *pattern* (repo `<name>-cli` → package `@opum-ai/<name>` → executable `<name>`), never as a Quest runtime dependency or implementation source |
@@ -184,13 +184,15 @@ permissible, not *provenance-clean*, and this program's admission authority
 requires the latter.
 
 AC1's required fields — maintainer identities, descriptions, and publish
-histories for `quest` and `quest-cli` — extend beyond the register's "npm
-package name occupancy" slice, whose enumerated permitted use is narrower
-("cite existence, version, license, and claimed repository only"); this
-document reads and cites that wider field set as ordinary registry metadata,
-not package content, so clean-room is unaffected, but the permitted-use
-widening itself is routed to `QCLI-2.7` as the register's owner this wave
-rather than performed here.
+histories for `quest` and `quest-cli` — are within the register's "npm
+package name occupancy" slice's permitted use, which `QCLI-2.7` widened
+2026-08-04 to enumerate existence, version, license, claimed repository,
+maintainer identities, description text, and publish/version history
+exhaustively; this document reads and cites that field set as ordinary
+registry metadata, not package content, so clean-room is unaffected. The
+permitted-use widening this paragraph once routed to `QCLI-2.7` as the
+register's owner this wave is closed — see the register's "npm package name
+occupancy" slice for the exhaustive enumeration.
 
 ### Recorded name (AC3)
 
