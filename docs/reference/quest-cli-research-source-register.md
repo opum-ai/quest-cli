@@ -827,55 +827,54 @@ named slice, never to every file in its repository.
   below. None of these three was previously named in this enumeration
   despite already being relied on, under this slice's Allowed
   classification, by merged deliverables.
-- **Exact revision or retrieval date:** `QCLI-1`/`QCLI-3`/`QCLI-4`'s own
-  products — the component charter, migration ledger, and research Spec —
-  are pinned to local HEAD `0cf0f34` (this branch's base, their actual
-  origin), read live 2026-08-04. **Corrected 2026-08-04 by this
-  `QCLI-2.12` follow-up (F3):** the later-added members above do not share
-  that pin — `0cf0f34` (2026-08-04 01:02:11 -0500) predates every one of
-  them, confirmed via `git merge-base --is-ancestor <sha> 0cf0f34`
-  returning nonzero (not-an-ancestor) for each. Each is instead pinned to
-  its own merge or creation commit: `QCLI-2.2`'s reconciliation at
-  `09c202d` (2026-08-04 08:56:56 -0500); the ADR's `QCLI-5` amendment at
-  `942da73` (2026-08-04 07:21:12 -0500);
-  `quest-cli-black-box-acceptance-scenarios.md` at `4ed6ee1` (2026-08-04
-  10:27:00 -0500, `QCLI-2.3`'s merge);
-  `quest-cli-component-glossary-actors-and-workflows.md` at `0d127ee`
-  (2026-08-04 10:28:30 -0500, `QCLI-2.4`'s merge); and
-  `quest-cli-lore-dependency-and-adapter-contract-evidence.md` at
-  `2246c46` (2026-08-04 08:58:45 -0500, `QCLI-2.7`'s merge). All read live
-  2026-08-04. **Further corrected 2026-08-04 by a second `QCLI-2.12`
-  follow-up fix pass (B1):** the opening `0cf0f34` pin for the charter,
-  ledger, and Spec was itself stale — all three have since been amended,
-  and F3's own correction already cited one of the amending commits
-  (`942da73`, for the ADR) without noticing it also amends the component
-  charter in the same commit. Re-verified via `git log --format="%H %cI %s"
-  -- <path>` and `git merge-base --is-ancestor <sha> 0cf0f34` (nonzero —
-  not-an-ancestor — for every SHA below) and `git show --stat <sha>` (each
-  confirmed to touch the named path). Reframed as: pinned to their state as
-  of `0cf0f34`, since amended. The **component charter**
-  (`quest-cli-component-charter.md`) at `942da73` (2026-08-04 07:21:12
-  -0500, `QCLI-5`'s org-identity amendment — the same commit already cited
-  above for the ADR). The **migration ledger**
-  (`former-ocli-to-qcli-migration-ledger.md`) at `942da73` (2026-08-04
-  07:21:12 -0500, `QCLI-5`), `883b445` (2026-08-04 10:57:21 -0500, `QCLI-2.3`
-  follow-up), `d55eaf7` (2026-08-04 14:08:28 -0500, this task's own
-  original-pass merge), `fe5c58f` (2026-08-04 14:30:56 -0500, this task's
-  prior F4 follow-up fix — merged to this branch, not yet to `dev`), and
-  `0181c79` (2026-08-04 14:47:01 -0500, this same second follow-up's B3
-  correction to that F4 note — also not yet merged to `dev`). The
-  **research Spec**
-  (`../specs/quest-cli-pre-implementation-research-program.md`) at
-  `eaa8a0c` (2026-08-04 10:30:54 -0500, `QCLI-2.13`) and `157ad56`
-  (2026-08-04 14:09:46 -0500, `QCLI-2.14`). All six SHAs above read live
-  2026-08-04, current content — not the `0cf0f34` snapshot, which "read
-  live" describes only for the parts of each document `0cf0f34` still
-  accurately reflects. **This register itself
+- **Exact revision or retrieval date:** **Corrected 2026-08-04 by a third
+  `QCLI-2.12` follow-up fix pass, re-deriving every one of the nine
+  members' pins from git history directly rather than patching only the
+  members a prior review had flagged:** this task's first follow-up (F3)
+  and second follow-up (B1) each corrected a subset of members and left
+  others pinned to a commit that had since been superseded again; this pass
+  re-verified all nine from scratch and independently, with no reliance on
+  either prior pass's arithmetic.
+  Verified via `git log --format='%h %cI' -1 -- <path>` for each of the
+  nine members, and every resulting SHA cross-checked against `git show -s
+  --format=%cI <sha>` (date) and `git show --stat <sha>` (confirms the
+  commit actually touches the named path). None of the nine remains pinned
+  to the branch base `0cf0f34` (2026-08-04 01:02:11 -0500) — the point of
+  reference every member was checked against — except this register's own
+  self-pin below, which is dated, not commit-pinned, by necessity. The
+  **component charter** (`quest-cli-component-charter.md`) and the accepted
+  **ADR** ([Use quest-cli for the Quest package and
+  command](../adr/use-quest-cli-for-the-quest-package-and-command.md)) are
+  both last amended at `942da73` (2026-08-04 07:21:12 -0500, the `QCLI-5`
+  org-identity commit, which touches both documents in one edit). The
+  **migration ledger** (`former-ocli-to-qcli-migration-ledger.md`) is last
+  amended at `0181c79` (2026-08-04 14:47:01 -0500, this branch's own B3
+  correction). The **research Spec**
+  (`../specs/quest-cli-pre-implementation-research-program.md`) is last
+  amended at `157ad56` (2026-08-04 14:09:46 -0500, `QCLI-2.14` — the same
+  commit that amends the Lore dependency evidence document below).
+  `QCLI-2.2`'s [legacy Opum requirement
+  reconciliation](legacy-opum-requirement-reconciliation-for-quest-cli.md)
+  is last amended at `3b5cd8c` (2026-08-04 10:29:40 -0500, `QCLI-2.11`'s
+  cross-task staleness fix). `QCLI-2.3`'s [black-box acceptance
+  scenarios](quest-cli-black-box-acceptance-scenarios.md) is last amended
+  at `883b445` (2026-08-04 10:57:21 -0500, `QCLI-2.3` follow-up — the same
+  commit that amends the migration ledger above). `QCLI-2.4`'s [component
+  glossary, actors, and
+  workflows](quest-cli-component-glossary-actors-and-workflows.md) is last
+  amended at `63b1e0a` (2026-08-04 10:58:20 -0500, `QCLI-2.4` follow-up).
+  `QCLI-2.7`'s [Lore dependency and adapter contract
+  evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) is
+  last amended at `157ad56` (2026-08-04 14:09:46 -0500, `QCLI-2.14` — the
+  same commit that amends the research Spec above). Six distinct SHAs
+  appear above (`942da73`, `0181c79`, `157ad56`, `3b5cd8c`, `883b445`,
+  `63b1e0a`), independently re-verified for this pass; all read live
+  2026-08-04, current content. **This register itself
   (`quest-cli-research-source-register.md`), also enumerated in Repository
-  or URL above, is self-referential and cited no external commit before
-  this correction: it is pinned to its own current state on this branch, as
-  amended live through this same edit, read live 2026-08-04 — a commit
-  cannot meaningfully pin a document to a state of itself.**
+  or URL above, is self-referential and cites no external commit: it is
+  pinned to its own current state on this branch, as amended live through
+  this same edit, read live 2026-08-04 — a commit cannot meaningfully pin a
+  document to a state of itself.**
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
   documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
