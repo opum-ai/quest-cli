@@ -23,7 +23,7 @@ only a product-level summary and `opum-doc` retains immutable history.
 
 | Former record | Current Quest disposition |
 | --- | --- |
-| OCLI-1 | Historical Backlog/Lore initialization in `opum-doc`; explicit non-adoption because it is repository setup history |
+| OCLI-1 | Historical Backlog/Lore initialization in `opum-doc`; explicit non-adoption because it is repository setup history. **Superseded for one artifact** (QCLI-4): the repository owner explicitly directed porting OCLI-1's `backlog-handover` campaign-driver skill into `quest-cli` at `.claude/skills/backlog-handover/` (rebound `OCLI`/`ocli` → `QCLI`/`qcli`), committed at `287c2b8`. The rest of OCLI-1 (Backlog/Lore repository initialization) remains non-adopted; the opum-doc record itself is unchanged |
 | OCLI-2 | Completed research foundation and handover; QCLI-1 is its sole component successor |
 | OCLI-3 | Frozen predecessor parent; QCLI-2 is the active research parent |
 | OCLI-3.1 | Completed provenance register; QCLI-2.1 revalidates it after the repository split |
@@ -58,6 +58,9 @@ use, exclusions, and contamination boundary.
 - Revalidate dated fleet facts and source classifications before use.
 - If old research conflicts with current `quest-doc`, record a supersession
   decision; never silently blend the two.
+- Supersession decisions are recorded inline on the affected row, scoped to
+  the exact artifact overridden, with the directing task cited (see OCLI-1 /
+  QCLI-4) — never a blanket flip of the original disposition.
 
 Repository history: `salient-data/opum-cli` was renamed in place to
 `salient-data/opum-doc` on 2026-08-01. GitHub redirects the old name, but active
