@@ -26,6 +26,7 @@
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
 - 2026-08-04T11:55:30-05:00 435a077d47e4cc8d03f324f3b14e49835360bb10 docs: sync log after QCLI-2.12 register and ledger edits
 - 2026-08-04T11:55:54-05:00 2b8439613d55043daf84163f9809f07986deac35 docs: sync log with QCLI-2.12's own commits
+- 2026-08-04T11:56:42-05:00 9a843d93d8ba12d093ecc91f8b6cb13b07a31df1 docs: sync log after QCLI-2.12 implementation notes
 
 ## docs/adr
 
@@ -52,6 +53,9 @@
 - 2026-08-04T11:55:11-05:00 670f4952521c64e026e7f96d1b17c590ac742bfb docs(source-register): close npm-name and Prior-QCLI-records enumeration gaps
 - 2026-08-04T11:55:20-05:00 50922e028ce06a03761c8d76da089fb651e673f9 docs(source-register): record QCLI-2.12's coherence-gap closures in summary and Notes
 - 2026-08-04T11:55:25-05:00 ad776bbf544ae1a1ed888b4e40c8110039fa199f docs(migration-ledger): admit owner-ruled register amendments recorded after QCLI-2.1
+- 2026-08-04T12:12:58-05:00 da9c529c6f64f1378a78cc51d6c8c45dc58f8433 docs(source-register): record the Backlog-corpus catch-all's actual superseded wording
+- 2026-08-04T12:13:18-05:00 77b01f23952f12913a35c4d2b440b75c0162b0ff docs(source-register): widen quest-doc canonical-product-records permitted use to name all four admitted uses
+- 2026-08-04T12:13:37-05:00 d6a67e57f1313eafa1ddc34fdabcbe3ffb720648 docs(source-register): add the Quest package/command ADR to Prior-QCLI-research-records enumeration
 
 ## docs/runbooks
 
