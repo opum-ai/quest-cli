@@ -12,15 +12,9 @@
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
-- 2026-08-04T08:57:43-05:00 01fc3d2be74e5a3fb5b96af34d1d338bc4a1ec85 chore(docs): sync log after supplement fix-pass commits
-- 2026-08-04T08:57:43-05:00 0f865d841b119ecef91391c40d804fbe49409648 chore(docs): sync log after supplement fix-pass verification
-- 2026-08-04T08:57:43-05:00 124b3539fc4abd5c9cdcde17446c8a4a59319844 chore(docs): reconcile pre-existing sync drift via lore sync
-- 2026-08-04T08:57:43-05:00 65265157a83e7bfff4c0d8bbd3bbb215c82820ea docs(qcli-2.7): add Lore dependency and adapter contract evidence
-- 2026-08-04T08:57:43-05:00 82fb2e5c064d8a18b84a853043063d93f68b9b1e chore(docs): sync log after implementation-notes commit
-- 2026-08-04T08:57:43-05:00 8a8a1f6495713423d5a0ac8e6d37a2e410f0c8cb chore(docs): sync log after correction notes commit
-- 2026-08-04T08:57:43-05:00 b3170008045302242165b27eeab1f2a22ad71771 docs(qcli-2.7): fix falsified content-identity claim in register
-- 2026-08-04T08:57:43-05:00 c85fa2a5e9070b5c1e44bdc22491149c3dfbdfa2 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
-- 2026-08-04T08:57:43-05:00 fd2a8ad18a07da0a3a33186b2d17bee14827182d chore(docs): sync log after review fix-pass commits
+- 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
+- 2026-08-04T08:59:23-05:00 1c9b32d2ec8b378a1e9818bc65521f39d07266af docs: fix packaging-contract release count and clean-room field-scope note
+- 2026-08-04T08:59:23-05:00 53f7f893b69706b9a69041d1d5e85b9f0dfe881c docs: add Quest CLI packaging contract with dated npm evidence
 
 ## docs/adr
 
@@ -35,11 +29,9 @@
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
-- 2026-08-04T08:57:43-05:00 232d8728d515d0492f45a2d240bb4495f25f37fd docs(qcli-2.7): record the lore-cli source-admissibility split rule
-- 2026-08-04T08:57:43-05:00 65265157a83e7bfff4c0d8bbd3bbb215c82820ea docs(qcli-2.7): add Lore dependency and adapter contract evidence
-- 2026-08-04T08:57:43-05:00 76894e6c2af08a22ae379ad805bf9794ce5d4456 docs(qcli-2.7): fix falsified admissibility claims from review fix pass
-- 2026-08-04T08:57:43-05:00 b3170008045302242165b27eeab1f2a22ad71771 docs(qcli-2.7): fix falsified content-identity claim in register
-- 2026-08-04T08:57:43-05:00 c85fa2a5e9070b5c1e44bdc22491149c3dfbdfa2 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
+- 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
+- 2026-08-04T08:59:23-05:00 1c9b32d2ec8b378a1e9818bc65521f39d07266af docs: fix packaging-contract release count and clean-room field-scope note
+- 2026-08-04T08:59:23-05:00 53f7f893b69706b9a69041d1d5e85b9f0dfe881c docs: add Quest CLI packaging contract with dated npm evidence
 
 ## docs/runbooks
 
