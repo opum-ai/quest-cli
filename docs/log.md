@@ -34,6 +34,7 @@
 - 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
 - 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
 - 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
+- 2026-08-04T18:50:59-05:00 8c3133ed9aacfcda116d5076ca8fefab20f7eb74 docs: sync managed blocks after Story-to-Task coupling fix
 
 ## docs/adr
 
@@ -93,3 +94,4 @@
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
 - 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
 - 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
+- 2026-08-04T18:50:59-05:00 8c3133ed9aacfcda116d5076ca8fefab20f7eb74 docs: sync managed blocks after Story-to-Task coupling fix
