@@ -66,6 +66,14 @@ migration fidelity, projection behavior, and versioned Lore integration.
 | QCLI-2.6 | Git/filesystem/concurrency threat model | QCLI-2.2–QCLI-2.4 |
 | QCLI-2.7 | Live Lore evidence and activation matrix | QCLI-2.1 |
 | QCLI-2.8 | Reviewed contract set and dormant delivery graph | QCLI-2.2–QCLI-2.7 |
+| QCLI-2.9 | Npm package allocation and provenance evidence (packaging contract); scope is allocation and provenance only — it does not cover runtime, native-packaging, or supported-platform choices | QCLI-2.1 |
+| QCLI-2.10 | Backlog-to-Quest adoption and migration playbook | QCLI-2.5 |
+
+QCLI-2.9 and QCLI-2.10 sit outside the synthesis chain that QCLI-2.8
+draws on: neither is a QCLI-2.8 input, and neither resolves
+the "Runtime and native packaging..." or "Final npm package ownership and
+supported platform matrix" entries under Open questions, below — those
+stay open and unowned by any current task.
 
 ### Evidence classes
 
