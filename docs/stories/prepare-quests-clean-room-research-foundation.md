@@ -8,7 +8,7 @@ tags:
   - campaign
 summary: Complete the independently authored Quest research campaign before implementation activates.
 timestamp: 2026-08-01T17:11:23.688Z
-status: todo
+status: in-progress
 tasks:
   - qcli-2
   - qcli-2.1
@@ -50,7 +50,7 @@ may not implement or publish Quest.
 | Task | Title | Status |
 |---|---|---|
 | [QCLI-2](../../backlog/tasks/qcli-2%20-%20Prepare-Quests-clean-room-research-foundation-before-implementation.md) | Prepare Quest's clean-room research foundation before implementation | To Do |
-| [QCLI-2.1](../../backlog/tasks/qcli-2.1%20-%20Revalidate-Quest-research-provenance-and-the-migration-boundary.md) | Revalidate Quest research provenance and the migration boundary | To Do |
+| [QCLI-2.1](../../backlog/tasks/qcli-2.1%20-%20Revalidate-Quest-research-provenance-and-the-migration-boundary.md) | Revalidate Quest research provenance and the migration boundary | In Progress |
 | [QCLI-2.2](../../backlog/tasks/qcli-2.2%20-%20Reconcile-legacy-Opum-requirements-into-Quest-decisions.md) | Reconcile legacy Opum requirements into Quest CLI candidates | To Do |
 | [QCLI-2.3](../../backlog/tasks/qcli-2.3%20-%20Turn-prototype-failures-into-Quest-black-box-scenarios.md) | Turn prototype failures into Quest black-box scenarios | To Do |
 | [QCLI-2.4](../../backlog/tasks/qcli-2.4%20-%20Define-Quest-actors-workflows-and-domain-language.md) | Define Quest CLI actors, workflows, and domain-language candidates | To Do |
@@ -72,7 +72,9 @@ Read the controlling
 [component charter](../reference/quest-cli-component-charter.md),
 [research specification](../specs/quest-cli-pre-implementation-research-program.md),
 [normative migration ledger](../reference/former-ocli-to-qcli-migration-ledger.md),
+[revalidated source register](../reference/quest-cli-research-source-register.md),
 and [context-free handover](../runbooks/quest-cli-research-handover.md) before
-selecting a QCLI task. The
+selecting a QCLI task. QCLI-2.1's revalidation gates every later research
+task's source admission. The
 [Lore-owned integration and release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
 controls later implementation activation.

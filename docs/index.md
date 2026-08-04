@@ -34,6 +34,9 @@ Product source and runtime dependencies remain gated on the full Lore release.
   routes product, website, Lore, and Opum decisions to their owners.
 - [Former OCLI to QCLI migration ledger](reference/former-ocli-to-qcli-migration-ledger.md)
   is the normative exact component-provenance map.
+- [Quest CLI research source register](reference/quest-cli-research-source-register.md)
+  is the revalidated per-slice admission authority: no source informs Quest
+  research unless it is classified there.
 - [Quest CLI research handover](runbooks/quest-cli-research-handover.md)
   is the context-free pickup path.
 - [Audit Quest CLI documentation authority](stories/audit-quest-cli-documentation-authority.md)
