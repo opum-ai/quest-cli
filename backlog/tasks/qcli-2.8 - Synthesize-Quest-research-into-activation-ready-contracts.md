@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 22:18'
+updated_date: '2026-08-04 22:35'
 labels:
   - campaign
   - research
@@ -86,6 +86,23 @@ Scope discipline: did not edit the source register or the migration ledger (out 
 Noted, not acted on: this branch's merge-base with dev (f39ff5c) predates a later wave-5 dispatch commit on dev (3a21d5b) that also touched QCLI-2.8's and QCLI-2.10's own Backlog task files (assignee/label/status fields) -- a normal artifact of concurrent dispatch, not caused by this task's own edits (verified via 'git diff dev -- <path>' showing only this task's own --plan addition plus that pre-existing divergence). Not rebased or otherwise reconciled here, consistent with this task's instructions (push is the last action; reconciliation is centralized at settlement).
 
 Out-of-scope finding (reported via --comment, not acted on): the register's 'Backlog.md public surface' slice does not explicitly name process-level responses (e.g. mcp start's stdio JSON-RPC response) as an admissible evidence class either way; QCLI-2.5's deliverable already substantively relies on this evidence under its own added enumeration clause, not the register's. Recorded in the new document's 'Reconciliation across the ten dependency deliverables' section as a residual gap for the register's owner; the register itself was not edited.
+
+Review-response pass (previous review's blocking + non-blocking findings), 2026-08-04:
+
+Fixed both blocking findings in docs/reference/quest-cli-component-contracts-and-delivery-graph.md:
+- AC1 provenance table (was line 67) and Lore integration grounding (was line 447): "18-row" AC5 classification -> "15-row", matching a direct programmatic count of docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md's Part 2 table (1a,1b,1c,2a,2b,3a,3b,4a,4b,4c,5a,5b,6a,6b,6c = 15 rows), consistent with the document's own 6+4+5=15 three-bucket enumeration in the Lore integration contract.
+- AC1 provenance table, Spec row (was line 59): corrected the false claim that the Spec's Dependency order table names this task's ten dependencies. Verified docs/specs/quest-cli-pre-implementation-research-program.md's Dependency order table names only six for QCLI-2.8 (QCLI-2.2-QCLI-2.7) and carries no row for QCLI-2.11/2.12/2.13/2.14. Reworded to attribute the six-deliverable chain to the Spec's table and the full ten-item dependency set to this task's own Backlog record (Dependencies field), with a parallel clarifying sentence added after the provenance table.
+
+Fixed all non-blocking findings in the same file:
+- Register revision attribution (was line 56): "amended by QCLI-2.7/QCLI-2.12" was an incomplete enumeration. Verified via `git log dev -- docs/reference/quest-cli-research-source-register.md` that QCLI-2.11 (3b5cd8c) and QCLI-2.13 (c09ed47) also amended the register (QCLI-2.14 did not touch it). Now reads "amended by QCLI-2.7/QCLI-2.11/QCLI-2.12/QCLI-2.13", consistent with the document's own Reconciliation section.
+- OCLI-7 status attribution (was line 570): the register's "Former opum-cli repository identity" slice records neither a status nor OCLI-7's fuller task title (verified by re-reading the slice directly) -- only the shorter Story title "Decide legacy Opum evidence disposition" and "blocked on this task" (QCLI-2.1). The "still To Do" status and the fuller task title come from QCLI-2.2's reconciliation (verified at its line 154). Reworded to attribute each fact to its actual source, dated the QCLI-2.2 observation (2026-08-04), and flagged the Backlog status as a moving reference per the Spec's own convention, consistent with how this document already treats LDOC-4/LCLI-278.
+- CLI identity charter citation (was line 203): "(lines 23-24, 31)" -- charter line 31 is the tests bullet, unrelated to the four CLI-identity bullets; verified charter line 47 ("a separately versioned kernel package" non-goal) is what actually supports the kernel-package-deferral bullet. Changed to "(lines 23-24)" for the Owns-here citations plus a separate "First-release non-goals (line 47)" citation.
+- Lore-integration "neither writes the other's private files or database" attribution (was lines 453-454): verified this sentence is in the charter's "Sources of truth" section (docs/reference/quest-cli-component-charter.md:53-54), not the routing table. Corrected the citation.
+- Wording: "an equivalent out-of-file control" (was line 592) -> "out-of-band control" (LCLI-278 concerns GitHub Environment reviewer protection, not a file-based control). Reworded the ungrammatical migration-contract parenthetical (was lines 395-396) into a grammatical clause reflecting QCLI-2.5's actual finding (no Backlog.md command surfaces Backlog-era Git history as a record to preserve). Replaced every occurrence of the overstating phrase "ten dependency deliverables" (six deliverables exist, not ten) with "ten dependencies" throughout (intro, provenance table, provenance paragraph, Reconciliation heading and its in-text reference, Independence and verification section) -- six are documents that produced their own deliverable, four are correction passes against those six plus the register/ledger/Spec, and the document's own explanatory paragraph (now updated) already says so.
+
+Left standing, not acted on (per this task's scope and the review pass's own instructions): the residual register-enumeration gap noting QCLI-2.5 and QCLI-2.6 are not listed in the register's "Prior QCLI research records" slice, flagged in the previous review as an observation for the settlement session, not a defect in this deliverable -- no action taken here, consistent with AC1's "or an approved research output" branch already covering both and this task's scope boundary against editing the register.
+
+Verification: `lore validate --strict --plain docs/reference/quest-cli-component-contracts-and-delivery-graph.md` -> "1 file, 0 errors, 0 warnings, 0 skipped" (exit 0). `lore check --strict --plain` (repo root) -> "24 files, 0 errors, 0 warnings" (exit 0). `lore validate --strict --plain` (repo root) -> "24 files, 0 errors, 0 warnings, 6 skipped" (exit 0). `lore orphans --plain` -> "0 orphan tasks, 0 dangling links" (exit 0). Only docs/reference/quest-cli-component-contracts-and-delivery-graph.md changed (`git status --short` confirms); no other file touched, no acceptance criterion checked, no status change, no summary written, register and ledger untouched.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
