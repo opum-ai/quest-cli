@@ -146,8 +146,13 @@ This document is **not**:
   `--backlog-dir` equivalent) a given step was performed against, captured
   by `git status --porcelain` plus `git rev-parse HEAD` when `backlog/` is
   tracked in the same Git repository as the rest of the project (the
-  ordinary case, since `backlog init` creates `backlog/` inside whatever
-  repository it is run in and does not initialize its own), or, if `git
+  ordinary case observed in the fidelity contract's own Initialization
+  Execution evidence, where `git init` was run first and `backlog init`
+  then populated `backlog/{tasks,drafts,...}` and `backlog/config.yml`
+  inside that already-tracked repository; whether `backlog init` would
+  itself run a `git init` of its own in a directory with no pre-existing
+  Git repository was not exercised by that evidence and is not asserted
+  here), or, if `git
   status --porcelain` shows the relevant files untracked or the project has
   `autoCommit: false` (Backlog's own default, confirmed in the fidelity
   contract's Initialization Execution evidence: a fresh `init` leaves
@@ -351,7 +356,7 @@ this document adds only the migration-procedure column.
 | Parent/subtask hierarchy | `task view --json`'s `subtasks[]` (id+title, one level) and `parentTaskId`; dot-suffixed IDs are a Backlog-specific allocation convention — Deliberate transformation ([Field-by-field disposition](quest-cli-backlog-migration-fidelity-contract.md#field-by-field-disposition-ac2)) | Read per-record in Step 2 alongside every other field; the target identity Step 4 proposes is not required to inherit Backlog's `N.M` grammar, per the fidelity contract's own note that Quest's ID grammar is a separate open question |
 | Dependencies | `task view --json`'s `dependencies[]`, IDs are Backlog-project-local — Deliberate transformation ([Field-by-field disposition](quest-cli-backlog-migration-fidelity-contract.md#field-by-field-disposition-ac2)) | Read in Step 2; because a dependency is itself a source-folder-qualified ID reference, it is resolved through the same Step 4 mapping table as its target record, never copied as a literal string |
 | Milestones | `milestone list --plain`; each task's own field stores the milestone's *ID*, not title — Deliberate transformation ([Field-by-field disposition](quest-cli-backlog-migration-fidelity-contract.md#field-by-field-disposition-ac2)) | Read via `milestone list --plain` in Step 2; each task's milestone ID is resolved against that list to recover the human title before Step 4 proposes a target identity — never carried over as a bare `m-N` string |
-| Documents | Full CRUD except delete through the CLI; `doc list`/`doc view` are `--plain`-only, no `--json` for documents anywhere in the enumerated surface ([Findings](quest-cli-backlog-migration-fidelity-contract.md#findings-undocumented-or-surprising-behavior) and Notes) | Read via `doc list --plain`/`doc view --plain` in Step 2, alongside tasks; subject to the same fingerprint, dry-run, apply, and rollback evidence contract — this playbook does not treat documents as a lesser record class |
+| Documents | Full CRUD except delete through the CLI ([Inventory](quest-cli-backlog-migration-fidelity-contract.md#inventory-of-user-owned-backlog-records-ac1), trailing paragraph); `doc list`/`doc view` are `--plain`-only, no `--json` for documents anywhere in the enumerated surface ([Field-by-field disposition](quest-cli-backlog-migration-fidelity-contract.md#field-by-field-disposition-ac2), `Document` row) | Read via `doc list --plain`/`doc view --plain` in Step 2, alongside tasks; subject to the same fingerprint, dry-run, apply, and rollback evidence contract — this playbook does not treat documents as a lesser record class |
 | Decisions | Create-only through the CLI; no `decision list`/`view`/`update`/`edit` command exists anywhere in the enumerated 49-node surface; full-fidelity read requires the raw Markdown file, not a structured command ([Findings #10](quest-cli-backlog-migration-fidelity-contract.md#findings-undocumented-or-surprising-behavior)) | Read directly from `backlog/decisions/*.md` in Step 2 (on-disk artifact, still admissible); `search --type decision --plain`/`--json` may corroborate title/status/date but never substitutes for the file read, since it does not return body text |
 
 ### What this playbook deliberately does not carry over
@@ -391,30 +396,65 @@ Step 3 above so a project sees them before consenting to apply):
   the fidelity contract's Execution evidence could find — there is nothing
   to enumerate, snapshot, or migrate.
 
+### Sources and classification (AC6 grounding)
+
+| Source | Repository / path | Revision | Register classification | Used for |
+| --- | --- | --- | --- | --- |
+| Backlog.md public surface | `https://backlog.md` docs; `backlog --help`/per-command `--help`; `--plain`/`--json` output; on-disk artifacts | pinned v1.49.3, reconfirmed live 2026-08-04 (`backlog --version` and `npm view backlog.md version`) | Allowed — "Backlog.md public surface" | Grounds every Backlog-behavior claim above, almost entirely by re-citing the fidelity contract's own Execution evidence rows (themselves grounded in this same slice) rather than re-deriving them; the fresh no-drift `--help` spot checks named in the Notes below are grounded here directly |
+| Quest CLI Backlog migration fidelity contract (`QCLI-2.5`) | `docs/reference/quest-cli-backlog-migration-fidelity-contract.md` (this repo) | this branch | See the caveat immediately below — not yet an enumerated member of the "Prior QCLI research records" slice | This document's stated primary foundation (this task's own description); every design commitment this playbook operationalizes (deterministic dry runs, reversible ID mapping, collision handling, source immutability, one-writer coexistence, rollback evidence) |
+| Quest CLI component charter | `docs/reference/quest-cli-component-charter.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | Read-only background per this task's `Documentation` field; not itself the source of any Backlog-behavior claim above |
+| Former OCLI to QCLI migration ledger | `docs/reference/former-ocli-to-qcli-migration-ledger.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | Read-only background per this task's `Documentation` field; its OCLI→QCLI provenance mapping does not inform this document's Backlog-behavior content and is not otherwise cited above |
+| Quest CLI research source register | `docs/reference/quest-cli-research-source-register.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | Per-slice admission authority for every row above |
+
+**Caveat — the fidelity contract's own admissibility is not yet enumerated.**
+The register's "Prior QCLI research records" slice lists nine specific
+members as of this writing — `QCLI-1`/`QCLI-3`/`QCLI-4`'s component charter,
+migration ledger, and research Spec; `QCLI-2.2`'s reconciliation; the
+register itself; the accepted ADR; `QCLI-2.3`'s black-box scenarios;
+`QCLI-2.4`'s glossary; `QCLI-2.7`'s Lore dependency evidence — and the
+fidelity contract is not one of them. That slice's own text mentions the
+fidelity contract exactly once, and only as a *reader*, not as a member:
+"`QCLI-2.7`'s Lore dependency and adapter contract evidence... is read by
+`QCLI-2.5`'s Backlog migration fidelity contract Notes." This document
+nonetheless cites the fidelity contract as its principal source — per this
+task's own directive to turn "the QCLI-2.5 fidelity contract" into an
+operational plan — so an accurate accounting cannot claim the "Prior QCLI
+research records" slice already covers that reliance; it does not, yet.
+This is the same enumeration-gap class `QCLI-2.12` closed for other
+already-relied-upon documents ("None of these three was previously named in
+this enumeration despite already being relied on, under this slice's
+Allowed classification, by merged deliverables" — register, "Prior QCLI
+research records" slice). It is recorded here as a genuine register gap and
+reported as an out-of-scope finding for the register's owner; this task's
+scope boundary excludes editing the register or the migration ledger, so
+the gap is not closed from here. This does not weaken AC6 substantively:
+every Backlog-behavior fact this document draws from the fidelity contract
+is, one level down, itself independently grounded in the "Backlog.md public
+surface" slice via the fidelity contract's own Execution-evidence
+citations — the open question is only which register slice should list the
+fidelity contract itself as an admissible source document, not whether the
+underlying Backlog-behavior claims are admissible.
+
 ### Notes
 
-This document read the fidelity contract, the research source register's
-"Backlog.md public surface" and "Prior QCLI research records" slices (both
-Allowed — the former for every Backlog-behavior citation above, the latter
-for citing this repository's own prior QCLI Reference outputs), the
-component charter, and the migration ledger. The charter and migration
-ledger are cited or read as background per this task's own `Documentation`
-field but neither is edited by this task, per its explicit scope boundary;
-the migration ledger's OCLI→QCLI provenance mapping does not itself inform
-this document's Backlog-behavior content and is not otherwise cited above.
+This document opened no Backlog.md implementation source, the local
+Backlog.md clone at `/Volumes/external/repos/Backlog.md`, or any lore-cli
+Backlog corpus document (Contextual, citable for nothing). `backlog
+--version` and `npm view backlog.md version` were freshly re-run live
+2026-08-04 (both `1.49.3`, per the Pinned research revision note above), and
+`task list --help`, `task view --help`, `draft list --help`, `milestone
+list --help`, `search --help`, and `doctor --help` were freshly re-run the
+same day as a no-drift spot check against the fidelity contract's own
+command-surface tables, with no divergence found. Every substantive
+Backlog-behavior claim in this document re-cites a specific row of the
+fidelity contract's own Execution evidence rather than re-deriving it, per
+this task's charge to build on `QCLI-2.5`'s output rather than duplicate
+it.
 
-It opened no Backlog.md implementation source, the local Backlog.md clone
-at `/Volumes/external/repos/Backlog.md`, or any lore-cli Backlog corpus
-document (Contextual, citable for nothing). `backlog --version` and `npm
-view backlog.md version` were freshly re-run live 2026-08-04 (both `1.49.3`,
-per the Pinned research revision note above), and `task list --help`,
-`task view --help`, `draft list --help`, `milestone list --help`, `search
---help`, and `doctor --help` were freshly re-run the same day as a no-drift
-spot check against the fidelity contract's own command-surface tables, with
-no divergence found. Every substantive Backlog-behavior claim in this
-document re-cites a specific row of the fidelity contract's own Execution
-evidence rather than re-deriving it, per this task's charge to build on
-`QCLI-2.5`'s output rather than duplicate it.
+The component charter and the migration ledger are cited or read as
+background per this task's own `Documentation` field but neither is edited
+by this task, per its explicit scope boundary — see the Sources and
+classification table above for what each does and does not ground.
 
 No finding in this document proposes a change to Quest-wide vocabulary,
 architecture, or roadmap; every finding here is either a Backlog.md
