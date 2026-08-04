@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-04 06:23'
-updated_date: '2026-08-04 22:13'
+updated_date: '2026-08-04 22:19'
 labels:
   - campaign
   - research
@@ -57,3 +57,68 @@ Any Quest-wide vocabulary, architecture, or roadmap consequence is a proposal to
 4. Verify: `lore validate --strict docs/reference/quest-cli-backlog-adoption-and-migration-playbook.md`, `lore check --strict`, `lore orphans`; re-check each AC's exact text against the written sections; confirm no edits landed in the register or migration ledger (`git diff --stat` scoped to those two paths is empty).
 5. Record notes on the task, commit in small logical commits with `Refs: QCLI-2.10`, push the branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Delivered docs/reference/quest-cli-backlog-adoption-and-migration-playbook.md (Reference), commit 4373a6c.
+
+Sources checked against the register: "Backlog.md public surface" (Allowed)
+grounds every Backlog-behavior claim; "Prior QCLI research records" (Allowed)
+grounds citing the fidelity contract, component charter, and migration
+ledger. lore-cli's Backlog corpus (Contextual) was not read or cited. The
+local Backlog.md clone and Backlog.md implementation source were not opened.
+Pin re-verified live 2026-08-04: `backlog --version` and `npm view
+backlog.md version` both 1.49.3.
+
+AC evidence:
+- AC1: "Global preconditions" table (P1-P6) + "The cutover sequence" table
+  (9 steps), each row with Precondition/Action/Success signal/Abort
+  condition columns.
+- AC2: "The coexistence window" section, three named subsections -- Single
+  writer per phase, How a reader detects drift (snapshot-fingerprint diff;
+  Backlog has no lock file per the fidelity contract), What happens when
+  both have written (delta report, per-record migrate-or-discard
+  disposition, never silent merge).
+- AC3: dedicated "Dry run -- definition and evidence" and "Rollback --
+  definition and evidence" sections; rollback evidence explicitly names the
+  one thing it cannot recover (coexistence-window-only target-side work)
+  rather than silently omitting it.
+- AC4: "Record coverage (AC4)" table covers active/completed/archived/draft
+  tasks, hierarchy, dependencies, milestones, plus documents and decisions;
+  "What this playbook deliberately does not carry over" names
+  backlog/'s own Git commit history as the record-class-level exclusion
+  (plus the browser /api/tasks endpoint and interactive-wizard state), and
+  states explicitly that no current-state record family is dropped
+  wholesale.
+- AC5: no code fences anywhere in the document (grep-verified); every cited
+  command is a single verification invocation of Backlog's own CLI or
+  ordinary git, never a chained script; an explicit "This document is not"
+  list states the no-importer/no-scaffolding boundary and that
+  @opum-ai/quest is unpublished.
+- AC6: every substantive Backlog-behavior claim links to a named fidelity-
+  contract section/table (each itself grounded in --help/--plain/--json/
+  on-disk evidence) or a fresh --help re-run recorded in Notes; no Backlog
+  implementation source cited anywhere.
+
+Verification run: `lore validate --strict` on the new file (0 errors, 0
+warnings), `lore check --strict` (24 files, 0 errors, 0 warnings), `lore
+orphans` (0 orphan tasks, 0 dangling links) -- all after `lore sync`
+regenerated docs/log.md and docs/reference/index.md. `git diff --stat` on
+the register and migration ledger is empty -- neither was touched, per this
+task's scope boundary.
+
+Out-of-scope finding (not acted on, reported to the orchestrator): the
+component charter and migration ledger are read-only references for this
+task and were not backlinked from the new playbook or vice versa, per the
+task's explicit instruction not to edit either file even to add a
+backlink. Separately, the owning Story
+(docs/stories/prepare-quests-clean-room-research-foundation.md) frontmatter
+`tasks:` list still enumerates only qcli-2 through qcli-2.9 and was not
+updated to add qcli-2.10 (nor were qcli-2.11-2.14 added by their own tasks)
+-- `lore orphans` reports this as clean regardless, since Story<->Task
+`tasks:` coupling and "does every Backlog task have some owning artifact"
+appear to be different checks, but the Story's own task table is stale
+relative to the campaign's actual task roster; left unresolved here since
+editing that Story is outside this task's named scope.
+<!-- SECTION:NOTES:END -->
