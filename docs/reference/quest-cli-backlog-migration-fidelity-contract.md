@@ -31,12 +31,15 @@ documentation (`https://backlog.md`, which redirects to
 `github.com/MrLesk/Backlog.md`'s README — read as documentation prose, not
 as source); `backlog --help` and every command's and subcommand's own
 `--help`; `--plain`/`--json` command output; and on-disk artifacts produced
-by actually running the installed `backlog` binary against two throwaway
+by actually running the installed `backlog` binary against three throwaway
 scratch repositories created solely for this task,
-`/tmp/qcli-2.5-scratch/repo` (default `init` configuration) and
+`/tmp/qcli-2.5-scratch/repo` (default `init` configuration),
 `/tmp/qcli-2.5-scratch/repo2` (alternate `--config-location root
---backlog-dir .backlog --zero-padded-ids 4 --task-prefix QS`), both outside
-this worktree, neither committed to it, and neither the same directory as
+--backlog-dir .backlog --zero-padded-ids 4 --task-prefix QS`), and
+`/tmp/qcli-2.5-fix-scratch/repo` (a follow-up fix-pass repo, used solely to
+actually run `draft create` after review found that node missing from the
+original evidence log — see the `draft create` row below and Notes), all
+outside this worktree, none committed to it, and none the same directory as
 this repository's own `backlog/` (the live campaign's system of record) or
 the quarantined local Backlog.md clone at
 `/Volumes/external/repos/Backlog.md` (never opened, per the
@@ -245,7 +248,8 @@ response, or the exact stdout/stderr), not an inference from source.
 
 | Command | Exit | Output shape | Observed effect |
 | --- | --- | --- | --- |
-| `draft list --plain` / `draft view DRAFT-1 --plain` | 0 / 0 | plain list / plain detail | Same rendering engine as `task view`/`task list`, minus the fields a draft cannot yet have (no `Priority`/`Type` shown on a bare draft). |
+| `draft create "QCLI-2.5 fix probe" -d "Fix-pass probe for the AC5 draft-create gap" -a @fix-worker -l "clean-room,fix-pass"` (run in the follow-up fix-pass scratch repo `/tmp/qcli-2.5-fix-scratch/repo` — see Notes; this node was absent from the original evidence log until review caught the gap) | 0 | `Created draft DRAFT-1` then `File: /private/tmp/qcli-2.5-fix-scratch/repo/backlog/drafts/draft-1 - QCLI-2.5-fix-probe.md` | File on disk with frontmatter `id: DRAFT-1, title: QCLI-2.5 fix probe, status: Draft, assignee: ['@fix-worker'], created_date: '2026-08-04 17:12', labels: [clean-room, fix-pass], dependencies: []` and body `## Description` inside a single `<!-- SECTION:DESCRIPTION:BEGIN/END -->` managed block — the same shape `task create --draft` produces, minus the fields (`priority`/`type`/`ordinal`) a draft doesn't carry. A second invocation, `draft create "QCLI-2.5 fix probe status" -d "second probe" -s "Draft"` (exit 0, `Created draft DRAFT-2`), confirmed the surface table's `-s/--status` flag is accepted but writes the same `status: Draft` a bare `draft create` already produces — `draft create` has no way to route to a non-Draft status through this flag. This is the node the review round (B1) found missing; it is now independently exercised like every other of the 49. |
+| `draft list --plain` / `draft view DRAFT-1 --plain` | 0 / 0 | plain list / plain detail | Same rendering engine as `task view`/`task list`, minus the fields a draft cannot yet have (no `Priority`/`Type` shown on a bare draft). Ran in `/tmp/qcli-2.5-scratch/repo` against the `DRAFT-1` created there via `task create --draft` (Task lifecycle table) — a distinct node and a distinct file from the `draft create` row immediately above. |
 | `draft promote DRAFT-1` | 0 | `Promoted draft DRAFT-1` | Moves `backlog/drafts/draft-1 - ...md` → `backlog/tasks/task-2 - ...md`; the **task**-side ID (`TASK-2`) is assigned fresh at promotion time, independent of the draft's own former numeral. |
 | `draft archive DRAFT-999` / `draft view DRAFT-999 --plain` / `draft promote DRAFT-999` | **0** (all three) | `Draft DRAFT-999 not found.` | Unknown-draft handling exits **0**, not 1 — see Findings (cross-family exit-code inconsistency). |
 | `milestone add "Release 1.0" -d "..."` | 0 | `Created milestone "Release 1.0" (m-0).` | `backlog/milestones/m-0 - release-1.0.md`; frontmatter is only `id`/`title`, description is body prose, not a frontmatter field. |
@@ -542,10 +546,26 @@ nothing under the quarantined local Backlog.md clone
 worktree's own `backlog/` directory (the live campaign's system of record)
 or to any file outside this task's own new document and its Backlog task
 record. All command transcripts above were captured live on 2026-08-04
-against two throwaway scratch repositories created and used solely for this
-task, both outside this worktree and neither committed anywhere; the
+against three throwaway scratch repositories created and used solely for
+this task, all outside this worktree and none committed anywhere; the
 scratch repositories themselves are not preserved as part of this
 deliverable.
+
+**Review-round fix (2026-08-04).** An independent review of this document
+returned `request_changes` with one blocking finding (B1): `draft create`
+was enumerated in the AC4 surface table but had no corresponding row in
+AC5's Execution evidence — the `DRAFT-1` referenced elsewhere in this
+document was produced by `task create ... --draft`, a different node, and
+`draft create` itself had never actually been run. This falsified the
+document's own "every one of the 49 nodes ... independently exercised"
+and "all 49 nodes exercised end to end" claims for as long as the gap
+stood. The fix ran `draft create` for real, twice, against a third
+throwaway scratch repository, `/tmp/qcli-2.5-fix-scratch/repo`, created
+and used solely to close this gap and not preserved as part of this
+deliverable; the resulting row is in the Draft/milestone/document/decision
+table, above. With that row in place, "all 49 nodes exercised end to end"
+is accurate as of this fix — it was not accurate between the original
+delivery and this correction.
 
 One live web fetch was made, to `https://backlog.md` (redirects to
 `github.com/MrLesk/Backlog.md`), read as published documentation prose per

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 17:00'
+updated_date: '2026-08-04 17:15'
 labels:
   - campaign
   - research
@@ -86,4 +86,10 @@ Verification commands and outcomes:
 - 'git status --porcelain=v1 --untracked-files=all' confirmed only the new document plus lore-regenerated docs/log.md, docs/reference/index.md, and the Story's managed block are dirty; no sibling-owned file (source register, migration ledger, QCLI-2.7's or QCLI-2.14's deliverables, the research-program Spec) was touched.
 
 Out-of-scope finding for the orchestrator, not acted on here: the browser command exposes an undocumented /api/tasks HTTP JSON endpoint whose field shapes diverge from the CLI's own --json contract (assignee vs assignees, an added rawContent key not present in any CLI JSON envelope). Recorded in the document's Findings #13 as a discovered fact only, explicitly not treated as citable public contract since it falls outside the register's 'published documentation / --help / --plain/--json output' admissibility list — flagging here in case a later task (e.g. QCLI-2.8 synthesis) wants to decide whether that boundary should be revisited.
+
+Review fix (2026-08-04): independent review returned request_changes with one blocking finding (B1) — 'draft create' was enumerated in the AC4 surface table but had no AC5 execution row; the DRAFT-1 referenced elsewhere in the document was produced by 'task create ... --draft', a different node, and 'draft create' itself had never actually been run. This falsified the document's 'every one of the 49 nodes ... independently exercised' and 'all 49 nodes exercised end to end' claims for as long as the gap stood.
+
+Fix: ran 'draft create' for real, twice, against a new third throwaway scratch repo (/tmp/qcli-2.5-fix-scratch/repo, outside this worktree, never committed, not preserved). 'draft create "QCLI-2.5 fix probe" -d "Fix-pass probe for the AC5 draft-create gap" -a @fix-worker -l "clean-room,fix-pass"' -> exit 0, 'Created draft DRAFT-1', file 'backlog/drafts/draft-1 - QCLI-2.5-fix-probe.md' with frontmatter id/title/status:Draft/assignee/created_date/labels/dependencies and a single Description managed block. Second run with '-s "Draft"' confirmed the status flag is accepted but produces the same Draft status a bare draft create already writes. Added this as a new Execution-evidence row in docs/reference/quest-cli-backlog-migration-fidelity-contract.md's Draft/milestone/document/decision table, disambiguated it from the pre-existing DRAFT-1 (from task create --draft) in the adjacent row, updated the document's intro/Notes sections from 'two' to 'three' scratch repos, and added a dated Notes paragraph recording the review finding and fix so the 'all 49 nodes exercised end to end' claim is accurate now and the document is explicit that it was not accurate between original delivery and this correction.
+
+Verification: 'lore sync --plain' -> 'updated docs/log.md' / '1 file changed'. 'lore check --strict --plain' -> '22 files, 0 errors, 0 warnings', exit 0. 'lore validate --strict --plain' -> '22 files, 0 errors, 0 warnings, 6 skipped', exit 0. 'lore orphans --plain' -> '0 orphan tasks, 0 dangling links', exit 0. 'git status --porcelain' confirms only docs/log.md and the contract document changed; no other file touched.
 <!-- SECTION:NOTES:END -->

@@ -24,6 +24,7 @@
 - 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
 - 2026-08-04T10:59:44-05:00 2e0995d799b51ad082846cb959209d46a60f55f8 docs: sync log.md after wave-3 follow-up merges
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
+- 2026-08-04T12:01:15-05:00 511119ecb712ddb2b089378a04721a692cc86388 docs: sync managed blocks after QCLI-2.5 authoring pass
 
 ## docs/adr
 
@@ -46,6 +47,8 @@
 - 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
 - 2026-08-04T10:58:20-05:00 63b1e0a33e4b67d87d6034e9b72f127fce10d106 QCLI-2.4 follow-up: add moving-reference recheck clause for quest-doc citation (#10)
 - 2026-08-04T10:59:08-05:00 c09ed473c8432d418c941a3201e33a5e1f1fed3c QCLI-2.13 follow-up: complete AC4 with register-side back-reference (#11)
+- 2026-08-04T12:01:04-05:00 1a47bd594aa15e38fdecce6d888ff3255a40ee03 QCLI-2.5: Research Backlog migration fidelity through public contracts
+- 2026-08-04T12:01:15-05:00 511119ecb712ddb2b089378a04721a692cc86388 docs: sync managed blocks after QCLI-2.5 authoring pass
 
 ## docs/runbooks
 
@@ -71,3 +74,4 @@
 - 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
 - 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
 - 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
+- 2026-08-04T12:01:15-05:00 511119ecb712ddb2b089378a04721a692cc86388 docs: sync managed blocks after QCLI-2.5 authoring pass
