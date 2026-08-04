@@ -1,10 +1,10 @@
 ---
 id: QCLI-2.4
 title: 'Define Quest CLI actors, workflows, and domain-language candidates'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:00'
+updated_date: '2026-08-04 14:59'
 labels:
   - campaign
   - research
@@ -13,6 +13,7 @@ labels:
   - ux
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:domain'
+  - wave-3
 dependencies:
   - QCLI-2.2
 documentation:

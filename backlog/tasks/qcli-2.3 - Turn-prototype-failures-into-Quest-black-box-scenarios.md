@@ -1,10 +1,10 @@
 ---
 id: QCLI-2.3
 title: Turn prototype failures into Quest black-box scenarios
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:00'
+updated_date: '2026-08-04 14:59'
 labels:
   - campaign
   - research
@@ -13,6 +13,7 @@ labels:
   - clean-room
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
   - 'cluster:scenarios'
+  - wave-3
 dependencies:
   - QCLI-2.1
   - QCLI-2.2

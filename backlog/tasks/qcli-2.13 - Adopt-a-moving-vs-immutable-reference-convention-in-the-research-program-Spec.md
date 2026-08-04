@@ -1,9 +1,10 @@
 ---
 id: QCLI-2.13
 title: Adopt a moving-vs-immutable reference convention in the research program Spec
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-04 14:35'
+updated_date: '2026-08-04 14:59'
 labels:
   - campaign
   - research
@@ -11,6 +12,7 @@ labels:
   - verification
   - no-implementation
   - 'cluster:convention'
+  - wave-3
 dependencies: []
 parent_task_id: QCLI-2
 priority: medium

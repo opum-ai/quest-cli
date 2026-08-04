@@ -1,9 +1,10 @@
 ---
 id: QCLI-2.11
 title: Correct wave-2 cross-task staleness in the three merged deliverables
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-04 14:34'
+updated_date: '2026-08-04 14:59'
 labels:
   - campaign
   - research
@@ -11,6 +12,7 @@ labels:
   - correction
   - no-implementation
   - 'cluster:provenance'
+  - wave-3
 dependencies: []
 parent_task_id: QCLI-2
 priority: high
