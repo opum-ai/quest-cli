@@ -2,9 +2,10 @@
 id: QCLI-2.14
 title: 'Re-home the runtime, native-packaging, and supported-platform question'
 status: In Progress
-assignee: []
+assignee:
+  - '@claude-worker'
 created_date: '2026-08-04 14:35'
-updated_date: '2026-08-04 16:49'
+updated_date: '2026-08-04 16:46'
 labels:
   - campaign
   - research
@@ -12,8 +13,6 @@ labels:
   - convention
   - no-implementation
   - 'cluster:convention'
-  - wave-4
-  - in-review
 dependencies:
   - QCLI-2.13
 parent_task_id: QCLI-2
@@ -42,3 +41,13 @@ Documentation only. Do not claim new scope for any task and do not silently clos
 - [ ] #4 No new scope is claimed for any task and no open question is closed
 - [ ] #5 lore check --strict, lore validate --strict, and lore orphans report zero errors, zero warnings, and zero orphans
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Rewrite the scope-cession paragraph (currently lines 91-98) in docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md so it no longer names QCLI-2.9 as owner of runtime/native-packaging/supported-platform evidence (AC1); instead point to the research program Spec's Open questions section, state plainly no current task owns the question, and distinguish the post-Lore-evidence gate on 'Runtime and native packaging' from the ungated 'supported platform matrix' half (AC2).
+2. Add QCLI-2.9 and QCLI-2.10 rows to the Spec's Design > Dependency order table in docs/specs/quest-cli-pre-implementation-research-program.md (AC3), with Output/Depends-on columns; QCLI-2.9's Output column explicitly scopes it to npm allocation/provenance only (not runtime/native-packaging/platform) so the table gives a table-level scope statement future cession disputes can check against (the task's stated root cause).
+3. Do not touch the Spec's Open Questions bullets themselves (out of this task's two-file scope) and do not edit any other task's Backlog file — verifies AC4 (no new scope claimed, no question closed).
+4. Run lore sync (git add/commit any regenerated managed-block output, since sync does not auto-commit here), then lore check --strict, lore validate --strict, lore orphans and confirm zero errors/warnings/orphans (AC5).
+5. Record verification evidence and diff quotes in --append-notes, commit with Refs: QCLI-2.14 trailer, push branch.
+<!-- SECTION:PLAN:END -->
