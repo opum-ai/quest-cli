@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-04 06:23'
-updated_date: '2026-08-04 22:19'
+updated_date: '2026-08-04 22:31'
 labels:
   - campaign
   - research
@@ -121,4 +121,67 @@ updated to add qcli-2.10 (nor were qcli-2.11-2.14 added by their own tasks)
 appear to be different checks, but the Story's own task table is stale
 relative to the campaign's actual task roster; left unresolved here since
 editing that Story is outside this task's named scope.
+
+Review fix pass (2026-08-04), addressing the prior review's findings:
+
+BLOCKING (fixed): the Notes section previously claimed the register's
+"Prior QCLI research records" slice covers citing the fidelity contract
+("the latter for citing this repository's own prior QCLI Reference
+outputs"). Re-checked against the live register
+(quest-cli-research-source-register.md lines 787-926): that slice
+enumerates nine specific members (component charter, migration ledger,
+research Spec, QCLI-2.2 reconciliation, the register itself, the ADR,
+QCLI-2.3, QCLI-2.4, QCLI-2.7) and the fidelity contract is not among them
+-- it appears in that slice's text exactly once, only as a *reader* of
+QCLI-2.7's document, never as an enumerated member. Fix: added a new
+"Sources and classification (AC6 grounding)" table (matching the sibling
+deliverables' evidence-table convention: quest-cli-black-box-acceptance-
+scenarios.md, quest-cli-git-filesystem-and-concurrency-threat-model.md,
+legacy-opum-requirement-reconciliation-for-quest-cli.md) that correctly
+states the component charter, migration ledger, and register are Allowed
+under "Prior QCLI research records", while the fidelity contract's row is
+marked "not yet an enumerated member" with a full caveat quoting the
+register's own enumeration and its QCLI-2.12 precedent for exactly this
+gap class. Recorded as an out-of-scope finding for the register's owner
+(below); not fixed by editing the register, per this task's scope
+boundary. Rewrote the old Notes prose to remove the false claim while
+keeping its true content (no source/clone/Contextual-corpus opened, fresh
+--help spot checks, re-citation discipline).
+
+NON-BLOCKING (fixed): the Documents row of the Record coverage (AC4) table
+cited "Findings and Notes" for two claims neither section supports.
+Retargeted to the two sections that actually do: the Inventory section's
+trailing paragraph (full CRUD except delete) and the Field-by-field
+disposition table's Document row (--plain-only, no --json).
+
+NON-BLOCKING (fixed): the Snapshot fingerprint vocabulary entry asserted
+"backlog init ... does not initialize its own [repository]" without a
+supporting observation -- the fidelity contract's Initialization Execution
+evidence ran `git init` before `backlog init` in every case, so nothing
+rules out `backlog init` running its own `git init` in an untracked
+directory. Reworded to state only what was actually observed (backlog init
+populating backlog/ inside an already-git-init'd repo) and explicitly note
+the untracked-directory case was not exercised and is not asserted.
+
+NON-BLOCKING (addressed by the same table): added the sources-and-
+classification table described above, matching the bundle's established
+convention rather than a prose-only Notes paragraph, per the review's
+"convention divergence" observation.
+
+Re-verified after edits: `lore validate --strict` on the file (0
+errors/warnings), `lore check --strict` (24 files, 0 errors/warnings),
+`lore orphans` (0 orphan tasks, 0 dangling links), `lore sync` (updated
+docs/log.md only), `git diff --stat` on the register and migration ledger
+still empty -- neither touched by this fix pass.
+
+Out-of-scope finding (repeated, now the register's live state confirms
+it): the research source register's "Prior QCLI research records" slice
+does not yet enumerate docs/reference/quest-cli-backlog-migration-fidelity-
+contract.md (QCLI-2.5's output) as a member, despite this document (and
+QCLI-2.5's own Notes, which cite the fidelity contract's Backlog-behavior
+claims to "Backlog.md public surface" directly rather than to this slice)
+relying on it as a principal source. This is the same enumeration-gap
+class QCLI-2.12 closed for QCLI-2.2/2.3/2.4/2.7's outputs; the fidelity
+contract itself is the visible remaining gap. Belongs to the register's
+owner, not to this task.
 <!-- SECTION:NOTES:END -->
