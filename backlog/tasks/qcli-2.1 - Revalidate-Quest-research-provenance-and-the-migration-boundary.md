@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.1
 title: Revalidate Quest research provenance and the migration boundary
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 06:56'
+updated_date: '2026-08-04 07:06'
 labels:
   - campaign
   - research
@@ -33,9 +33,9 @@ Adopt and revalidate the completed OCLI-3.1 provenance register after the opum-c
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The current source register records repository or URL, exact revision or retrieval date, ownership rationale, permitted use, exclusions, and reclassification triggers
-- [ ] #2 The former opum-cli repository is identified as opum-doc research provenance, not the Quest implementation home
-- [ ] #3 quest-cli remains free of excluded or quarantined source and tests
+- [x] #1 The current source register records repository or URL, exact revision or retrieval date, ownership rationale, permitted use, exclusions, and reclassification triggers
+- [x] #2 The former opum-cli repository is identified as opum-doc research provenance, not the Quest implementation home
+- [x] #3 quest-cli remains free of excluded or quarantined source and tests
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -108,6 +108,28 @@ Verification actually run after the edits:
 - Programmatically re-read all slice blocks and confirmed all 17 slices (15 original + 2 new from rulings A/B) carry all seven required fields (Classification, Repository or URL, Exact revision or retrieval date, Ownership rationale, Permitted use, Exclusions, Reclassification triggers) - zero missing.
 
 Committed at 04265ca (Refs: QCLI-2.1); pushing to origin feat/qcli-2.1-revalidate-provenance next.
+
+Settlement (orchestrator, wave 1, 2026-08-04).
+
+Merged to dev as squash commit 1f51cce via PR #1, after rebase onto 3107d3a and mandatory post-rebase re-verification.
+
+Independent review: two passes. Pass 1 returned request_changes on one major defect — the register asserted 'no source slice informs a QCLI requirement unless listed here as Allowed' but 5 of 15 slices carried no classification anywhere, including the historical OCLI records and the two recovery commits that are QCLI-2.2's and QCLI-2.3's primary evidence. Applied literally the register would have excluded its own downstream inputs. Fixed by adding an explicit Classification field as the first field of every slice. Pass 2 audited whether that change silently reclassified any of the 10 slices whose class was previously only implied by the vocabulary table: zero reclassifications, verified against a byte-identical table.
+
+Verification re-run by the orchestrator inside the worktree after rebasing onto dev:
+- lore check --strict --plain -> 16 files, 0 errors, 0 warnings, exit 0
+- lore validate --strict --plain -> 16 files, 0 errors, 0 warnings, 6 skipped, exit 0
+- lore orphans --plain -> 0 orphan tasks, 0 dangling links, exit 0
+- git status --porcelain -> clean
+This repository has no automated test suite, build, or lint gate; none was claimed.
+
+AC evidence (reviewer-confirmed by direct observation, not assertion):
+- AC1: programmatic field audit over all 17 slices of docs/reference/quest-cli-research-source-register.md — each carries Classification first, then Repository or URL, Exact revision or retrieval date, Ownership rationale, Permitted use, Exclusions, Reclassification triggers. Zero missing.
+- AC2: 'Former opum-cli repository identity' slice, Exclusions field states opum-doc is not the Quest implementation home; rename to opum-doc re-verified live via git remote -v.
+- AC3: reviewer re-ran the inventory itself rather than trusting the attestation — git ls-files returns 51 tracked files, all docs/backlog/skills/config; no package manifest, src tree, test tree, runtime dependency, or executable scaffold; working tree clean including untracked.
+
+Residual findings recorded for downstream, not fixed here: lore-cli-release-truth.md and release-publishing.md are named as QCLI-2.7 evidence but carry no class from the register's own vocabulary (fails closed — nothing can be wrongly cited); the lore-cli Backlog corpus is enumerated as a closed five-document list where a catch-all would be safer; 'Prior QCLI research records' is classified Allowed on sound reasoning but that specific value is not traceable to the task notes.
+
+Rebase note: one mechanical conflict on this task file's own frontmatter (assignee and updated_date only, labels auto-merged); resolved in favour of the branch, which carried the worker's attribution.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -135,3 +157,13 @@ created: 2026-08-04 06:41
 Follow-up to comment #2, after the orchestrator's mid-task correction: the owner's 2026-08-04 decision to move quest-cli to the opum-ai GitHub org and @opum-ai/quest npm package is now recorded in the register as a classified Allowed/Superseded finding (new "quest-cli repository and npm package identity" slice). Per the orchestrator's explicit instruction I did NOT amend docs/adr/use-quest-cli-for-the-quest-package-and-command.md's decision #1 (which still names salient-data/quest-cli as canonical) — that ADR edit is intentionally left for the orchestrator/owner to action separately. Flagging here so it isn't lost: the ADR text and the register now disagree on record until that follow-up lands.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored docs/reference/quest-cli-research-source-register.md, a lore-managed Reference that is now the per-slice admission authority for all Quest research: 17 source slices, each carrying an explicit Classification (Allowed/Contextual/Superseded/Deferred/Excluded/Quarantined) plus the six provenance fields AC1 requires. It supersedes the OCLI-3.1 capsule as the thing a worker must check before citing a source, and it is self-applying — admissibility is readable from the document alone.
+
+Records three owner rulings dated 2026-08-04: Backlog.md implementation source and internal tests are Excluded on authorship-independence grounds rather than licensing (MIT would permit reading; the owner declined the offered reclassification), with its public surface Allowed at pinned v1.49.3; lore-cli's Backlog corpus is Contextual, readable for question discovery but citable for nothing, because ADR-0012 states its findings were verified against Backlog.md source; and the local Backlog.md clone is Quarantined on proximity grounds. Also records the opum-ai identity change — @opum-ai/lore for Lore, and the owner's decision that quest-cli moves to opum-ai/quest-cli publishing as @opum-ai/quest with the executable still quest.
+
+Verified with lore check/validate/orphans (0 errors, 0 warnings, 0 orphans) re-run after rebase, plus live re-derivation of every dated claim through npm view, gh api, and git remote inspection. Two independent review passes; the second confirmed zero silent reclassification. Merged as 1f51cce.
+<!-- SECTION:FINAL_SUMMARY:END -->
