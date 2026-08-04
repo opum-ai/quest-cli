@@ -17,6 +17,7 @@
 - 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
 - 2026-08-04T08:30:27-05:00 c41e1ec547af8ce7bc5e0bdf6438500ed28f2b4d chore(docs): sync log after correction notes commit
 - 2026-08-04T08:45:27-05:00 09d08d2973a47d01616b23b85a7a393ada9e237b chore(docs): sync log after review fix-pass commits
+- 2026-08-04T08:49:01-05:00 61759e1ff9beeedbada9aa5c6c9f0b128a955f15 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
 
 ## docs/adr
 
@@ -34,6 +35,7 @@
 - 2026-08-04T08:24:01-05:00 c03c63b073a0f9e806b89b019939afa9feee0d32 docs(qcli-2.7): record the lore-cli source-admissibility split rule
 - 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
 - 2026-08-04T08:45:09-05:00 16b60d7d05cac594cef4ec2571b0eb28ef138fb7 docs(qcli-2.7): fix falsified admissibility claims from review fix pass
+- 2026-08-04T08:49:01-05:00 61759e1ff9beeedbada9aa5c6c9f0b128a955f15 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
 
 ## docs/runbooks
 
