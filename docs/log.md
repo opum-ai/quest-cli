@@ -15,6 +15,7 @@
 - 2026-08-04T08:24:10-05:00 e69bb9b5438f50b66121ec714a1638204fdc3c0f chore(docs): reconcile pre-existing sync drift via lore sync
 - 2026-08-04T08:25:30-05:00 fe569b6dcf8d3d650d1d140081aace9aa6c6842f chore(docs): sync log after implementation-notes commit
 - 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
+- 2026-08-04T08:30:27-05:00 c41e1ec547af8ce7bc5e0bdf6438500ed28f2b4d chore(docs): sync log after correction notes commit
 
 ## docs/adr
 
@@ -31,6 +32,7 @@
 - 2026-08-04T08:23:54-05:00 e17b5273b7e94e37e7a03b6efd486ef37a5fa565 docs(qcli-2.7): add Lore dependency and adapter contract evidence
 - 2026-08-04T08:24:01-05:00 c03c63b073a0f9e806b89b019939afa9feee0d32 docs(qcli-2.7): record the lore-cli source-admissibility split rule
 - 2026-08-04T08:29:59-05:00 e0ea1273d8c89fa74948db9a4a6019359914497f docs(qcli-2.7): fix falsified content-identity claim in register
+- 2026-08-04T08:45:09-05:00 16b60d7d05cac594cef4ec2571b0eb28ef138fb7 docs(qcli-2.7): fix falsified admissibility claims from review fix pass
 
 ## docs/runbooks
 
