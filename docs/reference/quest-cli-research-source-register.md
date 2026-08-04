@@ -38,9 +38,9 @@ named slice, never to every file in its repository.
 
 | Class | Meaning | Example here |
 | --- | --- | --- |
-| Allowed | Exact owner decision, authored requirement, public contract, or attested data slice; cite the named slice and dated revision, revalidate before use | Dated fleet inventory, Backlog.md public surface, lore-cli's published CLI surface |
+| Allowed | Exact owner decision, authored requirement, public contract, or attested data slice; cite the named slice and dated revision, revalidate before use | Dated fleet inventory, Backlog.md public surface, lore-cli's published CLI surface, the 2026-08-04 owner decision on quest-cli's `opum-ai` identity |
 | Contextual | Owned or public material with a different product boundary; explain history or risk only | The `opum-doc` repository itself; the Lore-owned release gate |
-| Superseded | Formerly accepted direction replaced by a named decision; preserve rationale, do not reactivate | Migration ledger's OCLI-1 row (backlog-handover skill port, QCLI-4, commit `287c2b8`) — recorded there, not duplicated here |
+| Superseded | Formerly accepted direction replaced by a named decision; preserve rationale, do not reactivate | Migration ledger's OCLI-1 row (backlog-handover skill port, QCLI-4, commit `287c2b8`) — recorded there, not duplicated here; the component ADR's decision #1 (`salient-data/quest-cli` as canonical), superseded by the owner's `opum-ai` identity decision — recorded as a finding in this register, ADR text itself left for a separate task |
 | Deferred | Plausible later surface outside the first release; preserve the question and revisit trigger | Opum MCP/hosted-UI prototype surfaces |
 | Excluded | Backlog.md implementation source/tests or unapproved source material; no inspection, copying, execution, or design derivation | Backlog.md implementation source/tests; unrelated npm-squatted packages |
 | Quarantined | Dirty, unversioned, snapshot-derived, secret-adjacent, or attribution-ambiguous material; identity and previously captured metadata only | Legacy unversioned Opum fleet artifacts |
@@ -242,17 +242,73 @@ named slice, never to every file in its repository.
   Lore tool quest-cli integrates with, per the component charter's routing
   table ("Lore implementation and immutable release evidence" → owning
   `lore-*` repository); MIT-licensed (`npm view @opum-ai/lore license` =
-  `MIT`).
+  `MIT`). The `salient-data` → `opum-ai` org transfer is the same class of
+  identity change as the `opum-cli` → `opum-doc` rename this repository's
+  [migration ledger](former-ocli-to-qcli-migration-ledger.md) already
+  documents: old identity redirects, current identity governs citation. The
+  owner separately confirmed on 2026-08-04 (after this task's initial draft)
+  that the transfer, and the derived npm naming pattern — GitHub repo
+  `<name>-cli`, npm package `@opum-ai/<name>` with the `-cli` suffix dropped,
+  executable `<name>` — are both correct and intentional; `@opum-ai/lore-cli`
+  itself 404s on npm, confirming the dropped-suffix pattern.
 - **Permitted use:** cite its published CLI surface (`lore --help`, `lore
   instructions`, command output, exit codes, `.lore/schemas/*.json`) as the
-  versioned Lore import/link/adapter contract quest-cli must honor.
+  versioned Lore import/link/adapter contract quest-cli must honor. The
+  published `@opum-ai/lore@0.1.0` release is immutable published release
+  evidence relevant to the Lore activation gate; citing its existence and
+  version here does not itself verify the gate — matching that evidence
+  against the owning repository and the gate's requirements is `QCLI-2.7`'s
+  scope, not performed by this register.
 - **Exclusions:** no design derivation from lore-cli's own TypeScript
   implementation source beyond its documented public CLI/JSON contract; this
   register does not decide the Quest↔Lore integration boundary, which
-  `lore-doc` owns.
+  `lore-doc` owns; it does not perform QCLI-2.7's gate-evidence verification.
 - **Reclassification triggers:** a further org/repo transfer; a version bump
   changing the documented CLI surface; `lore-doc`'s integration-boundary Spec
-  changing what is consumable.
+  changing what is consumable. Independently worth recording as its own
+  trigger: a GitHub rename/transfer redirect makes a **stale org reference
+  silently resolve** (`gh api repos/salient-data/lore-cli` returns
+  `opum-ai/lore-cli`'s data without erroring) — any citation using an org
+  name must be re-verified against the live `git remote`/`gh api` identity,
+  not assumed correct merely because a lookup under the old name succeeded.
+
+#### quest-cli repository and npm package identity (owner decision, 2026-08-04)
+
+- **Repository or URL:** target `github.com/opum-ai/quest-cli` (not yet
+  transferred — this repository's own `origin` remote still reads
+  `git@github.com:salient-data/quest-cli.git` as of this revalidation,
+  confirmed live via `git remote -v` on 2026-08-04); target npm package
+  `@opum-ai/quest`.
+- **Exact revision or retrieval date:** owner decision communicated
+  2026-08-04; `@opum-ai/quest` confirmed unclaimed (`404 Not Found`) via
+  `npm view @opum-ai/quest version` on 2026-08-04, i.e. the target scoped
+  name is currently free.
+- **Ownership rationale:** explicit, current owner decision, of the same
+  kind and directness as the `opum-cli` → `opum-doc` rename already recorded
+  in the migration ledger and the `lore-cli` org transfer recorded above:
+  `quest-cli` will move to the `opum-ai` GitHub org and publish npm as
+  `@opum-ai/quest`, matching lore-cli's observed `<name>-cli` repo /
+  `@opum-ai/<name>` package pattern. The executable stays `quest`. This
+  directly exercises — rather than contradicts — decision #2 of the accepted
+  ADR [Use quest-cli for the Quest package and command](../adr/use-quest-cli-for-the-quest-package-and-command.md),
+  which already names "an owner-approved scope" as "the fallback while the
+  executable remains `quest`."
+- **Permitted use:** cite as the current authoritative target identity when
+  a later task plans or executes the actual repository/package transfer;
+  informs `QCLI-2.9`'s final package-allocation resolution as a settled
+  input, not an open question to re-litigate.
+- **Exclusions:** this register does not amend the ADR. The ADR's decision
+  #1 (`salient-data/quest-cli` as "the canonical component repository and
+  local worktree") is now **superseded** by this owner decision, and that
+  supersession is recorded here as a classified provenance/identity finding
+  only — rewriting the ADR itself is out of QCLI-2.1's scope. This register
+  also does not execute the transfer, publish the package, or treat the
+  transfer as already completed; both remain future actions gated on their
+  own task.
+- **Reclassification triggers:** the repository transfer actually completing
+  (git remote changing to `opum-ai/quest-cli`); `@opum-ai/quest` being
+  published; a follow-up task formally superseding the ADR's decision #1
+  text; `QCLI-2.9` closing package allocation on a different name.
 
 ### npm package name occupancy (naming-conflict evidence only)
 
@@ -268,7 +324,11 @@ named slice, never to every file in its repository.
   of the occupied names; `quest`, `lore`, and `lore-cli` are confirmed
   unrelated third-party projects (a Node request library and a
   React/Redux framework, respectively — unrelated to Quest or Lore). Name
-  occupancy is a registry fact, not a codebase Quest may consume.
+  occupancy is a registry fact, not a codebase Quest may consume. Per the
+  owner's 2026-08-04 decision recorded above, unscoped `quest` being occupied
+  is now only the **rationale** for `quest-cli` going scoped as
+  `@opum-ai/quest`, not an open allocation question this register must
+  resolve.
 - **Permitted use:** cite existence, version, license, and claimed repository
   only, as naming-conflict evidence for `QCLI-2.9`'s package-allocation
   resolution.
