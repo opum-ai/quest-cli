@@ -4,7 +4,7 @@ title: Close the research source register's admission-authority coherence gaps
 status: In Progress
 assignee: []
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 16:41'
+updated_date: '2026-08-04 16:57'
 labels:
   - campaign
   - research
@@ -14,6 +14,7 @@ labels:
   - no-implementation
   - 'cluster:provenance'
   - wave-4
+  - in-review
 dependencies:
   - QCLI-2.11
 parent_task_id: QCLI-2
