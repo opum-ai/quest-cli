@@ -18,6 +18,7 @@
 - 2026-08-04T08:30:27-05:00 c41e1ec547af8ce7bc5e0bdf6438500ed28f2b4d chore(docs): sync log after correction notes commit
 - 2026-08-04T08:45:27-05:00 09d08d2973a47d01616b23b85a7a393ada9e237b chore(docs): sync log after review fix-pass commits
 - 2026-08-04T08:49:01-05:00 61759e1ff9beeedbada9aa5c6c9f0b128a955f15 docs(qcli-2.7): tighten npm-metadata bound and fix line-count/method claims
+- 2026-08-04T08:50:17-05:00 c016227422327f10602769b2ce77f1ca98a27085 chore(docs): sync log after supplement fix-pass commits
 
 ## docs/adr
 
