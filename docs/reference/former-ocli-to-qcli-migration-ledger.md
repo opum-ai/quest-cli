@@ -74,12 +74,30 @@ license, publish history), added `@opum-ai/quest-cli` to the npm package
 name occupancy slice's enumeration, and added members to the "Prior QCLI
 research records" slice's own enumeration (the reconciliation doc, this
 register, and the accepted ADR — later joined, in a further follow-up, by
-three more already-cited documents). The owner has confirmed (2026-08-04)
-that none of these needed a fresh ruling: the metadata widening and the
-npm-occupancy addition formalize admissions already permitted by QCLI-2.7's
-existing owner-ruled widenings of those same two slices (the lore-cli
-slice's split rule and the npm-occupancy slice's field widening) and
-already exercised in practice by QCLI-2.9's contemporaneous citations of
+three more already-cited documents). These three are not the only register
+amendments that same commit made — the register's own Notes section records
+six in total, including a fourth Permitted-use clarification (the
+`quest-doc` canonical product records slice); this note names only the
+three below because those are the ones needing the owner's same-day
+confirmation that follows, not the full list. The owner has confirmed
+(2026-08-04) that none of these three needed a fresh ruling: the metadata
+widening and the npm-occupancy addition formalize admissions already
+permitted by QCLI-2.7's existing owner-ruled widening of the npm-occupancy
+slice's own permitted use, applied here by symmetry. **Corrected 2026-08-04
+by a second `QCLI-2.12` follow-up fix pass (B3):** this sentence previously
+named the lore-cli slice's split rule as a second, joint basis alongside
+that widening — wrong. The register's own text grounds the lore-cli
+metadata widening in closing "an asymmetry with the npm package name
+occupancy slice's own widened permitted use," the npm-occupancy widening
+alone, applied by symmetry, never the split rule. The split rule governs
+design derivation from lore-cli's own TypeScript source as evidence of what
+Lore requires of a task-tracker backend (`src/adapters/backlog.ts` and
+lore-cli's non-Backlog-derived ADRs/Specs); it says nothing about citing
+registry metadata, and the register itself describes the split rule as
+unchanged by the metadata widening. The npm-occupancy addition (enumerating
+`@opum-ai/quest-cli`) rests directly on that slice's own pre-existing
+widening, needing no symmetry argument at all. Both amendments were also
+already exercised in practice by `QCLI-2.9`'s contemporaneous citations of
 `@opum-ai/lore` maintainer identity and the `@opum-ai/quest-cli` 404
 observation; the Prior-QCLI-research-records additions change no
 Classification and admit no new source, only naming, under this slice's
