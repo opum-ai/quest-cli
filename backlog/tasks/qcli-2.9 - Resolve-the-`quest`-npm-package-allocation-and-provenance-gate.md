@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.9
 title: Resolve the `quest` npm package allocation and provenance gate
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-01 23:48'
-updated_date: '2026-08-04 13:18'
+updated_date: '2026-08-04 14:14'
 labels:
   - research
   - packaging
@@ -18,7 +18,6 @@ labels:
   - campaign
   - 'cluster:packaging'
   - wave-2
-  - merge-pending
 dependencies:
   - QCLI-2.1
 references:
@@ -51,11 +50,11 @@ Scope boundary for wave 2: QCLI-2.7 owns all edits to docs/reference/quest-cli-r
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Dated registry evidence records current ownership, maintainers, package history, allocation or transfer constraints, owner-approved scoped fallbacks, and a mandatory release-time recheck for the preferred quest package name
-- [ ] #2 Licensing, contributor, and artifact provenance for any existing package or content is classified, and ambiguous or unadmitted content is not reused
-- [ ] #3 The accepted unscoped name or scoped fallback is recorded in the component packaging contract while the executable remains quest
-- [ ] #4 Package metadata, install copy, and public claims remain conditional on immutable protected release evidence
-- [ ] #5 No package reservation, transfer, publication, remote-policy change, or release occurs without separate explicit owner authorization
+- [x] #1 Dated registry evidence records current ownership, maintainers, package history, allocation or transfer constraints, owner-approved scoped fallbacks, and a mandatory release-time recheck for the preferred quest package name
+- [x] #2 Licensing, contributor, and artifact provenance for any existing package or content is classified, and ambiguous or unadmitted content is not reused
+- [x] #3 The accepted unscoped name or scoped fallback is recorded in the component packaging contract while the executable remains quest
+- [x] #4 Package metadata, install copy, and public claims remain conditional on immutable protected release evidence
+- [x] #5 No package reservation, transfer, publication, remote-policy change, or release occurs without separate explicit owner authorization
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -104,4 +103,12 @@ Gates run from this worktree after 'lore sync' (which also auto-committed backlo
 Out of scope, not touched: docs/index.md's hand-authored 'Start here' list was left unedited (the new doc is already reachable via docs/reference/index.md's managed block, auto-added by 'lore sync') to avoid a shared-file edit against concurrent QCLI-2.2/QCLI-2.7 work this wave.
 
 Review fix pass (2026-08-04 13:18:29Z): corrected the quest release-count figure from 29 to 26 in both the contract (docs/reference/quest-cli-packaging-contract.md, 'quest package history' paragraph) and the Implementation Notes bullet above ('npm view quest time -> ... 29 releases ...') — that bullet's '29 releases' is superseded by this correction; re-observed live via 'npm view quest versions --json' (26 entries: 0.0.2..0.4.0) and 'npm view quest time' (26 version keys), independent re-count matches. Also added one sentence to the contract's AC2 section noting AC1 compels citing maintainer identities, descriptions, and publish histories for quest/quest-cli beyond the register's 'npm package name occupancy' slice's narrower permitted use ('cite existence, version, license, and claimed repository only'); this is registry metadata, not package content, so clean-room is unaffected, and the permitted-use widening itself is routed to QCLI-2.7 as the register's owner this wave -- the register itself was not opened for editing. Also reworked the conflicting/reference-names table so unclaimed-name rows put 'E404 Not Found — unclaimed' under Version instead of Repository, so it reads as a name-availability fact rather than a repository fact. No other changes made; the other four ACs were not re-verified in this pass per explicit instruction.
+
+Settlement (orchestrator, 2026-08-04): merged to dev as squash commit 79bb99d via PR #4, after rebase onto dev @ 2246c46 with mandatory re-verification. Reviewer verdict approve (pass 2); pass 1 returned request_changes on one independently falsified figure - the contract claimed the npm package 'quest' had 29 releases, npm view quest versions --json returns 26. The orchestrator re-derived 26 before dispatching the fix. Correction recorded as a dated superseding note rather than a silent rewrite. The reviewer verified no registry action four ways, including that @opum-ai/quest still returns 404, which is the strongest available proof since nothing can be published to a name that does not exist. Post-rebase verification: lore check --strict 19 files 0 errors 0 warnings; lore validate --strict 19 files 0 errors 0 warnings 6 skipped; lore orphans 0 orphans 0 dangling links. No test, build, or lint gate exists and none was claimed. Non-blocking follow-ups from the wave-2 integration review, awaiting owner approval: lines 166 and 189 quote the register's pre-widening permitted-use wording, which QCLI-2.7's merge superseded - accurate when written and reviewed, invalidated by a sibling merge, and the line-189 paragraph's framing (an unresolved tension routed to QCLI-2.7) should become a record that QCLI-2.7 closed it; also two npm names this document cites (@opum-ai/quest-cli, and @opum-ai/lore's maintainer identity) fall outside every register slice's enumerated permitted use, and line 78 places a bin path in the Description column of a dated-evidence table.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Delivered docs/reference/quest-cli-packaging-contract.md, recording the owner's already-made decision - the scoped @opum-ai/quest with the executable still quest - against dated registry evidence observed live on 2026-08-04: @opum-ai/quest unclaimed (404), quest occupied at v0.4.0 with 26 releases from 2012 to 2018 and dormant since, quest-cli at v1.0.0 ISC, the unscoped lore and lore-cli names held by an unrelated third party, and @opum-ai/lore v0.1.0 MIT as the sibling naming-pattern precedent. Provenance for every occupied name is classified against the source register, with no package content read. The contract binds package metadata, install copy, and public claims to immutable release evidence, routes Lore activation-gate verification to QCLI-2.7 rather than asserting it, and carries a mandatory release-time recheck clause on the ground that an unclaimed name can be taken by anyone between now and release, so today's 404 is not a durable fact. Dispatched with an explicit framing note that the name decision was closed and must not be reopened; no contradicting evidence was found. Verified with lore check --strict, lore validate --strict, and lore orphans, all zero errors and zero warnings, re-run after rebase onto dev. No package reservation, transfer, publication, remote-policy change, or release occurred. Merged as 79bb99d.
+<!-- SECTION:FINAL_SUMMARY:END -->

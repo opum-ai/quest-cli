@@ -1,11 +1,11 @@
 ---
 id: QCLI-2.7
 title: Track Lore dependencies and Quest activation evidence
-status: In Progress
+status: Done
 assignee:
   - '@claude-worker'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 13:50'
+updated_date: '2026-08-04 14:14'
 labels:
   - campaign
   - research
@@ -45,13 +45,13 @@ This task OWNS all edits to docs/reference/quest-cli-research-source-register.md
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The matrix links the canonical lore-doc gate and names the owning Lore task, specification, runbook, or immutable evidence for every component dependency
-- [ ] #2 Each Quest CLI choice is classified evidence-complete, provisionally researchable, blocked on a named owner result, or requiring owner input
-- [ ] #3 The handover requires live owner verification before implementation activation and does not restate the Lore gate
-- [ ] #4 The current lore-cli adapter contract is reviewed against quest-cli stated obligation to honor versioned Lore import/link/adapter behavior, recording at the pinned released revision: the invocation surface Lore requires of a task CLI, the structured-output envelope and schema-version expectation, the capability-probe and fail-loud semantics, the write path and new-identifier capture requirement, the existence-check contract, and the back-reference/metadata-storage constraint
-- [ ] #5 Each adapter requirement is classified as already satisfiable by Quest chartered contract, requiring a Quest contract change, or requiring a lore-doc boundary decision, with every divergence named explicitly rather than summarized
-- [ ] #6 Drift between lore-cli published/pinned revision and its current development line is recorded with dated evidence, and any change to the documented adapter surface is flagged as a reclassification trigger
-- [ ] #7 The split rule for lore-cli source admissibility is recorded in the research source register, and every adapter finding cites Lore for what Lore requires without citing Lore for any claim about Backlog.md behavior
+- [x] #1 The matrix links the canonical lore-doc gate and names the owning Lore task, specification, runbook, or immutable evidence for every component dependency
+- [x] #2 Each Quest CLI choice is classified evidence-complete, provisionally researchable, blocked on a named owner result, or requiring owner input
+- [x] #3 The handover requires live owner verification before implementation activation and does not restate the Lore gate
+- [x] #4 The current lore-cli adapter contract is reviewed against quest-cli stated obligation to honor versioned Lore import/link/adapter behavior, recording at the pinned released revision: the invocation surface Lore requires of a task CLI, the structured-output envelope and schema-version expectation, the capability-probe and fail-loud semantics, the write path and new-identifier capture requirement, the existence-check contract, and the back-reference/metadata-storage constraint
+- [x] #5 Each adapter requirement is classified as already satisfiable by Quest chartered contract, requiring a Quest contract change, or requiring a lore-doc boundary decision, with every divergence named explicitly rather than summarized
+- [x] #6 Drift between lore-cli published/pinned revision and its current development line is recorded with dated evidence, and any change to the documented adapter surface is flagged as a reclassification trigger
+- [x] #7 The split rule for lore-cli source admissibility is recorded in the research source register, and every adapter finding cites Lore for what Lore requires without citing Lore for any claim about Backlog.md behavior
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -137,6 +137,8 @@ Gates re-run clean after this supplement (lore sync run first): lore check --str
 Scope discipline unchanged: did not touch the deliverable's AC5 table, did not restructure either document, did not write to opum-doc/lore-cli/lore-doc/quest-doc (read-only re-verification only), did not touch QCLI-2.2/QCLI-2.9, did not check ACs or move status, did not open the quarantined Backlog.md clone.
 
 Self-correction (2026-08-04, same session): the S5 note immediately above miscounted the deliverable's current line count as "460 after both fix-pass commits." Only the register was edited in this supplement's commit (61759e1); the deliverable itself was last touched in 16b60d7 (first fix pass) and has not changed since. `wc -l docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md` and `git show 16b60d7:<path> | wc -l` both confirm 443, not 460. Correcting in place here rather than leaving the wrong figure standing; no document content is affected, only this task's own prose.
+
+Settlement (orchestrator, 2026-08-04): merged to dev as squash commit 2246c46 via PR #3, after rebase onto dev @ 09c202d with mandatory re-verification. Reviewer verdict approve (pass 3), all seven ACs confirmed; the reviewer independently reproduced the sole-adapter finding (27 files referencing BacklogAdapter, zero hits for any generic tracker abstraction) and verified ~21 adapter line citations exact against git show v0.1.0:src/adapters/backlog.ts. Passes 1-2 returned request_changes on two Backlog-cleanliness misstatements, both fixed at the root: a register slice asserted its release-gate evidence documents were uniformly non-Backlog-derived when release-publishing.md's Prerequisites block states a dated Backlog.md release-history fact (now a named carve-out), and the deliverable carried a blanket disclaimer falsified by three source-comment quotes it reproduces (now demarcated as Lore's stated rationale, not admitted as evidence about Backlog.md). Also corrected mid-flight at orchestrator routing: a falsified content-identity claim in the register where commit reachability had been substituted for content identity, and the npm-metadata permitted-use bound which literally admitted 'readme' (authored package content). AC6 correction of record: the orchestrator's earlier reading that tag v0.1.0 is not an ancestor of lore-cli dev was incomplete - both merge parents ARE ancestors; the tag sits on main only because dev never merges main back, and src/adapters/backlog.ts is byte-unchanged since the tag. Post-rebase verification: lore check --strict 18 files 0 errors 0 warnings; lore validate --strict 18 files 0 errors 0 warnings 6 skipped; lore orphans 0 orphans 0 dangling links. No test, build, or lint gate exists and none was claimed. Note the reviewer's caution: figures quoted in these implementation notes across earlier passes (415, 441, 460, and an 18-row AC5 table that has 15 rows) are unreliable; the register and deliverable are what ship and every figure in those was verified correct or correctly qualified. Non-blocking follow-ups from the wave-2 integration review, awaiting owner approval: a false parenthetical asserting 846f054^ is c5ebee8 (it is 3023468; every claim it supports is true), a d7ca18f currency contradiction between register lines 61/138 and line 112, a double-stated Backlog-corpus catch-all with divergent triggers, and a scope cession to QCLI-2.9 that QCLI-2.9 never received.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -148,3 +150,9 @@ created: 2026-08-01 18:16
 Authority audit: lore-doc owns gate policy, owning Lore components hold implementation/release evidence, and this task only consumes and maps that evidence.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Delivered docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md and the AC7 amendments to the research source register. Scope was expanded mid-campaign at the owner's direction to fold in a review of the current lore-cli for alignment on the adapter quest-cli must honor. Central finding: BacklogAdapter is lore-cli's only task-tracker adapter type - 27 files reference it by name, searches for any generic TaskAdapter/TrackerAdapter/pluggable/tracker-backend abstraction return zero hits, and src/adapters holds only backlog.ts and git.ts - so there is no adapter seam for Quest to plug into today, and several requirements are classified as needing a lore-doc boundary decision rather than being Quest's to satisfy unilaterally. Sharpest divergence recorded: lore's inbound envelope requirement (numeric schemaVersion, hyphenated per-response kind, per-command payload key, no shared data key) differs deliberately from lore's own outbound contract as documented in cli-contract.md, so building Quest by mirroring lore's documented --json output would produce the wrong shape. The owner's split rule is recorded in the register - cite Lore for what Lore requires, never cite Lore for what Backlog does - with a named carve-out excluding release-publishing.md's Backlog release-history bullet from citability. Verified with lore check --strict, lore validate --strict, and lore orphans, all zero errors and zero warnings, re-run after rebase onto dev; adapter claims independently reproduced by the reviewer against lore-cli at tag v0.1.0. Merged as 2246c46.
+<!-- SECTION:FINAL_SUMMARY:END -->
