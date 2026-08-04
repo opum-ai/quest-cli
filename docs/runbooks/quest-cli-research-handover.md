@@ -22,7 +22,7 @@ product implementation remains blocked on Lore release evidence.
 ## Prerequisites
 
 - Worktree: `/Volumes/external/repos/quest-cli`; remote
-  `git@github.com:salient-data/quest-cli.git`; Backlog prefix QCLI.
+  `git@github.com:opum-ai/quest-cli.git`; Backlog prefix QCLI.
 - Product hub: `/Volumes/external/repos/quest-doc`.
 - Former OCLI provenance and Opum SaaS hub:
   `/Volumes/external/repos/opum-doc`.
