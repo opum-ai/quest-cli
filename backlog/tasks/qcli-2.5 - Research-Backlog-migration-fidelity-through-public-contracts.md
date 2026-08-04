@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 16:53'
+updated_date: '2026-08-04 17:00'
 labels:
   - campaign
   - research
@@ -59,3 +59,31 @@ Any Quest-wide vocabulary, architecture, or roadmap consequence is a proposal to
 7. Record verification commands and outcomes via --append-notes; flag anything needing owner attention via --comment.
 8. Commit in small logical commits with Refs: QCLI-2.5 trailers and push feat/qcli-2.5-migration-fidelity.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Delivered docs/reference/quest-cli-backlog-migration-fidelity-contract.md (lore-scaffolded via 'lore new reference'): a fidelity contract and gaps report, not an importer, per the description's own framing. Pinned research revision backlog.md v1.49.3, confirmed as the locally installed build via 'backlog --version' re-run live 2026-08-04 (matches the register's own pin). No Backlog.md implementation source or internal test was read, cited, or opened at any point; the quarantined local clone at /Volumes/external/repos/Backlog.md was never opened.
+
+AC4 (exhaustive CLI enumeration): recursive '--help' traversal from 'backlog --help''s root Commands: list, terminating at nodes with no further Commands: section, confirmed a leaf by actually running --help on all 31 subcommand leaves and observing no third level anywhere. Method and full count (18 root entries, 9 groups, 31 subcommand leaves = 49 distinct invocable nodes) stated explicitly in the document's 'Method' section, with the full flag list for every node captured verbatim from live --help output.
+
+AC5 (exhaustive exercise): all 49 nodes exercised end to end against two throwaway scratch repos created solely for this task (/tmp/qcli-2.5-scratch/repo, default init config; /tmp/qcli-2.5-scratch/repo2, --config-location root --backlog-dir .backlog --zero-padded-ids 4 --task-prefix QS), both outside this worktree, neither committed anywhere, and never the same path as this worktree's own backlog/ or the quarantined Backlog.md clone. Included: full task/draft/milestone/doc/decision/config CRUD and lifecycle transitions; a manufactured real duplicate-ID collision exercised through doctor's full dry-run -> --fix (no --yes, refused non-interactively) -> --fix --yes repair cycle; mcp start driven over a FIFO-backed stdin to capture a real JSON-RPC initialize response; browser backgrounded and probed over HTTP with curl, then killed; completion install run against a fake HOME to avoid touching real shell rc files. cleanup and agents --update-instructions have no non-interactive flags at all (confirmed via their own --help) — both were exercised (exit 0, no mutation observed under non-interactive stdin) but their move/write step could not be driven to completion without a real TTY; recorded in the document as exercised-but-incomplete with that reason, not as unexercised.
+
+AC1/AC2: inventory table covers active/completed/archived/draft/hierarchy/dependencies/milestones/lifecycle metadata/plans/criteria/notes/comments/references/timestamps/final summaries verbatim per the AC, plus documents and decisions noted as two further record types beyond the named list. Field-by-field table classifies every field as public read contract / owner-supplied fixture / deliberate transformation / explicit unsupported gap; two explicit unsupported gaps recorded: the cross-branch task-state overlay (init's --check-branches/--include-remote/--branch-days, config's checkActiveBranches/activeBranchDays, and live 'Fetching remote branches...'/'Applying latest task states from branch scans...' output on overview/board/task list, real and active but its reconciliation algorithm is not derivable from any admissible source without opening source), and milestone completion percentage as a stored field (it is derived, not stored).
+
+AC3: the six required contract properties (deterministic dry runs, reversible ID mapping, collision handling, source immutability, one-writer coexistence, rollback evidence) each written as a grounded design commitment citing a specific Execution-evidence observation, not an implementation.
+
+13 undocumented/surprising findings recorded, most load-bearing: (1) a real, unmanufactured active/archive-boundary TASK-ID collision produced by ordinary archive-then-recreate usage, invisible to 'doctor' (which scopes itself explicitly to 'active or completed tasks') and to 'task view' (which silently resolves to the active file only, no warning); (2) 'doctor --fix' does not participate in the autoCommit convention ordinary task create/edit calls follow in the same session, confirmed via 'git status' showing a deleted-unstaged entry for the renamed-away path immediately after a successful --fix --yes; (3) re-running 'backlog init' against an already-initialized project silently overwrites project_name despite its own 'Current configuration will be preserved where not specified' message; (4) not-found exit codes are inconsistent across command families (task/milestone families exit 1, draft/doc families exit 0 on the same style of not-found message); (5) 'decision' is create-only through the CLI, no list/view/update/edit command exists anywhere in the 49-node surface.
+
+Verification commands and outcomes:
+- 'backlog --version' -> 1.49.3 (re-confirmed against the pinned revision).
+- 'lore validate docs/reference/quest-cli-backlog-migration-fidelity-contract.md --plain' -> 'ok ...; 1 file, 0 errors, 0 warnings, 0 skipped'.
+- 'lore check --strict --plain' (pre-sync) -> exit 6, 2 errors (expected status-drift/managed-block-drift from marking this task In Progress, per the campaign's sync-once rule).
+- 'lore sync --plain' -> 'updated docs/log.md' / 'updated docs/reference/index.md' / 'updated docs/stories/prepare-quests-clean-room-research-foundation.md' / 'committed backlog/: 1 file' / '3 files changed'.
+- 'lore check --strict --plain' (post-sync) -> '22 files, 0 errors, 0 warnings', exit 0.
+- 'lore validate --strict --plain' (post-sync) -> '22 files, 0 errors, 0 warnings, 6 skipped', exit 0.
+- 'lore orphans --plain' -> '0 orphan tasks, 0 dangling links', exit 0.
+- 'git status --porcelain=v1 --untracked-files=all' confirmed only the new document plus lore-regenerated docs/log.md, docs/reference/index.md, and the Story's managed block are dirty; no sibling-owned file (source register, migration ledger, QCLI-2.7's or QCLI-2.14's deliverables, the research-program Spec) was touched.
+
+Out-of-scope finding for the orchestrator, not acted on here: the browser command exposes an undocumented /api/tasks HTTP JSON endpoint whose field shapes diverge from the CLI's own --json contract (assignee vs assignees, an added rawContent key not present in any CLI JSON envelope). Recorded in the document's Findings #13 as a discovered fact only, explicitly not treated as citable public contract since it falls outside the register's 'published documentation / --help / --plain/--json output' admissibility list — flagging here in case a later task (e.g. QCLI-2.8 synthesis) wants to decide whether that boundary should be revisited.
+<!-- SECTION:NOTES:END -->
