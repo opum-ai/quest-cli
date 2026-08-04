@@ -27,8 +27,7 @@
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
 - 2026-08-04T14:06:57-05:00 739aa7e808ad7c8e6ba50aa9895e3fe3bb6c5c33 QCLI-2.6: Model Quest Git, filesystem, and concurrency threats (#13)
 - 2026-08-04T14:08:28-05:00 d55eaf7428ca2904481d40aabd0a90c96513c690 QCLI-2.12: Close the research source register's admission-authority coherence gaps (#14)
-- 2026-08-04T14:08:55-05:00 1b9587ea1d1d9d8d9bf8e8bef0fa286318ac20e2 docs: sync log.md after QCLI-2.14 doc edits
-- 2026-08-04T14:08:55-05:00 85849a236564c06f43c9f00d7016467f83cc497d docs: sync log.md for QCLI-2.14 commits
+- 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
 
 ## docs/adr
 
@@ -54,7 +53,7 @@
 - 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
 - 2026-08-04T14:06:57-05:00 739aa7e808ad7c8e6ba50aa9895e3fe3bb6c5c33 QCLI-2.6: Model Quest Git, filesystem, and concurrency threats (#13)
 - 2026-08-04T14:08:28-05:00 d55eaf7428ca2904481d40aabd0a90c96513c690 QCLI-2.12: Close the research source register's admission-authority coherence gaps (#14)
-- 2026-08-04T14:08:52-05:00 4dcb994b6ff3209963e1bd4ffb15e53fcafa39d4 docs: re-home the runtime/native-packaging/platform question off QCLI-2.9
+- 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
 
 ## docs/runbooks
 
@@ -67,8 +66,7 @@
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
 - 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
-- 2026-08-04T14:08:52-05:00 4dcb994b6ff3209963e1bd4ffb15e53fcafa39d4 docs: re-home the runtime/native-packaging/platform question off QCLI-2.9
-- 2026-08-04T14:08:55-05:00 95d15ba4b47ed3f0a6ecc28468d52e162b451417 docs: fix stale QCLI-2.2–QCLI-2.7 range in QCLI-2.9/2.10 scope note
+- 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
 
 ## docs/stories
 
