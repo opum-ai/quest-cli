@@ -11,7 +11,10 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
-- 2026-08-04T08:07:50-05:00 b5965216bb65263da39ed5876243adc6fee06b68 docs: add Quest CLI packaging contract with dated npm evidence
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
+- 2026-08-04T08:59:23-05:00 1c9b32d2ec8b378a1e9818bc65521f39d07266af docs: fix packaging-contract release count and clean-room field-scope note
+- 2026-08-04T08:59:23-05:00 53f7f893b69706b9a69041d1d5e85b9f0dfe881c docs: add Quest CLI packaging contract with dated npm evidence
 
 ## docs/adr
 
@@ -25,7 +28,10 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
-- 2026-08-04T08:07:50-05:00 b5965216bb65263da39ed5876243adc6fee06b68 docs: add Quest CLI packaging contract with dated npm evidence
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
+- 2026-08-04T08:59:23-05:00 1c9b32d2ec8b378a1e9818bc65521f39d07266af docs: fix packaging-contract release count and clean-room field-scope note
+- 2026-08-04T08:59:23-05:00 53f7f893b69706b9a69041d1d5e85b9f0dfe881c docs: add Quest CLI packaging contract with dated npm evidence
 
 ## docs/runbooks
 
@@ -45,4 +51,4 @@
 - 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
 - 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
-- 2026-08-04T08:07:50-05:00 b5965216bb65263da39ed5876243adc6fee06b68 docs: add Quest CLI packaging contract with dated npm evidence
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
