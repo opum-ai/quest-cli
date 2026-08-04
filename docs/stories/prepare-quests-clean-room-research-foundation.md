@@ -8,7 +8,7 @@ tags:
   - campaign
 summary: Complete the independently authored Quest research campaign before implementation activates.
 timestamp: 2026-08-01T17:11:23.688Z
-status: in-progress
+status: todo
 tasks:
   - qcli-2
   - qcli-2.1
@@ -62,9 +62,9 @@ may not implement or publish Quest.
 | [QCLI-2.5](../../backlog/tasks/qcli-2.5%20-%20Research-Backlog-migration-fidelity-through-public-contracts.md) | Research Backlog migration fidelity through public contracts | Done |
 | [QCLI-2.6](../../backlog/tasks/qcli-2.6%20-%20Model-Quest-Git-filesystem-and-concurrency-threats.md) | Model Quest Git, filesystem, and concurrency threats | Done |
 | [QCLI-2.7](../../backlog/tasks/qcli-2.7%20-%20Track-Lore-dependencies-and-Quest-activation-evidence.md) | Track Lore dependencies and Quest activation evidence | Done |
-| [QCLI-2.8](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md) | Synthesize Quest CLI research into activation-ready component contracts | In Progress |
+| [QCLI-2.8](../../backlog/tasks/qcli-2.8%20-%20Synthesize-Quest-research-into-activation-ready-contracts.md) | Synthesize Quest CLI research into activation-ready component contracts | Done |
 | [QCLI-2.9](../../backlog/tasks/qcli-2.9%20-%20Resolve-the-%60quest%60-npm-package-allocation-and-provenance-gate.md) | Resolve the `quest` npm package allocation and provenance gate | Done |
-| [QCLI-2.10](../../backlog/tasks/qcli-2.10%20-%20Author-the-Backlog-to-Quest-adoption-and-migration-playbook.md) | Author the Backlog-to-Quest adoption and migration playbook | In Progress |
+| [QCLI-2.10](../../backlog/tasks/qcli-2.10%20-%20Author-the-Backlog-to-Quest-adoption-and-migration-playbook.md) | Author the Backlog-to-Quest adoption and migration playbook | Done |
 | [QCLI-2.11](../../backlog/tasks/qcli-2.11%20-%20Correct-wave-2-cross-task-staleness-in-the-three-merged-deliverables.md) | Correct wave-2 cross-task staleness in the three merged deliverables | Done |
 | [QCLI-2.12](../../backlog/tasks/qcli-2.12%20-%20Close-the-research-source-registers-admission-authority-coherence-gaps.md) | Close the research source register's admission-authority coherence gaps | Done |
 | [QCLI-2.13](../../backlog/tasks/qcli-2.13%20-%20Adopt-a-moving-vs-immutable-reference-convention-in-the-research-program-Spec.md) | Adopt a moving-vs-immutable reference convention in the research program Spec | Done |

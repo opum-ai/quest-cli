@@ -36,6 +36,7 @@
 - 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
 - 2026-08-04T18:50:59-05:00 8c3133ed9aacfcda116d5076ca8fefab20f7eb74 docs: sync managed blocks after Story-to-Task coupling fix
 - 2026-08-04T18:51:22-05:00 3936fbeb4ae207fdb3b489899ab1ecfcb73772c5 docs: sync log.md
+- 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
 
 ## docs/adr
 
@@ -66,8 +67,7 @@
 - 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
 - 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
 - 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
-- 2026-08-04T18:53:23-05:00 14d820bfa8fb347a08937ec6fcd9b8192054d48e Playbook: fix misattributed restriction, phase/step overload, deixis, and definition
-- 2026-08-04T18:53:23-05:00 42fccd50bae7e4d26853a28e86b44eccee4f577d Synthesis: restore dropped clauses, add register-gap caveat and version pin
+- 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
 
 ## docs/runbooks
 
