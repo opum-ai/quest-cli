@@ -675,23 +675,41 @@ named slice, never to every file in its repository.
 - **Ownership rationale:** `quest-doc` owns Quest promise, roadmap,
   cross-repository architecture, and provenance policy per the component
   charter's routing table.
-- **Permitted use:** **clarified 2026-08-04 by `QCLI-2.12`** — this slice's
-  Allowed classification governs citation of the records enumerated above by
-  *any* QCLI deliverable, not only this register's own text; the original
-  wording below was phrased in this register's own first person and did not
-  say so explicitly. Two admissible uses, both already relied on by merged
-  work and neither narrowing the other: (1) **this register's own use**,
-  unchanged — align this register's terms and boundary statements with
-  `quest-doc`'s canonical clean-room provenance and migration-ledger
-  sections; cite when a rule here implements a `quest-doc`-level rule; and
-  (2) `docs/specs/quest-clean-room-execution-graph.md`'s "Core behavioral
+- **Permitted use:** **clarified 2026-08-04 by `QCLI-2.12`; corrected
+  2026-08-04 in the same task's review-driven follow-up, after an
+  independent reviewer found the first clarification's "Two admissible
+  uses" count excluded uses this register's own dependents already relied
+  on** — this slice's Allowed classification governs citation of the
+  records enumerated above by *any* QCLI deliverable, not only this
+  register's own text; the original wording below was phrased in this
+  register's own first person and did not say so explicitly. At least the
+  following four admissible uses are already relied on by merged work, none
+  narrowing any other — this enumeration is a floor already exercised, not
+  asserted exhaustive: (1) **this register's own use**, unchanged — align
+  this register's terms and boundary statements with `quest-doc`'s
+  canonical clean-room provenance and migration-ledger sections; cite when
+  a rule here implements a `quest-doc`-level rule; (2)
+  `docs/specs/quest-clean-room-execution-graph.md`'s "Core behavioral
   contract" vocabulary section (task, event, repository, workspace, actor,
-  and related terms) — a different document section and use than (1) — as
-  `QCLI-2.4`'s [component glossary, actors, and
-  workflows](quest-cli-component-glossary-actors-and-workflows.md) already
-  cites it, to ground quest-cli's own component-level vocabulary against
-  `quest-doc`'s existing canonical terms before proposing anything new to
-  `quest-doc`.
+  and related terms; that document's lines 58–74) — a different document
+  section and use than (1) — as `QCLI-2.4`'s [component glossary, actors,
+  and workflows](quest-cli-component-glossary-actors-and-workflows.md)
+  cites it (that document's lines 86–91), to ground quest-cli's own
+  component-level vocabulary against `quest-doc`'s existing canonical terms
+  before proposing anything new to `quest-doc`; (3) the same execution
+  graph's "Runtime authority and product boundary" section (its lines
+  39–57, distinct from use (2)'s "Core behavioral contract" section) — as
+  the same component glossary cites it for "Execution records... tasks,"
+  "lifecycle events," the "Knowledge records... Lore" vs. "Execution
+  records... Quest" distinction, and "Rebuildable local projection" (that
+  document's lines 114, 128, 141, and 143 respectively); and (4)
+  `quest-doc`'s [repository and authority
+  map](https://github.com/salient-data/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md)
+  Reference — cited by the same component glossary both directly (its
+  "Recheck clause," lines 247–274, and Notes, lines 275–295) and as the
+  document grounding that glossary's negative-existence claim that
+  `quest-doc`'s own repository has no actor-model glossary, as of the
+  2026-08-04 observed commit (that document's lines 54 and 250).
 - **Exclusions:** this register does not restate or override `quest-doc`'s
   canonical policy. No finding in this register proposes a change to
   Quest-wide vocabulary, architecture, or roadmap; if one arose it would be a
