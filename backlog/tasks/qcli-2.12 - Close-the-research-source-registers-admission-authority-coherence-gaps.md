@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 16:56'
+updated_date: '2026-08-04 17:14'
 labels:
   - campaign
   - research
@@ -87,4 +87,18 @@ Gate outputs (post-edit, re-run after final commit):
 lore sync was run twice; it regenerated docs/log.md only (no Story managed-block changes touched this task) and does not auto-commit docs/ in this environment, so both regenerations were committed explicitly (commits 435a077, 2b84396). It also auto-committed a backlog/ sync (chore(backlog): sync task changes, commit 8b5e8b6) when the --plan edit was recorded, per its normal behavior.
 
 Out-of-scope finding to report at settlement: none discovered beyond what the task description already named. All three defects were exactly as scoped; no additional coherence gap surfaced while reading QCLI-2.3/2.4/2.7/2.9's citations against the register.
+
+Review follow-up (2026-08-04): an independent reviewer returned request_changes with 2 blocking findings against AC6 and AC7. Both are now fixed; this corrects this task's own prior notes' overclaim that AC6/AC7 were already fully satisfied by the original pass.
+
+F1 (blocking, AC7) — quest-doc canonical product records' Permitted use previously enumerated only "Two admissible uses" (the register's own use, and the execution graph's "Core behavioral contract" section). QCLI-2.4's already-merged component glossary cites this slice for at least three more things that count excluded: the execution graph's "Runtime authority and product boundary" section (lines 39-57 of quest-doc's quest-clean-room-execution-graph.md, distinct from "Core behavioral contract" at lines 58-74) cited at glossary lines 114, 128, 141, 143; the repository-and-authority-map Reference (docs/reference/quest-repository-and-authority-map.md) cited at glossary lines 259, 281-284; and the glossary's negative-existence claim ("quest-doc's own repository holds no actor-model glossary") at glossary lines 54, 250, grounded in that same Reference. Fixed by rewriting the Permitted use field as a non-exhaustive floor of (1)-(4) named uses instead of an exhaustive "Two" count, naming all three additional uses. Purely additive -- no existing admitted use narrowed. Verified via grep/read against the live quest-doc clone at /Volumes/external/repos/quest-doc (section headings confirmed at exactly lines 39 and 58) and against the glossary's cited line numbers. Commit 77b01f2.
+
+F2 (blocking, AC6) — the Prior QCLI research records slice's Repository or URL enumeration named "QCLI-1, QCLI-3, QCLI-4, and the component charter, migration ledger, and research Spec they produced" plus (from this task's original pass) the register itself and QCLI-2.2's reconciliation doc, but omitted docs/adr/use-quest-cli-for-the-quest-package-and-command.md -- a fourth product of the same QCLI-1/QCLI-3/QCLI-4 lineage (created e2b90e2, amended under QCLI-5 at 942da73), cited under this exact slice ("Allowed -- 'Prior QCLI research records'") by QCLI-2.2's already-merged legacy-opum-requirement-reconciliation-for-quest-cli.md:68. The register's own prose elsewhere (lines 67, 744) cross-referenced the ADR without ever naming it in this slice's enumeration. Fixed by adding the ADR to the Repository or URL field, the same way the original pass added the register and QCLI-2.2's doc; gave Ownership rationale a light touch for coherence. Verified line 68 directly. Commit d6a67e5.
+
+F3 (non-blocking, fixed) — the lore-cli Backlog.md corpus slice's supersession parenthetical said "this one" pointed at the Repository/URL field's text, but by the time that parenthetical runs, the field already reads the unified (post-AC1-fix) formulation, not the superseded one -- so "this one" pointed at the replacement, not what was superseded. Fixed by quoting the actual original wording verbatim ("any further lore-cli document deriving from Backlog.md source"), dated, per this project's inline-supersession convention. Commit da9c529.
+
+F4/F5 (non-blocking, out of scope for this fix pass) — not touched; left for the orchestrator to track.
+
+Re-verification after all three fixes: zero Classification field values changed (grep -c "Classification:" = 19 before and after; diff of Classification lines against pre-fix-pass commit 9a843d9 is empty); slice count unchanged at 19 Classification fields / 18 #### headings + 1 ### npm-occupancy heading (matching the reviewer's correction that the true count is 19:19, not 18); migration ledger and the two QCLI-2.14-owned files (quest-cli-lore-dependency-and-adapter-contract-evidence.md, quest-cli-pre-implementation-research-program.md) untouched. Gate outputs (final, after all commits): `lore check --strict` -> "21 files, 0 errors, 0 warnings"; `lore validate --strict` -> "21 files, 0 errors, 0 warnings, 6 skipped"; `lore orphans` -> "0 orphan tasks, 0 dangling links". `lore sync` regenerated docs/log.md only (managed block picking up the new commits); committed explicitly as commit 9570959 (no auto-commit in this environment).
+
+Commits this follow-up pass: da9c529 (F3), 77b01f2 (F1), d6a67e5 (F2), 9570959 (log sync).
 <!-- SECTION:NOTES:END -->
