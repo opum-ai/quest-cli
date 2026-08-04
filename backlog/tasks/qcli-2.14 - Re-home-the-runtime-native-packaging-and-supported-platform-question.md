@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude-worker'
 created_date: '2026-08-04 14:35'
-updated_date: '2026-08-04 16:46'
+updated_date: '2026-08-04 16:48'
 labels:
   - campaign
   - research
@@ -51,3 +51,17 @@ Documentation only. Do not claim new scope for any task and do not silently clos
 4. Run lore sync (git add/commit any regenerated managed-block output, since sync does not auto-commit here), then lore check --strict, lore validate --strict, lore orphans and confirm zero errors/warnings/orphans (AC5).
 5. Record verification evidence and diff quotes in --append-notes, commit with Refs: QCLI-2.14 trailer, push branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified before edit: scope-cession paragraph at docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md lines 91-98 read '...that evidence-consumption question belongs to [QCLI-2.9](...), concurrent this wave, per the campaign's cluster-scope split.' Spec's Design > Dependency order table at docs/specs/quest-cli-pre-implementation-research-program.md stopped at the QCLI-2.8 row; Open questions section (untouched by this task) reads 'Final npm package ownership and supported platform matrix.' and 'Runtime and native packaging after Lore's completed evidence is reviewed.' as two separate bullets.
+
+AC1: rewritten paragraph no longer names QCLI-2.9 as owner of runtime/native-packaging/supported-platform evidence; states 'no current QCLI task owns it' and 'QCLI-2.9 is not the owner of either'.
+AC2: paragraph now points to the Spec's Open questions section by link+anchor, names it as holder, and distinguishes the post-Lore-evidence gate on 'Runtime and native packaging...' from the ungated 'Final npm package ownership and supported platform matrix' half, matching the Spec's own two-bullet phrasing verbatim.
+AC3: added QCLI-2.9 (Depends on QCLI-2.1) and QCLI-2.10 (Depends on QCLI-2.5) rows to the Dependency order table, with an Output column for QCLI-2.9 that explicitly scopes it to npm allocation/provenance only; added one sentence noting both sit outside the QCLI-2.2-QCLI-2.7 synthesis chain QCLI-2.8 draws on and that neither resolves either open question.
+AC4: double-checked via git diff — Open Questions section of the Spec is byte-identical (confirmed no lines changed there); no other task's Backlog file was touched (git diff --stat backlog/ shows only this task's own plan/notes, applied via backlog CLI); no scope language ('owns', 'is responsible for', etc.) was added to any task description. No open question closed.
+AC5: after 'lore sync' (regenerated docs/log.md only; no managed-block changes needed since neither edited doc carries Story-coupling managed blocks) and committing docs/log.md separately: 'lore check --strict --plain' -> '21 files, 0 errors, 0 warnings' (exit 0); 'lore validate --strict --plain' -> '21 files, 0 errors, 0 warnings, 6 skipped' (exit 0); 'lore orphans --plain' -> '0 orphan tasks, 0 dangling links' (exit 0). Baseline (pre-edit) was also 0/0/0, so the gate was never red.
+
+Out-of-scope discovery (not acted on): none new. QCLI-2.7's document already records its own out-of-scope discovery (ADR-0009 citation-slice gap) from its own prior pass; not re-touched here.
+<!-- SECTION:NOTES:END -->
