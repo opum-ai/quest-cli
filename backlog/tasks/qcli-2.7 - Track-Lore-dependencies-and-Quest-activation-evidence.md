@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude-worker'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 13:44'
+updated_date: '2026-08-04 13:50'
 labels:
   - campaign
   - research
@@ -116,6 +116,27 @@ NIT 5: SS3's version-floor citation said "the source's own comment (lines 30-45)
 Gates re-run clean after all fixes (lore sync run first): lore check --strict --plain -> "17 files, 0 errors, 0 warnings"; lore validate --strict --plain -> "17 files, 0 errors, 0 warnings, 6 skipped"; lore orphans --plain -> "orphans: 0 orphan tasks, 0 dangling links (none -- every task has an owning doc, every linked task is live)".
 
 Scope discipline: did not touch the AC5 18-row table's classifications, did not restructure either document, did not open/read/cite the quarantined local Backlog.md clone, did not write to lore-cli/lore-doc/opum-doc/quest-doc (read-only re-verification only), did not touch QCLI-2.2 or QCLI-2.9 deliverables, did not check ACs or move status.
+
+Review fix pass, supplement (2026-08-04, worktree 2): the full reviewer verdict landed after the first fix pass and found four more low-severity register issues plus three notes-hygiene nits. F1/F2 from the first fix pass are unchanged. Verified every claim myself before editing (opum-doc read-only checkout: line counts at 7b82afc/d42c016/c5ebee8/846f054^, table row counts at both commits, npm-occupancy wording).
+
+S1 (register, npm-occupancy Permitted use): the widened enumeration ended with a generalizing "all `npm view <pkg>`-surfaced registry metadata" clause, broader than its own list -- read literally it would admit `npm view <pkg> readme` (full authored README) and `dependencies` (dependency graph), neither enumerated and both closer to source than metadata. Bounded the clause to "registry metadata limited to the fields enumerated above" and named readme/dependencies as explicitly excluded, non-illustrative examples.
+
+S2 (register, "Git recovery commits" slice): its own Permitted use asserts a 14-row remote register and 24-row fleet register, justified only as "reachability re-verified" -- which proves the commits exist and touch the path, not that the row counts are correct. Same method/claim mismatch this task corrected elsewhere, reproduced inside the sweep that declared the class absent. Content-verified live in /Volumes/external/repos/opum-doc (read-only): `git show 7b82afc:<former path>` and `git show d42c016:<former path>` both show the "Normative source register" table with 14 data rows and the "Four-host fleet" table with 24 data rows, at both commits. The claim was already TRUE -- corrected only the recorded verification method, did not weaken or reopen the slice.
+
+S3 (register, "Dated Opum fleet and prior-art inventory" slice): "the file was **not** unchanged even as of the previously-cited `d7ca18f` ... in the sense the wording implied" read as flatly contradicting QCLI-2.2's true, properly-bounded "unchanged 846f054 -> HEAD d7ca18f" claim. Reworded to state both facts as complementary: unchanged from 846f054 through d7ca18f, but d7ca18f was already a stale pin by 2026-08-04 (bee848a made one further one-line edit after it). QCLI-2.2 needed no change.
+
+S4 (register, same slice): "292 lines immediately before the rename" was grammatically attached to `7b82afc`/`d42c016`, which are actually 284 and 287 lines at the file's former path -- confirmed via `git show 7b82afc:<former path> | wc -l` = 284, `git show d42c016:<former path> | wc -l` = 287. The 292-line figure belongs to `c5ebee8` ("docs: establish Opum SaaS documentation hub", 2026-08-01), which is `846f054^` -- confirmed via `git show 846f054^:<former path> | wc -l` = 292 and `git log -1 --format='%H %s' c5ebee8`. Named `c5ebee8` explicitly so the 5-line growth (287 -> 292) is no longer unattributed.
+
+S5 (notes hygiene -- corrections to this task's own prose, not the register, which was already precise on all three points):
+- The prior "Post-report correction" note said "re-pinned to opum-doc's **current live HEAD** `7b512d9`"; the register text itself correctly said "then-current" throughout. "Current" is unsustainable -- opum-doc's origin/dev has moved past 7b512d9 more than once since (re-verified live 2026-08-04, read-only). The register's "then-current" framing is the only defensible form; matching it here.
+- The same note wrote "(292 lines)" attached to `7b82afc`/`d42c016` with no qualifier -- worse than S4's register issue, since those commits are 284 and 287 lines, not 292 (292 is `c5ebee8`/`846f054^`, per S4 above).
+- The original implementation notes (top of this task's history) state the new Reference is "415 lines"; it was 419 at first review and is now 460 after both fix-pass commits (wc -l confirmed) -- not correcting the historical figure in place, recording the current one here per the superseding-note convention this campaign uses.
+
+Gates re-run clean after this supplement (lore sync run first): lore check --strict --plain -> "17 files, 0 errors, 0 warnings"; lore validate --strict --plain -> "17 files, 0 errors, 0 warnings, 6 skipped"; lore orphans --plain -> "orphans: 0 orphan tasks, 0 dangling links (none -- every task has an owning doc, every linked task is live)".
+
+Scope discipline unchanged: did not touch the deliverable's AC5 table, did not restructure either document, did not write to opum-doc/lore-cli/lore-doc/quest-doc (read-only re-verification only), did not touch QCLI-2.2/QCLI-2.9, did not check ACs or move status, did not open the quarantined Backlog.md clone.
+
+Self-correction (2026-08-04, same session): the S5 note immediately above miscounted the deliverable's current line count as "460 after both fix-pass commits." Only the register was edited in this supplement's commit (61759e1); the deliverable itself was last touched in 16b60d7 (first fix pass) and has not changed since. `wc -l docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md` and `git show 16b60d7:<path> | wc -l` both confirm 443, not 460. Correcting in place here rather than leaving the wrong figure standing; no document content is affected, only this task's own prose.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
