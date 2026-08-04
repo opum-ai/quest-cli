@@ -66,6 +66,35 @@ blocker (AC3) — none is resolved by drafting this synthesis.
 | `QCLI-2.6` — Quest CLI Git, filesystem, and concurrency threat model | [`quest-cli-git-filesystem-and-concurrency-threat-model.md`](quest-cli-git-filesystem-and-concurrency-threat-model.md) (this repo) | this branch | The five named mutation invariants (`INV-1`–`INV-5`) this document's Git mutation contract restates verbatim, and the topology/repository-removal grounding this document's projection contract cites |
 | `QCLI-2.7` — Quest CLI Lore dependency and adapter contract evidence | [`quest-cli-lore-dependency-and-adapter-contract-evidence.md`](quest-cli-lore-dependency-and-adapter-contract-evidence.md) (this repo) | this branch, as corrected by its own review passes and by `QCLI-2.14` | The live Lore activation-evidence matrix (Part 1) this document's activation-gate section cites without restating; the 15-row `AC5` adapter-requirement classification (Part 2) this document's Lore integration and JSON/exits contracts draw on |
 
+**Caveat — three of this table's own sources are not yet enumerated in the
+register's own admissibility slice.** The register's "Prior QCLI research
+records" slice lists nine specific members as of this writing —
+`QCLI-1`/`QCLI-3`/`QCLI-4`'s component charter, migration ledger, and
+research Spec; `QCLI-2.2`'s reconciliation; the register itself; the
+accepted ADR; `QCLI-2.3`'s black-box scenarios; `QCLI-2.4`'s glossary;
+`QCLI-2.7`'s Lore dependency evidence (register, "Prior QCLI research
+records" slice) — and three sources the Provenance table above cites as
+principal grounding are not among them: `QCLI-2.5`'s [Backlog migration
+fidelity contract](quest-cli-backlog-migration-fidelity-contract.md),
+`QCLI-2.6`'s [Git, filesystem, and concurrency threat
+model](quest-cli-git-filesystem-and-concurrency-threat-model.md), and the
+[Story](../stories/prepare-quests-clean-room-research-foundation.md) this
+campaign answers to. This is the same enumeration-gap class `QCLI-2.12`
+already closed for other already-relied-upon documents ("None of these
+three was previously named in this enumeration despite already being
+relied on, under this slice's Allowed classification, by merged
+deliverables" — register, "Prior QCLI research records" slice). It is
+recorded here as a genuine register gap and reported as an out-of-scope
+finding for the register's owner; this document's own scope boundary
+excludes editing the register (see "Reconciliation across the ten
+dependencies," below), so the gap is not closed from here. This does not
+weaken AC1 substantively: each of the three is itself independently
+grounded in its own admissible evidence classes (principally the
+"Backlog.md public surface" slice, via `QCLI-2.5`'s and `QCLI-2.6`'s own
+citations) — the open question is only which register slice should list
+the source document itself as an admissible member, not whether the
+underlying claims are admissible.
+
 `QCLI-2.11`, `QCLI-2.12`, `QCLI-2.13`, and `QCLI-2.14` produced no
 deliverable of their own to cite separately — each is a correction pass
 against the register, the migration ledger, the research program Spec, and
@@ -359,6 +388,14 @@ platforms Quest ships for — see "Unresolved component decisions," below.
 
 #### 5. Migration
 
+*Version pin.* Every Backlog-behavior fact this contract restates below
+(e.g., the active/archive ID collision being invisible to `doctor`) is
+derived entirely from the pinned Backlog.md build `QCLI-2.5`'s fidelity
+contract establishes; this document defers to, and does not duplicate,
+that document's own Pinned research revision and Recheck clause (AC6),
+stated at [the fidelity contract](quest-cli-backlog-migration-fidelity-contract.md)'s
+head — re-run its recheck steps before relying on any fact below.
+
 *Grounded in:* `QCLI-2.5`'s
 [Backlog migration fidelity contract](quest-cli-backlog-migration-fidelity-contract.md)
 AC1 (inventory), AC2 (field disposition), AC3 (the fidelity contract
@@ -383,13 +420,19 @@ itself), and its Findings.
   Quest's own collision scan must be strictly wider than that scope.
 - **Source immutability:** the migration read phase must never invoke a
   source-mutating Backlog.md command against a user's live project, at any
-  point, for any convenience reason (e.g., never auto-run a repair command
-  to "clean up" a collision before reading it).
-- **One-writer coexistence:** the read pass must not assume the source
-  project is quiescent from any Backlog.md-visible signal (Backlog provides
-  no lock file); a long-running read pass must re-scan and diff the file
-  list after completing and flag, never silently merge, any file that
-  changed mid-scan.
+  point in the migration flow, including for convenience (e.g., never
+  auto-run a repair command to "clean up" a collision before reading it —
+  report the collision and let the user, or a later, explicitly consented
+  step, decide).
+- **One-writer coexistence:** Quest's migration read pass must not run
+  concurrently with a live Backlog.md write session against the same
+  source repository — this is a documented operational precondition of
+  migration, not a technical guarantee Quest can derive or enforce from
+  Backlog's own state. The read pass must not assume the source project is
+  quiescent from any Backlog.md-visible signal (Backlog provides no lock
+  file); a long-running read pass must re-scan and diff the file list
+  after completing and flag, never silently merge, any file that changed
+  mid-scan.
 - **Rollback evidence:** for every record a migration creates on the target
   side, Quest must record source folder, source ID, target ID, and a
   timestamp sufficient to support a manual rollback without re-running the
@@ -604,7 +647,7 @@ runtime dependencies, generated CLI or package scaffolding").
 | 1 — Component decisions (no code) | Resolve the JSON-envelope shape, the not-found signal convention, canonical ID grammar, product license, and explicit ownership of the platform and runtime open questions | CLI identity; JSON and exits | The seven categories in "Unresolved component decisions," above; not blocked on the Lore gate itself | Proposal only |
 | 2 — Core execution engine | Claims, leases, gate mechanism (excluding actor eligibility), event-derived state, operation-owned Git mutation satisfying `INV-1`–`INV-5` | Lifecycle; Git mutation | Phase 1's ID-grammar and envelope decisions | Proposal only, depends on Phase 1 |
 | 3 — Local projection | Rebuildable projection, freshness/staleness reporting, resume-not-restart synchronization per `BB-07`/`BB-08` | Projection | Phase 2 | Proposal only, depends on Phase 2 |
-| 4 — Backlog migration | Deterministic dry-run preview, reversible ID mapping, collision handling across both scopes, rollback evidence | Migration | Phase 2 (a canonical ID grammar to map into); Phase 3 (a projection to populate) | Proposal only, depends on Phases 2–3 |
+| 4 — Backlog migration | Deterministic dry-run preview, reversible ID mapping, collision handling across both scopes, rollback evidence — `QCLI-2.10`'s [Backlog adoption and migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md) is the authored operational procedure for this phase (informational cross-reference only; not a synthesis input, per the research program Spec's dependency table) | Migration | Phase 2 (a canonical ID grammar to map into); Phase 3 (a projection to populate) | Proposal only, depends on Phases 2–3 |
 | 5 — Lore adapter | Satisfy the `AC5` "already satisfiable" items unilaterally; the "requiring a `lore-doc` boundary decision" items (binary name/override, probe sequence, write-response shape, coupling-label format reuse) cannot start regardless of internal readiness | Lore integration | Phase 1 (envelope shape); `lore-doc` boundary decisions — an external blocker, not a Quest-side task | Proposal only, partially blocked externally |
 | 6 — Packaging and release | Clean-install verification; protected publication of `@opum-ai/quest`; component release and rollback runbooks | CLI identity (packaging) | Phase 0's gate; the runtime and platform decisions named in Unresolved component decisions; the ADR's own consequence — "must not display a working install command until a protected immutable package is actually published and clean-install verification passes" | Proposal only, last phase, cannot begin before Phase 0 regardless of other phases' readiness |
 
