@@ -1,9 +1,10 @@
 ---
 id: QCLI-2.10
 title: Author the Backlog-to-Quest adoption and migration playbook
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-04 06:23'
+updated_date: '2026-08-04 22:04'
 labels:
   - campaign
   - research
@@ -13,6 +14,7 @@ labels:
   - clean-room
   - no-implementation
   - 'cluster:migration'
+  - wave-5
 dependencies:
   - QCLI-2.5
 documentation:
