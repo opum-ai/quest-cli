@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-04 14:34'
-updated_date: '2026-08-04 22:00'
+updated_date: '2026-08-04 22:57'
 labels:
   - campaign
   - research
@@ -14,8 +14,11 @@ labels:
   - correction
   - no-implementation
   - 'cluster:provenance'
+  - 'doc:stories/prepare-quests-clean-room-research-foundation'
 dependencies:
   - QCLI-2.11
+documentation:
+  - docs/stories/prepare-quests-clean-room-research-foundation.md
 parent_task_id: QCLI-2
 priority: high
 type: docs

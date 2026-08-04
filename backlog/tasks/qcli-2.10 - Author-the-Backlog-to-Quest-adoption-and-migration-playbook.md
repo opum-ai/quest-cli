@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-04 06:23'
-updated_date: '2026-08-04 22:31'
+updated_date: '2026-08-04 22:57'
 labels:
   - campaign
   - research
@@ -15,11 +15,13 @@ labels:
   - clean-room
   - no-implementation
   - 'cluster:migration'
+  - 'doc:stories/prepare-quests-clean-room-research-foundation'
 dependencies:
   - QCLI-2.5
 documentation:
   - docs/reference/quest-cli-component-charter.md
   - docs/reference/former-ocli-to-qcli-migration-ledger.md
+  - docs/stories/prepare-quests-clean-room-research-foundation.md
 parent_task_id: QCLI-2
 priority: high
 type: spike
