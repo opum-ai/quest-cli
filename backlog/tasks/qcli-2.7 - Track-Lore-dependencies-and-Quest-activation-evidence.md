@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude-worker'
 created_date: '2026-08-01 17:10'
-updated_date: '2026-08-04 13:11'
+updated_date: '2026-08-04 13:24'
 labels:
   - campaign
   - research
@@ -64,6 +64,29 @@ This task OWNS all edits to docs/reference/quest-cli-research-source-register.md
 5. Run 'lore sync' then the verification gates ('lore check --strict --plain', 'lore validate --strict --plain', 'lore orphans --plain'); fix to zero errors/warnings.
 6. Record implementation notes (decisions, split-rule refusals with rationale, literal gate output) via --append-notes; commit in small logical commits with 'Refs: QCLI-2.7'; push the branch as the last action. Do not check ACs, write a final summary, or move the task to Done.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Deliverable: docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md (new Reference, 415 lines) plus edits to docs/reference/quest-cli-research-source-register.md (AC7, sole-owner edit) and a one-line docs/index.md pointer.
+
+Part 1 (AC1-3): matrix links the lore-doc gate (docs/specs/quest-integration-and-lore-release-gate.md) and LDOC-4 (re-verified live To Do) without restating the predicate; 5 rows classified evidence-complete / provisionally researchable / blocked on a named owner result / requiring owner input; explicit Activation handover section requires live re-verification and treats "blocked"/"requiring owner input" rows as an unconditional stop.
+
+Part 2 (AC4-6): adapter contract reviewed against src/adapters/backlog.ts at tag v0.1.0 (commit e621d20), re-verified byte-identical against dev HEAD 4056068 (29 commits ahead; the "tag not an ancestor" result is a branch-topology artifact of a promote-to-main merge, not content divergence -- confirmed via git merge-base --is-ancestor on the merge's second parent). Central finding: BacklogAdapter is lore-cli's only adapter type (27 files reference it by name; zero hits for TaskAdapter/pluggable/task-tracker across src+docs/specs+docs/adr) -- no generic backend abstraction exists, so several AC5 items land on "requiring a lore-doc boundary decision" rather than Quest's alone. 18-row AC5 classification table names every divergence explicitly (binary name/config, envelope shape divergence from Lore's own outbound contract, MIN-version-floor+probe-sequence, create's without-json/without-plain regex convention, existence-check exit-code-vs-JSON-error tension, doc: label-format reuse).
+
+Split rule (AC7): new register subsection "The lore-cli source-admissibility split rule" records the owner's admissible/not-admissible line verbatim-equivalent and amends the prior blanket TypeScript-derivation exclusion inline. Closed two known register gaps: classified lore-cli-release-truth.md + release-publishing.md (named as QCLI-2.7 evidence, previously unclassified); retired the Backlog-corpus slice's closed 5/6-document list for a standing catch-all, naming historical-upstream-backlog-json-tag-watch.md (known gap) plus a newly discovered instance, docs/adr/0009-story-task-coupling-reconciliation.md, which asserts uncited Backlog.md behavior claims ("Backlog.md drops unknown frontmatter keys on edit"; "--doc annotation is not reliably queryable") in the same taint style as ADR-0002/ADR-0012 despite not using ADR-0012's exact "verified against Backlog.md source" phrasing.
+
+Split-rule refusals: read docs/adr/0009 for question discovery only, cited nothing from it -- sourced the back-reference/metadata-storage requirement (AC4 item 6) from src/adapters/backlog.ts's BacklogTask.labels/EditTaskPatch/CreateTaskInput directly instead, which states the requirement without any Backlog-behavior claim. Never opened docs/adr/0002, docs/adr/0012, backlog-cli-contract.md, backlog-json-schema.md, or backlog-json-patch.md in this session (already-known-tainted; relied on the register's existing summary of them). Never opened Backlog.md implementation source, the local Backlog.md clone, or any Quarantined artifact.
+
+Gates (run from /Users/jdnewhouse/.treehouse/quest-cli-f11e72/2/quest-cli after `lore sync`):
+lore check --strict --plain -> "17 files, 0 errors, 0 warnings"
+lore validate --strict --plain -> "17 files, 0 errors, 0 warnings, 6 skipped"
+lore orphans --plain -> "orphans: 0 orphan tasks, 0 dangling links"
+
+Commits: e17b527 (new Reference doc), c03c63b (register split rule + gap closures), e69bb9b (pre-existing lore-sync drift reconciliation: docs/log.md + two Story managed blocks, unrelated hand edits).
+
+Out of scope, reported not acted on: docs/adr/0009's Backlog-behavior claims (recorded in the register's catch-all, not independently re-derived -- that re-derivation is QCLI-2.5's job at the public v1.49.3 surface if ever needed). Runtime/native-packaging/supported-platform Lore-precedent evidence explicitly left to QCLI-2.9, not evaluated in the Part 1 matrix, per the wave's cluster-scope split.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 
