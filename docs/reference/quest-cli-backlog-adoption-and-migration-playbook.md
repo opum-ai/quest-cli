@@ -13,7 +13,7 @@ tags:
   - rollback
   - clean-room
   - research
-summary: Operational cutover, coexistence, dry-run, and rollback procedure for an existing Backlog.md project adopting Quest, with the evidence each step and phase must produce.
+summary: Operational cutover, coexistence, dry-run, and rollback procedure for an existing Backlog.md project adopting Quest, with the evidence each step must produce.
 timestamp: 2026-08-04T22:11:26.730Z
 ---
 
@@ -86,13 +86,21 @@ answers the operational question the fidelity contract's own AC3 leaves
 open: given those design commitments, what sequence of human/agent actions,
 in what order, with what proof at each point, turns an existing Backlog.md
 project into one that has adopted Quest without losing data and without an
-unrecoverable half-migrated state?
+unrecoverable half-migrated state? For the contract-side view of where this
+procedure sits in Quest's own proposed delivery sequence, see `QCLI-2.8`'s
+[component contracts and delivery
+graph](quest-cli-component-contracts-and-delivery-graph.md#proposed-component-delivery-graph-dormant),
+Phase 4 ("Backlog migration") — an informational cross-reference only; this
+playbook is not one of that document's synthesis inputs (per the [research
+program
+Spec](../specs/quest-cli-pre-implementation-research-program.md)'s dependency
+table) and this note adds no dependency in either direction.
 
 This document is:
 
 - a per-project procedure (preconditions, ordered steps, success signals,
   abort conditions — AC1);
-- a coexistence-window specification naming the single writer at each phase,
+- a coexistence-window specification naming the single writer at each step,
   the drift-detection mechanism, and the both-written disposition procedure
   (AC2);
 - a dry-run and rollback evidence contract precise enough that a project can
@@ -119,14 +127,16 @@ This document is **not**:
 
 ### Vocabulary used below
 
-- **Lifecycle folder.** One of Backlog's four record locations for tasks and
+- **Lifecycle folder.** One of Backlog's record locations for tasks and
   drafts — `backlog/tasks/` (active), `backlog/completed/` (populated only
   by `task complete <id>`), `backlog/drafts/` (populated by `task create
-  --draft`, `draft create`, or `task demote`), and
-  `backlog/archive/tasks/`, `backlog/archive/drafts/`,
-  `backlog/archive/milestones/` (populated by `task archive`/`draft
-  archive`/`milestone archive`/`milestone remove`) — per the fidelity
-  contract's [Inventory of user-owned Backlog
+  --draft`, `draft create`, or `task demote`), and the archive tier,
+  `backlog/archive/tasks/` and `backlog/archive/drafts/` (populated by
+  `task archive`/`draft archive`). `backlog/archive/milestones/`
+  (populated by `milestone archive`/`milestone remove`) is grouped with the
+  archive tier for the same archive-boundary, source-folder-qualified-ID
+  reasoning below, but is not itself a task or draft location — per the
+  fidelity contract's [Inventory of user-owned Backlog
   records](quest-cli-backlog-migration-fidelity-contract.md#inventory-of-user-owned-backlog-records-ac1).
   Documents (`backlog/docs/`) and decisions (`backlog/decisions/`) are
   separate record families with their own lifecycle, addressed in their own
@@ -203,18 +213,18 @@ next one.
 | 1. Freeze announcement and snapshot | Global preconditions P1–P6 satisfied | Announce, out of band (a team channel, project doc, or this playbook's own dated evidence log — never a Backlog-file edit, since Backlog has no field for it), that Backlog writes are frozen from timestamp T; capture the snapshot fingerprint of `backlog/` at T | The fingerprint is recorded, and re-capturing it immediately after (T+ε) is identical | Any difference between the T and T+ε fingerprints — a write landed during the announcement window; abort, re-announce, re-snapshot |
 | 2. Read pass (non-mutating) | Step 1's fingerprint recorded | Enumerate every record via non-mutating commands only: `task list --json` (active + completed), `draft list --plain` (drafts have no `--json` anywhere in the enumerated surface, per the fidelity contract's Draft row), the archive folders read directly on disk, `milestone list --plain`, `doc list --plain`, decisions read from their raw Markdown files (no `decision list`/`view` command exists, per the fidelity contract's Findings #10), and `task view --json`/`draft view --plain` for every individual record's full detail (description, AC/DoD, plan, notes, comments, refs, deps, milestone, hierarchy) | The total record count from this pass equals an independent on-disk count (e.g. counting `.md` files under every lifecycle folder plus `backlog/docs/` and `backlog/decisions/`) — a completeness proof, not a sampled one, mirroring the fidelity contract's own "no node enumerated from `--help` text alone without a corresponding execution row" discipline | Re-checking the snapshot fingerprint at the end of the read pass shows drift — per the fidelity contract's [One-writer coexistence](quest-cli-backlog-migration-fidelity-contract.md#one-writer-coexistence) instruction to "re-scan and diff the file list after the read completes and flag (never silently merge) any file that changed mid-scan"; abort, return to Step 1 |
 | 3. Collision and gap scan | Step 2's inventory complete and fingerprint-verified | Re-apply the P3/P4 collision checks against the full Step 2 inventory (not just a sample); separately, list every field the fidelity contract's [Field-by-field disposition](quest-cli-backlog-migration-fidelity-contract.md#field-by-field-disposition-ac2) table marks "Explicit unsupported gap" (the cross-branch task-state overlay, the milestone completion percentage, any fuzzy-search-index state) so the project sees, before proceeding, exactly what will not be reproduced | A written collision/gap report exists covering all four task lifecycle folders plus documents and decisions, with zero unresolved collisions | Any collision remains unresolved (declined by the project, or a claimed resolution cannot be independently re-verified as landed) — abort; migration does not proceed against an ambiguous ID space |
-| 4. Dry-run mapping preview (non-mutating) | Step 3's report is clean | Produce the deterministic preview defined in [Deterministic dry runs](quest-cli-backlog-migration-fidelity-contract.md#deterministic-dry-runs) below — per source record: lifecycle folder, source-folder-qualified ID, proposed target identity, and any flag carried over from Step 3 | The preview covers 100% of Step 2's count; re-running Step 4 against the unchanged Step 1 snapshot produces a byte-identical preview (idempotence); a fingerprint check taken immediately after preview generation still matches Step 1's | The preview is not idempotent, its coverage is under 100%, or the post-preview fingerprint has drifted — do not proceed; the mapping is not yet trustworthy |
+| 4. Dry-run mapping preview (non-mutating) | Step 3's report is clean | Produce the deterministic preview defined in [Deterministic dry runs](quest-cli-backlog-migration-fidelity-contract.md#deterministic-dry-runs) — per source record: lifecycle folder, source-folder-qualified ID, proposed target identity, and any flag carried over from Step 3 | The preview covers 100% of Step 2's count; re-running Step 4 against the unchanged Step 1 snapshot produces a byte-identical preview (idempotence); a fingerprint check taken immediately after preview generation still matches Step 1's | The preview is not idempotent, its coverage is under 100%, or the post-preview fingerprint has drifted — do not proceed; the mapping is not yet trustworthy |
 | 5. Human review and apply consent | Step 4's preview accepted as final | The project reviews the preview and records an explicit, dated, attributed consent to apply it — the same preview/apply split `backlog doctor`'s own `--fix`/`--yes` gate models (per the fidelity contract's Duplicate-ID collision table: `doctor --fix` without `--yes` under non-interactive stdin refuses with "Interactive confirmation is unavailable... use --fix --yes") | A dated consent record exists, naming who approved, when, and against which preview's fingerprint | Consent withheld, or the Step 1 snapshot fingerprint no longer matches Backlog's current live state (drift since Step 4) — return to Step 1 |
-| 6. Apply (target-only; Backlog untouched) | Step 5 consent recorded and snapshot still current | Create the target-side records from the accepted mapping, once; for every created record, log the rollback-evidence tuple — source folder, source ID, target ID, timestamp — per [Rollback evidence](quest-cli-backlog-migration-fidelity-contract.md#rollback-evidence) below. No Backlog command from the fidelity contract's mutating list (`task create/edit/archive/complete/demote`, `doctor --fix`, `config set`, `milestone add/rename/remove/archive`, `doc create/update`, `decision create`, `init` against an existing project) is ever invoked against the project's Backlog repository as part of this step, per [Source immutability](quest-cli-backlog-migration-fidelity-contract.md#source-immutability) | Every accepted-preview record has a matching log entry (count-for-count); a fresh fingerprint check on the Backlog project immediately after apply is byte-identical to Step 1's — proving Backlog itself was never written by this step | The created-record count does not match the accepted preview (a partial apply), or the post-apply Backlog fingerprint has changed from Step 1's — treat as a failed apply requiring full rollback (Step 6 has no partial-success path; an unverifiable partial state is, by this contract, not a completed step) |
+| 6. Apply (target-only; Backlog untouched) | Step 5 consent recorded and snapshot still current | Create the target-side records from the accepted mapping, once; for every created record, log the rollback-evidence tuple — source folder, source ID, target ID, timestamp — per [Rollback evidence](quest-cli-backlog-migration-fidelity-contract.md#rollback-evidence). No Backlog command from the fidelity contract's mutating list (`task create/edit/archive/complete/demote`, `doctor --fix`, `config set`, `milestone add/rename/remove/archive`, `doc create/update`, `decision create`, `init` against an existing project) is ever invoked against the project's Backlog repository as part of this step, per [Source immutability](quest-cli-backlog-migration-fidelity-contract.md#source-immutability) | Every accepted-preview record has a matching log entry (count-for-count); a fresh fingerprint check on the Backlog project immediately after apply is byte-identical to Step 1's — proving Backlog itself was never written by this step | The created-record count does not match the accepted preview (a partial apply), or the post-apply Backlog fingerprint has changed from Step 1's — treat as a failed apply requiring full rollback (Step 6 has no partial-success path; an unverifiable partial state is, by this contract, not a completed step) |
 | 7. Coexistence window opens | Step 6 fully verified | Record, in the same out-of-band evidence log as Step 1 (never in a Backlog file — Backlog exposes no authority/lock field to write it into), which tool is now the single writer for new and updated work: hard cutover (Backlog read-only from this instant, window length ≈ 0) or bounded coexistence (both tools may be *read*, but only the newly-designated tool may be *written*, for a stated, dated window) | The designation and its model (hard/bounded) are recorded with a timestamp, and, for bounded coexistence, an explicit window-close date or condition | Not applicable — this step is a declaration; see Step 8 for what happens if the freeze it declares is violated |
 | 8. Drift monitoring during the window | Step 7's designation in force | Re-capture Backlog's fingerprint periodically (at minimum once at window close) and diff against the fingerprint the freeze was declared against | The fingerprint is unchanged through window close — Backlog stayed frozen as designated; no reconciliation needed | Fingerprint has changed — see "What happens when both have written," below; the window does not close until every drift record has a recorded disposition |
 | 9. Coexistence window closes | Step 8 resolved (zero drift, or every drift item disposed) | Record window closure in the evidence log | Backlog's fingerprint at closure equals Step 1's fingerprint plus exactly the disposed deltas from Step 8 — nothing unaccounted for | Undisposed drift remains — the window cannot close; return to Step 8 |
 
 ### The coexistence window
 
-**Single writer per phase.** Backlog's own project files (`backlog/` or its
+**Single writer per step.** Backlog's own project files (`backlog/` or its
 configured equivalent) are never written by anything this playbook
-describes as "Quest" or "the target" at any phase — Step 6 creates
+describes as "Quest" or "the target" at any step — Step 6 creates
 target-side records only, and Step 6's own success signal is a fingerprint
 proof that Backlog did not change. This extends the fidelity contract's
 [Source immutability](quest-cli-backlog-migration-fidelity-contract.md#source-immutability)
@@ -386,11 +396,23 @@ Step 3 above so a project sees them before consenting to apply):
 - **The `browser` command's `/api/tasks` HTTP endpoint**, as a data source
   for this procedure. It exists and was observed to serve JSON (fidelity
   contract, Execution evidence, Shell integration table), but its field
-  shapes diverge from the CLI's own `--json` contract and it is not part of
-  the register's admissible "published documentation /
-  `--help` / `--plain`/`--json` output" surface. Every read step above uses
-  only the CLI and on-disk artifacts; `browser`'s HTTP API is never a
-  migration evidence source.
+  shapes diverge from the CLI's own `--json` contract. The register's
+  "Backlog.md public surface" slice does not itself exclude this endpoint —
+  its stated Exclusions are narrower: "a behavior observed only by reading
+  source, not by running the tool, is not admissible" (research source
+  register, "Backlog.md public surface" slice), and `/api/tasks` was
+  observed by running the tool. The restriction not to treat it as a
+  citable migration-evidence source is `QCLI-2.5`'s own, added under the
+  enumeration clause the fidelity contract's intro states for
+  process-level and HTTP-probe evidence (fidelity contract, Owner ruling
+  paragraph: `curl` probes of `browser`'s local HTTP server "recorded...
+  as evidence of what `browser` serves, but... not treated as a citable
+  public contract") — the same self-imposed-rather-than-register-derived
+  pattern `QCLI-2.8`'s own [residual-gap
+  note](quest-cli-component-contracts-and-delivery-graph.md#reconciliation-across-the-ten-dependencies)
+  identifies for a different evidence class (process-level responses).
+  Every read step above uses only the CLI and on-disk artifacts;
+  `browser`'s HTTP API is never a migration evidence source.
 - **Interactive-wizard session state** (`config` run bare, `cleanup`,
   `agents --update-instructions`). None of these persists anything on disk
   the fidelity contract's Execution evidence could find — there is nothing
