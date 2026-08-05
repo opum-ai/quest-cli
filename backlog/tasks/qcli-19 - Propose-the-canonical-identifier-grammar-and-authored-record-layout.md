@@ -1,10 +1,10 @@
 ---
 id: QCLI-19
 title: Propose the canonical identifier grammar and authored-record layout
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 12:35'
+updated_date: '2026-08-05 15:29'
 labels:
   - campaign
   - 'cluster:identity'
@@ -48,3 +48,26 @@ Deliver a proposal for owner ruling. Do not edit the open component decisions re
 - [ ] #6 The open component decisions register is not edited by this task
 - [ ] #7 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Ground the proposal in the live sources before writing: register entry D4 and the "What is not open" section in docs/reference/quest-cli-open-component-decisions.md; the accepted ADR docs/adr/migrate-from-backlog-md-reversibly-without-inheriting-its-id-grammar.md; the lease ADR docs/adr/bound-claims-with-leases-evaluated-against-the-evaluator-s-own-clock.md ("Exactly one lease exists per canonical task, system-wide"); the threat model docs/reference/quest-cli-git-filesystem-and-concurrency-threat-model.md sections "Aliases", "Case sensitivity" (TM-10), and "Subdirectories" (TM-11, BB-10); and FR-IDENT-3/4/6/7/8 and FR-MIG-2/7 in docs/specs/quest-cli-functional-requirements.md. Read only; none of these are edited.
+
+2. Scaffold the deliverable with `lore new reference "Quest CLI canonical identifier grammar and authored-record layout proposal"` under docs/reference/, matching the frontmatter/citation conventions of sibling Reference docs (grounding table, read-only citations of the register/ADR/threat-model, explicit non-goals).
+
+3. Author the proposal body (outside any lore-managed block) covering, per the task's acceptance criteria:
+   - A recommended canonical identifier grammar (fixed non-configurable literal prefix + flat, unpadded, monotonic decimal sequence; ASCII-only alphabet; single fixed canonical case; global counter, not scoped per folder/lifecycle state) plus at least three alternatives considered (opaque UUID/ULID, title-derived slug, and Backlog-style project-configurable/zero-padded/dot-suffixed grammar) with the reasoning for rejecting each and recommending the proposed shape.
+   - An explicit subsection mapping the proposal against each of the five settled constraints named in the task description (ADR non-inheritance; one canonical identity with aliases; Quest's-own-comparison-logic uniqueness; exactly-one-lease-per-canonical-task; migration mapping on source-folder+source-identifier, reversible).
+   - Explicit Unicode normalisation (NFC) and case-folding (Unicode default case folding for aliases/free text; ASCII case-fold for the restricted canonical-ID alphabet) rules, and a named-anomaly / reject-at-creation resolution for the TM-10 cross-filesystem case-collision scenario, verified identically regardless of which clone's filesystem performs the check.
+   - The implied authored-record layout: one Git-tracked file per canonical task, filename anchored on the canonical-ID token (organizational subdirectories carry no identity meaning), and an enumeration rule (recursive walk, no symlink following, fold-compare every discovered ID, structured conflict rather than silent pick/merge) that finds each record exactly once at any nesting depth.
+   - An explicit framing statement: this is a proposal for owner ruling; no ADR is created and no decision is marked accepted.
+
+4. Link the new Reference doc's provenance/citation to the owning Story (docs/stories/follow-through-on-the-quest-cli-design-layer.md) the way sibling proposal-shaped Reference docs do; confirm via `lore instructions linking` whether `lore link` applies here (it couples Story <-> Backlog task ids, not Story <-> Reference doc, so the Story coupling is already via QCLI-19's `doc:` label / the Story's existing `tasks:` list) — do not touch the Story's managed task block by hand, only run `lore sync` if reconciliation is needed.
+
+5. Run the three verification gates (`lore validate --strict`, `lore check`, `lore orphans`) and iterate until each is clean; record the literal output as evidence.
+
+6. Record notes on the task via `backlog task edit QCLI-19 --append-notes` (via a scratch file, per the apostrophe/heredoc bug) summarizing what was authored and pasting the gate output. Do not check acceptance criteria or write a final summary or change status away from In Progress.
+
+7. Commit in small logical commits (`docs(identity): ...`, each with a `Refs: QCLI-19` trailer) and push the branch as the last action.
+<!-- SECTION:PLAN:END -->
