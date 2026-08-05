@@ -25,7 +25,10 @@ task is created.
 - task/event/workspace schemas and local configuration;
 - dependency readiness, claims, leases, gates, lifecycle, and evidence;
 - safe filesystem and operation-owned Git behavior;
-- migration, coexistence, aliases, and reversible fidelity reports;
+- migration, coexistence, aliases, and reversible fidelity reports — see the
+  [Backlog adoption and migration
+  playbook](quest-cli-backlog-adoption-and-migration-playbook.md) for the
+  operational procedure;
 - rebuildable local projection, freshness, recovery, and scale;
 - versioned Lore import/link/adapter behavior;
 - unit, contract, integration, real-clone, fault, packaging, and release tests;
