@@ -1063,8 +1063,8 @@ named slice, never to every file in its repository.
   the per-slice admission authority every other citation in this document,
   and the rest of this list, depends on. **Traceability audit, 2026-08-05,
   `QCLI-15`:** `QCLI-2.1`'s own settlement record flagged this slice's
-  Allowed value as "classified Allowed on sound reasoning, but that
-  specific value is not traceable to the task notes it cites" — checked
+  Allowed value as "classified Allowed on sound reasoning but that
+  specific value is not traceable to the task notes" — checked
   directly rather than assumed: `QCLI-1`, `QCLI-3`, and `QCLI-4`'s own task
   notes (searched for "allow"/"admiss"/"classif") say nothing about this
   register's Classification vocabulary, because none of them existed after
@@ -1077,9 +1077,10 @@ named slice, never to every file in its repository.
   the Classification vocabulary's definition of Allowed above ("exact owner
   decision, authored requirement, public contract, or attested data
   slice"): every enumerated member — the component charter, the migration
-  ledger, the research Spec, `QCLI-2.2`'s reconciliation, the accepted ADR,
-  and this register itself — is quest-cli's own authored requirement or
-  decision record, not third-party or legacy material a task note would
+  ledger, the research Spec, the accepted ADR, this register itself, and
+  the nine `QCLI-2.2`–`QCLI-2.10` Reference deliverables — is quest-cli's
+  own authored requirement or decision record, not third-party or legacy
+  material a task note would
   need to pre-clear the way, for example, an Opum-sourced or Backlog.md-
   sourced slice does. Two sibling findings recorded in the same `QCLI-2.1`
   settlement paragraph were later closed by `QCLI-2.7` (the release-gate-

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:59'
+updated_date: '2026-08-05 13:10'
 labels:
   - campaign
   - 'cluster:provenance'
@@ -77,4 +77,14 @@ Gate output (re-run after lore sync reconciled an unrelated in-progress status-d
 Out-of-scope observation (not acted on, per task scope boundary): docs/reference/quest-cli-open-component-decisions.md still lists both findings in its 'Residual items recorded but never filed' table as if unfiled; both are now filed and audited by this task, so those two rows are stale. That file's target ownership sits with a different task per this wave's shared-file rule, not this one.
 
 Commits: 449fa4a (Refs: QCLI-15, docs/register + docs/log.md + Story managed-block sync); 9433acb (chore(backlog): sync task changes, auto-committed by lore sync when the in-progress status/plan were recorded).
+
+Fix pass (reviewer request_changes, 2026-08-05): applied both required fixes to docs/reference/quest-cli-research-source-register.md's Traceability audit note (Prior QCLI research records slice, Ownership rationale field).
+
+F1 (major, required): the audit note's enumeration at ~line 1079 named only six members while asserting the conclusion over "every enumerated member" of a slice the register itself states (line 918) enumerates fourteen. Fixed by reusing the slice's own correct exhaustive formulation (from the Exclusions field, ~line 1109) in place of the incomplete list: now reads "every enumerated member -- the component charter, the migration ledger, the research Spec, the accepted ADR, this register itself, and the nine QCLI-2.2-QCLI-2.10 Reference deliverables -- is quest-cli's own authored requirement or decision record...". The underlying conclusion (all members are quest-cli's own authored material, none third-party/legacy) is unchanged -- only which members are named was wrong.
+
+F2 (minor, recommended): the note misquoted QCLI-2.1's settlement text -- attributed "classified Allowed on sound reasoning, but that specific value is not traceable to the task notes it cites" to QCLI-2.1 verbatim, but QCLI-2.1's actual text (confirmed via `backlog task view QCLI-2.1 --plain`) has no comma before "but" and ends at "the task notes" with no "it cites" (that phrase originates in QCLI-15's own task description, not QCLI-2.1's record). Fixed by correcting the quoted text to match QCLI-2.1 verbatim.
+
+No Classification value changed (grep -c '^- \*\*Classification:\*\*' = 19, before and after, matching the pre-fix-pass count). No file other than the register touched.
+
+Gate re-run after fixes: `lore validate --strict --plain` -> 38 files, 0 errors, 0 warnings, 6 skipped, exit 0. `lore check --strict --plain` -> 38 files, 0 errors, 0 warnings, exit 0. `lore orphans --plain` -> 0 orphan tasks, 0 dangling links, exit 0.
 <!-- SECTION:NOTES:END -->
