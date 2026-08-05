@@ -72,11 +72,11 @@ Three kinds of work, deliberately in one Story because they share a cause:
 | Task | Title | Status |
 |---|---|---|
 | [QCLI-12](../../backlog/tasks/qcli-12%20-%20Fix-the-stale-QCLI-2.8-dependency-order-row-in-the-research-programme-Spec.md) | Fix the stale QCLI-2.8 dependency-order row in the research programme Spec | In Progress |
-| [QCLI-13](../../backlog/tasks/qcli-13%20-%20Backlink-the-adoption-playbook-from-the-component-charter-and-migration-ledger.md) | Backlink the adoption playbook from the component charter and migration ledger | To Do |
-| [QCLI-14](../../backlog/tasks/qcli-14%20-%20Correct-the-bin-path-row-in-the-packaging-contracts-Description-column.md) | Correct the bin-path row in the packaging contract's Description column | To Do |
-| [QCLI-15](../../backlog/tasks/qcli-15%20-%20Audit-two-unresolved-register-findings-the-untraceable-Allowed-value-and-QCLI-2.12s-F4-and-F5.md) | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | To Do |
-| [QCLI-16](../../backlog/tasks/qcli-16%20-%20Audit-and-correct-the-licensing-source-misattribution-in-the-contracts-and-delivery-graph.md) | Audit and correct the licensing-source misattribution in the contracts and delivery graph | To Do |
-| [QCLI-17](../../backlog/tasks/qcli-17%20-%20Correct-the-open-component-decisions-registers-Backlog.md-reclassification-trigger-claim.md) | Correct the open component decisions register's Backlog.md reclassification-trigger claim | To Do |
+| [QCLI-13](../../backlog/tasks/qcli-13%20-%20Backlink-the-adoption-playbook-from-the-component-charter-and-migration-ledger.md) | Backlink the adoption playbook from the component charter and migration ledger | In Progress |
+| [QCLI-14](../../backlog/tasks/qcli-14%20-%20Correct-the-bin-path-row-in-the-packaging-contracts-Description-column.md) | Correct the bin-path row in the packaging contract's Description column | In Progress |
+| [QCLI-15](../../backlog/tasks/qcli-15%20-%20Audit-two-unresolved-register-findings-the-untraceable-Allowed-value-and-QCLI-2.12s-F4-and-F5.md) | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | In Progress |
+| [QCLI-16](../../backlog/tasks/qcli-16%20-%20Audit-and-correct-the-licensing-source-misattribution-in-the-contracts-and-delivery-graph.md) | Audit and correct the licensing-source misattribution in the contracts and delivery graph | In Progress |
+| [QCLI-17](../../backlog/tasks/qcli-17%20-%20Correct-the-open-component-decisions-registers-Backlog.md-reclassification-trigger-claim.md) | Correct the open component decisions register's Backlog.md reclassification-trigger claim | In Progress |
 | [QCLI-18](../../backlog/tasks/qcli-18%20-%20Propose-the-CLI-result-contract-envelope-shape-exit-code-table-not-found-convention-and-anomaly-placement.md) | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | To Do |
 | [QCLI-19](../../backlog/tasks/qcli-19%20-%20Propose-the-canonical-identifier-grammar-and-authored-record-layout.md) | Propose the canonical identifier grammar and authored-record layout | To Do |
 | [QCLI-20](../../backlog/tasks/qcli-20%20-%20Propose-the-scale-target-and-the-projection-sizing-basis-it-implies.md) | Propose the scale target and the projection sizing basis it implies | To Do |

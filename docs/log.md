@@ -48,6 +48,7 @@
 - 2026-08-05T07:08:39-05:00 dde124250d8592970a5e6c0c26316e2e57b02573 docs: sync log.md after the design-layer commit
 - 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
 - 2026-08-05T07:37:13-05:00 ffe8487442e3c168c448e5200bd362c5285f6d1f docs: sync log.md after campaign init
+- 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
 
 ## docs/adr
 
@@ -85,6 +86,8 @@
 - 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T08:26:53-05:00 4c2a03b49a9e2a2d53a8adacc04988ead62f2e4d docs(qcli-13): reposition and date-mark the ledger backlink sentence
+- 2026-08-05T08:26:53-05:00 4ebd5fede5bfe415d59810999ff5ecaf6fdd4761 docs(qcli-13): backlink playbook from charter and migration ledger
 
 ## docs/runbooks
 
@@ -99,6 +102,7 @@
 - 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
 - 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
 
 ## docs/stories
 
@@ -125,3 +129,5 @@
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 - 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
+- 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
+- 2026-08-05T08:26:53-05:00 4ebd5fede5bfe415d59810999ff5ecaf6fdd4761 docs(qcli-13): backlink playbook from charter and migration ledger
