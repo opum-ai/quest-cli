@@ -3,9 +3,10 @@ id: QCLI-9
 title: >-
   Re-pin QCLI-2.10's playbook in the register after QCLI-8's merge invalidated
   its commit-pin
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 05:01'
+updated_date: '2026-08-05 05:01'
 labels:
   - research
   - register
@@ -14,6 +15,7 @@ labels:
   - clean-room
   - 'cluster:provenance'
   - campaign
+  - wave-4
 dependencies:
   - QCLI-8
   - QCLI-6
