@@ -6,6 +6,7 @@
 - [Emit three categorical command outcomes over a versioned envelope](emit-three-categorical-command-outcomes-over-a-versioned-envelope.md)
 - [Keep Lore optional and integrate only through versioned public records](keep-lore-optional-and-integrate-only-through-versioned-public-records.md)
 - [Migrate from Backlog.md reversibly without inheriting its ID grammar](migrate-from-backlog-md-reversibly-without-inheriting-its-id-grammar.md)
+- [Ratify the Quest CLI result contract: envelope, exit codes, not-found, and anomaly](ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
 - [Require atomic idempotent operation-owned mutations](require-atomic-idempotent-operation-owned-mutations.md)
 - [Treat Git-tracked authored records as the sole authority](treat-git-tracked-authored-records-as-the-sole-authority.md)
 - [Use quest-cli for the Quest package and command](use-quest-cli-for-the-quest-package-and-command.md)
