@@ -53,6 +53,7 @@
 - 2026-08-05T08:38:00-05:00 121f0e594d5de6b7592706afcb3cc6e47435a219 docs: sync log.md and story managed block after wave-1 merges
 - 2026-08-05T08:41:47-05:00 077d3beef69b2e953b3d811b620234b36daaed63 QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
 - 2026-08-05T08:42:12-05:00 d03eeaefddd2ad21ea8ba95a03ed5c8adfa458b7 docs: sync log.md after QCLI-14 merge
+- 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
 
 ## docs/adr
 
@@ -92,8 +93,7 @@
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 - 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
 - 2026-08-05T08:41:47-05:00 077d3beef69b2e953b3d811b620234b36daaed63 QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
-- 2026-08-05T08:44:11-05:00 493573d373b77a05b1552c550606dbbe3a4d8f35 docs(source-register): audit the Allowed traceability gap and QCLI-2.12's F4/F5
-- 2026-08-05T08:44:11-05:00 91bf04f46f3743af323a8fa5743eab70b455d811 fix(source-register): correct enumeration and misquote in QCLI-15 audit note
+- 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
 
 ## docs/runbooks
 
@@ -138,3 +138,4 @@
 - 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
 - 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
 - 2026-08-05T08:38:00-05:00 121f0e594d5de6b7592706afcb3cc6e47435a219 docs: sync log.md and story managed block after wave-1 merges
+- 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
