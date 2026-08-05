@@ -60,6 +60,7 @@
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 - 2026-08-05T08:53:57-05:00 a935a364d4e6b73cf133f14d0721ad78e5a08498 docs: sync log.md after QCLI-17 merge
 - 2026-08-05T09:03:01-05:00 3cf5242efef6680f0277e5b4958b2af87b8a8a04 docs: sync story status and log.md after wave-1 settlement
+- 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
 
 ## docs/adr
 
@@ -151,3 +152,4 @@
 - 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 - 2026-08-05T09:03:01-05:00 3cf5242efef6680f0277e5b4958b2af87b8a8a04 docs: sync story status and log.md after wave-1 settlement
+- 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
