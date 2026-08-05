@@ -99,4 +99,4 @@ Ratifies proposals from the [follow-through Story](follow-through-on-the-quest-c
 out of its own scope (D1, D3). Owner rulings were made in a live session on 2026-08-05;
 cite this Story, not a transcript, as the record of that ruling.
 
-Campaign tracker: TBD — created alongside this Story's tasks.
+Campaign tracker: `backlog doc view doc-4`.
