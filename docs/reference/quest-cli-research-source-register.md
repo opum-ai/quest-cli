@@ -276,7 +276,38 @@ named slice, never to every file in its repository.
   activity, not implementation derivation.
 - **Permitted use:** cite published documentation, `--help` output, and
   on-disk artifact shape (task Markdown, YAML config) as an observable public
-  contract — informs QCLI-2.5's migration-fidelity research.
+  contract — informs QCLI-2.5's migration-fidelity research. **Added
+  2026-08-04 by `QCLI-6`, closing a silence this slice's own text left
+  standing:** process-level responses from running the installed tool — for
+  example, `mcp start`'s stdio JSON-RPC response, or any other subprocess
+  stdout/stderr/exit-code actually produced by invoking the binary — are
+  also an admissible evidence class under this slice, for the same reason
+  on-disk artifacts are: both are observed by running the tool, not by
+  reading its source, which is the exact line this slice's own Exclusions
+  field already draws ("a behavior observed only by reading source, not by
+  running the tool, is not admissible" — below). This is not a new rule
+  invented here; it makes explicit a distinction the Exclusions field
+  already implied but this field never stated for this evidence class.
+  `QCLI-2.5`'s [Backlog migration fidelity
+  contract](quest-cli-backlog-migration-fidelity-contract.md) already
+  relies on this substantively — `mcp start`'s stdio JSON-RPC handshake
+  response, cited there for the server's self-reported version and its
+  EOF-shutdown behavior — so this clarification narrows nothing that
+  reliance depends on; it is the same silence `QCLI-2.8`'s [component
+  contracts and delivery
+  graph](quest-cli-component-contracts-and-delivery-graph.md#reconciliation-across-the-ten-dependencies)
+  reported as a residual gap rather than fixed, out of that task's own
+  scope boundary. Admissible as an evidence class is not the same as
+  citable as a stable, quotable public contract: as with any other member
+  of this slice, a document citing a process-level response still records
+  its own revision pin and stays subject to the Reclassification trigger
+  below, and a downstream document remains free to impose its own,
+  narrower, self-chosen restriction on treating a specific process-level
+  surface as a citable contract — `QCLI-2.5`'s own text does exactly this
+  for `curl` probes of the `browser` command's local HTTP server, recording
+  it as evidence of what `browser` serves without treating it as a citable
+  public contract — without that self-restriction meaning this slice
+  excludes the underlying evidence class.
 - **Exclusions:** does not extend to source or internal tests (see above); a
   behavior observed only by reading source, not by running the tool, is not
   admissible.
@@ -826,7 +857,36 @@ named slice, never to every file in its repository.
   non-replacing relationship this slice's own Permitted use already states
   below. None of these three was previously named in this enumeration
   despite already being relied on, under this slice's Allowed
-  classification, by merged deliverables.
+  classification, by merged deliverables. **Added 2026-08-04 by `QCLI-6`,
+  closing the identical gap class for five further members:** `QCLI-2.5`'s
+  [Backlog migration fidelity
+  contract](quest-cli-backlog-migration-fidelity-contract.md), `QCLI-2.6`'s
+  [Git, filesystem, and concurrency threat
+  model](quest-cli-git-filesystem-and-concurrency-threat-model.md),
+  `QCLI-2.8`'s [component contracts and delivery
+  graph](quest-cli-component-contracts-and-delivery-graph.md), `QCLI-2.9`'s
+  [packaging contract](quest-cli-packaging-contract.md), and `QCLI-2.10`'s
+  [Backlog adoption and migration
+  playbook](quest-cli-backlog-adoption-and-migration-playbook.md). None of
+  these five was previously named in this enumeration despite already being
+  relied on, under this slice's Allowed classification, by merged
+  deliverables — `QCLI-2.8`'s own [component contracts and delivery
+  graph](quest-cli-component-contracts-and-delivery-graph.md#reconciliation-across-the-ten-dependencies)
+  cites `QCLI-2.5`'s and `QCLI-2.6`'s outputs as principal Provenance-table
+  grounding, and `QCLI-2.10`'s own [Backlog adoption and migration
+  playbook](quest-cli-backlog-adoption-and-migration-playbook.md) cites
+  `QCLI-2.5`'s fidelity contract as its stated primary foundation; both
+  already disclosed this exact gap as a caveat paragraph added in their own
+  settlement passes, rather than silently relying on unenumerated coverage —
+  those caveats are left standing as accurate records of their own pass and
+  are not edited by this task. `QCLI-2.9`'s packaging contract is the fifth
+  member added here: a merged deliverable of the same `QCLI-2.*` research
+  lineage as the four members `QCLI-2.12` already added above, itself
+  already cited as a source elsewhere in this very register — the "npm
+  package name occupancy" slice's own `@opum-ai/quest-cli` addition and its
+  widened permitted-use example both cite the packaging contract by name
+  (above) — without ever itself being named as a member of this
+  enumeration.
 - **Exact revision or retrieval date:** **Corrected 2026-08-04 by a third
   `QCLI-2.12` follow-up fix pass, re-deriving every one of the nine
   members' pins from git history directly rather than patching only the
@@ -848,11 +908,13 @@ named slice, never to every file in its repository.
   Verified via `git log --format='%h %cI' -1 -- <path>` for each of the
   nine members, and every resulting SHA cross-checked against `git show -s
   --format=%cI <sha>` (date) and `git show --stat <sha>` (confirms the
-  commit actually touches the named path). Two of the nine members are
+  commit actually touches the named path). **Updated 2026-08-04 by `QCLI-6`:**
+  the slice now enumerates fourteen members — the nine `QCLI-2.12` verified
+  here, plus five added below by this task. Two of the fourteen members are
   live-pinned to their own current state on this branch rather than
   commit-pinned, by necessity, and are addressed on their own terms below:
   this register's own self-pin, and the migration ledger's pin (see that
-  bullet for why). The remaining seven are commit-pinned, and none of them
+  bullet for why). The remaining twelve are commit-pinned, and none of them
   remains pinned to the branch base `0cf0f34` (2026-08-04 01:02:11 -0500) —
   the point of reference every member was checked against. The **component
   charter** (`quest-cli-component-charter.md`) and the accepted **ADR**
@@ -903,7 +965,39 @@ named slice, never to every file in its repository.
   same commit that amends the research Spec above). Five distinct SHAs are
   used as member pins above (`942da73`, `157ad56`, `3b5cd8c`, `883b445`,
   `63b1e0a`), independently re-verified for this pass; all read live
-  2026-08-04, current content. **This register itself
+  2026-08-04, current content. **Added 2026-08-04 by `QCLI-6`, pinning the
+  five members enumerated above in Repository or URL, none of which this
+  task itself co-edits (so each is SHA-pinned, not self-pinned, per the
+  same self-pin-only-if-co-edited distinction this slice's own migration-
+  ledger and self-pin bullets above already establish):** `QCLI-2.5`'s
+  [Backlog migration
+  fidelity contract](quest-cli-backlog-migration-fidelity-contract.md) is
+  last amended at `418c5eb` (2026-08-04 15:16:00 -0500, `QCLI-2.5`'s own
+  follow-up fixing a stale scratch-repo count and evidence-source
+  enumeration). `QCLI-2.6`'s [Git, filesystem, and concurrency threat
+  model](quest-cli-git-filesystem-and-concurrency-threat-model.md) is last
+  amended at `739aa7e` (2026-08-04 14:06:57 -0500, `QCLI-2.6`'s own
+  authoring commit). `QCLI-2.8`'s [component contracts and delivery
+  graph](quest-cli-component-contracts-and-delivery-graph.md) and
+  `QCLI-2.10`'s [Backlog adoption and migration
+  playbook](quest-cli-backlog-adoption-and-migration-playbook.md) are both
+  last amended at `8935551` (2026-08-04 18:54:09 -0500, the QCLI-2.8/2.10
+  integration-review follow-up, which touches both documents in one edit).
+  `QCLI-2.9`'s [packaging contract](quest-cli-packaging-contract.md) is
+  last amended at `3b5cd8c` (2026-08-04 10:29:40 -0500, `QCLI-2.11`'s
+  cross-task staleness fix — the same commit and timestamp already cited
+  above for `QCLI-2.2`'s reconciliation, which that commit also touched).
+  Each of these five SHAs was independently verified with the same method
+  as the original nine members: `git log --format='%h %cI' -1 -- <path>`,
+  cross-checked against `git show -s --format=%cI <sha>` (date) and `git
+  show --stat <sha>` (confirms the commit actually touches the named path);
+  none of the five is pinned to the branch base `0cf0f34`. This addition
+  introduces three further distinct SHAs (`418c5eb`, `739aa7e`, `8935551`)
+  and reuses one already listed above (`3b5cd8c`, now pinning two members)
+  — eight distinct SHAs in total pin the twelve commit-pinned members of
+  this slice's now-fourteen-member enumeration; the remaining two members
+  (this register and the migration ledger) stay self-pinned to their own
+  current state, unaffected by this addition. **This register itself
   (`quest-cli-research-source-register.md`), also enumerated in Repository
   or URL above, is self-referential and cites no external commit: it is
   pinned to its own current state on this branch, as amended live through
