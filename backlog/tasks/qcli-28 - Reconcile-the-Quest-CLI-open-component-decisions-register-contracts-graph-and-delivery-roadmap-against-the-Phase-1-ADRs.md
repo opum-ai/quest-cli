@@ -3,10 +3,10 @@ id: QCLI-28
 title: >-
   Reconcile the Quest CLI open component decisions register, contracts graph,
   and delivery roadmap against the Phase 1 ADRs
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 22:38'
-updated_date: '2026-08-05 22:38'
+updated_date: '2026-08-05 23:19'
 labels:
   - campaign
   - decisions
@@ -14,6 +14,7 @@ labels:
   - tracking-reconciliation
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
   - 'cluster:tracking-reconciliation'
+  - wave-2
 dependencies:
   - QCLI-24
   - QCLI-25
