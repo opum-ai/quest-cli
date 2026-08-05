@@ -3,7 +3,7 @@ id: doc-4
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-05 22:39'
-updated_date: '2026-08-05 22:40'
+updated_date: '2026-08-05 23:19'
 ---
 # Backlog campaign tracker
 
@@ -14,11 +14,11 @@ loop until the queue is empty or blocked -> write handover.
 
 ## Frontier
 
-As of 2026-08-05 (init): 4 ready now (QCLI-24, QCLI-25, QCLI-26, QCLI-27 --
-no dependencies), 1 blocked (QCLI-28 -- depends on all four), 0 done. The
-ready set is ALWAYS recomputed live from `backlog task list --json` plus each
-candidate's `task view --json` at the start of every restore/wave -- never
-trust a persisted "next wave" plan.
+As of 2026-08-05 (post wave 1): QCLI-24, QCLI-25, QCLI-26, QCLI-27 all Done.
+QCLI-28 now unblocked (its four dependencies are Done) -- expected to be wave
+2. The ready set is ALWAYS recomputed live from `backlog task list --json`
+plus each candidate's `task view --json` at the start of every restore/wave --
+never trust a persisted "next wave" plan.
 
 ## Confirmed queue order
 
@@ -50,7 +50,7 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
-(empty)
+(empty -- wave 1 fully settled)
 
 ## Needs a human / blocked
 
@@ -63,7 +63,17 @@ were filed)
 Never created unprompted -- this project requires approval before follow-up
 work is filed. Each entry is a ready-to-run proposal.
 
-(none yet)
+- From wave 1 review (QCLI-25's reviewer): **Update the three ratified proposal
+  docs' stale "nothing accepted" status prose.** `docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md`,
+  `docs/reference/quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md`,
+  and `docs/reference/quest-cli-scale-target-proposal.md` each still open with
+  prose like "Nothing in this document is accepted. No ADR is created here" --
+  now stale and unpointed to the ratifying ADR. This repo already has a
+  precedent for the fix (inline-amend the superseded prose, dated, citing the
+  directing ADR -- same convention used elsewhere in this bundle). Proposed
+  ACs: each of the three proposal docs gets an inline dated note pointing to
+  its ratifying ADR (QCLI-24/25/26's ADRs respectively); `lore validate --strict`
+  passes; no other content changes.
 
 ## Wave log
 
@@ -75,3 +85,36 @@ work is filed. Each entry is a ready-to-run proposal.
   Filed QCLI-24..28 (all `campaign`-labelled), linked to the Story via
   `lore link`; `lore sync` / `lore check` / `lore orphans` all clean. No wave
   dispatched yet.
+
+- 2026-08-05 -- wave 1 (tasks: QCLI-24, QCLI-25, QCLI-26, QCLI-27). All four
+  ready (no dependencies), conflict-disjoint (each authors a distinct new
+  ADR/reference doc), dispatched together under the wave-size cap of 6.
+  Workers ran `lore new adr`/`lore new reference` to author each ratification.
+  Three of four (QCLI-24, QCLI-26, QCLI-27) independently ran `lore sync` in
+  their own worktrees, each regenerating the shared `docs/adr/index.md` /
+  `docs/reference/index.md` / `docs/log.md` / Story managed-task-table from a
+  partial single-task view -- a real cross-branch conflict risk caught at
+  review. QCLI-25's worker correctly deferred this on its own initiative.
+  Each reviewer independently confirmed the diagnosis and issued
+  `request_changes` with concrete revert instructions; one fix-pass round per
+  task reverted the shared-file edits (keeping each task's own new doc), and
+  all four were re-reviewed to `approve`. QCLI-26 additionally picked up an
+  optional D7a/D7b attribution correction in its fix pass.
+  Merge order (confirmed queue order): QCLI-24 (PR #39, `e5c790b`), QCLI-25
+  (PR #40, `9e7a0c0`), QCLI-26 (PR #41, `589e1a7`), QCLI-27 (PR #42,
+  `f89b370`) -- each rebased onto the moving `dev`, mandatorily re-verified
+  (`lore validate --strict`) post-rebase, squash-merged, settled to `Done`
+  (all ACs checked from reviewer-confirmed evidence, final summaries
+  recorded) directly on `dev`.
+  Wave-level integration review then centralized the deferred `lore sync`
+  (PR #43, `859af6a`) in one pass across the complete post-merge state --
+  regenerated `docs/adr/index.md`, `docs/reference/index.md`, `docs/log.md`,
+  and the Story's managed task table (QCLI-24..27 -> Done); reviewer
+  independently re-verified completeness (set-equal index vs. files on disk),
+  Story-table accuracy against live Backlog, and idempotency (re-running
+  `lore sync` produced zero further content delta). No escalations. One
+  non-blocking follow-up proposed (see above, awaiting user approval); one
+  observation carried into QCLI-28's brief: QCLI-27's reference doc already
+  records a D2 *ownership* ruling (quest-cli-owned, runtime choice itself
+  still deferred) -- QCLI-28 should cite it rather than duplicate or
+  contradict it when reconciling the register's D2 row.
