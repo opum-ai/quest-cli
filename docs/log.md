@@ -47,6 +47,7 @@
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 - 2026-08-05T07:08:39-05:00 dde124250d8592970a5e6c0c26316e2e57b02573 docs: sync log.md after the design-layer commit
 - 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
+- 2026-08-05T07:37:13-05:00 ffe8487442e3c168c448e5200bd362c5285f6d1f docs: sync log.md after campaign init
 
 ## docs/adr
 
