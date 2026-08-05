@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 14:36'
-updated_date: '2026-08-05 15:33'
+updated_date: '2026-08-05 15:38'
 labels:
   - campaign
   - 'cluster:tracking-reconciliation'
@@ -83,3 +83,46 @@ Line numbers above are as observed by the wave-1 integration review immediately 
 
 7. Commit in small logical commits (open-component-decisions.md changes; contracts-and-delivery-graph.md changes; docs/log.md sync via lore sync if needed), each with a "Refs: QCLI-21" trailer, then push the branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented all 11 acceptance criteria against docs/reference/quest-cli-open-component-decisions.md and docs/reference/quest-cli-component-contracts-and-delivery-graph.md, in three commits (0ce88fd, 50a58af, 0301e5f).
+
+Re-verification performed before editing (no drift found from the task description):
+- Line numbers in open-component-decisions.md matched exactly: framing paragraph 204-207, D1 at 92-97, and residual-items rows 214-223 (216 QCLI-2.8 dep-order, 217 F4/F5, 218 backlink, 219 licensing, 220 bin-path, 221 Allowed value).
+- All five cited SHAs verified via `git show <sha> --stat`: QCLI-12 1dd4aa6, QCLI-13 d871d32, QCLI-14 077d3be, QCLI-15 6b78fd0, QCLI-16 44a7ed8 all resolve to the exact commits the task description names.
+- Confirmed QCLI-12 fixed the Spec's Dependency order table at docs/specs/quest-cli-pre-implementation-research-program.md:68 (now lists all ten items) and added its own dated correction note at :72-79.
+- Confirmed QCLI-13's fix locations: docs/reference/quest-cli-component-charter.md:28 (Owns-here bullet -> playbook link) and docs/reference/former-ocli-to-qcli-migration-ledger.md:123 (Added 2026-08-05 by QCLI-13 note).
+- Confirmed QCLI-14's fix location: docs/reference/quest-cli-packaging-contract.md:80-81 (new Bin column + dated correction note).
+- Read QCLI-15's full audit text in quest-cli-research-source-register.md (not edited; AC10 honored) at the Traceability-audit note (~1064-1090) and the Finding A/B note (~1227-1274) to source the Consequence/closure-condition text used in the register rows.
+
+AC-by-AC:
+- AC1: framing paragraph and heading rewritten (heading "Residual items recorded but never filed" -> "Residual items recorded in settlement notes", following this repo's own precedent for rewriting a falsified heading, e.g. QCLI-17's "not fired" rewrite of the version-pin section) to enumerate which of the ten items are closed/audited-open/still-unfiled, each cited; trailing dated correction blockquote (QCLI-21) quotes the old false claim.
+- AC2: rows for QCLI-2.8 dependency-order, playbook backlink, and bin-path all marked "Closed by `TASK` (`sha`)" with the file+location the fix now lives at, nothing deleted.
+- AC3: licensing row re-scoped (not struck): records QCLI-16 closed the contracts-graph instance and that the D1 instance survived until this same task (QCLI-21) closed it too -- both citations kept, row marked "now closed (was half-closed)" since AC4 lands in this same task/commit set.
+- AC4: D1 corrected inline/dated (QCLI-21): Backlog.md's MIT license is not naming-conflict/allocation evidence -- only discussed under "Backlog.md implementation source and internal tests" (Excluded, authorship-independence) and "Backlog.md public surface" (Allowed, ordinary-user-activity) slices; npm registry metadata attribution stands as originally correct. D1's Open status/Product-owner owner left untouched.
+- AC5/AC6: F4/F5 row's Source now cites QCLI-15's audit, Consequence states the audited finding (substance never recorded anywhere retrievable) plus the closure condition (recover original reviewer text from an out-of-repo transcript, if findable) and the disambiguation note (two independent F-schemes; wave-4 integration review's F4, PR #17/c8dfdca, is a different item). Allowed-value row's Source/Consequence updated the same way, closure condition = explicit owner ruling ratifying self-classification-by-vocabulary. Both rows remain marked open.
+- AC7: component-contracts-and-delivery-graph.md's "names only the six deliverables ... not in the Spec's table" sentence corrected inline/dated (QCLI-21, following QCLI-12/1dd4aa6): the Spec's table now names all ten directly. Verified the document's separate "synthesis of six deliverables" statements (lines 19-22, 159) describe the six *research* deliverables QCLI-2.8 synthesizes -- a different, independently true claim from the ten-item *dependency* list -- and left those alone.
+- AC8: repaired the missing preposition in QCLI-16's licensing correction note ("misattribution `QCLI-2.8` settlement" -> "misattribution in `QCLI-2.8` settlement"), no other change to that note.
+- AC9: verified rows for the platform matrix, quest-doc actor model, browser HTTP endpoint, and LCLI-316 against current D3/D6 status in this same file (both still Open/unowned and Routed/unwritten respectively) -- no wave-1 task touched any of the four; left unchanged.
+- AC10: docs/reference/quest-cli-research-source-register.md was read only, never edited (confirmed via `git diff --stat`, not present in any of the three commits).
+- AC11: gates re-run clean after all edits and after `lore sync` (needed once, to reconcile the story's managed task-status block after moving QCLI-21 to In Progress):
+  - `lore validate --strict` -> 38 files, 0 errors, 0 warnings, 6 skipped
+  - `lore check` -> 38 files, 0 errors, 0 warnings
+  - `lore orphans` -> 0 orphan tasks, 0 dangling links
+
+Out-of-scope finding (reported, not acted on): while reading component-contracts-and-delivery-graph.md's Provenance section (~lines 69-96), found this file's own scope note: three of its cited sources (QCLI-2.5's migration fidelity contract, QCLI-2.6's threat model, and the campaign Story) were not enumerated in the research source register's "Prior QCLI research records" admissibility slice -- but that section itself states this was "Resolved 2026-08-04" by QCLI-6/QCLI-7. No remaining gap found; noted here only for completeness since it was adjacent to text I was reading, not because anything is still open.
+
+AC5 out-of-repo transcript recovery for QCLI-2.12's F4/F5 (see --comment): NOT recoverable. Searched every local Claude Code session transcript for this project (~/.claude/projects/-Volumes-external-repos-quest-cli/*.jsonl, ~30 files) for "F4 and F5", "Review follow-up", and "left for the orchestrator" -- every hit is either the same one-line register/task-notes summary already in the repo, or QCLI-2.12's own settlement-note text verbatim ("F4/F5 (non-blocking, out of scope for this fix pass) -- not touched; left for the orchestrator to track."), never the original reviewer's actual F4/F5 finding text. This matches QCLI-15's own audit conclusion (git log/fsck and gh api pulls/14 reviews+comments all came up empty). No invented text was used; the register row's Consequence cell states the closure condition (recovering the text from an out-of-repo artifact, if one still exists) instead of asserting recovery.
+<!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @claude
+created: 2026-08-05 15:38
+---
+AC5 flag for reviewer: the out-of-repo transcript recovery for QCLI-2.12's F4/F5 was attempted and did not succeed. I searched every local Claude Code session transcript for this project under ~/.claude/projects/-Volumes-external-repos-quest-cli/*.jsonl for the F4/F5 discussion; every match is either the same one-line register summary already in the repo or QCLI-2.12's own settlement-note sentence verbatim ("F4/F5 (non-blocking, out of scope for this fix pass) -- not touched; left for the orchestrator to track."). None of them record what F4 or F5 actually asserted. This is consistent with QCLI-15's own audit, which also came up empty via git log/git fsck and gh api pulls/14 reviews+comments. I did not invent replacement text; the register row instead states the closure condition (recovering the text from an out-of-repo artifact, if one still exists) as QCLI-15's audit itself concluded. If a reviewer has access to a transcript this session did not search (e.g. a different machine's local session history, or the original interactive session that produced QCLI-2.12), that would be the next place to look.
+---
+<!-- COMMENTS:END -->
