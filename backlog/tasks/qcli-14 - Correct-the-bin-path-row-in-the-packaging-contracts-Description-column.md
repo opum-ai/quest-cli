@@ -2,9 +2,10 @@
 id: QCLI-14
 title: Correct the bin-path row in the packaging contract's Description column
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 13:05'
+updated_date: '2026-08-05 12:51'
 labels:
   - campaign
   - 'cluster:packaging'
@@ -39,3 +40,14 @@ This is a dated-evidence table. Do not re-derive the observation - correct where
 - [ ] #3 The correction is recorded inline and dated, citing this task
 - [ ] #4 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Confirm the defect: in the 'Conflicting/reference names on the public registry' table (packaging contract, Dated registry evidence section), the @opum-ai/lore row's Description cell holds a bin path (bin `lore` -> bin/lore.cjs) instead of a published description string, unlike every other populated row.
+2. Fix by widening column semantics: add a new 'Bin' column to the table header and every row (filled '-' where not observed, matching the table's existing convention for uncaptured fields). Move the @opum-ai/lore row's bin path value into the new Bin column; set its Description cell to '-' since no npm description was ever captured for that package in the original 2026-08-04 sweep. Do not touch the 4 dated npm view timestamps or any other observed value.
+3. Add an inline, dated correction note directly after the table citing QCLI-14 and 2026-08-05, explaining the relocation without re-deriving or re-dating the underlying observation.
+4. Read-only check of docs/reference/quest-cli-research-source-register.md for a pin on the packaging contract; do NOT edit that file (QCLI-15 owns it this wave). Record findings in task notes.
+5. Run lore validate --strict, lore check, lore orphans; capture exact output.
+6. lore sync if needed, then commit docs/ changes with a Refs: QCLI-14 trailer, push branch.
+<!-- SECTION:PLAN:END -->
