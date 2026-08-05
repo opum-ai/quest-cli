@@ -4,7 +4,7 @@ title: Backlink the adoption playbook from the component charter and migration l
 status: In Progress
 assignee: []
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:48'
+updated_date: '2026-08-05 13:08'
 labels:
   - campaign
   - 'cluster:adoption'
@@ -13,6 +13,7 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
+  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md

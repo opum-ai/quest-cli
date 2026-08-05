@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:48'
+updated_date: '2026-08-05 13:07'
 labels:
   - campaign
   - 'cluster:synthesis'
@@ -15,6 +15,7 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
+  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md

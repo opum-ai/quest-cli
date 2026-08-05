@@ -4,7 +4,7 @@ title: Fix the stale QCLI-2.8 dependency-order row in the research programme Spe
 status: In Progress
 assignee: []
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:52'
+updated_date: '2026-08-05 13:04'
 labels:
   - campaign
   - 'cluster:convention'
@@ -13,7 +13,7 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
-  - in-review
+  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
