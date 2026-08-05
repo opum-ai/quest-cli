@@ -65,9 +65,22 @@ migration fidelity, projection behavior, and versioned Lore integration.
 | QCLI-2.5 | Public-contract migration fidelity and gaps | QCLI-2.1, QCLI-2.4 |
 | QCLI-2.6 | Git/filesystem/concurrency threat model | QCLI-2.2–QCLI-2.4 |
 | QCLI-2.7 | Live Lore evidence and activation matrix | QCLI-2.1 |
-| QCLI-2.8 | Reviewed contract set and dormant delivery graph | QCLI-2.2–QCLI-2.7 |
+| QCLI-2.8 | Reviewed contract set and dormant delivery graph | QCLI-2.2–QCLI-2.7, QCLI-2.11, QCLI-2.12, QCLI-2.13, QCLI-2.14 |
 | QCLI-2.9 | Npm package allocation and provenance evidence (packaging contract); scope is allocation and provenance only — it does not cover runtime, native-packaging, or supported-platform choices | QCLI-2.1 |
 | QCLI-2.10 | Backlog-to-Quest adoption and migration playbook | QCLI-2.5 |
+
+**Corrected 2026-08-05 by `QCLI-12`:** the QCLI-2.8 row's Depends on cell
+previously read `QCLI-2.2–QCLI-2.7`, six items only. `QCLI-2.11`–`QCLI-2.14`
+did not exist when this table was authored and were never added to it once
+they did, so the cell undercounted QCLI-2.8's live dependencies by four.
+Verified via `backlog task view QCLI-2.8`: its live Backlog Dependencies
+field lists ten items — `QCLI-2.2` through `QCLI-2.7` plus `QCLI-2.11`,
+`QCLI-2.12`, `QCLI-2.13`, and `QCLI-2.14` — not six. `QCLI-2.14` found this
+same discrepancy during its own pass and explicitly deferred it as an owner
+decision out of its scope; the wave-4 integration review re-confirmed
+leaving it untouched was correct at the time; it was never filed as a
+follow-up task until `QCLI-12`. The row above is corrected to match the
+live dependency set rather than silently rewritten.
 
 QCLI-2.9 and QCLI-2.10 sit outside the synthesis chain that QCLI-2.8
 draws on: neither is a QCLI-2.8 input, and neither resolves
