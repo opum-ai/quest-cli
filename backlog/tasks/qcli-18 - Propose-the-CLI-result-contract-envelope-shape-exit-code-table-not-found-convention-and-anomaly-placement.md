@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 15:27'
+updated_date: '2026-08-05 15:34'
 labels:
   - campaign
   - 'cluster:cli-contract'
@@ -65,3 +65,26 @@ Deliver a proposal document with options, trade-offs, and a recommendation per i
 6. Run `lore sync` to reconcile managed blocks/index, then run the three gates: `lore validate --strict`, `lore check`, `lore orphans`, recording real output.
 7. Record notes and evidence on QCLI-18 via `backlog task edit --append-notes`, commit in small logical commits (`type(scope): summary`, `Refs: QCLI-18` trailer), and push the branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Delivered docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md via `lore new reference ...`, grounded in the live text of the open component decisions register's "JSON and exits" row, the architecture Spec's error taxonomy and Open questions, the emit-three-categorical-outcomes ADR, and QCLI-2.7's adapter contract review Part 2 (items 2b, 4b/4c, 5a/5b, 6c; the divergence table between Lore's inbound adapter expectation and Lore's own outbound cli-contract.md shape).
+
+Per item:
+- Envelope shape: recommended a string schemaVersion ("1"), an underscore-joined `<command>_<outcome-class>` kind, and a per-outcome-class payload key (result/decline/error), with an explicit per-axis explanation of why each choice is neither Lore inbound's literal shape nor Lore outbound's cli-contract.md shape.
+- Exit-code table: recommended one code per ADR class (0 success, 1 decline/conflict, 2 error, 3 anomaly conditional on item 4, 64 usage error via sysexits EX_USAGE), with lore-cli's own self-facing exit convention presented and rejected as an alternative (Option B) specifically to avoid reproducing lore's own numbering.
+- Not-found convention: proposed Quest's own JSON-first decline-envelope convention only, and explicitly marked the lore-doc half (register/adapter item 5b - whether a future Lore adapter accepts this or requires the bare exit-1/empty-stdout pattern) as not settled here, since no Lore adapter targets Quest today (BacklogAdapter is lore-cli's only adapter type).
+- Anomaly placement: recommended a distinguishable fourth outcome (kind-tagged, its own conditional exit code 3), and separately flagged - as a distinct, non-lore-doc boundary - that fully canonizing "anomaly" as product-wide vocabulary is the architecture Spec's own quest-doc-routed proposal, not re-opened or settled here.
+
+Framing: explicit "this document decides nothing" statement up front and in the closing summary table; no ADR created; the open component decisions register was not touched by this task (confirmed via `git status --porcelain` against docs/reference/quest-cli-open-component-decisions.md, quest-cli-component-contracts-and-delivery-graph.md, and quest-cli-research-source-register.md - none appear).
+
+Verification evidence (all run from the worktree, current HEAD):
+- `lore validate --strict` (whole bundle): "39 files, 0 errors, 0 warnings, 6 skipped", exit 0.
+- `lore check`: after the new task's status change to In Progress produced expected status-drift/managed-block-drift on the owning Story, ran `lore sync` (updated docs/log.md, docs/reference/index.md, docs/stories/follow-through-on-the-quest-cli-design-layer.md; committed a pending backlog/ edit as `chore(backlog): sync task changes`). Re-ran `lore check`: "39 files, 0 errors, 0 warnings", exit 0.
+- `lore orphans`: "0 orphan tasks, 0 dangling links... every task has an owning doc, every linked task is live", exit 0.
+
+Out-of-scope findings, not acted on:
+- The register's "JSON and exits" row also lists "whether create and edit emit a JSON envelope uniformly" as an open item alongside this task's four; QCLI-18's scope does not include it (per the task body) and it remains open after this document - noted explicitly in the new document's own Notes section so it is not mistaken for settled.
+- `lore sync`'s catch-all backlog/ commit swept in a pending edit from this session's own `backlog task edit --plan` call (expected behavior per lore's own documented sync semantics, not a foreign change).
+<!-- SECTION:NOTES:END -->
