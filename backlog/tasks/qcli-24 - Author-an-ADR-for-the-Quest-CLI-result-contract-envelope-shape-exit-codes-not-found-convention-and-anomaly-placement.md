@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:56'
+updated_date: '2026-08-05 23:04'
 labels:
   - campaign
   - decisions
@@ -91,4 +91,12 @@ Verification:
 - `lore sync` updated docs/adr/index.md (new ADR entry), docs/log.md, and docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md (status/managed task block only, reflecting QCLI-24's own live status) — no manual edits to those files, and the open component decisions register / contracts graph / delivery roadmap were not touched, per scope.
 
 Out-of-scope observation (not acted on, reporting per instructions): none found beyond what the Story already identifies as QCLI-28's job.
+
+Post-review scope correction (commit 3473030, Refs: QCLI-24):
+
+The paragraph above stating "lore sync updated docs/adr/index.md, docs/log.md, and docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md" is no longer accurate for this branch. A reviewer correctly flagged that this branch, along with sibling wave-1 branches QCLI-26 and QCLI-27, had each independently touched those same shared managed files (index, log, Story managed table) from a partial single-task view — while QCLI-25's branch correctly left them alone, touching only its own task file and new ADR.
+
+Per the reviewer's fix instructions, those three shared files (docs/adr/index.md, docs/log.md, docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md) were reverted to their dev-branch state on this branch. This task's diff against dev is now scoped to exactly two files: the backlog task file and the new ADR (docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md), verified via `git diff dev...HEAD --name-only`.
+
+`lore validate --strict` was re-run scoped to just the ADR file and passed clean ("ok"; 1 file, 0 errors, 0 warnings, 0 skipped). `lore sync`/`lore check` were deliberately NOT re-run on this branch after the revert — running them would just re-dirty the reverted files and re-race the same sibling-branch conflict. The full reconciliation (index, log.md, and the Story's managed table reflecting all four wave-1 ADRs) is deferred to a single post-merge `lore sync`, done once centrally after QCLI-24, QCLI-25, QCLI-26, and QCLI-27 all merge to dev.
 <!-- SECTION:NOTES:END -->
