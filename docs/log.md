@@ -42,6 +42,7 @@
 - 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
 - 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
 - 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
+- 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
 
 ## docs/adr
 
@@ -75,6 +76,7 @@
 - 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
 - 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
 - 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
+- 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
 
 ## docs/runbooks
 
@@ -110,3 +112,4 @@
 - 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
 - 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
 - 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
+- 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
