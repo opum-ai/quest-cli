@@ -3,10 +3,11 @@ id: QCLI-18
 title: >-
   Propose the CLI result contract: envelope shape, exit-code table, not-found
   convention, and anomaly placement
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 12:35'
+updated_date: '2026-08-05 15:47'
 labels:
   - campaign
   - 'cluster:cli-contract'
@@ -48,3 +49,57 @@ Deliver a proposal document with options, trade-offs, and a recommendation per i
 - [ ] #5 The open component decisions register is not edited by this task
 - [ ] #6 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Re-read the live open component decisions register's "JSON and exits" contract row and the architecture Spec's error taxonomy/open-questions sections, plus QCLI-2.7's adapter contract review Part 2 items 2b/4b/4c/5a/5b/6c (docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md), to ground each of the four in-scope items in the current corpus rather than paraphrase the task body.
+2. Scaffold a new Reference concept via `lore new reference "<title>"` (matching the existing docs/reference/*.md convention: Reference type, `## Details` body, forward link to the owning Story, no register/contracts-graph/source-register edits).
+3. Author the proposal body with one subsection per in-scope item:
+   - Envelope shape (schemaVersion form, kind naming, shared data key vs per-kind payload key, per-command payload-key naming) - options, trade-offs, recommendation, explicit statement of how the recommendation avoids copying either Lore's inbound adapter expectation or Lore's own outbound cli-contract.md shape (QCLI-2.7 item 2b).
+   - Exit-code-to-outcome table - concrete numeric table over the three categorical outcomes (success/decline-conflict/error) plus the fixed `--version` exit 0 case, with alternatives considered.
+   - Not-found signal convention - propose Quest's own side only (JSON-first vs bare-exit convention), explicitly mark the lore-doc boundary half (adapter item 5b / register item 5b) as NOT settled here.
+   - Anomaly placement - where a detected lease-evaluator disagreement sits relative to success/decline/error, grounded in the architecture Spec's open question and its note that promoting "anomaly" to a first-class outcome class is itself a quest-doc-facing proposal, not a lore-doc boundary item.
+4. Frame the whole document explicitly as a proposal for owner ruling: no ADR created, no decision marked accepted, explicit statement that the open component decisions register is intentionally not edited by this task.
+5. Do not touch docs/reference/quest-cli-open-component-decisions.md, docs/reference/quest-cli-component-contracts-and-delivery-graph.md, or docs/reference/quest-cli-research-source-register.md. Do not hand-edit docs/reference/index.md (managed block) or the Story's managed task table.
+6. Run `lore sync` to reconcile managed blocks/index, then run the three gates: `lore validate --strict`, `lore check`, `lore orphans`, recording real output.
+7. Record notes and evidence on QCLI-18 via `backlog task edit --append-notes`, commit in small logical commits (`type(scope): summary`, `Refs: QCLI-18` trailer), and push the branch.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Delivered docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md via `lore new reference ...`, grounded in the live text of the open component decisions register's "JSON and exits" row, the architecture Spec's error taxonomy and Open questions, the emit-three-categorical-outcomes ADR, and QCLI-2.7's adapter contract review Part 2 (items 2b, 4b/4c, 5a/5b, 6c; the divergence table between Lore's inbound adapter expectation and Lore's own outbound cli-contract.md shape).
+
+Per item:
+- Envelope shape: recommended a string schemaVersion ("1"), an underscore-joined `<command>_<outcome-class>` kind, and a per-outcome-class payload key (result/decline/error), with an explicit per-axis explanation of why each choice is neither Lore inbound's literal shape nor Lore outbound's cli-contract.md shape.
+- Exit-code table: recommended one code per ADR class (0 success, 1 decline/conflict, 2 error, 3 anomaly conditional on item 4, 64 usage error via sysexits EX_USAGE), with lore-cli's own self-facing exit convention presented and rejected as an alternative (Option B) specifically to avoid reproducing lore's own numbering.
+- Not-found convention: proposed Quest's own JSON-first decline-envelope convention only, and explicitly marked the lore-doc half (register/adapter item 5b - whether a future Lore adapter accepts this or requires the bare exit-1/empty-stdout pattern) as not settled here, since no Lore adapter targets Quest today (BacklogAdapter is lore-cli's only adapter type).
+- Anomaly placement: recommended a distinguishable fourth outcome (kind-tagged, its own conditional exit code 3), and separately flagged - as a distinct, non-lore-doc boundary - that fully canonizing "anomaly" as product-wide vocabulary is the architecture Spec's own quest-doc-routed proposal, not re-opened or settled here.
+
+Framing: explicit "this document decides nothing" statement up front and in the closing summary table; no ADR created; the open component decisions register was not touched by this task (confirmed via `git status --porcelain` against docs/reference/quest-cli-open-component-decisions.md, quest-cli-component-contracts-and-delivery-graph.md, and quest-cli-research-source-register.md - none appear).
+
+Verification evidence (all run from the worktree, current HEAD):
+- `lore validate --strict` (whole bundle): "39 files, 0 errors, 0 warnings, 6 skipped", exit 0.
+- `lore check`: after the new task's status change to In Progress produced expected status-drift/managed-block-drift on the owning Story, ran `lore sync` (updated docs/log.md, docs/reference/index.md, docs/stories/follow-through-on-the-quest-cli-design-layer.md; committed a pending backlog/ edit as `chore(backlog): sync task changes`). Re-ran `lore check`: "39 files, 0 errors, 0 warnings", exit 0.
+- `lore orphans`: "0 orphan tasks, 0 dangling links... every task has an owning doc, every linked task is live", exit 0.
+
+Out-of-scope findings, not acted on:
+- The register's "JSON and exits" row also lists "whether create and edit emit a JSON envelope uniformly" as an open item alongside this task's four; QCLI-18's scope does not include it (per the task body) and it remains open after this document - noted explicitly in the new document's own Notes section so it is not mistaken for settled.
+- `lore sync`'s catch-all backlog/ commit swept in a pending edit from this session's own `backlog task edit --plan` call (expected behavior per lore's own documented sync semantics, not a foreign change).
+
+Fix pass applied to docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md in response to reviewer request_changes:
+
+- Fix A (register-row miscount, grounding bullet ~L57-60): corrected the "JSON and exits" grounding bullet - the register row has exactly four items (three of which are this proposal's: envelope shape, exit-code table, not-found convention), plus a fourth (create/edit-uniform) this task doesn't cover. Anomaly placement, this proposal's fourth item, has no register row at all; it originates in the architecture Spec's "Open questions" section, not the register. Confirmed via `grep -n "anomal" docs/reference/quest-cli-open-component-decisions.md` returning zero hits.
+- Fix B (Notes section row attribution, ~L329-333): corrected the out-of-scope tally from "two items" to "three": the create/edit-uniform item is the register's own fourth "JSON and exits" item; the binary-invocation-surface and probe-sequence items actually belong to the register's separate "Lore integration" row (:159-161), lore-doc-owned, not the "JSON and exits" row.
+- Fix C (§1c payload-key dependency + summary-table row 1, ~L139-159 and ~L306): added the same conditional dependency §2's exit-code table already states - if item 4's fourth outcome class (anomaly) is accepted, the payload-key scheme gains a fourth key (`anomaly`) alongside result/decline/error, conditional on that acceptance. Stated in both §1c's prose and the summary table's row 1 recommendation cell.
+- Additional/optional Finding D (also applied): the not-found recommendation (§3) had misattributed a quote ("Quest's own charter default favors a structured error envelope over a bare exit-code convention") directly to QCLI-2.7 item 5b's own words. Re-attributed that quote to the component contracts and delivery graph's rendering of item 5b (:358-359), and quoted QCLI-2.7 item 5b's actual words ("a JSON error envelope with an `error_type`", :349) alongside it.
+
+Re-verification after the edits:
+- `lore validate --strict`: 39 files, 0 errors, 0 warnings, 6 skipped, exit 0.
+- `lore check`: 39 files, 0 errors, 0 warnings, exit 0.
+- `lore orphans`: 0 orphan tasks, 0 dangling links, exit 0.
+- AC5 re-verified: `git diff bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md docs/reference/quest-cli-research-source-register.md` is empty; `git status --porcelain` shows only the proposal document modified.
+
+Correction to this task's own Implementation Notes: the prior note's "Out-of-scope findings, not acted on" entry said the register's "JSON and exits" row lists the create/edit-uniform item "alongside this task's four" items - that repeats Finding A's register-miscount error. The register's "JSON and exits" row lists exactly four items total, three of which are QCLI-18's (envelope shape, exit-code table, not-found convention); the fourth is create/edit-uniform. This proposal's fourth in-scope item, anomaly placement, has no register row of its own - it comes from the architecture Spec's "Open questions" section (docs/specs/quest-cli-architecture.md:242-244), not from the register.
+<!-- SECTION:NOTES:END -->
