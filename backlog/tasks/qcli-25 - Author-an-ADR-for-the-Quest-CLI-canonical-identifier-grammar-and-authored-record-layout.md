@@ -3,11 +3,11 @@ id: QCLI-25
 title: >-
   Author an ADR for the Quest CLI canonical identifier grammar and
   authored-record layout
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:55'
+updated_date: '2026-08-05 23:11'
 labels:
   - campaign
   - decisions
@@ -16,6 +16,7 @@ labels:
   - identity
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
   - 'cluster:identity'
+  - wave-1
 dependencies: []
 documentation:
   - >-
@@ -33,12 +34,12 @@ QCLI-19 proposed the canonical identifier grammar and authored-record layout for
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An accepted ADR records D4 as closed: the canonical-id grammar shape accepted as QCLI-19 proposed (fixed literal prefix, flat unpadded decimal sequence, single global counter, ASCII-only alphabet, one fixed canonical case)
-- [ ] #2 The ADR fixes the literal prefix as T
-- [ ] #3 The ADR records the authored-record layout accepted as proposed: one Git-tracked file per canonical task, filename anchored on the canonical id with an optional non-identity-bearing slug, identity-free subdirectories, and alias data co-located on the canonical record rather than a separate index
-- [ ] #4 The ADR records the Unicode-normalisation-plus-case-folding rules accepted as proposed: ASCII-only fold to one fixed case for canonical ids, NFC-plus-default-case-fold for aliases
-- [ ] #5 The ADR names QCLI-19's proposal and the owning Story as the ruling's provenance, and lists what QCLI-19 left deliberately open (D5, D7a, lease/heartbeat timing, the counter's persisted shape, whether a migrated source identifier auto-registers as an alias) as still open and not settled by this ADR
-- [ ] #6 lore validate --strict passes on the new ADR file
+- [x] #1 An accepted ADR records D4 as closed: the canonical-id grammar shape accepted as QCLI-19 proposed (fixed literal prefix, flat unpadded decimal sequence, single global counter, ASCII-only alphabet, one fixed canonical case)
+- [x] #2 The ADR fixes the literal prefix as T
+- [x] #3 The ADR records the authored-record layout accepted as proposed: one Git-tracked file per canonical task, filename anchored on the canonical id with an optional non-identity-bearing slug, identity-free subdirectories, and alias data co-located on the canonical record rather than a separate index
+- [x] #4 The ADR records the Unicode-normalisation-plus-case-folding rules accepted as proposed: ASCII-only fold to one fixed case for canonical ids, NFC-plus-default-case-fold for aliases
+- [x] #5 The ADR names QCLI-19's proposal and the owning Story as the ruling's provenance, and lists what QCLI-19 left deliberately open (D5, D7a, lease/heartbeat timing, the counter's persisted shape, whether a migrated source identifier auto-registers as an alias) as still open and not settled by this ADR
+- [x] #6 lore validate --strict passes on the new ADR file
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -79,4 +80,12 @@ AC-by-AC check against the file's actual text:
 - AC6: confirmed above, exit 0.
 
 Out-of-scope findings (not actioned, for the orchestrator): none beyond the expected Story status-drift noted above, which QCLI-28 (or a settlement-time `lore sync`) will clear once all four Phase-1 ADR branches land.
+
+Settlement: reviewer independently re-verified all 6 ACs against the ADR file content (docs/adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) and re-ran 'lore validate --strict', confirming 0 errors/0 warnings. Approved on first pass — this worker correctly deferred lore sync/shared-index updates from the start, avoiding the scope-creep round its wave-1 siblings needed. Full lore sync reconciliation deferred to a single pass after all four wave-1 ADRs merge. Merged via PR #40, squash commit 9e7a0c0 on dev.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored and merged an accepted ADR (docs/adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) recording the owner's 2026-08-05 live-session ruling closing register entry D4: canonical-id grammar shape accepted as QCLI-19 proposed (fixed literal prefix, flat unpadded decimal sequence, single global counter, ASCII-only alphabet, one fixed canonical case), prefix fixed as T; authored-record layout (one Git-tracked file per canonical task, id-anchored filename with optional non-identity slug, identity-free subdirectories, co-located alias data); Unicode normalization/case-folding rules (ASCII fold to upper-case for canonical ids, NFC+default-case-fold for aliases). Names QCLI-19's proposal and the owning Story as provenance, and lists D5/D7a/lease-heartbeat-timing/counter-persisted-shape/migrated-alias-auto-registration as still open. Verified via lore validate --strict (0 errors/0 warnings) and independent reviewer re-verification of all 6 ACs, approved on first pass. Merged PR #40 (9e7a0c0).
+<!-- SECTION:FINAL_SUMMARY:END -->
