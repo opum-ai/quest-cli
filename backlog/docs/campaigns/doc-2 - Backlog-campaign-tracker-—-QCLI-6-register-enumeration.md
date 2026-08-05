@@ -3,7 +3,7 @@ id: doc-2
 title: Backlog campaign tracker — QCLI-6 register enumeration
 type: other
 created_date: '2026-08-05 02:50'
-updated_date: '2026-08-05 04:47'
+updated_date: '2026-08-05 05:18'
 ---
 # Backlog campaign tracker — QCLI-6 register enumeration
 
@@ -14,18 +14,19 @@ loop until the queue is empty or blocked → write handover.
 
 ## Campaign scope
 
-Started as a single task (QCLI-6); grew to three across two reviewer-proposed
-follow-ups, each approved by the user before filing. **QCLI-6** — "Close
-remaining research-source-register enumeration gaps (QCLI-2.5, 2.6, 2.8, 2.9,
-2.10 not yet enumerated in 'Prior QCLI research records')" — was the O2
-follow-up the QCLI-2 campaign's wave-5 integration review proposed (see
-`doc-1`, the QCLI-2 campaign's archival record, which stays untouched as
-history — this doc does not supersede it). **QCLI-7** — "Enumerate the
-campaign Story in the research-source-register's 'Prior QCLI research
-records' slice" — was filed directly from QCLI-6's own reviewer finding.
-**QCLI-8** — "Reconcile QCLI-2.10's playbook against the QCLI-2.5 enumeration
-gap QCLI-6 already closed" — was filed directly from QCLI-7's own reviewer
-finding.
+Started as a single task (QCLI-6); grew to four across three
+reviewer-proposed follow-ups, each approved by the user before filing.
+**QCLI-6** — "Close remaining research-source-register enumeration gaps
+(QCLI-2.5, 2.6, 2.8, 2.9, 2.10 not yet enumerated in 'Prior QCLI research
+records')" — was the O2 follow-up the QCLI-2 campaign's wave-5 integration
+review proposed (see `doc-1`, the QCLI-2 campaign's archival record, which
+stays untouched as history — this doc does not supersede it). **QCLI-7** —
+enumerate-or-exclude the campaign Story — was filed from QCLI-6's reviewer
+finding. **QCLI-8** — reconcile QCLI-2.10's playbook — was filed from
+QCLI-7's reviewer finding. **QCLI-9** — re-pin QCLI-2.10's playbook in the
+register — was filed from QCLI-8's reviewer finding, closing a
+pin-staleness chain that QCLI-8's own merge (correctly, and unavoidably)
+opened.
 
 Governing documents are the same as the QCLI-2 campaign:
 `docs/reference/quest-cli-component-charter.md`,
@@ -44,46 +45,60 @@ review cycles (escalated to `human_needed`) before the owner chose Option A
 (self-pin the co-edited sibling to its own current state on the branch,
 rather than to an exact commit SHA) — see PR #17.
 
-Confirmed avoided in **wave 1** (QCLI-6): did not co-edit the migration
-ledger or component charter, so all five new register members were
-correctly SHA-pinned.
+This campaign hit variants of the same trap four more times, each resolved
+differently depending on whether the task itself co-edited the pinned
+document:
 
-Confirmed correctly *applied* in **wave 2** (QCLI-7): this task co-edited
-`quest-cli-component-contracts-and-delivery-graph.md` (QCLI-2.8's own
-deliverable), which was already a SHA-pinned register member from wave 1 —
-the worker converted that specific pin to a self-pin in the same pass,
-exactly per the rule, and left QCLI-2.10's untouched, unrelated pin alone.
-Reviewer independently re-verified all three sub-claims.
+- **Wave 1** (QCLI-6): did not co-edit the ledger/charter — all five new
+  pins correctly SHA-pinned, no trap triggered.
+- **Wave 2** (QCLI-7): co-edited QCLI-2.8's own already-pinned document in
+  the same pass — correctly converted that pin to a self-pin (Option A).
+  Also discovered a *new* variant: Stories carry a lore-managed `tasks:`
+  block `lore sync` rewrites on any coupled task's status change,
+  independent of prose — no pin form (self- or SHA-) survives that. QCLI-7
+  resolved it by ruling Stories out of the register's admission authority
+  entirely, rather than attempting a pin. **Independent reviewer confirmed
+  this was the right call**, not just accepted the worker's framing.
+- **Wave 3** (QCLI-8): needed to edit QCLI-2.10's playbook for reasons
+  *unrelated* to the register (fixing a stale caveat) — but that document
+  was already commit-pinned in the register from wave 1. This is the
+  general form of the trap: **any** task editing a register-pinned document
+  for any reason invalidates that pin on merge, whether or not the task
+  ever intended to touch the register. QCLI-8 correctly left the register
+  alone (out of its own stated scope) and the resulting staleness became
+  wave 4's task.
+- **Wave 4** (QCLI-9): fixed wave 3's staleness with an exact-SHA re-pin
+  (not a self-pin, since QCLI-9 itself never touches the playbook) —
+  correctly the opposite fix from wave 2's, because the co-editing
+  condition differs. **Reviewer independently recomputed all 14 of the
+  register's pin-count entries from scratch** (not just the stated totals)
+  and confirmed the fix is structurally terminal: QCLI-9's own merge cannot
+  reopen the class, since it only touches the register (self-pinned),
+  lore-managed sync files, and a Backlog file — none of which is itself a
+  commit-pinned register member.
 
-**Surfaced by wave 2, now recurring a third time as of wave 3**: pinning
-discipline (self-pin / exact-SHA) assumes the pinned document's content is
-fixed once its owning task's edits land. Wave 3 (QCLI-8) shows this same
-assumption breaks not just for Stories but for **any** register-pinned
-document a later, unrelated task happens to co-edit for its own reasons:
-QCLI-8 needed to edit `quest-cli-backlog-adoption-and-migration-playbook.md`
-(QCLI-2.10's deliverable) for reasons unrelated to the register at all
-(reconciling a stale caveat), yet that document was already commit-pinned in
-the register from wave 1 — so merging QCLI-8 silently invalidates that pin
-the same way QCLI-2.12 and QCLI-7 each hit for other documents. See the
-proposed follow-up below and the reviewer's own framing: the *recurrence*
-across four separate pins (three failed migration-ledger pins + QCLI-2.8's
-conversion) plus this fifth instance is arguably the real defect, not any
-single stale SHA — worth an owner-level design call on whether register
-pins to task-editable documents should work differently in general, separate
-from patching this one instance.
+**Standing rule for any future task touching a document this register
+pins**: before merging, check whether the register currently pins that
+document. If so, the pin will go stale on merge regardless of whether the
+task intended to touch the register — decide up front whether to (a)
+self-pin in the same pass if the task also edits the register, or (b) file
+the register correction as its own follow-up if it doesn't. The residual
+hazard is generic to SHA-pinning as a mechanism, not a bug in any one fix.
 
 ## Frontier
 
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave —
-never trust a persisted "next wave" plan. As of settlement of wave 3,
-2026-08-05: 0 ready, 0 blocked. Campaign queue is empty — all three members
-Done. One further follow-up proposed below, awaiting user approval.
+never trust a persisted "next wave" plan. As of settlement of wave 4,
+2026-08-05: 0 ready, 0 blocked. Campaign queue is empty — all four members
+Done, and no further follow-up is currently proposed (wave 4's reviewer
+explicitly assessed the pin-staleness chain as structurally closed).
 
 ## Confirmed queue order
 
-Confirmed by the user on 2026-08-05 (QCLI-6); QCLI-7 and QCLI-8 each added
-and approved on 2026-08-05 following their originating wave's review.
+Confirmed by the user on 2026-08-05 (QCLI-6); QCLI-7, QCLI-8, and QCLI-9
+each added and approved on 2026-08-05 following their originating wave's
+review.
 
 1. QCLI-6 — Close remaining research-source-register enumeration gaps
    (Done, wave 1)
@@ -91,12 +106,14 @@ and approved on 2026-08-05 following their originating wave's review.
    'Prior QCLI research records' slice (Done, wave 2)
 3. QCLI-8 — Reconcile QCLI-2.10's playbook against the QCLI-2.5 enumeration
    gap QCLI-6 already closed (Done, wave 3)
+4. QCLI-9 — Re-pin QCLI-2.10's playbook in the register after QCLI-8's
+   merge invalidated its commit-pin (Done, wave 4)
 
 ## Clusters
 
 | Cluster label | Covers | Tasks |
 | ------------- | ------ | ----- |
-| cluster:provenance | Research-source-register coherence/enumeration | QCLI-6 (Done), QCLI-7 (Done), QCLI-8 (Done) |
+| cluster:provenance | Research-source-register coherence/enumeration | QCLI-6 (Done), QCLI-7 (Done), QCLI-8 (Done), QCLI-9 (Done) |
 
 ## In flight
 
@@ -105,7 +122,7 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
-(none — all three waves fully settled)
+(none — all four waves fully settled)
 
 ## Needs a human / blocked
 
@@ -116,36 +133,12 @@ None currently outstanding.
 Never created unprompted — this project requires approval before follow-up
 work is filed. Each entry is a ready-to-run proposal.
 
-- From wave 3's reviewer (QCLI-8 review, 2026-08-05): **Re-pin QCLI-2.10's
-  playbook in the register after QCLI-8's merge invalidated its commit-pin**
-  The register (`docs/reference/quest-cli-research-source-register.md`)
-  still asserts `quest-cli-backlog-adoption-and-migration-playbook.md` was
-  last amended at commit `8935551` (set by QCLI-6). QCLI-8 merged a new
-  commit (`5efeb9d`, squashed into PR #23 as `1a61989`) that edits this same
-  file, for reasons unrelated to the register — so the register's pin is now
-  factually wrong the moment a reader checks it, the same live-claim
-  standard that made QCLI-2.12's and QCLI-7's pin fixes non-optional. Same
-  structural fix QCLI-7 already applied for QCLI-2.8's document: either
-  re-pin to the new exact commit, or convert to a self-pin if a future task
-  is expected to keep touching this document. Whichever follow-up task does
-  this will itself co-edit the playbook and the register in the same
-  pass — it must apply the QCLI-2.12 self-pin rule to its own edit too, not
-  just fix the QCLI-8-introduced staleness.
-  ACs (draft): (1) the register's exact-revision pin for
-  `quest-cli-backlog-adoption-and-migration-playbook.md` reflects its true
-  last-touch commit (or is converted to a self-pin if this task itself edits
-  it again); (2) the running self-pinned/commit-pinned/distinct-SHA counts in
-  the "Prior QCLI research records" slice are corrected to match; (3) no
-  Classification field lost, no permitted use narrowed; (4)
-  `lore check/validate/orphans --strict` all clean.
-  **Separately, flagged for the user's judgment rather than drafted as an
-  AC**: the reviewer noted this pin-staleness pattern has now recurred five
-  times (three failed migration-ledger pins, QCLI-2.8's conversion, and this
-  one) and suggested the recurrence itself — not any single stale SHA — may
-  be the real defect, worth an owner-level decision on whether the register
-  should pin task-editable documents differently in general (e.g., defaulting
-  new admissions to self-pins) rather than continuing to patch instances one
-  at a time.
+None currently outstanding. Wave 4's reviewer explicitly assessed the
+pin-staleness chain (QCLI-6 → QCLI-7 → QCLI-8 → QCLI-9) as structurally
+closed: nothing in the register is currently stale, and QCLI-9's own merge
+cannot reopen the class by construction. The only residual hazard is
+generic to SHA-pinning as a mechanism (see "Known trap" above) and applies
+to any future task, not to unfinished work from this campaign.
 
 ## Wave log
 
@@ -155,78 +148,65 @@ work is filed. Each entry is a ready-to-run proposal.
   enumerated the five missing register members (SHA-pinned: QCLI-2.5→418c5eb,
   QCLI-2.6→739aa7e, QCLI-2.8→8935551, QCLI-2.9→3b5cd8c, QCLI-2.10→8935551)
   and stated process-level-response admissibility in the public-surface
-  slice. Reviewer (independent, top-tier) returned **approve** on all 4 ACs
-  after re-deriving every SHA from `git log`/`git show`, a strict
-  Classification-field grep, a full pre/post slice-text diff, and an
-  independent re-run of `lore check/validate/orphans --strict` (all clean).
-  Two non-blocking findings: (1) QCLI-2.8's caveat names a third
-  unenumerated source (the campaign Story) beyond the two this task closed
-  — became the proposal that turned into QCLI-7; (2) the worker's own
-  out-of-scope note overstated closure of QCLI-2.8's caveat — corrected in
-  the task's settlement notes. No wave-level integration review dispatched
-  (single-task wave). Rebase onto `origin/dev` at merge time was a no-op
-  (dev had not moved); gates re-verified clean anyway per the
-  mandatory-reverify rule. Merged squash via PR #21 as `d4b7123`. Settled:
-  QCLI-6 → Done, all 4 ACs checked.
+  slice. Reviewer returned **approve** on all 4 ACs after re-deriving every
+  SHA from `git log`/`git show`, a strict Classification-field grep, a full
+  pre/post slice-text diff, and an independent re-run of
+  `lore check/validate/orphans --strict` (all clean). Two non-blocking
+  findings, one of which became QCLI-7. Merged squash via PR #21 as
+  `d4b7123`. Settled: QCLI-6 → Done, all 4 ACs checked.
 
-- 2026-08-05 — wave 2 (tasks: QCLI-7): User approved filing wave 1's
-  proposed follow-up and proceeding immediately; task created and onboarded
-  directly into this campaign (deps QCLI-6, QCLI-2.8, both already Done —
-  ready-now). Single-member wave. Worker implemented in treehouse slot 1
-  (`fix/qcli-7-story-enumeration`, based on `dev @ bea8f26`): made the real
-  judgment call to rule Stories out of scope for the slice's admission
-  authority (not admit the campaign Story as a member), reasoning that a
-  Story's lore-managed `tasks:` block makes every pin form structurally
-  unstable — empirically confirmed live during the task's own pass (the
-  Story's `tasks:` count churned 16→17 from linking QCLI-7 alone, zero prose
-  changes). Also correctly converted QCLI-2.8's own register pin from
-  commit- to self-pinned, since this task's pass co-edited that document.
-  Reviewer independently re-derived the Story's instability claim from its
-  own git history (diffed its 8 most recent commits — all metadata-only) and
-  **concurred** with the rule-out-of-scope call after applying the
-  decide-vs-defer test; verdict **approve**, all 4 ACs confirmed. Merge hit
-  two purely-mechanical rebase conflicts in QCLI-7's own task-file
-  frontmatter (labels/updated_date/assignee — the orchestrator's wave-2 and
-  in-review label commits on `dev` collided with the worker's own metadata
-  edits on the branch; substantive register/component-contracts content was
-  untouched). Orchestrator resolved both directly (merging both sides'
-  metadata, not discarding either) rather than treating them as a
-  reviewer-escalation-worthy content conflict — Backlog task frontmatter is
-  mechanical, not product content. Gates re-verified clean post-rebase.
-  Merged squash via PR #22 as `5f47b02`. Settled: QCLI-7 → Done, all 4 ACs
-  checked. Reviewer surfaced a broader version of QCLI-7's own flagged
-  out-of-scope discovery (QCLI-2.10's playbook has two stale references, not
-  one) — became the proposal that turned into QCLI-8.
+- 2026-08-05 — wave 2 (tasks: QCLI-7): Task created and onboarded directly
+  into this campaign (deps QCLI-6, QCLI-2.8, both Done — ready-now). Worker
+  made the real judgment call to rule Stories out of scope for the register's
+  admission authority, reasoning a Story's lore-managed `tasks:` block makes
+  every pin form structurally unstable — empirically confirmed live (Story's
+  `tasks:` count churned 16→17 from linking QCLI-7 alone, zero prose
+  changes). Also converted QCLI-2.8's own register pin from commit- to
+  self-pinned, since this task's pass co-edited that document. Reviewer
+  independently re-derived the Story's instability claim from its own git
+  history and **concurred** with the rule-out-of-scope call; verdict
+  **approve**, all 4 ACs confirmed. Merge hit two mechanical rebase
+  conflicts in QCLI-7's own task-file frontmatter — resolved by the
+  orchestrator directly (not a content conflict; Backlog frontmatter, not
+  product content). Merged squash via PR #22 as `5f47b02`. Settled: QCLI-7
+  → Done, all 4 ACs checked. Reviewer's finding became QCLI-8.
 
-- 2026-08-05 — wave 3 (tasks: QCLI-8): User approved filing wave 2's
-  proposed follow-up and proceeding immediately; task created and onboarded
-  directly into this campaign (deps QCLI-6, QCLI-2.10, both already Done —
-  ready-now). Single-member wave. Worker implemented in treehouse slot 1
-  (`fix/qcli-8-playbook-reconciliation`, based on `dev @ 1354694`):
-  reconciled both stale references in QCLI-2.10's playbook (a Sources-table
-  classification cell and a narrative caveat paragraph) using the same
-  inline-supersession pattern as QCLI-7's precedent, without touching the
+- 2026-08-05 — wave 3 (tasks: QCLI-8): Task created and onboarded (deps
+  QCLI-6, QCLI-2.10, both Done — ready-now). Worker reconciled two stale
+  references in QCLI-2.10's own playbook to the register's current state,
+  following QCLI-7's inline-supersession precedent, without touching the
   register itself (correctly out of scope). Also fixed pre-existing,
-  task-unrelated drift blocking the gates: QCLI-8 itself had never been
-  `lore link`-coupled to the campaign Story (orphan-gate failure), and the
-  Story's managed block still showed QCLI-7 as In Progress despite its
-  settlement to Done — both closed via `lore link` + `lore sync`, confirmed
-  by the reviewer as genuinely pre-existing and mechanical, not scope creep.
-  Reviewer re-derived every factual claim from git independently (SHA, date,
-  member count), confirmed byte-for-byte preservation of both original
-  caveats, and re-ran all three lore gates clean; verdict **approve**, all 3
-  ACs confirmed. Merge hit one mechanical rebase conflict in QCLI-8's own
-  task-file frontmatter (same class as wave 2) — resolved by the orchestrator
-  the same way. Reviewer separately identified a required, non-blocking
-  follow-up: this merge invalidates the register's own pin for the very
-  document QCLI-8 edited (QCLI-2.10's playbook), the same pin-staleness class
-  QCLI-2.12 and QCLI-7 already fixed elsewhere, now recurring a fifth time
-  overall — proposed above, pending user approval, along with the reviewer's
-  broader observation that the recurrence itself may warrant an owner-level
-  design decision. Merged squash via PR #23 as `1a61989`. Settled: QCLI-8 →
-  Done, all 3 ACs checked.
+  task-unrelated drift (QCLI-8 itself never `lore link`-coupled; QCLI-7's
+  Done status never synced into the Story's managed block) via the sanctioned
+  `lore link` + `lore sync` path — confirmed genuinely pre-existing and
+  mechanical by the reviewer. Verdict **approve**, all 3 ACs confirmed. One
+  mechanical rebase conflict, resolved the same way as wave 2. Reviewer
+  identified a required, non-blocking follow-up: this merge invalidates the
+  register's own pin for the very document QCLI-8 edited — became QCLI-9.
+  Merged squash via PR #23 as `1a61989`. Settled: QCLI-8 → Done, all 3 ACs
+  checked.
 
-Campaign complete: the queue holds three Done tasks (QCLI-6, QCLI-7, QCLI-8)
-and 0 ready/blocked. No further waves to run without a new task. See the R6
-report for the full session summary and the proposed follow-up above,
-pending user approval.
+- 2026-08-05 — wave 4 (tasks: QCLI-9): Task created and onboarded (deps
+  QCLI-8, QCLI-6, both Done — ready-now). Worker re-derived the playbook's
+  true current last-touch commit live via `git log` (`1a61989`, QCLI-8's own
+  squash-merge) rather than trusting the task description, and re-pinned the
+  register accordingly (exact-SHA, correctly not a self-pin since this task
+  does not co-edit the playbook), correcting the running pin-count arithmetic
+  to match. Also fixed a pre-existing orphan-gate failure (QCLI-9 itself
+  never linked) via the same sanctioned path as prior waves. Reviewer
+  independently re-derived the commit hash and **recomputed all 14 of the
+  register's pin entries from scratch** (not the stated totals) rather than
+  trusting either party's arithmetic, confirmed zero live references to the
+  retired `8935551` SHA remain anywhere, and re-ran all three lore gates
+  clean; verdict **approve**, all 4 ACs confirmed, explicitly assessed as
+  **closing the pin-staleness chain structurally** — no further follow-up
+  warranted, since this task's own merge cannot reopen the class (it touches
+  only self-pinned/non-member files). Merge hit the same two mechanical
+  rebase conflicts as prior waves — resolved the same way; also required a
+  post-rebase `lore sync` to reconcile the Story's managed block against
+  dev's moved state (mechanical, no content change). Merged squash via PR
+  #24 as `b9475f2`. Settled: QCLI-9 → Done, all 4 ACs checked.
+
+Campaign complete: the queue holds four Done tasks (QCLI-6, QCLI-7, QCLI-8,
+QCLI-9) and 0 ready/blocked/proposed. No further waves to run without a new
+task. See the R6 report for the full session summary.
