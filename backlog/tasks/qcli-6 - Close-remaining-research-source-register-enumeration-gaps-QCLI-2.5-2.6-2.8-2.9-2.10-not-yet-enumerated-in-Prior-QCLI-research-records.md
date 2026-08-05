@@ -3,10 +3,10 @@ id: QCLI-6
 title: >-
   Close remaining research-source-register enumeration gaps (QCLI-2.5, 2.6, 2.8,
   2.9, 2.10 not yet enumerated in 'Prior QCLI research records')
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-05 02:29'
-updated_date: '2026-08-05 03:13'
+updated_date: '2026-08-05 03:21'
 labels:
   - research
   - register
@@ -53,10 +53,10 @@ For the durable pattern on how to pin a document that this same task's own passe
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The register's "Prior QCLI research records" slice enumerates all five identified documents (QCLI-2.5, 2.6, 2.8, 2.9, and 2.10's outputs), each correctly pinned -- self-pinned to its own current state if co-edited by this same task's own passes, SHA-pinned to a specific commit otherwise
-- [ ] #2 The "Backlog.md public surface" slice's Permitted use states explicitly whether process-level responses from running the installed tool are an admissible evidence class, with reasoning either way
-- [ ] #3 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
-- [ ] #4 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
+- [x] #1 The register's "Prior QCLI research records" slice enumerates all five identified documents (QCLI-2.5, 2.6, 2.8, 2.9, and 2.10's outputs), each correctly pinned -- self-pinned to its own current state if co-edited by this same task's own passes, SHA-pinned to a specific commit otherwise
+- [x] #2 The "Backlog.md public surface" slice's Permitted use states explicitly whether process-level responses from running the installed tool are an admissible evidence class, with reasoning either way
+- [x] #3 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
+- [x] #4 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -103,4 +103,12 @@ AC4 -- lore gates, run after both content commits, working tree clean:
 Out-of-scope observation (not fixed, per this task's own scope boundary): quest-cli-component-contracts-and-delivery-graph.md's "Reconciliation across the ten dependencies" caveat and quest-cli-backlog-adoption-and-migration-playbook.md's "Sources and classification" caveat both still describe the enumeration gap and the process-level-response silence as open, since this task does not edit either document. Both caveats remain accurate as historical records of their own settlement pass (matching this campaign's own convention of leaving a prior pass's disclosed-gap prose standing rather than retroactively editing a merged deliverable) -- flagging this only so a reader comparing dates does not mistake the caveats for a currently-open gap; the register itself is now the current source of truth on both points.
 
 Commits: 63e13f6 (mechanical lore-sync managed-block update after the in-progress status change), b7f4d9b (the substantive AC1/AC2 register edit).
+
+Reviewer-verified settlement (orchestrator, wave 1, single-task): AC1 confirmed via independent SHA re-derivation (git log/git show) for all five members — QCLI-2.5→418c5eb, QCLI-2.6→739aa7e, QCLI-2.8→8935551, QCLI-2.9→3b5cd8c, QCLI-2.10→8935551 — none co-edited by this task's own branch, so all correctly SHA-pinned (not self-pinned); the QCLI-2.12 SHA-pinning trap does not apply here. AC2 confirmed: process-level-response admissibility stated with reasoning at the public-surface slice, verified consistent with QCLI-2.5's existing reliance. AC3 confirmed via strict field-level grep for Classification lines (zero added/removed) and full pre/post text diff of touched slices (no narrowing). AC4 re-run independently by the reviewer in the worktree: lore check --strict / lore validate --strict / lore orphans all zero errors/warnings/orphans. Merged as d4b7123 (PR #21, squash). Correction to this task's own out-of-scope note: QCLI-2.8's caveat at quest-cli-component-contracts-and-delivery-graph.md:69-96 names THREE unenumerated sources, not two -- QCLI-2.5's fidelity contract and QCLI-2.6's threat model (both closed by this task) plus the campaign Story (docs/stories/prepare-quests-clean-room-research-foundation.md), which remains unenumerated in the register. QCLI-2.8's caveat is therefore two-thirds closed, not fully superseded; a follow-up to enumerate the Story (or rule explicitly that Stories need no admission) is proposed in the campaign doc, pending user approval.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed the register enumeration gap QCLI-2.12's own text conceded existed for QCLI-2.5/2.6/2.8/2.9/2.10's deliverables, and stated explicit admissibility for process-level tool responses. Edited only docs/reference/quest-cli-research-source-register.md: (1) enumerated all five documents in the 'Prior QCLI research records' slice, each SHA-pinned to its own last-touch commit (none co-edited by this task, so the QCLI-2.12 self-pin trap did not apply); updated running counts 9->14 members, 7->12 commit-pinned, 5->8 distinct SHAs. (2) Added to the 'Backlog.md public surface' slice's Permitted use an explicit statement that process-level responses (e.g. mcp start's stdio JSON-RPC response) are admissible evidence, on the same running-vs-reading-source test the slice's Exclusions already draws, without narrowing QCLI-2.5's existing reliance. No Classification field touched; verified one-to-one via strict grep. Verified by an independent reviewer who re-derived every SHA, re-ran lore check/validate/orphans --strict (all clean), and diffed the full pre/post slice text. Merged as d4b7123 (PR #21). Left open: QCLI-2.8's caveat named a third unenumerated source (the campaign Story) that this task's scope did not cover -- proposed as a follow-up in the campaign doc.
+<!-- SECTION:FINAL_SUMMARY:END -->
