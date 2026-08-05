@@ -10,7 +10,7 @@ tags:
   - phase-1
 summary: Close the residual corpus defects the design layer surfaced, correct the one error it introduced, and propose the Phase 1 component decisions.
 timestamp: 2026-08-05T12:35:09.501Z
-status: in-progress
+status: todo
 tasks:
   - qcli-12
   - qcli-13
@@ -76,7 +76,7 @@ Three kinds of work, deliberately in one Story because they share a cause:
 | [QCLI-14](../../backlog/tasks/qcli-14%20-%20Correct-the-bin-path-row-in-the-packaging-contracts-Description-column.md) | Correct the bin-path row in the packaging contract's Description column | Done |
 | [QCLI-15](../../backlog/tasks/qcli-15%20-%20Audit-two-unresolved-register-findings-the-untraceable-Allowed-value-and-QCLI-2.12s-F4-and-F5.md) | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | Done |
 | [QCLI-16](../../backlog/tasks/qcli-16%20-%20Audit-and-correct-the-licensing-source-misattribution-in-the-contracts-and-delivery-graph.md) | Audit and correct the licensing-source misattribution in the contracts and delivery graph | Done |
-| [QCLI-17](../../backlog/tasks/qcli-17%20-%20Correct-the-open-component-decisions-registers-Backlog.md-reclassification-trigger-claim.md) | Correct the open component decisions register's Backlog.md reclassification-trigger claim | In Progress |
+| [QCLI-17](../../backlog/tasks/qcli-17%20-%20Correct-the-open-component-decisions-registers-Backlog.md-reclassification-trigger-claim.md) | Correct the open component decisions register's Backlog.md reclassification-trigger claim | Done |
 | [QCLI-18](../../backlog/tasks/qcli-18%20-%20Propose-the-CLI-result-contract-envelope-shape-exit-code-table-not-found-convention-and-anomaly-placement.md) | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | To Do |
 | [QCLI-19](../../backlog/tasks/qcli-19%20-%20Propose-the-canonical-identifier-grammar-and-authored-record-layout.md) | Propose the canonical identifier grammar and authored-record layout | To Do |
 | [QCLI-20](../../backlog/tasks/qcli-20%20-%20Propose-the-scale-target-and-the-projection-sizing-basis-it-implies.md) | Propose the scale target and the projection sizing basis it implies | To Do |

@@ -58,6 +58,7 @@
 - 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
 - 2026-08-05T08:49:46-05:00 d95c1ee027b5d81f6a5df0e77f3d048bc5298714 docs: sync log.md after QCLI-16 merge
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+- 2026-08-05T08:53:57-05:00 a935a364d4e6b73cf133f14d0721ad78e5a08498 docs: sync log.md after QCLI-17 merge
 
 ## docs/adr
 
