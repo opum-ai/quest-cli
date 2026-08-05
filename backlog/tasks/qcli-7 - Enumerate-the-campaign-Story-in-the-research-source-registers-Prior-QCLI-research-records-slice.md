@@ -3,9 +3,10 @@ id: QCLI-7
 title: >-
   Enumerate the campaign Story in the research-source-register's 'Prior QCLI
   research records' slice
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 03:25'
+updated_date: '2026-08-05 03:25'
 labels:
   - research
   - register
@@ -14,6 +15,7 @@ labels:
   - clean-room
   - 'cluster:provenance'
   - campaign
+  - wave-2
 dependencies:
   - QCLI-6
   - QCLI-2.8
