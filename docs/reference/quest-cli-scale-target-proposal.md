@@ -22,8 +22,9 @@ Phase 1 decision | Phase 3 storage and index design" — cited here read-only,
 never edited by this document. D5's absence currently blocks two things: the
 projection storage or index engine cannot be sized without it
 ([component contracts and delivery graph](quest-cli-component-contracts-and-delivery-graph.md),
-residual finding 5, "`QCLI-2.5` notes migration read-pass cost scales with
-source-project size but sets no target"), and the
+"Unresolved component decisions (AC3)," item 5 ("Scale"), "`QCLI-2.5` notes
+migration read-pass cost scales with source-project size but sets no
+target"), and the
 [architecture Spec](../specs/quest-cli-architecture.md)'s open question —
 "Does the projection port need transactional semantics, or is rebuild-on-doubt
 sufficient? ... cannot be settled before the scale target (D5)" — has nothing
@@ -171,7 +172,7 @@ The threat model derives Quest's safety and recovery invariants from a
 topology of "local worktrees and multiple clones" coordinating through Git
 compare-and-swap with no central arbiter — a worktree is a working directory
 sharing one clone's object store, and a clone is "an independently cloned
-repository, with its own object store" whose "local worktree/clone can be
+repository, with its own object database" whose "local worktree/clone can be
 arbitrarily stale relative to any other" (threat model, topology
 grounding). `TM-03` exercises exactly two clones racing the same claim as
 its minimum case; the durability tiers ("Repository removal") reason about
@@ -295,16 +296,18 @@ Two independent reasons, either of which is sufficient on its own:
    runtime... packaging, supported-platform, or integration choices whose
    required Lore evidence is unfinished" is listed as prohibited work before
    activation. An engine choice made now, ahead of D2, would be exactly such
-   a freeze — the research programme Spec names this component's own
-   contracts-and-delivery-graph document's "Explicitly open" item for the
-   projection contract ("scale target; any concrete storage or index engine
-   for the projection") as the two things left open together, and this
-   document closes only the first one, proposed for owner ruling.
+   a freeze — the
+   [component contracts and delivery graph](quest-cli-component-contracts-and-delivery-graph.md)'s
+   projection contract itself carries an "Explicitly open" line naming both
+   items together ("scale target; any concrete storage or index engine for
+   the projection"), citing the research programme Spec's Open Questions as
+   its own basis, and this document closes only the first one, proposed for
+   owner ruling.
 
 This document's scale target and rebuild time budget are precisely the
 sizing inputs a future engine choice will need — that is what makes settling
-D5 a Phase 1 prerequisite for Phase 3 (component contracts and delivery
-graph, register table: "D5 | Scale target | Open | Component | A Phase 1
+D5 a Phase 1 prerequisite for Phase 3 (open component decisions register,
+register table: "D5 | Scale target | Open | Component | A Phase 1
 decision | Phase 3 storage and index design") — but supplying those inputs is
 not the same act as spending them on a choice, and this document does only
 the former.

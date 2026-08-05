@@ -4,7 +4,7 @@ title: Propose the scale target and the projection sizing basis it implies
 status: To Do
 assignee: []
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 15:35'
+updated_date: '2026-08-05 15:47'
 labels:
   - campaign
   - 'cluster:projection'
@@ -82,4 +82,22 @@ Out-of-scope observations (not acted on):
 - No corpus defect or drift was found while researching D2/D5 and the projection contract -- the registers D5 row, the delivery graphs residual finding 5, and the architecture Specs open question are already mutually consistent as of this reading.
 - lore new flagged the initial --summary as too long (238 chars, over the ~200-char guidance); shortened before authoring the body. Not a corpus defect, just a scaffolding-step note.
 - Noticed in passing (via the research programme Specs prohibited-work clause) that lore-cli maintains its own LadybugDB benchmark/scale-acceptance doc for its own graph engine -- unrelated to Quests own projection-engine decision (D5/D2) and out of this repos scope; not cited as evidence in the proposal and no action taken.
+
+Fix pass applied to docs/reference/quest-cli-scale-target-proposal.md per reviewer's request_changes on QCLI-20 (four citation/attribution-only edits; no figure, budget, or conclusion changed):
+
+1. [MEDIUM] Reattributed the D5 register row quote (near doc line ~307-311, "Phase 1 prerequisite for Phase 3") from "component contracts and delivery graph, register table" to "open component decisions register, register table" -- the quoted row actually lives at docs/reference/quest-cli-open-component-decisions.md:85, and grep -c "D5" against the contracts-and-delivery-graph file returns 0 (no D-entry table there). Matches the document's own already-correct attribution at its opening (~line 19-21). Quoted row text left unchanged.
+
+2. [MEDIUM-LOW] Reversed the attribution direction (near doc line ~297-305, "Why no storage or index engine is chosen here," reason 2): now states the component-contracts-and-delivery-graph's own projection contract carries the "Explicitly open" line naming both items ("scale target; any concrete storage or index engine for the projection"), citing the research programme Spec's Open Questions as its own basis -- not the Spec naming the contracts-and-delivery-graph document. Verified against docs/reference/quest-cli-component-contracts-and-delivery-graph.md:511-513, which reads: "*Explicitly open:* scale target; any concrete storage or index engine for the projection (both `QCLI-2.6`'s own non-goals and the Spec's Open Questions; see below)." Quoted phrase left unchanged.
+
+3. [LOW] Replaced the locator "residual finding 5" (doc line ~24-25, in the opening paragraph) with the section's real name: "Unresolved component decisions (AC3)," item 5 ("Scale"). Verified against docs/reference/quest-cli-component-contracts-and-delivery-graph.md -- section header at line 560, item 5 ("Scale.") at line 627. Quoted content ("QCLI-2.5 notes migration read-pass cost scales with source-project size but sets no target") was already verbatim-correct and left unchanged.
+
+4. [LOW] Corrected the misquote (doc line ~174-176, "Clone count" section) from "an independently cloned repository, with its own object store" to "...object database", matching the actual source text at docs/reference/quest-cli-git-filesystem-and-concurrency-threat-model.md:121-123 verbatim ("a 'clone' is an independently cloned repository, with its own object database and its own view of which commits it has fetched"). Only the quoted phrase was changed; the document's own unquoted paraphrase earlier in the same sentence ("sharing one clone's object store") is not a quotation and was left as-is, per the reviewer's instruction to fix only the quoted phrase.
+
+Re-verification after the fixes:
+- lore validate --strict: 39 files, 0 errors, 0 warnings, 6 skipped -- exit 0
+- lore check: 39 files, 0 errors, 0 warnings -- exit 0
+- lore orphans: 0 orphan tasks, 0 dangling links -- exit 0
+- git diff bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md docs/reference/quest-cli-research-source-register.md: empty (AC6 still holds -- register and sibling-owned files untouched)
+
+No figure, budget, or the transactional-semantics conclusion was changed. No acceptance criteria checked, no status change, campaign doc untouched.
 <!-- SECTION:NOTES:END -->
