@@ -1,11 +1,11 @@
 ---
 id: QCLI-26
 title: Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 23:05'
+updated_date: '2026-08-05 23:12'
 labels:
   - campaign
   - decisions
@@ -14,6 +14,7 @@ labels:
   - projection
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
   - 'cluster:projection'
+  - wave-1
 dependencies: []
 documentation:
   - docs/reference/quest-cli-scale-target-proposal.md
@@ -32,11 +33,11 @@ QCLI-20 proposed a scale target for register entry D5 and a rebuild-on-doubt con
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An accepted ADR records D5 as closed, accepting QCLI-20's proposed design points as-is: ~10,000 active-plus-historical task records per enrolled workspace, ~100,000-150,000 events per enrolled workspace, ~25 concurrently enrolled workspaces per installation, ~5-10 live clones per enrolled repository, and a rebuild time budget of low single-digit seconds at ordinary per-workspace scale and low minutes at the ~25-workspace aggregate bound
-- [ ] #2 The ADR accepts the rebuild-on-doubt-remains-sufficient conclusion: full ACID-style cross-record transactional semantics are not implied by this scale target
-- [ ] #3 The ADR states explicitly that it chooses no storage or index engine, consistent with register entry D2 remaining blocked post-activation and the research programme Spec's prohibition on freezing runtime-dependent choices before Phase 0
-- [ ] #4 The ADR names QCLI-20's proposal and the owning Story as the ruling's provenance
-- [ ] #5 lore validate --strict passes on the new ADR file
+- [x] #1 An accepted ADR records D5 as closed, accepting QCLI-20's proposed design points as-is: ~10,000 active-plus-historical task records per enrolled workspace, ~100,000-150,000 events per enrolled workspace, ~25 concurrently enrolled workspaces per installation, ~5-10 live clones per enrolled repository, and a rebuild time budget of low single-digit seconds at ordinary per-workspace scale and low minutes at the ~25-workspace aggregate bound
+- [x] #2 The ADR accepts the rebuild-on-doubt-remains-sufficient conclusion: full ACID-style cross-record transactional semantics are not implied by this scale target
+- [x] #3 The ADR states explicitly that it chooses no storage or index engine, consistent with register entry D2 remaining blocked post-activation and the research programme Spec's prohibition on freezing runtime-dependent choices before Phase 0
+- [x] #4 The ADR names QCLI-20's proposal and the owning Story as the ruling's provenance
+- [x] #5 lore validate --strict passes on the new ADR file
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -91,4 +92,12 @@ after a small cosmetic fix to the D7a/D7b clause) — passes clean. Did not re-r
 `lore sync` or `lore check` on this branch; post-revert `lore check` drift
 (Story status/table vs. the live task status) is expected and intentionally left
 as-is, to be resolved by the post-merge sync pass, not by this task.
+
+Settlement: reviewer independently re-verified all 5 ACs against the ADR file content (docs/adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) and re-ran 'lore validate --strict', confirming 0 errors/0 warnings. One request_changes round was needed for shared-managed-file scope creep (docs/adr/index.md, docs/log.md, the Story's managed task table were reverted to dev's version) plus an optional D7a/D7b attribution correction, both applied and re-approved. Full lore sync reconciliation deferred to a single pass after all four wave-1 ADRs merge. Merged via PR #41, squash commit 589e1a7 on dev.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored and merged an accepted ADR (docs/adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) recording the owner's 2026-08-05 live-session ruling closing register entry D5: accepted QCLI-20's design points as-is (~10,000 active+historical task records/workspace, ~100,000-150,000 events/workspace, ~25 concurrently enrolled workspaces/installation, ~5-10 live clones/repository, rebuild time budget of low single-digit seconds ordinary / low minutes at the ~25-workspace aggregate bound); accepted rebuild-on-doubt-remains-sufficient (no full ACID cross-record transactional semantics implied); explicitly chose no storage/index engine, consistent with D2 remaining blocked post-activation. Names QCLI-20's proposal and the owning Story as provenance. Verified via lore validate --strict (0 errors/0 warnings) and independent reviewer re-verification of all 5 ACs. Merged PR #41 (589e1a7).
+<!-- SECTION:FINAL_SUMMARY:END -->
