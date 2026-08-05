@@ -289,7 +289,10 @@ AC4 (Rejected identity vs. preserved execution invariants) and candidate
 
 *Explicitly open:* final availability of `@opum-ai/quest` at release time
 (the register's own slice records this as time-bound, not settled by this
-citation); product license (see "Unresolved component decisions," below).
+citation). Product license is no longer open — **closed 2026-08-05** by the
+[license, platform, and runtime ownership
+record](quest-cli-license-platform-and-runtime-ownership-record.md)
+(`QCLI-27`); see "Unresolved component decisions," below, item 1.
 
 #### 2. Lifecycle
 
@@ -372,19 +375,35 @@ divergence from Lore's own outbound contract.
   not-found or error path (`BB-05`, `BB-06`; restated as `INV-5` under Git
   mutation, below, since the same invariant governs both).
 
-*Explicitly open (component decisions, not resolved here):* the exact
-envelope shape — whether `schemaVersion` is numeric or another form, the
-`kind` naming convention, whether a shared `data` key exists or each `kind`
-carries its own payload key, per-command payload-key naming — `QCLI-2.7`
-Part 2 proves Quest must decide this itself, neither inheriting a current
-Lore adapter's inbound expectation nor Lore's own outbound `cli-contract.md`
-shape by default, since the two already diverge on purpose (item 2b); the
-literal exit-code-to-outcome table; the not-found signal convention (item
-5b); whether create/edit commands emit a JSON envelope uniformly (Quest's
-own likely preference) or something narrower to match what a current Lore
+*Explicitly open at the time this document was written (component
+decisions, not resolved here):* the exact envelope shape — whether
+`schemaVersion` is numeric or another form, the `kind` naming convention,
+whether a shared `data` key exists or each `kind` carries its own payload
+key, per-command payload-key naming — `QCLI-2.7` Part 2 proves Quest must
+decide this itself, neither inheriting a current Lore adapter's inbound
+expectation nor Lore's own outbound `cli-contract.md` shape by default,
+since the two already diverge on purpose (item 2b); the literal
+exit-code-to-outcome table; the not-found signal convention (item 5b);
+whether create/edit commands emit a JSON envelope uniformly (Quest's own
+likely preference) or something narrower to match what a current Lore
 adapter's write path already assumes (items 4b/4c) — the latter half of
 that question is a `lore-doc` boundary decision, not resolvable by Quest
 alone.
+
+**Closed 2026-08-05** by [Ratify the Quest CLI result contract: envelope,
+exit codes, not-found, and
+anomaly](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
+(`QCLI-24`): `schemaVersion` is the literal string `"1"`; the envelope
+carries two separate fields, `kind` (which command produced the result)
+and `outcome` (`success`/`decline`/`error`/`anomaly`), with payload keys
+`result` / `decline` / `error` / `anomaly`; the exit-code table is
+`0`/`1`/`2`/`3` (anomaly)/`64`; Quest's own side of the not-found signal
+convention is a JSON-first decline envelope with a `reason` discriminant,
+on the shared decline exit code; and `create`/`edit` emit the JSON
+envelope uniformly with every other command. **Still open:** the
+not-found convention's `lore-doc` boundary half (item 5b's other half) —
+not decided, proposed, or assumed resolved by `QCLI-24`, and not touched
+by this reconciliation either.
 
 #### 4. Git mutation
 
@@ -410,9 +429,16 @@ component's Git mutation contract.
 | `INV-5` Zero mutation from read-only commands | A command classified read-only performs no filesystem or Git mutation under any circumstance — success, not-found, or error path alike — regardless of a concurrent writer | Read-only purity (`BB-05`/`BB-06`); the read side of races |
 
 *Explicitly open (`QCLI-2.6`'s own stated non-goals, unchanged here):* file
-layout, naming scheme, canonical-ID grammar, event schema, locking
-primitive, merge/rebase strategy, storage engine, and which supported
-platforms Quest ships for — see "Unresolved component decisions," below.
+layout, naming scheme, event schema, locking primitive, merge/rebase
+strategy, and storage engine — see "Unresolved component decisions,"
+below. Two items from this same original list are now closed and no
+longer open: canonical-ID grammar, **closed 2026-08-05** by [Adopt a
+T-prefixed canonical identifier grammar and its authored-record
+layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md)
+(`QCLI-25`); and which supported platforms Quest ships for, **closed
+2026-08-05** by the [license, platform, and runtime ownership
+record](quest-cli-license-platform-and-runtime-ownership-record.md)
+(`QCLI-27`).
 
 #### 5. Migration
 
@@ -473,10 +499,13 @@ a Quest-side migration design decision, not an inherited requirement);
 whether Quest needs a feature analogous to Backlog's
 cross-branch task-state overlay (`QCLI-2.5`'s own explicit unsupported
 gap — real and currently active in Backlog.md, but its reconciliation
-algorithm is not derivable from any admissible source); Quest's own
-canonical ID grammar, which this contract deliberately does not inherit
-from Backlog's project-configurable, dot-suffixed convention (see
-"Unresolved component decisions," below).
+algorithm is not derivable from any admissible source). Quest's own
+canonical ID grammar — which this contract deliberately does not inherit
+from Backlog's project-configurable, dot-suffixed convention — is no
+longer open: **closed 2026-08-05** by [Adopt a T-prefixed canonical
+identifier grammar and its authored-record
+layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md)
+(`QCLI-25`); see "Unresolved component decisions," below.
 
 #### 6. Projection
 
@@ -510,9 +539,16 @@ removal" threat and `BB-07`/`BB-08`.
   of that tier alone if the operation's own definition of "durable"
   requires synchronization (`QCLI-2.6`, "Repository removal," tier (ii)).
 
-*Explicitly open:* scale target; any concrete storage or index engine for
-the projection (both `QCLI-2.6`'s own non-goals and the Spec's Open
-Questions; see below).
+*Explicitly open:* any concrete storage or index engine for the projection
+(both `QCLI-2.6`'s own non-goals and the Spec's Open Questions; see
+below). Scale target is no longer open: **closed 2026-08-05** by [Adopt
+the Quest CLI projection scale target and accept rebuild-on-doubt as
+sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md)
+(`QCLI-26`) — the accepted design points (~10,000 records and
+~100,000-150,000 events per enrolled workspace, ~25 workspaces per
+installation, ~5-10 clones per enrolled repository) are sizing inputs, not
+a storage/index engine choice, which remains open and blocked on D2's
+runtime choice.
 
 #### 7. Lore integration
 
@@ -597,14 +633,25 @@ blocker gated on external work — never resolved by naming it here.
    Backlog.md's license under its own two slices, nor the npm registry
    metadata under the naming-conflict slices — was any of it admitted as
    license guidance for Quest's own choice; that part of this entry's
-   conclusion is unchanged. **Status:** open, owner-held.
+   conclusion is unchanged. **Status:** **closed 2026-08-05** by the
+   [license, platform, and runtime ownership
+   record](quest-cli-license-platform-and-runtime-ownership-record.md)
+   (`QCLI-27`), citing the [Ratify the Quest CLI Phase 1 component
+   decisions](../stories/ratify-the-quest-cli-phase-1-component-decisions.md)
+   Story as the ruling's provenance: license MIT, contributor provenance
+   informal/none for now.
 
 2. **Runtime.** The Spec's Open Questions name "Runtime and native
    packaging after Lore's completed evidence is reviewed" — explicitly
    gated on completed Lore evidence, i.e. structurally post-activation, per
    `QCLI-2.14`'s correction of `QCLI-2.7`'s original (withdrawn) cession of
    this question to `QCLI-2.9`. **Status:** blocked, outside any current
-   wave; no task owns it as of this document.
+   wave, for the runtime choice itself. **Ownership updated 2026-08-05:**
+   explicitly claimed as quest-cli-owned by the [license, platform, and
+   runtime ownership
+   record](quest-cli-license-platform-and-runtime-ownership-record.md)
+   (`QCLI-27`) — ownership only; the runtime choice remains blocked,
+   post-activation, exactly as stated above.
 
 3. **Platform.** The Spec's Open Questions separately name "Final npm
    package ownership and supported platform matrix" — distinct from
@@ -612,8 +659,11 @@ blocker gated on external work — never resolved by naming it here.
    plainly, as corrected by `QCLI-2.14`: "`QCLI-2.9` is not the owner of
    either: its Dependency order row records its delivered scope as npm
    package allocation and provenance only... and none was claimed here."
-   **Status:** open, currently unowned by any task; a future task must
-   claim it explicitly.
+   **Status:** **closed 2026-08-05** by the [license, platform, and
+   runtime ownership
+   record](quest-cli-license-platform-and-runtime-ownership-record.md)
+   (`QCLI-27`): supported-platform matrix macOS, Linux, and Windows;
+   ownership explicitly claimed as quest-cli-owned.
 
 4. **ID grammar.** The Spec's Open Questions name "Canonical ID grammar,
    authored-record layout, event schema, and scale target" as one bullet.
@@ -623,14 +673,24 @@ blocker gated on external work — never resolved by naming it here.
    confirms Backlog's own project-configurable prefix/zero-padding and
    dot-suffixed hierarchy (`TASK-1.1`) must not be silently inherited as
    Quest's own grammar (Migration contract, "Explicitly open," above);
-   `QCLI-2.6` lists it among its own stated non-goals. **Status:** open,
-   component decision, resolved by no document in this campaign.
+   `QCLI-2.6` lists it among its own stated non-goals. **Status:** **closed
+   2026-08-05** by [Adopt a T-prefixed canonical identifier grammar and its
+   authored-record
+   layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md)
+   (`QCLI-25`): fixed literal prefix `T`, flat unpadded decimal sequence
+   from a single global counter, ASCII-only alphabet, one fixed canonical
+   case; the authored-record layout and Unicode-normalisation/case-folding
+   rules accepted as proposed.
 
 5. **Scale.** Same Spec bullet as ID grammar, "...and scale target."
    `QCLI-2.6` derives its Git mutation invariants without assuming any
    particular scale; `QCLI-2.5` notes migration read-pass cost scales with
-   source-project size but sets no target. **Status:** open, component
-   decision.
+   source-project size but sets no target. **Status:** **closed 2026-08-05**
+   by [Adopt the Quest CLI projection scale target and accept
+   rebuild-on-doubt as
+   sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md)
+   (`QCLI-26`): the accepted design points and rebuild-on-doubt conclusion
+   are sizing inputs; no storage or index engine is chosen.
 
 6. **Governance.** The product-wide accountable-human / delegated-agent /
    reviewer / approver actor model. `QCLI-2.2`'s candidate #6 already
