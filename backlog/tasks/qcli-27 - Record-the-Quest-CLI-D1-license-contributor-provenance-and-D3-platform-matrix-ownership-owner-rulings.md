@@ -3,10 +3,10 @@ id: QCLI-27
 title: >-
   Record the Quest CLI D1 (license, contributor provenance) and D3 (platform
   matrix, ownership) owner rulings
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 23:05'
+updated_date: '2026-08-05 23:12'
 labels:
   - campaign
   - decisions
@@ -14,6 +14,7 @@ labels:
   - governance
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
   - 'cluster:governance'
+  - wave-1
 dependencies: []
 documentation:
   - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
@@ -29,11 +30,11 @@ Register entries D1 (product license and contributor provenance) and D3 (support
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A dated reference document (or ADR, at the implementer's judgment, following this bundle's existing convention for governance-level rulings) records: D1 license = MIT; D1 contributor provenance = informal/none for now; D3 supported-platform matrix = macOS + Linux + Windows; D3 ownership explicitly claimed as quest-cli-owned
-- [ ] #2 The same document records D2 (runtime) ownership explicitly claimed as quest-cli-owned, while stating plainly that the runtime choice itself remains deferred to post-activation and is not decided by this task
-- [ ] #3 A root LICENSE file exists using the MIT license text, with a copyright line dated 2026 attributed to opum-ai
-- [ ] #4 The document names the owning Story as the ruling's provenance, dated 2026-08-05
-- [ ] #5 lore validate --strict passes on the new/changed files
+- [x] #1 A dated reference document (or ADR, at the implementer's judgment, following this bundle's existing convention for governance-level rulings) records: D1 license = MIT; D1 contributor provenance = informal/none for now; D3 supported-platform matrix = macOS + Linux + Windows; D3 ownership explicitly claimed as quest-cli-owned
+- [x] #2 The same document records D2 (runtime) ownership explicitly claimed as quest-cli-owned, while stating plainly that the runtime choice itself remains deferred to post-activation and is not decided by this task
+- [x] #3 A root LICENSE file exists using the MIT license text, with a copyright line dated 2026 attributed to opum-ai
+- [x] #4 The document names the owning Story as the ruling's provenance, dated 2026-08-05
+- [x] #5 lore validate --strict passes on the new/changed files
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -59,4 +60,12 @@ Verification (AC5): ran 'lore validate --strict' — result: '44 files, 0 errors
 Out-of-scope discovery (not acted on): 'lore sync' backfilled two missing docs/log.md entries (commits cca60a8, ef15e16) that predate this task and were apparently never logged by whichever commit landed them — harmless, expected reconciliation behavior of 'lore sync', not something this task caused or needed to investigate further. No other out-of-scope issues found.
 
 Fix pass (reviewer request_changes, scope): the branch's earlier 'lore sync' run touched shared managed files (docs/log.md, docs/reference/index.md, and the ratify-Phase-1-decisions Story's managed table) that sibling wave-1 branches QCLI-24 and QCLI-26 also independently touch from their own partial single-task view. Reverted those three files to dev's copies (commit fc83a68) so this branch's diff is scoped to LICENSE, the task file, and the new reference doc docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md only. The claim above that this task ran a full 'lore sync' and committed its index/log/Story-table output as part of this branch no longer holds — that reconciliation is deferred to a single central 'lore sync' pass run once, after all four wave-1 branches (QCLI-24/25/26/27) have merged. Re-ran file-scoped 'lore validate --strict docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md' post-revert: 1 file, 0 errors, 0 warnings, 0 skipped. Did not re-run 'lore check' or 'lore sync' per fix instructions — post-revert drift between the Story's managed table/status and the live task status is expected and intentionally left for the deferred central sync.
+
+Settlement: reviewer independently re-verified all 5 ACs against the reference doc's content (docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md) and the root LICENSE file, re-ran 'lore validate --strict', confirming 0 errors/0 warnings. Confirmed the reference-doc-vs-ADR judgment call as correct (mandated by the owning Story's own AC wording). One request_changes round was needed for shared-managed-file scope creep (docs/reference/index.md, docs/log.md, the Story's managed task table were reverted to dev's version; docs/adr/index.md was never touched). Full lore sync reconciliation deferred to a single pass after all four wave-1 ADRs merge. Merged via PR #42, squash commit f89b370 on dev.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored and merged a reference document (docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md) plus a root LICENSE file recording the owner's 2026-08-05 live-session rulings: D1 license = MIT, contributor provenance = informal/none for now; D3 supported-platform matrix = macOS + Linux + Windows, ownership explicitly claimed as quest-cli-owned; D2 ownership explicitly claimed as quest-cli-owned while the runtime choice itself stays deferred to post-activation. Root LICENSE uses standard MIT text, copyright 2026 opum-ai. Names the owning Story as provenance, dated 2026-08-05. Verified via lore validate --strict (0 errors/0 warnings) and independent reviewer re-verification of all 5 ACs, including confirmation that the reference-doc-vs-ADR choice matches the Story's own AC wording. Merged PR #42 (f89b370).
+<!-- SECTION:FINAL_SUMMARY:END -->
