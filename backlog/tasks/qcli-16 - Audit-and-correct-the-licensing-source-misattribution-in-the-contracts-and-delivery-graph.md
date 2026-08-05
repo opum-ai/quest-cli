@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:52'
+updated_date: '2026-08-05 12:54'
 labels:
   - campaign
   - 'cluster:synthesis'
@@ -53,3 +53,19 @@ The conclusion - that product licensing is open and owner-held - is not in quest
 4. Run lore validate --strict, lore check, lore orphans; capture exact output.
 5. Record findings and evidence via --append-notes; commit docs/ changes with Refs: QCLI-16 trailer; push branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Audit result: the licensing entry (item 1, Unresolved component decisions) conflated two distinct claims under one attribution. The document said: 'Backlog.md's own MIT license and the @opum-ai/lore/quest/quest-cli npm registry metadata this campaign read were admitted only as naming-conflict and allocation evidence (register, npm package name occupancy and lore-cli / the lore command slices), never as license guidance.'
+
+Verified against the register (read-only, not edited): the npm-registry-metadata half is CORRECT - both 'npm package name occupancy' (Permitted use: cite existence, version, license, claimed repository... as naming-conflict and allocation-constraint evidence for QCLI-2.9's package-allocation resolution) and 'lore-cli / the lore command' (Widened 2026-08-04 by QCLI-2.12: also cite @opum-ai/lore's ordinary registry metadata - license, claimed repository, maintainer identity... as package-naming-pattern and allocation evidence) explicitly admit registry metadata including license fields for exactly that purpose. This half is recorded correct, not just left alone.
+
+The Backlog.md-MIT-license half was WRONG: Backlog.md is never named in either cited slice's Repository/URL or Permitted-use fields. Backlog.md's MIT license only appears in two OTHER register slices, both under the register's own 'Backlog.md' heading: 'Backlog.md implementation source and internal tests' (Excluded; permitted use none; MIT license cited only as rationale for a source-reading reclassification the owner was offered and declined - constraint is authorship independence, not licensing) and 'Backlog.md public surface' (Allowed; MIT license cited only as rationale for why consuming published docs/--help/command output is ordinary user/integrator activity, not implementation derivation). Neither frames the license as naming-conflict/allocation evidence.
+
+Fix applied inline in docs/reference/quest-cli-component-contracts-and-delivery-graph.md, item 1 (Licensing), dated 2026-08-05 and citing QCLI-16: split the conflated sentence into two accurate attributions - Backlog.md's MIT license now correctly cited to its own two register slices with their actual (non-naming-conflict) rationale; the npm registry metadata claim preserved and re-confirmed against its two correct slices. The 'never admitted as license guidance for Quest's own choice' conclusion, and the open/owner-held status, are unchanged.
+
+No register edits made (out of scope for this task per wave instruction; register is correct as written, no correction needed there).
+
+Gate evidence (all zero, clean tree after commit): lore validate --strict -> 38 files, 0 errors, 0 warnings, 6 skipped. lore check -> 38 files, 0 errors, 0 warnings. lore orphans -> 0 orphan tasks, 0 dangling links.
+<!-- SECTION:NOTES:END -->
