@@ -3,17 +3,18 @@ id: QCLI-21
 title: >-
   Reconcile the open component decisions register and contracts graph against
   the QCLI-12..17 corrections
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 14:36'
-updated_date: '2026-08-05 15:53'
+updated_date: '2026-08-05 16:28'
 labels:
   - campaign
   - 'cluster:tracking-reconciliation'
   - correction
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
+  - wave-2
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -42,17 +43,17 @@ Line numbers above are as observed by the wave-1 integration review immediately 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The framing paragraph near open-component-decisions.md:204-207 is corrected to distinguish items still unfiled from items filed and closed in the QCLI-12..17 wave, citing the closing task and squash commit for each
-- [ ] #2 The rows for the QCLI-2.8 dependency-order fix, the playbook backlink fix, and the packaging-contract bin-path fix are recorded as closed, each citing its closing task and commit (QCLI-12/1dd4aa6, QCLI-13/d871d32, QCLI-14/077d3be) and the file+location where the fix now lives -- not deleted without trace
-- [ ] #3 The licensing-source-misattribution row is re-scoped, not struck: it records that QCLI-16 closed the contracts-graph instance and that the same misattribution survives in this file's D1 entry, remaining open until AC4 lands
-- [ ] #4 D1 (License) is corrected to match component-contracts-and-delivery-graph.md's QCLI-16 correction: Backlog.md's MIT license is not admitted as naming-conflict/allocation evidence (it is discussed only under the register's "Backlog.md implementation source and internal tests" and "Backlog.md public surface" slices, on authorship-independence and ordinary-user-activity grounds); the npm registry metadata attribution is correct as stated. D1's Open status and owner are unchanged
-- [ ] #5 The QCLI-2.12 F4/F5 row and the untraceable-Allowed-value row are updated to reflect QCLI-15's audit -- Source cites the audit, Consequence states the audited finding, and each names the closure condition QCLI-15 identified (for F4/F5, recovering the original reviewer text from an out-of-repo transcript if findable; for the Allowed value, an explicit owner ruling ratifying self-classification-by-vocabulary). Both remain listed as open
-- [ ] #6 The QCLI-2.12 F4/F5 row carries a disambiguation note that QCLI-2.12's notes contain two independent F-numbering schemes, and that the wave-4 integration review's F4 (resolved via PR #17, c8dfdca) is a different item
-- [ ] #7 component-contracts-and-delivery-graph.md's sentence asserting the Spec's Dependency order table names only six deliverables is corrected inline and dated: the Spec's table now names the full ten-item set as of QCLI-12 (1dd4aa6). The surrounding argument about what QCLI-2.8 synthesized is unchanged, and any separate "synthesis of six deliverables" claim elsewhere in the document is verified and left alone unless independently wrong
-- [ ] #8 The garbled provenance clause in component-contracts-and-delivery-graph.md's QCLI-16 correction note (missing a word, reads as a grammar error) is repaired without altering the correction's substance, dating, or attribution
-- [ ] #9 The remaining rows in the residual-items table (platform matrix, quest-doc actor model, Backlog.md browser HTTP endpoint, LCLI-316) are verified still accurate and left unchanged
-- [ ] #10 docs/reference/quest-cli-research-source-register.md is not edited by this task
-- [ ] #11 lore validate --strict, lore check, and lore orphans are all clean after the change
+- [x] #1 The framing paragraph near open-component-decisions.md:204-207 is corrected to distinguish items still unfiled from items filed and closed in the QCLI-12..17 wave, citing the closing task and squash commit for each
+- [x] #2 The rows for the QCLI-2.8 dependency-order fix, the playbook backlink fix, and the packaging-contract bin-path fix are recorded as closed, each citing its closing task and commit (QCLI-12/1dd4aa6, QCLI-13/d871d32, QCLI-14/077d3be) and the file+location where the fix now lives -- not deleted without trace
+- [x] #3 The licensing-source-misattribution row is re-scoped, not struck: it records that QCLI-16 closed the contracts-graph instance and that the same misattribution survives in this file's D1 entry, remaining open until AC4 lands
+- [x] #4 D1 (License) is corrected to match component-contracts-and-delivery-graph.md's QCLI-16 correction: Backlog.md's MIT license is not admitted as naming-conflict/allocation evidence (it is discussed only under the register's "Backlog.md implementation source and internal tests" and "Backlog.md public surface" slices, on authorship-independence and ordinary-user-activity grounds); the npm registry metadata attribution is correct as stated. D1's Open status and owner are unchanged
+- [x] #5 The QCLI-2.12 F4/F5 row and the untraceable-Allowed-value row are updated to reflect QCLI-15's audit -- Source cites the audit, Consequence states the audited finding, and each names the closure condition QCLI-15 identified (for F4/F5, recovering the original reviewer text from an out-of-repo transcript if findable; for the Allowed value, an explicit owner ruling ratifying self-classification-by-vocabulary). Both remain listed as open
+- [x] #6 The QCLI-2.12 F4/F5 row carries a disambiguation note that QCLI-2.12's notes contain two independent F-numbering schemes, and that the wave-4 integration review's F4 (resolved via PR #17, c8dfdca) is a different item
+- [x] #7 component-contracts-and-delivery-graph.md's sentence asserting the Spec's Dependency order table names only six deliverables is corrected inline and dated: the Spec's table now names the full ten-item set as of QCLI-12 (1dd4aa6). The surrounding argument about what QCLI-2.8 synthesized is unchanged, and any separate "synthesis of six deliverables" claim elsewhere in the document is verified and left alone unless independently wrong
+- [x] #8 The garbled provenance clause in component-contracts-and-delivery-graph.md's QCLI-16 correction note (missing a word, reads as a grammar error) is repaired without altering the correction's substance, dating, or attribution
+- [x] #9 The remaining rows in the residual-items table (platform matrix, quest-doc actor model, Backlog.md browser HTTP endpoint, LCLI-316) are verified still accurate and left unchanged
+- [x] #10 docs/reference/quest-cli-research-source-register.md is not edited by this task
+- [x] #11 lore validate --strict, lore check, and lore orphans are all clean after the change
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -135,6 +136,8 @@ Re-verification after fixes:
 - lore check: 38 files, 0 errors, 0 warnings
 - lore orphans: 0 orphan tasks, 0 dangling links
 - AC10 re-verified: git diff bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-research-source-register.md is empty; quest-cli-research-source-register.md untouched by this fix pass.
+
+Verified: Reviewer independently re-verified all cited wave-1 SHAs (1dd4aa6, d871d32, 077d3be, 6b78fd0, 44a7ed8, c8dfdca, fb8e8e3) against git log/show and confirmed the fix locations named in the corrected rows. First pass found the F4/F5 row's "unrecoverable" claim was actually false (reviewer located and recovered the original text from a local session transcript), a wave-4 F4 mis-citation, and a count error; all three fixed in a follow-up pass, including a second independent re-verification of the recovered transcript text (confirmed genuinely present, word for word). A cross-file finding (a stale claim in the research source register) was correctly reported via comment rather than fixed, since that file is QCLI-22's territory this wave. lore validate --strict / lore check / lore orphans all clean (38 files, 0/0). Merged as f43a083 (PR #35).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -151,3 +154,9 @@ created: 2026-08-05 15:53
 Cross-document finding (Finding 4 from reviewer, LOW, report-only -- not fixed here): the F4/F5 reviewer text recovered by this fix pass (see notes) falsifies a statement in docs/reference/quest-cli-research-source-register.md around lines 1266-1269 (QCLI-15's own Finding B note), which currently reads that the F4/F5 gap "is not that F4/F5 remain unfixed against a known defect, it is that their substance was never captured anywhere retrievable, so no one can now judge whether they still apply to the current register text." That premise is no longer true -- the substance was recovered on 2026-08-05 from an out-of-repo Claude Code session transcript (see this task's notes for the exact file/uuid/timestamp citations). This task does not edit quest-cli-research-source-register.md (AC10 forbids it), and QCLI-22 owns that file this wave. Flagging explicitly so the orchestrator can relay this to QCLI-22 for its own fix pass -- no Backlog task filed by this comment.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Reconciled docs/reference/quest-cli-open-component-decisions.md and docs/reference/quest-cli-component-contracts-and-delivery-graph.md against the QCLI-12..17 wave: corrected the residual-items framing paragraph, recorded three rows as closed (citing task+SHA+fix location), re-scoped the licensing-misattribution row without deleting the tracking record, corrected D1 to match QCLI-16's fix, and fixed a stale six-deliverables claim plus a grammar error. During review, the QCLI-2.12 F4/F5 text previously believed unrecoverable was located in a local session transcript and integrated into the register's F4/F5 row, kept listed as open. Does not touch the research source register (QCLI-22's territory this wave). Merged as f43a083 (PR #35).
+<!-- SECTION:FINAL_SUMMARY:END -->

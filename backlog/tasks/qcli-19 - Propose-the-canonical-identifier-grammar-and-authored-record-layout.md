@@ -1,10 +1,10 @@
 ---
 id: QCLI-19
 title: Propose the canonical identifier grammar and authored-record layout
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 15:35'
+updated_date: '2026-08-05 16:27'
 labels:
   - campaign
   - 'cluster:identity'
@@ -13,6 +13,7 @@ labels:
   - proposal
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
+  - wave-2
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -40,13 +41,13 @@ Deliver a proposal for owner ruling. Do not edit the open component decisions re
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A canonical identifier grammar is proposed with the alternatives considered and the reason for the recommendation
-- [ ] #2 The proposal states how it satisfies each of the five settled constraints named in the description
-- [ ] #3 Unicode normalisation and case-folding behaviour are specified explicitly, with the cross-filesystem collision case addressed
-- [ ] #4 The implied authored-record layout and naming scheme are described, including how records are enumerated exactly once across nested subdirectories
-- [ ] #5 The document is framed as a proposal for owner ruling; no decision is recorded as accepted and no ADR is created
-- [ ] #6 The open component decisions register is not edited by this task
-- [ ] #7 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 A canonical identifier grammar is proposed with the alternatives considered and the reason for the recommendation
+- [x] #2 The proposal states how it satisfies each of the five settled constraints named in the description
+- [x] #3 Unicode normalisation and case-folding behaviour are specified explicitly, with the cross-filesystem collision case addressed
+- [x] #4 The implied authored-record layout and naming scheme are described, including how records are enumerated exactly once across nested subdirectories
+- [x] #5 The document is framed as a proposal for owner ruling; no decision is recorded as accepted and no ADR is created
+- [x] #6 The open component decisions register is not edited by this task
+- [x] #7 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -107,4 +108,12 @@ Scope respected: did not touch docs/reference/quest-cli-open-component-decisions
 
 Out-of-scope findings noticed while researching (not acted on, reported per instructions):
 - None beyond what the register and Story already record as open (D2/D3/D5/D6/D7a/D7b, the CLI-contract open items, and the residual-items list) — nothing new surfaced during this task's research.
+
+Verified: Reviewer independently re-verified every cited constraint, ADR quote (migration ADR properties, lease-eligibility ADR), and threat-model scenario (TM-10 cross-filesystem case-collision) against the actual corpus text and confirmed all 7 ACs on the first pass, with only low-severity advisory notes (non-blocking: locale-invariance nuance, counter-CAS terseness, event-schema omission from the leaves-open list). lore validate --strict / lore check / lore orphans all clean (39 files, 0/0). Merged as adea711 (PR #33).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored docs/reference/quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md, a proposal for owner ruling on register entry D4: a fixed-literal-prefix, flat, unpadded, ASCII-only monotonic-decimal identifier grammar from a single global counter, mapped explicitly against all five settled constraints (non-inheritance ADR, one-canonical-identity, Quest-own-uniqueness-logic, one-lease-per-canonical-task, reversible migration mapping). Covers Unicode normalisation/case-folding explicitly, including the TM-10 cross-filesystem collision case, plus the implied one-file-per-task authored-record layout and its exactly-once enumeration algorithm. Decides nothing; no ADR created; register untouched. Reviewer approved on first pass with only low-severity advisory notes. Merged as adea711 (PR #33).
+<!-- SECTION:FINAL_SUMMARY:END -->

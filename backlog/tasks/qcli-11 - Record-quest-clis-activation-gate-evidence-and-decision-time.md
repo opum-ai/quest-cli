@@ -1,10 +1,10 @@
 ---
 id: QCLI-11
 title: Record quest-cli's activation-gate evidence and decision time
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-05 11:41'
-updated_date: '2026-08-05 15:31'
+updated_date: '2026-08-05 16:27'
 labels:
   - quest
   - cli
@@ -14,6 +14,7 @@ labels:
   - blocked-on-owner
   - campaign
   - 'cluster:lore-gate'
+  - wave-2
 dependencies: []
 documentation:
   - docs/stories/prepare-quest-cli-for-implementation-activation.md
@@ -34,11 +35,11 @@ Context worth carrying into the work: the 2026-08-01 audit boundary that closed 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The record names the exact repository revisions, evidence locations, and evaluation time of every input consumed
-- [ ] #2 Every observation is captured as a dated moving reference with the literal command that produced it
-- [ ] #3 The record states the gate result as reported by its owner, and does not compute, infer, or assert a gate result of its own
-- [ ] #4 Any input that is missing, stale, or contradictory is recorded as such and keeps the consumed result closed
-- [ ] #5 No product source, package metadata, runtime dependency, or release artifact is added by this task
+- [x] #1 The record names the exact repository revisions, evidence locations, and evaluation time of every input consumed
+- [x] #2 Every observation is captured as a dated moving reference with the literal command that produced it
+- [x] #3 The record states the gate result as reported by its owner, and does not compute, infer, or assert a gate result of its own
+- [x] #4 Any input that is missing, stale, or contradictory is recorded as such and keeps the consumed result closed
+- [x] #5 No product source, package metadata, runtime dependency, or release artifact is added by this task
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -79,4 +80,12 @@ Verification gates, all clean after `lore sync`:
 Scope check: `git status --short` and `git diff --stat` confirm the three sibling-task documents (quest-cli-open-component-decisions.md, quest-cli-component-contracts-and-delivery-graph.md, quest-cli-research-source-register.md) were not touched. `lore sync`'s own managed-block regeneration updated docs/log.md, docs/reference/index.md, and this task's own owning Story (docs/stories/prepare-quest-cli-for-implementation-activation.md, a different Story than the other five wave tasks) to reflect the new doc and the task's In Progress status - no hand-edits were made to any of those three.
 
 Out-of-scope discovery (not acted on, reported per instruction): lore-doc's committed gate Spec (docs/specs/quest-integration-and-lore-release-gate.md) still names salient-data/quest-cli as the canonical component-contracts owner, even though quest-cli transferred to opum-ai on 2026-08-04. A fix already exists uncommitted in that clone's working tree. This is lore-doc's file to fix and commit, not this repository's.
+
+Verified: Reviewer independently re-derived every revision pin and timestamp against live git state (lore-doc HEAD 45d0d90, LDOC-4 task file, lore-cli HEAD, v0.1.0 tag) — all matched exactly. Verbatim-diffed the quoted four-clause gate predicate against lore-doc's own file: byte-identical. Re-ran the live npm/tag-check commands (npm view @opum-ai/lore, gh release list) and confirmed they reproduce what the record reports, including the newly-found lore-cli v0.1.1 release. Confirmed via git diff --stat that no product source, package.json, or release artifact was added. lore validate --strict / lore check / lore orphans all clean (39 files, 0/0). Merged as a625577 (PR #31).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored docs/reference/quest-cli-activation-gate-evidence-record.md, the clause-4 evidence record the Lore-owned release-gate predicate requires quest-cli to keep. It quotes the four-clause predicate verbatim from its owner (lore-doc), names every input's exact repository/revision/path, and records every observation as a dated moving reference with the literal command that produced it. It states only the gate result lore-doc has actually reported (2026-08-01 closed, LDOC-4 still To Do) and computes none of its own. A live re-check found lore-cli released v0.1.1 since the prior capsule; that fact is recorded and routed to the gate owner (lore-doc/LDOC-4), never acted on. Reviewer independently re-verified every cited SHA/timestamp against live git state and confirmed the quoted predicate is byte-identical to lore-doc's own file. Merged as a625577 (PR #31).
+<!-- SECTION:FINAL_SUMMARY:END -->

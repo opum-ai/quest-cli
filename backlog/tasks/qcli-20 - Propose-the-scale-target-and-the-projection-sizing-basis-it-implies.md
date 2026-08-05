@@ -1,10 +1,10 @@
 ---
 id: QCLI-20
 title: Propose the scale target and the projection sizing basis it implies
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 15:47'
+updated_date: '2026-08-05 16:27'
 labels:
   - campaign
   - 'cluster:projection'
@@ -13,6 +13,7 @@ labels:
   - proposal
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
+  - wave-2
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -37,13 +38,13 @@ Deliver a proposal for owner ruling. Do not edit the open component decisions re
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A scale target is proposed across record, event, repository, and clone dimensions, each with stated reasoning rather than an asserted round number
-- [ ] #2 A rebuild time budget is proposed and related to the forced-full-rebuild escape hatch the projection contract requires
-- [ ] #3 The proposal states what the target implies for whether the projection port needs transactional semantics
-- [ ] #4 No storage or index engine is chosen, and the reason for not choosing one is stated
-- [ ] #5 The document is framed as a proposal for owner ruling; no decision is recorded as accepted and no ADR is created
-- [ ] #6 The open component decisions register is not edited by this task
-- [ ] #7 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 A scale target is proposed across record, event, repository, and clone dimensions, each with stated reasoning rather than an asserted round number
+- [x] #2 A rebuild time budget is proposed and related to the forced-full-rebuild escape hatch the projection contract requires
+- [x] #3 The proposal states what the target implies for whether the projection port needs transactional semantics
+- [x] #4 No storage or index engine is chosen, and the reason for not choosing one is stated
+- [x] #5 The document is framed as a proposal for owner ruling; no decision is recorded as accepted and no ADR is created
+- [x] #6 The open component decisions register is not edited by this task
+- [x] #7 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -100,4 +101,12 @@ Re-verification after the fixes:
 - git diff bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md docs/reference/quest-cli-research-source-register.md: empty (AC6 still holds -- register and sibling-owned files untouched)
 
 No figure, budget, or the transactional-semantics conclusion was changed. No acceptance criteria checked, no status change, campaign doc untouched.
+
+Verified: Reviewer independently re-derived every proposed figure's reasoning chain (record/event/workspace/clone dimensions) against the corpus's own charter/glossary/threat-model properties, and confirmed the rebuild-time budget against the actual FR-PROJ-5/BB-08 escape-hatch text. First pass found four citation/attribution defects (a D5 register-row misattribution, a reversed Spec/contracts-graph attribution, a wrong section locator, one misquoted word); all fixed in a follow-up pass and independently re-verified against the real source lines, confirming no figure, budget, or conclusion was altered. lore validate --strict / lore check / lore orphans all clean (39 files, 0/0). Merged as 3c4eb24 (PR #34).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored docs/reference/quest-cli-scale-target-proposal.md, a proposal for owner ruling on register entry D5: a reasoned scale target across record (~10,000/workspace), event (~100,000-150,000/workspace), workspace (~25/installation), and clone (~5-10/repo) dimensions, each traced to a reasoning chain rather than asserted as a round number. A rebuild time budget tied to the projection contract's forced-full-rebuild escape hatch, and a direct answer that rebuild-on-doubt remains sufficient at this target. No storage/index engine chosen, with the two-reason justification stated. Decides nothing; no ADR created; register untouched. First review found four localized citation/attribution defects, fixed in one follow-up pass and independently re-verified. Merged as 3c4eb24 (PR #34).
+<!-- SECTION:FINAL_SUMMARY:END -->

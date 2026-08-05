@@ -3,17 +3,18 @@ id: QCLI-22
 title: >-
   Re-pin the research source register's member pins invalidated by the
   QCLI-12..17 wave
-status: In Progress
+status: Done
 assignee:
   - '@jeremy'
 created_date: '2026-08-05 14:37'
-updated_date: '2026-08-05 15:55'
+updated_date: '2026-08-05 16:28'
 labels:
   - campaign
   - 'cluster:provenance'
   - correction
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
+  - wave-2
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -42,17 +43,17 @@ Line numbers above are as observed by the wave-1 integration review immediately 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The component charter's pin is decoupled from the ADR's and repointed to d871d32 (or converted to a self-pin, if the task judges that more durable given the charter is now amended by ongoing follow-through work). The ADR keeps 942da73, independently re-verified as still that file's last-touching commit
-- [ ] #2 The research Spec's pin is decoupled from the Lore dependency evidence document's and repointed to 1dd4aa6; the evidence document keeps 157ad56, re-verified
-- [ ] #3 The packaging contract's pin is decoupled from the legacy Opum reconciliation's and repointed to 077d3be; the reconciliation keeps 3b5cd8c, re-verified
-- [ ] #4 Every new SHA is verified with the register's own documented method -- git log --format=%h-%cI -1 -- path, cross-checked against git show -s --format=%cI SHA and git show --stat SHA -- and the verification is recorded in the pin text the same way the existing pins record theirs
-- [ ] #5 The three self-pins "read live 2026-08-04" retrieval stamps are explicitly dispositioned: either refreshed to 2026-08-05 with the amending task and commit named, or left with a stated reason why the stamp is not a freshness claim. Not left silently unaddressed
-- [ ] #6 All derived summary prose is updated in the same pass: the distinct-SHA enumeration, the total-count sentence, and the running self-pinned/commit-pinned counts elsewhere in the same register slice. If all three stale pins are repinned rather than converted to self-pins, the distinct-SHA count goes from 8 to 11 and 942da73, 157ad56, and 3b5cd8c each drop to pinning one member
-- [ ] #7 The eight pins verified still correct (the ADR at 942da73, the legacy Opum reconciliation at 3b5cd8c, the black-box acceptance scenarios document at 883b445, the component glossary at 63b1e0a, the Lore dependency evidence document at 157ad56, the migration fidelity contract at 418c5eb, the threat model at 739aa7e, the adoption playbook at 1a61989) are re-verified and left unchanged
-- [ ] #8 All changes are inline, dated, and cite this task, following the register's own QCLI-6/QCLI-7/QCLI-9 correction precedent. No Classification value changes and no permitted use is narrowed
-- [ ] #9 The wording tension between the register's Notes section describing this audit as closing two residual findings and the same section elsewhere stating they remain open is reconciled so the audit's own conclusion is stated consistently
-- [ ] #10 The task self-pins the register in the same pass if its own edit invalidates the register's own self-pin retrieval stamp, per the standing pin-handling criterion this campaign's tasks have carried since wave 1
-- [ ] #11 lore validate --strict, lore check, and lore orphans are all clean after the change
+- [x] #1 The component charter's pin is decoupled from the ADR's and repointed to d871d32 (or converted to a self-pin, if the task judges that more durable given the charter is now amended by ongoing follow-through work). The ADR keeps 942da73, independently re-verified as still that file's last-touching commit
+- [x] #2 The research Spec's pin is decoupled from the Lore dependency evidence document's and repointed to 1dd4aa6; the evidence document keeps 157ad56, re-verified
+- [x] #3 The packaging contract's pin is decoupled from the legacy Opum reconciliation's and repointed to 077d3be; the reconciliation keeps 3b5cd8c, re-verified
+- [x] #4 Every new SHA is verified with the register's own documented method -- git log --format=%h-%cI -1 -- path, cross-checked against git show -s --format=%cI SHA and git show --stat SHA -- and the verification is recorded in the pin text the same way the existing pins record theirs
+- [x] #5 The three self-pins "read live 2026-08-04" retrieval stamps are explicitly dispositioned: either refreshed to 2026-08-05 with the amending task and commit named, or left with a stated reason why the stamp is not a freshness claim. Not left silently unaddressed
+- [x] #6 All derived summary prose is updated in the same pass: the distinct-SHA enumeration, the total-count sentence, and the running self-pinned/commit-pinned counts elsewhere in the same register slice. If all three stale pins are repinned rather than converted to self-pins, the distinct-SHA count goes from 8 to 11 and 942da73, 157ad56, and 3b5cd8c each drop to pinning one member
+- [x] #7 The eight pins verified still correct (the ADR at 942da73, the legacy Opum reconciliation at 3b5cd8c, the black-box acceptance scenarios document at 883b445, the component glossary at 63b1e0a, the Lore dependency evidence document at 157ad56, the migration fidelity contract at 418c5eb, the threat model at 739aa7e, the adoption playbook at 1a61989) are re-verified and left unchanged
+- [x] #8 All changes are inline, dated, and cite this task, following the register's own QCLI-6/QCLI-7/QCLI-9 correction precedent. No Classification value changes and no permitted use is narrowed
+- [x] #9 The wording tension between the register's Notes section describing this audit as closing two residual findings and the same section elsewhere stating they remain open is reconciled so the audit's own conclusion is stated consistently
+- [x] #10 The task self-pins the register in the same pass if its own edit invalidates the register's own self-pin retrieval stamp, per the standing pin-handling criterion this campaign's tasks have carried since wave 1
+- [x] #11 lore validate --strict, lore check, and lore orphans are all clean after the change
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -138,6 +139,8 @@ Gate re-verification after this addendum (clean working tree):
 - lore orphans: 0 orphan tasks, 0 dangling links. Exit 0.
 
 Scope re-check: git diff --stat bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md is empty -- QCLI-21's territory remains untouched.
+
+Verified: Reviewer independently re-derived all 14 member pins from git log/show against merged dev with zero discrepancies, and independently re-verified the arithmetic (8 to 11 distinct SHAs). Both flagged judgment calls (charter repoint-vs-self-pin, self-pin stamp refresh) were ruled correct by the reviewer as mechanical applications of the register's own standing rule, not discretionary calls needing human input. First pass found two narrow convention issues (an unattributed prose clause, an open reviewer-confirmation flag); both fixed, plus one addendum recording that QCLI-21's reviewer recovered the F4/F5 text this register previously called unrecoverable (independently verified against the transcript files a second time). lore validate --strict / lore check / lore orphans all clean (38 files, 0/0). Merged as 2fd6c13 (PR #36).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -153,3 +156,9 @@ Two judgment calls need reviewer sign-off:
 2. AC5 (self-pin stamp disposition): refreshed all three "read live 2026-08-04" stamps to 2026-08-05, naming each amending task/commit, while also stating explicitly that the self-pin mechanism was never broken (a self-pin resolves to current content whenever read, regardless of the stamp date) - so the refresh is presented as a reader-clarity improvement, not a correction to a defect. Please confirm this framing is the intended disposition rather than, e.g., leaving the stamps at 2026-08-04 with a note that the date is not a freshness claim.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Re-verified all 14 member pins in docs/reference/quest-cli-research-source-register.md against merged dev and corrected the three stale exact-SHA pins the QCLI-12/13/14 wave invalidated, decoupling each from the sibling that still correctly shares the old SHA. Explicitly dispositioned the three self-pins' retrieval stamps, refreshing them with named amending commits. Updated the derived summary counts. Recorded that QCLI-21's reviewer recovered the QCLI-2.12 F4/F5 text this register previously called unrecoverable. Does not touch the open component decisions register or contracts graph (QCLI-21's territory this wave). Merged as 2fd6c13 (PR #36).
+<!-- SECTION:FINAL_SUMMARY:END -->

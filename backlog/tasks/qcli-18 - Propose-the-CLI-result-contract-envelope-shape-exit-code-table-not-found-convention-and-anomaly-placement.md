@@ -3,11 +3,11 @@ id: QCLI-18
 title: >-
   Propose the CLI result contract: envelope shape, exit-code table, not-found
   convention, and anomaly placement
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 15:47'
+updated_date: '2026-08-05 16:27'
 labels:
   - campaign
   - 'cluster:cli-contract'
@@ -16,6 +16,7 @@ labels:
   - proposal
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
+  - wave-2
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -42,12 +43,12 @@ Deliver a proposal document with options, trade-offs, and a recommendation per i
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Each of the four in-scope items has a stated proposal with the alternatives considered and the reason for the recommendation
-- [ ] #2 The proposal explains how it avoids inheriting either side of the documented Lore envelope divergence
-- [ ] #3 Items requiring a lore-doc boundary decision are marked as such and are not proposed as settled by Quest alone
-- [ ] #4 The document is framed as a proposal for owner ruling; no decision is recorded as accepted and no ADR is created
-- [ ] #5 The open component decisions register is not edited by this task
-- [ ] #6 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 Each of the four in-scope items has a stated proposal with the alternatives considered and the reason for the recommendation
+- [x] #2 The proposal explains how it avoids inheriting either side of the documented Lore envelope divergence
+- [x] #3 Items requiring a lore-doc boundary decision are marked as such and are not proposed as settled by Quest alone
+- [x] #4 The document is framed as a proposal for owner ruling; no decision is recorded as accepted and no ADR is created
+- [x] #5 The open component decisions register is not edited by this task
+- [x] #6 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -102,4 +103,12 @@ Re-verification after the edits:
 - AC5 re-verified: `git diff bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md docs/reference/quest-cli-research-source-register.md` is empty; `git status --porcelain` shows only the proposal document modified.
 
 Correction to this task's own Implementation Notes: the prior note's "Out-of-scope findings, not acted on" entry said the register's "JSON and exits" row lists the create/edit-uniform item "alongside this task's four" items - that repeats Finding A's register-miscount error. The register's "JSON and exits" row lists exactly four items total, three of which are QCLI-18's (envelope shape, exit-code table, not-found convention); the fourth is create/edit-uniform. This proposal's fourth in-scope item, anomaly placement, has no register row of its own - it comes from the architecture Spec's "Open questions" section (docs/specs/quest-cli-architecture.md:242-244), not from the register.
+
+Verified: Reviewer independently confirmed all 6 ACs against docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md, including re-reading QCLI-2.7's actual divergence text to confirm the envelope shape avoids inheriting either side of Lore's inbound/outbound split. First pass found three citation/attribution defects (a register-row miscount, a reversed Lore-integration-row attribution, a missing anomaly-dependency note on the payload-key scheme); all fixed in a follow-up pass and independently re-verified against the real source lines, including the optional misattributed-quote fix. lore validate --strict / lore check / lore orphans all clean (39 files, 0/0) both before and after the fix. Merged as eda251b (PR #32).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md, a proposal for owner ruling covering the register's largest open cluster: envelope shape, the exit-code-to-outcome table, the not-found signal convention (Quest side only, lore-doc boundary marked explicitly), and where an anomaly sits in the outcome taxonomy. Explicitly avoids inheriting either side of the documented Lore inbound/outbound envelope divergence (QCLI-2.7). Decides nothing; no ADR created; register untouched. First review found three localized citation/attribution defects, fixed in one follow-up pass and independently re-verified. Merged as eda251b (PR #32).
+<!-- SECTION:FINAL_SUMMARY:END -->
