@@ -11,7 +11,7 @@ tags:
   - activation-gate
 summary: Turn the completed QCLI research corpus into a derived design layer an implementer can execute against, while implementation stays gated.
 timestamp: 2026-08-05T11:41:15.413Z
-status: in-progress
+status: done
 tasks:
   - qcli-10
   - qcli-10.1
@@ -66,7 +66,7 @@ what order; it authorises none of it.
 | [QCLI-10.3](../../backlog/tasks/qcli-10.3%20-%20Author-the-Quest-CLI-functional-requirements-Spec.md) | Author the Quest CLI functional requirements Spec | Done |
 | [QCLI-10.4](../../backlog/tasks/qcli-10.4%20-%20Author-the-Quest-CLI-architecture-Spec.md) | Author the Quest CLI architecture Spec | Done |
 | [QCLI-10.5](../../backlog/tasks/qcli-10.5%20-%20Author-the-Quest-CLI-delivery-roadmap-Spec.md) | Author the Quest CLI delivery roadmap Spec | Done |
-| [QCLI-11](../../backlog/tasks/qcli-11%20-%20Record-quest-clis-activation-gate-evidence-and-decision-time.md) | Record quest-cli's activation-gate evidence and decision time | In Progress |
+| [QCLI-11](../../backlog/tasks/qcli-11%20-%20Record-quest-clis-activation-gate-evidence-and-decision-time.md) | Record quest-cli's activation-gate evidence and decision time | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

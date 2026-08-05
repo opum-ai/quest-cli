@@ -10,7 +10,7 @@ tags:
   - phase-1
 summary: Close the residual corpus defects the design layer surfaced, correct the one error it introduced, and propose the Phase 1 component decisions.
 timestamp: 2026-08-05T12:35:09.501Z
-status: in-progress
+status: done
 tasks:
   - qcli-12
   - qcli-13
@@ -79,11 +79,11 @@ Three kinds of work, deliberately in one Story because they share a cause:
 | [QCLI-15](../../backlog/tasks/qcli-15%20-%20Audit-two-unresolved-register-findings-the-untraceable-Allowed-value-and-QCLI-2.12s-F4-and-F5.md) | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | Done |
 | [QCLI-16](../../backlog/tasks/qcli-16%20-%20Audit-and-correct-the-licensing-source-misattribution-in-the-contracts-and-delivery-graph.md) | Audit and correct the licensing-source misattribution in the contracts and delivery graph | Done |
 | [QCLI-17](../../backlog/tasks/qcli-17%20-%20Correct-the-open-component-decisions-registers-Backlog.md-reclassification-trigger-claim.md) | Correct the open component decisions register's Backlog.md reclassification-trigger claim | Done |
-| [QCLI-18](../../backlog/tasks/qcli-18%20-%20Propose-the-CLI-result-contract-envelope-shape-exit-code-table-not-found-convention-and-anomaly-placement.md) | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | In Progress |
-| [QCLI-19](../../backlog/tasks/qcli-19%20-%20Propose-the-canonical-identifier-grammar-and-authored-record-layout.md) | Propose the canonical identifier grammar and authored-record layout | In Progress |
-| [QCLI-20](../../backlog/tasks/qcli-20%20-%20Propose-the-scale-target-and-the-projection-sizing-basis-it-implies.md) | Propose the scale target and the projection sizing basis it implies | To Do |
-| [QCLI-21](../../backlog/tasks/qcli-21%20-%20Reconcile-the-open-component-decisions-register-and-contracts-graph-against-the-QCLI-12..17-corrections.md) | Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections | In Progress |
-| [QCLI-22](../../backlog/tasks/qcli-22%20-%20Re-pin-the-research-source-registers-member-pins-invalidated-by-the-QCLI-12..17-wave.md) | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | In Progress |
+| [QCLI-18](../../backlog/tasks/qcli-18%20-%20Propose-the-CLI-result-contract-envelope-shape-exit-code-table-not-found-convention-and-anomaly-placement.md) | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | Done |
+| [QCLI-19](../../backlog/tasks/qcli-19%20-%20Propose-the-canonical-identifier-grammar-and-authored-record-layout.md) | Propose the canonical identifier grammar and authored-record layout | Done |
+| [QCLI-20](../../backlog/tasks/qcli-20%20-%20Propose-the-scale-target-and-the-projection-sizing-basis-it-implies.md) | Propose the scale target and the projection sizing basis it implies | Done |
+| [QCLI-21](../../backlog/tasks/qcli-21%20-%20Reconcile-the-open-component-decisions-register-and-contracts-graph-against-the-QCLI-12..17-corrections.md) | Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections | Done |
+| [QCLI-22](../../backlog/tasks/qcli-22%20-%20Re-pin-the-research-source-registers-member-pins-invalidated-by-the-QCLI-12..17-wave.md) | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

@@ -66,6 +66,7 @@
 - 2026-08-05T11:07:54-05:00 3c4eb246b77a7246d33e0eb6b3558322dcb3900b QCLI-20: Propose the scale target and its projection implications (#34)
 - 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
 - 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
+- 2026-08-05T11:24:55-05:00 f528d939fc6820985e8468e7e9211e78969a4cc6 chore: regenerate log.md to fix dangling pre-squash SHAs from QCLI-22
 
 ## docs/adr
 
