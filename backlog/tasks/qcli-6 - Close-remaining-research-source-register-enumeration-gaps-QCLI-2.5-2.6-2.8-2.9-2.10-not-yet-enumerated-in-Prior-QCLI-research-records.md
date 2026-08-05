@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-05 02:29'
-updated_date: '2026-08-05 02:30'
+updated_date: '2026-08-05 02:50'
 labels:
   - research
   - register
@@ -15,6 +15,7 @@ labels:
   - clean-room
   - 'cluster:provenance'
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - campaign
 dependencies:
   - QCLI-2.5
   - QCLI-2.6
