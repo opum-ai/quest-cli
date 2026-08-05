@@ -1,11 +1,11 @@
 ---
 id: QCLI-13
 title: Backlink the adoption playbook from the component charter and migration ledger
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 13:05'
+updated_date: '2026-08-05 13:29'
 labels:
   - campaign
   - 'cluster:adoption'
@@ -14,7 +14,6 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
-  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -35,11 +34,11 @@ Known trap: both target files may be pinned by the research source register. Che
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The component charter links to the adoption and migration playbook from a contextually appropriate place
-- [ ] #2 The migration ledger links to the adoption and migration playbook from a contextually appropriate place
-- [ ] #3 The playbook's existing outbound citations are left unchanged, since they already exist
-- [ ] #4 If the research source register pins either edited document, the pin is handled in the same pass or the need for a separate correction is recorded
-- [ ] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 The component charter links to the adoption and migration playbook from a contextually appropriate place
+- [x] #2 The migration ledger links to the adoption and migration playbook from a contextually appropriate place
+- [x] #3 The playbook's existing outbound citations are left unchanged, since they already exist
+- [x] #4 If the research source register pins either edited document, the pin is handled in the same pass or the need for a separate correction is recorded
+- [x] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -78,4 +77,12 @@ Recorded finding (F1, reviewer follow-up): docs/reference/quest-cli-open-compone
 Fix pass (F2/F3, reviewer follow-up): repositioned the QCLI-13 backlink sentence in docs/reference/former-ocli-to-qcli-migration-ledger.md's 'Source provenance boundary' section. It previously sat mid-paragraph immediately before the '**Amended 2026-08-04 by QCLI-2.12**' block, but that amendment amends the preceding (unrelated) sentence about QCLI-2.1's revalidation, not the QCLI-13 sentence, so the insertion point was misleading. Moved the sentence to its own paragraph at the end of the section, after the full QCLI-2.12 amendment/correction train and immediately before '### Preservation rules'. Also added a dated attribution marker matching the section's existing convention (e.g. 'Amended 2026-08-04 by QCLI-2.12', 'Condition fired (QCLI-2.3, 2026-08-04)'): the sentence now opens with '**Added 2026-08-05 by `QCLI-13`:**'. The component charter edit is intentionally left unmarked, per this same review: the charter has no such dated-attribution convention anywhere (zero hits for Amended/Corrected/Updated 2026/Added 2026), so marking only the charter would be out of convention there.
 
 Expanded register-pin follow-up note (F4, reviewer follow-up) with two details the eventual correction pass needs: (a) The register pins the component charter and the accepted ADR (docs/adr/use-quest-cli-for-the-quest-package-and-command.md) JOINTLY in one sentence (register lines ~924-929) to the same commit 942da73. Verified independently: 'git log -1 -- docs/adr/use-quest-cli-for-the-quest-package-and-command.md' still shows 942da73 as that file's last-touching commit, so the ADR's half of the joint pin remains correct and must NOT be repointed. Because QCLI-13 only amends the charter, not the ADR, the eventual fix must DECOUPLE the two pins (re-pin or self-pin the charter alone), not repoint both to a new shared SHA. (b) The register maintains explicit running counts of pin types across its 14-member 'Prior QCLI research records' enumeration, updated inline at each amendment (register lines ~1026-1028 and ~1047-1050): 'three of the fourteen members are now self-pinned (this register, the migration ledger, and QCLI-2.8's document), eleven are commit-pinned, and eight distinct SHAs remain in use'. A future self-pin or re-pin conversion for the charter would shift these counts (self-pinned members 3->4, commit-pinned members 11->10, and possibly the distinct-SHA count if 942da73 stops being used elsewhere) and must update this running-count prose in the same pass, following the register's own established precedent for such updates (see the QCLI-7 and QCLI-9 correction passes in that same section).
+
+Verified by independent reviewer (2 rounds): AC1/AC2 confirmed — charter and migration ledger both link to the playbook at contextually appropriate places. AC3 confirmed — playbook itself unchanged (zero diff). AC4 confirmed — charter is SHA-pinned by the register (942da73, now stale, recorded as follow-up with ADR-decoupling detail); ledger is deliberately live-pinned to its own current state, unaffected. AC5 confirmed: lore validate --strict 38/0/0/6 skipped; lore check 38/0/0; lore orphans 0/0 (re-run after rebase, still green). Reviewer also confirmed a stale 'residual items' row at open-component-decisions.md:218 (this wave's QCLI-17 owns that file but not that row) is recorded in this task's notes per reviewer instruction, not edited. Merged to dev via PR #26, squash commit d871d32009c8afb2017e955eef6cb0328d219098.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added the missing inbound backlinks from the component charter and the OCLI→QCLI migration ledger to the Backlog adoption/migration playbook — the playbook already cited both outbound (lines 75, 427-428); only the inbound direction was missing, narrowing this task's scope from QCLI-2.10's original 'or vice versa' note. Verified the register pins the charter (now stale, recorded as a follow-up with the ADR-decoupling detail a future fix needs) and confirmed the ledger's deliberate live-pin is unaffected. Reviewer also caught that this task's own fix makes a residual-items row in a sibling-owned document stale; recorded as a follow-up per scope boundary rather than edited. All 5 ACs independently confirmed across two review rounds (one request_changes cycle for the unrecorded stale row plus minor ledger-placement/attribution polish). Merged to dev via PR #26 (squash d871d32).
+<!-- SECTION:FINAL_SUMMARY:END -->
