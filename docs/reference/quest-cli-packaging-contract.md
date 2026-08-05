@@ -79,15 +79,16 @@ precisely because that fact is time-bound.
 
 **Corrected 2026-08-05 by `QCLI-14`:** the `@opum-ai/lore` row's bin path
 (bin `lore` → `bin/lore.cjs`) previously occupied the Description column,
-the only populated cell in that column that was not a published package
-description string, where every other populated row's Description cell
-carries one. This table's column semantics are widened to add a dedicated
-Bin column, and the bin-path value — unchanged, and still dated to the
-original 2026-08-04 sweep below — is relocated there. The `@opum-ai/lore`
-row's Description cell is marked `—` because no npm description was
-captured for that package in the 2026-08-04 sweep; this correction does not
-supply one, since doing so now would be a new, separately dated observation,
-not a relocation of the existing one. No other cell in this table changed.
+the only Description cell holding a value that was not about the package's
+description at all: `quest`'s carries the published string, `quest-cli`'s
+records that none was published, and the remaining cells are uncaptured
+(`—`). This table's column semantics are widened to add a dedicated Bin
+column, and the bin-path value — unchanged, and still dated to the original
+2026-08-04 sweep above — is relocated there. The `@opum-ai/lore` row's
+Description cell is marked `—` because no npm description was captured for
+that package in the 2026-08-04 sweep; this correction does not supply one,
+since doing so now would be a new, separately dated observation, not a
+relocation of the existing one. No other cell in this table changed.
 
 `quest` package history (`npm view quest time`): first published `0.0.2` on
 2012-11-01, most recent `0.4.0` on 2018-09-04, `modified` (last registry
