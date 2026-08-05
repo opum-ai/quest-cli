@@ -3,11 +3,11 @@ id: QCLI-28
 title: >-
   Reconcile the Quest CLI open component decisions register, contracts graph,
   and delivery roadmap against the Phase 1 ADRs
-status: In Progress
+status: Done
 assignee:
   - '@jeremy-newhouse'
 created_date: '2026-08-05 22:38'
-updated_date: '2026-08-05 23:32'
+updated_date: '2026-08-05 23:42'
 labels:
   - campaign
   - decisions
@@ -35,11 +35,11 @@ QCLI-24, QCLI-25, QCLI-26, and QCLI-27 record the owner's Phase 1 rulings (D1, D
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The open component decisions register's D1, D3, D4, and D5 rows, and the 'JSON and exits' contract row's four open items (envelope shape, exit-code table, not-found convention Quest-side, create/edit JSON-uniformity), are each marked closed, citing the specific ADR or reference document that closed it
-- [ ] #2 The component contracts and delivery graph's corresponding open-items entries are reconciled to match the register
-- [ ] #3 The delivery roadmap Spec's Phase 1 exit-criteria table reflects each of its nine listed items as closed or explicitly owned, citing the closing document for each
-- [ ] #4 The reconciliation does not mark closed, and does not imply closed, any item this campaign's owning Story lists as remaining open: the not-found convention's lore-doc boundary half, D2's runtime choice itself, D6, D7a, or D7b
-- [ ] #5 lore validate --strict, lore check, and lore orphans all report zero after the change
+- [x] #1 The open component decisions register's D1, D3, D4, and D5 rows, and the 'JSON and exits' contract row's four open items (envelope shape, exit-code table, not-found convention Quest-side, create/edit JSON-uniformity), are each marked closed, citing the specific ADR or reference document that closed it
+- [x] #2 The component contracts and delivery graph's corresponding open-items entries are reconciled to match the register
+- [x] #3 The delivery roadmap Spec's Phase 1 exit-criteria table reflects each of its nine listed items as closed or explicitly owned, citing the closing document for each
+- [x] #4 The reconciliation does not mark closed, and does not imply closed, any item this campaign's owning Story lists as remaining open: the not-found convention's lore-doc boundary half, D2's runtime choice itself, D6, D7a, or D7b
+- [x] #5 lore validate --strict, lore check, and lore orphans all report zero after the change
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -86,4 +86,12 @@ Commits: fcb814f (register), 6f4dc18 (contracts graph), a6fc202 (roadmap), 8b4e2
 Out-of-scope findings (not acted on):
 - The three ratified proposal docs (QCLI-18/19/20's) still say "nothing accepted here" with no pointer to their ratifying ADRs — per the dispatch brief this is a separate follow-up already awaiting user approval; not touched here.
 - The "Proposed component delivery graph (dormant)" Phase 1 row in the contracts-and-delivery-graph doc (its forward-looking dormant proposal table, distinct from the "Explicitly open" lists and "Unresolved component decisions" section this task's ACs target) still frames the JSON envelope/not-found/ID-grammar/license/platform-and-runtime-ownership questions as future "Proposal only" work. Left as-is: that table is a dormant blueprint for a not-yet-authorized future task, not a live open-items list, and editing it was outside this task's three-file scope.
+
+Settlement: reviewer independently re-verified all 5 ACs, opening every cited document to confirm citations were accurate (not just present). AC4 (no false 'closed' on D2's runtime choice, D6, D7a, D7b, or the not-found lore-doc boundary half) was given particular scrutiny given it's the highest-risk criterion — confirmed clean across the register, contracts graph, and roadmap. lore validate --strict / lore check / lore orphans re-run clean (0/0/0). A few low-severity prose/header inconsistencies noted (not blocking); proposed as a possible small follow-up alongside the already-pending stale-proposal-doc-prose item, pending user approval. One mechanical merge-time conflict (frontmatter assignee/updated_date only, between the orchestrator's dispatch-marking commit and the worker's lore-sync commit) resolved directly by the orchestrator during rebase — no content decision involved. Merged via PR #44, squash commit 43bc22e on dev. This is the final task of the Phase-1-ratification campaign (QCLI-24..28) — campaign complete.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Reconciled the Quest CLI open component decisions register, the component contracts and delivery graph, and the delivery roadmap Spec's Phase 1 exit-criteria table against the four Phase 1 ADRs/reference docs (QCLI-24: CLI result contract; QCLI-25: D4 identifier grammar; QCLI-26: D5 scale target; QCLI-27: D1 license/provenance, D3 platform/ownership, D2 ownership-only). Marked D1/D3/D4/D5 and the 'JSON and exits' contract's four open items closed with citations to the specific closing document; the delivery roadmap's nine Phase-1 exit-criteria rows now each cite their closing document or explicit owner. D2's runtime choice itself, D6, D7a, D7b, and the not-found convention's lore-doc boundary half were explicitly left open/unresolved throughout, per the owning Story. Verified via lore validate --strict/lore check/lore orphans (all 0/0/0) and independent reviewer re-verification of all 5 ACs, with AC4's no-false-closure check given particular scrutiny. Merged PR #44 (43bc22e). This closes the Phase-1-ratification campaign (QCLI-24..28).
+<!-- SECTION:FINAL_SUMMARY:END -->
