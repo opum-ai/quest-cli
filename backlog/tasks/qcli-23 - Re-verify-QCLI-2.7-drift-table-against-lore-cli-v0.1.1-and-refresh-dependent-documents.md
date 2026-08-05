@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 17:37'
-updated_date: '2026-08-05 18:16'
+updated_date: '2026-08-05 18:29'
 labels:
   - campaign
   - research
@@ -165,4 +165,14 @@ cited read-only where relevant).
   and "@opum-ai/lore" -- only the three target documents plus already-correct
   QCLI-11/QCLI-2.7 historical citations of v0.1.0 as a dated fact, which are
   correctly left alone as historical record, not live pins).
+
+Fix pass after independent review returned request_changes (2026-08-05):
+
+BLOCKING #1 fixed — docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md, Part 3, "Is the tag an ancestor of `dev` HEAD?" row. Reviewer found the "Cause" clause had the merge direction and causal commit backwards: it attributed reachability to 40dc5ad8 merging `main` back into `dev`, but 40dc5ad8 is lore-cli PR #300 (base=`main`, head=`dev` — a dev-to-main promotion, opposite direction) and was not reachable from `dev` until ~18.5h later. Independently re-verified before rewriting: `gh pr view 300 --repo opum-ai/lore-cli` (base=main, head=dev, merged 2026-08-04T03:13:08Z); `gh pr view 310` (base=dev, head=release/0.1.1-publication, merged 2026-08-04T21:44:25Z, merge commit 6bb4f9d9, parents [77deb736, 1f0c2c62]); `gh api compare/40dc5ad8...8dc88bdd` and `.../40dc5ad8...77deb736` (both diverged, behind_by=2 — not yet ancestors); `gh api compare/40dc5ad8...1f0c2c62` (behind_by=0 — release branch tip already contained it); `gh api compare/main...dev` (diverged, ahead_by=2, behind_by=4 — main and dev are still not merged back together in general). Rewrote the Cause clause to name PR #310 / release/0.1.1-publication as what carried main's history (and the v0.1.0 tag commit) into dev via a one-time release-branch merge, corrected the PR #300 direction, and removed the implication that dev now merges main back into itself generally.
+
+NON-BLOCKING #1 folded in — added a dated parenthetical ("as of the 2026-08-04 range v0.1.0..4056068, since superseded by the 103-commit range above") to the two undated "What the 29 commits actually touch in src/ / docs/" rows, so they read as historically scoped rather than describing the current 103-commit range.
+
+Left non-blocking #2 (finalization/AC-checking) and #3 (missing Refs: trailer on 54712cd) untouched — out of scope for this pass per orchestrator instruction.
+
+Verified clean after edit: lore validate --strict (42 files, 0 errors, 0 warnings, 6 skipped), lore check (42 files, 0 errors, 0 warnings), lore orphans (0 orphan tasks, 0 dangling links).
 <!-- SECTION:NOTES:END -->
