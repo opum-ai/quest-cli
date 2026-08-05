@@ -83,7 +83,7 @@ Three kinds of work, deliberately in one Story because they share a cause:
 | [QCLI-19](../../backlog/tasks/qcli-19%20-%20Propose-the-canonical-identifier-grammar-and-authored-record-layout.md) | Propose the canonical identifier grammar and authored-record layout | In Progress |
 | [QCLI-20](../../backlog/tasks/qcli-20%20-%20Propose-the-scale-target-and-the-projection-sizing-basis-it-implies.md) | Propose the scale target and the projection sizing basis it implies | To Do |
 | [QCLI-21](../../backlog/tasks/qcli-21%20-%20Reconcile-the-open-component-decisions-register-and-contracts-graph-against-the-QCLI-12..17-corrections.md) | Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections | In Progress |
-| [QCLI-22](../../backlog/tasks/qcli-22%20-%20Re-pin-the-research-source-registers-member-pins-invalidated-by-the-QCLI-12..17-wave.md) | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | To Do |
+| [QCLI-22](../../backlog/tasks/qcli-22%20-%20Re-pin-the-research-source-registers-member-pins-invalidated-by-the-QCLI-12..17-wave.md) | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | In Progress |
 <!-- lore:tasks:end -->
 
 ## Notes

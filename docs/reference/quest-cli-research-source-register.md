@@ -1053,7 +1053,112 @@ named slice, never to every file in its repository.
   entirely, and `1a61989` — `QCLI-8`'s own merge commit, not shared with any
   other still-current pin in this slice — takes its place as the eighth
   distinct SHA. No Classification field changed and no permitted use was
-  narrowed.
+  narrowed. **Corrected 2026-08-05 by `QCLI-22`, re-pinning three members
+  invalidated by the QCLI-12/13/14 wave (that wave routed all register
+  edits through `QCLI-15` alone to avoid a parallel-edit collision; QCLI-12,
+  QCLI-13, and QCLI-14 each recorded their own pin impact as a follow-up
+  rather than acting on it, and nothing later in the wave incidentally
+  fixed them):** three of the eight distinct SHAs above each happened to
+  pin two members, and the wave's edits broke that coincidence for one
+  member of each pair without touching the other. Re-verified with the
+  same method used throughout this slice — `git log --format='%h %cI' -1
+  -- <path>` for each path, cross-checked against `git show -s
+  --format=%cI <sha>` (date) and `git show --stat <sha>` (confirms the
+  commit touches the named path):
+  - The **component charter** (`quest-cli-component-charter.md`) is now
+    last amended at `d871d32` (2026-08-05 08:28:56 -0500, `QCLI-13`, PR
+    #26, "Backlink the adoption playbook from the component charter and
+    migration ledger" — `git show --stat d871d32` confirms this commit
+    touches this path, plus the migration ledger's path, see its bullet
+    above). The **ADR** keeps `942da73` (2026-08-04 07:21:12 -0500),
+    independently re-verified: `git log --format='%h %cI' -1 --` against
+    the ADR's own path still returns `942da73`, unamended by the wave. The
+    two pins are decoupled: `942da73` now pins the ADR alone.
+  - The **research Spec**
+    (`../specs/quest-cli-pre-implementation-research-program.md`) is now
+    last amended at `1dd4aa6` (2026-08-05 08:24:52 -0500, `QCLI-12`, PR
+    #25, "Fix the stale QCLI-2.8 dependency-order row in the research
+    programme Spec" — `git show --stat 1dd4aa6` confirms this commit
+    touches this path). `QCLI-2.7`'s [Lore dependency and adapter contract
+    evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
+    keeps `157ad56` (2026-08-04 14:09:46 -0500), independently
+    re-verified unchanged and unamended by the wave. The two pins are
+    decoupled: `157ad56` now pins the Lore dependency evidence document
+    alone.
+  - The **packaging contract** (`quest-cli-packaging-contract.md`) is now
+    last amended at `077d3be` (2026-08-05 08:41:47 -0500, `QCLI-14`, PR
+    #27, "Correct the bin-path row in the packaging contract's Description
+    column" — `git show --stat 077d3be` confirms this commit touches this
+    path). `QCLI-2.2`'s [legacy Opum requirement
+    reconciliation](legacy-opum-requirement-reconciliation-for-quest-cli.md)
+    keeps `3b5cd8c` (2026-08-04 10:29:40 -0500), independently
+    re-verified unchanged and unamended by the wave. The two pins are
+    decoupled: `3b5cd8c` now pins the legacy Opum reconciliation alone.
+
+  All three re-pointed pins are exact-commit SHA pins, not self-pins: this
+  task does not co-edit the component charter, the research Spec, or the
+  packaging contract in this same pass — only this register — so per the
+  same self-pin-only-if-co-edited distinction the migration ledger's, this
+  register's, and `QCLI-2.8`'s document's own self-pin bullets above
+  already establish, none of the three qualifies. (The component charter's
+  own acceptance criteria left converting it to a self-pin open as an
+  alternative, on the reasoning that it is now amended by ongoing
+  follow-through-wave work; this task considered that and declined it for
+  the same reason — the register's sole standing self-pin-eligibility test
+  is co-editing within this task's own pass, not amendment frequency by
+  other tasks, and the charter is not co-edited here. **Confirmed on review
+  2026-08-05:** this follows `QCLI-9`'s own precedent above directly — a
+  member invalidated by another task's merge and not co-edited by the
+  correcting pass is repinned by exact-commit SHA — and the register's own
+  reasoning under Exclusions (a self-pin protects only against edits made by
+  this task's own passes, not later tasks') is why a self-pin would not have
+  made the charter's pin more durable.)
+
+  This updates the running counts: self-pinned members remain three (this
+  register, the migration ledger, and `QCLI-2.8`'s document — this task's
+  pin corrections touch none of the three), commit-pinned members remain
+  eleven, and **distinct SHAs rise from eight to eleven**: `d871d32`,
+  `1dd4aa6`, and `077d3be` join the set, while `942da73`, `157ad56`, and
+  `3b5cd8c` each drop from pinning two members to pinning one. The eight
+  pins independently re-verified unchanged and left untouched by this pass
+  are: the ADR at `942da73`, the legacy Opum reconciliation at `3b5cd8c`,
+  the black-box acceptance scenarios document at `883b445`, the component
+  glossary at `63b1e0a`, the Lore dependency evidence document at
+  `157ad56`, the migration fidelity contract at `418c5eb`, the threat
+  model at `739aa7e`, and the adoption playbook at `1a61989`. No
+  Classification field changed and no permitted use was narrowed.
+
+  **Self-pin retrieval-date disposition, 2026-08-05, `QCLI-22`:** the
+  three self-pinned members above (the migration ledger, this register,
+  and `QCLI-2.8`'s document) each carry a "read live 2026-08-04" stamp on
+  their self-pin bullet, and each has since been amended by a further
+  commit outside this register's own editing pass: the migration ledger by
+  `QCLI-13` (`d871d32`, 2026-08-05 — the same commit that also re-pins the
+  component charter above), this register itself by `QCLI-15` (`6b78fd0`,
+  2026-08-05), and `QCLI-2.8`'s component contracts and delivery graph by
+  `QCLI-16` (`44a7ed8`, 2026-08-05) — each cross-checked the same way:
+  `git log --format='%h %cI' -1 -- <path>` against each path, confirming
+  these as each document's current last-touch commit. None of this breaks
+  the self-pin mechanism itself — `QCLI-16` already independently verified
+  it holds regardless of which commit last touched the pinned document,
+  because a self-pin resolves to whatever the document currently says
+  whenever it is read, not to a frozen state as of its stamp's date; the
+  stamp records only when that passage of prose was last written or
+  reviewed, not a freshness boundary on content the way a commit SHA is.
+  Left silently as-is, though, a visibly aging "read live 2026-08-04" date
+  sitting beside three documents each already known to have changed the
+  next day invites exactly the misreading a stale commit-pin would — so
+  rather than leave that tension implicit, all three stamps are refreshed
+  to **2026-08-05** here, each naming its amending task and commit as
+  listed above. This task's own edit is itself a further amendment to this
+  register after `QCLI-15`'s `6b78fd0`; per the same self-pin mechanism
+  ("as amended live through this same edit or through any later commit in
+  this same pass"), the register's existing self-pin already covers this
+  edit without any separate pin action — recorded here explicitly, per the
+  standing pin-handling criterion this campaign's tasks have carried since
+  wave 1, rather than left for a reader to infer. No Classification field
+  changed and no permitted use was narrowed by either of the two
+  corrections above.
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
   documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
@@ -1224,13 +1329,29 @@ evidence.md` (`QCLI-2.7`) by reading the live files, not from memory. It
 opened no Backlog.md implementation source, no Quarantined artifact, and
 made no mutation outside this repository's own `docs/` tree.
 
-`QCLI-15`'s 2026-08-05 audit closed two residual findings recorded in
+`QCLI-15`'s 2026-08-05 audit investigated two residual findings recorded in
 settlement notes but never filed, without reclassifying any source (see the
 "Prior QCLI research records" slice above for the full Finding-A note; this
 paragraph covers Finding B in full since it has no single slice to attach
-to).
+to). **Corrected 2026-08-05 by `QCLI-22`:** the sentence above previously
+read "closed two residual findings," which contradicts this same section's
+own conclusion for both findings, below: Finding A's own note states "what
+would close this gap fully" as still outstanding (an explicit owner
+ruling, not yet obtained), and Finding B's own note below states in full
+that F4 and F5 "remain open." Neither finding was substantively closed by
+this audit; what `QCLI-15` closed was the *investigation* into each — for
+Finding A, confirming exactly what the Allowed classification does and does
+not trace to; for Finding B, confirming, after an exhaustive search
+(including `git fsck` for dangling objects and both PR #14 GitHub review
+endpoints), that no retrievable record anywhere states what F4/F5 actually
+asserted. This correction restates the summary sentence to match the
+audit's own stated conclusion in the two paragraphs below; it changes no
+finding's substance, closes no finding that was not already closed, and
+reclassifies no source.
 
-Finding A (traceability): confirmed and recorded in place, above.
+Finding A (traceability): confirmed and recorded in place, above; **added
+2026-08-05 by `QCLI-22`:** the gap itself remains open pending the explicit
+owner ruling that paragraph describes.
 
 Finding B (`QCLI-2.12`'s "F4/F5 ... left for the orchestrator to track"):
 `QCLI-2.12`'s task notes carry two distinct, differently-scoped F-numbered
@@ -1272,3 +1393,28 @@ produced it (a session transcript or agent run outside this repository's
 version control, if one still exists) and filing it as a new, normal
 Backlog finding once its content is known — not reconstructing content from
 inference, which this audit deliberately does not do.
+
+**Corrected 2026-08-05 by `QCLI-22`:** the paragraph above accurately
+reports what `QCLI-15`'s 2026-08-05 audit found at the time it ran, but the
+state of affairs it describes has since changed. The substance was
+recovered during `QCLI-21`'s review pass this same wave (reconciling
+`quest-cli-open-component-decisions.md`), from an out-of-repo Claude Code
+session transcript —
+`~/.claude/projects/-Volumes-external-repos-quest-cli/a6226b48-8acf-4fd0-beb5-18c099fc4540.jsonl`,
+line 224, `uuid ab85399e-c963-48a0-b029-315e23081241`, timestamp
+`2026-08-04T17:05:34.273Z` (a second copy exists at
+`.../d92cd86b-56f8-47fc-87e7-fe0fbe46cd6d.jsonl`) — the pre-merge PR #14
+review this section calls Scheme 1. In brief: F4 questioned whether the
+migration ledger's "owner-ruled" qualifier for later amendments obviously
+covers `QCLI-2.12`'s own register edits, which are marked
+"clarified/widened/added" without asserting owner ruling; F5 flagged that
+Register:594–598's quotation of a drift-table row heading from
+`quest-cli-lore-dependency-and-adapter-contract-evidence.md` would go stale
+if `QCLI-2.14` rewrote that row. Full detail lives in
+`quest-cli-open-component-decisions.md`'s own F4/F5 row, which `QCLI-21` is
+updating in parallel. This closes the retrievability gap the audit
+identified: the "no one can now judge whether they still apply" framing
+above no longer describes the current state — the substance is known and
+recorded. Whether F4 and F5, now that their substance is known, still apply
+against the register's *current* text remains a separate, open question
+this correction does not resolve.
