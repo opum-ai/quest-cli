@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@jeremy'
 created_date: '2026-08-05 14:37'
-updated_date: '2026-08-05 15:30'
+updated_date: '2026-08-05 15:36'
 labels:
   - campaign
   - 'cluster:provenance'
@@ -73,3 +73,51 @@ Line numbers above are as observed by the wave-1 integration review immediately 
 
 5. Commit in small logical commits (pin corrections; self-pin stamp disposition; Notes wording fix, if not folded together) each with a docs(register): summary and a Refs: QCLI-22 trailer, then push the branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented. Re-verified every cited line number and SHA against merged dev (this branch's HEAD equals origin/dev's tip, bb70619) using the register's own documented method: git log --format=%h %cI -1 -- path for each path, cross-checked with git show -s --format=%cI SHA and git show --stat SHA. Every claim in the task description matched exactly, with no line-number drift:
+
+- Component charter: now d871d32 (2026-08-05T08:28:56-05:00, QCLI-13, PR #26) - confirmed via git show --stat d871d32 touching docs/reference/quest-cli-component-charter.md (and former-ocli-to-qcli-migration-ledger.md in the same commit).
+- Research Spec: now 1dd4aa6 (2026-08-05T08:24:52-05:00, QCLI-12, PR #25) - confirmed via git show --stat 1dd4aa6 touching docs/specs/quest-cli-pre-implementation-research-program.md.
+- Packaging contract: now 077d3be (2026-08-05T08:41:47-05:00, QCLI-14, PR #27) - confirmed via git show --stat 077d3be touching docs/reference/quest-cli-packaging-contract.md.
+- ADR (942da73), Lore dependency and adapter contract evidence document (157ad56), and legacy Opum requirement reconciliation (3b5cd8c) each independently re-verified unchanged/unamended by the wave.
+- The other five stable pins re-verified unchanged: black-box acceptance scenarios (883b445), component glossary (63b1e0a), migration fidelity contract (418c5eb), threat model (739aa7e), adoption playbook (1a61989).
+- The three self-pinned documents (migration ledger, this register, QCLI-2.8's component contracts and delivery graph) each confirmed amended since their "read live 2026-08-04" stamp: by d871d32 (2026-08-05), 6b78fd0 (2026-08-05, QCLI-15), and 44a7ed8 (2026-08-05, QCLI-16) respectively.
+
+Edits made to docs/reference/quest-cli-research-source-register.md only (two commits):
+
+1. Appended a dated, cited correction block (Corrected 2026-08-05 by QCLI-22) in the "Prior QCLI research records" slice's Exact revision or retrieval date field, following the existing QCLI-6/QCLI-7/QCLI-9 precedent already in that same paragraph: decouples and repoints the component charter (942da73 -> d871d32; ADR keeps 942da73), the research Spec (157ad56 -> 1dd4aa6; Lore dependency evidence document keeps 157ad56), and the packaging contract (3b5cd8c -> 077d3be; legacy Opum reconciliation keeps 3b5cd8c), each with the verification recorded inline in the same style as existing pins. Updates the distinct-SHA enumeration from eight to eleven and restates the eight unchanged pins. States and justifies the judgment call to repoint the charter as an exact-commit SHA pin rather than convert it to a self-pin (flagged below for reviewer confirmation).
+2. In the same block, added a "Self-pin retrieval-date disposition, 2026-08-05, QCLI-22" paragraph explicitly dispositioning the three self-pins' "read live 2026-08-04" stamps: refreshed all three to 2026-08-05, naming the amending task/commit for each, with an explicit statement that the self-pin mechanism itself was never broken (per QCLI-16's own prior verification) - the refresh is for reader clarity, not because the pin failed. Also explicitly confirms AC10: this task's own edit to the register is already covered by the register's existing self-pin mechanism ("as amended live through this same edit or through any later commit in this same pass"), stated explicitly rather than left implicit.
+3. Separately, reconciled the Notes section's wording tension (AC9): the summary sentence claiming QCLI-15's audit "closed two residual findings" contradicted the same section's own conclusion that both Finding A (needs an explicit owner ruling) and Finding B (F4/F5 substance unrecoverable) remain open. Reworded to state the audit closed the investigation into each finding, not the findings themselves, and added a short inline note to the Finding A paragraph pointing out the gap remains open (Finding B's own paragraph already stated "remain open" explicitly, so no change was needed there beyond the summary-sentence fix).
+
+No Classification value changed and no permitted use narrowed anywhere in this pass.
+
+Verification gate evidence (run after all edits, from a clean working tree):
+- lore sync: reconciled a pre-existing status/managed-block drift caused by this task's own "In Progress" status change (docs/log.md, the owning Story's managed Tasks block) - unrelated to the register content edits, expected side effect of picking up the task.
+- lore validate --strict: 38 files, 0 errors, 0 warnings, 6 skipped. Exit 0.
+- lore check: 38 files, 0 errors, 0 warnings. Exit 0.
+- lore orphans: 0 orphan tasks, 0 dangling links. Exit 0.
+
+Commits (branch fix/qcli-22-register-repin):
+- 09cd94c docs: sync log.md and story after QCLI-22 status pickup
+- 01a79b8 docs(register): re-pin three members invalidated by the QCLI-12/13/14 wave
+- 6b941a3 docs(register): reconcile Notes wording tension on QCLI-15's audit conclusion
+
+Out-of-scope findings: none beyond the two judgment calls already flagged inline in the register text and repeated below for the reviewer's attention. Did not touch quest-cli-open-component-decisions.md or quest-cli-component-contracts-and-delivery-graph.md (QCLI-21's scope), and did not touch any QCLI-11/18/19/20 proposal documents.
+<!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @claude
+created: 2026-08-05 15:36
+---
+Two judgment calls need reviewer sign-off:
+
+1. AC1 (charter self-pin vs repoint): repointed the component charter to an exact-commit SHA pin (d871d32) rather than converting it to a self-pin. Reasoning: the register's own standing rule ties self-pin eligibility strictly to "co-edited by this same task's own pass" (established for the migration ledger, this register, and QCLI-2.8's document), not to how often other tasks amend a document over time. QCLI-22 does not co-edit the component charter in this pass, so it does not qualify under the existing test even though the charter is being repeatedly amended by ongoing follow-through work. Flagged inline in the register text itself for visibility. If a reviewer judges the charter's amendment cadence during this campaign is high enough to warrant relaxing the self-pin-eligibility rule (or converting the charter specifically), that is a rule change beyond what this task's own scope authorizes me to make unilaterally.
+
+2. AC5 (self-pin stamp disposition): refreshed all three "read live 2026-08-04" stamps to 2026-08-05, naming each amending task/commit, while also stating explicitly that the self-pin mechanism was never broken (a self-pin resolves to current content whenever read, regardless of the stamp date) - so the refresh is presented as a reader-clarity improvement, not a correction to a defect. Please confirm this framing is the intended disposition rather than, e.g., leaving the stamps at 2026-08-04 with a note that the date is not a freshness claim.
+---
+<!-- COMMENTS:END -->
