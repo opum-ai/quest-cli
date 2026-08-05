@@ -67,6 +67,7 @@
 - 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
 - 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
 - 2026-08-05T11:24:55-05:00 f528d939fc6820985e8468e7e9211e78969a4cc6 chore: regenerate log.md to fix dangling pre-squash SHAs from QCLI-22
+- 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
 
 ## docs/adr
 
@@ -115,6 +116,7 @@
 - 2026-08-05T11:07:54-05:00 3c4eb246b77a7246d33e0eb6b3558322dcb3900b QCLI-20: Propose the scale target and its projection implications (#34)
 - 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
 - 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
+- 2026-08-05T11:34:44-05:00 ed14115a4c4ea20e7c370469c1572f4f9fba700d chore: fix narrow findings from the wave-2 integration review (#37)
 
 ## docs/runbooks
 
@@ -131,6 +133,7 @@
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 - 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+- 2026-08-05T11:34:44-05:00 ed14115a4c4ea20e7c370469c1572f4f9fba700d chore: fix narrow findings from the wave-2 integration review (#37)
 
 ## docs/stories
 
@@ -170,3 +173,4 @@
 - 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
 - 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
 - 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
+- 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
