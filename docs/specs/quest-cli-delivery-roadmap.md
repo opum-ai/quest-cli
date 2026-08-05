@@ -113,17 +113,17 @@ closed. It does.
 
 **Exit.** These are decided and recorded:
 
-| Decision | Register entry |
-| --- | --- |
-| JSON envelope shape — `schemaVersion` form, `kind` naming, payload key structure | CLI contract open items |
-| The literal exit-code-to-outcome table | CLI contract open items |
-| The not-found signal convention | CLI contract open items, partly `lore-doc` |
-| Canonical identifier grammar | D4 |
-| Product license and contributor provenance | D1 |
-| Explicit ownership of the platform question | D3 — currently owned by no task |
-| Explicit ownership of the runtime question | D2 — blocked, but ownership is not |
-| Scale target | D5 |
-| Where an anomaly sits in the outcome taxonomy | Architecture open questions |
+| Decision | Register entry | Closed / owned by |
+| --- | --- | --- |
+| JSON envelope shape — `schemaVersion` form, `kind` naming, payload key structure | CLI contract open items | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`) |
+| The literal exit-code-to-outcome table | CLI contract open items | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`) |
+| The not-found signal convention | CLI contract open items, partly `lore-doc` | **Closed, Quest's own side** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`); the `lore-doc` boundary half stays open, unowned by Quest |
+| Canonical identifier grammar | D4 | **Closed** — [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
+| Product license and contributor provenance | D1 | **Closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): MIT, informal/none for now |
+| Explicit ownership of the platform question | D3 — currently owned by no task | **Closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): macOS, Linux, Windows; claimed as quest-cli-owned |
+| Explicit ownership of the runtime question | D2 — blocked, but ownership is not | **Owned, not closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`) claims quest-cli ownership; the runtime choice itself remains blocked, post-activation |
+| Scale target | D5 | **Closed** — [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) |
+| Where an anomaly sits in the outcome taxonomy | Architecture open questions | **Closed, component-level placement** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`): a distinguishable fourth outcome value (`outcome: "anomaly"`); full product-wide outcome-vocabulary canonization remains a separate `quest-doc` proposal, not settled here |
 
 Plus one standing re-verification obligation: the migration fidelity contract is pinned to
 Backlog.md **v1.49.3** and its own recheck clause obliges re-checking before anything
@@ -288,8 +288,11 @@ Phase 0 gates any code in Phases 2 through 6. Phase 1 needs neither.
   tags, where the audit that closed the gate found none — but evaluating that is
   `lore-doc`'s call, and a consumer repository cannot infer it. Task `QCLI-11` records
   what quest-cli consumed; it does not open anything.
-- **Who claims D3, the platform matrix?** It carries no Lore-evidence gate, so it could be
-  decided in Phase 1, but no task owns it and Phase 6 has no input without it.
+- ~~**Who claims D3, the platform matrix?**~~ **Resolved 2026-08-05** by the
+  [license, platform, and runtime ownership
+  record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md)
+  (`QCLI-27`): supported-platform matrix macOS, Linux, and Windows; ownership
+  explicitly claimed as quest-cli-owned.
 - **Who authors D6 into `quest-doc`?** Gate actor eligibility blocks part of Phase 2 and no
   task in any repository has been filed for it.
 - **Can Phase 5 be usefully split** into the unilaterally satisfiable obligations and the
