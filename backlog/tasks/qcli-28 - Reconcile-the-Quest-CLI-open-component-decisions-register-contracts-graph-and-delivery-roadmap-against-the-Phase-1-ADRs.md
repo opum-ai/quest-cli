@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@jeremy-newhouse'
 created_date: '2026-08-05 22:38'
-updated_date: '2026-08-05 23:26'
+updated_date: '2026-08-05 23:32'
 labels:
   - campaign
   - decisions
@@ -52,3 +52,38 @@ QCLI-24, QCLI-25, QCLI-26, and QCLI-27 record the owner's Phase 1 rulings (D1, D
 5. Verify: lore validate --strict, lore check, lore orphans all report zero; re-run lore sync if any managed block/status drift is introduced by the QCLI-28 status change. Re-check every AC against the literal file text.
 6. Record notes + verification evidence on the task, commit in small logical commits with Refs: QCLI-28, push the branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented. Edited three files to close the register/graph/roadmap gap against QCLI-24/25/26/27:
+
+1. docs/reference/quest-cli-open-component-decisions.md (fcb814f)
+   - Component decisions table: D1, D3, D4, D5 rows marked **Closed**, each citing QCLI-27's ownership record (D1, D3) or the QCLI-25/QCLI-26 ADRs (D4, D5). D2 row kept **Blocked** but its Owner/Unblocked-by cells now cite QCLI-27 for ownership-only closure, explicit that the runtime choice itself is unaffected.
+   - D1-D4 Detail bullets updated with matching closure citations.
+   - Spec-open-question mapping table and its prose updated (D1/D3/D4/D5 closed; D2 ownership closed, runtime choice still blocked).
+   - Contract-level open items table: added a Status column; JSON-and-exits envelope shape, exit-code table, and create/edit-uniformity rows marked Closed (QCLI-24); the not-found row split into a Closed "Quest's own side" row and an Open "lore-doc boundary half" row so the still-open half stays visible.
+   - Residual-items section: fixed the now-stale "no task claims the supported-platform matrix" / "still genuinely unfiled" text (D3 is closed by QCLI-27), corrected the count from four to three genuinely-unfiled items, dated and attributed to QCLI-28.
+
+2. docs/reference/quest-cli-component-contracts-and-delivery-graph.md (6f4dc18)
+   - "Unresolved component decisions" items 1 (Licensing), 3 (Platform), 4 (ID grammar), 5 (Scale) marked Closed with the same citations as the register. Item 2 (Runtime) gets an ownership-only closure note, explicitly not closing the runtime choice.
+   - Each contract's own "Explicitly open" list (CLI identity, JSON and exits, Git mutation, Migration, Projection) updated wherever it named a now-closed item, always preserving the not-found convention's lore-doc boundary half as open.
+
+3. docs/specs/quest-cli-delivery-roadmap.md (a6fc202)
+   - Phase 1 exit-criteria table: added a "Closed / owned by" column citing the closing document for all nine listed items — 6 fully closed, not-found marked closed-Quest's-side-only, runtime marked owned-not-closed, anomaly marked closed-at-component-level (product-wide vocabulary canonization stays a separate quest-doc proposal).
+   - Resolved the stale "Who claims D3, the platform matrix?" Open Question (struck through, cited QCLI-27).
+
+Untouched, as required by AC4/scope: D2's runtime choice itself (still Blocked), D6, D7a, D7b, the not-found convention's lore-doc boundary half, the four wave-1 ADR/reference docs, and the QCLI-18/19/20 proposal docs.
+
+Verification (run after all edits, before final commit):
+- `lore validate --strict` → "47 files, 0 errors, 0 warnings, 6 skipped", exit 0
+- `lore check` → "47 files, 0 errors, 0 warnings", exit 0
+- `lore orphans` → "orphans: 0 orphan tasks, 0 dangling links", exit 0
+- `lore sync` was run once after the status change to In Progress (regenerated docs/log.md and this Story's managed task block/status; committed in a357d12).
+
+Commits: fcb814f (register), 6f4dc18 (contracts graph), a6fc202 (roadmap), 8b4e2f8 (backlog status sync, auto-committed by `lore sync`), a357d12 (log.md/story sync). Branch pushed to origin/fix/qcli-28-tracking-reconciliation.
+
+Out-of-scope findings (not acted on):
+- The three ratified proposal docs (QCLI-18/19/20's) still say "nothing accepted here" with no pointer to their ratifying ADRs — per the dispatch brief this is a separate follow-up already awaiting user approval; not touched here.
+- The "Proposed component delivery graph (dormant)" Phase 1 row in the contracts-and-delivery-graph doc (its forward-looking dormant proposal table, distinct from the "Explicitly open" lists and "Unresolved component decisions" section this task's ACs target) still frames the JSON envelope/not-found/ID-grammar/license/platform-and-runtime-ownership questions as future "Proposal only" work. Left as-is: that table is a dormant blueprint for a not-yet-authorized future task, not a live open-items list, and editing it was outside this task's three-file scope.
+<!-- SECTION:NOTES:END -->
