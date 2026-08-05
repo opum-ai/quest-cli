@@ -1325,13 +1325,29 @@ evidence.md` (`QCLI-2.7`) by reading the live files, not from memory. It
 opened no Backlog.md implementation source, no Quarantined artifact, and
 made no mutation outside this repository's own `docs/` tree.
 
-`QCLI-15`'s 2026-08-05 audit closed two residual findings recorded in
+`QCLI-15`'s 2026-08-05 audit investigated two residual findings recorded in
 settlement notes but never filed, without reclassifying any source (see the
 "Prior QCLI research records" slice above for the full Finding-A note; this
 paragraph covers Finding B in full since it has no single slice to attach
-to).
+to). **Corrected 2026-08-05 by `QCLI-22`:** the sentence above previously
+read "closed two residual findings," which contradicts this same section's
+own conclusion for both findings, below: Finding A's own note states "what
+would close this gap fully" as still outstanding (an explicit owner
+ruling, not yet obtained), and Finding B's own note below states in full
+that F4 and F5 "remain open." Neither finding was substantively closed by
+this audit; what `QCLI-15` closed was the *investigation* into each — for
+Finding A, confirming exactly what the Allowed classification does and does
+not trace to; for Finding B, confirming, after an exhaustive search
+(including `git fsck` for dangling objects and both PR #14 GitHub review
+endpoints), that no retrievable record anywhere states what F4/F5 actually
+asserted. This correction restates the summary sentence to match the
+audit's own stated conclusion in the two paragraphs below; it changes no
+finding's substance, closes no finding that was not already closed, and
+reclassifies no source.
 
-Finding A (traceability): confirmed and recorded in place, above.
+Finding A (traceability): confirmed and recorded in place, above; the gap
+itself remains open pending the explicit owner ruling that paragraph
+describes.
 
 Finding B (`QCLI-2.12`'s "F4/F5 ... left for the orchestrator to track"):
 `QCLI-2.12`'s task notes carry two distinct, differently-scoped F-numbered
