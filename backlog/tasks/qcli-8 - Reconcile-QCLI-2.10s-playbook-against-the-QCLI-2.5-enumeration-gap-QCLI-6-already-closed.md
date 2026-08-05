@@ -4,7 +4,8 @@ title: >-
   Reconcile QCLI-2.10's playbook against the QCLI-2.5 enumeration gap QCLI-6
   already closed
 status: In Progress
-assignee: []
+assignee:
+  - jeremy.newhouse@salientdata.ai
 created_date: '2026-08-05 04:32'
 updated_date: '2026-08-05 04:38'
 labels:
@@ -17,6 +18,7 @@ labels:
   - campaign
   - wave-3
   - in-review
+  - 'doc:stories/prepare-quests-clean-room-research-foundation'
 dependencies:
   - QCLI-6
   - QCLI-2.10
@@ -46,3 +48,15 @@ Documentation only. Do not reclassify any source, and do not narrow any permitte
 - [ ] #2 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
 - [ ] #3 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Read playbook's current text at both stale spots (Sources-table classification cell for QCLI-2.5 row, ~line 426; narrative caveat paragraph, ~lines 431-458) and QCLI-2.8's precedent fix in quest-cli-component-contracts-and-delivery-graph.md (~lines 69-122) as the template. Confirm register's current state: 'Prior QCLI research records' slice now has 14 members (QCLI-6 addition), QCLI-2.5's fidelity contract SHA-pinned at 418c5eb.
+2. Edit the Sources table's Register-classification cell for the QCLI-2.5 row: preserve the original sentence verbatim, append a dated '**Resolved 2026-08-04.**' note in the same cell stating QCLI-6 enumerated the contract (Allowed - Prior QCLI research records, SHA-pinned 418c5eb) and the slice now lists fourteen members, pointing to the caveat's own resolution note below for the full account.
+3. Edit the narrative caveat paragraph: preserve the original caveat text verbatim (do not delete/rewrite), and append a new '**Resolved 2026-08-04.**' paragraph directly after it (same shape as QCLI-2.8's precedent) stating the gap is closed, citing QCLI-6, the SHA pin, and the new fourteen-member count, and noting the Sources-table cell's own appended note carries the same correction there.
+4. Do not touch the register file itself (out of scope) or any other document.
+5. Run lore check --strict, lore validate --strict, lore orphans; fix anything until all three report zero errors/warnings/orphans.
+6. Re-read the edited playbook sections directly against AC1-3 to self-verify (no original text deleted, dated note present, slice Classification/one-to-one count untouched since register not edited, no permitted-use narrowed).
+7. Record notes via --append-notes, commit in small logical commits with Refs: QCLI-8 trailers, push branch.
+<!-- SECTION:PLAN:END -->
