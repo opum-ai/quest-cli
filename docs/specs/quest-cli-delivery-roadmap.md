@@ -91,13 +91,16 @@ boundary is complete; no relevant owner-held blocker or contradictory handover r
 and quest-cli records the exact evidence it consumed and the decision time. Any false,
 stale, missing, or contradictory input makes the result **closed**.
 
-**Status.** `LDOC-4` was To Do when last observed on 2026-08-04 — a moving reference,
+**Status.** `LDOC-4` was To Do when last observed on 2026-08-04, and remained To Do on
+`QCLI-11`'s live re-verification on 2026-08-05 (see the [activation-gate evidence
+record](../reference/quest-cli-activation-gate-evidence-record.md)) — a moving reference,
 re-verify with `backlog task view LDOC-4 --plain` against a live fetched clone.
 
 **What a consumer may not do.** A dated snapshot, a local build, a consumer summary, or
 the existence of Quest documentation cannot open this gate. Clause 4 is quest-cli's own
 obligation and is tracked as task `QCLI-11`; satisfying it records what was consumed and
-does **not** constitute a gate result.
+does **not** constitute a gate result — see the [activation-gate evidence
+record](../reference/quest-cli-activation-gate-evidence-record.md) `QCLI-11` produced.
 
 ---
 
