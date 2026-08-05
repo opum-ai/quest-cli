@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@jeremy'
 created_date: '2026-08-05 14:37'
-updated_date: '2026-08-05 15:36'
+updated_date: '2026-08-05 15:49'
 labels:
   - campaign
   - 'cluster:provenance'
@@ -106,6 +106,21 @@ Commits (branch fix/qcli-22-register-repin):
 - 6b941a3 docs(register): reconcile Notes wording tension on QCLI-15's audit conclusion
 
 Out-of-scope findings: none beyond the two judgment calls already flagged inline in the register text and repeated below for the reviewer's attention. Did not touch quest-cli-open-component-decisions.md or quest-cli-component-contracts-and-delivery-graph.md (QCLI-21's scope), and did not touch any QCLI-11/18/19/20 proposal documents.
+
+Fix pass applied after reviewer's request_changes (two narrow findings; all 14 SHA re-pins, the arithmetic, and both judgment calls were independently re-verified and confirmed correct by the reviewer and left untouched):
+
+1. Finding 1 (unattributed inline prose amendment, register lines ~1348-1350, Finding A paragraph): attributed the added clause with an inline dated citation, matching the register's own convention. Changed "the gap itself remains open pending the explicit owner ruling that paragraph describes." to "**added 2026-08-05 by `QCLI-22`:** the gap itself remains open pending the explicit owner ruling that paragraph describes."
+
+2. Finding 2 (unresolved "flagged for reviewer confirmation" marker, register lines ~1103-1111, component-charter repoint-vs-self-pin decision): replaced the open flag with the resolved record the reviewer supplied. Changed "**Flagged for reviewer confirmation** -- this is a judgment call, not a mechanical application of the existing rule." to "**Confirmed on review 2026-08-05:** this follows `QCLI-9`'s own precedent above directly -- a member invalidated by another task's merge and not co-edited by the correcting pass is repinned by exact-commit SHA -- and the register's own reasoning under Exclusions (a self-pin protects only against edits made by this task's own passes, not later tasks') is why a self-pin would not have made the charter's pin more durable." Cross-checked against the QCLI-9 block above (register lines ~1030-1046) and the Exclusions-field self-pin rationale (register lines ~1239-1240): both confirm the precedent and reasoning cited.
+
+No SHA re-derived or changed. Only docs/reference/quest-cli-research-source-register.md touched; diff confirmed to contain exactly these two hunks, nothing else.
+
+Gate re-verification after the fix (clean working tree):
+- lore validate --strict: 38 files, 0 errors, 0 warnings, 6 skipped. Exit 0.
+- lore check: 38 files, 0 errors, 0 warnings. Exit 0.
+- lore orphans: 0 orphan tasks, 0 dangling links. Exit 0.
+
+Scope re-check: git diff --stat bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md is empty -- QCLI-21's territory remains untouched.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
