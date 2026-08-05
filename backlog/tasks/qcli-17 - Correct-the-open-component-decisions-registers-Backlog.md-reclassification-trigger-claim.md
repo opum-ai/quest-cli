@@ -3,11 +3,11 @@ id: QCLI-17
 title: >-
   Correct the open component decisions register's Backlog.md
   reclassification-trigger claim
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:54'
+updated_date: '2026-08-05 13:54'
 labels:
   - campaign
   - 'cluster:migration'
@@ -16,7 +16,6 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
-  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -39,11 +38,11 @@ Correct the section to record the verified current state as a dated moving refer
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The register records the verified 2026-08-05 registry state as a dated moving reference with the literal command that produced it
-- [ ] #2 The claim that the trigger has probably fired is removed, and the standing obligation to re-check before anything freezes is retained
-- [ ] #3 Any statement in the delivery roadmap or the functional requirements Spec that inherited the false premise is identified and corrected, or confirmed absent
-- [ ] #4 The correction is recorded inline and dated, citing this task, rather than silently rewritten
-- [ ] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 The register records the verified 2026-08-05 registry state as a dated moving reference with the literal command that produced it
+- [x] #2 The claim that the trigger has probably fired is removed, and the standing obligation to re-check before anything freezes is retained
+- [x] #3 Any statement in the delivery roadmap or the functional requirements Spec that inherited the false premise is identified and corrected, or confirmed absent
+- [x] #4 The correction is recorded inline and dated, citing this task, rather than silently rewritten
+- [x] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -76,4 +75,12 @@ Gate output (from worktree root, after lore sync reconciled the story's status-d
 Commits: e78b95a (docs, Refs: QCLI-17) on fix/qcli-17-register-backlog-trigger-correction; c9af665 is lore sync's auto-commit of backlog/ (task status/plan/notes edits), created before the docs commit.
 
 No out-of-scope findings beyond what's already covered by other QCLI-1x tasks in this campaign.
+
+Verified by independent reviewer (2 rounds): AC1 confirmed — reviewer independently ran npm view backlog.md version/dist-tags.latest/time.modified and matched the recorded dated moving reference byte-for-byte. AC2 confirmed — 'probably fired' claim removed, standing recheck obligation retained. AC3 confirmed — delivery roadmap's inherited 'overdue' framing corrected; functional requirements Spec independently confirmed to carry no inherited claim (neutral, recheck-obligation-only language). AC4 confirmed inline/dated/cited correction. AC5 confirmed: lore validate --strict 38/0/0/6 skipped; lore check 38/0/0; lore orphans 0/0 (re-run after rebase, still green). Reviewer's request_changes round caught that the rewritten standing-obligation sentence contradicted the migration fidelity contract's own recheck clause (contract obliges re-verification before reliance; the rewrite forbade re-running unprompted) — corrected to align both documents' next-action guidance, re-verified against the contract's own text. Merged to dev via PR #30, squash commit fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Corrected a false claim the design layer introduced hours earlier: that the Backlog.md v1.49.3 pin's reclassification trigger 'has probably fired.' Live registry verification (npm view backlog.md version/dist-tags.latest/time.modified, all matching on 2026-08-05) confirms the pin is current — the trigger has not fired. Recorded the verified state as a dated moving reference, removed the false claim while retaining the standing recheck-before-freeze obligation, and fixed the same inherited framing in the delivery roadmap; confirmed the functional requirements Spec had not inherited it. Reviewer caught that the rewritten obligation sentence initially contradicted the migration fidelity contract's own recheck clause (the contract obliges re-verification before reliance; the first rewrite forbade it) — corrected so both documents give consistent next-action guidance on a future version bump. All 5 ACs independently confirmed across two review rounds. Merged to dev via PR #30 (squash fb8e8e3) — the sixth and final task of wave 1.
+<!-- SECTION:FINAL_SUMMARY:END -->
