@@ -222,23 +222,40 @@ not a decision to file it.
 | Backlog.md's `browser` command exposes an undocumented HTTP JSON endpoint whose field shapes diverge from its own CLI contract | QCLI-2.5 finding 13, flagged for QCLI-2.8, which declined to rule | An unexamined boundary if Quest ever mirrors that surface |
 | `LCLI-316` was filed in `lore-cli` but deliberately left uncommitted | Campaign tracker, wave 5 | Untracked by any quest-cli mechanism; whoever next works in `lore-cli` must commit it |
 
-### A reclassification trigger that has probably fired
+### The Backlog.md version-pin trigger — not fired (verified 2026-08-05)
 
 The migration fidelity contract is pinned to **Backlog.md v1.49.3**, and states its own
 trigger: a newer release requires a re-check before any contract freezes. That pin was set
-on 2026-08-04 and nobody has re-checked it since.
+on 2026-08-04.
 
-This matters more than a routine version bump, because the fidelity contract rests on an
-exhaustive enumeration of that version's invocable surface and thirteen findings about its
-undocumented behaviour. A newer Backlog.md may have changed any of them.
+This matters more than a routine version bump would, because the fidelity contract rests
+on an exhaustive enumeration of that version's invocable surface and thirteen findings
+about its undocumented behaviour. A newer Backlog.md could have changed any of them —
+that is why the trigger exists, not evidence that it has fired.
+
+**Verified registry state, 2026-08-05:**
 
 ```bash
-npm view backlog.md version    # compare against the pinned 1.49.3
+npm view backlog.md version           # 1.49.3
+npm view backlog.md dist-tags.latest  # 1.49.3
+npm view backlog.md time.modified     # 2026-08-03T21:30:58.510Z
 ```
 
-Re-running the enumeration is Phase 1 work. A changed version does not invalidate the
-contract; it obliges a re-check of the findings the contract depends on, and any that
-changed become new facts for the owner to rule on.
+`1.49.3` is still the published `latest`, last modified 2026-08-03 — before this
+register's own 2026-08-04 pin date. The pinned version **is** the current published
+release; the trigger has not fired. Like every other entry in this document, this is a
+dated observation, not a standing fact: re-run the same three commands before the
+contract freezes. A changed result does not invalidate the contract; it obliges
+re-verifying the findings the contract depends on before further reliance, and the new
+version is a fact for the fidelity contract's owner to rule on — not work a Phase 1
+schedule assumes, and not something to silently ignore.
+
+> **Correction, 2026-08-05 (`QCLI-17`):** this section previously read "A reclassification
+> trigger that has probably fired" and asserted the pin was likely stale because nobody
+> had re-checked it since 2026-08-04, and that re-running the fidelity enumeration was
+> Phase 1 work. Both claims were false: the registry state above was checked the same day
+> the section was written, and it was already current. The claim is removed; the standing
+> obligation to re-check before the contract freezes is unchanged and restated above.
 
 ### What is not open
 

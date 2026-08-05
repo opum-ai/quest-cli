@@ -4,9 +4,10 @@ title: >-
   Correct the open component decisions register's Backlog.md
   reclassification-trigger claim
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 13:05'
+updated_date: '2026-08-05 12:54'
 labels:
   - campaign
   - 'cluster:migration'
@@ -44,3 +45,35 @@ Correct the section to record the verified current state as a dated moving refer
 - [ ] #4 The correction is recorded inline and dated, citing this task, rather than silently rewritten
 - [ ] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Live-verify backlog.md npm registry state (npm view backlog.md version / dist-tags.latest / time.modified).
+2. Rewrite the register's 'A reclassification trigger that has probably fired' section in docs/reference/quest-cli-open-component-decisions.md: rename heading to reflect verified non-fired status, replace the single npm view command with the three literal commands used, record the dated 2026-08-05 verified result, remove the false 'probably fired' claim and the 'Re-running the enumeration is Phase 1 work' inference, keep the standing recheck-before-freeze obligation, and add an inline dated correction citing QCLI-17.
+3. Grep docs/specs/quest-cli-delivery-roadmap.md and docs/specs/quest-cli-functional-requirements.md for inherited claims tied to the v1.49.3 pin.
+4. Found delivery-roadmap.md Phase 1 Exit text calling the re-verification 'overdue' (inheriting the same false premise) - correct it with an inline dated QCLI-17 correction, keep the standing obligation. functional-requirements.md's Open Questions bullet on the version pin is neutral (states the recheck obligation, no staleness claim) - confirmed absent, no edit.
+5. Run lore validate --strict, lore check, lore orphans; record exact output.
+6. Append notes to QCLI-17 with npm verification results, files touched, and gate output.
+7. Commit docs changes with Refs: QCLI-17 trailer; push branch.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Live npm verification (2026-08-05): npm view backlog.md version -> 1.49.3; npm view backlog.md dist-tags.latest -> 1.49.3; npm view backlog.md time.modified -> 2026-08-03T21:30:58.510Z. Confirms the pinned v1.49.3 IS the current published release; the reclassification trigger has not fired. Matches the description's stated numbers exactly.
+
+Edits:
+- docs/reference/quest-cli-open-component-decisions.md: renamed the section from 'A reclassification trigger that has probably fired' to 'The Backlog.md version-pin trigger - not fired (verified 2026-08-05)'. Replaced the single npm view command with the three literal commands used. Recorded the verified 2026-08-05 state as a dated moving reference. Removed the false 'probably fired' claim and the 'Re-running the enumeration is Phase 1 work' inference. Retained the standing recheck-before-freeze obligation, restated to re-run the same three commands. Added an inline blockquoted correction dated 2026-08-05 citing QCLI-17.
+- docs/specs/quest-cli-delivery-roadmap.md: Phase 1 Exit text called the re-verification 'overdue' and listed it as pending Phase 1 catch-up work - same inherited false premise. Corrected to 'one standing re-verification obligation' with an inline dated QCLI-17 correction pointing to the register's verified state; the obligation to re-check before Phase 1 exit or any freeze is unchanged.
+- docs/specs/quest-cli-functional-requirements.md: checked the Open Questions bullet on the Backlog.md version pin (line ~305-306). It only states the recheck-clause obligation neutrally, with no staleness/probability claim - confirmed the false premise is ABSENT there. No edit made.
+
+Gate output (from worktree root, after lore sync reconciled the story's status-drift from the task's in-progress transition):
+- lore validate --strict: 38 files, 0 errors, 0 warnings, 6 skipped
+- lore check: 38 files, 0 errors, 0 warnings
+- lore orphans: 0 orphan tasks, 0 dangling links
+
+Commits: e78b95a (docs, Refs: QCLI-17) on fix/qcli-17-register-backlog-trigger-correction; c9af665 is lore sync's auto-commit of backlog/ (task status/plan/notes edits), created before the docs commit.
+
+No out-of-scope findings beyond what's already covered by other QCLI-1x tasks in this campaign.
+<!-- SECTION:NOTES:END -->
