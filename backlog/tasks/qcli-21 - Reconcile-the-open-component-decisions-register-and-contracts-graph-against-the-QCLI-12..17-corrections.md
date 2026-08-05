@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 14:36'
-updated_date: '2026-08-05 15:38'
+updated_date: '2026-08-05 15:53'
 labels:
   - campaign
   - 'cluster:tracking-reconciliation'
@@ -115,6 +115,26 @@ AC-by-AC:
 Out-of-scope finding (reported, not acted on): while reading component-contracts-and-delivery-graph.md's Provenance section (~lines 69-96), found this file's own scope note: three of its cited sources (QCLI-2.5's migration fidelity contract, QCLI-2.6's threat model, and the campaign Story) were not enumerated in the research source register's "Prior QCLI research records" admissibility slice -- but that section itself states this was "Resolved 2026-08-04" by QCLI-6/QCLI-7. No remaining gap found; noted here only for completeness since it was adjacent to text I was reading, not because anything is still open.
 
 AC5 out-of-repo transcript recovery for QCLI-2.12's F4/F5 (see --comment): NOT recoverable. Searched every local Claude Code session transcript for this project (~/.claude/projects/-Volumes-external-repos-quest-cli/*.jsonl, ~30 files) for "F4 and F5", "Review follow-up", and "left for the orchestrator" -- every hit is either the same one-line register/task-notes summary already in the repo, or QCLI-2.12's own settlement-note text verbatim ("F4/F5 (non-blocking, out of scope for this fix pass) -- not touched; left for the orchestrator to track."), never the original reviewer's actual F4/F5 finding text. This matches QCLI-15's own audit conclusion (git log/fsck and gh api pulls/14 reviews+comments all came up empty). No invented text was used; the register row's Consequence cell states the closure condition (recovering the text from an out-of-repo artifact, if one still exists) instead of asserting recovery.
+
+Fix pass (reviewer request_changes) applied on fix/qcli-21-tracking-reconciliation, 2026-08-05:
+
+Finding 1 (HIGH, AC5) -- FIXED. The reviewer recovered the QCLI-2.12 F4/F5 reviewer text my predecessor reported unrecoverable. Independently re-verified before use: grepped both cited transcripts myself.
+- ~/.claude/projects/-Volumes-external-repos-quest-cli/a6226b48-8acf-4fd0-beb5-18c099fc4540.jsonl line 225 (uuid ab85399e-c963-48a0-b029-315e23081241, timestamp 2026-08-04T17:05:34.273Z) contains the full assistant message headed "# VERDICT: request_changes -- QCLI-2.12 on fix/qcli-2.12-register-admission-coherence @ 9a843d9 (base 94529f0)", with F4 and F5 verbatim as quoted by the reviewer (one trivial wording variance: the live file omits the word "the" before "owner-ruled" qualifier in the F4 heading -- used the file's actual wording, not the reviewer's paraphrase, in the register).
+- Confirmed a second copy of the same F4/F5 text exists in ~/.claude/projects/-Volumes-external-repos-quest-cli/d92cd86b-56f8-47fc-87e7-fe0fbe46cd6d.jsonl (grep -c matched both the F4 and F5 marker phrases).
+- Also cross-checked against quest-cli-research-source-register.md:1247-1256 (QCLI-15's own Scheme 2 note), which independently corroborates the wave-4 F2/F3/F4 = register-enumeration-gap/revision-pin-staleness/ledger-attribution-gap mapping used in Finding 2.
+Replaced the Consequence cell of the "QCLI-2.12's findings F4 and F5" row (docs/reference/quest-cli-open-component-decisions.md) with: the recovery citation (file, uuid, timestamp, second-copy location), a summary of F4 and F5 as recovered, and a restated open question -- now "whether each still applies to the current register/ledger text" rather than "substance unknown." Row remains listed as open (recovery does not close the finding). No new Backlog task filed for F4/F5.
+
+Finding 2 (HIGH, AC6) -- FIXED. Corrected the disambiguation note's parenthetical for the wave-4 integration review's F4 from "(register enumeration gap)" to "(ledger attribution gap)", per the register's own Scheme 2 note (quest-cli-research-source-register.md:1250-1251: wave-4's F2 is the register enumeration gap, F4 is the ledger attribution gap). PR #17 / c8dfdca attribution left unchanged (it was already correct).
+
+Finding 3 (MEDIUM, AC1) -- FIXED. Corrected the correction-blockquote's count from "five of the ten items had been filed as QCLI-12 through QCLI-16" to "six of the ten items had been filed, by five tasks (QCLI-12-QCLI-16, with QCLI-15 covering two items)" -- now consistent with the bullet list immediately above it.
+
+Finding 4 (LOW, cross-document) -- NOT fixed here per instruction; recorded as a separate --comment for the orchestrator to relay to QCLI-22, since quest-cli-research-source-register.md is out of scope for this task (AC10) and owned by QCLI-22 this wave.
+
+Re-verification after fixes:
+- lore validate --strict: 38 files, 0 errors, 0 warnings, 6 skipped
+- lore check: 38 files, 0 errors, 0 warnings
+- lore orphans: 0 orphan tasks, 0 dangling links
+- AC10 re-verified: git diff bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-research-source-register.md is empty; quest-cli-research-source-register.md untouched by this fix pass.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -124,5 +144,10 @@ author: @claude
 created: 2026-08-05 15:38
 ---
 AC5 flag for reviewer: the out-of-repo transcript recovery for QCLI-2.12's F4/F5 was attempted and did not succeed. I searched every local Claude Code session transcript for this project under ~/.claude/projects/-Volumes-external-repos-quest-cli/*.jsonl for the F4/F5 discussion; every match is either the same one-line register summary already in the repo or QCLI-2.12's own settlement-note sentence verbatim ("F4/F5 (non-blocking, out of scope for this fix pass) -- not touched; left for the orchestrator to track."). None of them record what F4 or F5 actually asserted. This is consistent with QCLI-15's own audit, which also came up empty via git log/git fsck and gh api pulls/14 reviews+comments. I did not invent replacement text; the register row instead states the closure condition (recovering the text from an out-of-repo artifact, if one still exists) as QCLI-15's audit itself concluded. If a reviewer has access to a transcript this session did not search (e.g. a different machine's local session history, or the original interactive session that produced QCLI-2.12), that would be the next place to look.
+---
+
+created: 2026-08-05 15:53
+---
+Cross-document finding (Finding 4 from reviewer, LOW, report-only -- not fixed here): the F4/F5 reviewer text recovered by this fix pass (see notes) falsifies a statement in docs/reference/quest-cli-research-source-register.md around lines 1266-1269 (QCLI-15's own Finding B note), which currently reads that the F4/F5 gap "is not that F4/F5 remain unfixed against a known defect, it is that their substance was never captured anywhere retrievable, so no one can now judge whether they still apply to the current register text." That premise is no longer true -- the substance was recovered on 2026-08-05 from an out-of-repo Claude Code session transcript (see this task's notes for the exact file/uuid/timestamp citations). This task does not edit quest-cli-research-source-register.md (AC10 forbids it), and QCLI-22 owns that file this wave. Flagging explicitly so the orchestrator can relay this to QCLI-22 for its own fix pass -- no Backlog task filed by this comment.
 ---
 <!-- COMMENTS:END -->
