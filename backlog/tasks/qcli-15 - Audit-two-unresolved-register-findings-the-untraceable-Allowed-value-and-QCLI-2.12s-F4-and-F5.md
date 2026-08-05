@@ -3,11 +3,11 @@ id: QCLI-15
 title: >-
   Audit two unresolved register findings: the untraceable Allowed value and
   QCLI-2.12's F4 and F5
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 13:10'
+updated_date: '2026-08-05 13:46'
 labels:
   - campaign
   - 'cluster:provenance'
@@ -17,7 +17,6 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
-  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -40,11 +39,11 @@ Do not reclassify any source. This task closes a traceability gap and an audit g
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The Allowed classification on the named slice is either traced to admitting evidence, or the gap is recorded explicitly with what would close it
-- [ ] #2 The F4 and F5 referenced by QCLI-2.12's out-of-scope note are identified against the correct numbering scheme, and each is recorded as already resolved or still open with evidence
-- [ ] #3 No source slice classification value is changed by this task
-- [ ] #4 Findings confirmed already closed are recorded as closed with the evidence that closed them, not silently dropped
-- [ ] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 The Allowed classification on the named slice is either traced to admitting evidence, or the gap is recorded explicitly with what would close it
+- [x] #2 The F4 and F5 referenced by QCLI-2.12's out-of-scope note are identified against the correct numbering scheme, and each is recorded as already resolved or still open with evidence
+- [x] #3 No source slice classification value is changed by this task
+- [x] #4 Findings confirmed already closed are recorded as closed with the evidence that closed them, not silently dropped
+- [x] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -87,4 +86,12 @@ F2 (minor, recommended): the note misquoted QCLI-2.1's settlement text -- attrib
 No Classification value changed (grep -c '^- \*\*Classification:\*\*' = 19, before and after, matching the pre-fix-pass count). No file other than the register touched.
 
 Gate re-run after fixes: `lore validate --strict --plain` -> 38 files, 0 errors, 0 warnings, 6 skipped, exit 0. `lore check --strict --plain` -> 38 files, 0 errors, 0 warnings, exit 0. `lore orphans --plain` -> 0 orphan tasks, 0 dangling links, exit 0.
+
+Verified by independent reviewer (2 rounds): AC1 confirmed — the Allowed classification on 'Prior QCLI research records' is genuinely untraceable to QCLI-1/3/4's task notes (reviewer independently grepped all three, zero hits); recorded in place with a concrete closure condition. AC2 confirmed — the two numbering schemes for QCLI-2.12's F4/F5 correctly disambiguated (reviewer independently read QCLI-2.12's task file and confirmed the source sentence); scheme-1 F4/F5's content confirmed unrecoverable via git fsck --unreachable, GitHub PR review/comment API, and full-history grep, recorded open with that absence as evidence — reviewer reproduced all negative-search claims independently and added a broader check of its own. AC3 confirmed — 19 Classification lines byte-identical before/after. AC4 confirmed — QCLI-2.7-closed sibling findings recorded closed with line-77 evidence. AC5 confirmed: lore validate --strict 38/0/0/6 skipped; lore check 38/0/0; lore orphans 0/0 (re-run after rebase, still green). Merged to dev via PR #28, squash commit 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Audited two residual research-source-register findings recorded in settlement notes but never filed. Finding A (the 'Prior QCLI research records' slice's Allowed classification) confirmed genuinely untraceable to admitting evidence in the cited task notes; recorded with a concrete closure condition (an owner ruling ratifying self-classification-by-vocabulary). Finding B (QCLI-2.12's F4/F5) disambiguated against two distinct in-corpus numbering schemes; the correct scheme's content confirmed unrecoverable after an exhaustive search and recorded open with that absence as evidence, rather than assumed resolved. No source Classification value changed. Reviewer caught one factual defect in the audit's own prose (an enumeration understating the register slice's member count 6-of-14, reusing the slice's own correct formulation to fix) plus a minor misquote, both corrected. All 5 ACs independently confirmed by reviewer across two review rounds, with independent reproduction of both central judgment calls. Reviewer also confirmed and broadened an integration finding: the open-component-decisions.md 'residual items' table will carry stale rows for multiple wave members once merged. Merged to dev via PR #28 (squash 6b78fd0).
+<!-- SECTION:FINAL_SUMMARY:END -->
