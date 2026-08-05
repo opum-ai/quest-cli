@@ -125,11 +125,13 @@ should separately list them.
 deliverable of their own to cite separately — each is a correction pass
 against the register, the migration ledger, the research program Spec, and
 the `QCLI-2.2`/`QCLI-2.3`/`QCLI-2.4`/`QCLI-2.7` deliverables named above.
-The Spec's Dependency order table, cited in the Provenance table above,
-names only the six deliverables `QCLI-2.2`–`QCLI-2.7`; the full ten-item
-dependency set — those six plus these four correction passes — is named in
-this task's own Backlog record (`QCLI-2.8`'s `Dependencies` field), not in
-the Spec's table. This document read the corrected **live text** of every
+**Corrected 2026-08-05 by `QCLI-21`, following `QCLI-12`'s fix (`1dd4aa6`):**
+the Spec's Dependency order table, cited in the Provenance table above,
+previously named only the six deliverables `QCLI-2.2`–`QCLI-2.7`; as of
+`QCLI-12`, it now names the full ten-item dependency set directly — those
+six plus these four correction passes (`QCLI-2.11`–`QCLI-2.14`) — matching
+this task's own Backlog record (`QCLI-2.8`'s `Dependencies` field). This
+document read the corrected **live text** of every
 one of those documents, not the correction tasks' own implementation notes;
 see "Reconciliation across the ten dependencies," below, for the specific
 corrections verified present.
@@ -572,7 +574,7 @@ blocker gated on external work — never resolved by naming it here.
    the [charter](quest-cli-component-charter.md) and the
    [ADR](../adr/use-quest-cli-for-the-quest-package-and-command.md) are
    silent on license choice. **Corrected 2026-08-05 by `QCLI-16`, filing a
-   licensing-source misattribution `QCLI-2.8` settlement recorded in this
+   licensing-source misattribution in `QCLI-2.8` settlement recorded in this
    same deliverable and left as-is (not affecting this entry's conclusion):**
    the register does not support crediting Backlog.md's own MIT license to
    the same two slices that admit the npm registry metadata below. Backlog.md's
