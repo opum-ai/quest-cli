@@ -56,12 +56,6 @@ research until QCLI-2.1's initial revalidation, or a later task's
 owner-ruled amendment to the [research source
 register](quest-cli-research-source-register.md), verifies its identity,
 revision, ownership, permitted use, exclusions, and contamination boundary.
-`QCLI-2.10`'s [Backlog adoption and migration
-playbook](quest-cli-backlog-adoption-and-migration-playbook.md) cites this
-ledger as read-only background per its own Sources and classification
-table; this ledger's OCLI→QCLI provenance mapping does not itself inform
-that playbook's Backlog-behavior content and is not otherwise relied upon
-there.
 **Amended 2026-08-04 by `QCLI-2.12`:** QCLI-2.1 is the register's founding
 admission event, not its only one — QCLI-2.7 has since, entirely under
 explicit owner ruling recorded the same day, added two slices (the lore-cli
@@ -125,6 +119,13 @@ observation; the Prior-QCLI-research-records additions change no
 Classification and admit no new source, only naming, under this slice's
 existing Allowed status, documents merged deliverables already relied on.
 None of the three is a new admission.
+
+**Added 2026-08-05 by `QCLI-13`:** `QCLI-2.10`'s [Backlog adoption and
+migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md)
+cites this ledger as read-only background per its own Sources and
+classification table; this ledger's OCLI→QCLI provenance mapping does not
+itself inform that playbook's Backlog-behavior content and is not
+otherwise relied upon there.
 
 ### Preservation rules
 
