@@ -3,11 +3,11 @@ id: QCLI-7
 title: >-
   Enumerate the campaign Story in the research-source-register's 'Prior QCLI
   research records' slice
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 03:25'
-updated_date: '2026-08-05 03:38'
+updated_date: '2026-08-05 03:46'
 labels:
   - research
   - register
@@ -16,8 +16,6 @@ labels:
   - clean-room
   - 'cluster:provenance'
   - campaign
-  - wave-2
-  - in-review
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
 dependencies:
   - QCLI-6
@@ -41,10 +39,10 @@ Documentation only. Do not reclassify any source, and do not narrow any permitte
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The register's 'Prior QCLI research records' slice either gains a correctly pinned entry for the campaign Story (self-pinned to its own current state if co-edited by this task's own passes, SHA-pinned to a specific commit otherwise), or the register explicitly states that Stories are out of scope for that slice's admission authority, with reasoning
-- [ ] #2 QCLI-2.8's caveat at quest-cli-component-contracts-and-delivery-graph.md is updated (if the gap closed) or confirmed still accurate (if Stories were ruled out of scope) against whichever outcome AC1 produced
-- [ ] #3 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
-- [ ] #4 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
+- [x] #1 The register's 'Prior QCLI research records' slice either gains a correctly pinned entry for the campaign Story (self-pinned to its own current state if co-edited by this task's own passes, SHA-pinned to a specific commit otherwise), or the register explicitly states that Stories are out of scope for that slice's admission authority, with reasoning
+- [x] #2 QCLI-2.8's caveat at quest-cli-component-contracts-and-delivery-graph.md is updated (if the gap closed) or confirmed still accurate (if Stories were ruled out of scope) against whichever outcome AC1 produced
+- [x] #3 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
+- [x] #4 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -74,4 +72,12 @@ Reconciled QCLI-2.8's caveat (component-contracts-and-delivery-graph.md, "Proven
 Verification: lore check --strict, lore validate --strict, and lore orphans all report 0 errors/warnings/orphans (25 files each; ran clean after `lore link` + `lore sync` reconciled a pre-existing Story status/managed-block drift and orphan-task condition that predated this task's content edits -- QCLI-7 was filed but never linked to the campaign Story). Working tree clean after commits.
 
 Out-of-scope discovery, flagged not fixed (per instructions): docs/reference/quest-cli-backlog-adoption-and-migration-playbook.md (QCLI-2.10's own deliverable) carries its own, now-stale, near-identical caveat ("Caveat -- the fidelity contract's own admissibility is not yet enumerated", lines ~426-449) about QCLI-2.5's fidelity contract not being enumerated in "Prior QCLI research records" -- QCLI-6 already closed that gap in the register, but QCLI-2.10's own document text was never updated to reflect it, same as QCLI-2.8's caveat was stale before this task. This is outside QCLI-7's stated scope boundary (register + component-contracts-and-delivery-graph.md only) and was not touched. Recommend a small follow-up task to reconcile it the same way this task reconciled QCLI-2.8's caveat.
+
+Reviewer-verified settlement (orchestrator, wave 2, single-task). AC1 confirmed: worker chose the rule-out-of-scope branch (not admission) -- reviewer independently re-derived the Story's tasks:-block instability from its own git history (diffed the 8 most recent commits: every one changed only frontmatter status/tasks:/managed table rows, zero prose) and concurred this was the correct call, applying the decide-vs-defer test (documentation-scope, fully reversible, no escalation warranted). AC2 confirmed: reviewer located the caveat's correct section (Provenance and grounding (AC1), not Reconciliation across the ten dependencies as the campaign brief assumed) and verified the Resolved-2026-08-04 paragraph's factual claims against the base register blob. AC3 confirmed via strict grep for Classification/Permitted-use lines (zero changed) and slice-count parity (19/19 both sides). AC4 re-run independently by the reviewer: lore check/validate/orphans --strict all clean; re-confirmed by the orchestrator after resolving two purely-mechanical rebase conflicts in this task's own frontmatter (labels/updated_date/assignee -- orchestrator's wave-2/in-review label commits on dev collided with the worker's own metadata edits on the branch; substantive register/component-contracts content was untouched by the conflict and gates passed clean post-rebase). Also independently verified: the incidental QCLI-2.8 self-pin conversion is correct (that document's register pin now points to the branch's own co-editing commit rather than a stale SHA), and QCLI-2.10's untouched pin was correctly left alone. Merged as 5f47b02 (PR #22, squash).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Resolved whether the campaign Story belongs in the register's 'Prior QCLI research records' slice by ruling it out of scope, not admitting it: Stories carry a lore-managed tasks: block that lore sync rewrites on any coupled task's status change independent of authored prose, so no pin form (self- or SHA-) can stay valid against one -- a worse instability than the co-editing hazard QCLI-2.12's rule solves. Added a dated, attributed exclusion with this reasoning to the register's Exclusions field, plus a cross-reference pointer. Reconciled QCLI-2.8's stale 'three sources not yet enumerated' caveat with a dated Resolved paragraph (two closed by QCLI-6, the third -- the Story -- ruled out of scope here), preserving the original text as historical record. Incidentally converted QCLI-2.8's own register pin from commit-pinned to self-pinned since this task's pass co-edited that document in the same branch. No Classification field touched; verified one-to-one. Independent reviewer re-derived the Story's instability claim directly from git history and concurred with the judgment call; re-ran all three lore gates clean. Merged as 5f47b02 (PR #22). Left open, proposed as a follow-up pending user approval: QCLI-2.10's own playbook document still carries two stale references (a caveat paragraph and a Sources-table classification cell) to the QCLI-2.5 enumeration gap that QCLI-6 already closed in the register.
+<!-- SECTION:FINAL_SUMMARY:END -->
