@@ -3,7 +3,7 @@ id: doc-4
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-05 22:39'
-updated_date: '2026-08-05 23:19'
+updated_date: '2026-08-05 23:43'
 ---
 # Backlog campaign tracker
 
@@ -14,11 +14,13 @@ loop until the queue is empty or blocked -> write handover.
 
 ## Frontier
 
-As of 2026-08-05 (post wave 1): QCLI-24, QCLI-25, QCLI-26, QCLI-27 all Done.
-QCLI-28 now unblocked (its four dependencies are Done) -- expected to be wave
-2. The ready set is ALWAYS recomputed live from `backlog task list --json`
-plus each candidate's `task view --json` at the start of every restore/wave --
-never trust a persisted "next wave" plan.
+**CAMPAIGN COMPLETE as of 2026-08-05.** All five campaign tasks (QCLI-24..28)
+are `Done`. 0 ready, 0 blocked, 0 needs-human. The ready set is ALWAYS
+recomputed live from `backlog task list --json` plus each candidate's
+`task view --json` at the start of every restore/wave -- never trust a
+persisted "next wave" plan. A future `/backlog-handover init` starts a new
+campaign from whatever is in the open queue at that time; this doc's job is
+done.
 
 ## Confirmed queue order
 
@@ -50,18 +52,20 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
-(empty -- wave 1 fully settled)
+(empty -- campaign complete, all worktrees returned to the treehouse pool)
 
 ## Needs a human / blocked
 
-(none -- all 5 campaign tasks are agent-resolvable; the two items that
-needed a human, D1 and D3, were ruled on by the owner before these tasks
-were filed)
+(none -- all 5 campaign tasks are agent-resolvable and now Done; the two
+items that needed a human, D1 and D3, were ruled on by the owner before
+these tasks were filed)
 
 ## Proposed follow-ups (awaiting user approval)
 
 Never created unprompted -- this project requires approval before follow-up
-work is filed. Each entry is a ready-to-run proposal.
+work is filed. Each entry is a ready-to-run proposal. **Neither has been
+created as a Backlog task -- both await explicit user approval before a
+future `init`/session files them.**
 
 - From wave 1 review (QCLI-25's reviewer): **Update the three ratified proposal
   docs' stale "nothing accepted" status prose.** `docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md`,
@@ -74,6 +78,23 @@ work is filed. Each entry is a ready-to-run proposal.
   ACs: each of the three proposal docs gets an inline dated note pointing to
   its ratifying ADR (QCLI-24/25/26's ADRs respectively); `lore validate --strict`
   passes; no other content changes.
+
+- From wave 2 review (QCLI-28's reviewer): **Fix three low-severity
+  prose/header inconsistencies left by the QCLI-28 reconciliation.** (1)
+  `docs/reference/quest-cli-component-contracts-and-delivery-graph.md:600` --
+  section intro still says "leave open" and its state enumeration omits
+  "closed", contradicting the 4 items just below it now marked Closed. (2)
+  `docs/specs/quest-cli-delivery-roadmap.md:123` -- D3 row's "Register entry"
+  cell still reads "currently owned by no task", contradicting its own new
+  third column and the register's D3 owner cell. (3, lower priority)
+  `docs/specs/quest-cli-architecture.md:236,242` -- Open Questions still ask
+  whether anomaly is a first-class outcome class and where it sits in the
+  taxonomy; QCLI-24 answered both at component level (drift introduced by
+  wave 1, outside QCLI-28's three-file scope). Proposed ACs: each of the
+  three passages is corrected to be consistent with the now-closed state;
+  `lore validate --strict` passes; no other content changes. Could be
+  combined with the proposal-doc-prose follow-up above into one task, or
+  filed separately -- user's call.
 
 ## Wave log
 
@@ -118,3 +139,28 @@ work is filed. Each entry is a ready-to-run proposal.
   records a D2 *ownership* ruling (quest-cli-owned, runtime choice itself
   still deferred) -- QCLI-28 should cite it rather than duplicate or
   contradict it when reconciling the register's D2 row.
+
+- 2026-08-05 -- wave 2 (task: QCLI-28), the campaign's final task. Ready as
+  soon as wave 1 fully settled (all four dependencies Done). Single-task
+  wave, wave size 1. The worker reconciled the open component decisions
+  register, the component contracts and delivery graph, and the delivery
+  roadmap Spec's Phase 1 exit-criteria table against the four wave-1
+  ADRs/reference docs -- marking D1/D3/D4/D5 and the "JSON and exits"
+  contract's four open items Closed with citations, while explicitly holding
+  D2's runtime choice, D6, D7a, D7b, and the not-found convention's lore-doc
+  boundary half open, per the owning Story. Since this was the only task in
+  flight, the worker ran `lore sync` directly in its own worktree (no
+  partial-view conflict risk, unlike wave 1). Reviewer approved on first
+  pass; AC4 (no false "closed") was given particular scrutiny as the
+  highest-risk criterion and confirmed clean across all three documents,
+  including that QCLI-27's D2 ownership citation does not bleed into the
+  runtime choice itself. Three low-severity prose/header inconsistencies
+  found, proposed as a follow-up (see above, awaiting user approval).
+  Merged via PR #44 (`43bc22e`). One mechanical merge-time conflict
+  (frontmatter `assignee`/`updated_date` only, between the orchestrator's own
+  dispatch-marking commit on `dev` and the worker's `lore sync` commit) was
+  resolved directly during rebase -- no content decision involved, both
+  sides agreed on `status: In Progress`. Settled to `Done` directly on `dev`.
+
+  **Campaign complete.** All five tasks (QCLI-24..28) Done. Two follow-ups
+  proposed across the two waves, both awaiting user approval before filing.
