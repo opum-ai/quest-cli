@@ -1,11 +1,11 @@
 ---
 id: QCLI-14
 title: Correct the bin-path row in the packaging contract's Description column
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 13:02'
+updated_date: '2026-08-05 13:42'
 labels:
   - campaign
   - 'cluster:packaging'
@@ -14,7 +14,6 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
-  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -35,10 +34,10 @@ This is a dated-evidence table. Do not re-derive the observation - correct where
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The bin path no longer occupies a column whose semantics it does not match, and the row remains internally consistent with the other rows
-- [ ] #2 No dated observation is changed, re-derived, or re-dated; only placement or column semantics change
-- [ ] #3 The correction is recorded inline and dated, citing this task
-- [ ] #4 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 The bin path no longer occupies a column whose semantics it does not match, and the row remains internally consistent with the other rows
+- [x] #2 No dated observation is changed, re-derived, or re-dated; only placement or column semantics change
+- [x] #3 The correction is recorded inline and dated, citing this task
+- [x] #4 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -67,4 +66,12 @@ Gate evidence (run from worktree root after the edit and after lore sync reconci
 Reviewer fix pass (2026-08-05): corrected two prose issues in the QCLI-14 correction note (packaging contract, Dated registry evidence table) -- (1) the note's 'below' pointer to the 2026-08-04 sweep declaration was backwards, since that declaration sits above both the table and the note (line 49); changed to 'above'. (2) the note's claim that the bin path was 'the only populated cell in that column that was not a published package description string, where every other populated row's Description cell carries one' was false -- the quest-cli row's Description cell reads '(none published)', which is populated and also not a description string; reworded to name quest's published string, quest-cli's none-published record, and the remaining uncaptured (-) cells explicitly, without changing any dated observation.
 
 Follow-up (not actioned here, per MANDATORY constraint against touching dated observation text): the new Bin column introduced by this task's fix makes visible that the AC2 inspected-field enumeration elsewhere in this same document (around lines 183-186, and the permitted-use tie-in around lines 198-202) lists only version, repository, license, description, maintainers, and time as the fields npm view captured -- it omits bin, even though a bin value (bin lore -> bin/lore.cjs) was read from the same npm view sweep and was already present in the table before this task moved it. This is pre-existing and latent, not introduced by this task's relocation. Both enumeration passages are dated 2026-08-04 records tied to QCLI-2.7's permitted-use widening and fall under this repo's supersession convention (record what was decided, not amend to match current fact), so this task did not edit them -- flagging for a later task to decide whether the enumeration needs a dated widening to include bin, the same pattern QCLI-2.7 itself used.
+
+Verified by independent reviewer (2 rounds): AC1 confirmed — bin path relocated out of the mismatched Description column into a new dedicated Bin column, row internally consistent. AC2 confirmed — no dated npm-view observation changed/re-derived/re-dated, byte-level diff check confirmed only the note block moved. AC3 confirmed inline/dated/cited correction, reworded after review to fix two prose accuracy issues (a 'below' pointing the wrong direction, and a universal claim falsified by the quest-cli row). AC4 confirmed: lore validate --strict 38/0/0/6 skipped; lore check 38/0/0; lore orphans 0/0 (re-run after rebase, still green). Reviewer also flagged a latent field-enumeration gap (a 7th inspected npm field, bin, missing from the document's own inspected-field enumeration) — recorded as a follow-up in notes, not edited, since that enumeration is a dated record under the supersession convention. Merged to dev via PR #27, squash commit 077d3beef69b2e953b3d811b620234b36daaed63.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Relocated the @opum-ai/lore row's bin path out of the packaging contract's Description column (which every other populated row uses for a published package description string) into a new dedicated Bin column, widening the table's column semantics without changing, re-deriving, or re-dating any observed value. Added a dated inline correction note, refined during review to fix two prose accuracy issues. All 4 ACs independently confirmed by reviewer across two review rounds. Reviewer surfaced a latent gap — the document's own npm-field enumeration omits 'bin' even though it was always in the table — recorded as a follow-up in task notes rather than fixed here, since that enumeration is a dated record under this repo's supersession convention. Merged to dev via PR #27 (squash 077d3be).
+<!-- SECTION:FINAL_SUMMARY:END -->
