@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:51'
+updated_date: '2026-08-05 12:52'
 labels:
   - campaign
   - 'cluster:packaging'
@@ -51,3 +51,16 @@ This is a dated-evidence table. Do not re-derive the observation - correct where
 5. Run lore validate --strict, lore check, lore orphans; capture exact output.
 6. lore sync if needed, then commit docs/ changes with a Refs: QCLI-14 trailer, push branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fix: in the packaging contract's 'Conflicting/reference names on the public registry' table (Dated registry evidence, AC1), the @opum-ai/lore row's Description cell held a bin path (bin `lore` -> bin/lore.cjs) instead of a description string like every other populated row. Widened the table's column semantics by adding a new 'Bin' column (populated '-' for every row lacking an observed bin path, matching the table's existing convention for uncaptured fields), and relocated the bin-path value there. Set the @opum-ai/lore Description cell to '-' since no npm description was ever captured for that package in the original 2026-08-04 sweep -- not re-derived, not fetched now. Added an inline note directly under the table, dated 2026-08-05 and citing QCLI-14, documenting the relocation. No dated observation, timestamp, or npm-view value was changed.
+
+Register-pin check (read-only, per MANDATORY constraint -- did not edit docs/reference/quest-cli-research-source-register.md): the register's Provenance/Basis slice DOES pin the packaging contract. Around line 991-994 it lists the packaging contract as one of the twelve commit-pinned (not self-pinned) members of its nine/fourteen-member pin enumeration, pinned to commit 3b5cd8c (2026-08-04 10:29:40 -0500, QCLI-2.11's cross-task staleness fix). This task's edit amends the packaging contract after that pinned commit, so the register's pin for the packaging contract is now stale and needs a follow-up correction (repin to the new amending commit, the same pattern already used elsewhere in that enumeration, e.g. QCLI-2.10's playbook repin). Flagging for a later task -- not actioned here, and the register file was not touched.
+
+Gate evidence (run from worktree root after the edit and after lore sync reconciled an unrelated status-drift in the coupled Story caused by moving this task to In Progress):
+- lore validate --strict -> 38 files, 0 errors, 0 warnings, 6 skipped (exit 0)
+- lore check -> 38 files, 0 errors, 0 warnings (exit 0)
+- lore orphans -> 0 orphan tasks, 0 dangling links (exit 0)
+<!-- SECTION:NOTES:END -->
