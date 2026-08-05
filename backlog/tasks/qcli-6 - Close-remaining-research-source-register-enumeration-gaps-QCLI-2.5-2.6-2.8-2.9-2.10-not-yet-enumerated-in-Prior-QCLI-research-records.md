@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-05 02:29'
+updated_date: '2026-08-05 02:30'
 labels:
   - research
   - register
@@ -13,12 +14,15 @@ labels:
   - no-implementation
   - clean-room
   - 'cluster:provenance'
+  - 'doc:stories/prepare-quests-clean-room-research-foundation'
 dependencies:
   - QCLI-2.5
   - QCLI-2.6
   - QCLI-2.8
   - QCLI-2.9
   - QCLI-2.10
+documentation:
+  - docs/stories/prepare-quests-clean-room-research-foundation.md
 priority: medium
 type: docs
 ordinal: 19000
