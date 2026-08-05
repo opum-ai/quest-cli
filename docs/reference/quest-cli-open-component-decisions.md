@@ -245,8 +245,10 @@ npm view backlog.md time.modified     # 2026-08-03T21:30:58.510Z
 register's own 2026-08-04 pin date. The pinned version **is** the current published
 release; the trigger has not fired. Like every other entry in this document, this is a
 dated observation, not a standing fact: re-run the same three commands before the
-contract freezes, and treat a changed result as a new fact for the fidelity contract's
-owner to rule on, never as grounds to re-run the enumeration unprompted.
+contract freezes. A changed result does not invalidate the contract; it obliges
+re-verifying the findings the contract depends on before further reliance, and the new
+version is a fact for the fidelity contract's owner to rule on — not work a Phase 1
+schedule assumes, and not something to silently ignore.
 
 > **Correction, 2026-08-05 (`QCLI-17`):** this section previously read "A reclassification
 > trigger that has probably fired" and asserted the pin was likely stale because nobody
