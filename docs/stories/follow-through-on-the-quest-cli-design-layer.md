@@ -71,8 +71,8 @@ Three kinds of work, deliberately in one Story because they share a cause:
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-12](../../backlog/tasks/qcli-12%20-%20Fix-the-stale-QCLI-2.8-dependency-order-row-in-the-research-programme-Spec.md) | Fix the stale QCLI-2.8 dependency-order row in the research programme Spec | In Progress |
-| [QCLI-13](../../backlog/tasks/qcli-13%20-%20Backlink-the-adoption-playbook-from-the-component-charter-and-migration-ledger.md) | Backlink the adoption playbook from the component charter and migration ledger | In Progress |
+| [QCLI-12](../../backlog/tasks/qcli-12%20-%20Fix-the-stale-QCLI-2.8-dependency-order-row-in-the-research-programme-Spec.md) | Fix the stale QCLI-2.8 dependency-order row in the research programme Spec | Done |
+| [QCLI-13](../../backlog/tasks/qcli-13%20-%20Backlink-the-adoption-playbook-from-the-component-charter-and-migration-ledger.md) | Backlink the adoption playbook from the component charter and migration ledger | Done |
 | [QCLI-14](../../backlog/tasks/qcli-14%20-%20Correct-the-bin-path-row-in-the-packaging-contracts-Description-column.md) | Correct the bin-path row in the packaging contract's Description column | In Progress |
 | [QCLI-15](../../backlog/tasks/qcli-15%20-%20Audit-two-unresolved-register-findings-the-untraceable-Allowed-value-and-QCLI-2.12s-F4-and-F5.md) | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | In Progress |
 | [QCLI-16](../../backlog/tasks/qcli-16%20-%20Audit-and-correct-the-licensing-source-misattribution-in-the-contracts-and-delivery-graph.md) | Audit and correct the licensing-source misattribution in the contracts and delivery graph | In Progress |
