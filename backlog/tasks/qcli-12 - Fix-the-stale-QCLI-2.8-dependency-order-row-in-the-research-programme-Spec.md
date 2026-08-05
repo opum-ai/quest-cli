@@ -1,11 +1,11 @@
 ---
 id: QCLI-12
 title: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 13:01'
+updated_date: '2026-08-05 13:25'
 labels:
   - campaign
   - 'cluster:convention'
@@ -14,7 +14,6 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
-  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -35,10 +34,10 @@ Known trap for this task: any task editing a register-pinned document invalidate
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The QCLI-2.8 row in the Dependency-order table matches its live Backlog dependencies, verified by backlog task view QCLI-2.8
-- [ ] #2 The correction is recorded inline and dated, citing this task, rather than silently rewritten
-- [ ] #3 If the research source register pins this document, the pin is either updated in the same pass or the need for a separate correction is recorded in the task notes
-- [ ] #4 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 The QCLI-2.8 row in the Dependency-order table matches its live Backlog dependencies, verified by backlog task view QCLI-2.8
+- [x] #2 The correction is recorded inline and dated, citing this task, rather than silently rewritten
+- [x] #3 If the research source register pins this document, the pin is either updated in the same pass or the need for a separate correction is recorded in the task notes
+- [x] #4 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -76,4 +75,12 @@ Downstream-reach findings (recorded, not actioned -- both target files are concu
 2a. docs/reference/quest-cli-open-component-decisions.md:216, 'Residual items recorded but never filed' table, row: "The research programme Spec's dependency-order row for QCLI-2.8 is stale — it reads a range that predates the 2.11–2.14 corrections | QCLI-2.14, deferred to an owner decision | A reader mis-reads the synthesis inputs". QCLI-12 both filed this residual item (this task IS the filing) and fixed the underlying staleness in docs/specs/quest-cli-pre-implementation-research-program.md. Once this branch merges to dev, the row is false on both counts: the item is no longer 'never filed' and the Spec's dependency-order row is no longer stale. QCLI-17 is this file's current wave-owner, but QCLI-17's scope is a different section ('A reclassification trigger that has probably fired,' about Backlog.md v1.49.3) -- it does not cover line 216 and will not incidentally catch this. A separate future correction pass is needed to update or retire that row.
 
 2b. docs/reference/quest-cli-component-contracts-and-delivery-graph.md:128-131, sentence: "The Spec's Dependency order table … names only the six deliverables QCLI-2.2–QCLI-2.7; the full ten-item dependency set … is named in this task's own Backlog record (QCLI-2.8's Dependencies field), not in the Spec's table." This sentence was written as a workaround describing the exact defect QCLI-12 fixes. Once this branch merges, it becomes false: the Spec's Dependency order table now names the full ten-item set directly, not just the six, so the sentence's premise (only six named, ten-item set found only in Backlog) no longer holds. QCLI-16 is this file's current wave-owner, but QCLI-16's scope is the licensing-source misattribution under 'Unresolved component decisions' -- it does not cover lines 128-131 and will not incidentally catch this. A separate future correction pass is needed to update that sentence.
+
+Verified by independent reviewer (2 rounds): AC1 confirmed against live backlog task view QCLI-2.8 (10-item dependency set). AC2 confirmed inline/dated/cited correction. AC3 confirmed — register pins this document (exact-SHA pin to 157ad56); per wave's parallel-dispatch constraint the register was not edited, and the pin-staleness + two downstream document-invalidation findings (open-component-decisions.md:216, component-contracts-and-delivery-graph.md:128-131) are recorded in this task's notes as follow-ups needing separate correction passes (neither is covered by this wave's other tasks touching those files). AC4 confirmed both pre- and post-rebase: lore validate --strict 38 files/0 errors/0 warnings/6 skipped; lore check 38 files/0/0; lore orphans 0/0. Merged to dev via PR #25, squash commit 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Corrected the QCLI-2.8 Dependency-order row in docs/specs/quest-cli-pre-implementation-research-program.md: it named only 6 of QCLI-2.8's live 10 Backlog dependencies (missing QCLI-2.11 through QCLI-2.14). Added the full ten-item set plus a dated inline correction note citing QCLI-12, per repo convention. Verified the research source register SHA-pins this document; left the register untouched per this wave's parallel-dispatch constraint and recorded the pin-staleness (and two related downstream document-invalidation findings the reviewer surfaced) as follow-ups in task notes, since correcting them belongs to separate tasks that own those files. All 4 ACs independently confirmed by reviewer across two review rounds (one request_changes cycle for uncommitted notes and unrecorded downstream findings). Lore gates green throughout, including after the wave-1 merge-conflict rebase. Merged to dev via PR #25 (squash 1dd4aa6).
+<!-- SECTION:FINAL_SUMMARY:END -->
