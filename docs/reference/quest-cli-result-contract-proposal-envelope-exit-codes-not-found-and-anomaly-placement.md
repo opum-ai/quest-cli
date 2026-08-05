@@ -55,9 +55,12 @@ addresses:
   disagreeing about a lease — "is neither success, nor a correct decline, nor an internal
   fault," and "Phase 1 must place it."
 - The [open component decisions register](quest-cli-open-component-decisions.md)'s "JSON
-  and exits" row lists exactly the four items in this proposal's scope, plus a fifth
+  and exits" row lists exactly **four** items, **three** of which are this proposal's (the
+  envelope shape, the exit-code table, and the not-found convention), plus a fourth
   (whether create/edit emit a JSON envelope uniformly) that `QCLI-18` does not cover and
-  that remains open after this document.
+  that remains open after this document. This proposal's fourth item — anomaly placement —
+  has **no register row of its own**; it originates instead in the architecture Spec's
+  "Open questions" section (see above), not in the register.
 - [`QCLI-2.7`'s adapter contract review](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
   Part 2 is the source of the load-bearing constraint every item below must satisfy.
 
@@ -158,6 +161,11 @@ per command (Option B, structurally Lore inbound's shape even under different na
 is a key scheme sized to the ADR's three outcome classes, which is the one contract this
 document is actually built on.
 
+This key count is not fixed at three independent of item 4 below: **conditional on item
+4's recommendation being accepted**, the payload-key scheme gains a fourth key (`anomaly`)
+alongside `result` / `decline` / `error` — the same dependency item 2's exit-code table
+already states for its own conditional exit code `3`.
+
 #### 1d. Per-command payload-key naming
 
 Given 1c's recommendation, this narrows to naming the fields *inside* `result` /
@@ -243,8 +251,11 @@ half, per the task's own instruction.
 
 **Recommendation: Option B.** `QCLI-2.7` item 5a already establishes that an unambiguous,
 distinguishable not-found outcome is "already satisfiable by Quest's chartered contract" in
-principle; item 5b is specifically that "Quest's own charter default favors a structured
-error envelope over a bare exit-code convention." Choosing Option B is choosing Quest's own
+principle; item 5b names this exact tension, and the
+[component contracts and delivery graph](quest-cli-component-contracts-and-delivery-graph.md)'s
+own rendering of it states that "Quest's own charter default favors a structured error
+envelope over a bare exit-code convention" (`QCLI-2.7` item 5b's own words are "a JSON error
+envelope with an `error_type`"). Choosing Option B is choosing Quest's own
 stated default over the narrower pattern one current, Backlog-specific adapter happens to
 expect — consistent with the load-bearing constraint that this pattern is not a default to
 inherit. It is also not a compatibility-free choice: no Lore adapter targets Quest today
@@ -303,7 +314,7 @@ envelope and exit table represent an anomaly (Option C, above), but fully canoni
 
 | Item | Recommendation | Boundary note |
 | --- | --- | --- |
-| 1. Envelope shape | String `schemaVersion` (`"1"`); `<command>_<outcome-class>` `kind`; per-outcome-class payload key (`result`/`decline`/`error`); per-command field names from the domain vocabulary | None — fully within Quest's own remit |
+| 1. Envelope shape | String `schemaVersion` (`"1"`); `<command>_<outcome-class>` `kind`; per-outcome-class payload key (`result`/`decline`/`error`, gaining a fourth `anomaly` key conditional on item 4's recommendation being accepted); per-command field names from the domain vocabulary | None — fully within Quest's own remit |
 | 2. Exit-code table | `0` success, `1` decline/conflict, `2` error, `3` anomaly (conditional on item 4), `64` usage error | None — fully within Quest's own remit |
 | 3. Not-found convention | JSON-first: a decline envelope with a structured not-found discriminant, on the shared decline exit code | Quest side only — the `lore-doc` half (whether a future Lore adapter accepts or requires otherwise) is **not** decided here |
 | 4. Anomaly placement | A distinguishable fourth outcome, `kind`-tagged and exit-coded distinctly from decline and error | Quest's own component-level representation is proposed here; elevating "anomaly" to product-wide vocabulary is a separate `quest-doc` proposal, already routed, not re-opened or settled here |
@@ -326,8 +337,10 @@ edit any of those documents, the
 [component contracts and delivery graph](quest-cli-component-contracts-and-delivery-graph.md),
 or the [research source register](quest-cli-research-source-register.md).
 
-Two items the register's "JSON and exits" row lists are explicitly **out of scope** here
-and remain open: the Lore integration items requiring a `lore-doc` boundary decision on the
-binary-invocation surface and probe sequence (register items unrelated to this task), and
-whether create/edit commands emit a JSON envelope uniformly — named in the register
-alongside this task's four items but not claimed by `QCLI-18`.
+**Three** items are explicitly **out of scope** here and remain open, spread across two
+different register rows: the register's own "JSON and exits" row's fourth item — whether
+create/edit commands emit a JSON envelope uniformly — is named alongside this proposal's
+three in-scope items but not claimed by `QCLI-18`; and the register's separate "Lore
+integration" row (not "JSON and exits") lists the exact binary-invocation surface and the
+probe sequence, both requiring a `lore-doc` boundary decision and both unrelated to the
+"JSON and exits" row this proposal draws from.

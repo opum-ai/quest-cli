@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 15:34'
+updated_date: '2026-08-05 15:47'
 labels:
   - campaign
   - 'cluster:cli-contract'
@@ -87,4 +87,19 @@ Verification evidence (all run from the worktree, current HEAD):
 Out-of-scope findings, not acted on:
 - The register's "JSON and exits" row also lists "whether create and edit emit a JSON envelope uniformly" as an open item alongside this task's four; QCLI-18's scope does not include it (per the task body) and it remains open after this document - noted explicitly in the new document's own Notes section so it is not mistaken for settled.
 - `lore sync`'s catch-all backlog/ commit swept in a pending edit from this session's own `backlog task edit --plan` call (expected behavior per lore's own documented sync semantics, not a foreign change).
+
+Fix pass applied to docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md in response to reviewer request_changes:
+
+- Fix A (register-row miscount, grounding bullet ~L57-60): corrected the "JSON and exits" grounding bullet - the register row has exactly four items (three of which are this proposal's: envelope shape, exit-code table, not-found convention), plus a fourth (create/edit-uniform) this task doesn't cover. Anomaly placement, this proposal's fourth item, has no register row at all; it originates in the architecture Spec's "Open questions" section, not the register. Confirmed via `grep -n "anomal" docs/reference/quest-cli-open-component-decisions.md` returning zero hits.
+- Fix B (Notes section row attribution, ~L329-333): corrected the out-of-scope tally from "two items" to "three": the create/edit-uniform item is the register's own fourth "JSON and exits" item; the binary-invocation-surface and probe-sequence items actually belong to the register's separate "Lore integration" row (:159-161), lore-doc-owned, not the "JSON and exits" row.
+- Fix C (§1c payload-key dependency + summary-table row 1, ~L139-159 and ~L306): added the same conditional dependency §2's exit-code table already states - if item 4's fourth outcome class (anomaly) is accepted, the payload-key scheme gains a fourth key (`anomaly`) alongside result/decline/error, conditional on that acceptance. Stated in both §1c's prose and the summary table's row 1 recommendation cell.
+- Additional/optional Finding D (also applied): the not-found recommendation (§3) had misattributed a quote ("Quest's own charter default favors a structured error envelope over a bare exit-code convention") directly to QCLI-2.7 item 5b's own words. Re-attributed that quote to the component contracts and delivery graph's rendering of item 5b (:358-359), and quoted QCLI-2.7 item 5b's actual words ("a JSON error envelope with an `error_type`", :349) alongside it.
+
+Re-verification after the edits:
+- `lore validate --strict`: 39 files, 0 errors, 0 warnings, 6 skipped, exit 0.
+- `lore check`: 39 files, 0 errors, 0 warnings, exit 0.
+- `lore orphans`: 0 orphan tasks, 0 dangling links, exit 0.
+- AC5 re-verified: `git diff bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md docs/reference/quest-cli-research-source-register.md` is empty; `git status --porcelain` shows only the proposal document modified.
+
+Correction to this task's own Implementation Notes: the prior note's "Out-of-scope findings, not acted on" entry said the register's "JSON and exits" row lists the create/edit-uniform item "alongside this task's four" items - that repeats Finding A's register-miscount error. The register's "JSON and exits" row lists exactly four items total, three of which are QCLI-18's (envelope shape, exit-code table, not-found convention); the fourth is create/edit-uniform. This proposal's fourth in-scope item, anomaly placement, has no register row of its own - it comes from the architecture Spec's "Open questions" section (docs/specs/quest-cli-architecture.md:242-244), not from the register.
 <!-- SECTION:NOTES:END -->
