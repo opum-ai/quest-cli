@@ -44,11 +44,13 @@
 - 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
 - 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 
 ## docs/adr
 
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 
 ## docs/reference
 
@@ -79,6 +81,7 @@
 - 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
 - 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 
 ## docs/runbooks
 
@@ -92,6 +95,7 @@
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
 - 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
 - 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 
 ## docs/stories
 
@@ -116,3 +120,4 @@
 - 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
 - 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
