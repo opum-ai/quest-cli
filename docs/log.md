@@ -71,7 +71,6 @@
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
 - 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
-- 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
 
 ## docs/adr
 
@@ -182,5 +181,3 @@
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
 - 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
-- 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
-- 2026-08-05T17:40:40-05:00 ef15e16ba0c248f40b46f32f879aa5afc9f6cd6b docs: point the Phase-1-ratification Story at campaign doc-4

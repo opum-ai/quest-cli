@@ -10,7 +10,7 @@ tags:
   - ratification
 summary: Record the owner's rulings on the three Phase 1 proposals and D1/D3 as ADRs, then reconcile the open decisions register and roadmap against them.
 timestamp: 2026-08-05T22:36:14.337Z
-status: in-progress
+status: todo
 tasks:
   - qcli-24
   - qcli-25
@@ -85,7 +85,7 @@ with the roadmap Spec's Phase 1 scope ("no code, not blocked on Phase 0").
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-24](../../backlog/tasks/qcli-24%20-%20Author-an-ADR-for-the-Quest-CLI-result-contract-envelope-shape-exit-codes-not-found-convention-and-anomaly-placement.md) | Author an ADR for the Quest CLI result contract: envelope shape, exit codes, not-found convention, and anomaly placement | In Progress |
+| [QCLI-24](../../backlog/tasks/qcli-24%20-%20Author-an-ADR-for-the-Quest-CLI-result-contract-envelope-shape-exit-codes-not-found-convention-and-anomaly-placement.md) | Author an ADR for the Quest CLI result contract: envelope shape, exit codes, not-found convention, and anomaly placement | To Do |
 | [QCLI-25](../../backlog/tasks/qcli-25%20-%20Author-an-ADR-for-the-Quest-CLI-canonical-identifier-grammar-and-authored-record-layout.md) | Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout | To Do |
 | [QCLI-26](../../backlog/tasks/qcli-26%20-%20Author-an-ADR-for-the-Quest-CLI-scale-target-and-rebuild-on-doubt-conclusion.md) | Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion | To Do |
 | [QCLI-27](../../backlog/tasks/qcli-27%20-%20Record-the-Quest-CLI-D1-license-contributor-provenance-and-D3-platform-matrix-ownership-owner-rulings.md) | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | To Do |
