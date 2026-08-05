@@ -98,9 +98,10 @@ former.
 
 Deliberately **not** decided here: the storage or index engine itself; register entry D2
 (runtime and native packaging), which stays blocked post-activation; D6 (routed to
-`quest-doc`); D7a and D7b (Quest's archival model); the not-found convention's `lore-doc`
-boundary half; and any edit to the open component decisions register, the component
-contracts and delivery graph, or the delivery roadmap — all reserved for `QCLI-28`.
+`quest-doc`); D7a (Quest's archival model) and D7b (legacy Opum evidence retention,
+routed to `opum-doc`); the not-found convention's `lore-doc` boundary half; and any edit
+to the open component decisions register, the component contracts and delivery graph, or
+the delivery roadmap — all reserved for `QCLI-28`.
 
 ## Consequences
 
