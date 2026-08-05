@@ -60,7 +60,7 @@ what order; it authorises none of it.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-10](../../backlog/tasks/qcli-10%20-%20Consolidate-QCLI-research-into-an-implementation-ready-design-corpus.md) | Consolidate QCLI research into an implementation-ready design corpus | To Do |
+| [QCLI-10](../../backlog/tasks/qcli-10%20-%20Consolidate-QCLI-research-into-an-implementation-ready-design-corpus.md) | Consolidate QCLI research into an implementation-ready design corpus | Done |
 | [QCLI-10.1](../../backlog/tasks/qcli-10.1%20-%20Author-the-Quest-CLI-open-component-decisions-register.md) | Author the Quest CLI open component decisions register | Done |
 | [QCLI-10.2](../../backlog/tasks/qcli-10.2%20-%20Promote-settled-Quest-CLI-decisions-into-ADRs.md) | Promote settled Quest CLI decisions into ADRs | Done |
 | [QCLI-10.3](../../backlog/tasks/qcli-10.3%20-%20Author-the-Quest-CLI-functional-requirements-Spec.md) | Author the Quest CLI functional requirements Spec | Done |
