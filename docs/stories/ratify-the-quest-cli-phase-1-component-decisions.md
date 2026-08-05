@@ -10,7 +10,7 @@ tags:
   - ratification
 summary: Record the owner's rulings on the three Phase 1 proposals and D1/D3 as ADRs, then reconcile the open decisions register and roadmap against them.
 timestamp: 2026-08-05T22:36:14.337Z
-status: todo
+status: in-progress
 tasks:
   - qcli-24
   - qcli-25
@@ -89,7 +89,7 @@ with the roadmap Spec's Phase 1 scope ("no code, not blocked on Phase 0").
 | [QCLI-25](../../backlog/tasks/qcli-25%20-%20Author-an-ADR-for-the-Quest-CLI-canonical-identifier-grammar-and-authored-record-layout.md) | Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout | Done |
 | [QCLI-26](../../backlog/tasks/qcli-26%20-%20Author-an-ADR-for-the-Quest-CLI-scale-target-and-rebuild-on-doubt-conclusion.md) | Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion | Done |
 | [QCLI-27](../../backlog/tasks/qcli-27%20-%20Record-the-Quest-CLI-D1-license-contributor-provenance-and-D3-platform-matrix-ownership-owner-rulings.md) | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | Done |
-| [QCLI-28](../../backlog/tasks/qcli-28%20-%20Reconcile-the-Quest-CLI-open-component-decisions-register-contracts-graph-and-delivery-roadmap-against-the-Phase-1-ADRs.md) | Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs | To Do |
+| [QCLI-28](../../backlog/tasks/qcli-28%20-%20Reconcile-the-Quest-CLI-open-component-decisions-register-contracts-graph-and-delivery-roadmap-against-the-Phase-1-ADRs.md) | Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs | In Progress |
 <!-- lore:tasks:end -->
 
 ## Notes
