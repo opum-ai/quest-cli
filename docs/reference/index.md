@@ -15,4 +15,5 @@
 - [Quest CLI open component decisions](quest-cli-open-component-decisions.md)
 - [Quest CLI packaging contract](quest-cli-packaging-contract.md)
 - [Quest CLI research source register](quest-cli-research-source-register.md)
+- [Quest CLI result contract proposal: envelope, exit codes, not-found, and anomaly placement](quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md)
 <!-- lore:index:end -->
