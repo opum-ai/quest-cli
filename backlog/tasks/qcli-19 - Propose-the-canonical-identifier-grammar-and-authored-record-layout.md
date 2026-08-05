@@ -4,7 +4,7 @@ title: Propose the canonical identifier grammar and authored-record layout
 status: In Progress
 assignee: []
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 15:29'
+updated_date: '2026-08-05 15:35'
 labels:
   - campaign
   - 'cluster:identity'
@@ -71,3 +71,40 @@ Deliver a proposal for owner ruling. Do not edit the open component decisions re
 
 7. Commit in small logical commits (`docs(identity): ...`, each with a `Refs: QCLI-19` trailer) and push the branch as the last action.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Authored docs/reference/quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md via `lore new reference ...`, linked into docs/reference/index.md automatically by lore, and cited from (not edited into) the owning Story's coupled-tasks table via `lore sync`.
+
+What the document covers, mapped to this task's acceptance criteria:
+- AC1: recommends a fixed-literal-prefix + flat unpadded decimal grammar (ASCII-only, single global counter, one fixed canonical case), against three alternatives considered and rejected (opaque UUID/ULID, title-derived slug, Backlog-style project-configurable/zero-padded/dot-suffixed grammar), with reasons for each.
+- AC2: a dedicated subsection maps the recommendation against each of the five settled constraints named in the task description, citing the corpus doc that actually settled each one (migration ADR, lease ADR, threat model, FR-IDENT/FR-MIG rows) rather than the task text itself.
+- AC3: specifies NFC + Unicode default case folding for aliases/free text, and ASCII case-fold to one fixed case for the restricted canonical-id alphabet, with an explicit walk-through of the TM-10 cross-filesystem case-collision scenario (creation-time rejection via Quest's own fold-then-compare logic, plus the fallback structured-conflict requirement for a collision reaching disk some other way) and a note on why differently-cased organisational directory names are not an identity hazard.
+- AC4: one Git-tracked file per canonical task, filename anchored on the canonical-id token with a non-identity-bearing informational slug, identity-free arbitrarily-nested subdirectories, and a fold-keyed recursive enumeration algorithm (no symlink following, structured conflict on a folded-key collision) that finds each legitimate record exactly once regardless of nesting depth.
+- AC5: framed throughout as a proposal for owner ruling ("Nothing in this document is accepted"); closes with an explicit "What the owner is asked to rule on" section; no ADR created.
+- AC6: docs/reference/quest-cli-open-component-decisions.md was read-only cited, never edited (confirmed via `git diff` — not in this branch's diff).
+- AC7: verification evidence below.
+
+Verification (run from the worktree root after authoring and after `lore sync`):
+
+$ lore validate --strict --plain
+39 files, 0 errors, 0 warnings, 6 skipped
+exit=0
+
+$ lore check --plain
+39 files, 0 errors, 0 warnings
+exit=0
+
+$ lore orphans --plain
+orphans: 0 orphan tasks, 0 dangling links
+(none — every task has an owning doc, every linked task is live)
+exit=0
+
+Note: an initial `lore check` run (before `lore sync`) reported status-drift/managed-block-drift on the owning Story, expected after marking this task In Progress; `lore sync` reconciled it (regenerating docs/log.md, docs/reference/index.md, and the Story's managed task block/status) and the re-run above is clean.
+
+Scope respected: did not touch docs/reference/quest-cli-open-component-decisions.md, docs/reference/quest-cli-component-contracts-and-delivery-graph.md, or docs/reference/quest-cli-research-source-register.md (read/cited only). Did not check acceptance criteria, write a final summary, change task status to Done, touch the campaign doc, or create any new Backlog task.
+
+Out-of-scope findings noticed while researching (not acted on, reported per instructions):
+- None beyond what the register and Story already record as open (D2/D3/D5/D6/D7a/D7b, the CLI-contract open items, and the residual-items list) — nothing new surfaced during this task's research.
+<!-- SECTION:NOTES:END -->
