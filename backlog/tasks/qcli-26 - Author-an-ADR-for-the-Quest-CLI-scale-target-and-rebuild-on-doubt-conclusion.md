@@ -1,10 +1,11 @@
 ---
 id: QCLI-26
 title: Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:38'
+updated_date: '2026-08-05 22:53'
 labels:
   - campaign
   - decisions
@@ -35,3 +36,14 @@ QCLI-20 proposed a scale target for register entry D5 and a rebuild-on-doubt con
 - [ ] #4 The ADR names QCLI-20's proposal and the owning Story as the ruling's provenance
 - [ ] #5 lore validate --strict passes on the new ADR file
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Scaffold a new ADR via `lore new adr "Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient"` (tags: quest, cli, scale, projection, decisions; summary stating D5 closure).
+2. Author Status/Context/Decision/Consequences prose (outside any managed block) that: (a) states Accepted and names QCLI-20's proposal doc and the ratify-Phase-1-decisions Story as provenance for the owner's live-session ruling on 2026-08-05 — distinct from the existing 8 ADRs, which promote already-settled research, this one ratifies a fresh owner ruling; (b) restates QCLI-20's five design points verbatim (record count, event count, workspace count, clone count, rebuild time budget at both scales) as accepted; (c) accepts the rebuild-on-doubt-remains-sufficient conclusion and states full ACID cross-record transactional semantics are not implied; (d) explicitly states no storage or index engine is chosen, tied to D2 staying blocked post-activation and the research programme Spec's pre-Phase-0 freeze prohibition; (e) Consequences section notes D5 can now be closed (by QCLI-28, not this task), and restates QCLI-20's own scale-dependence caveat so a future higher scale ruling isn't foreclosed.
+3. Do not edit the open component decisions register, contracts graph, delivery roadmap, or any D6/D7a/D7b/not-found-convention content — QCLI-28's job.
+4. Run `lore sync` to regenerate docs/adr/index.md and docs/log.md, then `lore check` and `lore validate --strict` against the new file; fix any finding.
+5. Cross-check each AC against the literal file text.
+6. Record verification evidence in --append-notes, attach the new ADR path to the task's --doc list alongside the existing two, commit (small logical commits, Refs: QCLI-26 trailer), and push the branch.
+<!-- SECTION:PLAN:END -->
