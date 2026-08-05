@@ -3,10 +3,10 @@ id: QCLI-6
 title: >-
   Close remaining research-source-register enumeration gaps (QCLI-2.5, 2.6, 2.8,
   2.9, 2.10 not yet enumerated in 'Prior QCLI research records')
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 02:29'
-updated_date: '2026-08-05 02:50'
+updated_date: '2026-08-05 03:07'
 labels:
   - research
   - register
@@ -58,3 +58,22 @@ For the durable pattern on how to pin a document that this same task's own passe
 - [ ] #3 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
 - [ ] #4 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Edit docs/reference/quest-cli-research-source-register.md, "Prior QCLI research records" slice (currently ~lines 787-925):
+   a. Repository or URL field: append a new "Added 2026-08-04 by QCLI-6" sentence (following the existing QCLI-2.12 append convention) enumerating the five missing members as slice members: QCLI-2.5's Backlog migration fidelity contract, QCLI-2.6's Git/filesystem/concurrency threat model, QCLI-2.8's component contracts and delivery graph, QCLI-2.9's packaging contract, QCLI-2.10's Backlog adoption and migration playbook. State the same "not previously named despite already being relied on" framing QCLI-2.12 used, and note QCLI-2.8/QCLI-2.10 already flagged this exact gap as a caveat in their own settlement passes (left standing, not edited — out of this task's scope).
+   b. Exact revision or retrieval date field: since this task does not itself co-edit any of the five cited documents (only the register), pin all five to an exact commit SHA (not self-pin), per AC1's "SHA-pinned to a specific commit otherwise" rule:
+      - QCLI-2.5 fidelity contract -> 418c5eb (2026-08-04 15:16:00 -0500), confirmed via git show --stat touching the path
+      - QCLI-2.6 threat model -> 739aa7e (2026-08-04 14:06:57 -0500)
+      - QCLI-2.8 component contracts and delivery graph -> 8935551 (2026-08-04 18:54:09 -0500)
+      - QCLI-2.9 packaging contract -> 3b5cd8c (2026-08-04 10:29:40 -0500) (same commit already cited for QCLI-2.2's reconciliation)
+      - QCLI-2.10 adoption/migration playbook -> 8935551 (same commit as QCLI-2.8's doc; both touched in one edit)
+      Update the running member-count prose in place (nine -> fourteen members; seven -> twelve commit-pinned; two members stay self-pinned: register + migration ledger, unchanged) and add the three newly-introduced distinct SHAs to the tally (eight distinct SHAs total across twelve commit-pinned members).
+   c. Leave the register's own self-pin sentence and the migration ledger's self-pin explanation untouched -- this task does not co-edit the migration ledger or component charter, so no self-pin/SHA-pin decision changes for them.
+2. Edit the "Backlog.md public surface" slice's Permitted use field to explicitly state that process-level responses from running the installed tool (e.g. mcp start's stdio JSON-RPC response) ARE an admissible evidence class, with reasoning: they are produced by running the tool, satisfying the same admission test the slice's own Exclusions field already applies ("a behavior observed only by reading source, not by running the tool, is not admissible"). Must not narrow QCLI-2.5's already-substantive reliance on this evidence (self-reported version, EOF-shutdown behavior from mcp start's stdio response) -- AC3's non-negotiable. Cross-reference QCLI-2.8's residual-gap note (component-contracts-and-delivery-graph.md, "Reconciliation across the ten dependencies") and QCLI-2.10's parallel note as the two reviewer-flagged instances this closes.
+3. Do not touch quest-cli-component-contracts-and-delivery-graph.md, quest-cli-backlog-adoption-and-migration-playbook.md, the migration ledger, or the component charter -- out of this task's scope per its own scope boundary; their existing caveats stand as accurate records of their own settlement passes.
+4. Verify: re-read the full edited "Prior QCLI research records" and "Backlog.md public surface" slices end to end against AC1-AC3 (classification fields intact, one-to-one slice-to-Classification count, no permitted use narrowed). Run lore check --strict, lore validate --strict, lore orphans; all must report zero errors/warnings/orphans.
+5. Record notes, commit in small logical commits with Refs: QCLI-6 trailers, push branch.
+<!-- SECTION:PLAN:END -->
