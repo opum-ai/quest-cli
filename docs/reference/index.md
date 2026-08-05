@@ -17,4 +17,5 @@
 - [Quest CLI packaging contract](quest-cli-packaging-contract.md)
 - [Quest CLI research source register](quest-cli-research-source-register.md)
 - [Quest CLI result contract proposal: envelope, exit codes, not-found, and anomaly placement](quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md)
+- [Quest CLI scale target proposal](quest-cli-scale-target-proposal.md)
 <!-- lore:index:end -->

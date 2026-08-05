@@ -62,7 +62,9 @@
 - 2026-08-05T09:03:01-05:00 3cf5242efef6680f0277e5b4958b2af87b8a8a04 docs: sync story status and log.md after wave-1 settlement
 - 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
 - 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
-- 2026-08-05T11:04:02-05:00 86a40bdce6fd1bd6bb571302190f3b695b019b6a docs: sync log.md after recording QCLI-19 notes
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:06:18-05:00 26311dfddff0876abbcf0158b0a48926521e1c93 docs(quest-cli): propose the scale target and its projection implications
+- 2026-08-05T11:06:18-05:00 f4a700a3face886aef527c73037c90f6c19d89f6 docs: sync log.md after QCLI-20 scale target proposal
 
 ## docs/adr
 
@@ -107,8 +109,9 @@
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 - 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
 - 2026-08-05T11:03:15-05:00 eda251b42e8fd8333377025ef048f98e65313cd6 QCLI-18: Propose the CLI result contract (envelope, exit codes, not-found, anomaly) (#32)
-- 2026-08-05T11:03:39-05:00 f06d0d9e281f9f5bc80828395538342e649faae8 QCLI-19: Propose the canonical identifier grammar and authored-record layout
-- 2026-08-05T11:04:02-05:00 9935ec52510476cc10871b6615324daec0365a1d docs: sync log.md, reference index, and story status for QCLI-19
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:06:18-05:00 26311dfddff0876abbcf0158b0a48926521e1c93 docs(quest-cli): propose the scale target and its projection implications
+- 2026-08-05T11:06:18-05:00 d68e0978178c7f300dc768479ddd97538e2eed08 docs(qcli-20): fix reviewer-flagged citation and attribution errors
 
 ## docs/runbooks
 
@@ -161,4 +164,4 @@
 - 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
 - 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
 - 2026-08-05T11:03:15-05:00 eda251b42e8fd8333377025ef048f98e65313cd6 QCLI-18: Propose the CLI result contract (envelope, exit codes, not-found, anomaly) (#32)
-- 2026-08-05T11:04:02-05:00 9935ec52510476cc10871b6615324daec0365a1d docs: sync log.md, reference index, and story status for QCLI-19
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
