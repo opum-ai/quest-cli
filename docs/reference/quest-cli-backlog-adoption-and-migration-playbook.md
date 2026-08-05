@@ -423,7 +423,7 @@ Step 3 above so a project sees them before consenting to apply):
 | Source | Repository / path | Revision | Register classification | Used for |
 | --- | --- | --- | --- | --- |
 | Backlog.md public surface | `https://backlog.md` docs; `backlog --help`/per-command `--help`; `--plain`/`--json` output; on-disk artifacts | pinned v1.49.3, reconfirmed live 2026-08-04 (`backlog --version` and `npm view backlog.md version`) | Allowed — "Backlog.md public surface" | Grounds every Backlog-behavior claim above, almost entirely by re-citing the fidelity contract's own Execution evidence rows (themselves grounded in this same slice) rather than re-deriving them; the fresh no-drift `--help` spot checks named in the Notes below are grounded here directly |
-| Quest CLI Backlog migration fidelity contract (`QCLI-2.5`) | `docs/reference/quest-cli-backlog-migration-fidelity-contract.md` (this repo) | this branch | See the caveat immediately below — not yet an enumerated member of the "Prior QCLI research records" slice | This document's stated primary foundation (this task's own description); every design commitment this playbook operationalizes (deterministic dry runs, reversible ID mapping, collision handling, source immutability, one-writer coexistence, rollback evidence) |
+| Quest CLI Backlog migration fidelity contract (`QCLI-2.5`) | `docs/reference/quest-cli-backlog-migration-fidelity-contract.md` (this repo) | this branch | See the caveat immediately below — not yet an enumerated member of the "Prior QCLI research records" slice, as found by this document's own original settlement pass. **Resolved 2026-08-04:** `QCLI-6` enumerated the fidelity contract into that slice (Allowed — "Prior QCLI research records", SHA-pinned at `418c5eb`); the slice now lists fourteen members, not nine, and the contract is one of them. See the caveat's own appended resolution note below for the full account. | This document's stated primary foundation (this task's own description); every design commitment this playbook operationalizes (deterministic dry runs, reversible ID mapping, collision handling, source immutability, one-writer coexistence, rollback evidence) |
 | Quest CLI component charter | `docs/reference/quest-cli-component-charter.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | Read-only background per this task's `Documentation` field; not itself the source of any Backlog-behavior claim above |
 | Former OCLI to QCLI migration ledger | `docs/reference/former-ocli-to-qcli-migration-ledger.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | Read-only background per this task's `Documentation` field; its OCLI→QCLI provenance mapping does not inform this document's Backlog-behavior content and is not otherwise cited above |
 | Quest CLI research source register | `docs/reference/quest-cli-research-source-register.md` (this repo) | this branch | Allowed — "Prior QCLI research records" | Per-slice admission authority for every row above |
@@ -456,6 +456,27 @@ surface" slice via the fidelity contract's own Execution-evidence
 citations — the open question is only which register slice should list the
 fidelity contract itself as an admissible source document, not whether the
 underlying Backlog-behavior claims are admissible.
+
+**Resolved 2026-08-04.** The gap this caveat records is closed. `QCLI-6`
+added `QCLI-2.5`'s Backlog migration fidelity contract to the register's
+"Prior QCLI research records" slice — Allowed classification, SHA-pinned at
+`418c5eb` (2026-08-04 15:16:00 -0500, `QCLI-2.5`'s own follow-up fixing a
+stale scratch-repo count and evidence-source enumeration) — as one of five
+members that task enumerated in the same pass (register, "Prior QCLI
+research records" slice). The slice now lists fourteen members, not nine,
+and the fidelity contract is one of them. The Sources table's own "Register
+classification" cell for the `QCLI-2.5` row above, which pointed a reader to
+this caveat as the reason the contract wasn't yet enumerated, was stale for
+the identical reason; its own appended note (added alongside this one)
+carries this same correction there directly, rather than leaving the table
+pointing at a caveat that no longer supports it. Nothing about this
+document's own findings changes as a result: as already stated above, every
+Backlog-behavior fact this document draws from the fidelity contract was
+already independently grounded, one level down, in the "Backlog.md public
+surface" slice via the fidelity contract's own Execution-evidence citations
+— admissibility of the underlying claims was never in question, only
+whether the register's own enumeration reflected reliance already in place.
+It now does.
 
 ### Notes
 

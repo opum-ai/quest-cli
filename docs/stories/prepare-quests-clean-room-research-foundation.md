@@ -27,6 +27,7 @@ tasks:
   - qcli-2.14
   - qcli-6
   - qcli-7
+  - qcli-8
 ---
 
 # Prepare Quest's clean-room research foundation
@@ -72,7 +73,8 @@ may not implement or publish Quest.
 | [QCLI-2.13](../../backlog/tasks/qcli-2.13%20-%20Adopt-a-moving-vs-immutable-reference-convention-in-the-research-program-Spec.md) | Adopt a moving-vs-immutable reference convention in the research program Spec | Done |
 | [QCLI-2.14](../../backlog/tasks/qcli-2.14%20-%20Re-home-the-runtime-native-packaging-and-supported-platform-question.md) | Re-home the runtime, native-packaging, and supported-platform question | Done |
 | [QCLI-6](../../backlog/tasks/qcli-6%20-%20Close-remaining-research-source-register-enumeration-gaps-QCLI-2.5-2.6-2.8-2.9-2.10-not-yet-enumerated-in-Prior-QCLI-research-records.md) | Close remaining research-source-register enumeration gaps (QCLI-2.5, 2.6, 2.8, 2.9, 2.10 not yet enumerated in 'Prior QCLI research records') | Done |
-| [QCLI-7](../../backlog/tasks/qcli-7%20-%20Enumerate-the-campaign-Story-in-the-research-source-registers-Prior-QCLI-research-records-slice.md) | Enumerate the campaign Story in the research-source-register's 'Prior QCLI research records' slice | In Progress |
+| [QCLI-7](../../backlog/tasks/qcli-7%20-%20Enumerate-the-campaign-Story-in-the-research-source-registers-Prior-QCLI-research-records-slice.md) | Enumerate the campaign Story in the research-source-register's 'Prior QCLI research records' slice | Done |
+| [QCLI-8](../../backlog/tasks/qcli-8%20-%20Reconcile-QCLI-2.10s-playbook-against-the-QCLI-2.5-enumeration-gap-QCLI-6-already-closed.md) | Reconcile QCLI-2.10's playbook against the QCLI-2.5 enumeration gap QCLI-6 already closed | In Progress |
 <!-- lore:tasks:end -->
 
 ## Notes

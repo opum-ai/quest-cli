@@ -41,6 +41,7 @@
 - 2026-08-04T18:57:15-05:00 86d88d6529df0a085f255157890a6759f1a495a1 docs: sync managed blocks after QCLI-2 parent-epic settlement
 - 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
 - 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
+- 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
 
 ## docs/adr
 
@@ -73,6 +74,7 @@
 - 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
 - 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
 - 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
+- 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
 
 ## docs/runbooks
 
@@ -107,3 +109,4 @@
 - 2026-08-04T18:57:15-05:00 86d88d6529df0a085f255157890a6759f1a495a1 docs: sync managed blocks after QCLI-2 parent-epic settlement
 - 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
 - 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
+- 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
