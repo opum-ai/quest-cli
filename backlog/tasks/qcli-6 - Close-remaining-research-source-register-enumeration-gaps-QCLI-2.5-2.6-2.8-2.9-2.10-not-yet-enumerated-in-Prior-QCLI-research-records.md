@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-05 02:29'
-updated_date: '2026-08-05 03:07'
+updated_date: '2026-08-05 03:13'
 labels:
   - research
   - register
@@ -77,3 +77,30 @@ For the durable pattern on how to pin a document that this same task's own passe
 4. Verify: re-read the full edited "Prior QCLI research records" and "Backlog.md public surface" slices end to end against AC1-AC3 (classification fields intact, one-to-one slice-to-Classification count, no permitted use narrowed). Run lore check --strict, lore validate --strict, lore orphans; all must report zero errors/warnings/orphans.
 5. Record notes, commit in small logical commits with Refs: QCLI-6 trailers, push branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented. Two edits to docs/reference/quest-cli-research-source-register.md only (no other file's content touched; docs/log.md and the Story's managed task block were mechanically re-synced by `lore sync` after the in-progress status change, not hand-edited).
+
+AC1 -- "Prior QCLI research records" slice: added all five missing members (QCLI-2.5 fidelity contract, QCLI-2.6 threat model, QCLI-2.8 component contracts and delivery graph, QCLI-2.9 packaging contract, QCLI-2.10 adoption/migration playbook) to both the Repository or URL field (following the established QCLI-2.12 append convention) and the Exact revision or retrieval date field. None of the five is co-edited by this task, so all five are SHA-pinned (not self-pinned), per AC1's own rule and the durable Option-A pattern QCLI-2.12's task notes / PR #17 established:
+  - QCLI-2.5 fidelity contract -> 418c5eb (2026-08-04T15:16:00-05:00)
+  - QCLI-2.6 threat model -> 739aa7e (2026-08-04T14:06:57-05:00)
+  - QCLI-2.8 component contracts and delivery graph -> 8935551 (2026-08-04T18:54:09-05:00)
+  - QCLI-2.9 packaging contract -> 3b5cd8c (2026-08-04T10:29:40-05:00, same commit already pinning QCLI-2.2's reconciliation)
+  - QCLI-2.10 adoption/migration playbook -> 8935551 (same commit as QCLI-2.8's doc; both touched in one edit)
+  All five SHAs independently verified with `git log --format='%h %cI' -1 -- <path>` then cross-checked with `git show -s --format=%cI <sha>` and `git show --stat <sha>` (confirms the commit touches the named path) -- same method the register's own text already used for the original nine. Updated the slice's running counts in place: nine -> fourteen members, seven -> twelve commit-pinned, five -> eight distinct SHAs (three newly introduced: 418c5eb, 739aa7e, 8935551; 3b5cd8c reused for a second member). The register's own self-pin and the migration ledger's self-pin (the only two self-pinned members) are untouched -- this task does not co-edit the migration ledger or the component charter, so no self-pin/SHA-pin decision changed for them and neither file was touched.
+
+AC2 -- "Backlog.md public surface" slice's Permitted use: added an explicit statement that process-level responses from running the installed tool (e.g. `mcp start`'s stdio JSON-RPC response) ARE an admissible evidence class, reasoning: they are observed by running the tool, not by reading source -- the same admissibility test the slice's own Exclusions field already states. Cites QCLI-2.5's fidelity contract's substantive reliance on this (self-reported version, EOF-shutdown behavior from mcp start's stdio response) as the reliance this clarification must not narrow, and cross-references QCLI-2.8's residual-gap note (component-contracts-and-delivery-graph.md, "Reconciliation across the ten dependencies") as the flagged instance being closed. Also notes admissibility-as-evidence-class is distinct from citability-as-stable-contract, and that QCLI-2.5's own self-imposed restriction on `browser`'s HTTP-probe evidence (not treating it as a citable contract) is that document's own choice, not implied by this slice.
+
+AC3: verified via `git diff dev -- docs/reference/quest-cli-research-source-register.md | grep Classification` -- zero Classification-field lines touched (no +/- match), so the slice-to-Classification one-to-one mapping is unchanged and every existing Classification field is intact. Both edits are additive (new sentences appended to existing Permitted use / Repository-or-URL / Exact-revision fields); no existing sentence granting a permitted use was deleted or narrowed.
+
+AC4 -- lore gates, run after both content commits, working tree clean:
+  lore check --strict    -> 25 files, 0 errors, 0 warnings (exit 0)
+  lore validate --strict -> 25 files, 0 errors, 0 warnings, 6 skipped (not-a-concept index/log files) (exit 0)
+  lore orphans            -> 0 orphan tasks, 0 dangling links (exit 0)
+
+Out-of-scope observation (not fixed, per this task's own scope boundary): quest-cli-component-contracts-and-delivery-graph.md's "Reconciliation across the ten dependencies" caveat and quest-cli-backlog-adoption-and-migration-playbook.md's "Sources and classification" caveat both still describe the enumeration gap and the process-level-response silence as open, since this task does not edit either document. Both caveats remain accurate as historical records of their own settlement pass (matching this campaign's own convention of leaving a prior pass's disclosed-gap prose standing rather than retroactively editing a merged deliverable) -- flagging this only so a reader comparing dates does not mistake the caveats for a currently-open gap; the register itself is now the current source of truth on both points.
+
+Commits: 63e13f6 (mechanical lore-sync managed-block update after the in-progress status change), b7f4d9b (the substantive AC1/AC2 register edit).
+<!-- SECTION:NOTES:END -->
