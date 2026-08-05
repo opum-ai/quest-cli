@@ -363,7 +363,24 @@ named slice, never to every file in its repository.
   version`); local install matches — `lore --version` reports `0.1.0`, and
   the installed binary is a symlink to
   `.../node_modules/@opum-ai/lore/bin/lore.cjs`. All confirmed live
-  2026-08-04.
+  2026-08-04. **Re-verified 2026-08-05 by `QCLI-23`:** `lore-cli` has since
+  cut a second tag, `v0.1.1` (GitHub release `publishedAt`
+  2026-08-05T02:29:23Z, `gh release view v0.1.1 --repo opum-ai/lore-cli`);
+  npm now serves `@opum-ai/lore@0.1.1` as `latest` (`npm view @opum-ai/lore
+  dist-tags`), published 2026-08-05T02:27:29.041Z (`npm view @opum-ai/lore
+  time --json`); this worktree's local install matches (`lore --version` →
+  `0.1.1`). This capsule was not the first to observe the new tag —
+  `QCLI-11`'s [activation-gate evidence
+  record](quest-cli-activation-gate-evidence-record.md#discrepancies-found)
+  found it first, on the same day, and this entry cross-references that
+  record rather than re-deriving it independently a second time. Per the
+  reclassification triggers below, a version bump alone does not reclassify
+  this slice: `QCLI-23` independently confirmed (see the [lore dependency
+  and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)'s
+  Part 3) that the documented CLI/adapter surface (`cli-surface.md`,
+  `cli-contract.md`, `okf-projection-contract.md`, `src/adapters/backlog.ts`)
+  is byte-identical between `v0.1.0` and `v0.1.1`, so this slice's
+  "version bump changing the documented CLI surface" trigger did not fire.
 - **Ownership rationale:** `lore-cli` is the owning implementation of the
   Lore tool quest-cli integrates with, per the component charter's routing
   table ("Lore implementation and immutable release evidence" → owning

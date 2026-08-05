@@ -144,6 +144,18 @@ src/adapters/backlog.ts` is **empty**: every citation below, verified
 against the tag, is confirmed byte-identical on current `dev` HEAD as of
 2026-08-04.
 
+**Re-verified 2026-08-05 (`QCLI-23`), servicing this document's own
+reclassification trigger (below) fired by `lore-cli` cutting `v0.1.1`:** the
+`v0.1.0` pin above is unchanged and remains this Part's citation basis —
+Part 2's findings are not reclassified, because `git diff --stat
+v0.1.0..v0.1.1` across all four adapter-surface paths named in Part 3 is
+empty and `MIN_BACKLOG_VERSION`/`EXPECTED_SCHEMA_VERSION` are unchanged at
+`v0.1.1` (see Part 3's new 2026-08-05 row). `dev` has moved further, to
+`aedf64ae10ba83401d7bc49ab8584337222a3ed1` (103 commits ahead of `v0.1.0`,
+via `origin/dev`, not the volatile local clone — see Part 3); the adapter
+surface stays byte-identical across that fuller range too. Full corrected
+figures and methodology are in Part 3, not restated here a second time.
+
 #### 1. Invocation surface Lore requires of a task CLI
 
 `lore-cli`'s only adapter type is `BacklogAdapter`
@@ -361,13 +373,14 @@ capsule.
 | Published npm `@opum-ai/lore` | `0.1.0` | `npm view @opum-ai/lore version` |
 | Locally installed `lore` | `0.1.0` | `lore --version` |
 | Tag `v0.1.0` commit | `e621d209be2cc8867d1c38c7c78b4b4acc96d82e` | `git rev-list -n1 v0.1.0` |
-| `dev` HEAD | `405606891a227a9012b87de625d909eba56fec6b` | `git rev-parse HEAD` |
-| Ahead/behind | 1 commit only on the tag side, 29 only on `dev`'s side | `git rev-list --left-right --count v0.1.0...HEAD` → `1  29` |
-| Is the tag an ancestor of `dev` HEAD? | No — but this is a branch-topology artifact, not content divergence | `git merge-base --is-ancestor v0.1.0 HEAD` fails; the tag's one unique commit, `e621d20`, is a "promote to main" merge whose **second parent**, `89d2138` (the actual `dev` tip at release time), **is** an ancestor of current `dev` HEAD (`git merge-base --is-ancestor 89d2138 HEAD` succeeds). `dev` was never rebased or force-pushed past the release point; it simply never merges `main` back into itself. |
-| Adapter surface source drift | **None** — `src/adapters/backlog.ts` is byte-identical between the tag and `dev` HEAD | `git diff --stat v0.1.0..HEAD -- src/adapters/backlog.ts` (empty) |
-| Documented CLI/adapter surface drift | **None** — `cli-surface.md`, `cli-contract.md`, `okf-projection-contract.md` are byte-unchanged | `git diff --stat v0.1.0..HEAD -- docs/reference/cli-surface.md docs/reference/cli-contract.md docs/reference/okf-projection-contract.md` (empty) |
-| What the 29 commits actually touch in `src/` | Three files, none adapter-relevant: `src/cli.ts` (an internal test-only env-var toggle for indexed-retrieval qualification), `src/commands/fswrite.ts` (a one-line comment fixing a Bun engine-version number), `src/core/retrieval.ts` (2-line error-propagation change on an indexed-retrieval fallback) | `git diff --stat v0.1.0..HEAD -- src/` then `git diff v0.1.0..HEAD -- src/cli.ts src/commands/fswrite.ts src/core/retrieval.ts` |
-| What the 29 commits touch in `docs/` | 9 files: `index.md`, `log.md`, `architecture.md` (already self-flagged stale, see below), a LadybugDB benchmark/scale-acceptance doc, `lore-cli-release-truth.md` and `release-publishing.md` (expected to evolve — release evidence), `tech-stack.md`, `backlog-json-patch.md` (a 2-line wording tweak in a Contextual, non-cited document), and `prepare-the-first-lore-cli-release.md` — graph-platform/release-process work, not CLI/adapter surface | `git diff --stat v0.1.0..HEAD -- docs` |
+| `dev` HEAD | **Re-verified 2026-08-05 (`QCLI-23`):** `aedf64ae10ba83401d7bc49ab8584337222a3ed1` — superseding `405606891a227a9012b87de625d909eba56fec6b` (2026-08-04, now stale) | `git rev-parse origin/dev`, run against `origin/dev` rather than the local clone's own `dev` branch — the local `/Volumes/external/repos/lore-cli` clone was found, at re-verification time, to carry uncommitted working-tree edits and a `dev` branch 28 commits ahead of `origin/dev` (someone else's concurrent, unpushed work), so the local branch tip is not a stable reference; `origin/dev` was cross-checked identical via `gh api repos/opum-ai/lore-cli/branches/dev --jq .commit.sha` and `git ls-remote origin dev` |
+| Ahead/behind | **Re-verified 2026-08-05 (`QCLI-23`):** `0  103` — 0 commits unique to the tag side (v0.1.0 is now fully contained in `dev`), 103 unique to `dev`'s side; supersedes `1  29` (2026-08-04, now stale) | `git rev-list --left-right --count v0.1.0...origin/dev` |
+| Is the tag an ancestor of `dev` HEAD? | **Re-verified 2026-08-05 (`QCLI-23`): Yes — flipped from the 2026-08-04 answer of No.** `git merge-base --is-ancestor v0.1.0 origin/dev` now succeeds. **Cause corrected 2026-08-05 (`QCLI-23`, fix pass after independent review — the prior version of this row had the merge direction and causal commit backwards):** this was not a `main`-into-`dev` merge. Commit `40dc5ad8` ("Merge pull request #300 from opum-ai/dev") is `lore-cli` PR #300, **base=`main`, head=`dev`** — a `dev`→`main` promotion that landed on `main`, the opposite direction from what an earlier draft of this row claimed; it stayed unreachable from `dev` for roughly 18.5 hours afterward (`dev`'s state after PR #304, `8dc88bdd`, and after PR #308, `77deb736`, both compare as `diverged`/`behind_by=2` against it — `40dc5ad8` was still not an ancestor of either). The tag commit first became reachable from `dev` via **PR #310** (base=`dev`, head=`release/0.1.1-publication`), merged **2026-08-04T21:44:25Z** as merge commit `6bb4f9d9`: its second parent `1f0c2c62` (the release branch's tip) already contained `40dc5ad8` (`behind_by=0`), so merging that release branch into `dev` carried `main`'s history — and with it the `v0.1.0` tag commit — across. `main` is still not merged directly into `dev`: `compare/main...dev` is `diverged`, `ahead_by=2`, `behind_by=4` as of 2026-08-05. The 2026-08-04 capsule's "`dev` ... simply never merges `main` back into itself" describes an ongoing practice that is not falsified here — this was a one-time carry via a release-publication branch, not a reversal of that pattern. (The commit's own parent list, `e621d209...`/`f22ed526...`, is accurate but does not by itself show which branch the merge landed on — that requires the PR's base/head, checked below.) | `git merge-base --is-ancestor v0.1.0 origin/dev`; `gh pr view 300 --repo opum-ai/lore-cli` → base=`main`, head=`dev`, merged `2026-08-04T03:13:08Z`; `gh api repos/opum-ai/lore-cli/compare/40dc5ad8...8dc88bdd` and `.../compare/40dc5ad8...77deb736` → both `diverged`, `behind_by=2`; `gh pr view 310 --repo opum-ai/lore-cli` → base=`dev`, head=`release/0.1.1-publication`, merged `2026-08-04T21:44:25Z`; `gh api repos/opum-ai/lore-cli/commits/6bb4f9d9 --jq '.parents[].sha'` → `77deb736`, `1f0c2c62`; `gh api repos/opum-ai/lore-cli/compare/40dc5ad8...1f0c2c62` → `behind_by=0`; `gh api repos/opum-ai/lore-cli/compare/main...dev` → `diverged`, `ahead_by=2`, `behind_by=4`; `git log -1 --format='%H %P' 40dc5ad8` → parents `e621d209...`, `f22ed526...` |
+| Adapter surface source drift | **None** — `src/adapters/backlog.ts` is byte-identical between the tag and `dev` HEAD. Re-verified 2026-08-05 (`QCLI-23`) against the current, further-advanced `origin/dev` (103 commits ahead of the tag, not the 29 the 2026-08-04 capsule saw): still empty. | `git diff --stat v0.1.0..HEAD -- src/adapters/backlog.ts` (empty, 2026-08-04); `git diff --stat v0.1.0..origin/dev -- src/adapters/backlog.ts` (empty, 2026-08-05) |
+| Documented CLI/adapter surface drift | **None** — `cli-surface.md`, `cli-contract.md`, `okf-projection-contract.md` are byte-unchanged. Re-verified 2026-08-05 (`QCLI-23`) against the current `origin/dev`: still empty. | `git diff --stat v0.1.0..HEAD -- docs/reference/cli-surface.md docs/reference/cli-contract.md docs/reference/okf-projection-contract.md` (empty, 2026-08-04); `git diff --stat v0.1.0..origin/dev -- docs/reference/cli-surface.md docs/reference/cli-contract.md docs/reference/okf-projection-contract.md` (empty, 2026-08-05) |
+| **New 2026-08-05 (`QCLI-23`):** adapter-surface drift between the two published tags | **None** — all four adapter-surface paths QCLI-2.7 names are byte-identical between `v0.1.0` and `v0.1.1`; `MIN_BACKLOG_VERSION` (`"1.49.0"`) and `EXPECTED_SCHEMA_VERSION` (`1`) are unchanged at `v0.1.1`. Per the reclassification-trigger rule below, this — a new tag with an unchanged documented CLI/adapter surface — carries no Part 2 reclassification. | `git diff --stat v0.1.0..v0.1.1 -- docs/reference/cli-surface.md docs/reference/cli-contract.md docs/reference/okf-projection-contract.md src/adapters/backlog.ts` (empty, run both jointly and per-path); `git show v0.1.1:src/adapters/backlog.ts \| grep -n 'MIN_BACKLOG_VERSION\|EXPECTED_SCHEMA_VERSION'` → `MIN_BACKLOG_VERSION = "1.49.0"`, `EXPECTED_SCHEMA_VERSION = 1`, matching Part 2 |
+| What the 29 commits (as of the 2026-08-04 range `v0.1.0..4056068`, since superseded by the 103-commit `v0.1.0..origin/dev` range in the rows above) actually touch in `src/` | Three files, none adapter-relevant: `src/cli.ts` (an internal test-only env-var toggle for indexed-retrieval qualification), `src/commands/fswrite.ts` (a one-line comment fixing a Bun engine-version number), `src/core/retrieval.ts` (2-line error-propagation change on an indexed-retrieval fallback) | `git diff --stat v0.1.0..HEAD -- src/` then `git diff v0.1.0..HEAD -- src/cli.ts src/commands/fswrite.ts src/core/retrieval.ts` |
+| What the 29 commits (as of the 2026-08-04 range `v0.1.0..4056068`, since superseded by the 103-commit `v0.1.0..origin/dev` range in the rows above) touch in `docs/` | 9 files: `index.md`, `log.md`, `architecture.md` (already self-flagged stale, see below), a LadybugDB benchmark/scale-acceptance doc, `lore-cli-release-truth.md` and `release-publishing.md` (expected to evolve — release evidence), `tech-stack.md`, `backlog-json-patch.md` (a 2-line wording tweak in a Contextual, non-cited document), and `prepare-the-first-lore-cli-release.md` — graph-platform/release-process work, not CLI/adapter surface | `git diff --stat v0.1.0..HEAD -- docs` |
 | Automated-publish control | `LCLI-278` still **To Do** — `publish: true` dispatches remain prohibited | `backlog task view LCLI-278 --plain` |
 
 **Reclassification trigger, stated explicitly (AC6):** any future
@@ -378,6 +391,21 @@ re-classification of every Part 2 finding it touches before further
 reliance on this document; cutting a new tag at all must trigger
 re-verification of `MIN_BACKLOG_VERSION`/`EXPECTED_SCHEMA_VERSION` and the
 drift table above, not silent reuse of today's numbers.
+
+**Trigger serviced 2026-08-05 (`QCLI-23`):** `lore-cli` cut `v0.1.1`
+(published npm `@opum-ai/lore@0.1.1`, `2026-08-05T02:27:29.041Z`; GitHub
+release `publishedAt` `2026-08-05T02:29:23Z`) — first surfaced against this
+repository by `QCLI-11`'s [activation-gate evidence
+record](quest-cli-activation-gate-evidence-record.md#discrepancies-found).
+This tag cut is exactly the trigger named above. Re-verification (the new
+row immediately above, and the "Pinned revision and source-currency
+statement" addendum) found the four-path diff `v0.1.0..v0.1.1` empty and
+`MIN_BACKLOG_VERSION`/`EXPECTED_SCHEMA_VERSION` unchanged: no Part 2
+reclassification follows. The three Part 3 drift-table rows measured
+against `dev` (not against a specific tag) were separately corrected above,
+also dated and cited to `QCLI-23`, because `dev` had moved independently of
+the tag cut. This document's own pin stays `v0.1.0` — Part 2's citations
+are not migrated to `v0.1.1`, since nothing in it changed.
 
 **Discovered while re-verifying (out of scope to act on, recorded per the
 split rule):** `docs/adr/0009-story-task-coupling-reconciliation.md`

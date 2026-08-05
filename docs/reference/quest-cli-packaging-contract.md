@@ -75,7 +75,7 @@ precisely because that fact is time-bound.
 | `@salient-data/quest-cli` | `E404 Not Found` — unclaimed | — | — | — | — | — |
 | `lore` | `0.13.0` | `git+https://github.com/lore/lore.git` | — | — | — | — |
 | `lore-cli` | `0.13.2` | `git+https://github.com/lore/lore.git` | — | — | — | — |
-| `@opum-ai/lore` | `0.1.0` | `git+https://github.com/opum-ai/lore-cli.git` | `MIT` | `jeremy-newhouse <jeremy.newhouse@salientdata.ai>` (1) | — | bin `lore` → `bin/lore.cjs` |
+| `@opum-ai/lore` | `0.1.1` | `git+https://github.com/opum-ai/lore-cli.git` | `MIT` | `jeremy-newhouse <jeremy.newhouse@salientdata.ai>` (1) | — | bin `lore` → `bin/lore.cjs` |
 
 **Corrected 2026-08-05 by `QCLI-14`:** the `@opum-ai/lore` row's bin path
 (bin `lore` → `bin/lore.cjs`) previously occupied the Description column,
@@ -89,6 +89,24 @@ Description cell is marked `—` because no npm description was captured for
 that package in the 2026-08-04 sweep; this correction does not supply one,
 since doing so now would be a new, separately dated observation, not a
 relocation of the existing one. No other cell in this table changed.
+
+**Refreshed 2026-08-05 by `QCLI-23`:** the `@opum-ai/lore` row's Version
+cell is updated from `0.1.0` (the 2026-08-04 sweep above) to `0.1.1` —
+`lore-cli` cut a second release the same day this correction was made
+(`npm view @opum-ai/lore version` → `0.1.1`; `npm view @opum-ai/lore
+dist-tags` → `latest: 0.1.1`). This is not this repository's first record of
+that release: `QCLI-11`'s [activation-gate evidence
+record](quest-cli-activation-gate-evidence-record.md#discrepancies-found)
+observed it first, on 2026-08-05; this correction cross-references that
+record rather than re-deriving the finding a second time, per the same
+capsule-consistency concern `QCLI-11` itself raised about this table's prior
+silence on `v0.1.1`. Repository, License, Maintainers, and Bin were
+re-checked live against `@opum-ai/lore@0.1.1` and are unchanged from the
+2026-08-04 sweep; Description stays `—` for the same reason given in the
+`QCLI-14` note above. This is a registry-snapshot table, not a decision
+record, so the superseded `0.1.0` value is not preserved in-row; it remains
+recoverable from `QCLI-11`'s cross-referenced record and this document's own
+git history.
 
 `quest` package history (`npm view quest time`): first published `0.0.2` on
 2012-11-01, most recent `0.4.0` on 2018-09-04, `modified` (last registry
