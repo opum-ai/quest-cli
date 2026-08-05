@@ -3,10 +3,10 @@ id: QCLI-27
 title: >-
   Record the Quest CLI D1 (license, contributor provenance) and D3 (platform
   matrix, ownership) owner rulings
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:38'
+updated_date: '2026-08-05 22:54'
 labels:
   - campaign
   - decisions
@@ -35,3 +35,14 @@ Register entries D1 (product license and contributor provenance) and D3 (support
 - [ ] #4 The document names the owning Story as the ruling's provenance, dated 2026-08-05
 - [ ] #5 lore validate --strict passes on the new/changed files
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Read the owning Story (ratify-the-quest-cli-phase-1-component-decisions.md) and the open component decisions register's D1/D2/D3 entries for exact wording to close/claim against.
+2. Judgment call: use a Reference doc, not an ADR. The owning Story's own AC text already calls this 'a reference document' (distinct from the three sibling QCLI-24/25/26 tasks, which explicitly author ADRs). This bundle's existing ADRs (docs/adr/) are architectural/technical decisions with Status/Context/Decision/Consequences shape; governance-level rulings that close register entries without an architectural trade-off (license choice, platform support, ownership claims) match the shape of existing docs/reference/ records instead (e.g. quest-cli-open-component-decisions.md, quest-cli-activation-gate-evidence-record.md — dated records citing a Story/task as provenance).
+3. Scaffold via 'lore new reference' (not manual file creation), then write body: D1 (license=MIT, provenance=informal/none), D3 (platform=macOS+Linux+Windows, ownership=quest-cli-owned), D2 (ownership only=quest-cli-owned, runtime choice explicitly stays deferred/undecided), citing the owning Story dated 2026-08-05 as provenance, and an explicit 'does not touch' section for D6/D7a/D7b/not-found lore-doc boundary/register-reconciliation (reserved for QCLI-28) to keep scope crisp.
+4. Create root LICENSE (plain file, outside lore-managed docs/ tree) with standard MIT text and a 'Copyright (c) 2026 opum-ai' line.
+5. Run 'lore validate --strict' and 'lore check'; fix any findings. Re-check each AC against actual file content.
+6. Record notes with verification evidence, commit with Refs: QCLI-27 trailer(s), push branch.
+<!-- SECTION:PLAN:END -->
