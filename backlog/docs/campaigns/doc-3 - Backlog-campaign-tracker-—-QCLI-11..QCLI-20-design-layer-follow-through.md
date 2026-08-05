@@ -3,7 +3,7 @@ id: doc-3
 title: Backlog campaign tracker — QCLI-11..QCLI-20 design-layer follow-through
 type: other
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 17:39'
+updated_date: '2026-08-05 18:39'
 ---
 # Backlog campaign tracker — QCLI-11..QCLI-20 design-layer follow-through
 
@@ -20,10 +20,9 @@ component decisions.
 
 ## Frontier
 
-**Waves 1 and 2 complete as of 2026-08-05.** 12 of 13 members Done (QCLI-12..17
-in wave 1, QCLI-11/18/19/20/21/22 in wave 2). QCLI-23 filed the same day after
-user approval of wave 2's integration-review follow-up — 1 ready, 0 blocked,
-0 in flight.
+**Campaign complete as of 2026-08-05.** Waves 1, 2, and 3 all complete — 13 of
+13 members Done. The entire Backlog queue (every task in this repository, not
+just this campaign's members) is now Done — 0 ready, 0 blocked, 0 in flight.
 
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
@@ -62,7 +61,7 @@ these two — the wave builder treated all six as equally ready):
 Appended after wave 2's integration review, approved by the user on
 2026-08-05:
 
-13. QCLI-23 — Re-verify QCLI-2.7's drift table against lore-cli v0.1.1 and refresh dependent documents — **filed, To Do, ready for a future wave**
+13. QCLI-23 — Re-verify QCLI-2.7's drift table against lore-cli v0.1.1 and refresh dependent documents — **Done, wave 3**
 
 ## Clusters
 
@@ -76,7 +75,7 @@ builder did not serialize work that was genuinely parallel.
 | `cluster:convention` | The research programme Spec | QCLI-12 (Done) |
 | `cluster:adoption` | The adoption playbook and its inbound links | QCLI-13 (Done) |
 | `cluster:packaging` | The packaging contract | QCLI-14 (Done) |
-| `cluster:provenance` | The research source register | QCLI-15 (Done), QCLI-22 (Done), QCLI-23 (To Do) |
+| `cluster:provenance` | The research source register | QCLI-15 (Done), QCLI-22 (Done), QCLI-23 (Done) |
 | `cluster:synthesis` | The component contracts and delivery graph | QCLI-16 (Done) |
 | `cluster:migration` | The open component decisions register, migration slice | QCLI-17 (Done) |
 | `cluster:lore-gate` | The activation-gate evidence record (new document) | QCLI-11 (Done) |
@@ -85,10 +84,9 @@ builder did not serialize work that was genuinely parallel.
 | `cluster:projection` | Scale target proposal (new document) | QCLI-20 (Done) |
 | `cluster:tracking-reconciliation` | The open component decisions register's tracking table + D1, and the contracts graph | QCLI-21 (Done) |
 
-Note: QCLI-22 shares `cluster:provenance` with QCLI-15 — both touch the
-research source register. This was intentional; the cluster label reflects
-file ownership, not wave membership, and QCLI-15 was already Done by the time
-QCLI-22 ran, so there was no live conflict.
+Note: QCLI-22 shares `cluster:provenance` with QCLI-15 and QCLI-23 — all three
+touch the research source register, at different times, with no live conflict
+since each ran in a wave after the prior owner had already merged.
 
 ### Authored-file ownership
 
@@ -106,9 +104,11 @@ disjoint throughout:
 | QCLI-21 (Done) | `docs/reference/quest-cli-open-component-decisions.md`, `docs/reference/quest-cli-component-contracts-and-delivery-graph.md` |
 | QCLI-22 (Done) | `docs/reference/quest-cli-research-source-register.md` |
 | QCLI-11, 18, 19, 20 (Done) | New documents only |
+| QCLI-23 (Done) | `docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md`, `docs/reference/quest-cli-research-source-register.md`, `docs/reference/quest-cli-packaging-contract.md` |
 
 QCLI-21 and QCLI-22 were file-disjoint from each other and from
 QCLI-11/18/19/20 — all six ran in one wave (wave 2, at the wave-size cap of 6).
+QCLI-23 ran alone in wave 3 (the sole ready-set member after wave 2 closed).
 
 ## In flight
 
@@ -117,7 +117,7 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
-(empty — both waves fully merged and settled; campaign complete)
+(empty — all three waves fully merged and settled; campaign complete)
 
 ## Needs a human / blocked
 
@@ -138,8 +138,8 @@ post-activation and is deliberately not in the campaign.
 
 ## Proposed follow-ups (awaiting user approval)
 
-Never created unprompted — this project requires approval before follow-up work
-is filed.
+Never created unprompted — this project requires approval before follow-up
+work is filed.
 
 Two register entries were deliberately NOT filed at init and are recorded here
 so the decision is legible rather than silent:
@@ -153,48 +153,9 @@ so the decision is legible rather than silent:
 
 Wave 1's two follow-ups (tracking-document reconciliation, register
 re-pinning) were approved on 2026-08-05 and filed as **QCLI-21** and
-**QCLI-22**; both are now Done — see Confirmed queue order above.
-
-**From wave 2's integration review — approved by the user on 2026-08-05 and
-filed as QCLI-23** (see Confirmed queue order above; linked to Story
-`stories/prepare-quests-clean-room-research-foundation`):
-
-- **Re-verify and re-date QCLI-2.7's Part 3 drift table against `lore-cli`
-  `v0.1.1` (currently pinned at `v0.1.0`), and refresh the two sibling
-  documents that echo that pin.** QCLI-2.7's own text (`docs/reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md:373-380`)
-  states a reclassification trigger: cutting a new `lore-cli` tag must trigger
-  re-verification of `MIN_BACKLOG_VERSION`/`EXPECTED_SCHEMA_VERSION` and the
-  drift table, not silent reuse of the old numbers. QCLI-11's live re-check
-  (2026-08-05) found `lore-cli` has in fact cut `v0.1.1` and published
-  `@opum-ai/lore@0.1.1` — the trigger fired, and no task in this campaign
-  serviced it (QCLI-11 correctly stayed in scope and only recorded the
-  discovery; QCLI-22's re-verification pass was scoped to register member
-  *pins*, not `lore-cli` release facts).
-
-  The integration review independently re-ran the trigger's own checks and
-  found the good news first: `git diff --stat v0.1.0..v0.1.1` over the four
-  adapter-surface paths QCLI-2.7 names is empty, `MIN_BACKLOG_VERSION` and
-  `EXPECTED_SCHEMA_VERSION` are unchanged, so **no Part 2 reclassification is
-  needed** — QCLI-18's load-bearing constraint on that divergence survives
-  intact. But three Part 3 drift-table rows are now factually false, not
-  merely dated (`dev` HEAD SHA, the "1 commit only on the tag side / 29 only on
-  `dev`'s side" count — actually 0/124 now — and the "is the tag an ancestor of
-  `dev` HEAD" answer, which has flipped from No to Yes). This is exactly
-  recovered finding F5's hazard (a quoted drift-table row going stale), arriving
-  from the *other* task's direction — QCLI-21/22 left "does F5 still apply?"
-  open; it does. `0.1.0` is also still asserted as current, with no
-  cross-reference to QCLI-11's newer capsule, in the research source register
-  (`:360-366`) and the packaging contract (`:78`).
-
-  **Scope (as filed in QCLI-23)**: re-verify and re-date QCLI-2.7's Part 3
-  drift table against `lore-cli` `v0.1.1`/current HEAD (recording that the
-  four adapter-surface paths remain byte-identical, so no Part 2
-  reclassification follows); refresh the register's `lore-cli` release-evidence
-  retrieval date and the packaging contract's `@opum-ai/lore` row; add
-  reciprocal pointers between those three documents and QCLI-11's evidence
-  record. Explicitly out of scope: any gate evaluation — the boundary
-  discipline QCLI-11 established (record evidence, never compute or assert a
-  gate result) must be preserved.
+**QCLI-22**; both are now Done. Wave 2's one follow-up (the lore-cli v0.1.1
+reclassification-trigger staleness) was approved on 2026-08-05 and filed as
+**QCLI-23**; it is now Done. No proposed follow-ups remain open.
 
 ## Wave log
 
@@ -349,8 +310,63 @@ filed as QCLI-23** (see Confirmed queue order above; linked to Story
   `stories/prepare-quests-clean-room-research-foundation` via `lore link`.
   `dev` head after filing: `3d72158`.
 
-**Waves 1 and 2 complete.** 12 of 13 members Done; QCLI-23 filed and ready for
-a future wave (the only ready-set member, so it will run alone or `restore`
-can simply be run to pick it up as a one-task wave). Suggest
-`/backlog-handover restore` to drain QCLI-23, or `/backlog-handover init` if a
-larger fresh queue should be assembled around it first.
+- 2026-08-05 — wave 3 (task: QCLI-23, the sole ready-set member — a
+  single-task wave, the algorithm correctly degrading to sequential). Dispatched
+  into a treehouse worktree off wave base `dff6283`, implemented by a mid-tier
+  worker, reviewed by a top-tier reviewer.
+
+  **Review rounds:** one `request_changes` round. The worker's first pass
+  correctly re-verified lore-cli's live release state (v0.1.1, no newer tag),
+  correctly confirmed no Part 2 reclassification (all four adapter-surface
+  paths byte-identical between v0.1.0/v0.1.1), and correctly corrected the
+  three Part 3 drift-table row *values* (dev HEAD SHA, 0/103 commit-count
+  comparison, tag-ancestor-of-dev-HEAD flipping to Yes) — but introduced a
+  **new** factual error while explaining the ancestor flip: it attributed the
+  flip to PR #300 (commit `40dc5ad8`) performing a main-into-dev merge, when
+  PR #300 is actually a dev-into-main promotion (opposite direction) and the
+  real carrier was PR #310 (`release/0.1.1-publication`, merged
+  2026-08-04T21:44:25Z, merge commit `6bb4f9d9`), which brought main's history
+  (and the v0.1.0 tag commit) into dev via a release branch. The reviewer also
+  caught a related overreach: the draft implied dev now merges main back into
+  itself as an ongoing pattern, when main and dev remain diverged today
+  (`compare/main...dev`: ahead 2, behind 4) — a one-time carry, not a standing
+  merge-back. A second, non-blocking finding (two undated "29 commits" rows
+  reading as current next to the new 103-commit figures) was folded into the
+  same fix pass. The fix pass corrected the causal attribution and added the
+  dated scoping parenthetical; the reviewer's second pass independently
+  re-derived the full PR #300/#310 chain against the GitHub API (not trusting
+  either transcript) and reached `approve`.
+
+  This is the same defect class QCLI-23 itself was chartered to remove
+  (a quoted-fact row going stale/wrong), recurring one level up in the fix —
+  worth carrying forward as a general caution: correcting a stale claim is
+  itself a claim, and needs the same live-evidence standard as the original.
+
+  No merge-time conflicts (wave base `dff6283` was still current `dev` HEAD at
+  merge time — no rebase needed, single-task wave). Wave-level integration
+  review folded into the task's own two-pass review (a 1-task wave has no
+  cross-task combination risk beyond what per-task review already covers);
+  re-confirmed `lore check` / `lore orphans` clean on `dev` post-merge as the
+  integration check.
+
+  Orchestrator process defect recurred once more, same class as wave 2's:
+  the dispatch-marking (`In Progress` + `wave-3` label) and `in-review` label
+  were again run from the main checkout instead of inside the worktree, and
+  were again never committed — caught at the same point (post-merge
+  `git pull --ff-only` refusing to fast-forward), recovered the same way
+  (`git show origin/dev:<path>` confirmed the worker's own committed state
+  already superseded the stale local edit; discarded with `git restore`).
+  This is now a confirmed recurring failure mode of running `backlog task
+  edit` for dispatch-marking from the wrong directory — worth a durable fix
+  (always `cd` into the worktree, or pass an explicit path if the CLI
+  supports one, before any dispatch-marking `backlog task edit` call) rather
+  than relying on catching it again next time.
+
+  Merged SHA: QCLI-23 `af34f1f` (PR #38, squash). `dev` head after settlement
+  + doc updates: this commit.
+
+**Campaign complete.** All 13 members Done across 3 waves. The entire Backlog
+queue (all tasks in this repository) is now Done — 0 ready, 0 blocked, 0
+proposed follow-ups outstanding. No further wave will be dispatched from this
+campaign. Run `/backlog-handover init` to assemble a fresh queue if new work
+is identified.
