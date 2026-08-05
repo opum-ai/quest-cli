@@ -46,6 +46,7 @@
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 - 2026-08-05T07:08:39-05:00 dde124250d8592970a5e6c0c26316e2e57b02573 docs: sync log.md after the design-layer commit
+- 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
 
 ## docs/adr
 
@@ -122,3 +123,4 @@
 - 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
