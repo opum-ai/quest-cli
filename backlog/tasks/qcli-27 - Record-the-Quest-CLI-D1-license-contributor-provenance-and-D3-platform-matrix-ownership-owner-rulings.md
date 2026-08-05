@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:56'
+updated_date: '2026-08-05 23:05'
 labels:
   - campaign
   - decisions
@@ -57,4 +57,6 @@ Content covers: D1 license=MIT, contributor provenance=informal/none for now (AC
 Verification (AC5): ran 'lore validate --strict' — result: '44 files, 0 errors, 0 warnings, 6 skipped' (includes the new file, exit 0). Also ran 'lore sync' (regenerated docs/log.md, docs/reference/index.md, and the Story's managed task block/status; committed the task's own status-change file under backlog/ per lore's catch-all sweep) and 'lore check --json' — result: '{"findings":[],"errorCount":0,"warningCount":0,"fileCount":44,"complete":true}'.
 
 Out-of-scope discovery (not acted on): 'lore sync' backfilled two missing docs/log.md entries (commits cca60a8, ef15e16) that predate this task and were apparently never logged by whichever commit landed them — harmless, expected reconciliation behavior of 'lore sync', not something this task caused or needed to investigate further. No other out-of-scope issues found.
+
+Fix pass (reviewer request_changes, scope): the branch's earlier 'lore sync' run touched shared managed files (docs/log.md, docs/reference/index.md, and the ratify-Phase-1-decisions Story's managed table) that sibling wave-1 branches QCLI-24 and QCLI-26 also independently touch from their own partial single-task view. Reverted those three files to dev's copies (commit fc83a68) so this branch's diff is scoped to LICENSE, the task file, and the new reference doc docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md only. The claim above that this task ran a full 'lore sync' and committed its index/log/Story-table output as part of this branch no longer holds — that reconciliation is deferred to a single central 'lore sync' pass run once, after all four wave-1 branches (QCLI-24/25/26/27) have merged. Re-ran file-scoped 'lore validate --strict docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md' post-revert: 1 file, 0 errors, 0 warnings, 0 skipped. Did not re-run 'lore check' or 'lore sync' per fix instructions — post-revert drift between the Story's managed table/status and the live task status is expected and intentionally left for the deferred central sync.
 <!-- SECTION:NOTES:END -->
