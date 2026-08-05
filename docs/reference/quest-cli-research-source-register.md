@@ -1027,7 +1027,33 @@ named slice, never to every file in its repository.
   members are now self-pinned (this register, the migration ledger, and
   `QCLI-2.8`'s document), eleven are commit-pinned, and eight distinct SHAs
   remain in use (`8935551` now pins `QCLI-2.10` alone). No Classification
-  field changed and no permitted use was narrowed.
+  field changed and no permitted use was narrowed. **Corrected 2026-08-05 by
+  `QCLI-9`:** `QCLI-8` merged a change to `QCLI-2.10`'s [Backlog adoption and
+  migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md)
+  for reasons unrelated to this register — reconciling a stale `QCLI-2.5`
+  enumeration caveat — which the two paragraphs above did not anticipate: the
+  playbook's true current last-touch commit is `1a61989` (2026-08-04
+  23:46:00 -0500, `QCLI-8`'s own squash-merge, PR #23), not the `8935551`
+  `QCLI-6` originally set and `QCLI-7` left unaffected above. This task does
+  not co-edit the playbook itself in this same pass — only this register —
+  so per the same self-pin-only-if-co-edited distinction the migration
+  ledger's, this register's, and `QCLI-2.8`'s document's own self-pin bullets
+  above already establish, the corrected pin is an exact-commit SHA pin, not
+  a self-pin. `QCLI-2.10`'s playbook is therefore repinned from `8935551` to
+  `1a61989`, verified with the same method used throughout this slice: `git
+  log --format='%h %cI' -1 -- <path>` against the playbook's own path,
+  cross-checked against `git show -s --format=%cI 1a61989` (date) and `git
+  show --stat 1a61989` (confirms the commit touches the named path). This
+  updates the running counts: self-pinned members remain three (this
+  register, the migration ledger, and `QCLI-2.8`'s document, none touched by
+  this task), commit-pinned members remain eleven (`QCLI-2.10`'s playbook
+  stays commit-pinned, only its SHA changes), and distinct SHAs remain eight
+  in count — but the set itself changes: `8935551`, which `QCLI-7`'s pass
+  above already reduced to pinning `QCLI-2.10` alone, now drops out of use
+  entirely, and `1a61989` — `QCLI-8`'s own merge commit, not shared with any
+  other still-current pin in this slice — takes its place as the eighth
+  distinct SHA. No Classification field changed and no permitted use was
+  narrowed.
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
   documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
