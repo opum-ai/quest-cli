@@ -69,6 +69,7 @@
 - 2026-08-05T11:24:55-05:00 f528d939fc6820985e8468e7e9211e78969a4cc6 chore: regenerate log.md to fix dangling pre-squash SHAs from QCLI-22
 - 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
+- 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
 
 ## docs/adr
 
@@ -118,6 +119,7 @@
 - 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
 - 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
 - 2026-08-05T11:34:44-05:00 ed14115a4c4ea20e7c370469c1572f4f9fba700d chore: fix narrow findings from the wave-2 integration review (#37)
+- 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
 
 ## docs/runbooks
 
@@ -176,3 +178,4 @@
 - 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
 - 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
+- 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
