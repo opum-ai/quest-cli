@@ -3,11 +3,11 @@ id: QCLI-24
 title: >-
   Author an ADR for the Quest CLI result contract: envelope shape, exit codes,
   not-found convention, and anomaly placement
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 23:04'
+updated_date: '2026-08-05 23:10'
 labels:
   - campaign
   - decisions
@@ -16,6 +16,7 @@ labels:
   - cli-contract
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
   - 'cluster:cli-contract'
+  - wave-1
 dependencies: []
 documentation:
   - >-
@@ -33,13 +34,13 @@ QCLI-18 proposed the CLI result contract (envelope shape, exit-code table, Quest
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An accepted ADR records: schemaVersion as the string "1"; two separate fields kind and outcome (not QCLI-18's recommended fused <command>_<outcome-class> form) — the deviation from the recommendation and the reason for it (Kubernetes/Stripe split-field alignment) are stated explicitly, not silently substituted
-- [ ] #2 The ADR records payload keys result / decline / error, and the exit-code table 0 (success), 1 (decline/conflict), 2 (error), 3 (anomaly, conditional), 64 (usage error)
-- [ ] #3 The ADR records the not-found convention as a JSON-first decline envelope with a structured reason discriminant, Quest's own side only, and explicitly states the lore-doc boundary half (whether a future Lore adapter accepts or requires the bare exit-code-and-empty-stdout pattern) remains open and unresolved by this ADR
-- [ ] #4 The ADR records anomaly as a distinguishable fourth outcome value with its own exit code, and explicitly states that fully canonizing 'anomaly' as a product-wide outcome-vocabulary term remains a separate, already-routed quest-doc proposal not settled here
-- [ ] #5 The ADR records that create and edit commands emit the JSON envelope uniformly with every other command
-- [ ] #6 The ADR names QCLI-18's proposal and the owning Story as the ruling's provenance
-- [ ] #7 lore validate --strict passes on the new ADR file
+- [x] #1 An accepted ADR records: schemaVersion as the string "1"; two separate fields kind and outcome (not QCLI-18's recommended fused <command>_<outcome-class> form) — the deviation from the recommendation and the reason for it (Kubernetes/Stripe split-field alignment) are stated explicitly, not silently substituted
+- [x] #2 The ADR records payload keys result / decline / error, and the exit-code table 0 (success), 1 (decline/conflict), 2 (error), 3 (anomaly, conditional), 64 (usage error)
+- [x] #3 The ADR records the not-found convention as a JSON-first decline envelope with a structured reason discriminant, Quest's own side only, and explicitly states the lore-doc boundary half (whether a future Lore adapter accepts or requires the bare exit-code-and-empty-stdout pattern) remains open and unresolved by this ADR
+- [x] #4 The ADR records anomaly as a distinguishable fourth outcome value with its own exit code, and explicitly states that fully canonizing 'anomaly' as a product-wide outcome-vocabulary term remains a separate, already-routed quest-doc proposal not settled here
+- [x] #5 The ADR records that create and edit commands emit the JSON envelope uniformly with every other command
+- [x] #6 The ADR names QCLI-18's proposal and the owning Story as the ruling's provenance
+- [x] #7 lore validate --strict passes on the new ADR file
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -99,4 +100,12 @@ The paragraph above stating "lore sync updated docs/adr/index.md, docs/log.md, a
 Per the reviewer's fix instructions, those three shared files (docs/adr/index.md, docs/log.md, docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md) were reverted to their dev-branch state on this branch. This task's diff against dev is now scoped to exactly two files: the backlog task file and the new ADR (docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md), verified via `git diff dev...HEAD --name-only`.
 
 `lore validate --strict` was re-run scoped to just the ADR file and passed clean ("ok"; 1 file, 0 errors, 0 warnings, 0 skipped). `lore sync`/`lore check` were deliberately NOT re-run on this branch after the revert — running them would just re-dirty the reverted files and re-race the same sibling-branch conflict. The full reconciliation (index, log.md, and the Story's managed table reflecting all four wave-1 ADRs) is deferred to a single post-merge `lore sync`, done once centrally after QCLI-24, QCLI-25, QCLI-26, and QCLI-27 all merge to dev.
+
+Settlement: reviewer independently re-verified all 7 ACs against the ADR file content (docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) and re-ran 'lore validate --strict', confirming 0 errors/0 warnings. One request_changes round was needed for shared-managed-file scope creep (docs/adr/index.md, docs/log.md, the Story's managed task table were reverted to dev's version; full lore sync reconciliation deferred to a single pass after all four wave-1 ADRs merge). Merged via PR #39, squash commit e5c790b on dev.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authored and merged an accepted ADR (docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) recording the owner's 2026-08-05 live-session ruling on the Quest CLI result contract: schemaVersion "1"; separate kind/outcome fields (explicit deviation from QCLI-18's fused-form recommendation, reasoned via Kubernetes/Stripe split-field alignment); result/decline/error/anomaly payload keys with exit codes 0/1/2/3/64; not-found as a JSON-first decline envelope with a structured reason discriminant (Quest-side only, lore-doc boundary explicitly left open); anomaly as a distinguishable 4th outcome (product-wide vocabulary canonization explicitly left to the separate quest-doc proposal); create/edit JSON-envelope uniformity. Names QCLI-18's proposal and the owning Story as provenance. Verified via lore validate --strict (0 errors/0 warnings) and independent reviewer re-verification of all 7 ACs. Merged PR #39 (e5c790b).
+<!-- SECTION:FINAL_SUMMARY:END -->
