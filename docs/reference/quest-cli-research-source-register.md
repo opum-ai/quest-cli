@@ -886,7 +886,12 @@ named slice, never to every file in its repository.
   package name occupancy" slice's own `@opum-ai/quest-cli` addition and its
   widened permitted-use example both cite the packaging contract by name
   (above) — without ever itself being named as a member of this
-  enumeration.
+  enumeration. **Considered and ruled out of scope 2026-08-04 by `QCLI-7`:**
+  the campaign [Story](../stories/prepare-quests-clean-room-research-foundation.md),
+  cited in `QCLI-2.8`'s own Provenance table as principal grounding and
+  flagged there as a caveat alongside the two `QCLI-2.5`/`QCLI-2.6` gaps
+  `QCLI-6` closed above, is **not** added as a member here — see this
+  slice's Exclusions field, below, for the reasoning.
 - **Exact revision or retrieval date:** **Corrected 2026-08-04 by a third
   `QCLI-2.12` follow-up fix pass, re-deriving every one of the nine
   members' pins from git history directly rather than patching only the
@@ -1002,7 +1007,27 @@ named slice, never to every file in its repository.
   or URL above, is self-referential and cites no external commit: it is
   pinned to its own current state on this branch, as amended live through
   this same edit, read live 2026-08-04 — a commit cannot meaningfully pin a
-  document to a state of itself.**
+  document to a state of itself.** **Changed 2026-08-04 by `QCLI-7`:** this
+  task's own pass co-edits `QCLI-2.8`'s [component contracts and delivery
+  graph](quest-cli-component-contracts-and-delivery-graph.md) in the same
+  commit sequence as this register, to reconcile that document's
+  Provenance-table caveat against this slice's Story determination above
+  (see Exclusions). A commit-pin cannot survive a later commit in the same
+  pass touching the pinned document again — the identical structural
+  condition this bullet already applies to the register's own self-pin and
+  the migration ledger's self-pin, above. `QCLI-2.8`'s document is therefore
+  changed from the commit-pin `QCLI-6` set (`8935551`, previously shared
+  with `QCLI-2.10`) to a self-pin: pinned to its own current state on this
+  branch, as amended live through this same edit or through any later
+  commit in this same pass, read live 2026-08-04. `QCLI-2.10`'s [Backlog
+  adoption and migration
+  playbook](quest-cli-backlog-adoption-and-migration-playbook.md) is
+  untouched by this task and keeps its original `8935551` commit-pin,
+  unaffected. This updates the running counts: three of the fourteen
+  members are now self-pinned (this register, the migration ledger, and
+  `QCLI-2.8`'s document), eleven are commit-pinned, and eight distinct SHAs
+  remain in use (`8935551` now pins `QCLI-2.10` alone). No Classification
+  field changed and no permitted use was narrowed.
 - **Ownership rationale:** current, live `quest-cli` authority; `QCLI-1`
   established the component foundation, `QCLI-3` aligned provenance/
   documentation authority, `QCLI-4` recorded the OCLI-1 supersession,
@@ -1014,7 +1039,65 @@ named slice, never to every file in its repository.
 - **Permitted use:** this revalidation is based on their findings and must
   stay consistent with them; it does not replace them.
 - **Exclusions:** none beyond ordinary Backlog/Lore edit discipline (use the
-  `backlog`/`lore` CLIs, never hand-edit their managed files).
+  `backlog`/`lore` CLIs, never hand-edit their managed files). **Stories are
+  out of scope for this slice's admission authority (added 2026-08-04 by
+  `QCLI-7`).** `QCLI-2.8`'s Provenance table cites the campaign
+  [Story](../stories/prepare-quests-clean-room-research-foundation.md) as
+  principal grounding and flagged, in its own settlement-pass caveat, that
+  the Story was not among this slice's enumerated members — the identical
+  enumeration-gap pattern `QCLI-2.12` and `QCLI-6` each closed elsewhere in
+  this register for other documents. This task considered enumerating the
+  Story the same way and declined to. Reasoning: every member this slice
+  actually enumerates above — the component charter, the migration ledger,
+  the research Spec, the accepted ADR, this register itself, and the nine
+  `QCLI-2.2`–`QCLI-2.10` Reference deliverables — is a Reference-, Spec-, or
+  ADR-type document whose authored content is fixed once its owning task's
+  edits land; that fixedness is the precondition that lets this slice's own
+  Classification vocabulary ("cite the named slice and dated revision,
+  revalidate before use") and its pinning discipline (self-pin or
+  exact-commit SHA, see the bullet above) apply meaningfully at all. A Story
+  is a structurally different lore document type: per `lore instructions
+  linking`, it carries a `tasks:` frontmatter list and a lore-managed Tasks
+  block that `lore sync` mechanically rewrites whenever *any* coupled task's
+  Backlog status changes. The campaign Story coupled sixteen tasks
+  immediately before this task's own pass and its last prior touch
+  (`QCLI-6`'s settlement commit, `d4b7123`) changed only its frontmatter
+  `status` and its managed Tasks table row, no authored prose; this task's
+  own pass then coupled it to a seventeenth (`QCLI-7` itself, linked via
+  `lore link` to close an orphan-task finding this pass's own `lore orphans`
+  gate check surfaced) and ran `lore sync` again to reconcile status and the
+  managed block a further time — an empirical demonstration, live, within
+  this very pass, of the instability this reasoning describes: the Story
+  changed twice more purely from ordinary campaign/tooling mechanics while
+  this exact determination was being written, without one word of its own
+  authored Goal/Acceptance-criteria prose changing. No exact-revision pin
+  taken against a Story can outlive the next unrelated coupled task's status
+  change, which is a routine event for the life of the whole campaign, not a
+  co-editing
+  accident a single task's own pass could avoid — a strictly worse
+  instability than the same-pass co-editing hazard the self-pin/SHA-pin rule
+  (`QCLI-2.12`, PR #17) already exists to solve, and one that self-pinning
+  does not fix either, since a self-pin only protects against edits made by
+  *this task's own* passes, not every later task's routine `lore sync`.
+  Independently sufficient on its own: what `QCLI-2.8` actually draws from
+  the Story — "the campaign's own acceptance criteria this document's
+  structure answers to" (`QCLI-2.8`'s own Provenance table) — is the
+  campaign's own directing charter, not a finding later research must "stay
+  consistent with" the way this slice's Permitted use field frames its
+  actual members' role above; that is the same non-evidentiary, structural
+  citation relationship this register's own Provenance-table pattern already
+  extends, without slice admission, to a citing document's own Backlog task
+  record or to the research Spec's Dependency order table (see, for example,
+  the "Prior QCLI research records" Provenance-table rows this and other
+  documents already cite that way). `QCLI-2.8`'s citation of the Story
+  therefore needs no entry here to remain sound; it was never the kind of
+  citation this slice's admission authority governs. This determination is
+  scoped to the Story as currently used — its Goal/Acceptance-criteria
+  prose, cited as directing charter, not its managed Tasks block; a future
+  citation of specific evidentiary fact recorded in a Story's authored prose
+  (as opposed to citing the Story as the campaign's directing charter) would
+  be a different use and a new admission question for this register's owner
+  to take up on its own terms, not one this determination forecloses.
 - **Reclassification triggers:** any future supersession recorded against
   these records.
 
