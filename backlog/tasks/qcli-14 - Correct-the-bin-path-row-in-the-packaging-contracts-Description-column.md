@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:52'
+updated_date: '2026-08-05 13:02'
 labels:
   - campaign
   - 'cluster:packaging'
@@ -63,4 +63,8 @@ Gate evidence (run from worktree root after the edit and after lore sync reconci
 - lore validate --strict -> 38 files, 0 errors, 0 warnings, 6 skipped (exit 0)
 - lore check -> 38 files, 0 errors, 0 warnings (exit 0)
 - lore orphans -> 0 orphan tasks, 0 dangling links (exit 0)
+
+Reviewer fix pass (2026-08-05): corrected two prose issues in the QCLI-14 correction note (packaging contract, Dated registry evidence table) -- (1) the note's 'below' pointer to the 2026-08-04 sweep declaration was backwards, since that declaration sits above both the table and the note (line 49); changed to 'above'. (2) the note's claim that the bin path was 'the only populated cell in that column that was not a published package description string, where every other populated row's Description cell carries one' was false -- the quest-cli row's Description cell reads '(none published)', which is populated and also not a description string; reworded to name quest's published string, quest-cli's none-published record, and the remaining uncaptured (-) cells explicitly, without changing any dated observation.
+
+Follow-up (not actioned here, per MANDATORY constraint against touching dated observation text): the new Bin column introduced by this task's fix makes visible that the AC2 inspected-field enumeration elsewhere in this same document (around lines 183-186, and the permitted-use tie-in around lines 198-202) lists only version, repository, license, description, maintainers, and time as the fields npm view captured -- it omits bin, even though a bin value (bin lore -> bin/lore.cjs) was read from the same npm view sweep and was already present in the table before this task moved it. This is pre-existing and latent, not introduced by this task's relocation. Both enumeration passages are dated 2026-08-04 records tied to QCLI-2.7's permitted-use widening and fall under this repo's supersession convention (record what was decided, not amend to match current fact), so this task did not edit them -- flagging for a later task to decide whether the enumeration needs a dated widening to include bin, the same pattern QCLI-2.7 itself used.
 <!-- SECTION:NOTES:END -->
