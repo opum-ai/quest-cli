@@ -60,3 +60,17 @@ Documentation only. Do not reclassify any source, and do not narrow any permitte
 6. Re-read the edited playbook sections directly against AC1-3 to self-verify (no original text deleted, dated note present, slice Classification/one-to-one count untouched since register not edited, no permitted-use narrowed).
 7. Record notes via --append-notes, commit in small logical commits with Refs: QCLI-8 trailers, push branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented. Two edits to docs/reference/quest-cli-backlog-adoption-and-migration-playbook.md, both preserving original text and appending a dated '**Resolved 2026-08-04.**' note (same pattern QCLI-7 used for QCLI-2.8's caveat):
+1. Sources table Register-classification cell for the QCLI-2.5 row (~line 426): original 'not yet an enumerated member ... slice' sentence kept verbatim, with an appended note stating QCLI-6 enumerated the contract (Allowed — 'Prior QCLI research records', SHA-pinned 418c5eb) and the slice now lists fourteen members, pointing to the caveat's own resolution note below.
+2. Narrative caveat paragraph (~lines 431-458): original caveat text kept verbatim; a new 'Resolved 2026-08-04.' paragraph appended directly after it citing QCLI-6, the 418c5eb pin, the new fourteen-member count, and noting the table cell's own appended note carries the same correction there.
+
+No register or other document edits (out of scope, and register already authoritative since QCLI-6).
+
+Verification: found 2 pre-existing lore check --strict errors (status-drift + managed-block-drift on docs/stories/prepare-quests-clean-room-research-foundation.md) and 1 pre-existing lore orphans hit (QCLI-8 itself, unlinked to the campaign Story) — none caused by my playbook edits; they predated this task (QCLI-7's Done status was never synced into the Story's managed block, and QCLI-8 was created without a lore link). Resolved both via the standard lore workflow: 'lore link stories/prepare-quests-clean-room-research-foundation QCLI-8' (couples the task, auto-committed backlog/tasks/qcli-8*.md) then 'lore sync' (regenerated the Story's managed tasks block and docs/log.md, also fixing QCLI-7's stale In-Progress row and its missing log entries). All three gates now report zero errors/warnings/orphans: 'lore check --strict' -> 25 files, 0 errors, 0 warnings; 'lore validate --strict' -> 25 files, 0 errors, 0 warnings, 6 skipped; 'lore orphans' -> 0 orphan tasks, 0 dangling links.
+
+Commits: 5efeb9d (playbook reconciliation), 452dc33 (lore sync managed-block/log reconciliation), plus the lore-link auto-commit d6069e6 (chore(backlog): add doc back-references (lore link)) which precedes both and does not itself carry a Refs trailer per repo convention for tool-generated commits.
+<!-- SECTION:NOTES:END -->
