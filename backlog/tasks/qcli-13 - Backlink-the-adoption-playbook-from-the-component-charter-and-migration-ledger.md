@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:51'
+updated_date: '2026-08-05 12:53'
 labels:
   - campaign
   - 'cluster:adoption'
@@ -52,3 +52,24 @@ Known trap: both target files may be pinned by the research source register. Che
 5. Run lore validate --strict, lore check, and lore orphans and capture exact output.
 6. Record notes and evidence via --append-notes; commit docs/ changes with a Refs: QCLI-13 trailer; push the branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented. Added missing inbound links (AC1/AC2):
+- Component charter (docs/reference/quest-cli-component-charter.md), 'Owns here' list: the 'migration, coexistence, aliases, and reversible fidelity reports' bullet now links to the playbook - this is the exact bullet the playbook's own intro (line 74-76) cites as its charter grounding, so this closes that specific citation loop.
+- Migration ledger (docs/reference/former-ocli-to-qcli-migration-ledger.md), 'Source provenance boundary' section: added a sentence noting QCLI-2.10's playbook cites this ledger as read-only background, mirroring the playbook's own Sources table row for the ledger. The OCLI/QCLI mapping table itself is untouched.
+- Playbook's own outbound citations (line 75 to the charter, lines 427-428 to the ledger) verified unchanged (AC3) - confirmed via git diff --stat showing zero changes to the playbook file.
+
+Register pin check (AC4), per this dispatch's MANDATORY instruction NOT to edit docs/reference/quest-cli-research-source-register.md (QCLI-15 is concurrently editing it in this same wave; three other siblings share the identical trap) - register read only, not edited:
+- Component charter IS pinned: register lines 924-929 pin it to an exact commit SHA `942da73` (2026-08-04 07:21:12 -0500, the QCLI-5 org-identity commit, jointly with the accepted ADR). This task's edit to the charter changes its last-amended commit away from `942da73`, so that SHA pin is now stale. FOLLOW-UP NEEDED: the register's component-charter pin bullet (around line 924-929) must be updated - either re-derive and re-pin to this task's new commit SHA, or (more robustly, and consistent with precedent already in the same register passage) convert it to a live/current-state pin the way the register already did for the migration ledger and for itself, since the charter is now also being amended by ongoing follow-through tasks in this wave.
+- Migration ledger is NOT commit-pinned: register lines 918-921 and 930-951 explicitly live-pin the ledger 'to its own current state on this branch' rather than to a SHA, precisely because the register's own text says an exact-SHA pin cannot survive a document that keeps getting co-edited (three prior SHA-pin attempts on this same ledger each went stale). Because the pin type is already 'live/current-state', this task's edit does not break it - no follow-up correction needed for the ledger's pin.
+
+Lore gates (AC5), run from worktree root after lore sync:
+- lore sync: updated docs/log.md and the campaign story's managed task-status block (QCLI-13 -> In Progress), auto-committed backlog/ (1 file, the --plan write) as commit 1c1fa56 - expected per lore sync's own behavior, not an error.
+- lore validate --strict: 38 files, 0 errors, 0 warnings, 6 skipped (index.md/log.md are non-concept files). Exit 0.
+- lore check: 38 files, 0 errors, 0 warnings. Exit 0.
+- lore orphans: 0 orphan tasks, 0 dangling links. Exit 0.
+
+Scope note: only the two target files were edited, plus docs/log.md and the story's managed block as unavoidable lore sync side effects (same class the dispatch pre-authorized), plus the pre-existing backlog/ plan-write auto-commit from lore sync. The register and the playbook were not modified.
+<!-- SECTION:NOTES:END -->
