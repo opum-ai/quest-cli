@@ -1,7 +1,6 @@
 # adr
 
 <!-- lore:index:begin -->
-- [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md)
 - [Bound claims with leases evaluated against the evaluator's own clock](bound-claims-with-leases-evaluated-against-the-evaluator-s-own-clock.md)
 - [Coordinate through Git compare-and-swap without a central arbiter](coordinate-through-git-compare-and-swap-without-a-central-arbiter.md)
 - [Emit three categorical command outcomes over a versioned envelope](emit-three-categorical-command-outcomes-over-a-versioned-envelope.md)
