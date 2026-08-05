@@ -3,9 +3,11 @@ id: QCLI-21
 title: >-
   Reconcile the open component decisions register and contracts graph against
   the QCLI-12..17 corrections
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-05 14:36'
+updated_date: '2026-08-05 15:33'
 labels:
   - campaign
   - 'cluster:tracking-reconciliation'
@@ -52,3 +54,32 @@ Line numbers above are as observed by the wave-1 integration review immediately 
 - [ ] #10 docs/reference/quest-cli-research-source-register.md is not edited by this task
 - [ ] #11 lore validate --strict, lore check, and lore orphans are all clean after the change
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Re-verified all cited line numbers/SHAs on this worktree's dev-based branch: open-component-decisions.md's residual-items table rows sit at exactly the lines the task description cites (204-207 framing, 216/217/218/219/220/221), and all five SHAs (QCLI-12 1dd4aa6, QCLI-13 d871d32, QCLI-14 077d3be, QCLI-15 6b78fd0, QCLI-16 44a7ed8) resolve via git show to the exact commits named. No drift found.
+
+2. docs/reference/quest-cli-open-component-decisions.md edits (AC1-3, AC9):
+   a. Framing paragraph (~204-207): rewrite to state that 6 of the 10 residual items were touched by the QCLI-12..17 wave (4 fully closed: QCLI-2.8 dependency-order/QCLI-12/1dd4aa6, playbook backlink/QCLI-13/d871d32, bin-path/QCLI-14/077d3be, licensing misattribution/QCLI-16+this task; 2 audited-not-closed: QCLI-2.12 F4/F5 and the Allowed-value gap, both QCLI-15/6b78fd0) and 4 remain genuinely unfiled (platform matrix, quest-doc actor model, browser HTTP endpoint, LCLI-316), following this doc's own established correction convention (see QCLI-17's rewrite of the version-pin section: rewrite the stale prose directly, then close with a dated correction note citing what it used to say and why).
+   b. Row for QCLI-2.8 dependency-order fix: mark closed, cite QCLI-12/1dd4aa6, point at the Spec's Dependency-order table (now fixed).
+   c. Row for playbook backlink: mark closed, cite QCLI-13/d871d32, point at component-charter.md:28 and former-ocli-to-qcli-migration-ledger.md:123.
+   d. Row for bin-path: mark closed, cite QCLI-14/077d3be, point at packaging-contract.md's new Bin column (~line 80).
+   e. Row for licensing misattribution: re-scope (not strike) — record QCLI-16/44a7ed8 closed the contracts-graph instance, and that the D1 instance below is closed by this same task (QCLI-21) as part of landing AC4; net result both instances now closed.
+   f. D1 bullet: correct per AC4 — Backlog.md's MIT license is not naming-conflict/allocation evidence (only discussed under "Backlog.md implementation source and internal tests" and "Backlog.md public surface" slices, on authorship-independence/ordinary-user-activity grounds); npm registry metadata attribution stands as originally stated. Inline dated correction citing QCLI-21 (this task; no squash SHA exists yet for a task correcting its own file mid-flight, matching the QCLI-17 precedent of self-citing without a commit hash). Status/owner cells (Open/Product owner) unchanged.
+   g. Row for QCLI-2.12 F4/F5: rewrite Source (cite QCLI-15/6b78fd0 audit), Consequence (state audited finding: substance never recorded anywhere retrievable, confirmed via git log/fsck/gh api pulls/14 reviews+comments), closure condition (recover original reviewer text from an out-of-repo transcript if findable), plus AC6's disambiguation note (QCLI-2.12 notes carry two independent F-schemes; wave-4 integration review's separately-numbered F4, resolved via PR #17/c8dfdca, is a different item).
+   h. Row for untraceable Allowed value: rewrite Source (cite QCLI-15/6b78fd0), Consequence (state audited finding per the register's Traceability audit note), closure condition (explicit owner ruling ratifying self-classification-by-vocabulary).
+   i. Verify (no edit) rows: platform matrix, quest-doc actor model, browser HTTP endpoint, LCLI-316 — cross-checked against current D3/D6 status and no wave task touched them; leave unchanged per AC9.
+
+3. docs/reference/quest-cli-component-contracts-and-delivery-graph.md edits (AC7-8):
+   a. Lines ~128-131: replace the false "names only the six deliverables ... not in the Spec's table" sentence with an inline, dated correction (QCLI-21, following QCLI-12/1dd4aa6) stating the Spec's table now names the full ten-item set directly. Leave the surrounding paragraph and the separate, independently-true "synthesis of six deliverables" statements (lines 19-22, 159) untouched — verified these describe the six *research* deliverables QCLI-2.8 synthesizes, distinct from the ten-item *dependency* list, and remain correct.
+   b. Lines ~574-575 (QCLI-16's licensing correction note): repair the missing preposition ("misattribution `QCLI-2.8` settlement" -> "misattribution in `QCLI-2.8` settlement") without touching substance, dating, or attribution.
+
+4. docs/reference/quest-cli-research-source-register.md: not touched (AC10) — read only, to source the QCLI-15 audit text being cited/paraphrased in open-component-decisions.md.
+
+5. Record in Backlog notes: AC5's out-of-repo-transcript search for QCLI-2.12's F4/F5 (grepped local Claude Code session .jsonl transcripts under ~/.claude/projects/-Volumes-external-repos-quest-cli/ for "F4 and F5", "Review follow-up", "left for the orchestrator" alongside QCLI-15's own git fsck / gh api checks) turned up only the same one-line summary already in the repo -- substance not recoverable. Add a --comment flagging this explicitly per the task's own instruction, rather than inventing text.
+
+6. Run lore validate --strict, lore check, lore orphans; fix anything they flag (e.g. anchor slugs) before considering done.
+
+7. Commit in small logical commits (open-component-decisions.md changes; contracts-and-delivery-graph.md changes; docs/log.md sync via lore sync if needed), each with a "Refs: QCLI-21" trailer, then push the branch.
+<!-- SECTION:PLAN:END -->
