@@ -95,6 +95,32 @@ citations) — the open question is only which register slice should list
 the source document itself as an admissible member, not whether the
 underlying claims are admissible.
 
+**Resolved 2026-08-04.** Two of the three gaps above are closed and the
+third is settled as not a gap, so none is left open. `QCLI-6` added
+`QCLI-2.5`'s Backlog migration fidelity contract and `QCLI-2.6`'s Git,
+filesystem, and concurrency threat model to the register's "Prior QCLI
+research records" slice (that task's own five-member addition also
+enumerated this very document, `QCLI-2.9`'s packaging contract, and
+`QCLI-2.10`'s Backlog adoption and migration playbook). The third — the
+Story — is not closed the same way: `QCLI-7` considered enumerating it and
+instead ruled Stories, as a document type, out of scope for that slice's
+admission authority, recording the reasoning in the slice's own Exclusions
+field (the operative distinction: every actual member of that slice is a
+Reference/Spec/ADR-type document with authored content that settles once
+its owning task's edits land, while a Story carries a lore-managed `tasks:`
+block that `lore sync` rewrites on every coupled task's status change,
+independent of this document's or any other citing document's own edits;
+separately, what this document draws from the Story is its directing
+Goal/Acceptance-criteria charter, not an evidentiary finding the way this
+slice's other members function). That determination means the Story's
+citation in the Provenance table above was never the kind of citation the
+"Prior QCLI research records" slice's admission authority governs, so no
+enumeration is owed for it — this is not an outstanding gap carried
+forward to a later task. Nothing in this document's own findings changes as
+a result: as already stated above, none of the three source documents'
+*admissibility* was ever in question, only which register slice (if any)
+should separately list them.
+
 `QCLI-2.11`, `QCLI-2.12`, `QCLI-2.13`, and `QCLI-2.14` produced no
 deliverable of their own to cite separately — each is a correction pass
 against the register, the migration ledger, the research program Spec, and

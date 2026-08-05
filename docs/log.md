@@ -40,6 +40,7 @@
 - 2026-08-04T18:55:47-05:00 39dc0eab714d32a04e7d5c9c3f662fc329934abc docs: sync managed blocks after wave-5 settlement
 - 2026-08-04T18:57:15-05:00 86d88d6529df0a085f255157890a6759f1a495a1 docs: sync managed blocks after QCLI-2 parent-epic settlement
 - 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
+- 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
 
 ## docs/adr
 
@@ -71,6 +72,7 @@
 - 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
 - 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
 - 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
+- 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
 
 ## docs/runbooks
 
@@ -104,3 +106,4 @@
 - 2026-08-04T18:55:47-05:00 39dc0eab714d32a04e7d5c9c3f662fc329934abc docs: sync managed blocks after wave-5 settlement
 - 2026-08-04T18:57:15-05:00 86d88d6529df0a085f255157890a6759f1a495a1 docs: sync managed blocks after QCLI-2 parent-epic settlement
 - 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
+- 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
