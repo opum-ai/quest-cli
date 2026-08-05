@@ -1106,9 +1106,13 @@ named slice, never to every file in its repository.
   follow-through-wave work; this task considered that and declined it for
   the same reason — the register's sole standing self-pin-eligibility test
   is co-editing within this task's own pass, not amendment frequency by
-  other tasks, and the charter is not co-edited here. **Flagged for
-  reviewer confirmation** — this is a judgment call, not a mechanical
-  application of the existing rule.)
+  other tasks, and the charter is not co-edited here. **Confirmed on review
+  2026-08-05:** this follows `QCLI-9`'s own precedent above directly — a
+  member invalidated by another task's merge and not co-edited by the
+  correcting pass is repinned by exact-commit SHA — and the register's own
+  reasoning under Exclusions (a self-pin protects only against edits made by
+  this task's own passes, not later tasks') is why a self-pin would not have
+  made the charter's pin more durable.)
 
   This updates the running counts: self-pinned members remain three (this
   register, the migration ledger, and `QCLI-2.8`'s document — this task's
@@ -1345,9 +1349,9 @@ audit's own stated conclusion in the two paragraphs below; it changes no
 finding's substance, closes no finding that was not already closed, and
 reclassifies no source.
 
-Finding A (traceability): confirmed and recorded in place, above; the gap
-itself remains open pending the explicit owner ruling that paragraph
-describes.
+Finding A (traceability): confirmed and recorded in place, above; **added
+2026-08-05 by `QCLI-22`:** the gap itself remains open pending the explicit
+owner ruling that paragraph describes.
 
 Finding B (`QCLI-2.12`'s "F4/F5 ... left for the orchestrator to track"):
 `QCLI-2.12`'s task notes carry two distinct, differently-scoped F-numbered
