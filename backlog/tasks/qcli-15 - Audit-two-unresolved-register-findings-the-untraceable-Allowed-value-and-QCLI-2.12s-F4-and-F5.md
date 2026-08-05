@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:55'
+updated_date: '2026-08-05 12:59'
 labels:
   - campaign
   - 'cluster:provenance'
@@ -60,3 +60,21 @@ Do not reclassify any source. This task closes a traceability gap and an audit g
 8. Record decisions + gate evidence via --append-notes; commit docs/ changes (and docs/log.md if lore sync touches it) with Refs: QCLI-15 trailers; push branch.
 9. Report out-of-scope observation: docs/reference/quest-cli-open-component-decisions.md's two rows for these exact findings are now stale (should say 'filed as QCLI-15' / 'resolved') but that file is out of my scope per the task brief.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Both residual findings audited against docs/reference/quest-cli-research-source-register.md; no source reclassified (verified: Classification-field count 19 before and after, byte-identical lines aside from line-number shift from inserted prose).
+
+Finding A (Allowed traceability, AC1): checked whether QCLI-1/QCLI-3/QCLI-4's own task notes (grep for allow/admiss/classif) establish the Prior QCLI research records slice's Allowed value - they do not; none discuss the register's Classification vocabulary because the register (and that vocabulary's application here) postdates all three, first authored by QCLI-2.1 itself. Confirmed the finding is real, not stale. Recorded in place in the slice's Ownership rationale field: the Allowed value traces to that field's own reasoning applied against the vocabulary's Allowed definition (authored requirement/decision material, not third-party or legacy), not to an admission inside the cited notes: and recorded what would close the gap fully - an explicit owner ruling ratifying self-classification-by-vocabulary, the same instrument already used for the lore-cli split rule and the Backlog.md authorship-independence ruling. Also recorded (per AC4) that two sibling findings from the same QCLI-2.1 settlement paragraph were closed by QCLI-2.7 (release-gate-evidence classification gap; Backlog-corpus closed-list-to-catch-all gap) - confirmed via QCLI-2.7's own task notes line 77.
+
+Finding B (QCLI-2.12 F4/F5, AC2): disambiguated the two F-numbering schemes by reading QCLI-2.12's task file directly. Scheme 1 = the pre-merge Review follow-up (2026-08-04) pass (F1 blocking/AC7 fixed 77b01f2, F2 blocking/AC6 fixed d6a67e5, F3 non-blocking fixed da9c529, F4/F5 non-blocking explicitly not touched) - this is the literal source of the quoted out-of-scope sentence. Scheme 2 = the wave-4 integration review's separately-restarted F1-F6 numbering (backlog/docs/campaigns/doc-1, Wave 4 section); its F2/F3/F4 are a different, later, already-closed matter, resolved 2026-08-04 via the owner's Option A self-pin, merged PR #17 squash c8dfdca - confirmed closed, not what the note means.
+
+Searched exhaustively for scheme-1 F4/F5's actual content before concluding it is unrecoverable: QCLI-2.12's own task notes and comments, backlog/docs/campaigns/doc-1 and doc-3, archive/handovers/*.md (all 6), docs/reference/quest-cli-open-component-decisions.md (corroborates the gap's existence, adds no content), git fsck --unreachable for dangling objects from the pre-squash branch (found and read F1/F2/F3's individual commits by SHA - 77b01f2, d6a67e5, da9c529 - no F4/F5 commits exist because none was made), and GitHub PR #14 via gh api repos/opum-ai/quest-cli/pulls/14/reviews and /comments and /issues/14/comments (all empty - this project's review passes are narrated only in Backlog task notes, never posted to GitHub). Conclusion: F4 and F5's substance was never captured anywhere retrievable in this repository; only the one-line summary in QCLI-2.12's notes survives. Recorded in the register's Notes section as open, with the absence-of-content itself as the evidence, and what would close it (recovering the original reviewer output if a transcript still exists elsewhere, then filing it as a normal finding) rather than inferring content.
+
+Gate output (re-run after lore sync reconciled an unrelated in-progress status-drift on the campaign Story): lore validate --strict --plain -> 38 files, 0 errors, 0 warnings, 6 skipped, exit 0. lore check --strict --plain -> 38 files, 0 errors, 0 warnings, exit 0. lore orphans --plain -> 0 orphan tasks, 0 dangling links, exit 0.
+
+Out-of-scope observation (not acted on, per task scope boundary): docs/reference/quest-cli-open-component-decisions.md still lists both findings in its 'Residual items recorded but never filed' table as if unfiled; both are now filed and audited by this task, so those two rows are stale. That file's target ownership sits with a different task per this wave's shared-file rule, not this one.
+
+Commits: 449fa4a (Refs: QCLI-15, docs/register + docs/log.md + Story managed-block sync); 9433acb (chore(backlog): sync task changes, auto-committed by lore sync when the in-progress status/plan were recorded).
+<!-- SECTION:NOTES:END -->
