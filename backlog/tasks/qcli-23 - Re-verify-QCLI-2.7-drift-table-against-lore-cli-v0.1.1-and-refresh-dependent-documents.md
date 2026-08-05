@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-05 17:37'
-updated_date: '2026-08-05 17:37'
+updated_date: '2026-08-05 17:38'
 labels:
   - campaign
   - research
@@ -15,6 +15,7 @@ labels:
   - correction
   - no-implementation
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
+  - 'cluster:provenance'
 dependencies: []
 documentation:
   - docs/stories/prepare-quests-clean-room-research-foundation.md
