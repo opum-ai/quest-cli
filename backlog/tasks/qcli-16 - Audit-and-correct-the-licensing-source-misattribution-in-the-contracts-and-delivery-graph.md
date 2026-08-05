@@ -3,11 +3,11 @@ id: QCLI-16
 title: >-
   Audit and correct the licensing-source misattribution in the contracts and
   delivery graph
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 13:05'
+updated_date: '2026-08-05 13:50'
 labels:
   - campaign
   - 'cluster:synthesis'
@@ -16,7 +16,6 @@ labels:
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
   - wave-1
-  - merge-pending
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
@@ -37,11 +36,11 @@ The conclusion - that product licensing is open and owner-held - is not in quest
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The attribution in question is identified precisely, quoting the document and the register slice that governs it
-- [ ] #2 Any attribution the register does not support is corrected inline and dated, citing this task
-- [ ] #3 The licensing decision status remains open and owner-held, unchanged by this task
-- [ ] #4 If the audit finds the attribution is in fact correct, that finding is recorded with evidence rather than treated as no work
-- [ ] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
+- [x] #1 The attribution in question is identified precisely, quoting the document and the register slice that governs it
+- [x] #2 Any attribution the register does not support is corrected inline and dated, citing this task
+- [x] #3 The licensing decision status remains open and owner-held, unchanged by this task
+- [x] #4 If the audit finds the attribution is in fact correct, that finding is recorded with evidence rather than treated as no work
+- [x] #5 Strict Lore gates pass: lore validate --strict, lore check, and lore orphans all report zero
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -74,4 +73,12 @@ Fix-pass finding 1 (notes-only, no doc edit — file is out of this task's scope
 Fix-pass finding 2 (notes-only, no doc edit): a findings-table row in the same file is now stale. docs/reference/quest-cli-open-component-decisions.md:219, in the 'Residual items recorded but never filed' table, reads: "A licensing-source misattribution in QCLI-2.8, not affecting its conclusion | QCLI-2.8 settlement | Minor citation defect". This row IS the item QCLI-16 has now audited, corrected, and filed/closed. After this branch merges, the table will still read as if the item is open and unfiled, which is now stale. Needs a future pass to update or remove the row — left unedited here per this task's file-scope constraint.
 
 Fix-pass finding 3: replaces the prior bare 'register is correct, no correction needed' assertion with actual evidence, verified by reading docs/reference/quest-cli-research-source-register.md directly. The register does not need a pin correction because docs/reference/quest-cli-component-contracts-and-delivery-graph.md (QCLI-2.8's document) is SELF-PINNED, not SHA-pinned, as of QCLI-7's 2026-08-04 amendment: 'QCLI-2.8's document is therefore changed from the commit-pin QCLI-6 set (8935551, previously shared with QCLI-2.10) to a self-pin: pinned to its own current state on this branch, as amended live through this same edit or through any later commit in this same pass, read live 2026-08-04.' The register's running count confirms this and has been reaffirmed since without change: 'self-pinned members remain three (this register, the migration ledger, and QCLI-2.8's document, none touched by this task)'. Because the document is pinned to its own current state rather than to a fixed commit like 8935551, this task's inline correction to that document does not break or stale any register pin — there is nothing to re-verify. Register-owner judgment call flagged, not decided here: the self-pin carries a 'read live 2026-08-04' retrieval stamp, and the document is now amended 2026-08-05 by this task; whether that stamp needs refreshing is the register owner's call, not this task's.
+
+Verified by independent reviewer (2 rounds): AC1 confirmed — reviewer independently read both cited register slices and confirmed neither mentions Backlog.md, and confirmed Backlog.md's MIT license appears only under two other slices with unrelated framing (authorship-independence, ordinary-user-activity). AC2 confirmed — correction is inline/dated/cited. AC3 confirmed — 'open, owner-held' status byte-identical before/after. AC4 confirmed — npm-metadata half of the attribution independently verified as correctly supported. AC5 confirmed: lore validate --strict 38/0/0/6 skipped; lore check 38/0/0; lore orphans 0/0 (re-run after rebase, still green). Reviewer required three notes-only additions (all applied): the same misattribution survives unrecorded in open-component-decisions.md D1 (owned by QCLI-17 this wave, different section, needs its own routing — reviewer's post-merge recommendation: file this as a real follow-up task, not leave it notes-only); a stale findings-table row in the same file; and register self-pin evidence (QCLI-2.8's document is self-pinned per QCLI-7's amendment, not SHA-pinned, so no pin breaks on this merge) replacing a bare assertion. Merged to dev via PR #29, squash commit 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Audited the licensing entry's attribution under 'Unresolved component decisions' in the component contracts and delivery graph. Found a mixed result: Backlog.md's MIT license was misattributed to two register slices (npm package name occupancy, lore-cli/the lore command) that never mention Backlog.md — corrected inline, dated, citing QCLI-16. The npm registry metadata attribution to those same slices was verified accurate and recorded with evidence rather than passed over. The 'open, owner-held' licensing decision status is unchanged. Reviewer independently re-derived both halves of the finding by reading the register directly. All 5 ACs confirmed across two review rounds; second round was notes-only (recording that the same misattribution survives in a sibling-owned document, a stale findings-table row, and register self-pin evidence). Merged to dev via PR #29 (squash 44a7ed8).
+<!-- SECTION:FINAL_SUMMARY:END -->
