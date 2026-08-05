@@ -50,6 +50,7 @@
 - 2026-08-05T07:37:13-05:00 ffe8487442e3c168c448e5200bd362c5285f6d1f docs: sync log.md after campaign init
 - 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
 - 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
+- 2026-08-05T08:38:00-05:00 121f0e594d5de6b7592706afcb3cc6e47435a219 docs: sync log.md and story managed block after wave-1 merges
 
 ## docs/adr
 
@@ -88,6 +89,8 @@
 - 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 - 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
+- 2026-08-05T08:40:14-05:00 0380d70feb4c92979498750dfcce60ba644b81dc docs(packaging-contract): fix reviewer-flagged prose issues in bin-path note
+- 2026-08-05T08:40:14-05:00 1dcd84fc56ad30582b6c07e7ffaebade790e5013 docs(packaging-contract): relocate bin path out of Description column
 
 ## docs/runbooks
 
@@ -131,3 +134,4 @@
 - 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
 - 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
 - 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
+- 2026-08-05T08:38:00-05:00 121f0e594d5de6b7592706afcb3cc6e47435a219 docs: sync log.md and story managed block after wave-1 merges
