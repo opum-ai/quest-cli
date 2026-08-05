@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:52'
+updated_date: '2026-08-05 22:56'
 labels:
   - campaign
   - decisions
@@ -63,3 +63,32 @@ QCLI-18 proposed the CLI result contract (envelope shape, exit-code table, Quest
 9. Record notes on the interpretation call for AC1's Kubernetes/Stripe justification (brief, factual: split status/type-like dual fields is a documented pattern in both APIs) since the task said not to hunt for more source material.
 10. Commit (small logical commits, `Refs: QCLI-24` trailer) and push the branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented via `lore new adr "Ratify the Quest CLI result contract: envelope, exit codes, not-found, and anomaly" --tags quest,cli,json,exit-codes,not-found,anomaly,phase-1,cli-contract --summary "..."`, then authored Status/Context/Decision/Consequences prose (no manual frontmatter editing) at docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md.
+
+Content maps to ACs:
+- AC1: schemaVersion is the literal string "1" (QCLI-18 Option C, accepted as proposed). kind/outcome recorded as two separate fields, explicitly deviating from QCLI-18's fused `<command>_<outcome-class>` recommendation, with the Kubernetes/Stripe split-field alignment stated as the reason.
+- AC2: payload keys result/decline/error, plus a fourth `anomaly` key; exit-code table 0/1/2/3(now live)/64 with meanings, matching QCLI-18's Option A table exactly.
+- AC3: not-found recorded as a JSON-first decline envelope with a structured `reason` discriminant, explicitly scoped "Quest's own side only"; the lore-doc boundary half (bare exit-code-and-empty-stdout compatibility) is explicitly called out as not decided/proposed/assumed-resolved by this ADR.
+- AC4: anomaly recorded as a distinguishable fourth outcome value (`outcome: "anomaly"`) with its own exit code (3) and payload key; explicitly states that canonizing "anomaly" as a product-wide outcome-vocabulary term is a separate, already-routed quest-doc proposal not settled here.
+- AC5: create/edit commands recorded as emitting the JSON envelope uniformly with every other command, no special-cased path.
+- AC6: Status and Context sections name both QCLI-18's proposal doc and the owning Story (Ratify the Quest CLI Phase 1 component decisions) as provenance, with links.
+- AC7: verified, see below.
+
+Interpretation calls (ACs gave no more detail than quoted, per task instructions I did not go hunting for a more detailed source):
+- The Kubernetes/Stripe "split-field alignment" reason is illustrated concretely (K8s kind/apiVersion identity vs status.phase/condition outcome fields; Stripe's `object` type discriminant vs its `status` field) to make the stated rationale legible, without inventing any new decision beyond what the AC already names.
+- QCLI-18's exit code `3` for anomaly was described as "conditional on item 4's recommendation being accepted"; since the owner's ruling accepts anomaly as a fourth outcome, I recorded exit code 3 as now live/unconditional, per the Story AC's own unconditional listing of "0/1/2/3 (anomaly)/64".
+- Linked (did not edit) the open component decisions register, purely as a citation for what stays open (the lore-doc boundary, D2/D6/D7a/D7b) — no register/graph/roadmap content was changed; that reconciliation is explicitly QCLI-28's job.
+
+Verification:
+- `lore validate --strict docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md` -> "ok ...; 1 file, 0 errors, 0 warnings, 0 skipped", exit 0.
+- `lore validate --strict` (whole bundle) -> "44 files, 0 errors, 0 warnings, 6 skipped", exit 0.
+- `lore check` -> after `lore sync` (required because this task's own status change to In Progress drifted the owning Story's status/managed task block): "44 files, 0 errors, 0 warnings", exit 0.
+- `lore orphans` -> "0 orphan tasks, 0 dangling links", exit 0.
+- `lore sync` updated docs/adr/index.md (new ADR entry), docs/log.md, and docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md (status/managed task block only, reflecting QCLI-24's own live status) — no manual edits to those files, and the open component decisions register / contracts graph / delivery roadmap were not touched, per scope.
+
+Out-of-scope observation (not acted on, reporting per instructions): none found beyond what the Story already identifies as QCLI-28's job.
+<!-- SECTION:NOTES:END -->
