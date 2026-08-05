@@ -3,7 +3,7 @@ id: doc-3
 title: Backlog campaign tracker — QCLI-11..QCLI-20 design-layer follow-through
 type: other
 created_date: '2026-08-05 12:33'
-updated_date: '2026-08-05 14:04'
+updated_date: '2026-08-05 14:39'
 ---
 # Backlog campaign tracker — QCLI-11..QCLI-20 design-layer follow-through
 
@@ -23,8 +23,8 @@ component decisions.
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
 trust a persisted "next wave" plan. Informational hint only: as of 2026-08-05
-after wave 1, 4 ready (QCLI-11, 18, 19, 20), 0 blocked, 0 in flight, 6 Done
-(QCLI-12..17).
+after wave 1 plus filing two integration-review follow-ups, 6 ready (QCLI-11,
+18, 19, 20, 21, 22), 0 blocked, 0 in flight, 6 Done (QCLI-12..17).
 
 No task in this campaign has a Backlog `dependencies` entry. Every member is
 independently startable; wave composition is bounded by the file-conflict graph
@@ -49,6 +49,13 @@ wave.
 9. QCLI-19 — Propose the canonical identifier grammar and authored-record layout
 10. QCLI-20 — Propose the scale target and the projection sizing basis it implies
 
+Appended after wave 1, approved by the user on 2026-08-05 (not part of the
+original init-time order, so no relative priority is implied among 11-14 vs.
+these two — the wave builder treats all six as equally ready):
+
+11. QCLI-21 — Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections
+12. QCLI-22 — Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave
+
 ## Clusters
 
 Every member carries a distinct cluster label, because every member writes to a
@@ -61,19 +68,24 @@ serialize work that is genuinely parallel.
 | `cluster:convention` | The research programme Spec | QCLI-12 (Done) |
 | `cluster:adoption` | The adoption playbook and its inbound links | QCLI-13 (Done) |
 | `cluster:packaging` | The packaging contract | QCLI-14 (Done) |
-| `cluster:provenance` | The research source register | QCLI-15 (Done) |
+| `cluster:provenance` | The research source register | QCLI-15 (Done), QCLI-22 |
 | `cluster:synthesis` | The component contracts and delivery graph | QCLI-16 (Done) |
 | `cluster:migration` | The open component decisions register, migration slice | QCLI-17 (Done) |
 | `cluster:lore-gate` | The activation-gate evidence record (new document) | QCLI-11 |
 | `cluster:cli-contract` | CLI result contract proposal (new document) | QCLI-18 |
 | `cluster:identity` | Identifier grammar proposal (new document) | QCLI-19 |
 | `cluster:projection` | Scale target proposal (new document) | QCLI-20 |
+| `cluster:tracking-reconciliation` | The open component decisions register's tracking table + D1, and the contracts graph | QCLI-21 |
+
+Note: QCLI-22 shares `cluster:provenance` with the now-Done QCLI-15 — both
+touch the research source register. This is intentional; the cluster label
+reflects file ownership, not wave membership, and QCLI-15 being Done means
+there is no live conflict.
 
 ### Authored-file ownership
 
 Exactly one wave member may edit any pre-existing document. Pre-verified
-disjoint targets, so all ten could in principle run concurrently were it not for
-the wave-size cap of 6:
+disjoint targets:
 
 | Task | Writes to |
 | ---- | --------- |
@@ -83,10 +95,13 @@ the wave-size cap of 6:
 | QCLI-15 (Done) | `docs/reference/quest-cli-research-source-register.md` |
 | QCLI-16 (Done) | `docs/reference/quest-cli-component-contracts-and-delivery-graph.md` |
 | QCLI-17 (Done) | `docs/reference/quest-cli-open-component-decisions.md`, and `docs/specs/quest-cli-delivery-roadmap.md` (the soft edge fired — QCLI-17 did touch the roadmap; `quest-cli-functional-requirements.md` was checked and confirmed to need no edit) |
+| QCLI-21 | `docs/reference/quest-cli-open-component-decisions.md`, `docs/reference/quest-cli-component-contracts-and-delivery-graph.md` |
+| QCLI-22 | `docs/reference/quest-cli-research-source-register.md` |
 | QCLI-11, 18, 19, 20 | New documents only |
 
-Wave 1 is fully merged. Remaining members (QCLI-11, 18, 19, 20) all write new
-documents only, so wave 2 has no authored-file collisions to resolve.
+QCLI-21 and QCLI-22 are file-disjoint from each other and from QCLI-11/18/19/20
+— all six remaining members can in principle run in one wave (within the
+wave-size cap of 6).
 
 ## In flight
 
@@ -129,39 +144,11 @@ so the decision is legible rather than silent:
   Whoever next works in `lore-cli` should commit it; no quest-cli mechanism
   tracks it.
 
-**New from wave 1's integration review (2026-08-05), awaiting approval:**
-
-Wave 1 closed six defects, but no wave member owned the two documents that
-*describe* those defects — so the design layer's own tracking tables and a
-derived summary now contradict the corrections that just landed. The
-integration reviewer drafted two ready-to-run tasks, split so they touch
-disjoint files and can run in parallel:
-
-- **Proposed task A — "Reconcile the open component decisions register and
-  contracts graph against the QCLI-12..17 corrections."** Fixes: the
-  "Residual items recorded but never filed" table (4 of 10 rows now stale —
-  3 fully closed by QCLI-12/13/14, 1 half-closed by QCLI-16), the framing
-  paragraph claiming nothing was filed, the D1 license entry (still asserts
-  the exact misattribution QCLI-16 corrected in the contracts graph, which
-  this same file's own preamble names as the authority over it), and a
-  sentence in the contracts graph invalidated by QCLI-12's fix. 11 ACs
-  drafted, citing exact lines and commits. Full text held by the orchestrator,
-  ready to paste into `backlog task create` on approval.
-- **Proposed task B — "Re-pin the research source register's member pins
-  invalidated by the QCLI-12..17 wave."** Three exact-SHA pins are stale
-  (component charter, research Spec, packaging contract — each shared with a
-  still-correct sibling document, so each must be decoupled, not repointed
-  wholesale) and three self-pin retrieval stamps are date-stale (migration
-  ledger, the register itself, the contracts graph). 11 ACs drafted, including
-  updating the register's own running pin-count prose in the same pass, per
-  its QCLI-7/QCLI-9 precedent. Full text held by the orchestrator, ready to
-  paste into `backlog task create` on approval.
-
-Both tasks touch only `docs/reference/quest-cli-open-component-decisions.md` +
-`docs/reference/quest-cli-component-contracts-and-delivery-graph.md` (task A)
-vs. `docs/reference/quest-cli-research-source-register.md` (task B) — disjoint,
-so if approved they can run as a two-member wave without the register
-parallel-edit constraint that shaped wave 1's dispatch.
+None outstanding as of 2026-08-05 post-wave-1: wave 1's integration review
+drafted two follow-up tasks (tracking-document reconciliation, register
+re-pinning); the user approved both on 2026-08-05 and they are now filed as
+**QCLI-21** and **QCLI-22** — see Confirmed queue order and Authored-file
+ownership above. No longer "proposed"; they are ordinary campaign members now.
 
 ## Wave log
 
@@ -238,12 +225,14 @@ parallel-edit constraint that shaped wave 1's dispatch.
   **Wave-level integration review** (after all six merged): found no content
   contradictions introduced by combining the six branches directly, but found
   that finishing six defects the design layer's own tracking documents
-  describe left those tracking documents stale — see Proposed follow-ups
-  above. Also independently verified the register-pin-staleness follow-ups
-  QCLI-12/13/14/16 recorded are all still genuinely outstanding (nothing in
-  the wave incidentally fixed them), and are folded into proposed task B
-  rather than left as four separate notes.
+  describe left those tracking documents stale. Drafted two follow-up tasks;
+  the user approved both and they were filed the same session as **QCLI-21**
+  and **QCLI-22** (see Confirmed queue order). Also independently verified the
+  register-pin-staleness follow-ups QCLI-12/13/14/16 recorded are all still
+  genuinely outstanding (nothing in the wave incidentally fixed them), and
+  folded them into QCLI-22 rather than filing four separate tasks.
 
   Merged SHAs: QCLI-12 `1dd4aa6` (PR #25), QCLI-13 `d871d32` (PR #26), QCLI-14
   `077d3be` (PR #27), QCLI-15 `6b78fd0` (PR #28), QCLI-16 `44a7ed8` (PR #29),
-  QCLI-17 `fb8e8e3` (PR #30). `dev` head after settlement: `3cf5242`.
+  QCLI-17 `fb8e8e3` (PR #30). `dev` head after settlement + doc updates +
+  filing QCLI-21/22: `4d8224e`.
