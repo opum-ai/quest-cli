@@ -8,7 +8,7 @@ tags:
   - campaign
 summary: Complete the independently authored Quest research campaign before implementation activates.
 timestamp: 2026-08-01T17:11:23.688Z
-status: todo
+status: in-progress
 tasks:
   - qcli-2
   - qcli-2.1
@@ -78,7 +78,7 @@ may not implement or publish Quest.
 | [QCLI-7](../../backlog/tasks/qcli-7%20-%20Enumerate-the-campaign-Story-in-the-research-source-registers-Prior-QCLI-research-records-slice.md) | Enumerate the campaign Story in the research-source-register's 'Prior QCLI research records' slice | Done |
 | [QCLI-8](../../backlog/tasks/qcli-8%20-%20Reconcile-QCLI-2.10s-playbook-against-the-QCLI-2.5-enumeration-gap-QCLI-6-already-closed.md) | Reconcile QCLI-2.10's playbook against the QCLI-2.5 enumeration gap QCLI-6 already closed | Done |
 | [QCLI-9](../../backlog/tasks/qcli-9%20-%20Re-pin-QCLI-2.10s-playbook-in-the-register-after-QCLI-8s-merge-invalidated-its-commit-pin.md) | Re-pin QCLI-2.10's playbook in the register after QCLI-8's merge invalidated its commit-pin | Done |
-| [QCLI-23](../../backlog/tasks/qcli-23%20-%20Re-verify-QCLI-2.7-drift-table-against-lore-cli-v0.1.1-and-refresh-dependent-documents.md) | Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents | To Do |
+| [QCLI-23](../../backlog/tasks/qcli-23%20-%20Re-verify-QCLI-2.7-drift-table-against-lore-cli-v0.1.1-and-refresh-dependent-documents.md) | Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents | In Progress |
 <!-- lore:tasks:end -->
 
 ## Notes
