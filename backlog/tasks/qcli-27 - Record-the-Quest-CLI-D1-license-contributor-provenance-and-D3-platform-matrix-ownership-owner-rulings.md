@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:54'
+updated_date: '2026-08-05 22:56'
 labels:
   - campaign
   - decisions
@@ -46,3 +46,15 @@ Register entries D1 (product license and contributor provenance) and D3 (support
 5. Run 'lore validate --strict' and 'lore check'; fix any findings. Re-check each AC against actual file content.
 6. Record notes with verification evidence, commit with Refs: QCLI-27 trailer(s), push branch.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented. Judgment call (AC1): used a Reference doc, not an ADR — docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md. Rationale: the owning Story's own AC text already frames this as 'a reference document' (distinct from QCLI-24/25/26, which explicitly author ADRs); this bundle's existing docs/adr/ entries are Status/Context/Decision/Consequences architectural-tradeoff records, while docs/reference/ already holds dated governance-ruling records with the same shape needed here (quest-cli-open-component-decisions.md, quest-cli-activation-gate-evidence-record.md — both cite a Story/task as provenance and state dated facts without an architectural tradeoff). Scaffolded via 'lore new reference', not manual file creation.
+
+Content covers: D1 license=MIT, contributor provenance=informal/none for now (AC1); D3 platform matrix=macOS+Linux+Windows, ownership explicitly claimed as quest-cli-owned (AC1); D2 ownership explicitly claimed as quest-cli-owned while the runtime choice itself is stated as deferred to post-activation, not decided here (AC2); root LICENSE added with MIT text and 'Copyright (c) 2026 opum-ai' (AC3); document names the owning Story (ratify-the-quest-cli-phase-1-component-decisions.md) as provenance, dated 2026-08-05, in both the intro and the Notes section (AC4). Added a 'What this record does not touch' section listing D6/D7a/D7b/not-found lore-doc boundary/register-reconciliation as explicitly out of scope (reserved for QCLI-28), to keep the scope boundary unambiguous for reviewers.
+
+Verification (AC5): ran 'lore validate --strict' — result: '44 files, 0 errors, 0 warnings, 6 skipped' (includes the new file, exit 0). Also ran 'lore sync' (regenerated docs/log.md, docs/reference/index.md, and the Story's managed task block/status; committed the task's own status-change file under backlog/ per lore's catch-all sweep) and 'lore check --json' — result: '{"findings":[],"errorCount":0,"warningCount":0,"fileCount":44,"complete":true}'.
+
+Out-of-scope discovery (not acted on): 'lore sync' backfilled two missing docs/log.md entries (commits cca60a8, ef15e16) that predate this task and were apparently never logged by whichever commit landed them — harmless, expected reconciliation behavior of 'lore sync', not something this task caused or needed to investigate further. No other out-of-scope issues found.
+<!-- SECTION:NOTES:END -->
