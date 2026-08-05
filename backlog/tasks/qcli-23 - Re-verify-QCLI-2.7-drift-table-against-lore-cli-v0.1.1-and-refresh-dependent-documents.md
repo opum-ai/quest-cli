@@ -3,11 +3,11 @@ id: QCLI-23
 title: >-
   Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent
   documents
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-05 17:37'
-updated_date: '2026-08-05 18:29'
+updated_date: '2026-08-05 18:37'
 labels:
   - campaign
   - research
@@ -32,12 +32,12 @@ The wave-2 integration review found that lore-cli has cut v0.1.1 and published @
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Re-verify lore-cli current release state live (tag, npm version) and re-run the four adapter-surface-path diffs QCLI-2.7 names, recording that no Part 2 reclassification follows if they remain byte-identical
-- [ ] #2 The Part 3 drift table in the lore dependency and adapter contract evidence document is corrected to the current dev HEAD SHA, the current commit-count comparison, and the current tag-ancestor-of-dev-HEAD answer, all dated and citing this task
-- [ ] #3 The research source register row citing the lore-cli release evidence is refreshed to the current retrieval date and version, cross-referencing QCLI-11 own evidence record rather than leaving the two capsules silently inconsistent
-- [ ] #4 The packaging contract row citing @opum-ai/lore is refreshed the same way
-- [ ] #5 No gate evaluation is performed or implied by this task -- it records evidence only, preserving the boundary discipline QCLI-11 established
-- [ ] #6 lore validate --strict, lore check, and lore orphans are all clean after the change
+- [x] #1 Re-verify lore-cli current release state live (tag, npm version) and re-run the four adapter-surface-path diffs QCLI-2.7 names, recording that no Part 2 reclassification follows if they remain byte-identical
+- [x] #2 The Part 3 drift table in the lore dependency and adapter contract evidence document is corrected to the current dev HEAD SHA, the current commit-count comparison, and the current tag-ancestor-of-dev-HEAD answer, all dated and citing this task
+- [x] #3 The research source register row citing the lore-cli release evidence is refreshed to the current retrieval date and version, cross-referencing QCLI-11 own evidence record rather than leaving the two capsules silently inconsistent
+- [x] #4 The packaging contract row citing @opum-ai/lore is refreshed the same way
+- [x] #5 No gate evaluation is performed or implied by this task -- it records evidence only, preserving the boundary discipline QCLI-11 established
+- [x] #6 lore validate --strict, lore check, and lore orphans are all clean after the change
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -175,4 +175,12 @@ NON-BLOCKING #1 folded in — added a dated parenthetical ("as of the 2026-08-04
 Left non-blocking #2 (finalization/AC-checking) and #3 (missing Refs: trailer on 54712cd) untouched — out of scope for this pass per orchestrator instruction.
 
 Verified clean after edit: lore validate --strict (42 files, 0 errors, 0 warnings, 6 skipped), lore check (42 files, 0 errors, 0 warnings), lore orphans (0 orphan tasks, 0 dangling links).
+
+Settlement (orchestrator, wave 3): Reviewer independently re-verified all 6 ACs via the GitHub API (npm view @opum-ai/lore, gh api repos/opum-ai/lore-cli/tags and compare endpoints) rather than trusting worker transcripts. Review pass 1 (request_changes, 1 blocking): the corrected ancestor-row 'Cause' clause had the causal direction backwards, attributing the dev-ancestor flip to PR #300 (a dev->main promotion) performing a main->dev merge; actual carrier was PR #310 (release/0.1.1-publication, merged 2026-08-04T21:44:25Z, merge commit 6bb4f9d9) bringing main's history (and the v0.1.0 tag commit e621d209) into dev. Also flagged a stale 'dev now merges main back into itself' implication -- main/dev remain diverged today (compare/main...dev: ahead 2, behind 4). Fix pass (commit 350c1dd) corrected the causal attribution and folded in a non-blocking finding (dated scoping parenthetical for two undated '29 commits' rows). Review pass 2: approve, all fixes independently re-verified against the GitHub API (gh pr view 300/310, compare endpoints establishing PR #310 as the sole point the tag commit became reachable from dev). lore validate --strict / lore check / lore orphans clean throughout (42 files, 0 errors, 0 warnings). Merged as af34f1f (PR #38, squash). Post-merge lore check + lore orphans re-confirmed clean on dev.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Re-verified lore-cli's release state live (v0.1.1 confirmed current, no newer tag) and the four adapter-surface-path diffs QCLI-2.7 names -- all byte-identical between v0.1.0 and v0.1.1, MIN_BACKLOG_VERSION/EXPECTED_SCHEMA_VERSION unchanged, so no Part 2 reclassification follows. Corrected the three Part 3 drift-table rows in the lore dependency and adapter contract evidence document that had gone from stale to factually false: dev HEAD SHA, the commit-count comparison (0/103, not 1/29), and the tag-ancestor-of-dev-HEAD answer (flipped No->Yes). Refreshed the research source register and packaging contract rows to the current retrieval date/version, cross-referencing QCLI-11's evidence record. No gate evaluation performed, preserving the boundary QCLI-11 established. One review round: pass 1 found the corrected ancestor row's causal explanation was itself backwards (wrong PR, wrong merge direction); pass 2 confirmed the fix (correctly identifies PR #310 as the carrier of main's history into dev, and that main/dev remain diverged today, not an ongoing merge-back pattern). lore validate --strict, lore check, and lore orphans clean before and after merge. Merged to dev as af34f1f via squash PR #38.
+<!-- SECTION:FINAL_SUMMARY:END -->
