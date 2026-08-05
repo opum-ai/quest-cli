@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:56'
+updated_date: '2026-08-05 23:05'
 labels:
   - campaign
   - decisions
@@ -71,4 +71,24 @@ Verification:
 - `lore sync --plain` was run before the checks above; it regenerated docs/adr/index.md (new ADR entry), docs/log.md (catching up two pre-existing commits that predated this worktree and had never been logged, plus this task's own commits), and docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md's managed task table/status (QCLI-26 now shows In Progress, Story status in-progress) — this is expected lore-managed reconciliation, not a manual edit, and touches only the Story this task already documents against, not the register/contracts-graph/roadmap.
 
 Out-of-scope observation for the orchestrator: none found beyond the expected lore-managed reconciliation above. The open component decisions register, contracts graph, and delivery roadmap were read-only for this task and are untouched, per scope; QCLI-28 still needs to fold in D5's closure once all four Phase-1 ADRs land.
+
+Post-review correction (reviewer: request_changes, scope): the shared managed-file
+edits described above under 'Verification' (docs/adr/index.md, docs/log.md, and the
+ratify-Phase-1-decisions Story's managed table, produced by the `lore sync` run
+described there) were REVERTED from this branch in commit e46e3e8 and are no longer
+part of this task's diff. Sibling wave-1 branches (QCLI-24, QCLI-27) independently
+touched the same shared files from their own partial single-task views, so per-branch
+`lore sync` output could not be trusted as authoritative for the whole bundle.
+QCLI-25's branch had already avoided this by touching only its own task file and its
+new ADR; this branch now matches that pattern. This branch's diff vs dev is scoped to
+exactly two files: the QCLI-26 task file and the new ADR
+(docs/adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md).
+Reconciliation of docs/adr/index.md, docs/log.md, and the Story's managed table across
+all four wave-1 ADRs is deferred to a single centralized `lore sync` pass run once,
+after all four wave-1 branches (QCLI-24/25/26/27) have merged into dev — not per-branch.
+Re-ran scoped `lore validate --strict` on just the new ADR file after the revert (and
+after a small cosmetic fix to the D7a/D7b clause) — passes clean. Did not re-run
+`lore sync` or `lore check` on this branch; post-revert `lore check` drift
+(Story status/table vs. the live task status) is expected and intentionally left
+as-is, to be resolved by the post-merge sync pass, not by this task.
 <!-- SECTION:NOTES:END -->
