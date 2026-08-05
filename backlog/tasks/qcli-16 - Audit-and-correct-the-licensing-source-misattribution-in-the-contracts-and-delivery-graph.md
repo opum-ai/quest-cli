@@ -3,10 +3,10 @@ id: QCLI-16
 title: >-
   Audit and correct the licensing-source misattribution in the contracts and
   delivery graph
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:35'
+updated_date: '2026-08-05 12:48'
 labels:
   - campaign
   - 'cluster:synthesis'
@@ -14,6 +14,7 @@ labels:
   - provenance
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
+  - wave-1
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md

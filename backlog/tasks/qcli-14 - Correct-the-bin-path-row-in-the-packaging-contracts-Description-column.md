@@ -1,10 +1,10 @@
 ---
 id: QCLI-14
 title: Correct the bin-path row in the packaging contract's Description column
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 12:32'
-updated_date: '2026-08-05 12:35'
+updated_date: '2026-08-05 12:48'
 labels:
   - campaign
   - 'cluster:packaging'
@@ -12,6 +12,7 @@ labels:
   - correction
   - no-implementation
   - 'doc:stories/follow-through-on-the-quest-cli-design-layer'
+  - wave-1
 dependencies: []
 documentation:
   - docs/stories/follow-through-on-the-quest-cli-design-layer.md
