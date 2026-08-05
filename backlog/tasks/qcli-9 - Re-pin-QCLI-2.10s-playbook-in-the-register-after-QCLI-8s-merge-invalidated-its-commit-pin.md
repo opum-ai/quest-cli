@@ -3,10 +3,10 @@ id: QCLI-9
 title: >-
   Re-pin QCLI-2.10's playbook in the register after QCLI-8's merge invalidated
   its commit-pin
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-05 05:01'
-updated_date: '2026-08-05 05:10'
+updated_date: '2026-08-05 05:17'
 labels:
   - research
   - register
@@ -15,8 +15,6 @@ labels:
   - clean-room
   - 'cluster:provenance'
   - campaign
-  - wave-4
-  - in-review
   - 'doc:stories/prepare-quests-clean-room-research-foundation'
 dependencies:
   - QCLI-8
@@ -42,10 +40,10 @@ Documentation only. Do not reclassify any source, and do not narrow any permitte
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The register's exact-revision pin for quest-cli-backlog-adoption-and-migration-playbook.md is corrected to its true current last-touch commit (SHA-pinned, since this task does not co-edit the playbook itself)
-- [ ] #2 The running self-pinned/commit-pinned/distinct-SHA counts in the 'Prior QCLI research records' slice are corrected to match the updated pin
-- [ ] #3 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
-- [ ] #4 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
+- [x] #1 The register's exact-revision pin for quest-cli-backlog-adoption-and-migration-playbook.md is corrected to its true current last-touch commit (SHA-pinned, since this task does not co-edit the playbook itself)
+- [x] #2 The running self-pinned/commit-pinned/distinct-SHA counts in the 'Prior QCLI research records' slice are corrected to match the updated pin
+- [x] #3 No slice loses its Classification field, the slice-to-Classification count stays one-to-one, and no permitted use is narrowed below what a merged deliverable already relies on
+- [x] #4 lore check --strict, lore validate --strict, and lore orphans report zero errors, warnings, and orphans
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -76,4 +74,12 @@ Out-of-scope action taken to satisfy AC4 (flagged per the task's own instruction
 Final gate output on the fully committed tree: lore check --strict => '25 files, 0 errors, 0 warnings' (exit 0). lore validate --strict => '25 files, 0 errors, 0 warnings, 6 skipped' (exit 0). lore orphans => 'orphans: 0 orphan tasks, 0 dangling links' (exit 0).
 
 Commits: 7cd6a01 docs(register): re-pin QCLI-2.10's playbook to its true current commit (the register.md diff). 05501e8 chore(lore): sync campaign Story after linking QCLI-9 (docs/log.md + Story managed-block/status reconciliation). Both carry Refs: QCLI-9. (40eb722 chore(backlog): add doc back-references (lore link) was auto-committed by the lore CLI itself as part of lore link, per its documented 'commits the files it touches itself' behavior -- not independently re-committed by me.)
+
+Reviewer-verified settlement (orchestrator, wave 4, single-task). AC1 confirmed: reviewer independently re-derived the playbook's true last-touch commit via git log (1a61989, full SHA 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd) and confirmed it is dev-reachable and touches the correct path, matching the register's new pin exactly. AC2 confirmed: reviewer recomputed all 14 register pins from scratch (not the stated totals) -- self-pinned=3, commit-pinned=11, distinct SHAs=8, matching the register's claim; confirmed 8935551 now has zero live references anywhere in docs/ (all historical narration only) and 1a61989 appears nowhere else as a pin. AC3 confirmed: 94 structural field lines (Classification/Permitted use/Exclusions/Repository or URL/Ownership rationale) byte-identical base-to-head; Classification count 19/19 both sides; diff is a single +27/-1 hunk entirely inside the one pin bullet. AC4 re-run independently by the reviewer: lore check/validate/orphans --strict all clean (the orchestrator additionally hit and resolved a lore-sync staleness after rebasing onto a moved dev -- mechanical Story-managed-block resync, no content change). Merge hit the same two mechanical rebase conflicts in this task's own frontmatter as the prior two waves -- resolved by the orchestrator the same way. Reviewer explicitly assessed this as closing the pin-staleness chain structurally: QCLI-9's own merge cannot reopen it, since it only touches the register (self-pinned), lore-managed sync files, and a Backlog file -- none of which is a commit-pinned register member. No further follow-up from this chain. Merged as b9475f2 (PR #24).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Corrected the register's stale exact-revision pin for QCLI-2.10's playbook, which QCLI-8's merge invalidated by touching that file for unrelated reasons (reconciling a stale caveat). Re-derived the playbook's true current last-touch commit live via git log (1a61989, QCLI-8's own squash-merge PR #23) rather than trusting any hash mentioned at task-creation time, and re-pinned it as an exact-commit SHA (correct here since this task does not co-edit the playbook itself -- a self-pin would have been wrong). Corrected the running self-pinned/commit-pinned/distinct-SHA counts to match (3/11/8, numerically unchanged but the SHA set composition changed: 8935551 drops to zero current members, 1a61989 becomes the new eighth distinct SHA). Followed the established inline-supersession convention: original QCLI-6/QCLI-7 text preserved verbatim, dated correction appended. No Classification field touched; register-only edit, playbook/ledger/charter untouched. Independent reviewer re-derived the commit hash and recomputed every one of the register's 14 pin entries from scratch rather than trusting stated totals, confirmed zero live references to the retired SHA remain, and re-ran all three lore gates clean. Merged as b9475f2 (PR #24). This closes the pin-staleness chain this campaign has now resolved five times (three failed migration-ledger attempts, QCLI-2.8 via QCLI-7, QCLI-2.10 via this task) -- the reviewer confirmed no further follow-up is warranted, since this task's own merge cannot reopen the class.
+<!-- SECTION:FINAL_SUMMARY:END -->
