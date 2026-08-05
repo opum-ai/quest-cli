@@ -122,9 +122,17 @@ closed. It does.
 | Scale target | D5 |
 | Where an anomaly sits in the outcome taxonomy | Architecture open questions |
 
-Plus one re-verification that is overdue: the migration fidelity contract is pinned to
+Plus one standing re-verification obligation: the migration fidelity contract is pinned to
 Backlog.md **v1.49.3** and its own recheck clause obliges re-checking before anything
 freezes on it. Every `FR-MIG` requirement rests on findings from that build.
+
+*Corrected 2026-08-05 (`QCLI-17`): this previously called the re-verification "overdue,"
+inheriting a since-corrected claim in the [open component decisions
+register](../reference/quest-cli-open-component-decisions.md) that the pin was probably
+stale. It was not — that register now records the verified 2026-08-05 registry state
+(`npm view backlog.md version` / `dist-tags.latest` both `1.49.3`, `time.modified`
+2026-08-03). The obligation to re-check before this phase's exit, or any freeze,
+whichever comes first, is unchanged.*
 
 **Requirements decided (not implemented):** `FR-CLI-1`, `FR-CLI-2`, `FR-CLI-4`,
 `FR-CLI-7`, `FR-IDENT-3`, `FR-MIG-7`.
