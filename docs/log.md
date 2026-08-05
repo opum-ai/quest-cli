@@ -61,6 +61,11 @@
 - 2026-08-05T08:53:57-05:00 a935a364d4e6b73cf133f14d0721ad78e5a08498 docs: sync log.md after QCLI-17 merge
 - 2026-08-05T09:03:01-05:00 3cf5242efef6680f0277e5b4958b2af87b8a8a04 docs: sync story status and log.md after wave-1 settlement
 - 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
+- 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:07:54-05:00 3c4eb246b77a7246d33e0eb6b3558322dcb3900b QCLI-20: Propose the scale target and its projection implications (#34)
+- 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
+- 2026-08-05T11:10:01-05:00 46ff7206205ecf04868906270584fe341f208a31 docs: sync log.md and story after QCLI-22 status pickup
 
 ## docs/adr
 
@@ -103,6 +108,15 @@
 - 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
 - 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+- 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
+- 2026-08-05T11:03:15-05:00 eda251b42e8fd8333377025ef048f98e65313cd6 QCLI-18: Propose the CLI result contract (envelope, exit codes, not-found, anomaly) (#32)
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:07:54-05:00 3c4eb246b77a7246d33e0eb6b3558322dcb3900b QCLI-20: Propose the scale target and its projection implications (#34)
+- 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
+- 2026-08-05T11:10:01-05:00 0dc6bef82fa83f827f894b417c4cb9e61d97c023 docs(register): attribute Finding A clause and resolve charter self-pin flag
+- 2026-08-05T11:10:01-05:00 1d8819409b7f1642f945ed7d44b41a6c8bfe1197 docs(register): record that QCLI-21 recovered F4/F5's substance
+- 2026-08-05T11:10:01-05:00 38008bcd1df5a58ec0f407fb6e827289d4f52f97 docs(register): re-pin three members invalidated by the QCLI-12/13/14 wave
+- 2026-08-05T11:10:01-05:00 c3c4cb20ab470aba726d0e92919180ae843d574c docs(register): reconcile Notes wording tension on QCLI-15's audit conclusion
 
 ## docs/runbooks
 
@@ -153,3 +167,8 @@
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 - 2026-08-05T09:03:01-05:00 3cf5242efef6680f0277e5b4958b2af87b8a8a04 docs: sync story status and log.md after wave-1 settlement
 - 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
+- 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
+- 2026-08-05T11:03:15-05:00 eda251b42e8fd8333377025ef048f98e65313cd6 QCLI-18: Propose the CLI result contract (envelope, exit codes, not-found, anomaly) (#32)
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
+- 2026-08-05T11:10:01-05:00 46ff7206205ecf04868906270584fe341f208a31 docs: sync log.md and story after QCLI-22 status pickup
