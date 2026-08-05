@@ -9,8 +9,8 @@ tags:
   - clean-room
   - research
   - source-register
-summary: Revalidates the OCLI-3.1 register per slice; QCLI-2.7 added the lore-cli split rule and closed two evidence gaps; QCLI-2.12 closed admission-authority coherence gaps without reclassifying any source.
-timestamp: 2026-08-04T13:29:14.000Z
+summary: Per-slice admission authority for Quest research; QCLI-15 added a traceability audit note and confirmed QCLI-2.12's F4/F5 as open, without reclassifying any source.
+timestamp: 2026-08-05T12:57:14.000Z
 ---
 
 # Quest CLI research source register
@@ -1061,7 +1061,38 @@ named slice, never to every file in its repository.
   decisions, the accepted ADR fixed the package/repository/command identity
   those decisions and this register both depend on, and this register is
   the per-slice admission authority every other citation in this document,
-  and the rest of this list, depends on.
+  and the rest of this list, depends on. **Traceability audit, 2026-08-05,
+  `QCLI-15`:** `QCLI-2.1`'s own settlement record flagged this slice's
+  Allowed value as "classified Allowed on sound reasoning, but that
+  specific value is not traceable to the task notes it cites" — checked
+  directly rather than assumed: `QCLI-1`, `QCLI-3`, and `QCLI-4`'s own task
+  notes (searched for "allow"/"admiss"/"classif") say nothing about this
+  register's Classification vocabulary, because none of them existed after
+  it — this register and its vocabulary were first authored by `QCLI-2.1`,
+  which precedes none of them; no cited note self-assigns a class the way,
+  for example, this register's own Backlog.md or lore-cli slices record an
+  explicit owner ruling. The Allowed value therefore does not trace to an
+  admission recorded in the cited notes themselves; it traces only to this
+  Ownership rationale paragraph's own reasoning, applied directly against
+  the Classification vocabulary's definition of Allowed above ("exact owner
+  decision, authored requirement, public contract, or attested data
+  slice"): every enumerated member — the component charter, the migration
+  ledger, the research Spec, `QCLI-2.2`'s reconciliation, the accepted ADR,
+  and this register itself — is quest-cli's own authored requirement or
+  decision record, not third-party or legacy material a task note would
+  need to pre-clear the way, for example, an Opum-sourced or Backlog.md-
+  sourced slice does. Two sibling findings recorded in the same `QCLI-2.1`
+  settlement paragraph were later closed by `QCLI-2.7` (the release-gate-
+  evidence classification gap, and the Backlog-corpus closed-list-to-catch-
+  all gap — see `QCLI-2.7`'s task notes and the `## Notes` section below);
+  this third finding was not previously acted on. What would close this
+  gap fully: an explicit owner ruling — the same instrument already used
+  elsewhere in this register (the lore-cli source-admissibility split rule,
+  the Backlog.md authorship-independence ruling) — that ratifies self-
+  classification-by-vocabulary, without an external per-member task-note
+  citation, as sufficient admitting evidence for a register-authored
+  document citing itself and its own founding lineage. No Classification
+  value is changed by this note.
 - **Permitted use:** this revalidation is based on their findings and must
   stay consistent with them; it does not replace them.
 - **Exclusions:** none beyond ordinary Backlog/Lore edit discipline (use the
@@ -1191,3 +1222,52 @@ contract.md` (`QCLI-2.9`), `quest-cli-black-box-acceptance-scenarios.md`
 evidence.md` (`QCLI-2.7`) by reading the live files, not from memory. It
 opened no Backlog.md implementation source, no Quarantined artifact, and
 made no mutation outside this repository's own `docs/` tree.
+
+`QCLI-15`'s 2026-08-05 audit closed two residual findings recorded in
+settlement notes but never filed, without reclassifying any source (see the
+"Prior QCLI research records" slice above for the full Finding-A note; this
+paragraph covers Finding B in full since it has no single slice to attach
+to).
+
+Finding A (traceability): confirmed and recorded in place, above.
+
+Finding B (`QCLI-2.12`'s "F4/F5 ... left for the orchestrator to track"):
+`QCLI-2.12`'s task notes carry two distinct, differently-scoped F-numbered
+finding lists, and the out-of-scope note belongs to the first, not the
+second:
+
+- **Scheme 1 — the pre-merge "Review follow-up (2026-08-04)" pass**, an
+  independent reviewer's request-changes round against `QCLI-2.12`'s own
+  branch before it merged as PR #14. That pass records five findings, F1
+  through F5: F1 (blocking, AC7) and F2 (blocking, AC6) were fixed
+  (commits `77b01f2`, `d6a67e5`); F3 (non-blocking) was also fixed (commit
+  `da9c529`); **F4 and F5 (both non-blocking) were explicitly left
+  untouched** — this is the literal source of the quoted sentence.
+- **Scheme 2 — the wave-4 integration review**, a separate cross-task
+  review after `QCLI-2.12` (and three sibling tasks) had already merged,
+  using its own restarted F1-F6 numbering (documented in
+  `backlog/docs/campaigns/doc-1`, "Wave 4" section). Its F2/F3/F4 (register
+  enumeration gap, revision-pin staleness, ledger attribution gap) are a
+  different, later, already-resolved matter: F2 fixed directly; F3/F4
+  escalated after three fix-and-review cycles hit a structural SHA-pinning
+  trap (a co-edited sibling document cannot be pinned by commit), then
+  resolved 2026-08-04 via the owner's Option A self-pin decision, merged as
+  PR #17 (squash commit `c8dfdca`) — confirmed closed, not open.
+
+Scheme 1's F4 and F5 are what the out-of-scope note means, and they remain
+**open**: no commit, task note, campaign-tracker entry, or handover record
+anywhere in this repository's history — including unreachable/dangling git
+objects checked via `git fsck`, and PR #14's GitHub reviews/comments
+(queried via `gh api repos/opum-ai/quest-cli/pulls/14/reviews` and
+`/comments`, both empty; this project's review passes are narrated in
+Backlog task notes, not posted as GitHub review comments) — records what F4
+or F5 actually asserted. The one-line summary in `QCLI-2.12`'s notes is the
+entire surviving record. This is the audit's own finding: the gap is not
+that F4/F5 remain unfixed against a known defect, it is that their
+substance was never captured anywhere retrievable, so no one can now judge
+whether they still apply to the current register text. What would close
+this: recovering the original reviewer's finding text from whatever
+produced it (a session transcript or agent run outside this repository's
+version control, if one still exists) and filing it as a new, normal
+Backlog finding once its content is known — not reconstructing content from
+inference, which this audit deliberately does not do.
