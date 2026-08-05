@@ -85,10 +85,10 @@ with the roadmap Spec's Phase 1 scope ("no code, not blocked on Phase 0").
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-24](../../backlog/tasks/qcli-24%20-%20Author-an-ADR-for-the-Quest-CLI-result-contract-envelope-shape-exit-codes-not-found-convention-and-anomaly-placement.md) | Author an ADR for the Quest CLI result contract: envelope shape, exit codes, not-found convention, and anomaly placement | To Do |
-| [QCLI-25](../../backlog/tasks/qcli-25%20-%20Author-an-ADR-for-the-Quest-CLI-canonical-identifier-grammar-and-authored-record-layout.md) | Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout | To Do |
-| [QCLI-26](../../backlog/tasks/qcli-26%20-%20Author-an-ADR-for-the-Quest-CLI-scale-target-and-rebuild-on-doubt-conclusion.md) | Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion | To Do |
-| [QCLI-27](../../backlog/tasks/qcli-27%20-%20Record-the-Quest-CLI-D1-license-contributor-provenance-and-D3-platform-matrix-ownership-owner-rulings.md) | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | To Do |
+| [QCLI-24](../../backlog/tasks/qcli-24%20-%20Author-an-ADR-for-the-Quest-CLI-result-contract-envelope-shape-exit-codes-not-found-convention-and-anomaly-placement.md) | Author an ADR for the Quest CLI result contract: envelope shape, exit codes, not-found convention, and anomaly placement | Done |
+| [QCLI-25](../../backlog/tasks/qcli-25%20-%20Author-an-ADR-for-the-Quest-CLI-canonical-identifier-grammar-and-authored-record-layout.md) | Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout | Done |
+| [QCLI-26](../../backlog/tasks/qcli-26%20-%20Author-an-ADR-for-the-Quest-CLI-scale-target-and-rebuild-on-doubt-conclusion.md) | Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion | Done |
+| [QCLI-27](../../backlog/tasks/qcli-27%20-%20Record-the-Quest-CLI-D1-license-contributor-provenance-and-D3-platform-matrix-ownership-owner-rulings.md) | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | Done |
 | [QCLI-28](../../backlog/tasks/qcli-28%20-%20Reconcile-the-Quest-CLI-open-component-decisions-register-contracts-graph-and-delivery-roadmap-against-the-Phase-1-ADRs.md) | Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs | To Do |
 <!-- lore:tasks:end -->
 

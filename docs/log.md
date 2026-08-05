@@ -71,12 +71,16 @@
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
 - 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
+- 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
 
 ## docs/adr
 
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
 - 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T18:08:11-05:00 e5c790b80ec01b5c5e40f3d32a60dd827cceeb93 QCLI-24: Author an ADR for the Quest CLI result contract (envelope, exit codes, not-found, anomaly) (#39)
+- 2026-08-05T18:10:43-05:00 9e7a0c093e95e3b707094455cb7c14d3b9d5793b QCLI-25: Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout (#40)
+- 2026-08-05T18:11:39-05:00 589e1a721ceb32aceaa545e22e6217bc354d3201 QCLI-26: Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion (#41)
 
 ## docs/reference
 
@@ -121,6 +125,7 @@
 - 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
 - 2026-08-05T11:34:44-05:00 ed14115a4c4ea20e7c370469c1572f4f9fba700d chore: fix narrow findings from the wave-2 integration review (#37)
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
+- 2026-08-05T18:12:33-05:00 f89b370894f577dc063ac290f687e964023acc2b QCLI-27: Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings (#42)
 
 ## docs/runbooks
 
@@ -181,3 +186,5 @@
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
 - 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
+- 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
+- 2026-08-05T17:40:40-05:00 ef15e16ba0c248f40b46f32f879aa5afc9f6cd6b docs: point the Phase-1-ratification Story at campaign doc-4
