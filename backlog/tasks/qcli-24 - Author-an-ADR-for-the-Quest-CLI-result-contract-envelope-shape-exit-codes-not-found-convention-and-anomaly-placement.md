@@ -3,10 +3,11 @@ id: QCLI-24
 title: >-
   Author an ADR for the Quest CLI result contract: envelope shape, exit codes,
   not-found convention, and anomaly placement
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-05 22:37'
-updated_date: '2026-08-05 22:38'
+updated_date: '2026-08-05 22:52'
 labels:
   - campaign
   - decisions
@@ -40,3 +41,25 @@ QCLI-18 proposed the CLI result contract (envelope shape, exit-code table, Quest
 - [ ] #6 The ADR names QCLI-18's proposal and the owning Story as the ruling's provenance
 - [ ] #7 lore validate --strict passes on the new ADR file
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Scaffold a new ADR concept via `lore new adr "Ratify the Quest CLI result contract: envelope, exit codes, not-found, and anomaly"` (tags: quest, cli, json, exit-codes, not-found, anomaly, phase-1, cli-contract) so lore generates a conformant frontmatter/section skeleton, mirroring the structure of the existing accepted ADR emit-three-categorical-command-outcomes-over-a-versioned-envelope.md (Status / Context / Decision / Consequences).
+2. Write Status: Accepted, citing this Story (owning ruling) and QCLI-18's proposal doc as provenance (AC6).
+3. Write Context: summarize QCLI-18's four open items and its own explicit non-decision, and the Kubernetes/Stripe precedent for split kind/outcome fields (grounds AC1's deviation rationale).
+4. Write Decision, covering exactly the AC-required content:
+   - schemaVersion as literal string \"1\" (AC1)
+   - kind and outcome as two separate fields, explicitly deviating from QCLI-18's recommended fused <command>_<outcome-class> form, with the Kubernetes/Stripe split-field alignment stated as the reason (AC1)
+   - payload keys result/decline/error (AC2)
+   - exit-code table 0/1/2/3(conditional)/64 with meanings (AC2)
+   - not-found convention: JSON-first decline envelope with a structured `reason` discriminant, explicitly scoped as Quest's own side only, with the lore-doc boundary half (bare exit-code-and-empty-stdout compatibility) explicitly called out as open/unresolved by this ADR (AC3)
+   - anomaly as a distinguishable fourth outcome value with its own exit code (3), explicitly noting that canonizing \"anomaly\" as a product-wide outcome-vocabulary term is a separate, already-routed quest-doc proposal not settled here (AC4)
+   - create/edit commands emit the JSON envelope uniformly with every other command (AC5)
+5. Write Consequences: knock-on effects (e.g. envelope now has 4 possible payload keys once anomaly is included, exit table finalized for Phase 2 command design, what stays open: lore-doc boundary, D2/D6/D7a/D7b, quest-doc anomaly-vocabulary proposal).
+6. Do NOT touch the open component decisions register, contracts graph, roadmap, or D2/D6/D7a/D7b — reconciliation is QCLI-28's job.
+7. Verify: `lore validate --strict` on the new file (and bundle) must pass; re-read the file against every AC line-by-line.
+8. Run `lore sync` if needed to keep managed blocks (adr/index.md, Story tasks block) coherent, then `lore check` to confirm no drift.
+9. Record notes on the interpretation call for AC1's Kubernetes/Stripe justification (brief, factual: split status/type-like dual fields is a documented pattern in both APIs) since the task said not to hunt for more source material.
+10. Commit (small logical commits, `Refs: QCLI-24` trailer) and push the branch.
+<!-- SECTION:PLAN:END -->
