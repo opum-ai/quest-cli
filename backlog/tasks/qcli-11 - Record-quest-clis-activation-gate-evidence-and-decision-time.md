@@ -4,7 +4,7 @@ title: Record quest-cli's activation-gate evidence and decision time
 status: To Do
 assignee: []
 created_date: '2026-08-05 11:41'
-updated_date: '2026-08-05 11:42'
+updated_date: '2026-08-05 12:33'
 labels:
   - quest
   - cli
@@ -12,13 +12,14 @@ labels:
   - evidence
   - lore
   - blocked-on-owner
-  - 'doc:stories/prepare-quest-cli-for-implementation-activation'
+  - campaign
+  - 'cluster:lore-gate'
 dependencies: []
 documentation:
   - docs/stories/prepare-quest-cli-for-implementation-activation.md
 priority: high
 type: docs
-ordinal: 29000
+ordinal: 36000
 ---
 
 ## Description
