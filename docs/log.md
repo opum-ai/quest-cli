@@ -57,6 +57,7 @@
 - 2026-08-05T08:46:13-05:00 ae83301c654d198f48c39a8665e2b8b4eb61e8f1 docs: sync log.md after QCLI-15 merge
 - 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
 - 2026-08-05T08:49:46-05:00 d95c1ee027b5d81f6a5df0e77f3d048bc5298714 docs: sync log.md after QCLI-16 merge
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 
 ## docs/adr
 
@@ -98,8 +99,7 @@
 - 2026-08-05T08:41:47-05:00 077d3beef69b2e953b3d811b620234b36daaed63 QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
 - 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
 - 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
-- 2026-08-05T08:51:57-05:00 0b7a492fa7ce7ac96965cff905d7a0ae416c68e9 docs: correct the false Backlog.md reclassification-trigger claim
-- 2026-08-05T08:51:57-05:00 4c1c7a866a5d25c477f3770c1c51cce040390b9a docs: align register recheck clause with the fidelity contract
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 
 ## docs/runbooks
 
@@ -115,7 +115,7 @@
 - 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
 - 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
 - 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
-- 2026-08-05T08:51:57-05:00 0b7a492fa7ce7ac96965cff905d7a0ae416c68e9 docs: correct the false Backlog.md reclassification-trigger claim
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 
 ## docs/stories
 
@@ -147,3 +147,4 @@
 - 2026-08-05T08:38:00-05:00 121f0e594d5de6b7592706afcb3cc6e47435a219 docs: sync log.md and story managed block after wave-1 merges
 - 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
 - 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
