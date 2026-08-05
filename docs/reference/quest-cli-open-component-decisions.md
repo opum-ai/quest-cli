@@ -90,11 +90,28 @@ dependency deliverables leave open, from
 Detail where the one-line status understates the constraint:
 
 - **D1 — License.** No admitted source in the campaign records a chosen license for
-  `@opum-ai/quest`; the charter and the component ADR are both silent. Backlog.md's MIT
-  license and the npm registry metadata this campaign read were admitted as
-  *naming-conflict and allocation evidence only*, never as license guidance. Permissive
-  licensing elsewhere makes copying legally permissible, not provenance-clean — the two
-  are separate tests and only the second binds this campaign.
+  `@opum-ai/quest`; the charter and the component ADR are both silent. **Corrected
+  2026-08-05 by `QCLI-21`, matching [component contracts and delivery
+  graph](quest-cli-component-contracts-and-delivery-graph.md#unresolved-component-decisions-ac3)'s
+  `QCLI-16` correction (`44a7ed8`):** this entry previously read "Backlog.md's MIT license
+  and the npm registry metadata this campaign read were admitted as *naming-conflict and
+  allocation evidence only*, never as license guidance" — conflating two separately
+  admitted sources under one slice. Only the `@opum-ai/lore`/`quest`/`quest-cli` npm
+  registry metadata — including each package's license field — was admitted as
+  naming-conflict and allocation(-constraint) evidence, under the register's "npm package
+  name occupancy" and "lore-cli / the `lore` command" slices; that attribution is correct
+  as originally stated and unchanged here. Backlog.md's own MIT license is not admitted
+  under either of those slices: it is discussed only under the register's "Backlog.md
+  implementation source and internal tests" slice (Excluded), as the rationale for a
+  source-reading reclassification the owner declined — "the constraint is authorship
+  independence, not licensing" — and under the register's "Backlog.md public surface"
+  slice (Allowed), as rationale for why consuming Backlog.md's published docs and command
+  output is "ordinary user/integrator activity, not implementation derivation." Neither
+  slice frames Backlog.md's license as naming-conflict or allocation evidence. In neither
+  case was any of it admitted as license guidance for Quest's own choice — that part of
+  this entry's conclusion is unchanged. Permissive licensing elsewhere makes copying
+  legally permissible, not provenance-clean — the two are separate tests and only the
+  second binds this campaign. Status and owner unchanged: open, product owner.
 - **D2 — Runtime.** Explicitly gated on completed Lore evidence, so structurally
   post-activation. No task owned it as of 2026-08-04. This is the entry most likely to be
   mistaken for a free choice, because nothing about it is technically hard; the
@@ -199,26 +216,49 @@ boundary decision. Quest can prepare for any outcome but can settle none of them
 | 5b | Not-found signalling — a genuine three-way tension between exit-code-and-empty-stdout and a JSON-first convention, resolved by no current document. Also requires a Quest contract change |
 | 6c | Whether the coupling convention reuses the literal `doc:` label string format. Assuming reuse is free is itself a finding, not a given |
 
-### Residual items recorded but never filed
+### Residual items recorded in settlement notes
 
 The campaign trackers report no outstanding *proposed* follow-ups, and that is accurate:
-the proposal queue is empty. But the following surfaced inside task settlement notes and
-were never filed as tasks. They are recorded here so they stop being visible only to a
-reader of per-task notes.
+the proposal queue is empty. Ten items surfaced inside task settlement notes without their
+own filed task. The `QCLI-12`–`QCLI-17` wave (2026-08-05) since closed four of them
+outright, audited two more without closing them, and left the remaining four exactly as
+recorded here — genuinely unfiled, with no task of any kind touching them:
 
-This project requires approval before follow-up work is filed, so listing an item here is
-not a decision to file it.
+- **Closed** — the QCLI-2.8 dependency-order row (below), by `QCLI-12` (`1dd4aa6`).
+- **Closed** — the playbook/charter/ledger backlink gap (below), by `QCLI-13` (`d871d32`).
+- **Closed** — the bin-path table defect (below), by `QCLI-14` (`077d3be`).
+- **Closed** — the licensing-source misattribution (below): `QCLI-16` (`44a7ed8`) closed
+  the instance in the [component contracts and delivery
+  graph](quest-cli-component-contracts-and-delivery-graph.md); the surviving instance in
+  this file's own D1 entry (above) is closed by this same task, `QCLI-21`.
+- **Audited, still open** — QCLI-2.12's F4/F5 (below) and the untraceable Allowed value
+  (below), both by `QCLI-15` (`6b78fd0`), which re-characterized what each row records
+  without closing either.
+- **Still genuinely unfiled** — the supported-platform matrix, the quest-doc actor model,
+  Backlog.md's undocumented browser HTTP endpoint, and `LCLI-316`: no task, wave-1 or
+  otherwise, has touched any of these four.
+
+This project requires approval before follow-up work is filed, so listing the
+still-unfiled items here is not a decision to file them.
+
+> **Correction, 2026-08-05 (`QCLI-21`):** this section previously read "Residual items
+> recorded but never filed" and stated flatly that the items below "surfaced inside task
+> settlement notes and were never filed as tasks." That was already false by the time it
+> was written: six of the ten items had been filed, by five tasks (`QCLI-12`–`QCLI-16`,
+> with `QCLI-15` covering two items). The framing above distinguishes closed,
+> audited-but-open, and genuinely unfiled items, each with its own citation; the per-row
+> detail is corrected in place below.
 
 | Item | Source | Consequence if left |
 | --- | --- | --- |
 | No task claims the supported-platform matrix | QCLI-2.8 decision 3 — "a future task must claim it explicitly" | D3 stays unowned; Phase 6 has no input |
 | The product-wide actor model was routed to `quest-doc` but never authored there | QCLI-2.2 candidate 6, corroborated by QCLI-2.4 | D6 stays unwritten; Phase 2 cannot settle gate eligibility |
-| The research programme Spec's dependency-order row for QCLI-2.8 is stale — it reads a range that predates the 2.11–2.14 corrections | QCLI-2.14, deferred to an owner decision | A reader mis-reads the synthesis inputs |
-| QCLI-2.12's findings F4 and F5 were "left for the orchestrator to track" | QCLI-2.12 notes | No tracking record exists |
-| The playbook and the charter and migration ledger are not backlinked to each other | QCLI-2.10, which was instructed not to edit either file | Navigation gap between the operational procedure and its governing records |
-| A licensing-source misattribution in QCLI-2.8, not affecting its conclusion | QCLI-2.8 settlement | Minor citation defect |
-| A bin path sits in the Description column of a dated-evidence table in the packaging contract | QCLI-2.9 settlement follow-up | Minor table defect |
-| The Allowed classification of one register slice is sound but not traceable to the task notes it cites | QCLI-2.1 settlement | Provenance chain has one unverifiable link |
+| **Closed by `QCLI-12` (`1dd4aa6`).** The research programme Spec's dependency-order row for QCLI-2.8 was stale — it read a range that predated the 2.11–2.14 corrections | QCLI-2.14, deferred to an owner decision | Fixed: the Spec's [Dependency order](../specs/quest-cli-pre-implementation-research-program.md#dependency-order) table's `QCLI-2.8` row now names the full ten-item dependency set, corrected and dated 2026-08-05 |
+| QCLI-2.12's findings F4 and F5 were "left for the orchestrator to track" — **remain open** | `QCLI-15`'s audit (`6b78fd0`, 2026-08-05), confirming `QCLI-2.12`'s original notes | **Recovered 2026-08-05 by `QCLI-21`** from an out-of-repo Claude Code session transcript — `~/.claude/projects/-Volumes-external-repos-quest-cli/a6226b48-8acf-4fd0-beb5-18c099fc4540.jsonl`, line 225, `uuid ab85399e-c963-48a0-b029-315e23081241`, timestamp `2026-08-04T17:05:34.273Z` (an assistant message headed "# VERDICT: `request_changes` — **QCLI-2.12** on `fix/qcli-2.12-register-admission-coherence` @ `9a843d9` (base `94529f0`)", the pre-merge PR #14 review); a second copy of the same text exists in `d92cd86b-56f8-47fc-87e7-fe0fbe46cd6d.jsonl` in the same directory. **F4** (non-blocking, AC4): the "owner-ruled" qualifier doesn't obviously cover `QCLI-2.12` itself — the amended ledger sentence admits "a later task's owner-ruled amendment", but `QCLI-2.12`'s own register edits are marked "clarified/widened/added by `QCLI-2.12`" without asserting owner ruling; defensible, since owner approval exists for the ACs (`94529f0`), but the ledger sentence and the register's own amendment markers don't connect. **F5** (non-blocking, cross-wave coordination): Register:594–598 quotes a specific row heading ("What the 29 commits touch in `docs/`") from the [lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) — a file `QCLI-2.14` owns this wave; no edit to that file (scope was clean), but if `QCLI-2.14` rewrites that drift-table row, this quote goes stale — worth a settlement-time recheck. **Remaining open question:** now that the substance is recovered, the question is no longer whether F4/F5 are recoverable — it is whether each still applies to the current register/ledger text, a judgeable question rather than an unknown one. **Disambiguation:** `QCLI-2.12`'s notes carry two independent F-numbered schemes; this is Scheme 1 (pre-merge, 2026-08-04). The wave-4 integration review's separately-numbered F4 (ledger attribution gap) is a different item, already resolved via PR #17, squash commit `c8dfdca`. No new Backlog task is filed for F4/F5 here — this project requires owner approval before follow-up work is filed |
+| **Closed by `QCLI-13` (`d871d32`).** The playbook and the charter and migration ledger were not backlinked to each other | QCLI-2.10, which was instructed not to edit either file | Fixed: the [component charter](quest-cli-component-charter.md)'s migration Owns-here bullet (line 28) now links to the [Backlog adoption and migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md); the [migration ledger](former-ocli-to-qcli-migration-ledger.md)'s Source provenance boundary section (line 123) now notes the playbook's citation of it, dated 2026-08-05 |
+| **Now closed (was half-closed).** A licensing-source misattribution in `QCLI-2.8`'s settlement, not affecting its conclusion | QCLI-2.8 settlement | `QCLI-16` (`44a7ed8`, 2026-08-05) closed the instance in the [component contracts and delivery graph](quest-cli-component-contracts-and-delivery-graph.md#unresolved-component-decisions-ac3)'s Licensing entry. The same misattribution survived in this file's own D1 entry (above) until this same task, `QCLI-21`, corrected it there — see D1, above. Both instances are now closed |
+| **Closed by `QCLI-14` (`077d3be`).** A bin path sat in the Description column of a dated-evidence table in the packaging contract | QCLI-2.9 settlement follow-up | Fixed: the [packaging contract](quest-cli-packaging-contract.md)'s registry-evidence table now carries a dedicated Bin column; the `@opum-ai/lore` row's bin path is relocated there and its Description cell marked `—`, corrected and dated 2026-08-05 |
+| The Allowed classification of one register slice is sound but not traceable to the task notes it cites — **remains open** | `QCLI-15`'s audit (`6b78fd0`, 2026-08-05), confirming `QCLI-2.1`'s original settlement note | Confirmed on inspection: `QCLI-1`/`QCLI-3`/`QCLI-4` predate the register and its Classification vocabulary, and none self-classifies. The Allowed value traces only to the slice's own Ownership-rationale reasoning applied against the Classification vocabulary's definition of Allowed, not to a cited admission. **Closure condition:** an explicit owner ruling — the same instrument already used elsewhere in this register (the lore-cli split rule, the Backlog.md authorship-independence ruling) — ratifying self-classification-by-vocabulary as sufficient admitting evidence, without a per-member task-note citation |
 | Backlog.md's `browser` command exposes an undocumented HTTP JSON endpoint whose field shapes diverge from its own CLI contract | QCLI-2.5 finding 13, flagged for QCLI-2.8, which declined to rule | An unexamined boundary if Quest ever mirrors that surface |
 | `LCLI-316` was filed in `lore-cli` but deliberately left uncommitted | Campaign tracker, wave 5 | Untracked by any quest-cli mechanism; whoever next works in `lore-cli` must commit it |
 
