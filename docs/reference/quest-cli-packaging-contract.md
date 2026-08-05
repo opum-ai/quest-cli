@@ -66,16 +66,28 @@ precisely because that fact is time-bound.
 
 #### Conflicting/reference names on the public registry
 
-| Package | Version | Repository | License | Maintainers | Description |
-| --- | --- | --- | --- | --- | --- |
-| `quest` | `0.4.0` | `git+https://github.com/Clever/quest.git` | *(no `license` field published)* | `azylman`, `cleverdrone`, `jefff`, `jonahkagan`, `rgarcia` (5) | "simple request library for node" |
-| `quest-cli` | `1.0.0` | *(none published)* | `ISC` | `edamghy <damriabdellah@gmail.com>` (1) | *(none published)* |
-| `@opum-ai/quest-cli` | `E404 Not Found` — unclaimed | — | — | — | — |
-| `@salient-data/quest` | `E404 Not Found` — unclaimed | — | — | — | — |
-| `@salient-data/quest-cli` | `E404 Not Found` — unclaimed | — | — | — | — |
-| `lore` | `0.13.0` | `git+https://github.com/lore/lore.git` | — | — | — |
-| `lore-cli` | `0.13.2` | `git+https://github.com/lore/lore.git` | — | — | — |
-| `@opum-ai/lore` | `0.1.0` | `git+https://github.com/opum-ai/lore-cli.git` | `MIT` | `jeremy-newhouse <jeremy.newhouse@salientdata.ai>` (1) | bin `lore` → `bin/lore.cjs` |
+| Package | Version | Repository | License | Maintainers | Description | Bin |
+| --- | --- | --- | --- | --- | --- | --- |
+| `quest` | `0.4.0` | `git+https://github.com/Clever/quest.git` | *(no `license` field published)* | `azylman`, `cleverdrone`, `jefff`, `jonahkagan`, `rgarcia` (5) | "simple request library for node" | — |
+| `quest-cli` | `1.0.0` | *(none published)* | `ISC` | `edamghy <damriabdellah@gmail.com>` (1) | *(none published)* | — |
+| `@opum-ai/quest-cli` | `E404 Not Found` — unclaimed | — | — | — | — | — |
+| `@salient-data/quest` | `E404 Not Found` — unclaimed | — | — | — | — | — |
+| `@salient-data/quest-cli` | `E404 Not Found` — unclaimed | — | — | — | — | — |
+| `lore` | `0.13.0` | `git+https://github.com/lore/lore.git` | — | — | — | — |
+| `lore-cli` | `0.13.2` | `git+https://github.com/lore/lore.git` | — | — | — | — |
+| `@opum-ai/lore` | `0.1.0` | `git+https://github.com/opum-ai/lore-cli.git` | `MIT` | `jeremy-newhouse <jeremy.newhouse@salientdata.ai>` (1) | — | bin `lore` → `bin/lore.cjs` |
+
+**Corrected 2026-08-05 by `QCLI-14`:** the `@opum-ai/lore` row's bin path
+(bin `lore` → `bin/lore.cjs`) previously occupied the Description column,
+the only populated cell in that column that was not a published package
+description string, where every other populated row's Description cell
+carries one. This table's column semantics are widened to add a dedicated
+Bin column, and the bin-path value — unchanged, and still dated to the
+original 2026-08-04 sweep below — is relocated there. The `@opum-ai/lore`
+row's Description cell is marked `—` because no npm description was
+captured for that package in the 2026-08-04 sweep; this correction does not
+supply one, since doing so now would be a new, separately dated observation,
+not a relocation of the existing one. No other cell in this table changed.
 
 `quest` package history (`npm view quest time`): first published `0.0.2` on
 2012-11-01, most recent `0.4.0` on 2018-09-04, `modified` (last registry
