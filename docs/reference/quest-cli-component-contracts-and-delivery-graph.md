@@ -571,12 +571,31 @@ blocker gated on external work — never resolved by naming it here.
    source in this campaign records a chosen license for `@opum-ai/quest`;
    the [charter](quest-cli-component-charter.md) and the
    [ADR](../adr/use-quest-cli-for-the-quest-package-and-command.md) are
-   silent on license choice. Backlog.md's own MIT license and the
-   `@opum-ai/lore`/`quest`/`quest-cli` npm registry metadata this campaign
-   read were admitted only as naming-conflict and allocation evidence
-   (register, "npm package name occupancy" and "lore-cli / the `lore`
-   command" slices), never as license guidance for Quest's own choice.
-   **Status:** open, owner-held.
+   silent on license choice. **Corrected 2026-08-05 by `QCLI-16`, filing a
+   licensing-source misattribution `QCLI-2.8` settlement recorded in this
+   same deliverable and left as-is (not affecting this entry's conclusion):**
+   the register does not support crediting Backlog.md's own MIT license to
+   the same two slices that admit the npm registry metadata below. Backlog.md's
+   MIT license is discussed only in the register's "Backlog.md" section, in
+   two slices distinct from the npm-metadata ones: "Backlog.md implementation
+   source and internal tests" (Excluded; permitted use "none") cites it only
+   as the rationale for a source-reading reclassification the owner was
+   offered and declined — "the constraint is authorship independence, not
+   licensing" — and "Backlog.md public surface" (Allowed) cites it only as
+   rationale for why consuming Backlog.md's published docs and command
+   output is "ordinary user/integrator activity, not implementation
+   derivation." Neither of those two slices frames Backlog.md's license as
+   naming-conflict or allocation evidence, and neither is the "npm package
+   name occupancy" or "lore-cli / the `lore` command" slice. Separately, and
+   correctly as originally stated, the `@opum-ai/lore`/`quest`/`quest-cli`
+   npm registry metadata this campaign read — including each package's
+   license field — was admitted only as naming-conflict and
+   allocation(-constraint) evidence under those two slices ("npm package
+   name occupancy" and "lore-cli / the `lore` command"). In neither case —
+   Backlog.md's license under its own two slices, nor the npm registry
+   metadata under the naming-conflict slices — was any of it admitted as
+   license guidance for Quest's own choice; that part of this entry's
+   conclusion is unchanged. **Status:** open, owner-held.
 
 2. **Runtime.** The Spec's Open Questions name "Runtime and native
    packaging after Lore's completed evidence is reviewed" — explicitly

@@ -54,6 +54,7 @@
 - 2026-08-05T08:41:47-05:00 077d3beef69b2e953b3d811b620234b36daaed63 QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
 - 2026-08-05T08:42:12-05:00 d03eeaefddd2ad21ea8ba95a03ed5c8adfa458b7 docs: sync log.md after QCLI-14 merge
 - 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
+- 2026-08-05T08:46:13-05:00 ae83301c654d198f48c39a8665e2b8b4eb61e8f1 docs: sync log.md after QCLI-15 merge
 
 ## docs/adr
 
@@ -94,6 +95,7 @@
 - 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
 - 2026-08-05T08:41:47-05:00 077d3beef69b2e953b3d811b620234b36daaed63 QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
 - 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
+- 2026-08-05T08:47:57-05:00 df49b6920013d9110124d7a398ee88ee9e9494ac docs: correct the licensing-source misattribution in the contracts and delivery graph
 
 ## docs/runbooks
 
