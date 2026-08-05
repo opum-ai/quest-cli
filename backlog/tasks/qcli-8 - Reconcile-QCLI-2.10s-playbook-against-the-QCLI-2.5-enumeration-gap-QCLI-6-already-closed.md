@@ -3,9 +3,10 @@ id: QCLI-8
 title: >-
   Reconcile QCLI-2.10's playbook against the QCLI-2.5 enumeration gap QCLI-6
   already closed
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-05 04:32'
+updated_date: '2026-08-05 04:32'
 labels:
   - research
   - register
@@ -14,6 +15,7 @@ labels:
   - clean-room
   - 'cluster:provenance'
   - campaign
+  - wave-3
 dependencies:
   - QCLI-6
   - QCLI-2.10
