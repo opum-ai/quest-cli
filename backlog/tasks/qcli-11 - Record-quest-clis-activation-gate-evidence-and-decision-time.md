@@ -4,7 +4,7 @@ title: Record quest-cli's activation-gate evidence and decision time
 status: In Progress
 assignee: []
 created_date: '2026-08-05 11:41'
-updated_date: '2026-08-05 15:28'
+updated_date: '2026-08-05 15:31'
 labels:
   - quest
   - cli
@@ -53,3 +53,30 @@ Context worth carrying into the work: the 2026-08-01 audit boundary that closed 
 7. Run `lore sync`, then the three verification gates (`lore check`, `lore validate --strict`, `lore orphans`) and fix anything they flag before considering the doc done.
 8. Record plan/notes on QCLI-11 via the CLI (writing text to scratch files first to avoid the local heredoc/apostrophe bug), commit in small logical commits each with a `Refs: QCLI-11` trailer, and push the branch as the last step.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Authored docs/reference/quest-cli-activation-gate-evidence-record.md via `lore new reference "Quest CLI activation-gate evidence record"`, then filled it in. It quotes the four-clause gate predicate verbatim from its owner (lore-doc's docs/specs/quest-integration-and-lore-release-gate.md, local clone /Volumes/external/repos/lore-doc, HEAD 45d0d90f68a6c471365494155f1fcae5b7d01196, predicate section last touched 32cb28567453a35c8c9f2e7687f730ca501fab21 on 2026-08-01), names every input's exact repository/revision/path, and records every observation as a dated moving reference with the literal command that produced it, inside one tight live inspection boundary: 2026-08-05, 15:29:21Z-15:29:23Z UTC.
+
+Live re-check performed now (not reused from memory), commands and results:
+- lore-doc: `backlog task view LDOC-4 --plain` -> Status: To Do (Updated 2026-08-01 18:20 UTC) - unchanged since the last capsule.
+- lore-cli: `git tag -l -n1` -> v0.1.0 AND v0.1.1 ("Release v0.1.1") - v0.1.1 is NEW, not present in this repo's last capsule (QCLI-2.7 / QCLI-2.9, both dated 2026-08-04, which cite only v0.1.0).
+- npm: `npm view @opum-ai/lore version` -> 0.1.1 (published 2026-08-05T02:27:29Z per `npm view @opum-ai/lore time --json`; GitHub release publishedAt 2026-08-05T02:29:23Z per `gh release list --repo opum-ai/lore-cli`) - changed from the 0.1.0 this repo's prior capsules recorded.
+- npm: `npm view @opum-ai/quest version` -> E404 (unclaimed) - unchanged from the 2026-08-04 packaging contract.
+- lore-cli: `backlog task view LCLI-278 --plain` -> Status: To Do (Updated 2026-08-04 01:05 UTC) - unchanged; automated-publish control gap still open.
+- quest-cli (this worktree): HEAD bb70619922dff171f479e68fa7de949b03d4b3a1, origin opum-ai/quest-cli, clean except this task's own edits.
+
+The record states the gate result only as lore-doc has actually reported it: the 2026-08-01 "closed" statement quoted verbatim from the gate Spec, plus LDOC-4's live-confirmed To Do status and unchecked acceptance criteria. It explicitly disclaims computing, inferring, or asserting any gate result of its own, and explicitly states that the new lore-cli v0.1.1 tag/release does not by itself open the gate or count as evidence toward opening it - that determination stays lore-doc's / LDOC-4's, per the task's own instruction that a changed result is a new fact for the owner to rule on.
+
+Discrepancies recorded in the doc (all flagged, none acted on): (1) lore-cli's new v0.1.1 tag/npm release, absent from the 2026-08-04 capsules; (2) LCLI-278 still open/unresolved; (3) lore-doc's own committed gate Spec still cites a stale salient-data/quest-cli link one paragraph from the predicate text, with an uncommitted local fix to opum-ai/quest-cli already pending in that clone's working tree at read time (not committed by this task - lore-doc is out of scope to edit).
+
+Verification gates, all clean after `lore sync`:
+- `lore check` -> 39 files, 0 errors, 0 warnings.
+- `lore validate --strict` -> 39 files, 0 errors, 0 warnings, 6 skipped (index/log files, expected).
+- `lore orphans` -> 0 orphan tasks, 0 dangling links.
+
+Scope check: `git status --short` and `git diff --stat` confirm the three sibling-task documents (quest-cli-open-component-decisions.md, quest-cli-component-contracts-and-delivery-graph.md, quest-cli-research-source-register.md) were not touched. `lore sync`'s own managed-block regeneration updated docs/log.md, docs/reference/index.md, and this task's own owning Story (docs/stories/prepare-quest-cli-for-implementation-activation.md, a different Story than the other five wave tasks) to reflect the new doc and the task's In Progress status - no hand-edits were made to any of those three.
+
+Out-of-scope discovery (not acted on, reported per instruction): lore-doc's committed gate Spec (docs/specs/quest-integration-and-lore-release-gate.md) still names salient-data/quest-cli as the canonical component-contracts owner, even though quest-cli transferred to opum-ai on 2026-08-04. A fix already exists uncommitted in that clone's working tree. This is lore-doc's file to fix and commit, not this repository's.
+<!-- SECTION:NOTES:END -->
