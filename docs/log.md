@@ -70,6 +70,7 @@
 - 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
+- 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
 
 ## docs/adr
 
@@ -179,3 +180,4 @@
 - 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
 - 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
+- 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
