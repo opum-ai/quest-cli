@@ -1393,3 +1393,28 @@ produced it (a session transcript or agent run outside this repository's
 version control, if one still exists) and filing it as a new, normal
 Backlog finding once its content is known — not reconstructing content from
 inference, which this audit deliberately does not do.
+
+**Corrected 2026-08-05 by `QCLI-22`:** the paragraph above accurately
+reports what `QCLI-15`'s 2026-08-05 audit found at the time it ran, but the
+state of affairs it describes has since changed. The substance was
+recovered during `QCLI-21`'s review pass this same wave (reconciling
+`quest-cli-open-component-decisions.md`), from an out-of-repo Claude Code
+session transcript —
+`~/.claude/projects/-Volumes-external-repos-quest-cli/a6226b48-8acf-4fd0-beb5-18c099fc4540.jsonl`,
+line 224, `uuid ab85399e-c963-48a0-b029-315e23081241`, timestamp
+`2026-08-04T17:05:34.273Z` (a second copy exists at
+`.../d92cd86b-56f8-47fc-87e7-fe0fbe46cd6d.jsonl`) — the pre-merge PR #14
+review this section calls Scheme 1. In brief: F4 questioned whether the
+migration ledger's "owner-ruled" qualifier for later amendments obviously
+covers `QCLI-2.12`'s own register edits, which are marked
+"clarified/widened/added" without asserting owner ruling; F5 flagged that
+Register:594–598's quotation of a drift-table row heading from
+`quest-cli-lore-dependency-and-adapter-contract-evidence.md` would go stale
+if `QCLI-2.14` rewrote that row. Full detail lives in
+`quest-cli-open-component-decisions.md`'s own F4/F5 row, which `QCLI-21` is
+updating in parallel. This closes the retrievability gap the audit
+identified: the "no one can now judge whether they still apply" framing
+above no longer describes the current state — the substance is known and
+recorded. Whether F4 and F5, now that their substance is known, still apply
+against the register's *current* text remains a separate, open question
+this correction does not resolve.

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@jeremy'
 created_date: '2026-08-05 14:37'
-updated_date: '2026-08-05 15:49'
+updated_date: '2026-08-05 15:55'
 labels:
   - campaign
   - 'cluster:provenance'
@@ -116,6 +116,23 @@ Fix pass applied after reviewer's request_changes (two narrow findings; all 14 S
 No SHA re-derived or changed. Only docs/reference/quest-cli-research-source-register.md touched; diff confirmed to contain exactly these two hunks, nothing else.
 
 Gate re-verification after the fix (clean working tree):
+- lore validate --strict: 38 files, 0 errors, 0 warnings, 6 skipped. Exit 0.
+- lore check: 38 files, 0 errors, 0 warnings. Exit 0.
+- lore orphans: 0 orphan tasks, 0 dangling links. Exit 0.
+
+Scope re-check: git diff --stat bb70619922dff171f479e68fa7de949b03d4b3a1...HEAD -- docs/reference/quest-cli-open-component-decisions.md docs/reference/quest-cli-component-contracts-and-delivery-graph.md is empty -- QCLI-21's territory remains untouched.
+
+Addendum fix pass (2026-08-05), cross-task finding from QCLI-21's review:
+
+QCLI-21's reviewer, working this same wave on quest-cli-open-component-decisions.md, recovered the original QCLI-2.12 F4/F5 reviewer text from an out-of-repo Claude Code session transcript (~/.claude/projects/-Volumes-external-repos-quest-cli/a6226b48-8acf-4fd0-beb5-18c099fc4540.jsonl, line 224, uuid ab85399e-c963-48a0-b029-315e23081241, timestamp 2026-08-04T17:05:34.273Z; a second copy exists at .../d92cd86b-56f8-47fc-87e7-fe0fbe46cd6d.jsonl). This falsifies the register's Notes-section claim (Finding B, the paragraph ending "...so no one can now judge whether they still apply to the current register text") that no retrievable record of F4/F5's substance exists.
+
+Independently verified both transcript copies before use: confirmed the uuid, timestamp, and full F4/F5 text (0-indexed line 224 = 1-indexed line 225 via grep -n, an indexing-convention difference, not a discrepancy) match exactly what was cited. Did not take the finding on trust.
+
+Fix applied: appended one new inline, dated correction block ("Corrected 2026-08-05 by QCLI-22") directly after the existing Finding B paragraph in docs/reference/quest-cli-research-source-register.md's Notes section. It attributes the recovery accurately to QCLI-21's review pass (not authored by QCLI-22), cites the transcript path/uuid/timestamp, briefly summarizes F4 and F5's substance, points to quest-cli-open-component-decisions.md's own F4/F5 row (updated by QCLI-21 in parallel) for full detail, and corrects the "no one can now judge whether they still apply" framing without overclaiming resolution -- whether F4/F5 still apply to the register's current text is left as a separate, still-open question.
+
+No SHA touched, no Classification value changed, no other part of the register edited. This is additive-only: one new paragraph, nothing removed or reworded elsewhere.
+
+Gate re-verification after this addendum (clean working tree):
 - lore validate --strict: 38 files, 0 errors, 0 warnings, 6 skipped. Exit 0.
 - lore check: 38 files, 0 errors, 0 warnings. Exit 0.
 - lore orphans: 0 orphan tasks, 0 dangling links. Exit 0.
