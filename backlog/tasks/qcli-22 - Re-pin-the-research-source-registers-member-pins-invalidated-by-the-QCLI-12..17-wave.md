@@ -3,9 +3,11 @@ id: QCLI-22
 title: >-
   Re-pin the research source register's member pins invalidated by the
   QCLI-12..17 wave
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@jeremy'
 created_date: '2026-08-05 14:37'
+updated_date: '2026-08-05 15:30'
 labels:
   - campaign
   - 'cluster:provenance'
@@ -52,3 +54,22 @@ Line numbers above are as observed by the wave-1 integration review immediately 
 - [ ] #10 The task self-pins the register in the same pass if its own edit invalidates the register's own self-pin retrieval stamp, per the standing pin-handling criterion this campaign's tasks have carried since wave 1
 - [ ] #11 lore validate --strict, lore check, and lore orphans are all clean after the change
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Re-verified every cited line number and SHA against merged dev (this branch's HEAD equals origin/dev) using the registers own documented method (git log --format=%h %cI -1 -- path, cross-checked with git show -s --format=%cI SHA and git show --stat SHA). Confirmed all task claims exactly: component charter now d871d32 (QCLI-13, PR #26), research Spec now 1dd4aa6 (QCLI-12, PR #25), packaging contract now 077d3be (QCLI-14, PR #27); ADR (942da73), Lore dependency evidence doc (157ad56), and legacy Opum reconciliation (3b5cd8c) each independently re-verified unchanged. Also re-verified the other five stable pins (883b445, 63b1e0a, 418c5eb, 739aa7e, 1a61989) all unchanged, and the three self-pinned documents (migration ledger, register itself, QCLI-2.8 contracts and delivery graph) each amended since their 2026-08-04 read-live stamp by d871d32/6b78fd0/44a7ed8 respectively. Cited line numbers in the task (924-929, 947-952, 953-956, 991-994, 1005-1010, 1018-1022) all matched current file content exactly, no drift to correct.
+
+2. Edit only docs/reference/quest-cli-research-source-register.md via a plain editor (this is prose-only content inside an existing Reference; lore does not mediate line-level prose edits, only frontmatter/managed blocks/linking), following the same inline dated-annotation style as the existing QCLI-6/QCLI-7/QCLI-9 corrections already in this exact paragraph:
+   - Append one new dated, cited correction block (Corrected 2026-08-05 by QCLI-22) that: decouples and repins the component charter (942da73 -> d871d32, ADR keeps 942da73), the research Spec (157ad56 -> 1dd4aa6, Lore dependency evidence doc keeps 157ad56), and the packaging contract (3b5cd8c -> 077d3be, legacy Opum reconciliation keeps 3b5cd8c), each recording the git verification method inline; states and justifies the judgment call to repoint the charter as a commit-pin rather than convert it to a self-pin (not co-edited by this task's own pass, the register's sole standing self-pin-eligibility test); updates the distinct-SHA enumeration (8 -> 11) and running self-pinned/commit-pinned counts (3 self-pinned / 11 commit-pinned, unchanged); restates the eight pins verified unchanged.
+   - Append a second dated block (Self-pin retrieval-date disposition, 2026-08-05, QCLI-22) explicitly dispositioning the three "read live 2026-08-04" stamps (migration ledger, this register, QCLI-2.8 document): refreshes each to 2026-08-05, names the amending task/commit for each, and states why the self-pin mechanism was never broken (QCLI-16 already verified this) while still refreshing the date for reader clarity.
+   - Fix the Notes section wording tension (AC9): reword the QCLI-15 audit summary sentence ("closed two residual findings") which contradicts the same section's own conclusion that both Finding A (needs an owner ruling) and Finding B (F4/F5 substance unrecoverable) remain open; add an inline dated correction (2026-08-05, QCLI-22) clarifying QCLI-15 closed the investigation into each finding, not the findings themselves, matching the paragraphs own stated conclusions below it.
+   - Confirm AC10 explicitly in the same new text: this tasks own edit further amends the register, which is already covered by the registers existing self-pin mechanism (no separate action needed structurally), stated explicitly rather than left implicit.
+   - Update the document's own frontmatter timestamp and summary line to reflect this pass, consistent with how prior correction tasks (QCLI-6/7/9) touched this file's frontmatter.
+
+3. Run lore check, lore validate --strict, and lore orphans; fix any reported issue before considering done.
+
+4. Record verification evidence and out-of-scope findings (none anticipated beyond the AC1/AC5 judgment calls) in --append-notes; leave AC1 (charter self-pin-vs-repoint) and AC5 (stamp refresh-vs-leave) noted as judgment calls for reviewer confirmation via --comment.
+
+5. Commit in small logical commits (pin corrections; self-pin stamp disposition; Notes wording fix, if not folded together) each with a docs(register): summary and a Refs: QCLI-22 trailer, then push the branch.
+<!-- SECTION:PLAN:END -->
