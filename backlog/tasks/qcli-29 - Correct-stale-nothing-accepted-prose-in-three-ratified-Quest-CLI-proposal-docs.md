@@ -3,14 +3,15 @@ id: QCLI-29
 title: >-
   Correct stale 'nothing accepted' prose in three ratified Quest CLI proposal
   docs
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 00:29'
-updated_date: '2026-08-06 00:39'
+updated_date: '2026-08-06 01:51'
 labels:
   - campaign
   - 'cluster:proposal-docs'
+  - wave-1
 dependencies: []
 references:
   - >-
@@ -31,11 +32,11 @@ The Phase-1-ratification campaign (QCLI-24..28) produced ADRs for the CLI result
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md carries a dated inline note pointing to the ADR that ratified it (from QCLI-24), leaving the original proposal prose intact below the note
-- [ ] #2 docs/reference/quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md carries a dated inline note pointing to the ADR that ratified it (from QCLI-25), leaving the original proposal prose intact below the note
-- [ ] #3 docs/reference/quest-cli-scale-target-proposal.md carries a dated inline note pointing to the ADR that ratified it (from QCLI-26), leaving the original proposal prose intact below the note
-- [ ] #4 lore validate --strict passes
-- [ ] #5 No content changes are made to the three documents beyond the three inline supersession notes
+- [x] #1 docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md carries a dated inline note pointing to the ADR that ratified it (from QCLI-24), leaving the original proposal prose intact below the note
+- [x] #2 docs/reference/quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md carries a dated inline note pointing to the ADR that ratified it (from QCLI-25), leaving the original proposal prose intact below the note
+- [x] #3 docs/reference/quest-cli-scale-target-proposal.md carries a dated inline note pointing to the ADR that ratified it (from QCLI-26), leaving the original proposal prose intact below the note
+- [x] #4 lore validate --strict passes
+- [x] #5 No content changes are made to the three documents beyond the three inline supersession notes
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -60,4 +61,12 @@ Verification: git diff on all 3 files shows only the new paragraph added in each
 Did not run lore sync — not required (no ADR/register/index edits, no Story task-coupling changes) and none of the touched files are lore-managed index files.
 
 No out-of-scope findings.
+
+Verified by reviewer: all 5 ACs independently confirmed. ADR attribution checked bidirectionally against docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md, docs/adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md, and docs/adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md. lore validate --strict re-run clean (47 files, 0 errors, 0 warnings, 6 skipped). Diff is pure-addition (git diff --numstat shows zero deletions under docs/), scope-clean. Convention matched against real precedent (QCLI-5 amendment style, research-source-register wording). Merged as 6ffc401 (PR #45, squash).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added a dated inline supersession note to each of the three Phase-1 proposal docs (result-contract, canonical identifier grammar, scale target), pointing to the ADR that ratified it (QCLI-24/25/26 respectively). Original proposal prose preserved verbatim below each note, per this repo's existing inline-supersession convention. lore validate --strict passes.
+<!-- SECTION:FINAL_SUMMARY:END -->
