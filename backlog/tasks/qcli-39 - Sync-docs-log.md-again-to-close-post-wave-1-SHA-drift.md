@@ -1,13 +1,14 @@
 ---
 id: QCLI-39
 title: Sync docs/log.md again to close post-wave-1 SHA drift
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 18:09'
+updated_date: '2026-08-06 20:06'
 labels:
   - campaign
   - 'cluster:lore-log-sync'
+  - wave-2
 dependencies: []
 ordinal: 58000
 ---
