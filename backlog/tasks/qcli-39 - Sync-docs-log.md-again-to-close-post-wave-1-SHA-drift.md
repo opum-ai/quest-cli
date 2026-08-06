@@ -42,3 +42,21 @@ QCLI-35 (doc-7 campaign, wave 1) closed the pre-existing SHA-unreachable drift i
 8. Commit docs/log.md standalone with 'Refs: QCLI-39' trailer (if lore sync did not already commit it); ensure this task's own plan/notes edits land in a separate small commit with 'Refs: QCLI-39', matching QCLI-35's pattern.
 9. Push branch chore/qcli-39-log-sha-drift-sync to origin (final action).
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+lore sync --dry-run (before writing anything, per AC1): text output 'would update docs/log.md / 1 file changed (dry-run)'; --json confirmed files: [{path: docs/log.md}], filesChanged: 1, backlogCommit: {committed: false, files: []}, dryRun: true, orphanedIndexes: []. Change set confirmed confined to docs/log.md; proceeded to real sync.
+
+Ran real 'lore sync --json': {files: [{path: docs/log.md}], filesChanged: 1, backlogCommit: {committed: true, files: ['backlog/tasks/qcli-39 - ...md']}, dryRun: false, orphanedIndexes: []}. As established by QCLI-35's own notes (doc-7 campaign, wave 1) and lore instructions sync's documented contract, lore sync auto-committed the QCLI-39 backlog task file (dirtied by this task's own earlier 'backlog task edit -s/--plan' calls) as commit 0b649f3 'chore(backlog): sync task changes' -- this is the tool's own bookkeeping, not part of the docs/log.md regeneration, and is not folded into the docs/log.md commit. Applying QCLI-35's precedent identically: the task's own backlog record is bookkeeping (AC3-exempt per the task description itself), not unrelated work; no other file besides backlog/tasks/qcli-39-*.md and docs/log.md was touched.
+
+Before-state reachability check (86 SHAs recorded in docs/log.md pre-sync, extracted via grep -oE for 40-char hex and checked with git cat-file -e + git merge-base --is-ancestor HEAD): 86/86 present and reachable, 0 unreachable, 0 missing -- confirming QCLI-35's fix held and this task's drift is purely 'log is one sync behind' (missing new entries), not re-introduced unreachable SHAs.
+
+After real sync, docs/log.md diff: 6 insertions, 0 deletions (purely additive) -- added entries for QCLI-33 (ba2338f), QCLI-34 (ce4a130), QCLI-35 (2b30560), QCLI-37 (4640ab3), QCLI-38 (761313d), and the wave-1 integration commit #55 (098dbe6), i.e. exactly the commits merged to dev since QCLI-35's own sync. After-state reachability check on the resulting 92 recorded SHAs: 92/92 present and reachable, 0 unreachable, 0 missing (AC2 satisfied).
+
+git status/diff --stat after sync confirms only docs/log.md is unstaged-modified; the only other change was the already-separate backlog/ auto-commit (0b649f3). AC3/AC4 scope confirmed.
+
+'lore check': 47 files, 0 errors, 0 warnings (exit 0) -- AC5 satisfied.
+
+No out-of-scope findings. Scope matches QCLI-35's precedent identically: docs/log.md regeneration + the tool's own backlog/ bookkeeping commit, nothing else.
+<!-- SECTION:NOTES:END -->
