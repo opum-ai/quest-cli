@@ -3,9 +3,14 @@ id: doc-8
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-06 18:09'
-updated_date: '2026-08-06 20:05'
+updated_date: '2026-08-06 20:21'
 ---
 # Backlog campaign tracker
+
+**Campaign complete as of 2026-08-06.** All four tasks (QCLI-36/37/38/39)
+Done. Queue empty. See the Wave log for full history. Run
+`/backlog-handover init` to start a fresh campaign from whatever's in the
+backlog next.
 
 Protocol: restore → recompute the ready/conflict graph from Backlog → acquire
 worktrees → mark the acquired members dispatched → implement + review in
@@ -17,8 +22,7 @@ loop until the queue is empty or blocked → write handover.
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
 trust a persisted "next wave" plan. Informational hint only: as of
-2026-08-06 (post wave 1), 1 ready (QCLI-39 — its native dependency on
-QCLI-36/37/38 is now satisfied, all three Done), 0 blocked, 3 Done this wave.
+2026-08-06 (campaign complete), 0 ready, 0 blocked, 4/4 Done.
 
 ## Confirmed queue order
 
@@ -34,7 +38,7 @@ reviewers and worker, and filed this session with the user's approval.
 3. QCLI-38 — Determine whether 'naming scheme' is also closed by the
    QCLI-25 authored-record-layout section — **Done, wave 1**
 4. QCLI-39 — Sync docs/log.md again to close post-wave-1 SHA drift —
-   ready for wave 2. A native Backlog dependency on QCLI-36/37/38 was added
+   **Done, wave 2**. A native Backlog dependency on QCLI-36/37/38 was added
    this session to formalize the "run last" sequencing rationale below, so
    future restores compute this automatically rather than re-deriving it.
 
@@ -66,7 +70,7 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
-(clean — wave 1 fully merged, settled, and worktrees released)
+(clean — campaign complete, all worktrees released, pool fully available)
 
 ## Needs a human / blocked
 
@@ -163,3 +167,53 @@ here and at the wave-1 report for the user's approval.**
     commit orchestrator-only Backlog edits promptly** (settlement writes
     already do this; dispatch/in-review marking should too) rather than
     leaving them to accumulate uncommitted across a wave.
+
+- 2026-08-06 — wave 2 (QCLI-39). Ready set correctly recomputed to just
+  QCLI-39 (native dependency on QCLI-36/37/38 satisfied). Marked dispatched
+  and **committed immediately** (applying the wave-1 process note above) —
+  this avoided the wave-1-style local-diff pileup for the dispatch-marking
+  edit itself, but the underlying root cause resurfaced anyway at merge time
+  (see below), because the worker's own branch independently touched the
+  same task file after the dispatch-marking commit had already landed on
+  `dev`.
+  - QCLI-39: implemented (regenerated docs/log.md via `lore sync`, catching
+    up 86→92 recorded SHAs, 0 unreachable before/after; applied QCLI-35's
+    precedent for `lore sync`'s documented `backlog/` auto-commit
+    bookkeeping), reviewed (approve — reviewer independently re-verified
+    SHA reachability and re-ran `lore check`).
+  - **Merge-time content conflict** on rebase: the dispatch-marking commit
+    (orchestrator, on `dev`) and the worker's own task-file bookkeeping
+    (status/assignee/plan/notes, on the branch) both edited
+    `backlog/tasks/qcli-39-*.md` frontmatter — non-overlapping fields
+    converging on the same `status` value, no logic dispute. Routed through
+    this skill's escalation policy per the decide-vs-defer test: an
+    escalation reviewer ruled `reviewer_decided` (trivial mechanical
+    conflict), specified the exact resolved frontmatter (union of both
+    sides' fields, later timestamp), a fresh worker applied it via rebase
+    and force-pushed, and a second reviewer confirmed the resolution before
+    the branch re-entered the merge queue. No wave-mates were blocked by
+    this — a single-member wave has no wave-mates to block, but the
+    disposition-before-resolution discipline held regardless.
+  - Merged as `1f252dd` (PR #56). Settled to `Done`, committed as
+    `80cb441`.
+  - **Process note, corrected**: the wave-1 note above ("commit
+    orchestrator-only edits promptly") is necessary but not sufficient —
+    committing the dispatch-marking edit immediately prevented *local*
+    dirty-state pileup, but a *worker's own* task-file edits (via `--plan`
+    on a branch cut before the dispatch-marking commit) can still produce a
+    genuine rebase conflict against it once both land. This is expected,
+    not a bug: it is exactly the "merge-time content conflict" case this
+    skill's escalation policy already covers, and the disposition-first
+    discipline resolved it cleanly. No further process change needed —
+    future sessions should expect this class of conflict on any task-file
+    field the orchestrator touches (dispatch/in-review marking) while a
+    worker is concurrently active on the same task, and route it through
+    escalation rather than resolving it inline.
+
+## Campaign summary
+
+Doc-8 closed 2026-08-06 with all 4 tasks Done across 2 waves (QCLI-36/37/38
+in wave 1, QCLI-39 alone in wave 2, sequenced deliberately last), plus one
+narrow wave-level integration fix (PR #55) and one escalation-routed merge
+conflict resolution (QCLI-39). One follow-up remains proposed-not-filed
+above, awaiting user approval — carry it into the next `init` if approved.
