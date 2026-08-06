@@ -260,9 +260,14 @@ Two things this Spec touches that it does not own. Both are proposals, not decis
 - **How is the owned path set expressed?** `INV-4` requires it computed before any write,
   but whether it is a declared manifest, a builder the operation accumulates into, or a
   capability the port grants is undecided and shapes the application layer's interface.
-- **Does the projection port need transactional semantics**, or is rebuild-on-doubt
-  sufficient? This trades implementation complexity against rebuild cost and cannot be
-  settled before the scale target (D5).
+- **Whether the projection port needs transactional semantics is resolved.**
+  Rebuild-on-doubt trades implementation complexity against rebuild cost, a tradeoff
+  that could not be settled before the scale target (D5). [Adopt the Quest CLI
+  projection scale target and accept rebuild-on-doubt as
+  sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md)
+  (`QCLI-26`) closes D5 and states directly: no durable transactional index is required
+  to satisfy this scale target; rebuild-on-doubt stays the projection's primary
+  recovery mechanism.
 - **Is there a second in-process consumer on the horizon?** The ADR defers a kernel split
   until one exists. Nothing observed so far suggests one, and this should be re-checked
   rather than assumed settled forever.
