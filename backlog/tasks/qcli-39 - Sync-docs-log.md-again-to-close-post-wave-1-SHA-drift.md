@@ -2,9 +2,10 @@
 id: QCLI-39
 title: Sync docs/log.md again to close post-wave-1 SHA drift
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 20:06'
+updated_date: '2026-08-06 20:09'
 labels:
   - campaign
   - 'cluster:lore-log-sync'
@@ -27,3 +28,17 @@ QCLI-35 (doc-7 campaign, wave 1) closed the pre-existing SHA-unreachable drift i
 - [ ] #4 The change lands as its own commit, not folded into unrelated work
 - [ ] #5 lore check reports 0 errors
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Run 'lore sync --dry-run' and inspect output/--json to confirm the change set is confined to docs/log.md only (per AC1).
+2. If scope confirmed, run 'lore sync' for real to regenerate docs/log.md.
+3. If dry-run shows any other file (besides the documented backlog/ auto-commit exception per QCLI-35 precedent) would change, STOP -- do not run real sync -- record findings in notes and report blocked.
+4. Verify via git status/git diff --stat and/or git log that only docs/log.md changed (plus the backlog/ auto-commit, which QCLI-35's notes established is the tool's own documented bookkeeping, not unrelated work under AC3).
+5. Verify docs/log.md now contains 0 SHAs unreachable from HEAD: extract all recorded 40-char SHAs and check each with 'git cat-file -e' + 'git merge-base --is-ancestor <sha> HEAD'.
+6. Run 'lore check' and confirm 0 errors (AC5).
+7. Record notes with dry-run output, real output, before/after unreachable-SHA counts, and scope confirmation, citing QCLI-35's notes for the backlog/ auto-commit precedent.
+8. Commit docs/log.md standalone with 'Refs: QCLI-39' trailer (if lore sync did not already commit it); ensure this task's own plan/notes edits land in a separate small commit with 'Refs: QCLI-39', matching QCLI-35's pattern.
+9. Push branch chore/qcli-39-log-sha-drift-sync to origin (final action).
+<!-- SECTION:PLAN:END -->
