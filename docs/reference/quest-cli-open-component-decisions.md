@@ -164,7 +164,7 @@ closed while the other still holds the question open.
 | Product license and contributor provenance | D1 — **closed** |
 | Final npm package ownership and supported platform matrix | D3 — **closed**, claimed by `QCLI-27`; plus the CLI identity contract item on release-time availability |
 | Runtime and native packaging after Lore's completed evidence is reviewed | D2 — **blocked** (ownership claimed by `QCLI-27`; the runtime choice itself stays blocked) |
-| Canonical ID grammar, authored-record layout, event schema, and scale target | D4 — **closed**; D5 — **closed**; and the Git mutation contract items on record layout and event schema |
+| Canonical ID grammar, authored-record layout, event schema, and scale target | D4 — **closed**; D5 — **closed**; the Git mutation contract item on record layout — **closed** (same decision as D4; `QCLI-25`, reconciled here by `QCLI-34`); and the Git mutation contract item on event schema |
 | Projection engine and lifecycle, and the first stable Lore exchange contract | D5 — **closed**; the projection contract item on storage engine; and the three Lore integration contract items |
 
 The two the Spec itself flagged as unowned by any current task were the second and third.
