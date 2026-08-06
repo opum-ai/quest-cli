@@ -1,14 +1,15 @@
 ---
 id: QCLI-30
 title: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 00:29'
-updated_date: '2026-08-06 00:40'
+updated_date: '2026-08-06 01:52'
 labels:
   - campaign
   - 'cluster:reconciliation-cleanup'
+  - wave-1
 dependencies: []
 references:
   - docs/reference/quest-cli-component-contracts-and-delivery-graph.md
@@ -27,11 +28,11 @@ QCLI-28 reconciled the Quest CLI open component decisions register, contracts gr
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 docs/reference/quest-cli-component-contracts-and-delivery-graph.md's section intro (near line 600) is corrected to reflect that items in the section can be Closed, consistent with the four items already marked Closed just below it
-- [ ] #2 docs/specs/quest-cli-delivery-roadmap.md's D3 row 'Register entry' cell (near line 123) no longer reads 'currently owned by no task' and is consistent with the register's D3 owner cell
-- [ ] #3 docs/specs/quest-cli-architecture.md's Open Questions (near lines 236 and 242) no longer ask whether anomaly is a first-class outcome class or where it sits in the taxonomy, since QCLI-24's ADR already answered both at the component level
-- [ ] #4 lore validate --strict passes
-- [ ] #5 No content changes are made to the three documents beyond correcting these three passages
+- [x] #1 docs/reference/quest-cli-component-contracts-and-delivery-graph.md's section intro (near line 600) is corrected to reflect that items in the section can be Closed, consistent with the four items already marked Closed just below it
+- [x] #2 docs/specs/quest-cli-delivery-roadmap.md's D3 row 'Register entry' cell (near line 123) no longer reads 'currently owned by no task' and is consistent with the register's D3 owner cell
+- [x] #3 docs/specs/quest-cli-architecture.md's Open Questions (near lines 236 and 242) no longer ask whether anomaly is a first-class outcome class or where it sits in the taxonomy, since QCLI-24's ADR already answered both at the component level
+- [x] #4 lore validate --strict passes
+- [x] #5 No content changes are made to the three documents beyond correcting these three passages
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -65,4 +66,12 @@ Verification:
 - `lore check` (read-only, run for extra confidence, not the specified gate): reports 2 pre-existing errors in docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md (status-drift + managed-block-drift, "run lore sync to reconcile"). This file was NOT modified by this task's changes (confirmed via `git status`) and the drift is unrelated to the three target docs — it matches the deferred-sync condition already noted in QCLI-24's implementation notes ("full reconciliation deferred to a single post-merge lore sync, done once centrally after QCLI-24/25/26/27 all merge to dev"). Per this task's scope boundary, `lore sync` was deliberately NOT run — it would touch a shared managed file outside this task's three named docs; reporting instead.
 
 Out-of-scope finding (not acted on, reporting per instructions): the pre-existing lore check drift on docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md described above needs a centralized `lore sync` pass; this is exactly the kind of shared-file sync the wave-level integration pass is expected to handle.
+
+Verified by reviewer: all 5 ACs independently confirmed, including cross-checking the D3 owner cell against docs/reference/quest-cli-open-component-decisions.md at its source and the anomaly-taxonomy claim against docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md directly. lore validate --strict re-run clean (47 files, 0 errors, 0 warnings, 6 skipped). Diff confined to the three named docs, single contiguous hunk in architecture.md covering exactly the two named Open Questions. Merged as 735d82d (PR #46, squash, rebased onto QCLI-29's merge).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Corrected three residual passages left inconsistent by the QCLI-28 reconciliation: the component-contracts-and-delivery-graph section intro now accounts for Closed status; the delivery-roadmap D3 register-entry cell now matches the register's actual owner (QCLI-27); and architecture.md's two anomaly-taxonomy Open Questions now reflect QCLI-24's ADR. lore validate --strict passes.
+<!-- SECTION:FINAL_SUMMARY:END -->
