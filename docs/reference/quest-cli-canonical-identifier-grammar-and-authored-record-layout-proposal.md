@@ -26,6 +26,13 @@ accepted.** No ADR is created here, no register entry is edited here, and the re
 itself remains the authority on D4's status until a separate reconciliation pass acts
 on an owner's ruling.
 
+**Ratified — 2026-08-05 (`QCLI-25`).** The component owner has since ruled on register
+entry D4. [Adopt a T-prefixed canonical identifier grammar and its authored-record
+layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md)
+is the accepted ADR that closes it. The "nothing in this document is accepted" framing
+above no longer holds; it is preserved here unedited, as the proposal that ADR rules on,
+per this project's inline-supersession convention.
+
 It is grounded in, and does not restate or reopen, four already-admitted records: the
 accepted
 [migration ADR](../adr/migrate-from-backlog-md-reversibly-without-inheriting-its-id-grammar.md)

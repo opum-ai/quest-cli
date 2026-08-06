@@ -34,6 +34,13 @@ created by this document, and the
 not edited here — a separate reconciliation task closes each item once the owner rules, so
 that this task and its wave siblings do not contend for the same file.
 
+**Ratified — 2026-08-05 (`QCLI-24`).** The component owner has since ruled on the items
+below. [Ratify the Quest CLI result contract: envelope, exit codes, not-found, and
+anomaly](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
+is the accepted ADR that closes them. The "this document decides nothing" framing above no
+longer holds; it is preserved here unedited, as the proposal that ADR rules on, per this
+project's inline-supersession convention.
+
 ## Details
 
 ### Grounding
