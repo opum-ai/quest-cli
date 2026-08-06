@@ -2,7 +2,8 @@
 id: QCLI-32
 title: Run a centralized lore sync to reconcile the Phase-1-ratification Story
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-06 02:01'
 updated_date: '2026-08-06 03:56'
 labels:
@@ -33,3 +34,17 @@ ordinal: 51000
 - [ ] #4 The Story's narrative prose is not hand-edited — only the tool-regenerated fields change
 - [ ] #5 lore validate --strict passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Confirmed worktree is clean (git status --porcelain empty) on branch chore/qcli-32-lore-sync-phase1-ratification, freshly branched from dev (includes QCLI-31's merge).
+2. Read docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md: frontmatter status: in-progress, tasks: qcli-24..28; managed <!-- lore:tasks --> block shows QCLI-28 as "In Progress".
+3. Ran `lore check --plain` baseline: 47 files, 2 errors, 0 warnings — status-drift (story says in-progress, tasks recompute to done) and managed-block-drift (stale task table) on the Story file, matching the task description exactly. Confirmed via `backlog task view QCLI-28` that QCLI-28 is actually Done in Backlog (updated 2026-08-05 23:42 UTC), so the recompute is correct and the drift is just stale doc state.
+4. Run `lore sync` once, centrally, with no path args (full-bundle sync) per lore instructions sync.
+5. Run `git diff --name-only` to confirm the diff is confined to the Story file. If any other file changed, `git checkout -- <file>` to revert it and record exactly what and why in notes.
+6. Run `lore check --plain` (expect 0 errors, 0 warnings) and `lore validate --strict` (expect pass) as objective gates.
+7. Append notes to QCLI-32 with before/after lore check output and any reverted files.
+8. Commit only the Story file with an `Refs: QCLI-32` trailer following repo commit conventions.
+9. Push branch chore/qcli-32-lore-sync-phase1-ratification to origin.
+<!-- SECTION:PLAN:END -->
