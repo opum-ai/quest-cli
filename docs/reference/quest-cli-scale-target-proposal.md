@@ -48,6 +48,14 @@ because a real engine choice is made in the vocabulary of a runtime
 (threads or processes, available libraries, embeddable stores), not in the
 runtime-neutral vocabulary this Spec is written in.
 
+**Ratified — 2026-08-05 (`QCLI-26`).** The component owner has since ruled on register
+entry D5. [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as
+sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md)
+is the accepted ADR that closes it, choosing no storage or index engine either. The "this
+document proposes; it does not decide" framing above no longer holds; it is preserved
+here unedited, as the proposal that ADR rules on, per this project's inline-supersession
+convention.
+
 ## Details
 
 ### Method: each figure traces to a reasoning chain, not a round number
