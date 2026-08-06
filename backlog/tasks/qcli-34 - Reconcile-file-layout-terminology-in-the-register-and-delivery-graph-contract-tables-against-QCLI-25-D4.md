@@ -3,10 +3,11 @@ id: QCLI-34
 title: >-
   Reconcile 'file layout' terminology in the register and delivery-graph
   contract tables against QCLI-25/D4
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-06 10:48'
-updated_date: '2026-08-06 10:49'
+updated_date: '2026-08-06 14:58'
 labels:
   - campaign
   - 'cluster:terminology-reconciliation'
@@ -34,3 +35,37 @@ quest-cli-open-component-decisions.md (~line 193, register D4 contract table) an
 - [ ] #5 lore validate --strict passes with 0 errors and 0 warnings
 - [ ] #6 lore check reports 0 errors
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Read QCLI-25 ADR in full (docs/adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md), register D4 (docs/reference/quest-cli-open-component-decisions.md lines 84, 135-143, 167), and the Git mutation section of docs/reference/quest-cli-component-contracts-and-delivery-graph.md (lines 408-441, 671-686).
+2. Provisional determination: SAME CONCEPT. Key evidence: QCLI-2.6 threat model's own Non-goals section (quest-cli-git-filesystem-and-concurrency-threat-model.md lines 87-99) states 'This model intentionally does not: choose a file layout, naming scheme, canonical-ID grammar, ... (the research program Spec lists canonical ID grammar, authored-record layout, event schema, and scale target as an open question this document does not close)' -- i.e. the ORIGIN document for the 'file layout' term self-cites the Spec's 'authored-record layout' bundle as the same open question, just expanded to finer granularity. The QCLI-25 ADR's dedicated Authored-record layout section (one file per task, filename anchored on canonical id, identity-free subdirectories, alias co-location) is exactly file/directory-layout content. Register D4's detail (lines 138-143) and delivery-graph's own item 4 'ID grammar' closure (lines 671-686) both explicitly credit QCLI-25 with closing 'the authored-record layout ... accepted as proposed' as part of D4. The delivery-graph doc's Git-mutation section (lines 431-441) is internally inconsistent with its own item 4: it lists file layout as still open while crediting only canonical-ID grammar as closed by the same ADR -- that inconsistency is exactly what this task fixes.
+3. Implement AC2 (same-concept branch) in both files: register line 193 -- split the bundled Git-mutation open-item row into a Closed 'File layout' row (citing QCLI-25) and the remaining Open items row (naming scheme, event schema, locking primitive, merge/rebase strategy, storage engine unchanged), following this table's own existing per-concern-row precedent (JSON and exits section). Delivery-graph lines 431-441 -- move file layout from the Explicitly-open list into the closed list alongside canonical-ID grammar, with a short clarifying clause on the terminology correspondence, citing QCLI-25.
+4. Do NOT touch naming scheme, event schema, locking primitive, merge/rebase strategy, storage engine, or any other row/section -- flag 'naming scheme' as a plausible but out-of-scope related item in append-notes (the ADR's filename convention arguably covers it too, but task scope names only file layout).
+5. Run lore validate --strict and lore check; fix formatting issues if any; record real output in append-notes.
+6. Commit with Refs: QCLI-34 trailer; push branch.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DETERMINATION: SAME CONCEPT (confidence: high). 'File layout' (the still-open item under the Git mutation contract in both the register's Contract-level open items table and delivery-graph's Git mutation section) and 'authored-record layout' (settled by QCLI-25 / register D4) denote the same on-disk-structure decision.
+
+EVIDENCE:
+1. The term 'file layout' originates in QCLI-2.6's Git/filesystem/concurrency threat model (docs/reference/quest-cli-git-filesystem-and-concurrency-threat-model.md, 'Non-goals' section, lines 87-99): 'This model intentionally does not: choose a file layout, naming scheme, canonical-ID grammar, event schema, locking primitive, merge/rebase strategy, or storage engine (the research program Spec lists "canonical ID grammar, authored-record layout, event schema, and scale target" as an open question this document does not close).' The source document's own parenthetical self-cites the Spec's compressed 'authored-record layout' bundle term as the open question its 'file layout' non-goal expands on -- i.e. the origin document treats them as the same underlying question at different granularity, not two questions.
+2. The QCLI-25 ADR (docs/adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) has a dedicated 'Authored-record layout' section (lines 92-111) whose content IS file/directory-layout material: one Git-tracked file is the sole record per task, filename anchored on the canonical id, identity-free subdirectories to any depth, alias data co-located on the record.
+3. Register D4's own detail (docs/reference/quest-cli-open-component-decisions.md lines 138-143) credits QCLI-25 with closing 'the authored-record layout and Unicode-normalisation/case-folding rules accepted as proposed' as part of D4's closure -- not as a separate open item.
+4. Delivery-graph's own 'Unresolved component decisions' section, item 4 'ID grammar' (lines 671-686), independently states the same: 'closed 2026-08-05 by [QCLI-25]... the authored-record layout and Unicode-normalisation/case-folding rules accepted as proposed.' This is the SAME document whose earlier Git-mutation section (lines 431-441, before this edit) still listed 'file layout' as open and credited only 'canonical-ID grammar' as closed -- an internal inconsistency this task resolves.
+
+CHANGES MADE:
+- docs/reference/quest-cli-open-component-decisions.md line 193: split the single bundled 'Git mutation' open-item row into two rows, following this table's own established per-concern-row precedent (see the JSON-and-exits rows immediately above, which already split identical-status concerns into separate rows). New 'File layout' row marked Closed, citing QCLI-25 and cross-referencing D4. Remaining row keeps naming scheme, event schema, locking primitive, merge and rebase strategy, storage engine as Open, verbatim/unchanged text.
+- docs/reference/quest-cli-component-contracts-and-delivery-graph.md lines 431-441 (prose, not a literal table -- task description's 'rows' language is loose here): moved 'file layout' from the Explicitly-open list into the closed list alongside canonical-ID grammar, with a one-clause terminology-correspondence note citing QCLI-2.6's own non-goals section and pointing to 'Unresolved component decisions' item 4 for the fuller closure detail. 'Two items... now closed' -> 'Three items... now closed'.
+
+OUT-OF-SCOPE FINDING (not fixed, flagging for orchestrator): 'naming scheme' -- the remaining sibling item in the same Git-mutation open-item list -- is plausibly ALSO covered by the QCLI-25 ADR's authored-record-layout section ('Filename anchored on the canonical id in fixed case...' is literally a naming scheme). This task's scope names only 'file layout,' so 'naming scheme' was left untouched in both files per AC4/boundary instructions. Worth a follow-up task if the same reconciliation logic should extend to it.
+
+VERIFICATION:
+- lore validate --strict: '47 files, 0 errors, 0 warnings, 6 skipped', exit 0.
+- lore check: '47 files, 0 errors, 0 warnings', exit 0.
+- git diff confirms only the two targeted locations changed; no other row/section touched.
+<!-- SECTION:NOTES:END -->
