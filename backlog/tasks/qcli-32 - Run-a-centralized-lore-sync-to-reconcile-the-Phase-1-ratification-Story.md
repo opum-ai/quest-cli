@@ -1,16 +1,15 @@
 ---
 id: QCLI-32
 title: Run a centralized lore sync to reconcile the Phase-1-ratification Story
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 02:01'
-updated_date: '2026-08-06 03:56'
+updated_date: '2026-08-06 04:05'
 labels:
   - 'cluster:lore-sync'
   - campaign
   - wave-2
-  - in-review
 dependencies:
   - QCLI-31
 references:
@@ -28,11 +27,11 @@ ordinal: 51000
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 lore sync is run once, centrally, on a clean dev working tree
-- [ ] #2 lore check afterwards reports 0 errors and 0 warnings across the bundle
-- [ ] #3 The resulting diff is confined to `docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md` (frontmatter `status` and the `<!-- lore:tasks -->` managed block); any file changed beyond that is reported back rather than committed
-- [ ] #4 The Story's narrative prose is not hand-edited — only the tool-regenerated fields change
-- [ ] #5 lore validate --strict passes
+- [x] #1 lore sync is run once, centrally, on a clean dev working tree
+- [x] #2 lore check afterwards reports 0 errors and 0 warnings across the bundle
+- [x] #3 The resulting diff is confined to `docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md` (frontmatter `status` and the `<!-- lore:tasks -->` managed block); any file changed beyond that is reported back rather than committed
+- [x] #4 The Story's narrative prose is not hand-edited — only the tool-regenerated fields change
+- [x] #5 lore validate --strict passes
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -72,4 +71,12 @@ lore validate --strict: 47 files, 0 errors, 0 warnings, 6 skipped (exit 0) — p
 git diff --name-only after sync + revert confirms the working-tree diff is confined to docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md only.
 
 Follow-up: after recording the notes above (which itself dirtied backlog/tasks/qcli-32...md again), re-ran `lore sync` a second time to let it perform its own standard "commit backlog/ if dirty" behavior rather than hand-committing that file myself. Result: docs/log.md was regenerated again (same class of out-of-scope drift as before) and backlog/ was auto-committed as commit 4dc2dd3 "chore(backlog): sync task changes" (bare subject, no trailer — matches the 22+ prior instances of this exact convention in repo history). Reverted docs/log.md again with `git checkout -- docs/log.md`. Re-ran `lore check` (47 files, 0 errors, 0 warnings) and `lore validate --strict` (47 files, 0 errors, 0 warnings, 6 skipped) to reconfirm both gates still pass after this second cycle. Working tree is now dirty only in docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md, ready for the final scoped commit.
+
+Verified by reviewer (independent re-check, not on trust): re-ran lore check (0 errors/0 warnings, matches worker's claim exactly) and lore validate --strict (47 files, 0 errors, 0 warnings, 6 skipped) post-rebase. AC3 independently confirmed via lore sync --dry-run showing nothing beyond docs/log.md remained uncommitted (correctly reverted, out of scope). AC1's literal 'once' deviated in practice (3 lore sync invocations across the plan/notes recording cycle, self-disclosed by the worker) but is immaterial: lore sync is documented idempotent and the dry-run proved full convergence with no hidden state — checked on intent, not literal invocation count. wave-2 label confirmed to have survived the merge-time rebase conflict (mechanical assignee/updated_date only, same class as QCLI-31's). Merged as 2e57876 (PR #48, squash-merged to dev).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Ran lore sync centrally on a clean dev to reconcile docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md's pre-existing status-drift and managed-block-drift: frontmatter status flipped in-progress -> done, and the QCLI-28 row in the lore:tasks managed block flipped In Progress -> Done, matching Backlog's live state. lore check went from 2 errors to 0 errors/0 warnings; lore validate --strict passes. docs/log.md was regenerated as a side effect of lore sync but correctly reverted and left uncommitted (out of this task's AC3 scope) — flagged as a separate future follow-up, not filed per this repo's no-unprompted-follow-up rule. Diff confined to the Story file only, independently verified by the reviewer via a dry-run.
+<!-- SECTION:FINAL_SUMMARY:END -->
