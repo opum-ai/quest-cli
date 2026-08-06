@@ -6,8 +6,10 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-06 02:01'
+updated_date: '2026-08-06 02:39'
 labels:
   - 'cluster:architecture-spec'
+  - campaign
 dependencies: []
 references:
   - docs/specs/quest-cli-architecture.md
