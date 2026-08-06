@@ -1,11 +1,11 @@
 ---
 id: QCLI-39
 title: Sync docs/log.md again to close post-wave-1 SHA drift
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 20:09'
+updated_date: '2026-08-06 20:20'
 labels:
   - campaign
   - 'cluster:lore-log-sync'
@@ -22,11 +22,11 @@ QCLI-35 (doc-7 campaign, wave 1) closed the pre-existing SHA-unreachable drift i
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 lore sync --dry-run is run first to confirm the change set is confined to docs/log.md before writing anything
-- [ ] #2 docs/log.md is regenerated via lore sync and contains 0 SHAs unreachable from HEAD
-- [ ] #3 No file other than docs/log.md is modified or committed (the task's own backlog record is not 'unrelated work' for this purpose)
-- [ ] #4 The change lands as its own commit, not folded into unrelated work
-- [ ] #5 lore check reports 0 errors
+- [x] #1 lore sync --dry-run is run first to confirm the change set is confined to docs/log.md before writing anything
+- [x] #2 docs/log.md is regenerated via lore sync and contains 0 SHAs unreachable from HEAD
+- [x] #3 No file other than docs/log.md is modified or committed (the task's own backlog record is not 'unrelated work' for this purpose)
+- [x] #4 The change lands as its own commit, not folded into unrelated work
+- [x] #5 lore check reports 0 errors
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -59,4 +59,12 @@ git status/diff --stat after sync confirms only docs/log.md is unstaged-modified
 'lore check': 47 files, 0 errors, 0 warnings (exit 0) -- AC5 satisfied.
 
 No out-of-scope findings. Scope matches QCLI-35's precedent identically: docs/log.md regeneration + the tool's own backlog/ bookkeeping commit, nothing else.
+
+Verified: lore sync --dry-run run first (confined to docs/log.md), real sync regenerated docs/log.md (86->92 recorded SHAs, 0 unreachable before and after), only docs/log.md + this task's own backlog record touched (lore sync's documented backlog/ auto-commit exception per QCLI-35 precedent), change landed as its own commit (f29eae3), lore check 0 errors. Reviewer independently re-verified all five criteria against fresh commands, not worker claims. Branch hit a real merge-time content conflict on rebase (orchestrator dispatch-marking vs. worker's own task-file bookkeeping) — routed through escalation policy: ruled a trivial mechanical conflict (reviewer_decided), exact resolved frontmatter specified, applied by a fresh worker, confirmed by a second reviewer before re-entering the merge queue. Merged as 1f252dd (PR #56).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Regenerated docs/log.md via lore sync to close SHA drift accumulated since QCLI-35's sync, catching up entries for QCLI-33/34/35/37/38 and the wave-1 integration fix. Purely additive change (86->92 recorded SHAs), verified 0 unreachable in both before/after states. Reviewer independently re-ran lore check and the SHA-reachability audit. A merge-time frontmatter conflict (orchestrator dispatch marking vs. worker bookkeeping) was resolved per this project's escalation policy: ruled mechanical, resolution specified by an escalation reviewer, applied by a fresh worker, and confirmed clean by a second reviewer before merge.
+<!-- SECTION:FINAL_SUMMARY:END -->
