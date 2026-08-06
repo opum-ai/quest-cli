@@ -3,16 +3,15 @@ id: QCLI-31
 title: >-
   Reconcile the remaining architecture-Spec passages that still read as open
   after the Phase 1 ADRs
-status: In Progress
+status: Done
 assignee:
   - '@jeremy.newhouse'
 created_date: '2026-08-06 02:01'
-updated_date: '2026-08-06 03:42'
+updated_date: '2026-08-06 03:49'
 labels:
   - 'cluster:architecture-spec'
   - campaign
   - wave-1
-  - in-review
 dependencies: []
 references:
   - docs/specs/quest-cli-architecture.md
@@ -32,12 +31,12 @@ QCLI-30 rewrote `docs/specs/quest-cli-architecture.md`'s Open Questions to recor
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The Error taxonomy passage (~line 186) no longer states that anomaly's taxonomy placement is an open question for Phase 1; it cites `docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md` (`QCLI-24`) as having placed it, consistent with the Open Questions bullet at ~line 246
-- [ ] #2 The "Deferred by design" table's D3 row no longer reads "open, no owner" and matches the register's D3 owner cell (`docs/reference/quest-cli-open-component-decisions.md` line 83: Closed; Component — claimed by `QCLI-27`)
-- [ ] #3 The same table's rows for canonical identifier grammar (D4), authored-record layout, scale target (D5), and envelope shape / exit table are each either removed or annotated as closed with a citation to the ADR that closed them (`QCLI-25`, `QCLI-26`, `QCLI-24`) — while preserving as still-deferred the parts genuinely left open (projection storage or index engine, naming scheme, event schema, command vocabulary, flags)
-- [ ] #4 The D2 row is left unchanged (the runtime choice remains genuinely blocked)
-- [ ] #5 lore validate --strict passes
-- [ ] #6 No content changes beyond the Error taxonomy passage and the "Deferred by design" table; no edits to the register or any ADR, which are already correct
+- [x] #1 The Error taxonomy passage (~line 186) no longer states that anomaly's taxonomy placement is an open question for Phase 1; it cites `docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md` (`QCLI-24`) as having placed it, consistent with the Open Questions bullet at ~line 246
+- [x] #2 The "Deferred by design" table's D3 row no longer reads "open, no owner" and matches the register's D3 owner cell (`docs/reference/quest-cli-open-component-decisions.md` line 83: Closed; Component — claimed by `QCLI-27`)
+- [x] #3 The same table's rows for canonical identifier grammar (D4), authored-record layout, scale target (D5), and envelope shape / exit table are each either removed or annotated as closed with a citation to the ADR that closed them (`QCLI-25`, `QCLI-26`, `QCLI-24`) — while preserving as still-deferred the parts genuinely left open (projection storage or index engine, naming scheme, event schema, command vocabulary, flags)
+- [x] #4 The D2 row is left unchanged (the runtime choice remains genuinely blocked)
+- [x] #5 lore validate --strict passes
+- [x] #6 No content changes beyond the Error taxonomy passage and the "Deferred by design" table; no edits to the register or any ADR, which are already correct
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -65,4 +64,12 @@ Verification: lore validate --strict run against the whole bundle -> '47 files, 
 Did not run lore sync (out of scope per dispatch, deferred to QCLI-32).
 
 Out-of-scope finding for the dispatcher: none beyond what QCLI-31/32 already anticipated — the register and ADRs read as fully consistent with the Spec's new prose, no other drift observed while reading the Deferred-by-design/contract-level tables end to end.
+
+Verified by reviewer (independent re-check, not on trust): lore validate --strict re-run in-worktree post-rebase -> 47 files, 0 errors, 0 warnings, 6 skipped, exit 0. All 6 ACs confirmed with file/line evidence against the actual diff, the register, and the cited ADRs. Merged as ccb68d1 (PR #47, squash-merged to dev).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Reconciled docs/specs/quest-cli-architecture.md's Error taxonomy passage and 'Deferred by design' table with the ratified Phase 1 ADRs: the Error taxonomy passage now cites QCLI-24's ADR for anomaly placement (matching the Open Questions bullet), and the table's D3/D4/D5/envelope rows are split so closed items cite their ADR (QCLI-24/25/26) while genuinely-open items (naming scheme, event schema, projection storage/index engine, command vocabulary/flags) remain listed. D2 left byte-for-byte unchanged. Verified via lore validate --strict (0 errors/warnings) and independently re-confirmed by the reviewer. Two non-blocking findings deferred to the campaign doc's follow-up section, out of this task's AC6 scope fence.
+<!-- SECTION:FINAL_SUMMARY:END -->
