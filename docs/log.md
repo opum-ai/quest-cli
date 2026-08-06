@@ -74,6 +74,7 @@
 - 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
 - 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-06T10:09:43-05:00 2b305600fa7f50a5fd0e28db4100e3c3405c0a9d QCLI-35: Sync docs/log.md to close pre-existing SHA drift from squash-merge rewrites (#51)
 
 ## docs/adr
 
@@ -133,6 +134,10 @@
 - 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
 - 2026-08-05T20:49:49-05:00 6ffc4019bc2bcfe7a50ce7517e613250337f8908 QCLI-29: Correct stale 'nothing accepted' prose in three ratified Quest CLI proposal docs (#45)
 - 2026-08-05T20:51:48-05:00 735d82d23c68f0225ae4686441e59bc8af9e389f QCLI-30: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation (#46)
+- 2026-08-06T10:07:22-05:00 ce4a1307a6b683df02f3a0263c8bbfec43021a14 QCLI-34: Reconcile 'file layout' terminology against QCLI-25/D4's authored-record layout (#50)
+- 2026-08-06T14:51:34-05:00 4640ab34abe17bf2930e919fd9c408fca32040b4 QCLI-37: Reconcile stale 'record layout' status in the Spec-open-questions mapping table (#53)
+- 2026-08-06T14:52:27-05:00 761313daee0615531c575747ea57ef6504999439 QCLI-38: Reconcile 'naming scheme' terminology against QCLI-25/D4's authored-record layout (#54)
+- 2026-08-06T15:03:29-05:00 098dbe6bb3c1ebba247b7d88d5e5ab69c5ac2b37 docs: close naming-scheme gap in the Spec-mapping table (wave-1 integration finding, doc-8 campaign) (#55)
 
 ## docs/runbooks
 
@@ -153,6 +158,7 @@
 - 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
 - 2026-08-05T20:51:48-05:00 735d82d23c68f0225ae4686441e59bc8af9e389f QCLI-30: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation (#46)
 - 2026-08-05T22:48:55-05:00 ccb68d190ca53d3ce7672568eb2113ffac8a1884 QCLI-31: Reconcile architecture Spec prose with the ratified Phase 1 ADRs (#47)
+- 2026-08-06T10:00:13-05:00 ba2338fe8720f4523ffef7d61e99c28d6288fcef QCLI-33: Reconcile architecture Spec Open Questions bullet 4 against the QCLI-26 ADR (#49)
 
 ## docs/stories
 
