@@ -1,14 +1,15 @@
 ---
 id: QCLI-36
 title: 'Fix QCLI-34''s task metadata: correct the references field to real paths'
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 19:05'
+updated_date: '2026-08-06 20:04'
 labels:
   - campaign
   - 'cluster:task-metadata'
+  - wave-1
 dependencies: []
 ordinal: 55000
 ---
@@ -21,8 +22,8 @@ QCLI-34's own `references` field names two paths that don't exist: `docs/registe
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 QCLI-34's references field lists exactly docs/reference/quest-cli-open-component-decisions.md and docs/reference/quest-cli-component-contracts-and-delivery-graph.md
-- [ ] #2 No other field on QCLI-34 (status, labels, notes, final summary, acceptance criteria) is modified
+- [x] #1 QCLI-34's references field lists exactly docs/reference/quest-cli-open-component-decisions.md and docs/reference/quest-cli-component-contracts-and-delivery-graph.md
+- [x] #2 No other field on QCLI-34 (status, labels, notes, final summary, acceptance criteria) is modified
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -48,4 +49,12 @@ BEFORE (QCLI-34 references): ["docs/registers/quest-cli-open-component-decisions
 AFTER (QCLI-34 references): ["docs/reference/quest-cli-open-component-decisions.md", "docs/reference/quest-cli-component-contracts-and-delivery-graph.md"]
 
 Diffed full --json output before vs after: the only two fields that changed are 'updatedAt' (auto-managed timestamp) and 'references'. status, priority, type, assignees, labels, description, acceptanceCriteria, implementationPlan, implementationNotes, finalSummary are byte-identical. git diff on the QCLI-34 task file confirms the same: only updated_date and the two references lines changed in the frontmatter, nothing else in the file body.
+
+Verified: backlog task view QCLI-34 --json shows references field is exactly [docs/reference/quest-cli-open-component-decisions.md, docs/reference/quest-cli-component-contracts-and-delivery-graph.md]; both files confirmed git-tracked, old paths confirmed absent; diff confirmed no other field on QCLI-34 changed. Reviewer independently re-verified both criteria. Merged as cc8787e (PR #52).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Fixed QCLI-34's own references field, which named two nonexistent paths (docs/registers/... and docs/specs/...), to the two real, git-tracked docs/reference/ files the QCLI-34 worker actually edited. Metadata-only fix via backlog task edit --ref; no documentation content changed. Reviewer independently confirmed both acceptance criteria and that no other field on QCLI-34 was touched.
+<!-- SECTION:FINAL_SUMMARY:END -->

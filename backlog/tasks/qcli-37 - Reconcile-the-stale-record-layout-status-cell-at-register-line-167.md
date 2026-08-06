@@ -1,14 +1,15 @@
 ---
 id: QCLI-37
 title: Reconcile the stale 'record layout' status cell at register line 167
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 19:05'
+updated_date: '2026-08-06 20:04'
 labels:
   - campaign
   - 'cluster:register-mapping-table'
+  - wave-1
 dependencies: []
 ordinal: 56000
 ---
@@ -21,11 +22,11 @@ docs/reference/quest-cli-open-component-decisions.md's Spec-open-questions mappi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The mapping-table cell around line 167 of docs/reference/quest-cli-open-component-decisions.md reflects that record layout is closed (citing QCLI-25/QCLI-34 as appropriate)
-- [ ] #2 Event schema's status within the same cell is left exactly as-is — still open, not touched
-- [ ] #3 No other row or cell in the table is modified
-- [ ] #4 lore validate --strict passes with 0 errors and 0 warnings
-- [ ] #5 lore check reports 0 errors
+- [x] #1 The mapping-table cell around line 167 of docs/reference/quest-cli-open-component-decisions.md reflects that record layout is closed (citing QCLI-25/QCLI-34 as appropriate)
+- [x] #2 Event schema's status within the same cell is left exactly as-is — still open, not touched
+- [x] #3 No other row or cell in the table is modified
+- [x] #4 lore validate --strict passes with 0 errors and 0 warnings
+- [x] #5 lore check reports 0 errors
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -59,4 +60,12 @@ VERIFICATION:
 - git diff -- docs/reference/quest-cli-open-component-decisions.md shows exactly one line changed.
 
 No out-of-scope findings.
+
+Verified: line 167's cell now explicitly closes 'record layout' citing QCLI-25/QCLI-34, leaves event schema open-by-omission untouched, and no other row/cell was modified (git diff --stat confirmed single line). lore validate --strict and lore check both independently re-run by the reviewer: 47 files, 0 errors, 0 warnings. Merged as 4640ab3 (PR #53). A wave-level integration review subsequently found this cell also needed a naming-scheme clause once QCLI-38 closed it — fixed separately in a narrow follow-up (merged as 098dbe6, PR #55), not part of QCLI-37's own scope.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Reconciled the stale line-167 cell in the Spec-open-questions mapping table: split the bundled 'record layout and event schema' clause into two, marking record layout closed (citing QCLI-25/QCLI-34) while leaving event schema open and untouched, matching the table's own citation convention. Reviewer independently re-ran lore validate --strict and lore check (both 0/0) and confirmed scope containment.
+<!-- SECTION:FINAL_SUMMARY:END -->

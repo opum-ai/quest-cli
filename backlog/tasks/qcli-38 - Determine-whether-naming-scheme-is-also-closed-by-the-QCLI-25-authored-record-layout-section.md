@@ -3,14 +3,15 @@ id: QCLI-38
 title: >-
   Determine whether 'naming scheme' is also closed by the QCLI-25
   authored-record-layout section
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 19:08'
+updated_date: '2026-08-06 20:04'
 labels:
   - campaign
   - 'cluster:naming-scheme-reconciliation'
+  - wave-1
 dependencies: []
 ordinal: 57000
 ---
@@ -23,12 +24,12 @@ QCLI-34 closed 'file layout' as the same concept as QCLI-25/D4's 'authored-recor
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The QCLI-25 ADR and register D4 are read closely enough to state definitively whether 'naming scheme' denotes the same on-disk-structure decision QCLI-25/D4 already settled, or is genuinely distinct
-- [ ] #2 If the same concept: the 'naming scheme' open-item listing(s) are updated to reflect that this item is settled, using terminology consistent with QCLI-25
+- [x] #1 The QCLI-25 ADR and register D4 are read closely enough to state definitively whether 'naming scheme' denotes the same on-disk-structure decision QCLI-25/D4 already settled, or is genuinely distinct
+- [x] #2 If the same concept: the 'naming scheme' open-item listing(s) are updated to reflect that this item is settled, using terminology consistent with QCLI-25
 - [ ] #3 If genuinely distinct: the listing(s) retain 'naming scheme' as open but gain a one-line clarifying note distinguishing it from the QCLI-25/D4 decision
-- [ ] #4 No other row or item in either table is modified
-- [ ] #5 lore validate --strict passes with 0 errors and 0 warnings
-- [ ] #6 lore check reports 0 errors
+- [x] #4 No other row or item in either table is modified
+- [x] #5 lore validate --strict passes with 0 errors and 0 warnings
+- [x] #6 lore check reports 0 errors
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -66,4 +67,12 @@ VERIFICATION:
 - lore validate --strict: '47 files, 0 errors, 0 warnings, 6 skipped', exit 0.
 - lore check: '47 files, 0 errors, 0 warnings', exit 0.
 - git diff confirms only the two targeted rows/list-items changed in the two target files; the other 4 sibling items (event schema, locking primitive, merge/rebase strategy, storage engine) remain Open, unchanged in substance.
+
+Determination: SAME CONCEPT. 'Naming scheme' denotes the same on-disk-structure decision QCLI-25/D4 already settled (authored-record filename convention). Evidence independently re-verified by the reviewer against primary sources: QCLI-19's proposal section 'Authored-record layout and naming scheme' (line 238), the QCLI-25 ADR's verbatim reproduction of the filename-anchoring bullet and its acceptance of QCLI-19's rules 'as proposed', and QCLI-2.6's threat-model non-goals self-mapping 'file layout, naming scheme' onto the Spec's bundled 'authored-record layout' term. Reviewer found no counter-evidence for a distinct reading. AC3 (the 'genuinely distinct' branch) does not apply since the same-concept branch was taken. Register and delivery-graph edits confirmed scoped exactly as required, byte-precise around QCLI-37's territory (line 167) and the 4 remaining Git-mutation open items. lore validate --strict and lore check both independently re-run by the reviewer: 47 files, 0 errors, 0 warnings. Merged as 761313d (PR #54).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Determined 'naming scheme' is the same on-disk-structure decision QCLI-25/D4 already settled, not a distinct open item, based on QCLI-19's 'Authored-record layout and naming scheme' section and the QCLI-25 ADR's verbatim adoption of it. Split naming scheme out of the bundled Git-mutation open row into its own Closed row (register) and moved it into the closed-items sentence (delivery-graph doc), mirroring QCLI-34's established pattern, while leaving the other 4 open items (event schema, locking primitive, merge/rebase strategy, storage engine) untouched. Reviewer independently re-verified the determination against primary sources (not just mechanics) and found no counter-evidence.
+<!-- SECTION:FINAL_SUMMARY:END -->
