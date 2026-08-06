@@ -598,10 +598,13 @@ no authority to perform.
 ### Unresolved component decisions (AC3)
 
 Seven categories the research program Spec, the register, and the six
-dependency deliverables leave open. Each is stated as it currently stands —
-an open question, an explicit component decision awaiting an owner or a
-later task, a product-owner proposal already routed elsewhere, or a
-blocker gated on external work — never resolved by naming it here.
+dependency deliverables originally left open. Each is stated as it
+currently stands — closed by a cited decision record, an open question,
+an explicit component decision awaiting an owner or a later task, a
+product-owner proposal already routed elsewhere, or a blocker gated on
+external work — never resolved by naming it here: a **closed** status
+below records a resolution reached elsewhere and cited in place, not one
+performed by this document.
 
 1. **Licensing.** The Spec's [Open
    Questions](../specs/quest-cli-pre-implementation-research-program.md#open-questions)
