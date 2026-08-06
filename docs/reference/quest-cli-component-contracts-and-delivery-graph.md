@@ -428,12 +428,15 @@ component's Git mutation contract.
 | `INV-4` Operation-owned staging and commits | An operation stages and commits exactly the paths it owns for its own logical effect, determined before any write begins | Dirty worktrees (`BB-12`/`BB-13`); the scoped-commit half of `BB-16`/`BB-17` |
 | `INV-5` Zero mutation from read-only commands | A command classified read-only performs no filesystem or Git mutation under any circumstance — success, not-found, or error path alike — regardless of a concurrent writer | Read-only purity (`BB-05`/`BB-06`); the read side of races |
 
-*Explicitly open (`QCLI-2.6`'s own stated non-goals, unchanged here):* file
-layout, naming scheme, event schema, locking primitive, merge/rebase
-strategy, and storage engine — see "Unresolved component decisions,"
-below. Two items from this same original list are now closed and no
-longer open: canonical-ID grammar, **closed 2026-08-05** by [Adopt a
-T-prefixed canonical identifier grammar and its authored-record
+*Explicitly open (`QCLI-2.6`'s own stated non-goals, unchanged here):*
+naming scheme, event schema, locking primitive, merge/rebase strategy, and
+storage engine — see "Unresolved component decisions," below. Three items
+from this same original list are now closed and no longer open: file
+layout — the same on-disk-structure question `QCLI-2.6`'s own non-goals
+section names alongside the research programme Spec's bundled
+"authored-record layout" open item (see "Unresolved component decisions,"
+item 4, below) — and canonical-ID grammar, both **closed 2026-08-05** by
+[Adopt a T-prefixed canonical identifier grammar and its authored-record
 layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md)
 (`QCLI-25`); and which supported platforms Quest ships for, **closed
 2026-08-05** by the [license, platform, and runtime ownership

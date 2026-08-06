@@ -190,7 +190,8 @@ narrower than the component decisions above and mostly resolve inside Phase 1.
 | JSON and exits | The not-found signal convention — Quest's own side | Component | Phase 1 | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`): JSON-first decline envelope with a `reason` discriminant, on the shared decline exit code |
 | JSON and exits | The not-found signal convention — `lore-doc` boundary half | `lore-doc` | Phase 1 | Open — unchanged; not decided by `QCLI-24` or by this reconciliation |
 | JSON and exits | Whether create and edit emit a JSON envelope uniformly | Component | Phase 1 | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`): they do, uniformly with every other command |
-| Git mutation | File layout, naming scheme, event schema, locking primitive, merge and rebase strategy, storage engine | Component | Phase 2 | Open |
+| Git mutation | File layout | Component | Phase 2 | **Closed** — same on-disk-structure decision as D4's authored-record layout; closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
+| Git mutation | Naming scheme, event schema, locking primitive, merge and rebase strategy, storage engine | Component | Phase 2 | Open |
 | Migration | Whether and how to preserve Backlog-era Git history | Component | Phase 4 | Open |
 | Migration | Whether Quest needs an analogue of Backlog's cross-branch task-state overlay | Component | Phase 4 | Open |
 | Projection | Any concrete storage or index engine | Component | Phase 3 | Open |
