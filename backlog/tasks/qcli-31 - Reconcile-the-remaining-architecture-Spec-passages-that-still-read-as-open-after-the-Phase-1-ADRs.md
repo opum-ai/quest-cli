@@ -3,13 +3,14 @@ id: QCLI-31
 title: >-
   Reconcile the remaining architecture-Spec passages that still read as open
   after the Phase 1 ADRs
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-06 02:01'
-updated_date: '2026-08-06 02:39'
+updated_date: '2026-08-06 03:37'
 labels:
   - 'cluster:architecture-spec'
   - campaign
+  - wave-1
 dependencies: []
 references:
   - docs/specs/quest-cli-architecture.md
