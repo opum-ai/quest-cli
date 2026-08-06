@@ -73,7 +73,7 @@
 - 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
 - 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
-- 2026-08-05T18:32:31-05:00 a357d12f490945d1b248c19895d5838cb0d0fb6b chore(docs): sync log.md and story status for QCLI-28
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
 
 ## docs/adr
 
@@ -130,8 +130,9 @@
 - 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
 - 2026-08-05T18:12:33-05:00 f89b370894f577dc063ac290f687e964023acc2b QCLI-27: Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings (#42)
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
-- 2026-08-05T18:31:46-05:00 fcb814f43dc14a94c9b68fd7341ff6d3e2676898 docs(qcli-28): close D1/D3/D4/D5 in the open component decisions register
-- 2026-08-05T18:31:51-05:00 6f4dc18b7a2b8ae19bd4bbe90bf4bb09e463b738 docs(qcli-28): reconcile component contracts graph open items with the register
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-05T20:49:49-05:00 6ffc4019bc2bcfe7a50ce7517e613250337f8908 QCLI-29: Correct stale 'nothing accepted' prose in three ratified Quest CLI proposal docs (#45)
+- 2026-08-05T20:51:48-05:00 735d82d23c68f0225ae4686441e59bc8af9e389f QCLI-30: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation (#46)
 
 ## docs/runbooks
 
@@ -149,7 +150,9 @@
 - 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
 - 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
 - 2026-08-05T11:34:44-05:00 ed14115a4c4ea20e7c370469c1572f4f9fba700d chore: fix narrow findings from the wave-2 integration review (#37)
-- 2026-08-05T18:31:57-05:00 a6fc2021f93f1cd8e462f0e40c3aed8cd9537520 docs(qcli-28): reconcile Phase 1 exit-criteria table in the delivery roadmap
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-05T20:51:48-05:00 735d82d23c68f0225ae4686441e59bc8af9e389f QCLI-30: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation (#46)
+- 2026-08-05T22:48:55-05:00 ccb68d190ca53d3ce7672568eb2113ffac8a1884 QCLI-31: Reconcile architecture Spec prose with the ratified Phase 1 ADRs (#47)
 
 ## docs/stories
 
@@ -196,4 +199,5 @@
 - 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
 - 2026-08-05T17:40:40-05:00 ef15e16ba0c248f40b46f32f879aa5afc9f6cd6b docs: point the Phase-1-ratification Story at campaign doc-4
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
-- 2026-08-05T18:32:31-05:00 a357d12f490945d1b248c19895d5838cb0d0fb6b chore(docs): sync log.md and story status for QCLI-28
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-05T23:04:47-05:00 2e57876d8f5617e22e5a5c198835a99bc3db80ad QCLI-32: Run a centralized lore sync to reconcile the Phase-1-ratification Story (#48)
