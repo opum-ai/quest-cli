@@ -6,11 +6,12 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-06 02:01'
-updated_date: '2026-08-06 03:37'
+updated_date: '2026-08-06 03:42'
 labels:
   - 'cluster:architecture-spec'
   - campaign
   - wave-1
+  - in-review
 dependencies: []
 references:
   - docs/specs/quest-cli-architecture.md
