@@ -1,14 +1,15 @@
 ---
 id: QCLI-33
 title: Reconcile architecture-Spec Open Questions bullet 4 against the QCLI-26 ADR
-status: In Progress
+status: Done
 assignee:
   - '@jeremy.newhouse'
 created_date: '2026-08-06 10:48'
-updated_date: '2026-08-06 14:54'
+updated_date: '2026-08-06 15:13'
 labels:
   - campaign
   - 'cluster:architecture-spec'
+  - wave-1
 dependencies: []
 references:
   - docs/specs/quest-cli-architecture.md
@@ -25,11 +26,11 @@ quest-cli-architecture.md Open Questions bullet 4 (~line 263) still asks whether
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Open Questions bullet 4 in docs/specs/quest-cli-architecture.md no longer frames the transactional-semantics question as unsettled pending D5
-- [ ] #2 The passage cites the QCLI-26 ADR (rebuild-on-doubt ruling, ~line 114) as the resolution, consistent with how QCLI-31 cited the same ADR for the adjacent passage
-- [ ] #3 No other Open Questions bullet or unrelated passage is modified
-- [ ] #4 lore validate --strict passes with 0 errors and 0 warnings
-- [ ] #5 lore check reports 0 errors
+- [x] #1 Open Questions bullet 4 in docs/specs/quest-cli-architecture.md no longer frames the transactional-semantics question as unsettled pending D5
+- [x] #2 The passage cites the QCLI-26 ADR (rebuild-on-doubt ruling, ~line 114) as the resolution, consistent with how QCLI-31 cited the same ADR for the adjacent passage
+- [x] #3 No other Open Questions bullet or unrelated passage is modified
+- [x] #4 lore validate --strict passes with 0 errors and 0 warnings
+- [x] #5 lore check reports 0 errors
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -52,4 +53,12 @@ Change: replaced 'Does the projection port need transactional semantics, or is r
 Verification: 'lore validate --strict' -> 47 files, 0 errors, 0 warnings, 6 skipped (exit 0). 'lore check' -> 47 files, 0 errors, 0 warnings (exit 0). git diff confirms only docs/specs/quest-cli-architecture.md changed, and only bullet 4 within it — no other Open Questions bullet or passage touched.
 
 Out-of-scope findings: none. Read the full Open Questions list and the QCLI-26 ADR end to end; no other drift observed beyond what QCLI-33 was scoped to fix.
+
+Verified by independent reviewer (opus-tier): lore validate --strict re-run -> 47 files, 0 errors, 0 warnings, 6 skipped. lore check re-run -> 47 files, 0 errors, 0 warnings. Citation accuracy checked against QCLI-26 ADR source text (line 114). Scope confirmed confined to Open Questions bullet 4 only via git diff. Merged as ba2338f (PR #49, squash).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Reworded Open Questions bullet 4 in docs/specs/quest-cli-architecture.md so it no longer frames the projection-port transactional-semantics question as unsettled pending D5; the passage now cites the QCLI-26 ADR's rebuild-on-doubt ruling (line 114: 'No durable transactional index is required to satisfy this scale target') as the resolution, matching the citation style QCLI-31 used for the adjacent passage. Verified via lore validate --strict and lore check (both 0 errors/0 warnings), independently re-run by the reviewer. Merged to dev as ba2338f.
+<!-- SECTION:FINAL_SUMMARY:END -->

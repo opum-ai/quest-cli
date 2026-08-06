@@ -3,14 +3,15 @@ id: QCLI-34
 title: >-
   Reconcile 'file layout' terminology in the register and delivery-graph
   contract tables against QCLI-25/D4
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 10:48'
-updated_date: '2026-08-06 14:58'
+updated_date: '2026-08-06 15:13'
 labels:
   - campaign
   - 'cluster:terminology-reconciliation'
+  - wave-1
 dependencies: []
 references:
   - docs/registers/quest-cli-open-component-decisions.md
@@ -28,12 +29,12 @@ quest-cli-open-component-decisions.md (~line 193, register D4 contract table) an
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The QCLI-25 ADR and register D4 are read closely enough to state definitively whether "file layout" (register + delivery-graph tables) and "authored-record layout" (QCLI-25/D4) denote the same on-disk structure decision
-- [ ] #2 If they are the same concept: both open-item listings are updated to reflect that this item is settled (matching D4's status), using consistent terminology with QCLI-25
+- [x] #1 The QCLI-25 ADR and register D4 are read closely enough to state definitively whether "file layout" (register + delivery-graph tables) and "authored-record layout" (QCLI-25/D4) denote the same on-disk structure decision
+- [x] #2 If they are the same concept: both open-item listings are updated to reflect that this item is settled (matching D4's status), using consistent terminology with QCLI-25
 - [ ] #3 If they are genuinely distinct: both tables retain "file layout" as open but gain a one-line clarifying note distinguishing it from the QCLI-25/D4 authored-record-layout decision
-- [ ] #4 No other row in either table is modified
-- [ ] #5 lore validate --strict passes with 0 errors and 0 warnings
-- [ ] #6 lore check reports 0 errors
+- [x] #4 No other row in either table is modified
+- [x] #5 lore validate --strict passes with 0 errors and 0 warnings
+- [x] #6 lore check reports 0 errors
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -68,4 +69,12 @@ VERIFICATION:
 - lore validate --strict: '47 files, 0 errors, 0 warnings, 6 skipped', exit 0.
 - lore check: '47 files, 0 errors, 0 warnings', exit 0.
 - git diff confirms only the two targeted locations changed; no other row/section touched.
+
+Verified by independent reviewer (opus-tier): re-ran lore validate --strict (47 files, 0/0) and lore check (0 errors) after rebase onto QCLI-33's merge. Reviewer built and tested the strongest counter-case for 'genuinely distinct' (broad on-disk-state reading) and it failed on two independent grounds: the threat model's non-goals mapping has no home for 'file layout'/'naming scheme' other than authored-record layout, and register line 167 already glosses the same item as 'record layout'. Path discrepancy in this task's own references field (docs/registers/..., docs/specs/...) resolved: those paths don't exist: the correct files are docs/reference/quest-cli-open-component-decisions.md and docs/reference/quest-cli-component-contracts-and-delivery-graph.md, which the worker correctly edited. Merged as ce4a130 (PR #50, squash, rebased onto ba2338f).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Determined 'file layout' (register + delivery-graph open-item tables) and 'authored-record layout' (QCLI-25/D4) are the same on-disk-structure concept. Updated both open-item listings: register's Git-mutation row split into a closed 'File layout' row (citing QCLI-25) plus the unchanged remaining-open row; delivery-graph moved file layout into its closed list alongside canonical-ID grammar. Verified via lore validate --strict and lore check (0 errors/0 warnings), independently re-derived by the reviewer including a deliberate counter-case test. Merged to dev as ce4a130.
+<!-- SECTION:FINAL_SUMMARY:END -->
