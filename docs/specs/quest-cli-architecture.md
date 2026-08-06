@@ -182,8 +182,10 @@ distinguish "someone else got there first" from "something is broken" (`FR-CLI-1
 Two consequences for layering. The application layer cannot model results as
 success-or-throw, because decline is neither. And an **anomaly** — two evaluators
 disagreeing about a lease — is a fourth thing that fits none of the three cleanly; it is
-neither success nor a correct decline nor an internal fault, and where it lands in the
-taxonomy is an open question for Phase 1.
+neither success nor a correct decline nor an internal fault. [Ratify the Quest CLI result
+contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
+(`QCLI-24`) places it as a distinguishable fourth outcome value, with its own exit code, in
+Quest's own envelope.
 
 ### Operation shape
 
@@ -216,13 +218,15 @@ tracked with owner and unblock condition in the
 | Deferred | Register entry |
 | --- | --- |
 | Runtime, language, toolchain, native packaging | D2 — blocked, post-activation |
-| Supported platform matrix | D3 — open, no owner |
-| Canonical identifier grammar | D4 |
-| Authored-record layout, naming scheme, event schema | Git mutation contract open items |
+| Supported platform matrix | D3 — closed; Component, claimed by `QCLI-27` |
+| Canonical identifier grammar, authored-record layout | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
+| Naming scheme, event schema | Git mutation contract open items |
 | Locking primitive for local serialisation, merge and rebase strategy | Git mutation contract open items |
-| Projection storage or index engine, scale target | D5 |
+| Projection storage or index engine | Projection contract open items |
+| Scale target | D5 — closed by [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) |
 | Archival and retention model | D7a |
-| Command vocabulary, flags, envelope shape, exit table | CLI contract open items |
+| Command vocabulary, flags | CLI contract open items |
+| Envelope shape, exit table | Closed by [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`) |
 
 ### Proposals routed to quest-doc
 
