@@ -1,13 +1,14 @@
 ---
 id: QCLI-32
 title: Run a centralized lore sync to reconcile the Phase-1-ratification Story
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-06 02:01'
-updated_date: '2026-08-06 02:39'
+updated_date: '2026-08-06 03:50'
 labels:
   - 'cluster:lore-sync'
   - campaign
+  - wave-2
 dependencies:
   - QCLI-31
 references:
