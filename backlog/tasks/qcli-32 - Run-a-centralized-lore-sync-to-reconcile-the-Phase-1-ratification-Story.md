@@ -48,3 +48,26 @@ ordinal: 51000
 8. Commit only the Story file with an `Refs: QCLI-32` trailer following repo commit conventions.
 9. Push branch chore/qcli-32-lore-sync-phase1-ratification to origin.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Ran `lore sync` once, centrally, on the clean dev-branched worktree.
+
+Before (lore check --plain):
+  error stories/ratify-the-quest-cli-phase-1-component-decisions.md [status-drift]: status is "in-progress" but the linked tasks recompute to "done" — run `lore sync` to reconcile
+  error stories/ratify-the-quest-cli-phase-1-component-decisions.md [managed-block-drift]: the <!-- lore:tasks --> block is stale — run `lore sync` to regenerate it from live task data
+  47 files, 2 errors, 0 warnings
+
+After (lore check --plain):
+  47 files, 0 errors, 0 warnings
+
+lore validate --strict: 47 files, 0 errors, 0 warnings, 6 skipped (exit 0) — passes.
+
+`lore sync` touched three things:
+1. docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md — frontmatter status: in-progress -> done, and the QCLI-28 row in the <!-- lore:tasks --> managed block: "In Progress" -> "Done". This is the intended, in-scope change (AC1/AC3/AC4). Narrative prose untouched.
+2. docs/log.md — regenerated to reconcile several merge-commit SHAs that were rewritten by squash-merge since the log's last sync (same class of drift as the historical "chore: regenerate log.md to fix dangling pre-squash SHAs from QCLI-22" commit). This is OUT OF SCOPE for AC3 (repo convention commits log.md separately from task-specific commits — confirmed via `git log -- docs/log.md`). Reverted with `git checkout -- docs/log.md` and NOT committed. Flagging for a future dedicated "chore(docs): sync log.md" commit outside this task.
+3. backlog/tasks/qcli-32...md — lore sync's documented "commit backlog/ if dirty" behavior auto-committed the plan I had just recorded via `backlog task edit --plan` (commit bf734a5, "chore(backlog): sync task changes"). Verified this is a long-standing, routine repo convention (22 prior commits with this exact message in history) triggered by ordinary backlog-CLI writes, not a lore-sync side effect on the docs bundle — left as-is, not reverted.
+
+git diff --name-only after sync + revert confirms the working-tree diff is confined to docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md only.
+<!-- SECTION:NOTES:END -->
