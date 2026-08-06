@@ -1,10 +1,11 @@
 ---
 id: QCLI-35
 title: Sync docs/log.md to close pre-existing SHA drift from squash-merge rewrites
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-08-06 10:49'
-updated_date: '2026-08-06 10:49'
+updated_date: '2026-08-06 14:53'
 labels:
   - campaign
   - 'cluster:lore-log-sync'
@@ -30,3 +31,17 @@ docs/log.md has drifted from HEAD since its last sync at commit 43bc22e: 4 of it
 - [ ] #4 The change lands as its own commit, not folded into unrelated work
 - [ ] #5 lore check reports 0 errors
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Run 'lore sync --dry-run' and inspect output to confirm the change set is confined to docs/log.md only.
+2. If scope confirmed, run 'lore sync' for real to regenerate docs/log.md.
+3. If dry-run shows any other file would change, STOP — do not run real sync — record findings in notes and report blocked.
+4. Verify via git status/git diff --stat that only docs/log.md changed.
+5. Spot-check/verify docs/log.md now contains 0 SHAs unreachable from HEAD (sample SHAs via git cat-file -e / git merge-base --is-ancestor, or trust lore sync's regeneration + sample check).
+6. Run 'lore check' and confirm 0 errors.
+7. Record notes with dry-run output and verification results.
+8. Commit docs/log.md standalone with 'Refs: QCLI-35' trailer, following commit conventions.
+9. Push branch chore/qcli-35-log-sha-drift-sync to origin.
+<!-- SECTION:PLAN:END -->
