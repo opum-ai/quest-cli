@@ -233,15 +233,23 @@ Two things this Spec touches that it does not own. Both are proposals, not decis
   and **not yet written there by any task in any repository**. The component actor table
   describes how these roles act within Quest CLI and corroborates rather than resolves the
   routed question.
-- **Whether "anomaly" is a first-class outcome class** alongside success, decline, and
-  error. It arises from a component-local mechanism but would change the product-wide
-  result vocabulary if adopted.
+- **Whether to canonize "anomaly" as a first-class outcome class in Quest's
+  product-wide result vocabulary**, alongside success, decline, and error.
+  [Ratify the Quest CLI result
+  contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
+  (`QCLI-24`) already settled this at the component level — anomaly is a
+  distinguishable fourth outcome value, with its own exit code and payload key, in
+  Quest's own envelope. It arises from that component-local mechanism, but canonizing
+  it as a product-wide vocabulary term is a separate proposal this Spec does not own.
 
 ## Open questions
 
-- **Where does an anomaly belong in the outcome taxonomy?** A detected lease disagreement
-  is neither success, nor a correct decline, nor an internal fault. Phase 1 must place it,
-  and the placement affects the envelope and the exit table.
+- **Anomaly's placement in the outcome taxonomy is resolved.** A detected lease
+  disagreement is neither success, nor a correct decline, nor an internal fault.
+  [Ratify the Quest CLI result
+  contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
+  (`QCLI-24`) places it as a distinguishable fourth outcome value, with its own exit
+  code, in Quest's own envelope and exit table.
 - **What enforces the layering?** The ADR calls the boundary *enforced*, which requires a
   mechanism — an import-graph check, a build constraint, a review gate. No mechanism is
   chosen, and one that depends on the runtime cannot be chosen until D2 is settled.
