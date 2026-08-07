@@ -3,13 +3,14 @@ id: QCLI-40
 title: >-
   Reconcile stale "file layout"/"naming scheme" open-item bundles outside the
   register and delivery-graph docs
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-06 20:53'
-updated_date: '2026-08-07 03:05'
+updated_date: '2026-08-07 03:07'
 labels:
   - campaign
   - 'cluster:open-item-bundles'
+  - wave-1
 dependencies: []
 references:
   - docs/adr/require-atomic-idempotent-operation-owned-mutations.md
