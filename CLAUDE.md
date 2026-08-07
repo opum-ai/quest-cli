@@ -90,6 +90,19 @@ ledger's history paragraph, or a register slice documenting a hazard is a
 record — leave it and amend it inline, dated, citing the directing task.
 Only prose a reader would act on today gets corrected in place.
 
+**Ruling (2026-08-07, `QCLI-44`): a directing-task citation is required.** An inline
+supersession amendment must cite the Backlog task under which the amendment was made,
+not only the closing decision it names — so a reader without git history in context can
+still reach the full reasoning (task description, acceptance criteria, implementation
+notes) from the document itself. This binds every inline supersession amendment in this
+repository — there is no exemption for amendments made before this ruling was recorded,
+and no claim is made here about when the citing practice began. Some amendments predating
+2026-08-07 do not yet carry that citation; that is unreconciled debt against this rule,
+not a scope limit on it, and this ruling does not by itself reconcile them. The dated,
+explicit inventory of outstanding sites — by file, with counts and reasons — is
+maintained in `backlog/tasks/qcli-44 - Settle-whether-inline-supersession-amendments-must-cite-the-directing-task.md`
+(Implementation Notes).
+
 When a `*-doc` peer and a `*-cli` peer disagree, that is **drift, i.e. a
 defect** — the `*-cli` peer is authoritative for what currently ships, the
 `*-doc` peer stays normative owner of what the contract is.

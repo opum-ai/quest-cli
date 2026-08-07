@@ -71,6 +71,14 @@ because this record's value is fidelity to what was read on 2026-08-05 — see
 "Trigger fired 2026-08-06" below, and read the owner's live Spec before
 relying on any of it.
 
+**Directing-task citation gap noted 2026-08-07 by `QCLI-44`:** per `git log`
+and `git blame`, the paragraph directly above was made by commit `a4ae6c5`
+(2026-08-06 20:14:30 -0500), committed directly with no Backlog task
+recorded as its author — no task file in this repository names it, and the
+commit itself cites no task. There is no directing task available to cite
+for this amendment; it is recorded here as unreconciled debt against the
+ruling above, not reconciled by this note, pending owner attention.
+
 This record satisfies clause 4 alone. Clauses 1–3 are quoted here only so the
 evidence table below can be organized against them; this document asserts no
 disposition of clauses 1–3, which are `lore-doc`'s to rule on.
@@ -211,6 +219,14 @@ Its purpose is to stop a future reader from trusting the `45d0d90f68a6` pin as
 current. Recorded under `opum-doc`'s
 [propagation Runbook](https://github.com/salient-data/opum-doc/blob/dev/docs/runbooks/propagate-component-evidence-to-dependent-decisions.md),
 which names this repository a dependent of Lore release evidence.
+
+**Directing-task citation added 2026-08-07 by `QCLI-44`:** per `git blame`,
+this section was authored under `QCLI-41`, recording that the pinned
+`lore-doc` revision had moved while the gate remained closed; the section's
+account of the gate result — replacing the closed-gate paragraph it
+originally reported with the paragraphs above reporting the owner's later
+ruling that the gate opened — was subsequently revised by `QCLI-42`; see
+`QCLI-44`'s implementation notes.
 
 ### Recheck clause
 

@@ -220,7 +220,7 @@ tracked with owner and unblock condition in the
 | Runtime, language, toolchain, native packaging | D2 — blocked, post-activation |
 | Supported platform matrix | D3 — closed; Component, claimed by `QCLI-27` |
 | Canonical identifier grammar, authored-record layout | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
-| Naming scheme | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
+| Naming scheme | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`); directing-task citation added 2026-08-07 by `QCLI-44`: this entry's own reconciling task is `QCLI-40` |
 | Event schema | Git mutation contract open items |
 | Locking primitive for local serialisation, merge and rebase strategy | Git mutation contract open items |
 | Projection storage or index engine | Projection contract open items |

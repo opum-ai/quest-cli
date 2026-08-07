@@ -445,6 +445,10 @@ layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-
 record](quest-cli-license-platform-and-runtime-ownership-record.md)
 (`QCLI-27`).
 
+**Directing-task citation added 2026-08-07 by `QCLI-44`:** the file layout and naming
+scheme closures above were made under `QCLI-34` and `QCLI-38` respectively, cited here
+alongside the closing decision (`QCLI-25`) already named.
+
 #### 5. Migration
 
 *Version pin.* Every Backlog-behavior fact this contract restates below
