@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-07 05:03'
-updated_date: '2026-08-07 13:28'
+updated_date: '2026-08-07 13:44'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
@@ -108,4 +108,36 @@ CORRECTIONS TO THIS TASK'S OWN IMPLEMENTATION NOTES (non-blocking finding #6, hy
 (b) The staleness example "this campaign's wave-2 dispatch" is WRONG. `git show --stat d0b5f41` touches only a backlog/tasks/*.md file, not docs/ -- it is not a docs/log.md-eligible commit at all, so it cannot be a missing log entry.
 
 GATES RE-RUN AFTER FIX-PASS EDITS: `lore validate --strict` -> 47 files, 0 errors, 0 warnings, 6 skipped, exit 0. `lore check --strict` -> 47 files, 0 errors, 0 warnings, exit 0. Both clean; docs/ itself remains untouched by this branch's diff (only the two skill files changed), consistent with the squash-merge-trap analysis -- AC #1 is still satisfied only by the orchestrator's first real execution of this contract at this task's own settlement, not by anything on this branch.
+
+FIX-PASS 2 (reviewer request_changes on FIX-PASS 1, addressed on this branch before merge -- FINAL pass, 3-max cycle):
+
+CORRECTION TO THIS TASK'S OWN NOTES: the prior "FIX-PASS" and "CORRECTIONS" notes above are THEMSELVES WRONG on two checkable counts and must not be treated as the record. They claimed (a) the dangling-SHA mechanism was introduced by QCLI-32/#48 (2e57876), and (b) it "fired exactly ONCE." Both are false, re-measured from scratch this pass (no figure below was copied from the prior notes or the reviewer's report without independently re-running the command):
+
+(a) ATTRIBUTION. `git show 2e57876:docs/log.md -- docs/log.md` diff is empty against 43bc22e's docs/log.md content -- byte-identical SHA sets (`diff /tmp/shas_43bc22e.txt /tmp/shas_2e57876.txt` -> no output). `git merge-base --is-ancestor` against dev flags the SAME 4 SHAs as non-ancestors at both refs: 6f4dc18b7a2b8ae19bd4bbe90bf4bb09e463b738, a357d12f490945d1b248c19895d5838cb0d0fb6b, a6fc2021f93f1cd8e462f0e40c3aed8cd9537520, fcb814f43dc14a94c9b68fd7341ff6d3e2676898. `git log -S<sha> --reverse -- docs/log.md` for all four names 43bc22e as the introducing commit (QCLI-28: Reconcile the Quest CLI open component decisions register... against the Phase 1 ADRs, #44), not 2e57876. Their own subjects confirm branch-local QCLI-28 work: "docs(qcli-28): reconcile component contracts graph open items with the register", "chore(docs): sync log.md and story status for QCLI-28", "docs(qcli-28): reconcile Phase 1 exit-criteria table...", "docs(qcli-28): close D1/D3/D4/D5...". Separately, `git show 2e57876 -- docs/log.md` produces NO diff at all -- QCLI-32/#48 never touched docs/log.md and is not implicated in this drift in any way. QCLI-32 and #48 have been removed from both skill files entirely.
+
+(b) FREQUENCY. Walked docs/log.md content (`git show <ref>:docs/log.md`) at every ref in the QCLI-16..QCLI-35 window and checked each recorded SHA's ancestry against dev:
+  44a7ed8 (QCLI-16)  total=57 bad=1
+  d95c1ee (fix)      total=57 bad=0
+  fb8e8e3 (QCLI-17)  total=60 bad=2
+  a935a36 (fix)      total=59 bad=0
+  adea711 (QCLI-19)  total=67 bad=3
+  f43a083 (QCLI-21)  total=70 bad=4
+  2fd6c13 (QCLI-22)  total=72 bad=5
+  f528d93 (fix)      total=68 bad=0
+  43bc22e (QCLI-28)  total=85 bad=4
+  2b30560 (QCLI-35 fix) total=86 bad=0
+Six non-zero episodes, not one -- QCLI-16, QCLI-17, QCLI-19, QCLI-21, QCLI-22, QCLI-28 each independently introduced dangling SHAs; three one-shot regenerations (d95c1ee, a935a36, f528d93) each closed it "for good" and each was reopened by the next per-task-branch sync, before QCLI-35's fix (2b30560) closed it structurally. Continued the walk past 2b30560 to confirm "never recurred": 1f252dd (QCLI-39) total=92 bad=0; 4c80874 total=93 bad=0; a4ae6c5 total=94 bad=0; 3b1e9f5 total=95 bad=0; current worktree HEAD docs/log.md total=95 bad=0. Zero bad at every point from 2b30560 onward -- the reviewer's numbers (86/92/95) all confirmed independently, no disagreement.
+
+STALENESS RE-CONFIRMED: `git log --oneline origin/dev -- docs/` = 98 commits; recorded SHAs in current docs/log.md = 95 (both worktree and origin/dev copies match) -- 3 unrecorded, i.e. staleness is the dominant live mode, matching the reviewer's figure.
+
+TRAILER CHECK (NB3): `git log -1 --format='%(trailers:key=Refs,valueonly)'` on d0b5f41, 9c63769, 146956d, 8721feb all returned empty -- confirms the orchestrator's own chore(campaign) bookkeeping commits routinely lack the Refs trailer in practice, so wave-loop.md:182's former claim ("the one commit in this skill's entire workflow with no Refs trailer") was an overstatement. Softened to "the one commit this contract blesses as untrailered" -- true of what the contract itself prescribes, without asserting a fact about every commit this repo has ever produced.
+
+FIXES THIS PASS:
+1. wave-loop.md section i intro + squash-rewrite/staleness bullets (~line 169-172) and SKILL.md Provenance (~line 201) rewritten using only the measurements above. Both now say "fired repeatedly" / "six episodes" with per-task bad counts, name 43bc22e/#44/QCLI-28 as the sole introducing commit, and drop QCLI-32/#48 entirely.
+2. NB2: wave-loop.md:187's sample JSON payload was a `--dry-run --json` payload (dryRun:true, backlogCommit unpopulated) mislabeled as "a real payload" for the prescribed non-dry-run sync, and contradicted the auto-commit prose two paragraphs above. Re-ran `lore sync --dry-run --json` on this branch to confirm the exact payload shape, then relabeled the sample explicitly as a dry-run sample (kept for field-shape reference only, since a real run cannot be exercised on this branch without recreating the squash-merge trap) and described how a real run's `dryRun`/`backlogCommit` fields differ. The `.data.files[].path` pin is unchanged.
+3. NB3: wave-loop.md:182 softened per above.
+
+GATES RE-RUN AFTER THIS PASS'S EDITS: `lore validate --strict` -> 47 files, 0 errors, 0 warnings, 6 skipped, exit 0. `lore check --strict` -> 47 files, 0 errors, 0 warnings, exit 0. docs/ itself remains untouched by this branch's diff (only the two skill files changed) -- AC #1 is still satisfied only by the orchestrator's first real execution of the R4i contract at this task's own settlement, not by anything on this branch.
+
+Scope: only .claude/skills/backlog-handover/SKILL.md, .claude/skills/backlog-handover/reference/wave-loop.md, and this task's own backlog record were touched this pass. docs/log.md untouched; no real (non-dry-run) `lore sync` was run on this branch.
 <!-- SECTION:NOTES:END -->
