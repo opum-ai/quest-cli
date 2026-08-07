@@ -1,9 +1,10 @@
 ---
 id: QCLI-42
 title: Record the owner's opened Lore gate in the activation-gate evidence record
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-07 02:22'
+updated_date: '2026-08-07 02:23'
 labels:
   - documentation
   - activation-gate
@@ -25,9 +26,9 @@ lore-doc ruled on clause 1 and opened the Lore-owned gate on 2026-08-06, accepti
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The evidence record reports the gate as open, dated, and attributed to the owner's ruling in LDOC-4, framed as reading the owner's conclusion rather than computing one here
-- [ ] #2 The record states that an open Lore gate authorizes no product source, package reservation, or release, and names this repository's own still-owed gates
-- [ ] #3 The superseded d2a9a9e11ddf pin is marked historical rather than left as the current owner revision
+- [x] #1 The evidence record reports the gate as open, dated, and attributed to the owner's ruling in LDOC-4, framed as reading the owner's conclusion rather than computing one here
+- [x] #2 The record states that an open Lore gate authorizes no product source, package reservation, or release, and names this repository's own still-owed gates
+- [x] #3 The superseded d2a9a9e11ddf pin is marked historical rather than left as the current owner revision
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -38,3 +39,15 @@ lore-doc ruled on clause 1 and opened the Lore-owned gate on 2026-08-06, accepti
 3. Mark the d2a9a9e pin historical.
 4. Run lore sync, validate --strict, check --strict, agents --check, git diff --check.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified: the record states the owner ruled on 2026-08-06, accepted the 0.1.1 boundary in LDOC-4, and that its gate Spec now reports the result as open - explicitly framed as 'a report of what the gate's owner has said, not a disposition computed here', preserving this repository's constraint that clauses 1-3 were never its to rule on (AC1). It states 'An open Lore gate is not activation', that nothing there authorizes product source, package reservation, or a release, and names the still-owed local gates: clean-room admission, research completeness, and the delivery roadmap's Phase 0 activation checks (AC2). The trigger note now records that the d2a9a9e11ddf pin is itself already historical because lore-doc advanced again the same day when its owner ruled (AC3). lore validate --strict and check --strict: 47 files, 0 errors, 0 warnings. agents --check exit 0. git diff --check clean. No command mutating lore-doc, lore-cli, or npm was run.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Recorded the owner's opened Lore gate in QCLI-11's evidence record without inferring it: the note reports lore-doc's own conclusion rather than computing a disposition here, keeping intact the rule that clauses 1-3 belong to lore-doc. It states that an open Lore gate is not activation of this component and names the gates still owed locally - clean-room admission, research completeness, and Phase 0 activation - so no reader treats a cleared Lore precondition as permission for product source, package reservation, or a release. The d2a9a9e pin is marked historical, since lore-doc advanced again the same day. Verified with strict lore validation, check, agent bridge, and git diff --check.
+<!-- SECTION:FINAL_SUMMARY:END -->
