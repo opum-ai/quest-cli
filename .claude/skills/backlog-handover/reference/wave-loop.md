@@ -162,11 +162,35 @@ Check **only** the criteria the reviewer independently confirmed. An unconfirmed
 
 Escalated-to-human tasks: `-s "To Do" --add-label needs-human --remove-label "wave-<N>,in-review,merge-pending"`, with the reviewer's stated reason recorded in the campaign doc.
 
-Then one campaign-doc write (`backlog doc update <docId> --content "..."`): append **one** wave-log entry for the whole wave, refresh the frontier note, record any needs-human reasons and proposed follow-ups. Commit and push.
+Then one campaign-doc write (`backlog doc update <docId> --content "..."`): append **one** wave-log entry for the whole wave, refresh the frontier note, record any needs-human reasons and proposed follow-ups.
+
+### Lore log sync — mandatory, last, once per wave
+
+**Deliberate divergence from upstream (`QCLI-43`; see SKILL.md Provenance).** `docs/log.md` drifted from `<default>` after every campaign before this rule existed — QCLI-35 closed it for doc-7, QCLI-39 closed it for doc-8, doc-9 reopened it again — because every fix so far ran the sync as a one-shot **on a per-task branch**, and that branch's own squash-merge then rewrote the very SHAs the sync had just recorded, the instant the PR landed. The fix here is not a better one-shot; it is running the sync from the one place a squash-merge can never invalidate it. Settlement already runs "orchestrator only, on `<default>` directly. Never on a per-task branch" (above), and only after this wave's own merges (g) have already landed on `<default>`. A commit already on `<default>` stays an ancestor of `<default>` forever under this skill's merge model — fast-forward only, no rebase or force-push of `<default>` anywhere in this skill (see g, R5) — whereas a commit still living only on a branch destined for squash-merge is not. Folding the sync into settlement means every SHA it records is already, permanently, part of `<default>`'s own history, not a branch commit awaiting collapse.
+
+Run once, as the **last** action of this wave's settlement — strictly after every per-task write above and after the campaign-doc write, so the sync reconciles against this wave's *final* state (every resolved task already `Done`, the campaign doc already updated) instead of a stale in-between snapshot that would just need a second sync:
+
+```bash
+lore sync --json
+```
+
+1. Read the `files` list from the JSON payload — this is exactly what changed (typically `docs/log.md`; possibly `docs/index.md` and/or a Story's `<!-- lore:tasks -->` managed block if this wave flipped a linked task to `Done`). `git add` exactly those paths and commit them together as one commit, e.g. `docs: sync lore log after wave-<N> settlement (doc-<M> campaign)`, with one `Refs: QCLI-<N>` trailer per task resolved this wave. An empty `files` list means this wave's resolved tasks touched no lore-tracked doc — nothing to commit, not an error.
+2. `lore sync` also auto-commits `backlog/` if left dirty — its own documented contract (`lore instructions sync`; precedent: QCLI-35 and QCLI-39 notes). Since `backlog/config.yml` sets `auto_commit: false`, nothing else in settlement commits the per-task writes (a) or the campaign-doc write (b) — this auto-commit is what actually persists them to git. Treat it as settlement's own backlog-write commit, not a side effect to undo or fold away.
+3. `lore check` — must report 0 errors and 0 warnings before the push below. A drift/link/portability finding here means investigate before handing control back; re-running `lore sync` is the fix for reconciliation drift specifically (`lore instructions check`), never a reason to push past a failing check.
+4. `git push origin <default>` (no remote → skip) — publishes every commit accumulated this wave: the `backlog/` auto-commit from step 2 and the docs commit from step 1.
+
+**Per-wave, not per-campaign.** Settlement already runs once per wave — this loop repeats per R4j — so the sync inherits that cadence for free; there is no separate per-campaign step to remember or skip. A per-campaign-only alternative was considered and rejected: it would leave `docs/log.md` stale for every wave but the campaign's last, reproducing the exact "log is one wave behind" gap QCLI-39 existed to close — even *within* a single multi-wave session — and it widens the window a crash has to land in before the log goes stale. This repo's own log history already shows a de facto per-wave cadence (manual entries like "docs: sync log.md and story managed block after wave-1 merges" predate this rule); this rule only makes that cadence mandatory and moves it off the per-task-branch ref that kept undoing it.
+
+**Failure paths:**
+
+- **No remote.** Steps 1–3 above are local (`lore sync`, its `backlog/` auto-commit, the explicit docs commit, `lore check`) and always run; only step 4's `git push` is skipped, per this skill's existing no-remote convention.
+- **No `gh`.** Unaffected — `gh` is only used for the optional PR audit trail in (g); the sync reads and writes `<default>`'s actual git history, not PR state.
+- **A stuck branch (g).** A task that does not merge this wave is not part of this wave's per-task writes (a) and contributes no new commits to `<default>` — it is simply outside this sync's scope until the wave it actually does merge in. No special-casing needed.
+- **A crashed session resuming at R3.** `lore sync` is idempotent (`lore instructions sync`: unchanged inputs produce byte-identical output), so re-running it is always safe even if a prior session partially completed this step — e.g. crashed after the `backlog/` auto-commit but before the explicit docs commit, or after both but before `lore check`/push. R3's reconciliation must include: run `lore sync` again before starting a new wave; if it reports any `files`, commit and push them (step 1) before proceeding. This closes the same gap R3 already closes for Backlog and campaign-doc state — the log is just one more thing R3 verifies against ground truth rather than trusts from the handover.
 
 Do **not** run `backlog task archive` or `backlog task complete` — terminal-status tasks stay put until periodic cleanup.
 
-Crash-safe by design: merged code and `Done` tasks are already the system of record, so only the campaign doc's narrative catch-up defers to the next restore's R3 — and R4d's dispatch marking gives it something real to reconcile from.
+Crash-safe by design: merged code and `Done` tasks are already the system of record, and the lore log sync's own idempotency (above) means a partially-completed sync is always safely resumable — so only the campaign doc's narrative catch-up defers to the next restore's R3, and R4d's dispatch marking gives it something real to reconcile from.
 
 ## j. Loop or stop
 
