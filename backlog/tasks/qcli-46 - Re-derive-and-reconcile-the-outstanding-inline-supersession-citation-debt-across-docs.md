@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-07 18:52'
+updated_date: '2026-08-07 20:28'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -38,6 +39,13 @@ Known non-conformant sites as of 2026-08-07 — treat this as a floor, not the s
 3. `docs/reference/quest-cli-activation-gate-evidence-record.md:67` — the amendment made by commit `a4ae6c5`, which carries **no task at all**: no trailer on the commit, and no task file in `backlog/` references it. QCLI-44 confirmed this by exhausting the task store and recorded it in the document itself as explicitly uncitable debt. **This one needs an owner disposition on what to cite when the authoring work has no directing task — surface it, do not invent or infer a citation.**
 
 Sequencing: this task is dependent on the evidence-record amendment ruling task. That ruling governs how `quest-cli-activation-gate-evidence-record.md` may be amended, and this task touches the same file — running them concurrently would race both the file and the convention.
+**OWNER RULING (2026-08-07, obtained at doc-11 wave-1 report, before this task is dispatched) — site 3 (`a4ae6c5`): record it as explicitly uncitable.** Do not invent a citation, do not infer one, and do not file a retroactive task to manufacture one.
+
+Add a dated note at that amendment stating that no directing task exists for it — the authoring work was never filed as a Backlog task — and that this was established by exhausting the task store (`QCLI-44` first, re-confirmed by this task's own sweep). Cite `QCLI-46` as the task that *recorded the gap*, explicitly not as the amendment's author. The distinction must be legible in the text: a reader has to be able to tell that `QCLI-46` is the recorder, not the originator.
+
+Owner's rationale: the citation rule exists so a reader can reach the reasoning behind an amendment. Where no such reasoning was ever recorded, an honest note saying so serves that purpose better than a citation pointing somewhere that does not explain the change. This formalizes what `QCLI-44` already noted informally as unreconciled debt rather than resolving it by fiat.
+
+This ruling settles AC #4 — it *is* the recorded owner disposition. AC #4 is satisfied by implementing this faithfully, not by seeking a further decision.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

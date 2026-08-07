@@ -3,7 +3,7 @@ id: doc-11
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-07 20:20'
+updated_date: '2026-08-07 20:29'
 ---
 # Backlog campaign tracker
 
@@ -134,67 +134,25 @@ branches deleted local and remote, 6/6 pool slots available)
 
 ## Needs a human / blocked
 
-**QCLI-46's AC #4 needs an owner disposition before that task can reach
-`Done`.** Commit `a4ae6c5` ("docs: flag the superseded tail of the quoted gate
-predicate") amended `docs/reference/quest-cli-activation-gate-evidence-record.md`
-with **no directing task at all** — no trailer on the commit, and no task file
-in `backlog/` references it. QCLI-44 confirmed this by exhausting the task
-store. CLAUDE.md's QCLI-44 ruling requires every inline supersession amendment
-to cite its directing task, and this one has none to cite. AC #4 requires a
-*recorded owner disposition*, explicitly not an invented or inferred citation.
-The task is otherwise dispatchable — every other site in its sweep proceeds
-without this answer — but it cannot be settled until the owner rules.
+**(none — resolved 2026-08-07 at the wave-1 report.)** QCLI-46's AC #4 blocker
+is settled: the owner ruled that commit `a4ae6c5` is to be **recorded as
+explicitly uncitable** — a dated note stating no directing task exists, citing
+`QCLI-46` as the task that *recorded* the gap and explicitly not as the
+amendment's author. No citation is to be invented, inferred, or manufactured
+via a retroactive task. The ruling is recorded verbatim in QCLI-46's own
+description so it travels with the task. **QCLI-46 is now fully dispatchable
+and settleable.**
 
-## Proposed follow-ups (awaiting user approval)
+## Proposed follow-ups
 
-Never created unprompted — this project requires approval before follow-up work
-is filed. Each entry is a ready-to-run proposal.
+All three of wave 1's proposals were approved by the owner at the wave-1 report
+and are now **filed**. Nothing is pending approval.
 
-**1. Fix the squash-merge trailer-loss vector.** Discovered during QCLI-47's
-review and confirmed to predate it. A `Refs: QCLI-<N>` line separated from the
-final trailer block by a blank line is **not** parsed by git as a trailer:
-`git interpret-trailers --parse` returns only the `Co-Authored-By:` block. This
-silently defeats the `%(trailers:key=Refs)` measurement QCLI-47's own evidence
-depends on. Confirmed on QCLI-47's branch commit `6f3236f` (fixed at merge by
-authoring the squash message) **and on the already-merged QCLI-43 squash commit
-`7efc1a4`**, which carries no parseable trailer on `dev` today. Proposed scope:
-sweep `dev` for merged commits whose message text contains `Refs:` but whose
-parsed trailers do not; decide whether the existing ones are left as recorded
-history or noted; and add an explicit "the trailer must be in the final trailer
-block, verified with `git interpret-trailers --parse`" instruction to the
-backlog-handover skill so future squash messages cannot reintroduce it.
-*Acceptance criteria would include:* the sweep is run and its result recorded;
-the skill states the placement rule and the verification command; a worked
-example shows a correct and an incorrect message.
-
-**2. Give the orchestrator's dispatch-marking writes a defined commit step.**
-Reported by QCLI-47's worker as out-of-scope, then hit for real during this
-wave's merge queue. With `backlog/config.yml` setting `auto_commit: false`,
-`backlog task edit ... --add-label wave-<N>` leaves the task file dirty in
-whichever checkout ran it. The orchestrator runs those edits on `dev` while
-each worker commits its *own* copy of the same file in its worktree, so the two
-diverge and collide at merge — which is what blocked the QCLI-45 rebase this
-session ("cannot rebase: You have unstaged changes"). `reference/wave-loop.md`
-sections d and i never say to commit the dispatch-marking write. Proposed
-scope: define whether dispatch/in-flight label writes are committed (and by
-whom, on which ref) or deliberately left uncommitted and discarded at
-settlement, and state it in the skill. *Acceptance criteria would include:* the
-rule is stated at the point of action in section d; the merge queue's
-precondition ("the orchestrator's checkout is clean before rebasing any
-member") is explicit; and the interaction with the worker's own committed copy
-of the task file is described.
-
-**3. Decide whether QCLI-42's re-tensed clause is also owed restoration.**
-Raised as a minor finding in QCLI-45's review and deliberately not acted on.
-Alongside deleting the gate-result paragraph, QCLI-42 re-tensed a clause in the
-preceding paragraph — "the Spec **now reports** items 2, 3, and 4" became "the
-Spec **reported** items 2, 3, and 4". QCLI-45 restored the deleted paragraph
-but not this. The reviewer judged it outside AC #2 because no dated reading was
-destroyed — the recorded fact survives intact, so there is nothing to mark
-superseded. But the ruling QCLI-45 itself wrote into CLAUDE.md names "deleting
-**or re-tensing**", so the two can be read as in tension. *Acceptance criteria
-would include:* an owner decision recorded on whether tense-only edits fall
-under preserve-and-amend, and CLAUDE.md's wording reconciled with that answer.
+| Task | From | Cluster |
+| ---- | ---- | ------- |
+| `QCLI-48` — Close the squash-merge `Refs` trailer-loss vector | QCLI-47 review | campaign-machinery |
+| `QCLI-49` — Define the commit step for the orchestrator's dispatch-marking writes | QCLI-47 worker + hit live in wave 1's merge queue | campaign-machinery |
+| `QCLI-50` — Settle whether tense-only edits fall under preserve-and-amend | QCLI-45 review | supersession-convention |
 
 ## Wave log
 
@@ -247,3 +205,10 @@ under preserve-and-amend, and CLAUDE.md's wording reconciled with that answer.
   squash-merge trailer-loss vector (which also affects the already-merged
   `7efc1a4`), and the uncommitted dispatch-marking writes that collided at
   rebase time.
+
+- 2026-08-07 — **post-wave-1 owner rulings and follow-up filing.** All three
+  wave-1 proposals approved and filed as `QCLI-48`, `QCLI-49`, `QCLI-50` with
+  `campaign` and `cluster:*` labels. QCLI-46's `a4ae6c5` blocker settled by
+  owner ruling (record as explicitly uncitable) and written into QCLI-46's
+  description. Queue at handover: **4 To Do** (QCLI-46, 48, 49, 50), 0 In
+  Progress, 65 Done, 0 needs-human.
