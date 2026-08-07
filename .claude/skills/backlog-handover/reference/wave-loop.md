@@ -164,6 +164,24 @@ Escalated-to-human tasks: `-s "To Do" --add-label needs-human --remove-label "wa
 
 Then one campaign-doc write (`backlog doc update <docId> --content "..."`): append **one** wave-log entry for the whole wave, refresh the frontier note, record any needs-human reasons and proposed follow-ups.
 
+### Commit trailer convention (hybrid rule, `QCLI-47`)
+
+SKILL.md's Commits convention is hybrid, not "always except `lore sync`": a `Refs: QCLI-<N>` trailer is required wherever a commit has one directing task, and named as an exception wherever it genuinely does not. Concretely, for the orchestrator's own bookkeeping commits — the worker's own task-implementation commit is always single-task and always trailed, per SKILL.md's Commits row and (e) above, and is not repeated here:
+
+| Commit | Single directing task? | Trailer |
+| ------ | ----------------------- | ------- |
+| Dispatch marking (d) — committing `backlog task edit QCLI-<N> -s "In Progress" --add-label "wave-<N>"` | Yes — the task being dispatched | **Required**: `Refs: QCLI-<N>` |
+| In-flight pointer recording (mid-wave, or R3 crash recovery) | Yes — the task whose stage is being recorded | **Required**: `Refs: QCLI-<N>` |
+| Settle (i, above) — committing the per-task settlement writes | Yes — the task being settled, even when the same commit also closes the campaign (e.g. `342e76d`) | **Required**: `Refs: QCLI-<N>` |
+| Docs sync commit (i, step 2 below) | Multiple — every task resolved this wave | **Required**: one `Refs: QCLI-<N>` trailer per resolved task |
+| Campaign init (SKILL.md I3) — campaign doc creation, label application | No — spans the whole queued set, not one task | **Exception**: no trailer |
+| Campaign close (R6 queue-empty path, or a close-out commit naming no single task) | No | **Exception**: no trailer |
+| Handover archive (R5.1, and W-mode's equivalent) | No — session/campaign bookkeeping | **Exception**: no trailer |
+| `.claude/handovers/` gitignore setup (SKILL.md I3, one-time) | No | **Exception**: no trailer |
+| `lore sync`'s own `backlog/` auto-commit | No — hardcoded, outside this skill's control | **Exception** (pre-existing, `QCLI-43`): no trailer |
+
+The dividing line is **not** the commit's category label, it is whether the commit names one specific task. A settle-and-close commit like `342e76d` still carries that task's trailer because it has one; a pure close-out or init commit does not, because it doesn't.
+
 ### Lore log sync — mandatory, last, once per wave
 
 **Deliberate divergence from upstream (`QCLI-43`; see SKILL.md Provenance).** `docs/log.md` drifted from `<default>` after every campaign before this rule existed — QCLI-35 closed it for doc-7, QCLI-39 closed it for doc-8, doc-9 reopened it again — but measurement shows two distinct failure modes, not one.
@@ -179,7 +197,7 @@ Run once, as the **last** action of this wave's settlement — strictly after ev
 lore sync --json
 ```
 
-This one invocation does two things: it writes the bundle (regenerating `docs/log.md`, and possibly `docs/index.md` and/or a Story's `<!-- lore:tasks -->` managed block if this wave flipped a linked task to `Done`), and it auto-commits `backlog/` if left dirty. That auto-commit is `lore sync`'s own catch-all sweep, not the narrower `lore link`/`lore unlink` case `lore instructions sync` names — see `lore instructions linking`: "`lore sync`'s own commit step is now a catch-all sweep: it still commits anything left dirty under `backlog/` from another source (a human's direct `backlog task edit`, or a prior run's commit that failed)." Since `backlog/config.yml` sets `auto_commit: false`, nothing else in settlement commits the per-task writes (a) or the campaign-doc write (b) — this auto-commit is what actually persists them to git. Treat it as settlement's own backlog-write commit, not a side effect to undo or fold away. It is also, by design, the one commit this contract blesses as untrailered — hardcoded in the lore binary as `chore(backlog): sync task changes`, outside this skill's control — and SKILL.md's Commits convention names this exact exception rather than silently drifting from "always a trailer."
+This one invocation does two things: it writes the bundle (regenerating `docs/log.md`, and possibly `docs/index.md` and/or a Story's `<!-- lore:tasks -->` managed block if this wave flipped a linked task to `Done`), and it auto-commits `backlog/` if left dirty. That auto-commit is `lore sync`'s own catch-all sweep, not the narrower `lore link`/`lore unlink` case `lore instructions sync` names — see `lore instructions linking`: "`lore sync`'s own commit step is now a catch-all sweep: it still commits anything left dirty under `backlog/` from another source (a human's direct `backlog task edit`, or a prior run's commit that failed)." Since `backlog/config.yml` sets `auto_commit: false`, nothing else in settlement commits the per-task writes (a) or the campaign-doc write (b) — this auto-commit is what actually persists them to git. Treat it as settlement's own backlog-write commit, not a side effect to undo or fold away. It is also, by design, one of this contract's named untrailered exceptions (see "Commit trailer convention" above) — hardcoded in the lore binary as `chore(backlog): sync task changes`, outside this skill's control — and SKILL.md's Commits convention names this exception, alongside the campaign-scoped bookkeeping exception added at `QCLI-47`, rather than silently drifting from "always a trailer."
 
 `docs/log.md` records only commits that **touch `docs/`**, not every commit on `<default>` — keep that scope in mind when checking AC #1: the recorded-SHA count should match the count of `<default>` commits that touch `docs/`, not `git log <default> | wc -l`. There is also an inherent one-commit lag: the docs commit (step 2 below) itself touches `docs/`, but cannot appear in the log entry it just generated — that commit doesn't exist until after this `lore sync --json` call runs — so immediately after every settlement, `docs/log.md` legitimately records N-1 of the N `docs/`-touching commits on `<default>` at that moment. Benign, and AC #1's "up to the sync commit" phrasing already accommodates it; the next wave's sync catches the missing entry up along with everything else.
 
