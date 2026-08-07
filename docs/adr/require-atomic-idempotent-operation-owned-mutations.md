@@ -75,6 +75,9 @@ open: both **closed 2026-08-05** by
 layout](adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md)
 (`QCLI-25`/D4) — see the register's Git mutation contract entries.
 
+**Directing-task citation added 2026-08-07 by `QCLI-44`:** the amendment above was made
+under `QCLI-40`, cited here alongside the closing decision (`QCLI-25`/D4) already named.
+
 ## Consequences
 
 - **Every mutating operation needs a declared path set**, computed up front. This is a
