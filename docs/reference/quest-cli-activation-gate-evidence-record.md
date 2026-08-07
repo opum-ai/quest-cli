@@ -64,6 +64,13 @@ touched by commit `32cb28567453a35c8c9f2e7687f730ca501fab21`,
 > returned `E404`, and unresolved release records remained. These are dated
 > observations, not a replacement for the next live check.
 
+**The final paragraph of that quotation no longer describes its source.** The
+owner replaced it on 2026-08-06 after every one of its observations became
+false; the predicate itself, clauses 1–4, is unchanged. It is quoted intact
+because this record's value is fidelity to what was read on 2026-08-05 — see
+"Trigger fired 2026-08-06" below, and read the owner's live Spec before
+relying on any of it.
+
 This record satisfies clause 4 alone. Clauses 1–3 are quoted here only so the
 evidence table below can be organized against them; this document asserts no
 disposition of clauses 1–3, which are `lore-doc`'s to rule on.
