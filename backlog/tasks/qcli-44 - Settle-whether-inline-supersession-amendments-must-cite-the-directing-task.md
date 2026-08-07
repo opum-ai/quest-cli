@@ -4,7 +4,7 @@ title: Settle whether inline supersession amendments must cite the directing tas
 status: In Progress
 assignee: []
 created_date: '2026-08-07 05:04'
-updated_date: '2026-08-07 12:01'
+updated_date: '2026-08-07 12:28'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -108,6 +108,48 @@ $ lore check
 47 files, 0 errors, 0 warnings (exit 0)
 
 OUT-OF-SCOPE-FINDINGS: the ~30+ pre-2026-08-06 10:07 non-conformant amendments enumerated in the AC2-SWEEP section above (QCLI-12/16/21/28/30/31/33 era) are a documented exception, not a fix — reconciling them is a substantially larger effort than this task and would need its own dedicated task if the owner wants it done. Not filed per this project's no-unapproved-follow-ups rule.
+
+FIX-PASS CORRECTION (2026-08-07, reviewer request_changes remediation) — supersedes the AC2-SWEEP claims below where they conflict with this note; the original notes above are left unedited per this repo's own append-only convention.
+
+CORRECTING TWO FALSE CLAIMS IN THE NOTES ABOVE:
+1. The AC2-SWEEP filed docs/reference/quest-cli-activation-gate-evidence-record.md into the "pre-2026-08-06 10:07 exception era." That is false: this file's two non-conformant amendments (commit a4ae6c5 at 2026-08-06 20:14:30, and the "Trigger fired 2026-08-06" section spanning commits 4c80874/3b1e9f5 at 20:08:24/21:24:14) were all made hours after the claimed 10:07:22 threshold, not before it. The reviewer caught this; it is corrected by actually fixing both sites (see below), not by re-deriving a threshold date.
+2. The notes asserted QCLI-34/QCLI-38/QCLI-40 "already self-cited elsewhere in the same commit." Verified false for all three by reading each task's own docs diff: `git log -S'reconciled here by' -- docs/` puts the first self-citing instance at commit 4640ab3 (QCLI-37, 2026-08-06 14:51:34), not QCLI-34. QCLI-34's own commit does not self-cite. The rule this task records does not depend on when the practice started, so this correction does not require re-deriving a corrected threshold — see the reframed ruling in CLAUDE.md, which now drops the threshold/first-observed framing entirely rather than restating it with a fixed date. This is the reviewer's prescribed remedy, not an independent choice.
+
+FIXES APPLIED THIS PASS (append-only, verified via `git diff`):
+1. docs/reference/quest-cli-activation-gate-evidence-record.md:67 area — appended a dated note after the "no longer describes its source" amendment. Investigated via `git log`/`git blame`: this amendment is commit a4ae6c523764a9d7023847c99ab8716c311d2377 (2026-08-06 20:14:30 -0500, "docs: flag the superseded tail of the quoted gate predicate"), committed directly with no Backlog task association — no task file in `backlog/tasks/` references it, its commit message carries no task trailer, and its own working session (same Claude-Session as QCLI-41/QCLI-42) falls in the gap between QCLI-41 completing (task Updated 2026-08-07 01:07 UTC) and QCLI-42 being created (2026-08-07 02:22 UTC). There is no directing task to cite. Recorded this honestly as unreconciled debt rather than inventing a citation.
+2. docs/reference/quest-cli-activation-gate-evidence-record.md's "Trigger fired 2026-08-06" section (~line 184) — appended a dated note citing both `QCLI-41` (section's original author, commit 4c80874) and `QCLI-42` (commit 3b1e9f5, which revised the section's account of the gate result). See OUT-OF-SCOPE FINDING below: QCLI-42's edit replaced existing prose rather than appending a further dated amendment; this is reported honestly in the new note, not silently smoothed over.
+3. CLAUDE.md's ruling paragraph rewritten (this is QCLI-44's own in-flight draft ruling, not settled historical-record text, so direct editing rather than append-only applies here, per the reviewer's explicit prescribed remedy): removed the false QCLI-34 self-citation claim and the "first observed"/threshold framing entirely. The rule now binds every inline supersession amendment in this repository with no temporal carve-out; amendments predating this ruling that don't yet cite a task are named as unreconciled debt against the rule, not a scope limit on it. A pointer to this task's file (the real path, not a bare task reference) carries the full inventory.
+
+GATES (verbatim, run after all edits above):
+$ lore validate --strict
+47 files, 0 errors, 0 warnings, 6 skipped (exit 0)
+
+$ lore check
+47 files, 0 errors, 0 warnings (exit 0)
+
+AC2 — EXPLICIT EXCEPTION/DEBT INVENTORY (real sweep, re-run independently this pass; supersedes the "~30+ sites, and others" approximation above)
+
+METHODOLOGY: swept every file under docs/ (47 files, matching `lore check`'s count) for inline supersession amendment markers using a paragraph-aware scan for the bold "**Verb ... 20XX-XX-XX ...**" pattern this repo's own amendments consistently use (e.g. "**Corrected 2026-08-05 by `QCLI-22`:**"), plus targeted greps for "superseded", "no longer describes/holds/open", and heading-level trigger markers to catch amendments that don't follow the bold-verb-date shape (the two activation-gate-evidence-record.md sites are like this). For every hit, read enough surrounding text to determine whether a Backlog task ID is cited as the amendment's directing task (not just a closing-decision ADR/Story link). This is a good-faith sweep, not a formally exhaustive one — same caveat the reviewer attached to their own cross-check numbers.
+
+RESULT: the amendment population is overwhelmingly conformant already. Nearly every dated amendment found across docs/reference/quest-cli-research-source-register.md, former-ocli-to-qcli-migration-ledger.md, quest-cli-packaging-contract.md, quest-cli-pre-implementation-research-program.md, quest-cli-component-contracts-and-delivery-graph.md, quest-cli-open-component-decisions.md, quest-cli-lore-dependency-and-adapter-contract-evidence.md, quest-cli-backlog-adoption-and-migration-playbook.md, quest-cli-scale-target-proposal.md, quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md, and docs/adr/use-quest-cli-for-the-quest-package-and-command.md self-cites its directing task inline (examples spanning 2026-08-04 through 2026-08-05, i.e. well before any "practice began here" claim: QCLI-2.7, QCLI-2.12, QCLI-6, QCLI-7, QCLI-9, QCLI-12, QCLI-13, QCLI-14, QCLI-17, QCLI-21, QCLI-22, QCLI-23, QCLI-25, QCLI-26, QCLI-27, QCLI-28, QCLI-5 all self-cite by task ID inline in a dated amendment marker). This directly contradicts the prior pass's claim that the pre-2026-08-06 reconciliation era "uniformly cite[s] only their closing decision, never their own directing task" — that claim was substantially wrong, not merely mis-dated, which is a further reason the threshold framing does not survive this pass.
+
+Explicit outstanding (non-conformant) sites, by file:
+
+1. `docs/reference/quest-cli-activation-gate-evidence-record.md:67` (the "no longer describes its source" amendment, commit a4ae6c5) — FIXED this pass with a citation-gap note; no directing task exists to cite (see FIXES APPLIED above). Not debt going forward in the "missing citation" sense — it is now explicitly documented as uncitable.
+2. `docs/reference/quest-cli-activation-gate-evidence-record.md`'s "Trigger fired 2026-08-06" section (~line 184–213) — FIXED this pass with a citation naming QCLI-41 and QCLI-42.
+3. `docs/reference/quest-cli-research-source-register.md:420` — "**amended 2026-08-04 by the owner's split rule**" (Exclusions bullet, "lore-cli / the `lore` command" slice). Cites the owner's ruling but no Backlog task ID inline; the split-rule section it points to (line 443–455, "The lore-cli source-admissibility split rule") separately names `QCLI-2.7` as having applied the ruling the same day, so a document-only reader can eventually trace it by following the "see... immediately below" pointer, but the amendment marker itself does not carry the citation the ruling requires. 1 site. NOT fixed this pass — out of this task's touched-files scope (only CLAUDE.md, the activation-gate-evidence-record, and this task file were authorized). Reason for remaining open: unreconciled debt against the ruling, scope-limited to QCLI-44's authorized file list, not a claim that it's exempt from the rule.
+
+Files the reviewer separately flagged as omitted, checked in this sweep with real per-file results (not copied from the reviewer's cross-check numbers):
+- `docs/reference/quest-cli-research-source-register.md` — ~21 dated amendment markers found; 1 non-conformant (item 3 above), 20 already self-cite a task.
+- `docs/reference/former-ocli-to-qcli-migration-ledger.md` — 5 dated amendment markers found (lines 59, 69, 90, 101, 123); all 5 self-cite (`QCLI-2.12` x4, `QCLI-13` x1). 0 non-conformant.
+- `docs/reference/quest-cli-packaging-contract.md` — 2 dated amendment markers found (lines 80, 93); both self-cite (`QCLI-14`, `QCLI-23`). 0 non-conformant.
+- `docs/specs/quest-cli-pre-implementation-research-program.md` — 1 dated amendment marker found (line 72); self-cites `QCLI-12`. 0 non-conformant.
+
+No other non-conformant inline supersession amendments were found anywhere else in docs/ in this pass's sweep. Total outstanding debt after this fix pass: 1 site (`quest-cli-research-source-register.md:420`), plus the activation-gate-evidence-record.md:67 site which is now explicitly documented as having no citable directing task (a different, resolved kind of "outstanding" — recorded, not silently missing).
+
+OUT-OF-SCOPE FINDING (not fixed, reported per instruction — do not silently correct another task's already-Done work):
+
+`docs/reference/quest-cli-activation-gate-evidence-record.md`'s "Trigger fired 2026-08-06" section: `git show 3b1e9f5` (QCLI-42) shows this commit did not append a further dated amendment the way every other supersession amendment in this repository does. It deleted QCLI-41's existing paragraph — "`LDOC-4` is still `To Do`. The gate's owner has not accepted the release boundary, so **the gate result is unchanged: closed.** Per this record's own constraint, that sentence is a quote of the owner's position, not a conclusion drawn here." — and replaced it with new paragraphs reporting the gate as open, and also changed an existing sentence's tense in place ("the Spec now reports" -> "the Spec reported"). This is a rewrite of existing historical-record prose, not an inline dated amendment, and appears to conflict with this repository's own supersession convention (CLAUDE.md: "amend it inline, dated, citing the directing task" / "Only prose a reader would act on today gets corrected in place") as well as this exact document's self-declared methodology (dated observations preserved, amended via trigger notes, e.g. a4ae6c5's own stated rationale: "The quotation stays intact... this record's value is fidelity to what was read"). QCLI-42 is already Done and this task's authorized scope does not include re-editing that commit's content or restoring the deleted paragraph. Flagging for team-lead/owner attention; not corrected here.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
