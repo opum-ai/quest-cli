@@ -174,6 +174,28 @@ priced in) and one item unchanged and still open (`LCLI-278`); neither
 converts to an assertion that the gate has opened, and this record makes
 none.
 
+### Trigger fired 2026-08-06: the pinned owner revision moved
+
+The moving reference this record warned about has moved. `lore-doc` advanced
+from HEAD `45d0d90f68a6` (read 2026-08-05) to `d2a9a9e11ddf`, and the gate
+Spec's evidence section — not merely the surrounding prose — was rewritten:
+its 2026-08-01 "no Git tag, package version `0.0.0`, npm `E404`" observations
+were superseded as false, and the Spec now reports items 2, 3, and 4 of the
+predicate as satisfied.
+
+`LDOC-4` is still `To Do`. The gate's owner has not accepted the release
+boundary, so **the gate result is unchanged: closed.** Per this record's own
+constraint, that sentence is a quote of the owner's position, not a
+conclusion drawn here.
+
+This note is a pointer to a changed input, nothing more. It does not re-run
+the evidence table, does not refresh this capsule, and does not discharge the
+recheck clause below — an activation session still owes every command in it.
+Its purpose is to stop a future reader from trusting the `45d0d90f68a6` pin as
+current. Recorded under `opum-doc`'s
+[propagation Runbook](https://github.com/salient-data/opum-doc/blob/dev/docs/runbooks/propagate-component-evidence-to-dependent-decisions.md),
+which names this repository a dependent of Lore release evidence.
+
 ### Recheck clause
 
 A future activation session, or any session re-consulting this record, MUST
