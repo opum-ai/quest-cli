@@ -94,14 +94,14 @@ Only prose a reader would act on today gets corrected in place.
 supersession amendment must cite the Backlog task under which the amendment was made,
 not only the closing decision it names — so a reader without git history in context can
 still reach the full reasoning (task description, acceptance criteria, implementation
-notes) from the document itself. This binds every inline supersession amendment made
-once that practice was actually in use in this repo (first observed 2026-08-06,
-`QCLI-34`, citing itself alongside the closing decision in the open component decisions
-register). Amendments authored before that point — the 2026-08-04–06 reconciliation era
-(`QCLI-12`, `QCLI-16`, `QCLI-21`, `QCLI-28`, `QCLI-30`, `QCLI-31`, `QCLI-33`, and others),
-which uniformly cite only their closing decision — are a documented, dated exception
-rather than being retroactively reconciled here; `QCLI-44`'s implementation notes carry
-the full site inventory.
+notes) from the document itself. This binds every inline supersession amendment in this
+repository — there is no exemption for amendments made before this ruling was recorded,
+and no claim is made here about when the citing practice began. Some amendments predating
+2026-08-07 do not yet carry that citation; that is unreconciled debt against this rule,
+not a scope limit on it, and this ruling does not by itself reconcile them. The dated,
+explicit inventory of outstanding sites — by file, with counts and reasons — is
+maintained in `backlog/tasks/qcli-44 - Settle-whether-inline-supersession-amendments-must-cite-the-directing-task.md`
+(Implementation Notes).
 
 When a `*-doc` peer and a `*-cli` peer disagree, that is **drift, i.e. a
 defect** — the `*-cli` peer is authoritative for what currently ships, the
