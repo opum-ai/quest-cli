@@ -3,9 +3,10 @@ id: QCLI-45
 title: >-
   Record the evidence-record amendment ruling and reconcile QCLI-42 in-place
   replacement
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-07 18:52'
+updated_date: '2026-08-07 19:55'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -43,3 +44,44 @@ Constraints on how:
 - [ ] #3 No existing amendment text is rewritten or deleted: `git diff` shows every edit to prior amendments as an inline dated addition citing this task
 - [ ] #4 `lore validate --strict` and `lore check` both pass with 0 errors and 0 warnings, with the output recorded verbatim in implementation notes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Confirmed via git show 3b1e9f5 / 3b1e9f5^ exactly what QCLI-42 removed: the paragraph `LDOC-4` is still `To Do`. The gate's owner has not accepted the release boundary, so **the gate result is unchanged: closed.** Per this record's own constraint, that sentence is a quote of the owner's position, not a conclusion drawn here. — replaced in place by QCLI-42's new open-gate paragraphs rather than preserved.
+2. Place the ruling in CLAUDE.md, not the evidence record's own text: CLAUDE.md is already this repo's established durable location for supersession-convention rulings (QCLI-44's directing-task-citation ruling lives there, immediately above where this one will go), and the owner's rationale is phrased as a category rule ('preserve-and-amend governs evidence records', not 'governs this one file'), so it belongs where the general convention already lives rather than being re-declared per document. Insert a new dated, QCLI-45-cited paragraph in CLAUDE.md immediately after the existing QCLI-44 ruling paragraph (currently ending '...(Implementation Notes).') and before the '*-doc/*-cli drift' paragraph. Pure insertion — QCLI-44's paragraph and the surrounding convention text are untouched.
+3. In docs/reference/quest-cli-activation-gate-evidence-record.md, restore QCLI-41's removed paragraph verbatim as a blockquote (matching this doc's existing convention for quoting superseded historical text, e.g. the top predicate quote), inserted after the '...ruled on item 1.' sentence and before 'The owner then ruled.' — i.e. in its original chronological position — wrapped in a new dated note: '**Preserved and superseded 2026-08-07 by `QCLI-45`:** ...' citing this task and CLAUDE.md's QCLI-45 ruling, explaining QCLI-42 replaced this paragraph instead of appending an amendment and it is now restored per the owner's ruling. Pure insertion — no existing line touched.
+4. Verify: git diff shows only added lines in both files (no deletions/modifications of existing text) for AC#3; grep both files to confirm CLAUDE.md and the evidence record state the same rule (AC#1); confirm the restored blockquote matches git show 3b1e9f5^ byte-for-byte (AC#2).
+5. Run lore validate --strict and lore check from the worktree root; capture verbatim output for implementation notes (AC#4). Do not run lore sync.
+6. Record implementation notes with the ruling location/rationale and verbatim gate output; commit with Refs: QCLI-45 trailer(s); push the branch. Do not check ACs, write final summary, or move status to Done — orchestrator handles settlement.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+RULING RECORDED (AC#1) — CLAUDE.md, immediately after the existing QCLI-44 ruling paragraph (new paragraph inserted before the '*-doc/*-cli drift' section):
+
+'**Ruling (2026-08-07, `QCLI-45`): preserve-and-amend governs evidence records, overriding the correct-in-place branch above.** A dedicated evidence record — a document whose stated value is fidelity to what was read at a given inspection boundary — is amended by appending a dated, superseded-marked note even for prose a reader would otherwise act on today; the correct-in-place branch's is-this-recording-what-was-once-decided-or-telling-a-reader-whats-true-now test does not license deleting or re-tensing an evidence record's own dated reading, because doing so destroys the thing the record exists to hold. Preserve-and-amend still meets the correct-in-place branch's underlying concern — a stale reading is marked superseded, not left to read as current — without that loss. This resolves QCLI-42 (commit 3b1e9f5)... Full reasoning: backlog/tasks/qcli-45-....md.'
+
+LOCATION DECISION AND WHY: placed in CLAUDE.md, not in the evidence record's own text, for two reasons. (1) Precedent: CLAUDE.md is already this repo's established durable location for supersession-convention rulings — QCLI-44's directing-task-citation ruling lives there immediately above where this one was inserted, and QCLI-45's ruling is the same kind of process ruling (which convention governs, not a product/component decision), so it belongs in the same place for the same reason QCLI-44 gave (register/product docs are scoped to product decisions, not documentation-process rulings). (2) The owner's stated rationale is phrased as a category rule ('preserve-and-amend governs evidence records', not 'governs this one file'), so recording it in the one place the general convention already lives covers any future evidence record without requiring each one to separately declare or cross-reference the same carve-out. CLAUDE.md and the evidence record do not disagree: CLAUDE.md now states the exception explicitly and the evidence record's own restored text (see AC#2 below) demonstrates conformance to it, citing the same ruling.
+
+AC#2 — RESTORATION: docs/reference/quest-cli-activation-gate-evidence-record.md, in the 'Trigger fired 2026-08-06' section, inserted a new '**Preserved and superseded 2026-08-07 by `QCLI-45`:**' block in the original chronological position (after '...ruled on item 1.' and before 'The owner then ruled.', i.e. exactly where QCLI-42 replaced it), quoting QCLI-41's removed paragraph verbatim as a blockquote (matching this doc's own convention of blockquoting preserved historical text, as already used for the top predicate quotation):
+
+> `LDOC-4` is still `To Do`. The gate's owner has not accepted the release boundary, so **the gate result is unchanged: closed.** Per this record's own constraint, that sentence is a quote of the owner's position, not a conclusion drawn here.
+
+Verified byte-for-byte against `git show 3b1e9f5^:docs/reference/quest-cli-activation-gate-evidence-record.md` via a diff of the extracted lines (both original and restored, quote markers stripped) — 'MATCH: verbatim restoration confirmed', zero differences.
+
+AC#3 — NO REWRITE: `git diff -- CLAUDE.md docs/reference/quest-cli-activation-gate-evidence-record.md` shows only `+` lines in both files (18 and 18 lines added respectively); zero `-` lines. QCLI-42's own amendment paragraphs ('The owner then ruled...', 'An open Lore gate is not activation...', the QCLI-44 citation note) are untouched — confirmed by inspecting the diff context, which shows them unchanged before and after the new insertion.
+
+GATES (verbatim, run from the worktree root after both edits):
+
+$ lore validate --strict
+47 files, 0 errors, 0 warnings, 6 skipped
+(exit 0)
+
+$ lore check
+47 files, 0 errors, 0 warnings
+(exit 0)
+
+OUT-OF-SCOPE FINDINGS: none beyond what QCLI-44's own notes already recorded (the activation-gate-evidence-record.md:67 citation-gap site and the research-source-register.md:420 / backlog-migration-fidelity-contract.md:561 outstanding-citation sites) — none of those are touched by this task's edits and none are newly discovered here.
+<!-- SECTION:NOTES:END -->
