@@ -3,13 +3,14 @@ id: QCLI-43
 title: >-
   Fold the lore log sync into campaign settlement to stop recurring docs/log.md
   SHA drift
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-07 05:03'
-updated_date: '2026-08-07 11:42'
+updated_date: '2026-08-07 12:51'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
+  - wave-2
 dependencies: []
 references:
   - docs/log.md
