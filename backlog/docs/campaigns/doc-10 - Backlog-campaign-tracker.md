@@ -3,7 +3,7 @@ id: doc-10
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-07 11:42'
-updated_date: '2026-08-07 12:50'
+updated_date: '2026-08-07 13:13'
 ---
 # Backlog campaign tracker
 
@@ -17,7 +17,9 @@ loop until the queue is empty or blocked → write handover.
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
 trust a persisted "next wave" plan. Informational hint only: as of
-2026-08-07 after wave 1, 1 ready (QCLI-43), 0 blocked, 1/2 Done.
+2026-08-07 wave 2 is in flight (QCLI-43, resumed after a crash), 0 ready,
+0 blocked, 1/2 Done. When QCLI-43 settles the queue is empty and the
+campaign is complete.
 
 ## Origin of this campaign
 
@@ -100,8 +102,14 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
+| QCLI-43 | 2 | `~/.treehouse/quest-cli-f11e72/1/quest-cli` (lease `28eadc44…`, holder `qcli/QCLI-43`) | `chore/qcli-43-settlement-log-sync` @ `28e4018` | 6 — under review (implemented, committed, pushed by a session that then died; review dispatched on resume) |
 
-(clean — wave 1 settled, worktree returned, all six pool slots available)
+**Recovered, not restarted.** The session that dispatched wave 2 crashed after
+the worker pushed and before the reviewer ran, leaving no handover. R2 found
+the branch pushed to `origin` at `28e4018`, no PR open, the lease still held
+with zero live processes, and QCLI-43 correctly at `In Progress` + `wave-2` —
+i.e. Backlog state and worktree state agreed, so this is a *matches-Backlog*
+leftover resumed at its recorded stage per R3, not an orphan.
 
 ## Needs a human / blocked
 

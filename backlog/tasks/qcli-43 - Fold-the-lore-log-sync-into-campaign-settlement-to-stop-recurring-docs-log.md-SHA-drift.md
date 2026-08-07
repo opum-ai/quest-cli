@@ -6,11 +6,12 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-07 05:03'
-updated_date: '2026-08-07 12:51'
+updated_date: '2026-08-07 13:11'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
   - wave-2
+  - in-review
 dependencies: []
 references:
   - docs/log.md
