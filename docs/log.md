@@ -78,6 +78,7 @@
 - 2026-08-06T15:19:46-05:00 1f252dd39913d610ef00692a09db0aa593feb3ab QCLI-39: Sync docs/log.md again to close post-wave-1 SHA drift (#56)
 - 2026-08-06T20:08:24-05:00 4c808744bcdd13a4cf4949c27a4de9792988f960 docs: record that the pinned lore-doc gate revision moved
 - 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
+- 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
 
 ## docs/adr
 
@@ -88,6 +89,8 @@
 - 2026-08-05T18:10:43-05:00 9e7a0c093e95e3b707094455cb7c14d3b9d5793b QCLI-25: Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout (#40)
 - 2026-08-05T18:11:39-05:00 589e1a721ceb32aceaa545e22e6217bc354d3201 QCLI-26: Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion (#41)
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
+- 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
+- 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
 
 ## docs/reference
 
@@ -143,6 +146,8 @@
 - 2026-08-06T15:03:29-05:00 098dbe6bb3c1ebba247b7d88d5e5ab69c5ac2b37 docs: close naming-scheme gap in the Spec-mapping table (wave-1 integration finding, doc-8 campaign) (#55)
 - 2026-08-06T20:08:24-05:00 4c808744bcdd13a4cf4949c27a4de9792988f960 docs: record that the pinned lore-doc gate revision moved
 - 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
+- 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
+- 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
 
 ## docs/runbooks
 
@@ -164,6 +169,8 @@
 - 2026-08-05T20:51:48-05:00 735d82d23c68f0225ae4686441e59bc8af9e389f QCLI-30: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation (#46)
 - 2026-08-05T22:48:55-05:00 ccb68d190ca53d3ce7672568eb2113ffac8a1884 QCLI-31: Reconcile architecture Spec prose with the ratified Phase 1 ADRs (#47)
 - 2026-08-06T10:00:13-05:00 ba2338fe8720f4523ffef7d61e99c28d6288fcef QCLI-33: Reconcile architecture Spec Open Questions bullet 4 against the QCLI-26 ADR (#49)
+- 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
+- 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
 
 ## docs/stories
 
