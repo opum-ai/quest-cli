@@ -3,10 +3,10 @@ id: QCLI-40
 title: >-
   Reconcile stale "file layout"/"naming scheme" open-item bundles outside the
   register and delivery-graph docs
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-06 20:53'
-updated_date: '2026-08-07 03:12'
+updated_date: '2026-08-07 03:22'
 labels:
   - campaign
   - 'cluster:open-item-bundles'
@@ -26,10 +26,10 @@ QCLI-34 and QCLI-38 closed "file layout" and "naming scheme" (citing QCLI-25/D4)
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 docs/adr/require-atomic-idempotent-operation-owned-mutations.md no longer asserts file layout/naming scheme "remain open" in the register
-- [ ] #2 docs/specs/quest-cli-architecture.md reflects naming scheme as closed (citing QCLI-25/D4) while leaving event schema open, following the pattern of the row above it
-- [ ] #3 No other row/section in either file is modified; no historical-record document (the research programme Spec's own Open Questions list, the QCLI-2.6 threat model's non-goals section) is touched -- those intentionally preserve original wording per this repo's supersession convention
-- [ ] #4 lore validate --strict and lore check both pass with 0 errors and 0 warnings
+- [x] #1 docs/adr/require-atomic-idempotent-operation-owned-mutations.md no longer asserts file layout/naming scheme "remain open" in the register
+- [x] #2 docs/specs/quest-cli-architecture.md reflects naming scheme as closed (citing QCLI-25/D4) while leaving event schema open, following the pattern of the row above it
+- [x] #3 No other row/section in either file is modified; no historical-record document (the research programme Spec's own Open Questions list, the QCLI-2.6 threat model's non-goals section) is touched -- those intentionally preserve original wording per this repo's supersession convention
+- [x] #4 lore validate --strict and lore check both pass with 0 errors and 0 warnings
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -66,4 +66,22 @@ AC1: satisfied — the ADR no longer asserts file layout/naming scheme "remain o
 AC2: satisfied — architecture Spec's Deferred-by-design table now has "Naming scheme" as its own closed row (D4/QCLI-25, matching the row above verbatim in phrasing/link) with "Event schema" left open as its own row.
 AC3: satisfied — no other row/section in either file modified; both named historical-record documents confirmed untouched via git diff.
 AC4: satisfied — both gates report 0 errors/0 warnings post-edit, matching the pre-confirmed baseline.
+
+Reviewed by an independent top-tier reviewer that re-ran both gates in the worktree and verified every AC against the resulting file text and the three-dot diff rather than the implementer's summary. Verdict: approve, all 4 ACs confirmed.
+
+Verified: `lore validate --strict` -> 47 files, 0 errors, 0 warnings, 6 skipped; `lore check` -> 47 files, 0 errors, 0 warnings. Both match the pre-change baseline captured on the same worktree before dispatch, so the green result is attributable. Re-run after the (no-op) rebase onto origin/dev immediately before merge, per the mandatory re-verification rule.
+
+AC2's 'follows the pattern of the row above it' was verified by md5 of column 2 of both rows (identical: e6abbf877f38b63d07ec39be7078ded6), not by eye. AC3's scope assertion was verified by `git diff --name-only` (exactly 3 files) and `grep -c '^@@'` over docs/ (exactly 2 hunks).
+
+Date-attribution challenge: the ADR's new 'closed 2026-08-05' claim was specifically challenged at review because QCLI-38's determination postdates the QCLI-25 ADR it cites. Resolved as SUPPORTED — the delivery-graph doc already carries that exact date and attribution verbatim, QCLI-25's ADR frontmatter timestamps 2026-08-05T22:52:51.123Z, and register line 167 draws the distinction explicitly ('same decision as D4; QCLI-25, reconciled here by QCLI-38'). Closure attaches to the decision date; QCLI-34/38 are the later reconciliations. No doc/cli drift.
+
+Non-blocking findings carried to campaign doc-9's wave log: one minor (the ADR's scope enumeration was narrowed rather than preserved-and-annotated; accepted as consistent with the already-merged QCLI-34/38 pattern in the delivery-graph doc) and three nits, one of which -- whether inline amendments must cite the directing task per CLAUDE.md's supersession convention, where repo practice is currently split -- is surfaced to the owner as a convention question rather than re-spun here.
+
+Merged as c9353bc (PR #57).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed the stale 'file layout'/'naming scheme' open-item claims in the two documents outside the register and delivery-graph docs that still asserted them live. The atomic-mutations ADR's 'Deliberately not decided here' bundle now names only event schema and locking primitive as open, with an appended dated amendment recording that file layout and naming scheme closed 2026-08-05 by QCLI-25/D4; the architecture Spec's 'Deferred by design' table splits its combined row so Naming scheme carries the same D4-closed citation as the row above it while Event schema stays open. No historical-record document was touched, per this repo's supersession convention. Verified by an independent reviewer re-running lore validate --strict and lore check (both 47 files, 0 errors, 0 warnings, matching the pre-change baseline), md5-comparing the new table row against the row it was required to mirror, and confirming by diff that exactly two hunks across two docs were changed. Merged as c9353bc (PR #57).
+<!-- SECTION:FINAL_SUMMARY:END -->
