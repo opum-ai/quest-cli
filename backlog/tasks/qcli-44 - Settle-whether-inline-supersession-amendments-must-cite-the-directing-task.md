@@ -4,7 +4,10 @@ title: Settle whether inline supersession amendments must cite the directing tas
 status: To Do
 assignee: []
 created_date: '2026-08-07 05:04'
-labels: []
+updated_date: '2026-08-07 11:42'
+labels:
+  - campaign
+  - 'cluster:supersession-convention'
 dependencies: []
 references:
   - CLAUDE.md
@@ -42,3 +45,27 @@ Note the supersession convention itself forbids rewriting historical-record text
 - [ ] #3 No historical-record text is rewritten in the course of conforming: amendments are amended inline per the convention, not restated
 - [ ] #4 lore validate --strict and lore check both pass with 0 errors and 0 warnings
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @orchestrator
+created: 2026-08-07 11:42
+---
+OWNER RULING (2026-08-07, recorded by campaign doc-10 orchestrator on the owner's behalf; the owner selected this option interactively at campaign init).
+
+Ruling: option (a) — a directing-task citation IS required.
+
+An inline supersession amendment must cite the directing task (the Backlog task under which the amendment was made), in addition to whatever closing decision it names. CLAUDE.md line 90 therefore stands as written and is NOT to be relaxed; the amendments that currently cite only the closing decision are the things that get reconciled.
+
+Owner's stated rationale: agents read docs/ without git history in context, so a directing-task citation is what makes the full reasoning (task description, acceptance criteria, implementation notes) reachable from the document itself. Git preserves the same trace, but not in a form a docs reader can follow.
+
+Scope this implies:
+- CLAUDE.md line 90: unchanged (already states the required form).
+- docs/reference/quest-cli-open-component-decisions.md line 167: already conformant — leave as is.
+- docs/reference/quest-cli-component-contracts-and-delivery-graph.md (~lines 435-441), the QCLI-34/QCLI-38 closure prose: needs the directing-task citation added inline.
+- docs/adr/require-atomic-idempotent-operation-owned-mutations.md (~line 72), the QCLI-40 amendment: needs the directing-task citation added inline.
+
+Binding constraint from AC #3 and CLAUDE.md's own supersession convention: do NOT rewrite or restate the existing amendment text. Amend the amendments inline, dated, leaving the prior wording legible. This task is itself the directing task for those additions, so cite QCLI-44.
+---
+<!-- COMMENTS:END -->

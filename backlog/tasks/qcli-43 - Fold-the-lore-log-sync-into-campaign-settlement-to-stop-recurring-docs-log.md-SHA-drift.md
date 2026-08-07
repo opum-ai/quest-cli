@@ -6,7 +6,10 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-07 05:03'
-labels: []
+updated_date: '2026-08-07 11:42'
+labels:
+  - campaign
+  - 'cluster:campaign-machinery'
 dependencies: []
 references:
   - docs/log.md
