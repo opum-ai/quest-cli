@@ -77,6 +77,7 @@
 - 2026-08-06T10:09:43-05:00 2b305600fa7f50a5fd0e28db4100e3c3405c0a9d QCLI-35: Sync docs/log.md to close pre-existing SHA drift from squash-merge rewrites (#51)
 - 2026-08-06T15:19:46-05:00 1f252dd39913d610ef00692a09db0aa593feb3ab QCLI-39: Sync docs/log.md again to close post-wave-1 SHA drift (#56)
 - 2026-08-06T20:08:24-05:00 4c808744bcdd13a4cf4949c27a4de9792988f960 docs: record that the pinned lore-doc gate revision moved
+- 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
 
 ## docs/adr
 
@@ -141,6 +142,7 @@
 - 2026-08-06T14:52:27-05:00 761313daee0615531c575747ea57ef6504999439 QCLI-38: Reconcile 'naming scheme' terminology against QCLI-25/D4's authored-record layout (#54)
 - 2026-08-06T15:03:29-05:00 098dbe6bb3c1ebba247b7d88d5e5ab69c5ac2b37 docs: close naming-scheme gap in the Spec-mapping table (wave-1 integration finding, doc-8 campaign) (#55)
 - 2026-08-06T20:08:24-05:00 4c808744bcdd13a4cf4949c27a4de9792988f960 docs: record that the pinned lore-doc gate revision moved
+- 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
 
 ## docs/runbooks
 

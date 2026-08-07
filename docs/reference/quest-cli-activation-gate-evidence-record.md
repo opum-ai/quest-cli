@@ -187,13 +187,22 @@ The moving reference this record warned about has moved. `lore-doc` advanced
 from HEAD `45d0d90f68a6` (read 2026-08-05) to `d2a9a9e11ddf`, and the gate
 Spec's evidence section — not merely the surrounding prose — was rewritten:
 its 2026-08-01 "no Git tag, package version `0.0.0`, npm `E404`" observations
-were superseded as false, and the Spec now reports items 2, 3, and 4 of the
-predicate as satisfied.
+were superseded as false, and the Spec reported items 2, 3, and 4 of the
+predicate as satisfied. The `d2a9a9e11ddf` pin is itself already historical:
+`lore-doc` advanced again the same day when its owner ruled on item 1.
 
-`LDOC-4` is still `To Do`. The gate's owner has not accepted the release
-boundary, so **the gate result is unchanged: closed.** Per this record's own
-constraint, that sentence is a quote of the owner's position, not a
-conclusion drawn here.
+The owner then ruled. On 2026-08-06 `lore-doc` accepted the Lore `0.1.1`
+release boundary in `LDOC-4` and its gate Spec now reports the result as
+**open**. Per this record's own constraint, that is a report of what the
+gate's owner has said, not a disposition computed here — clauses 1–3 were
+never this repository's to rule on, and reading the owner's own conclusion is
+not the same as inferring one.
+
+**An open Lore gate is not activation.** It clears the Lore-owned
+precondition; every gate this repository holds in its own right — clean-room
+admission, research completeness, and the component activation checks in the
+delivery roadmap's Phase 0 — is untouched and still owed. Nothing here
+authorizes product source, package reservation, or a release.
 
 This note is a pointer to a changed input, nothing more. It does not re-run
 the evidence table, does not refresh this capsule, and does not discharge the
