@@ -1,13 +1,14 @@
 ---
 id: QCLI-44
 title: Settle whether inline supersession amendments must cite the directing task
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-07 05:04'
-updated_date: '2026-08-07 11:42'
+updated_date: '2026-08-07 11:44'
 labels:
   - campaign
   - 'cluster:supersession-convention'
+  - wave-1
 dependencies: []
 references:
   - CLAUDE.md
