@@ -3,7 +3,7 @@ id: doc-10
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-07 11:42'
-updated_date: '2026-08-07 11:43'
+updated_date: '2026-08-07 11:45'
 ---
 # Backlog campaign tracker
 
@@ -93,8 +93,13 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
+| QCLI-44 | 1 | treehouse pool slot 1 (lease `f47c4204…`, holder `qcli/QCLI-44`) | `fix/qcli-44-supersession-citation` | 1 — dispatched |
 
-(clean — campaign initialised, no wave dispatched yet)
+Wave 1 base pinned at `3686859`; the branch was cut from `8721feb` (the
+dispatch-marking commit) so the doc-9 task-file rebase-conflict class stays
+closed. Sub-stage labels (`in-review`, `merge-pending`) are folded into
+settlement per doc-9's process fix, so read stage from this table, not from
+task labels.
 
 ## Needs a human / blocked
 
