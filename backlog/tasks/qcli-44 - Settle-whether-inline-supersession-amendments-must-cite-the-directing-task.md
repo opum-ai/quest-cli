@@ -1,10 +1,10 @@
 ---
 id: QCLI-44
 title: Settle whether inline supersession amendments must cite the directing task
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-07 05:04'
-updated_date: '2026-08-07 12:41'
+updated_date: '2026-08-07 12:49'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -41,10 +41,10 @@ Note the supersession convention itself forbids rewriting historical-record text
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The normative form is recorded in one place -- either CLAUDE.md or the open component decisions register -- stating whether an inline supersession amendment must cite the directing task, with the ruling dated
-- [ ] #2 Every inline supersession amendment currently in docs/ conforms to the recorded ruling, or is explicitly listed as a documented exception with its reason
-- [ ] #3 No historical-record text is rewritten in the course of conforming: amendments are amended inline per the convention, not restated
-- [ ] #4 lore validate --strict and lore check both pass with 0 errors and 0 warnings
+- [x] #1 The normative form is recorded in one place -- either CLAUDE.md or the open component decisions register -- stating whether an inline supersession amendment must cite the directing task, with the ruling dated
+- [x] #2 Every inline supersession amendment currently in docs/ conforms to the recorded ruling, or is explicitly listed as a documented exception with its reason
+- [x] #3 No historical-record text is rewritten in the course of conforming: amendments are amended inline per the convention, not restated
+- [x] #4 lore validate --strict and lore check both pass with 0 errors and 0 warnings
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -168,6 +168,25 @@ Corrected framing: this is KNOWN outstanding at the close of this pass, not a to
 - `docs/reference/quest-cli-backlog-migration-fidelity-contract.md:561` (item 4 above) — out of authorized file scope.
 - `docs/reference/quest-cli-activation-gate-evidence-record.md:67`/`:73` (item 5 above) — no directing task exists to cite; the gap itself, not just its documentation, remains pending owner attention.
 An undiscovered site would still be bound by the ruling in CLAUDE.md and merely unremediated, not exempt from it — so an open-ended, non-exhaustive list is the sound framing here; a false closed count was not.
+
+## Settlement (campaign doc-10, wave 1, orchestrator)
+
+Merged to `dev` as **`5b2234b`** (PR #58, squash). Branch and worktree released; pool restored to 6/6.
+
+**Verification re-run by the orchestrator inside the worktree after rebasing onto `dev`** (rebase was clean — `dev` had moved only by campaign-doc commits, zero overlap with this branch's files):
+- `lore validate --strict` → 47 files, 0 errors, 0 warnings, 6 skipped (exit 0)
+- `lore check` → 47 files, 0 errors, 0 warnings (exit 0)
+
+**AC #3 independently re-verified at cell granularity before merge.** A line-level check initially reported 3 removed lines in `docs/`; that was the wrong granularity. The three are table rows where the citation is appended inside a cell, before the row's trailing pipe, so the old *line* is not a prefix of the new one while the old *cell* is. Cell-level comparison confirmed all three are pure appends, with tails `; directing-task citation added 2026-08-07 by \`QCLI-44\`: this entry's own reconciling task is \`QCLI-34/38/40\``. Zero deletions of any line existing on `dev` across every touched file, including CLAUDE.md (+13/-0) and the activation-gate record.
+
+Squash-merge completeness checked before branch deletion: `git diff 33efd69 dev -- CLAUDE.md docs/ backlog/tasks/qcli-44*` was empty, so no branch work was lost.
+
+**Review history: 3 passes, 2 fix cycles**, all four ACs confirmed on reviewer-generated evidence at pass 3. Pass 1 blocked on a false factual claim about repo history that had been written into CLAUDE.md (QCLI-34 was said to have first practiced self-citation; `git log -S'reconciled here by' -- docs/` showed QCLI-37 authored that string *about* QCLI-34) and on a temporal carve-out narrowing a rule the owner ruled must not be relaxed. Remedy preserved the owner's ruling rather than reopening it: carve remediation scope, not the rule — which deleted the threshold apparatus and made the false claim unnecessary rather than merely corrected. Pass 2 established the original '~30+ uniformly non-conformant' estimate was substantially wrong in the other direction (self-citation was already the norm before 2026-08-06) and found one further unlisted site; pass 3 confirmed the inventory complete against two independent differently-shaped sweeps.
+
+**Residual, recorded deliberately and not fixed** (needs owner decision, not a fix cycle — this project forbids filing follow-ups without approval):
+1. Three sites remain unreconciled and are listed in the inventory above: `quest-cli-research-source-register.md:420` and `quest-cli-backlog-migration-fidelity-contract.md:561` (both outside this task's authorized file scope), and `quest-cli-activation-gate-evidence-record.md:67`/`:73`, where no citable directing task exists at all.
+2. Cosmetic: the orchestrator-directed trim at `quest-cli-activation-gate-evidence-record.md:225` left a dangling participle. Facts unambiguous; grammar only. Reviewer explicitly judged it not worth a fix cycle.
+3. QCLI-42 (`3b1e9f5`) replaced rather than appended when revising QCLI-41's gate-result paragraph. Reviewer's assessment: defensible under CLAUDE.md's 'prose a reader would act on today gets corrected in place' branch, but at odds with that document's own preserve-and-amend practice. A question about which convention governs an evidence record, not an asserted defect.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -193,3 +212,15 @@ Scope this implies:
 Binding constraint from AC #3 and CLAUDE.md's own supersession convention: do NOT rewrite or restate the existing amendment text. Amend the amendments inline, dated, leaving the prior wording legible. This task is itself the directing task for those additions, so cite QCLI-44.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Settled the inline-supersession citation convention on the owner's ruling that a directing-task citation is required, and brought docs/ into conformance with it.
+
+The ruling was obtained at campaign init because the task was not dispatchable as filed — it required an owner decision before any editing, and AC #1 required that decision recorded and dated. Ruling: an inline supersession amendment must cite the Backlog task under which it was made, in addition to the closing decision, so a reader without git history can reach the full reasoning from the document itself. CLAUDE.md's existing convention sentence stands unchanged; the dated ruling was added immediately after it as a pure insertion (+13/-0).
+
+Seven amendment sites now cite their directing task: open-component-decisions :193 (QCLI-34) and :194 (QCLI-38), architecture :223 (QCLI-40), the atomic-mutations ADR (QCLI-40), the delivery-graph file-layout/naming-scheme split (QCLI-34/QCLI-38), and — found only by a later sweep — activation-gate-evidence-record :184 (QCLI-41/QCLI-42). An eighth site, :67/:73, is documented as having no citable directing task: commit a4ae6c5 carries no trailer and nothing in backlog/ references it, verified by exhausting the task store rather than asserting absence. Remaining non-conformant sites are recorded as an explicit, reason-bearing inventory framed as unreconciled debt — still bound by the rule, merely unremediated — rather than as exemptions.
+
+Verified: lore validate --strict and lore check both 0 errors / 0 warnings, re-run after a clean rebase onto dev. AC #3 confirmed at cell granularity — every change is append-only, with zero deletions of any line existing on dev. Approved at review pass 3 of 3 after 2 fix cycles that removed a false claim about repo history from CLAUDE.md and corrected a substantially wrong estimate of the problem's size. Merged as 5b2234b (PR #58).
+<!-- SECTION:FINAL_SUMMARY:END -->
