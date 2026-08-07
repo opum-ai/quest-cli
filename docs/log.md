@@ -80,6 +80,7 @@
 - 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
 - 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
 - 2026-08-07T08:57:40-05:00 a4f621256f018ecc9319a24c9fa7ea6e1d30f9e9 docs: sync lore log after wave-2 settlement (doc-10 campaign)
+- 2026-08-07T14:49:53-05:00 f955033abe473819397555e435492a40b4770c83 docs: catch up lore log with doc-10's own settlement commit
 
 ## docs/adr
 
@@ -149,6 +150,7 @@
 - 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
 - 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
+- 2026-08-07T15:16:22-05:00 866b184cad26df377522908f14a7e54fd266e330 QCLI-45: Record the evidence-record amendment ruling and reconcile QCLI-42 in-place replacement (#60)
 
 ## docs/runbooks
 
