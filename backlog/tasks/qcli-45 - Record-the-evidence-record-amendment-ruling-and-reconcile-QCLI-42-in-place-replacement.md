@@ -3,13 +3,14 @@ id: QCLI-45
 title: >-
   Record the evidence-record amendment ruling and reconcile QCLI-42 in-place
   replacement
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-07 19:55'
+updated_date: '2026-08-07 20:18'
 labels:
   - campaign
   - 'cluster:supersession-convention'
+  - wave-1
 dependencies: []
 references:
   - CLAUDE.md
@@ -39,10 +40,10 @@ Constraints on how:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The ruling that preserve-and-amend governs evidence records is recorded and dated in one durable location, naming this task as the directing task, and CLAUDE.md and the evidence record do not contradict each other about which convention applies
-- [ ] #2 The wording QCLI-42 removed from docs/reference/quest-cli-activation-gate-evidence-record.md is restored verbatim from `git show 3b1e9f5^` as preserved-and-superseded text, marked with the date and the task under which it was superseded
-- [ ] #3 No existing amendment text is rewritten or deleted: `git diff` shows every edit to prior amendments as an inline dated addition citing this task
-- [ ] #4 `lore validate --strict` and `lore check` both pass with 0 errors and 0 warnings, with the output recorded verbatim in implementation notes
+- [x] #1 The ruling that preserve-and-amend governs evidence records is recorded and dated in one durable location, naming this task as the directing task, and CLAUDE.md and the evidence record do not contradict each other about which convention applies
+- [x] #2 The wording QCLI-42 removed from docs/reference/quest-cli-activation-gate-evidence-record.md is restored verbatim from `git show 3b1e9f5^` as preserved-and-superseded text, marked with the date and the task under which it was superseded
+- [x] #3 No existing amendment text is rewritten or deleted: `git diff` shows every edit to prior amendments as an inline dated addition citing this task
+- [x] #4 `lore validate --strict` and `lore check` both pass with 0 errors and 0 warnings, with the output recorded verbatim in implementation notes
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -84,4 +85,23 @@ $ lore check
 (exit 0)
 
 OUT-OF-SCOPE FINDINGS: none beyond what QCLI-44's own notes already recorded (the activation-gate-evidence-record.md:67 citation-gap site and the research-source-register.md:420 / backlog-migration-fidelity-contract.md:561 outstanding-citation sites) — none of those are touched by this task's edits and none are newly discovered here.
+
+SETTLEMENT (orchestrator, on dev). Review was run by the orchestrator as an explicit adversarial pass in the skill's degraded mode: three dispatched reviewer subagents terminated without delivering a verdict, so the mandatory gate was re-run in-session rather than skipped.
+
+Independently verified, not taken from the implementer:
+- AC#1: CLAUDE.md carries the dated 2026-08-07 ruling citing QCLI-45 as directing task, inserted after the QCLI-44 ruling with that ruling untouched. No contradiction with the evidence record, whose restored text cites the same ruling.
+- AC#2: extracted QCLI-42's deletion block from 'git show 3b1e9f5' and compared against this branch's additions — exact match across all four lines of the gate-result paragraph.
+- AC#3: 'git diff dev...HEAD -- CLAUDE.md docs/' returned ZERO deletion lines.
+- AC#4: gates re-run by the reviewer in the worktree: lore check --strict -> 47 files, 0 errors, 0 warnings; lore validate --strict -> 47 files, 0 errors, 0 warnings, 6 skipped.
+- Confirmed no 'lore sync' ran on the branch (docs/log.md untouched).
+
+Reviewer finding [minor], surfaced to the owner rather than fixed here: QCLI-42 also re-tensed a clause in the preceding paragraph ('the Spec now reports' -> 'the Spec reported') which this task did not restore. Judged outside AC#2 — no dated reading was destroyed, the recorded fact survives intact, so there is nothing to mark superseded. Recorded because the new CLAUDE.md text names 'deleting or re-tensing', so a future reader may reasonably ask.
+
+Merged as 866b184 (PR #60), squash message carrying a parseable 'Refs: QCLI-45' trailer.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Recorded the owner's 2026-08-07 ruling that preserve-and-amend governs evidence records — overriding CLAUDE.md's general correct-in-place branch — as a dated, QCLI-45-citing paragraph in CLAUDE.md, chosen over the evidence record's own text because the ruling is a category rule and CLAUDE.md is where this repo's supersession rulings already live (QCLI-44 precedent). Restored the gate-result paragraph QCLI-42 (3b1e9f5) deleted from docs/reference/quest-cli-activation-gate-evidence-record.md as blockquoted preserved-and-superseded text, verified byte-verbatim against 'git show 3b1e9f5^'. Both files changed by pure addition (zero deletion lines), so no prior amendment text was rewritten. Verified with lore check --strict and lore validate --strict, both 0 errors and 0 warnings. Merged as 866b184.
+<!-- SECTION:FINAL_SUMMARY:END -->

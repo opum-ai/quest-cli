@@ -1,14 +1,15 @@
 ---
 id: QCLI-47
 title: Reconcile the Refs trailer convention with campaign bookkeeping practice
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-07 19:59'
+updated_date: '2026-08-07 20:19'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
+  - wave-1
 dependencies: []
 references:
   - .claude/skills/backlog-handover/SKILL.md
@@ -39,10 +40,10 @@ Scope: this is a skill-documentation change. It touches `.claude/skills/backlog-
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The Commits convention in SKILL.md states the hybrid rule: a `Refs: QCLI-<N>` trailer is required on bookkeeping commits that have a single directing task, and campaign-scoped commits with no single task are a named exception alongside the existing `lore sync` one
-- [ ] #2 Every place in the skill that restates the commit convention agrees with the recorded rule, verified by grep across SKILL.md and reference/, leaving no claim false
-- [ ] #3 The orchestrator-facing instructions name which bookkeeping commits fall on each side, concretely enough that a future session emits the right trailer without re-deriving the rule
-- [ ] #4 The skill version and provenance record reflect this change, in the same form that 0.9.1-qcli.2 used to record the QCLI-43 divergence
+- [x] #1 The Commits convention in SKILL.md states the hybrid rule: a `Refs: QCLI-<N>` trailer is required on bookkeeping commits that have a single directing task, and campaign-scoped commits with no single task are a named exception alongside the existing `lore sync` one
+- [x] #2 Every place in the skill that restates the commit convention agrees with the recorded rule, verified by grep across SKILL.md and reference/, leaving no claim false
+- [x] #3 The orchestrator-facing instructions name which bookkeeping commits fall on each side, concretely enough that a future session emits the right trailer without re-deriving the rule
+- [x] #4 The skill version and provenance record reflect this change, in the same form that 0.9.1-qcli.2 used to record the QCLI-43 divergence
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -90,4 +91,22 @@ Same site set plus SKILL.md:98, SKILL.md:134 (I3 gitignore parenthetical), refer
 Gate: lore check --strict -> "47 files, 0 errors, 0 warnings" (unchanged from baseline — .claude/ is outside the lore bundle, confirming this change did not disturb docs/).
 
 Out-of-scope discoveries: none. wave-loop.md section d/i do not currently spell out an explicit "git commit" instruction for dispatch-marking or in-flight-pointer recording (backlog task edit alone, with auto_commit: false, leaves the tree dirty) — the new Commit trailer convention table documents the trailer expected of those commits without inventing new "when to commit" mechanics, since that gap (if it is one) is outside QCLI-47's scope of reconciling the trailer convention.
+
+SETTLEMENT (orchestrator, on dev). Review was run by the orchestrator as an explicit adversarial pass in the skill's degraded mode: dispatched reviewer subagents terminated without delivering a verdict, so the mandatory gate was re-run in-session rather than skipped.
+
+Independently verified, not taken from the implementer:
+- AC#1: SKILL.md's Commits row states the hybrid rule and names both exceptions.
+- AC#2: own sweep, not a replay of the worker's — 'grep -rniE "the one deliberate exception|the only exception|always a .?Refs"' plus a full Refs:/trailer enumeration across SKILL.md and reference/. ZERO surviving absolutist claims. wave-loop.md's 'the one commit this contract blesses as untrailered' was correctly rewritten. The two sites left unchanged (worker commits; docs-sync commits) are correct as-is — both have a directing task, so the trailer requirement still holds there. The Provenance paragraph's 'always a trailer except lore sync's' is past-tense description of the superseded rule, not a live claim.
+- AC#3: the new wave-loop.md table resolves all six probe cases unambiguously (dispatch marking, in-flight pointer, settle, campaign init, campaign close, handover archive, I3 gitignore).
+- AC#4: frontmatter bumped to 0.9.1-qcli.3; new Provenance paragraph matches the qcli.2 form; prior qcli.1/qcli.2 entries NOT rewritten (no deletion lines in that range).
+
+Reviewer finding [major, fixed at merge]: the branch commit's 'Refs: QCLI-47' sat in its own paragraph, separated by a blank line from the trailing Co-Authored-By block, so 'git interpret-trailers --parse' did not see it — self-refuting for this task, whose own evidence uses %(trailers:key=Refs) as the measurement. Fixed by authoring the squash message with a correctly-placed trailer; verified parseable on dev after merge. NOT unique to this branch: the QCLI-43 squash-merge (7efc1a4) lost its trailer the same way, so the squash-merge path is a systemic trailer-loss vector. Surfaced to the owner as a proposed follow-up.
+
+Merged as 694e109 (PR #61), rebased onto 866b184 and re-verified before merge.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Replaced the backlog-handover skill's single-exception commit rule with the owner's hybrid rule: a 'Refs: QCLI-<N>' trailer is required wherever a commit has one directing task (worker commits, dispatch marking, in-flight pointer recording, settlement), while genuinely campaign-scoped commits with no single task — campaign init, close, handover archiving, the one-time gitignore setup — join lore sync's auto-commit as a second named exception. Added a per-commit-type breakdown table to reference/wave-loop.md section i resolving every bookkeeping commit type, corrected the now-false 'the one commit this contract blesses as untrailered' claim, and bumped the skill to 0.9.1-qcli.3 with a Provenance entry matching the qcli.2 form. Documentation-only: no commit history rewritten or re-trailered. Verified by an independent grep sweep finding zero surviving absolutist claims, and lore check --strict at 0 errors/0 warnings. Merged as 694e109.
+<!-- SECTION:FINAL_SUMMARY:END -->
