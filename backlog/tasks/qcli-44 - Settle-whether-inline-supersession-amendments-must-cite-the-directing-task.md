@@ -4,7 +4,7 @@ title: Settle whether inline supersession amendments must cite the directing tas
 status: In Progress
 assignee: []
 created_date: '2026-08-07 05:04'
-updated_date: '2026-08-07 12:28'
+updated_date: '2026-08-07 12:41'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -150,6 +150,24 @@ No other non-conformant inline supersession amendments were found anywhere else 
 OUT-OF-SCOPE FINDING (not fixed, reported per instruction — do not silently correct another task's already-Done work):
 
 `docs/reference/quest-cli-activation-gate-evidence-record.md`'s "Trigger fired 2026-08-06" section: `git show 3b1e9f5` (QCLI-42) shows this commit did not append a further dated amendment the way every other supersession amendment in this repository does. It deleted QCLI-41's existing paragraph — "`LDOC-4` is still `To Do`. The gate's owner has not accepted the release boundary, so **the gate result is unchanged: closed.** Per this record's own constraint, that sentence is a quote of the owner's position, not a conclusion drawn here." — and replaced it with new paragraphs reporting the gate as open, and also changed an existing sentence's tense in place ("the Spec now reports" -> "the Spec reported"). This is a rewrite of existing historical-record prose, not an inline dated amendment, and appears to conflict with this repository's own supersession convention (CLAUDE.md: "amend it inline, dated, citing the directing task" / "Only prose a reader would act on today gets corrected in place") as well as this exact document's self-declared methodology (dated observations preserved, amended via trigger notes, e.g. a4ae6c5's own stated rationale: "The quotation stays intact... this record's value is fidelity to what was read"). QCLI-42 is already Done and this task's authorized scope does not include re-editing that commit's content or restoring the deleted paragraph. Flagging for team-lead/owner attention; not corrected here.
+
+SECOND FIX-PASS CORRECTION (2026-08-07, reviewer's independent double-sweep) — supersedes the AC2 sweep results above where they conflict; prior notes are left unedited per this repo's append-only convention.
+
+MISSED SITE ADDED TO THE OUTSTANDING INVENTORY:
+
+4. `docs/reference/quest-cli-backlog-migration-fidelity-contract.md:561` — "**Review-round fix (2026-08-04).**" (verified by reading the site: "An independent review of this document returned `request_changes`... This falsified the document's own 'every one of the 49 nodes … independently exercised' claims for as long as the gap stood... it was not accurate between the original delivery and this correction."). Authored by commit `407ea61b` (2026-08-04 14:05:31 -0500, "QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)", confirmed via `git blame`). This is a dated inline amendment of the document's own prior claim with the superseded wording left standing — materially the same shape as the `research-source-register.md:420` site already listed above (item 3). It carries no directing-task citation inline; the document self-identifies as "`QCLI-2.5`'s output" at line 19, so a reader can *infer* QCLI-2.5, but the amendment marker itself does not cite it — that inference gap is the same nuance already noted for item 3's "see... immediately below" pointer. NOT fixed this pass — out of this task's authorized file scope (only CLAUDE.md, the activation-gate-evidence-record, and this task file were authorized for editing). Reason for remaining open: unreconciled debt against the ruling, scope-limited to QCLI-44's authorized file list, not a claim that it's exempt from the rule.
+
+CROSS-REFERENCING THE NO-DIRECTING-TASK GAP INTO THIS INVENTORY:
+
+5. `docs/reference/quest-cli-activation-gate-evidence-record.md:67`/`:73` — the citation-gap note this task added (commit `a4ae6c5`, 2026-08-06 20:14:30 -0500, confirmed to have no directing task: no commit trailer, nothing in `backlog/`) is currently tracked only in prose inside the document it describes, and that in-document note ends "pending owner attention" with no tracked owner. Cross-referenced here so it is visible in the same place as the other outstanding items, rather than living only inside the document it describes. This entry does not remediate the gap (there is no task to cite, so nothing here is "fixed" in the citation sense) — it makes the existing, still-open "pending owner attention" state visible in the inventory. The in-document note itself is left unchanged.
+
+TOTAL REFRAMED (2026-08-07, this pass) — the prior note's closing line, "Total outstanding debt after this fix pass: 1 site (`quest-cli-research-source-register.md:420`), plus the activation-gate-evidence-record.md:67 site which is now explicitly documented as having no citable directing task (a different, resolved kind of "outstanding" — recorded, not silently missing)," asserted a closed count. That is now wrong (item 4 above adds a second scope-excluded site) and it always contradicted this same section's own "good-faith, not formally exhaustive" caveat on the sweep that produced it — a sweep that isn't asserted exhaustive cannot honestly total to a closed number.
+
+Corrected framing: this is KNOWN outstanding at the close of this pass, not a total, and this list is not asserted to be exhaustive. Known outstanding sites:
+- `docs/reference/quest-cli-research-source-register.md:420` (item 3 above) — out of authorized file scope.
+- `docs/reference/quest-cli-backlog-migration-fidelity-contract.md:561` (item 4 above) — out of authorized file scope.
+- `docs/reference/quest-cli-activation-gate-evidence-record.md:67`/`:73` (item 5 above) — no directing task exists to cite; the gap itself, not just its documentation, remains pending owner attention.
+An undiscovered site would still be bound by the ruling in CLAUDE.md and merely unremediated, not exempt from it — so an open-ended, non-exhaustive list is the sound framing here; a false closed count was not.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

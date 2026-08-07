@@ -222,13 +222,11 @@ which names this repository a dependent of Lore release evidence.
 
 **Directing-task citation added 2026-08-07 by `QCLI-44`:** per `git blame`,
 this section was authored under `QCLI-41`, recording that the pinned
-`lore-doc` revision had moved while the gate remained closed; `QCLI-42`
-subsequently revised the section's account of the gate result — replacing
-the closed-gate paragraph it originally reported with the paragraphs above
-reporting the owner's later ruling that the gate opened — rather than
-appending a further dated amendment. Both tasks are cited here as the
-section's directing tasks; the replacement itself is reported, not
-corrected, in "Out-of-scope findings" of `QCLI-44`'s implementation notes.
+`lore-doc` revision had moved while the gate remained closed; the section's
+account of the gate result — replacing the closed-gate paragraph it
+originally reported with the paragraphs above reporting the owner's later
+ruling that the gate opened — was subsequently revised by `QCLI-42`; see
+`QCLI-44`'s implementation notes.
 
 ### Recheck clause
 
