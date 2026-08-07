@@ -66,9 +66,14 @@ natural implementation of discovering what to stage by inspecting the tree after
 `INV-5` says **under any circumstance**, which explicitly includes the error path — the
 place where a cleanup routine would otherwise be free to write.
 
-Deliberately **not** decided here: the file layout, naming scheme, event schema, and
-locking primitive these invariants are enforced over. Those remain open in the
+Deliberately **not** decided here: the event schema and locking primitive these
+invariants are enforced over. Those remain open in the
 [open component decisions register](../reference/quest-cli-open-component-decisions.md).
+The file layout and naming scheme once grouped alongside them here are no longer
+open: both **closed 2026-08-05** by
+[Adopt a T-prefixed canonical identifier grammar and its authored-record
+layout](adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md)
+(`QCLI-25`/D4) — see the register's Git mutation contract entries.
 
 ## Consequences
 
