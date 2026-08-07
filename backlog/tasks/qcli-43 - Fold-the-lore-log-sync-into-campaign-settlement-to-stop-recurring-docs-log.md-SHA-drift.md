@@ -6,12 +6,13 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-07 05:03'
-updated_date: '2026-08-07 13:44'
+updated_date: '2026-08-07 13:54'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
   - wave-2
   - in-review
+  - merge-pending
 dependencies: []
 references:
   - docs/log.md
@@ -37,10 +38,10 @@ Decide during planning where in the settlement order the sync belongs relative t
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 docs/log.md records every commit on dev up to the sync commit, and every SHA it records is a genuine ancestor of dev (verifiable with git merge-base --is-ancestor per recorded SHA)
-- [ ] #2 The settlement step in .claude/skills/backlog-handover (SKILL.md and reference/wave-loop.md section i) documents the log sync as a required part of settlement, stating explicitly where it falls in the settlement order and whether it runs per-wave or per-campaign
-- [ ] #3 The skill Provenance section records this as a deliberate divergence from the upstream opum-doc fork, naming this task
-- [ ] #4 lore validate --strict and lore check both pass with 0 errors and 0 warnings
-- [ ] #5 No file outside docs/log.md and the .claude/skills/backlog-handover skill files is modified, except the backlog/ bookkeeping that lore sync commits as its own documented contract (examined precedent: QCLI-35 notes and campaign doc-7 wave-1 log -- that auto-commit is the tool contract, not unrelated work)
+- [x] #2 The settlement step in .claude/skills/backlog-handover (SKILL.md and reference/wave-loop.md section i) documents the log sync as a required part of settlement, stating explicitly where it falls in the settlement order and whether it runs per-wave or per-campaign
+- [x] #3 The skill Provenance section records this as a deliberate divergence from the upstream opum-doc fork, naming this task
+- [x] #4 lore validate --strict and lore check both pass with 0 errors and 0 warnings
+- [x] #5 No file outside docs/log.md and the .claude/skills/backlog-handover skill files is modified, except the backlog/ bookkeeping that lore sync commits as its own documented contract (examined precedent: QCLI-35 notes and campaign doc-7 wave-1 log -- that auto-commit is the tool contract, not unrelated work)
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -140,4 +141,12 @@ FIXES THIS PASS:
 GATES RE-RUN AFTER THIS PASS'S EDITS: `lore validate --strict` -> 47 files, 0 errors, 0 warnings, 6 skipped, exit 0. `lore check --strict` -> 47 files, 0 errors, 0 warnings, exit 0. docs/ itself remains untouched by this branch's diff (only the two skill files changed) -- AC #1 is still satisfied only by the orchestrator's first real execution of the R4i contract at this task's own settlement, not by anything on this branch.
 
 Scope: only .claude/skills/backlog-handover/SKILL.md, .claude/skills/backlog-handover/reference/wave-loop.md, and this task's own backlog record were touched this pass. docs/log.md untouched; no real (non-dry-run) `lore sync` was run on this branch.
+
+SETTLEMENT (orchestrator, on dev). Merged as 7efc1a4 (PR #59, squash) after rebase onto 0b63077. Rebase produced exactly one conflict, in this task's own record and only on the updated_date frontmatter line (twice, once per fix commit); resolved by keeping the later timestamp. Post-rebase content verified byte-identical to the approved bb1a0d0 over both skill files (git diff bb1a0d0 HEAD -- .claude/skills/backlog-handover/ empty). Mandatory post-rebase gates re-run, not skipped: lore validate --strict -> 47 files, 0 errors, 0 warnings, 6 skipped, exit 0; lore check --strict -> 47 files, 0 errors, 0 warnings, exit 0. Squash completeness confirmed before branch deletion (git diff e42e21b dev over the touched paths: empty). Worktree returned to the treehouse pool (6/6 available), local and remote branches deleted.
+
+REVIEW: 3 passes, 2 fix cycles, approve on pass 3. ACs 2, 3, 4, 5 checked on reviewer-generated evidence. AC 1 was checked separately after this settlement's own lore sync -- see the AC #1 note below.
+
+BOOTSTRAP ORDERING DEVIATION, deliberate and one-off. The contract this task establishes puts lore sync strictly last in settlement, after every per-task write. But this task's own AC #1 is only provable by that sync's output, so ACs 2-5 were checked first, the sync then ran, AC #1 was verified against the result, and only then was AC #1 checked and the task moved to Done. This chicken-and-egg is unique to QCLI-43 -- it is the only task whose acceptance depends on the settlement step it defines -- so it is recorded here rather than carved into the contract, which would have been unprompted scope. Future settlements follow section i as written.
+
+AC #1 PRE-SYNC BASELINE (run on dev at 7efc1a4, before this settlement's sync): 95 unique 40-char SHAs in docs/log.md, checked with git merge-base --is-ancestor <sha> dev -> total=95 bad=0. dev carries 98 docs/-touching commits, so exactly 3 were unrecorded: 3b1e9f5 (QCLI-42 gate record), c9353bc (QCLI-40, #57), 5b2234b (QCLI-44, #58). This is the staleness mode, not the dangling-SHA mode -- matching the corrected two-mode account the contract now documents.
 <!-- SECTION:NOTES:END -->

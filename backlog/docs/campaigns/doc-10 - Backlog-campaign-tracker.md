@@ -3,7 +3,7 @@ id: doc-10
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-07 11:42'
-updated_date: '2026-08-07 13:13'
+updated_date: '2026-08-07 13:55'
 ---
 # Backlog campaign tracker
 
@@ -17,9 +17,9 @@ loop until the queue is empty or blocked → write handover.
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
 trust a persisted "next wave" plan. Informational hint only: as of
-2026-08-07 wave 2 is in flight (QCLI-43, resumed after a crash), 0 ready,
-0 blocked, 1/2 Done. When QCLI-43 settles the queue is empty and the
-campaign is complete.
+2026-08-07 after wave 2, **the campaign is complete** — 0 ready, 0 blocked,
+2/2 Done. Both of doc-9's approved follow-ups are settled. A fresh queue
+needs `/backlog-handover init`.
 
 ## Origin of this campaign
 
@@ -66,7 +66,7 @@ a guarantee that any task lands in any particular wave.
 1. QCLI-44 — Settle whether inline supersession amendments must cite the
    directing task — **Done, wave 1** (`5b2234b`, PR #58)
 2. QCLI-43 — Fold the lore log sync into campaign settlement to stop recurring
-   `docs/log.md` SHA drift
+   `docs/log.md` SHA drift — **Done, wave 2** (`7efc1a4`, PR #59)
 
 Rationale for this order (owner-selected): QCLI-43's `lore sync` is what
 closes `docs/log.md` drift, so running it *last* means it also covers QCLI-44's
@@ -102,14 +102,18 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
-| QCLI-43 | 2 | `~/.treehouse/quest-cli-f11e72/1/quest-cli` (lease `28eadc44…`, holder `qcli/QCLI-43`) | `chore/qcli-43-settlement-log-sync` @ `28e4018` | 6 — under review (implemented, committed, pushed by a session that then died; review dispatched on resume) |
 
-**Recovered, not restarted.** The session that dispatched wave 2 crashed after
-the worker pushed and before the reviewer ran, leaving no handover. R2 found
-the branch pushed to `origin` at `28e4018`, no PR open, the lease still held
-with zero live processes, and QCLI-43 correctly at `In Progress` + `wave-2` —
-i.e. Backlog state and worktree state agreed, so this is a *matches-Backlog*
-leftover resumed at its recorded stage per R3, not an orphan.
+(clean — wave 2 settled, worktree returned, all six pool slots available)
+
+**Wave 2 was recovered, not restarted.** The session that dispatched it crashed
+after the worker pushed and before the reviewer ran, leaving no handover. R2
+found the branch pushed to `origin` at `28e4018`, no PR open, the lease still
+held with zero live processes, and QCLI-43 correctly at `In Progress` +
+`wave-2` — Backlog state and worktree state agreed, so R3 resumed it at its
+recorded stage (5, pushed) rather than restarting. **The crash cost nothing:**
+every stage the dead session completed was durable and was picked up as-is.
+This is the dispatch-marking fix (R4d) and stage-numbered in-flight table
+working exactly as designed.
 
 ## Needs a human / blocked
 
@@ -147,6 +151,20 @@ is filed. Each entry is a ready-to-run proposal, surfaced at the session report.
    and the reviewer explicitly declined to assert a violation.
    ACs would be: a dated owner ruling on which convention governs evidence
    records; the record amended inline if the ruling requires it.
+
+3. **Give the campaign's own bookkeeping commits `Refs:` trailers.**
+   From wave 2's review. SKILL.md's Commits convention says "always a
+   `Refs: QCLI-<N>` trailer", and QCLI-43 just carved out the single blessed
+   exception (`lore sync`'s hardcoded `chore(backlog): sync task changes`).
+   But the reviewer found the orchestrator's *own* campaign bookkeeping commits
+   routinely lack the trailer in practice — `d0b5f41`, `9c63769`, `146956d`,
+   `8721feb` all have an empty `%(trailers:key=Refs)`. That is pre-existing
+   practice drift, not something QCLI-43 introduced, and it sits awkwardly next
+   to a convention that now names exactly one exception. Two defensible
+   dispositions: make the orchestrator emit trailers on bookkeeping commits, or
+   widen the documented exception to cover them. Someone should pick one.
+   ACs would be: the convention and actual practice agree; whichever way it is
+   resolved is recorded in SKILL.md; no claim in either document is left false.
 
 ## Wave log
 
@@ -218,3 +236,90 @@ is filed. Each entry is a ready-to-run proposal, surfaced at the session report.
     orchestrator-directed trim; reviewer explicitly judged it not worth a
     fix cycle. Two owner-decision items promoted to Proposed follow-ups
     above.
+
+- 2026-08-07 — wave 2 (QCLI-43, single member). **Recovered from a crashed
+  session**, not dispatched fresh: R2 found the branch already implemented,
+  committed and pushed at `28e4018` with the lease still held and zero live
+  processes, and Backlog agreeing (`In Progress` + `wave-2`). Resumed at
+  stage 5 per R3. Pool slot 1, lease `28eadc44…`, branch
+  `chore/qcli-43-settlement-log-sync`. Merged `7efc1a4` (PR #59, squash).
+
+  **3 review passes, 2 fix cycles — and the last one mattered most.**
+
+  - **Pass 1 → `request_changes` (3 blocking).** (i) A false causal claim
+    written into binding contract text. (ii) `lore check` prescribed as a
+    "0 errors and 0 warnings" gate — but plain `lore check` exits 0 with
+    warnings present; the threshold needs `--strict`. A gate that cannot
+    enforce the threshold it states is worse than no gate. (iii) The text
+    blessed `lore sync`'s auto-commit without noting it carries no `Refs:`
+    trailer, contradicting SKILL.md's "always a trailer" rule.
+  - **Pass 2 → `request_changes` (1 blocking).** The *corrected* causal
+    account was **still wrong**, and wrong in the dangerous direction. The
+    fix pass had restated pass 1's notes instead of re-measuring. The
+    reviewer measured: the four dangling SHAs came from **QCLI-28 / #44**
+    (`43bc22e`), not QCLI-32 / #48 — proven two ways, by `git log -S<sha>`
+    attribution and by the bad-set at `43bc22e` being byte-identical to the
+    one at `2e57876`. And "fired once" was false: it fired **six times**
+    (QCLI-16, 17, 19, 21, 22, 28), each "fixed for good" by a one-shot
+    regeneration that the next per-task-branch sync reopened — three such
+    fixes before QCLI-35's. **Why that blocked rather than being pedantry:**
+    the contract's one load-bearing constraint is *never run the sync on a
+    per-task branch*, and the text was framing the very mechanism that
+    constraint prevents as a one-time fluke closed four tasks earlier —
+    handing a future maintainer a ready-made case to relax it. The measured
+    history is the strongest argument *for* the rule.
+  - **The process fix that worked.** The final fix worker was instructed to
+    measure every historical claim itself and quote its command output
+    rather than paste the reviewer's numbers, and to report disagreement
+    rather than silently pick a side. It reproduced all ten rows of the
+    drift walk independently and found no disagreement. **Pass 3 →
+    `approve`**, every SHA, PR number, task ID and count re-verified.
+  - **Two false-claims-in-binding-text defects in two consecutive
+    campaigns.** Wave 1 of this same campaign caught a false factual claim
+    written into CLAUDE.md. The recurring shape is an agent inheriting a
+    plausible claim from an upstream artifact (task description, prior
+    notes) and restating it as measured fact. Both times the reviewer caught
+    it only by re-running the measurement. **Treat any historical/forensic
+    claim in a task description as unverified input, not as evidence.**
+  - The task description's own headline example was itself wrong from the
+    start: `2e57876` is not a dangling branch SHA, it is PR #48's squash
+    commit on `dev`, and QCLI-32 never touches `docs/log.md` at all
+    (`git diff-tree` shows only the Story file and its own task record).
+    "30+ unrecorded commits" was really 3.
+  - **Merge queue.** Rebase onto `0b63077` conflicted exactly once, in
+    QCLI-43's own record and only on the `updated_date` frontmatter line
+    (twice — once per fix commit); resolved by keeping the later timestamp.
+    Predicted in advance by the reviewer, including that there was no
+    content risk (dev's copy had no PLAN/NOTES sections at all). **This is
+    the cost of the orchestrator writing a task file on `dev` mid-flight**
+    (the `in-review` label) after the branch was cut — doc-9's
+    cut-from-the-dispatch-commit fix does not protect against it. Cheap and
+    mechanical, but worth expecting rather than rediscovering.
+  - Post-rebase gates re-run (mandatory, not skipped): `lore validate
+    --strict` and `lore check --strict` both 0 errors / 0 warnings. Content
+    verified byte-identical to the approved `bb1a0d0` across both skill
+    files. Squash completeness confirmed before branch deletion. Worktree
+    returned, both branches deleted, pool restored to 6/6.
+  - **Wave-level integration review: not dispatched, deliberately** — a
+    single-member wave has no cross-task surface, so R4h would re-review
+    bytes the reviewer had already examined three times. Recorded rather
+    than silently skipped, as in wave 1.
+  - **AC #1 pre-sync baseline** (on `dev` at `7efc1a4`): 95 recorded SHAs,
+    `total=95 bad=0`; 98 `docs/`-touching commits on `dev`, so exactly 3
+    unrecorded (`3b1e9f5`, `c9353bc`, `5b2234b`). Staleness mode, not the
+    dangling-SHA mode — matching the corrected two-mode account.
+  - **Bootstrap ordering deviation, one-off and recorded.** The contract
+    QCLI-43 establishes runs `lore sync` strictly last in settlement, but
+    QCLI-43's own AC #1 is only provable *by* that sync. So ACs 2–5 were
+    checked first, the sync then ran as the contract's first real execution,
+    AC #1 was verified against its output, and only then was AC #1 checked
+    and the task moved to `Done`. This chicken-and-egg is unique to the one
+    task whose acceptance depends on the settlement step it defines; it was
+    recorded in the task notes rather than carved into the contract, which
+    would have been unprompted scope. Post-sync AC #1 evidence lives in
+    QCLI-43's implementation notes.
+
+- 2026-08-07 — **campaign complete.** Both of doc-9's approved follow-ups
+  (QCLI-44, QCLI-43) are `Done`. Three proposed follow-ups await the owner's
+  decision above; none were created, per this project's no-autonomous-
+  follow-up rule. Tasks left in `Done` — no archiving, per the same rule.
