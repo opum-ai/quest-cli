@@ -79,6 +79,7 @@
 - 2026-08-06T20:08:24-05:00 4c808744bcdd13a4cf4949c27a4de9792988f960 docs: record that the pinned lore-doc gate revision moved
 - 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
 - 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
+- 2026-08-07T08:57:40-05:00 a4f621256f018ecc9319a24c9fa7ea6e1d30f9e9 docs: sync lore log after wave-2 settlement (doc-10 campaign)
 
 ## docs/adr
 
