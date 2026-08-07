@@ -199,6 +199,22 @@ were superseded as false, and the Spec reported items 2, 3, and 4 of the
 predicate as satisfied. The `d2a9a9e11ddf` pin is itself already historical:
 `lore-doc` advanced again the same day when its owner ruled on item 1.
 
+**Preserved and superseded 2026-08-07 by `QCLI-45`:** this record originally
+reported the paragraph below at this point; `QCLI-42` (commit `3b1e9f5`)
+deleted and re-tensed it in place instead of appending a dated amendment.
+Per the owner's ruling that preserve-and-amend governs evidence records
+(`CLAUDE.md`, `QCLI-45`), the replaced wording is restored here verbatim,
+superseded by the owner's 2026-08-06 ruling reported in the paragraphs that
+follow. It is preserved, not merely noted, because this record's stated
+value is fidelity to what was read on 2026-08-05 — the same reason the
+predicate quotation above is kept intact after its own final paragraph
+stopped describing its source.
+
+> `LDOC-4` is still `To Do`. The gate's owner has not accepted the release
+> boundary, so **the gate result is unchanged: closed.** Per this record's own
+> constraint, that sentence is a quote of the owner's position, not a
+> conclusion drawn here.
+
 The owner then ruled. On 2026-08-06 `lore-doc` accepted the Lore `0.1.1`
 release boundary in `LDOC-4` and its gate Spec now reports the result as
 **open**. Per this record's own constraint, that is a report of what the

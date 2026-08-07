@@ -103,6 +103,22 @@ explicit inventory of outstanding sites — by file, with counts and reasons —
 maintained in `backlog/tasks/qcli-44 - Settle-whether-inline-supersession-amendments-must-cite-the-directing-task.md`
 (Implementation Notes).
 
+**Ruling (2026-08-07, `QCLI-45`): preserve-and-amend governs evidence records,**
+**overriding the correct-in-place branch above.** A dedicated evidence record — a
+document whose stated value is fidelity to what was read at a given inspection
+boundary — is amended by appending a dated, superseded-marked note even for prose a
+reader would otherwise act on today; the correct-in-place branch's "is this text
+recording what was once decided, or telling a reader what is true now?" test does not
+license deleting or re-tensing an evidence record's own dated reading, because doing so
+destroys the thing the record exists to hold. Preserve-and-amend still meets the
+correct-in-place branch's underlying concern — a stale reading is marked superseded, not
+left to read as current — without that loss. This resolves `QCLI-42` (commit `3b1e9f5`),
+which deleted and re-tensed `QCLI-41`'s gate-result paragraph in
+`docs/reference/quest-cli-activation-gate-evidence-record.md` instead of appending a
+dated amendment; the removed wording is restored there as preserved-and-superseded text
+under this ruling. Full reasoning:
+`backlog/tasks/qcli-45 - Record-the-evidence-record-amendment-ruling-and-reconcile-QCLI-42-in-place-replacement.md`.
+
 When a `*-doc` peer and a `*-cli` peer disagree, that is **drift, i.e. a
 defect** — the `*-cli` peer is authoritative for what currently ships, the
 `*-doc` peer stays normative owner of what the contract is.
