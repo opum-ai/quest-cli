@@ -6,7 +6,10 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-06 20:53'
-labels: []
+updated_date: '2026-08-07 03:05'
+labels:
+  - campaign
+  - 'cluster:open-item-bundles'
 dependencies: []
 references:
   - docs/adr/require-atomic-idempotent-operation-owned-mutations.md
