@@ -4,7 +4,7 @@ title: Re-verify the Backlog.md v1.49.3 pin before Phase 1 exit
 status: In Progress
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-08 21:51'
+updated_date: '2026-08-08 22:02'
 labels:
   - campaign
   - 'cluster:decisions'
@@ -114,4 +114,49 @@ Only the "Backlog.md version-pin trigger" section of docs/reference/quest-cli-op
 ## Out-of-scope discoveries
 
 None. No new drift, gap, or contract inconsistency was surfaced while doing this read-only verification; the fidelity contract and register were read exactly as scoped, nothing further opened.
+
+## Fix pass 1 — reviewer request_changes correction (2026-08-08)
+
+The mandatory reviewer returned request_changes on this task's original commit
+(e235194). AC#5 (moving-vs-immutable classification) was wrong, not merely
+imprecise: the register classified npm view backlog.md time.modified as an
+immutable anchor. **That classification is incorrect and is corrected here,
+not restated.**
+
+**Empirical disproof, re-run independently this pass:**
+
+    $ npm view backlog.md time --json
+    time.modified   = 2026-08-03T21:30:58.510Z
+    time["1.49.3"]  = 2026-08-03T21:30:58.182Z
+    identical?        False (328ms apart)
+
+`time.modified` is the packument's last-modified time, a property of the
+whole package document, not the publish timestamp of 1.49.3 specifically.
+The two values are only near-identical right now because 1.49.3 happened to
+be the package's most recent write. `time.modified` advances on any later
+write to the package -- a new publish, a deprecation, an unpublish, a
+dist-tag change, an owner change -- which is exactly the "whether a newer
+version now exists" event the original (wrong) justification named as safe.
+The Spec's Moving vs. immutable references subsection lists "a release
+timestamp" among its immutable-anchor *examples*, so citing that label was
+textually defensible; the error was applying the label without testing the
+behavior the category is actually defined by ("a fact that can change on the
+next observation without any document edit ... a re-runnable query result
+rather than a fixed record"). time.modified fails that test; it is corrected
+to a moving reference in the 2026-08-08 block. time["1.49.3"] (the true,
+immutable publish timestamp of the pinned release) is now cited alongside it
+as the flat immutable anchor this section can rely on.
+
+Also corrected this pass: a direct-quotation misattribution (the phrase
+"before this phase's exit, or any freeze, whichever comes first" was quoted
+as if from the fidelity contract's recheck clause and/or this register's own
+trigger sentence; neither contains it verbatim -- it is the delivery
+roadmap's QCLI-17 correction-note wording, docs/specs/quest-cli-delivery-roadmap.md:137
+-- now attributed there), and an inaccurate description of the worktree's
+`backlog` binary as worktree-local (it is the user-global bun install on
+PATH, /Users/jdnewhouse/.bun/bin/backlog, shared by every worktree).
+
+The 2026-08-05 block (verified state, and QCLI-17's correction note above it)
+is untouched -- out of this pin's scope and explicitly out of bounds per the
+Spec's "Scope of the convention" disclaimer against retroactive rewrite.
 <!-- SECTION:NOTES:END -->
