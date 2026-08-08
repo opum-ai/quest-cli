@@ -1,13 +1,14 @@
 ---
 id: QCLI-52
 title: Finish the stage-state legibility sweep QCLI-51 started
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 14:43'
-updated_date: '2026-08-08 14:58'
+updated_date: '2026-08-08 16:09'
 labels:
   - campaign
   - 'cluster:skill-docs'
+  - wave-1
 dependencies: []
 priority: medium
 type: chore
