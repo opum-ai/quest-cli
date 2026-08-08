@@ -3,7 +3,7 @@ id: doc-11
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-07 20:29'
+updated_date: '2026-08-08 01:09'
 ---
 # Backlog campaign tracker
 
@@ -128,9 +128,13 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
+| QCLI-46 | 2 | treehouse slot 1 (lease `8934fcd2…`, holder `qcli/QCLI-46`) | `docs/qcli-46-supersession-citation-debt` | 1 — dispatched |
+| QCLI-48 | 2 | treehouse slot 2 (lease `bf66aa25…`, holder `qcli/QCLI-48`) | `fix/qcli-48-refs-trailer-loss-vector` | 1 — dispatched |
 
-(clean — wave 1 fully settled, both worktrees returned to the pool, both
-branches deleted local and remote, 6/6 pool slots available)
+Wave-2 base pinned at `fe92535`. Both worktrees were reset onto that commit
+*after* the dispatch marking was committed, so each branch already carries its
+own task file's `wave-2` label and cannot conflict on it at rebase — see the
+wave log for why.
 
 ## Needs a human / blocked
 
