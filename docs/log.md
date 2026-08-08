@@ -83,6 +83,7 @@
 - 2026-08-07T14:49:53-05:00 f955033abe473819397555e435492a40b4770c83 docs: catch up lore log with doc-10's own settlement commit
 - 2026-08-07T15:21:58-05:00 82ec77d9bf5706d8906fd5c8e1a83f730099e075 docs: sync lore log after wave-1 settlement (doc-11 campaign)
 - 2026-08-07T20:02:45-05:00 4c1609cabdae9f9ead6f661ed966c47eb0f4aa1e docs: catch up lore log with doc-11 wave-1's own settlement commit
+- 2026-08-07T20:31:39-05:00 3742bbb6621c9d81333396751921980102d75791 docs: sync lore log after wave-2 settlement (doc-11 campaign)
 
 ## docs/adr
 
@@ -154,6 +155,7 @@
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
 - 2026-08-07T15:16:22-05:00 866b184cad26df377522908f14a7e54fd266e330 QCLI-45: Record the evidence-record amendment ruling and reconcile QCLI-42 in-place replacement (#60)
 - 2026-08-07T20:25:49-05:00 a4276e0a41ee0c1c3d200c00761fa3dcc7e3a492 QCLI-46: Re-derive and reconcile the outstanding inline supersession-citation debt across docs (#62)
+- 2026-08-07T20:44:35-05:00 0f07c27dba547d7d1d9f6ee37f4f4a392e92d613 QCLI-50: Settle whether tense-only edits fall under preserve-and-amend (#65)
 
 ## docs/runbooks
 
