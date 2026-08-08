@@ -6,7 +6,10 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-08 14:44'
-labels: []
+updated_date: '2026-08-08 14:58'
+labels:
+  - campaign
+  - 'cluster:skill-docs'
 dependencies: []
 priority: low
 type: chore
