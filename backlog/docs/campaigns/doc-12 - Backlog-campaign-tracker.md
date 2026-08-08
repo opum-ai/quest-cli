@@ -3,7 +3,7 @@ id: doc-12
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-08 13:46'
-updated_date: '2026-08-08 14:10'
+updated_date: '2026-08-08 14:38'
 ---
 # Backlog campaign tracker
 
@@ -18,13 +18,14 @@ The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
 trust a persisted "next wave" plan.
 
-Informational hint only: as of init on 2026-08-08, **1 ready** (QCLI-51), 0
-blocked, 0 in flight, 0 needs-human. 70 tasks total, 69 `Done`.
+**CAMPAIGN COMPLETE as of 2026-08-08.** Queue empty: **70 tasks, all 70 `Done`**,
+0 in flight, 0 blocked, 0 needs-human, 0 ready. Wave 1 resolved the single
+queued task (QCLI-51) and no further wave was dispatched.
 
-**This is a one-task campaign.** Wave 1 is expected to be a single member, which
-is the wave builder correctly degrading to sequential, not a defect. It is
-expected to be the only wave unless the integration review surfaces approved
-follow-up work.
+It ran as the predicted one-task campaign: wave 1 had a single member, which is
+the wave builder correctly degrading to sequential, not a defect. Two follow-up
+proposals surfaced by the wave-level integration review are recorded below,
+**unfiled**, awaiting the user's approval.
 
 ## Origin of this campaign
 
@@ -115,9 +116,9 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
-| QCLI-51 | 1 | `~/.treehouse/quest-cli-f11e72/1/quest-cli` (lease `c5d2e77207ba…`) | `chore/qcli-51-stage-state-table-reconcile` | 1 — marked `In Progress` + `wave-1`, marking committed on `dev` as `d0c3d06`, worktree re-pinned onto it, worker dispatched |
 
-Wave base pinned at `10a4293`. 1/6 pool slots leased.
+(clean — wave 1 settled. QCLI-51 merged as `79545d6`, worktree returned to the
+pool, branch deleted local and remote, 6/6 slots `available`, zero leases.)
 
 ## Needs a human / blocked
 
@@ -129,8 +130,40 @@ and it is fully dispatchable.)
 Never created unprompted — this project requires approval before follow-up work
 is filed.
 
-(none yet — doc-11's single outstanding proposal was approved at this init and
-filed as QCLI-51, clearing the inherited backlog of proposals to zero.)
+Two proposals from wave 1's integration review (h), 2026-08-08. **Neither is
+filed.** Both are `minor`, neither is a defect in QCLI-51's merged diff, and
+neither blocks anything. The reviewer recommended this exact split — they divide
+along a real seam (documentation legibility in `SKILL.md` vs. mechanics timing in
+`wave-loop.md`), and folding them together would blur the two axes.
+
+**Proposal A — finish the stage-state legibility sweep QCLI-51 started.**
+Two passages still describe where campaign substate is legible without
+accounting for what is actually committed:
+
+- `SKILL.md`'s "Stage state" convention row ("Status carries the coarse state,
+  labels carry the sub-stage") asserts the pre-QCLI-51 framing unqualified, and
+  sits ~15 lines upstream of the table that now corrects it — so a cold reader
+  forms the impression QCLI-51 was chartered to remove before reaching the fix.
+- R2 step 5's list of durable signals omits the campaign doc's **in-flight
+  table** — the one substate record this campaign commits on purpose
+  (`reference/templates.md`; `wave-loop.md`'s scope note says it "is always
+  committed immediately"; `68ce681` in this very wave is a worked example). The
+  enumeration reads as exhaustive and is not.
+
+Both are one-sentence fixes in the same file. **Method note for whoever picks
+this up:** QCLI-51's own AC#5 sweep could not have caught either, because it
+grepped `in-review`/`merge-pending` and neither passage contains those strings.
+The sweep was correct within its stated method — a next sweep should not be
+scoped the same way.
+
+**Proposal B — settle the discard-timing looseness between (f) and (g).**
+`wave-loop.md` (f) discards the accumulated label edit "before that task's branch
+reaches (g)'s **rebase step**," while (g)'s precondition demands a clean checkout
+"before this **walk starts**" and re-checks at step 0. Reconcilable in practice
+(discarding right after (f)'s confirm satisfies both) and inherited verbatim from
+QCLI-49's `in-review` wording — but `merge-pending`'s new edit sits closer to (g)
+than the first did, so the looseness is now easier to trip over. Pre-existing
+QCLI-49 debt, not introduced by QCLI-51.
 
 ## Standing guidance carried forward from doc-11
 
@@ -175,3 +208,39 @@ budget to learn.
   and the init ruling recorded verbatim in its description. The owner's broader
   disposition was obtained before dispatch, so the task enters wave 1 with no
   open convention question.
+
+- 2026-08-08 — **wave 1 (single member: QCLI-51). Merged, settled, campaign
+  complete.** Restore found zero drift: `dev` clean at `8f55c56`, no branches,
+  no worktrees, no PRs, 6/6 slots free — exactly as the handover predicted. R3's
+  mandatory `lore sync` found the expected one-commit lag (doc-11's own wave-3
+  settlement commit `ceab348`), gated it with `lore check --strict` (47 files, 0
+  errors, 0 warnings), and committed it as `10a4293`, which became the wave base.
+
+  Dispatch marking committed as `d0c3d06`, worktree re-pinned onto it, in-flight
+  pointer recorded as `68ce681`. Worker implemented in one commit; review pass 1
+  returned **`request_changes`** on a blocker — R2 step 5 attributed the `git
+  log` check to step 2 (enumeration only) when step 4 prescribes it, precisely
+  the wrong-prose-cross-reference class doc-11 warned about and that both `lore`
+  gates pass on. A fresh worker fixed it in a two-character word-diff; pass 2
+  returned **`approve`** with all six ACs confirmed against named file+line
+  evidence. Merged as `79545d6` (PR #67).
+
+  Three operational notes worth carrying forward. (1) `origin/dev` was stale at
+  the merge queue because the in-flight pointer commit was local-only — the first
+  rebase reported "up to date" against a base two commits behind; pushing `dev`
+  first made the rebase target real. (2) The squash body was hand-authored: the
+  branch carried two commits each ending in their own `Refs:` line, exactly
+  QCLI-48's unparseable shape had it been generated. (3) `--delete-branch` failed
+  because the worktree still held the branch — the documented ordering, not a
+  fault; release the worktree first.
+
+  Both subagent return paths misfired again, as doc-11 predicted: the worker's
+  return and the reviewer's pass-1 verdict each arrived late or not at all. Neither
+  was re-dispatched — the worker's work was verified from the worktree's own git
+  state, and the reviewer was re-queried by message with its context intact. Zero
+  dispatches wasted.
+
+  Integration review (h) confirmed the merged files byte-identical to the approved
+  branch tip and reviewed the orchestrator's own two bookkeeping commits — their
+  first review — finding both correctly scoped. It surfaced the two unfiled
+  proposals above.

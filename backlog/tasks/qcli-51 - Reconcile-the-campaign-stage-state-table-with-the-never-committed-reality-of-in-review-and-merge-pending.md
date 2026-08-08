@@ -3,10 +3,10 @@ id: QCLI-51
 title: >-
   Reconcile the campaign stage-state table with the never-committed reality of
   in-review and merge-pending
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-08 13:46'
-updated_date: '2026-08-08 14:29'
+updated_date: '2026-08-08 14:37'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
@@ -52,12 +52,12 @@ Whatever shape the fix takes, it must not reintroduce the rebase conflict QCLI-4
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 SKILL.md stage-state table distinguishes, for every row it lists, stages durably recorded in committed Backlog state from those existing only as uncommitted working-tree edits
-- [ ] #2 The disposition of merge-pending is settled explicitly and stated at its point of action: either the step that applies it is named in reference/wave-loop.md, or the stage is recorded as vestigial and removed from the table; the current trailing "and later" parenthetical at line 130 no longer stands as the only instruction
-- [ ] #3 in-review receives the same treatment as merge-pending, with any difference in how the two are handled stated and justified rather than left implicit
-- [ ] #4 SKILL.md R2 states how leftover branches and worktrees are classified given that these labels may be absent from committed state, so a crash-recovery reader is not directed to cross-check against a state that cannot appear
-- [ ] #5 No remaining passage across SKILL.md and reference/wave-loop.md describes these labels in a way another passage contradicts, and the result is consistent with QCLI-49 rule that mid-wave task-file label edits are never committed on <default> while the branch is unmerged
-- [ ] #6 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
+- [x] #1 SKILL.md stage-state table distinguishes, for every row it lists, stages durably recorded in committed Backlog state from those existing only as uncommitted working-tree edits
+- [x] #2 The disposition of merge-pending is settled explicitly and stated at its point of action: either the step that applies it is named in reference/wave-loop.md, or the stage is recorded as vestigial and removed from the table; the current trailing "and later" parenthetical at line 130 no longer stands as the only instruction
+- [x] #3 in-review receives the same treatment as merge-pending, with any difference in how the two are handled stated and justified rather than left implicit
+- [x] #4 SKILL.md R2 states how leftover branches and worktrees are classified given that these labels may be absent from committed state, so a crash-recovery reader is not directed to cross-check against a state that cannot appear
+- [x] #5 No remaining passage across SKILL.md and reference/wave-loop.md describes these labels in a way another passage contradicts, and the result is consistent with QCLI-49 rule that mid-wave task-file label edits are never committed on <default> while the branch is unmerged
+- [x] #6 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -103,4 +103,29 @@ AC#6: SKILL.md frontmatter version bumped 0.9.1-qcli.5 -> 0.9.1-qcli.6. New Prov
 Owner-ruling compliance: did not delete/treat merge-pending as vestigial (alternative a); did not add a write-then-discard ceremony to section (g) (alternative b); did not leave the disposition for a future reader to derive (alternative c) -- the point of action is stated directly in (f).
 
 No out-of-scope discoveries.
+
+## Settlement (doc-12 wave 1, orchestrator)
+
+Merged as `79545d6` (PR #67, squash-merged into `dev`). Branch `chore/qcli-51-stage-state-table-reconcile` rebased onto `68ce681`, re-verified post-rebase, force-with-lease pushed, then squash-merged with a hand-authored body so the `Refs: QCLI-51` trailer parses (the branch carried two commits each ending in their own `Refs:` line — exactly QCLI-48's unparseable-squash shape had the body been auto-generated). Verified: `git interpret-trailers --parse` on `79545d6` reports `Refs: QCLI-51`.
+
+Review: two passes by a top-tier reviewer, independently re-deriving every claim. No automated gate exists for `.claude/skills/` (no package.json, Makefile, test suite, or linter; `lore check --strict` covers only `docs/`), so verification was reading — stated explicitly rather than skipped.
+
+- Pass 1: `request_changes` on one blocker — R2 step 5 attributed the `git log` check to step 2 (enumeration only) when step 4 prescribes it. Fixed in `64d40a9`, which the reviewer confirmed as a two-character word-diff altering no other token, leaving `reference/wave-loop.md` untouched and the AC#5 sweep table intact after the wholesale `--plan`/`--notes` replace.
+- Pass 2: `approve`, all six criteria confirmed with named file+line evidence.
+
+Post-rebase re-verification (run in full, not skipped on a clean rebase): version `0.9.1-qcli.6` in frontmatter; R2 step 5's three citations each resolving to the step that prescribes the named check (1 = "Working tree clean?", 3 = `gh pr list`, 4 = worktree `git log`); the old "and later `merge-pending`" parenthetical absent; (f)'s two-step point-of-action structure present; both branch commits' trailers parsing.
+
+Wave-level integration review (h) over the cumulative diff `10a4293...dev`: `git diff 64d40a9 dev -- .claude/skills/backlog-handover/` empty, i.e. the merged files are byte-identical to the approved branch tip. Skill self-consistency confirmed for a cold reader: no dangling step references, every one of the six table stages now has a point of action, and (i)'s `--remove-label "in-review,merge-pending"` remains correct as a defensive no-op under (f)'s new shape. The orchestrator's own bookkeeping commits `d0c3d06` and `68ce681` were reviewed for the first time here and are clean and correctly scoped.
+
+Two `minor` findings surfaced by (h) are recorded as proposals for the user, NOT filed (this project forbids autonomous follow-ups): `SKILL.md:90`'s "labels carry the sub-stage" summary still asserts the pre-QCLI-51 framing unqualified, and R2 step 5's signal list omits the campaign doc's in-flight table — the one substate record that IS committed on purpose. Both are the same defect class this task closed; neither is a defect in this diff. Notably, this task's own AC#5 sweep could not have caught either: the sweep grepped `in-review`/`merge-pending`, and neither passage contains those strings. The sweep was correct within its stated method.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+SKILL.md's campaign stage-state table listed `in-review` and `merge-pending` as ordinary label rows, but `reference/wave-loop.md` (f) — as amended by QCLI-49 — applies both to the working tree and discards them uncommitted before the affected branch's rebase, reconstructing the label set only at settlement. Neither label was therefore ever observable in a committed task file, while R2's crash-recovery step directed a reader to cross-check leftovers against Backlog state. `merge-pending` additionally had no stated point of action, existing only as a trailing "and later" parenthetical naming no step.
+
+Per the owner's broader ruling (obtained at doc-12 init, recorded verbatim in this task): the stage-state table gained a `Committed to Backlog?` column covering all six rows, marking both labels working-tree-only with the shared QCLI-49 rebase-conflict rationale and each label's distinct point of action stated inline; `wave-loop.md` (f)'s numbered list now names `merge-pending`'s point of action directly — on the reviewer's `approve` verdict, before (g) — reusing (f)'s existing run-then-discard mechanism rather than adding a ceremony to (g), whose eight-step walk still mentions neither label; and R2 gained a step 5 naming the durable signals that classify a leftover branch's review substage. Skill bumped 0.9.1-qcli.5 -> 0.9.1-qcli.6 with a Provenance entry. None of the three narrower alternatives the owner declined were reintroduced, and QCLI-49's rule is extended in scope, not altered — no label edit is committed on `dev` while the branch is unmerged.
+
+Verified by reading, independently re-derived across two review passes plus a wave-level integration pass; this repo has no automated gate for `.claude/skills/` and `lore check --strict` covers only `docs/`, which was stated rather than worked around. Pass 1 caught and closed a blocker where R2 step 5 cited the wrong step for the `git log` check. Merged as `79545d6` (PR #67); the merged files are byte-identical to the approved branch tip.
+<!-- SECTION:FINAL_SUMMARY:END -->
