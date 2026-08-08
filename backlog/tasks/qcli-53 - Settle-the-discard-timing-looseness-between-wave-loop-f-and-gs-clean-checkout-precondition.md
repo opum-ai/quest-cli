@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-08 14:44'
-updated_date: '2026-08-08 14:58'
+updated_date: '2026-08-08 18:28'
 labels:
   - campaign
   - 'cluster:skill-docs'
@@ -51,4 +51,16 @@ Surfaced as a `minor` finding during doc-11-era QCLI-49 work and again by doc-12
 - [ ] #3 (g)'s clean-checkout precondition remains true by construction under the settled wording, not by orchestrator discipline, for both the in-review and merge-pending edits
 - [ ] #4 No remaining passage across SKILL.md and reference/wave-loop.md states a discard deadline that contradicts the settled one
 - [ ] #5 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
+- [ ] #6 The chosen discard timing states its effect on SKILL.md R2 step 5's first durable signal (the label-only dirty entry on the orchestrator's <default> checkout) — whether the window stays wide enough for a crash to observe the label, and if not, that the loss is named and accepted
+- [ ] #7 If the settled timing materially shrinks that window, SKILL.md R2 step 5's first signal is reworded so it does not promise classification power the mechanics no longer provide, and the remaining signals' sufficiency is stated
+- [ ] #8 No passage across SKILL.md and reference/wave-loop.md is left asserting that the in-review/merge-pending distinction is observable in a dirty diff if the settled timing makes that unreliable
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-08-08 18:28
+---
+Acceptance criteria #6-#8 added 2026-08-08 by the doc-13 orchestrator with the user's explicit approval, on a finding from doc-13 wave 1's integration review. Rationale: this task's likely disposition (discarding immediately after (f)'s diff-confirmation step, floated in the description) would collapse the dirty-diff window that SKILL.md R2 step 5's FIRST durable signal depends on — that signal claims which label shows pins a crash before or after the approve verdict, which only holds because (f) currently keeps the edit dirty across a wide window. Original AC#4 checks only for passages stating a contradicting discard DEADLINE, not for downstream signals depending on the discard WINDOW, so the regression would not have been caught by this task's own criteria. The coupling is pre-existing (QCLI-51 wrote signal #1; QCLI-52 left it byte-identical) — a forward risk, not a defect in merged work. Added as criteria rather than filed separately so the tradeoff is weighed while choosing the disposition rather than audited afterward.
+---
+<!-- COMMENTS:END -->
