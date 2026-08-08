@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-08 14:44'
-updated_date: '2026-08-08 18:43'
+updated_date: '2026-08-08 18:56'
 labels:
   - campaign
   - 'cluster:skill-docs'
@@ -101,6 +101,23 @@ AC#3 RE-READ: read (d), (f), (g), (i) end-to-end post-edit. (d) unaffected (disp
 AC#5 VERSION: bumped SKILL.md frontmatter + Provenance from 0.9.1-qcli.7 to 0.9.1-qcli.8, following the QCLI-49/51/52 precedent (each a discard/label-mechanics or crash-recovery-signal behavioral change got its own bump), not the "Fix pass" qcli.7 entry's no-bump precedent (that was a pure evidentiary correction with no behavior change). This task changes real mechanics (discard trigger) and real reader-facing guidance (R2 step 5's claimed signal power), so a bump is warranted under the established pattern rather than an explicit-absence justification.
 
 VERIFICATION METHOD: no test/build/lint gate exists for .claude/skills/ (no root package.json, none created, per CLAUDE.md). Verified by: (1) quoting every edited passage before/after via `git diff` (recorded in this task's commits), (2) the sweep commands and results above, (3) the AC#3 end-to-end re-read above, (4) not running `lore check` -- no docs/ file touched, confirmed via `git diff --stat`.
+
+FIX PASS CORRECTION (reviewer request_changes, fix attempt 1): the AC#4/#8 SWEEP paragraph above states `grep -n -i "rebase" reference/wave-loop.md SKILL.md` produced "36 total hits." That figure is WRONG -- it does not reproduce and appears to have been carried over from an unrelated task (QCLI-48's sweep, whose result was "36 of those unparseable," a different metric on different files). Superseding it with the actual, re-run numbers:
+
+- `grep -n -i "rebase" reference/wave-loop.md SKILL.md` (both files together, matching lines): 14 lines on `dev` pre-edit / 16 lines on this branch post-edit.
+- `grep -o -i "rebase" reference/wave-loop.md SKILL.md` (raw occurrence count, not lines): 22 on `dev` pre-edit / 25 on this branch post-edit.
+- `grep -rn -i "rebase" .claude/` (recursive, matching lines): 17 lines on this branch.
+- `grep -ro -i "rebase" .claude/` (recursive, raw occurrences): 27 on this branch.
+
+The filtered conclusion drawn from the sweep is unaffected and reproduces exactly: excluding literal `git rebase`/`git -C ... rebase` command lines and unrelated performance/PR-flow mentions leaves exactly 5 prose hits about discard timing -- wave-loop.md:133 (f) and :161 (g precondition), both fixed to the new wording; SKILL.md:116 (Stage-state block), fixed; SKILL.md:217 (QCLI-49's dated Provenance paragraph) and :219 (QCLI-51's dated Provenance paragraph), correctly left untouched as historical records per this document's append-only Provenance convention.
+
+Also correcting the sibling-file claim in the same SWEEP paragraph: "checked reference/escalation.md and reference/templates.md for the same terms: zero hits" is FALSE as stated for one term. Actual per-term results: `reference/escalation.md:36` contains one hit for "rebase" ("Rebase + **mandatory** re-verify..." in the merge-fails-because-default-moved row of the escalation table) -- unrelated to discard timing, it is ordinary merge-retry prose, not a discard-timing passage, so it does not affect this task's scope or fix. `discard`, `in-review`, and `merge-pending` are genuinely zero hits in both `escalation.md` and `templates.md`, and `rebase` is genuinely zero hits in `templates.md`. So: zero hits confirmed for 7 of 8 (term, file) pairs; one hit (rebase, escalation.md:36) was misreported as zero.
+
+Net effect on AC#4/#8: none. The one uncounted `escalation.md` hit is merge-retry prose, not discard-timing prose, so the sweep's substantive conclusion -- the fix is fully contained to wave-loop.md and SKILL.md, and no passage anywhere contradicts the settled wording -- still holds under the corrected numbers. Only the raw figures in the prior note were wrong; nothing about the disposition, the two intentionally-untouched historical Provenance paragraphs, or the AC#3 re-read is affected.
+
+Also fixed in this pass (reviewer minor finding): wave-loop.md:133's escalate sub-clause previously read "...immediately after step 1's `in-review` edit is confirmed, for an `escalate` outcome..." -- naming step 1's edit-confirmation instant (which happens at reviewer dispatch, per step 3's diff-confirmation applied to step 1) as the escalate discard trigger. That instant long precedes the escalate verdict, contradicting the same sentence's own governing clause ("as soon as that task's own review reaches a terminal verdict") and, read literally, would discard the in-review diff at dispatch -- destroying the before-approve pin that SKILL.md:159 (R2 step 5's first signal) explicitly depends on ("only `in-review`'s appearance still reliably pins that to *before* the branch's `approve` verdict"). Corrected to "...immediately after the `escalate` verdict is returned, for an `escalate` outcome..." -- now naming the terminal-verdict instant on both limbs, consistent with the governing clause and with SKILL.md:159.
+
+Reviewer's remaining nit (in-review's own window carries the same one-action overhang between the approve verdict arriving and step 2's edit completing, marginally over-stating "reliably pins") was left alone per the reviewer's own recommendation -- harmless, conservative failure direction (resume at review), not worth a fix pass.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
