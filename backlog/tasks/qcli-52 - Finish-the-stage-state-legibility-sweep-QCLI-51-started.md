@@ -1,10 +1,10 @@
 ---
 id: QCLI-52
 title: Finish the stage-state legibility sweep QCLI-51 started
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-08 14:43'
-updated_date: '2026-08-08 16:33'
+updated_date: '2026-08-08 16:53'
 labels:
   - campaign
   - 'cluster:skill-docs'
@@ -41,11 +41,11 @@ Surfaced by doc-12 wave 1's integration review (2026-08-08), recorded as an unfi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 SKILL.md's Stage state convention row no longer asserts unqualified that labels carry the sub-stage, and is consistent with the stage-state table's durability column without requiring the reader to reach the table first
-- [ ] #2 SKILL.md R2 step 5 names the campaign doc's in-flight table among the durable signals that classify a leftover branch's review substage, or states explicitly why it is excluded
-- [ ] #3 A sweep scoped to prose about where campaign substate is recorded (not to the label names) finds no further passage across SKILL.md and reference/*.md asserting the pre-QCLI-51 framing; the sweep's method and results are recorded in the task notes
-- [ ] #4 The change is consistent with QCLI-49's rule that mid-wave task-file label edits are never committed on <default> while the branch is unmerged, and with QCLI-51's merged framing
-- [ ] #5 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
+- [x] #1 SKILL.md's Stage state convention row no longer asserts unqualified that labels carry the sub-stage, and is consistent with the stage-state table's durability column without requiring the reader to reach the table first
+- [x] #2 SKILL.md R2 step 5 names the campaign doc's in-flight table among the durable signals that classify a leftover branch's review substage, or states explicitly why it is excluded
+- [x] #3 A sweep scoped to prose about where campaign substate is recorded (not to the label names) finds no further passage across SKILL.md and reference/*.md asserting the pre-QCLI-51 framing; the sweep's method and results are recorded in the task notes
+- [x] #4 The change is consistent with QCLI-49's rule that mid-wave task-file label edits are never committed on <default> while the branch is unmerged, and with QCLI-51's merged framing
+- [x] #5 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -135,6 +135,22 @@ So this repo's history contains exactly one later-than-stage-1 in-flight-table r
 Re-ran the AC#3 sweep method (below) over every passage this fix pass touched (Stage-state row, R2 steps 4-5, Provenance) and found no new instance of the pre-QCLI-51 framing introduced.
 
 Confirmed unaffected: `reference/*.md` — `git diff dev...chore/qcli-52-stage-state-legibility-sweep --name-only -- .claude/skills/backlog-handover/reference/` returns zero lines, still QCLI-53's scope. Frontmatter version unchanged at 0.9.1-qcli.7.
+
+## Settlement (doc-13 wave 1, orchestrator)
+
+Merged to \`dev\` as squash commit \`d652126\` (PR #68). Branch commits after rebase: \`858fc5b\`, \`347abc6\`, \`cc19050\`, \`0f302ed\`; all four plus the squash commit verified with \`git log -1 --format=%B <sha> | git interpret-trailers --parse\` reporting \`Refs: QCLI-52\` as a genuinely parsed trailer (QCLI-48 blank-line hazard avoided by hand-authoring the squash body).
+
+Review gate: two passes. Pass 1 returned \`request_changes\` with three blocking findings; pass 2 returned \`approve\` with all five ACs independently confirmed. All five checked here on that evidence.
+
+The blocking finding worth preserving: the first implementation added a rule reading a recorded \`Stage reached\` of 6 as durable proof of approval. The orchestrator independently verified the counterexample before dispatching the fix — \`0b63077\` records \`6 — under review\` for a branch whose session died before the review gate ran, so that rule would have handed an unreviewed branch to the merge queue, violating SKILL.md's own mandatory review gate. It rested on a false claim that only two in-flight-pointer-recording commits exist. Corrected text now guards over- and under-reporting alike.
+
+Enumeration, re-verified at settlement by two independent methods:
+- phrase-keyed (\`git log dev --format='%h %s' | grep -i "in-flight pointer"\`): five — \`82fca71\`, \`68ce681\`, \`61d48af\`, \`0b63077\`, \`146956d\`
+- content-based (scanning added \`+| QCLI-\` rows whose final column is a stage value): six — the extra is \`3107d3a\`, also stage 1
+
+The merged text states five and explicitly discloses the phrase-keying limitation as not re-verified. The wave-level integration review then closed that caveat by the content-based method and found the variant (\`3107d3a\`) the disclosure predicted. The load-bearing conclusion is confirmed against the complete set of six, not just the grep set: exactly one later-than-stage-1 record exists (\`0b63077\`) and it over-reports.
+
+Post-merge verification performed on the merged result, not on agent report: this task's file on \`dev\` carries only \`campaign\`, \`cluster:skill-docs\`, \`wave-1\` — no \`in-review\`, no \`merge-pending\` — and a repo-wide check finds neither label in any committed task frontmatter. That is QCLI-51's and this task's durability claim confirmed empirically for the first time under a \`merge-pending\` transition.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -146,3 +162,15 @@ created: 2026-08-08 16:17
 Flagging a possible follow-up, not fixing it here (out of this task's scope): reference/wave-loop.md never mandates an in-flight-pointer-recording pass after dispatch. The only two real recording commits in this repo's history (68ce681 doc-12 wave-1, 82fca71 doc-13 wave-1) both record stage 1 (dispatch) only. I used that fact to word SKILL.md R2 step 5's new fourth signal conservatively (later stage = positive proof, absence = inconclusive, not proof of no progress) rather than claiming the in-flight table is continuously current. If the intent was for the orchestrator to also re-record at, say, approval (stage 6) or push (stage 5), that would need an explicit step added to reference/wave-loop.md sections (e)/(f)/(g) — a mechanics change, not a legibility-text fix, and outside QCLI-52's scope. Worth a decision on whether to file that as a follow-up task.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed the two passages QCLI-51's sweep left behind in .claude/skills/backlog-handover/SKILL.md, and extended R2's leftover-classification enumeration.
+
+What changed: the Stage state Conventions row no longer asserts unqualified that labels carry the sub-stage — it states inline that the committed record distinguishes four of the six stages and names in-review and merge-pending as the working-tree-only exceptions, so the qualification is visible before the reader reaches the table. R2 step 5 names the campaign doc's in-flight table as a fourth durable signal, keyed on the row's stated annotation rather than the bare numeral and requiring corroboration against the other three. R2 step 4's enumeration gained the third post-QCLI-51 possibility (already reviewed-and-approved), a deliberate scope extension disclosed in Provenance rather than left as a silent drive-by. Provenance records the change at 0.9.1-qcli.7 with a re-runnable enumeration command, all five SHAs, and an explicit verified-vs-not-verified split. reference/ was left untouched (0 diff lines) — the (f)/(g) discard-timing wording is QCLI-53's scope.
+
+Why: the merged text had to describe where campaign substate is actually legible without overstating it. An earlier draft overstated it in a way that would have been unsafe — see the settlement notes on the stage-6 rule and 0b63077.
+
+How verified: mandatory review gate over two passes (request_changes then approve), each acceptance criterion independently confirmed by the reviewer with named evidence; a prose sweep scoped to where substate is recorded rather than to the label names, re-run over every passage the fix pass touched; both enumerations re-run at settlement; and post-merge confirmation on dev that no committed task frontmatter carries either review-adjacent label. No automated gate covers .claude/skills/ in this repo and none was invented.
+<!-- SECTION:FINAL_SUMMARY:END -->
