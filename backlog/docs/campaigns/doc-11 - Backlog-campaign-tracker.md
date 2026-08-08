@@ -3,7 +3,7 @@ id: doc-11
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-08 01:30'
+updated_date: '2026-08-08 01:50'
 ---
 # Backlog campaign tracker
 
@@ -14,12 +14,11 @@ loop until the queue is empty or blocked → write handover.
 
 ## Frontier
 
-The ready set is ALWAYS recomputed live from `backlog task list --json` plus
-each candidate's `task view --json` at the start of every restore/wave — never
-trust a persisted "next wave" plan. Informational hint only: as of
-2026-08-07 after wave 2, **2 ready (QCLI-49, QCLI-50), 0 blocked, 0
-needs-human, 67 Done**. QCLI-49 and QCLI-50 sit in different clusters, so
-they are legally co-schedulable as a single final wave.
+**CAMPAIGN COMPLETE — 2026-08-07.** Queue empty: **69 tasks, all 69 `Done`**,
+0 in flight, 0 blocked, 0 needs-human. All six of this campaign's tasks
+(QCLI-45..QCLI-50) merged and settled across three waves. Nothing is left to
+recompute; a future restore should report completion and suggest `init` for a
+fresh queue. Do **not** archive the tasks themselves.
 
 ## Origin of this campaign
 
@@ -146,14 +145,27 @@ and settleable.**
 
 ## Proposed follow-ups
 
-All three of wave 1's proposals were approved by the owner at the wave-1 report
-and are now **filed**. Nothing is pending approval.
+Never created unprompted — this project requires owner approval before
+follow-up work is filed.
 
-| Task | From | Cluster |
-| ---- | ---- | ------- |
-| `QCLI-48` — Close the squash-merge `Refs` trailer-loss vector | QCLI-47 review | campaign-machinery |
-| `QCLI-49` — Define the commit step for the orchestrator's dispatch-marking writes | QCLI-47 worker + hit live in wave 1's merge queue | campaign-machinery |
-| `QCLI-50` — Settle whether tense-only edits fall under preserve-and-amend | QCLI-45 review | supersession-convention |
+**Filed earlier this campaign** (approved at the wave-1 report): QCLI-48,
+QCLI-49, QCLI-50 — all three now `Done`.
+
+**Awaiting owner approval (from wave 3, NOT filed):**
+
+- From QCLI-49's worker, as an out-of-scope discovery; independently verified
+  by the orchestrator via `grep -rn 'merge-pending' .claude/skills/backlog-handover/`:
+  **The skill never states where the `merge-pending` label is first applied.**
+  It appears in SKILL.md's campaign-stage state table as a lifecycle stage, and
+  in `reference/wave-loop.md` only as something discarded (section f) or removed
+  at settlement (section i) — no step anywhere adds it. So a stage the state
+  table treats as real is never entered by any documented action.
+  Pre-existing; unrelated to QCLI-49's commit-policy scope, which is why it was
+  correctly left alone rather than fixed opportunistically.
+  Proposed ACs: the skill states at the point of action where `merge-pending` is
+  applied (or that the stage is vestigial and should be removed from the state
+  table); the answer is consistent with QCLI-49's rule that mid-wave task-file
+  label edits are never committed on `<default>` while the branch is unmerged.
 
 ## Wave log
 
@@ -295,3 +307,68 @@ and are now **filed**. Nothing is pending approval.
   each branch already carried its own task file's `wave-2` label and could not
   conflict on it — which worked cleanly and is offered to QCLI-49 as evidence,
   not as a pre-empted decision.
+
+- 2026-08-07 — **wave 3: QCLI-49 + QCLI-50, both merged and settled `Done`.
+  Campaign complete.** Wave base pinned at `3633bc1`. One task per cluster
+  again — the maximum legal wave here. File sets verified disjoint after the
+  fact.
+
+  **A pending owner decision was found that the wave-1 handover had recorded as
+  absent** (see wave 2's entry): QCLI-50's AC #1 required a ruling never
+  obtained. Taken at the wave-2/3 restore before dispatch and recorded verbatim
+  in QCLI-50's own description (`a0ebdfc`).
+
+  - **QCLI-49** → merged `7c68170` (PR #64). Decision: commit the
+    dispatch-marking pass on `<default>` immediately, one `Refs:` trailer per
+    task in the pass, then re-pin every just-acquired worktree onto that commit
+    before dispatch. Sections d, f, g, i updated with runnable commands and
+    worked SHAs; (g) gained a clean-checkout precondition that holds by
+    construction. All 4 cited example commits independently verified against
+    real history. All 5 ACs confirmed.
+  - **QCLI-50** → merged `0f07c27` (PR #65), rebased onto `7c68170` and
+    re-verified. Owner ruling recorded in `CLAUDE.md`, narrowing the "or
+    re-tensing" wording to an explicit test; nothing restored in the evidence
+    record; reason recorded in both `CLAUDE.md` and the record itself. 0
+    deletion lines in `CLAUDE.md` and `docs/`. All 5 ACs confirmed.
+
+  **One `request_changes` cycle (QCLI-50), resolved.** The evidence-record note
+  located the re-tensed clause as "the paragraph preceding this note" — but that
+  block is the `LDOC-4` blockquote; the clause sits two blocks earlier. Fixed
+  with a structure-independent locator (paragraph named by its opening words) so
+  the reference survives future insertions. Notable: **both `lore` gates pass on
+  the defective version** — a wrong prose cross-reference is invisible to a link
+  checker, so review was the only thing that could catch it. Fixing pre-merge
+  mattered because once merged the note becomes permanent preserve-and-amend
+  text, and correcting it later would itself cost a dated amendment.
+
+  **Wave-level integration review earned its keep — it caught a real defect.**
+  QCLI-49 updated `wave-loop.md`'s trailer table (dispatch marking and in-flight
+  pointer recording became one commit *per pass*, multiple trailers) but left
+  SKILL.md's `**Commits**` row — the summary that explicitly points at that
+  table — still calling both single-task. Two files governing the trailer
+  convention, contradicting each other: precisely the "rule sitting next to
+  contradicting practice" defect QCLI-47 exists to fix. Structurally invisible
+  to both single-task reviews; only the cumulative-diff pass could see it. Fixed
+  as a narrow worker follow-up in `42bc64e` (PR #66) — three cases stated
+  explicitly, plus "has *one* directing task" → "has *a* directing task", with
+  both exceptions and QCLI-48's verification sentence preserved. No version bump:
+  a correction within QCLI-49's own `0.9.1-qcli.5` divergence.
+
+  **No trailer regression:** re-running QCLI-48's sweep after all wave-3 merges,
+  commits carrying `Refs:` text rose 204 → 208 while unparseable stayed
+  **unchanged at 36**. `lore check --strict` on `dev`: 47 files, 0 errors, 0
+  warnings.
+
+  **Return-path failures continued and are now characterized.** Across this
+  session: QCLI-48's worker completed fully but its return vanished; QCLI-46's,
+  QCLI-49's, QCLI-50's and both fix workers' returns arrived, several only long
+  after the work was already reviewed and merged from worktree state. The
+  reliable procedure is therefore: **never re-dispatch on a missing return —
+  verify the worktree's own git state, and review from that.** No dispatch was
+  wasted on the failure this session.
+
+- 2026-08-07 — **campaign closed.** All 6 tasks (QCLI-45..QCLI-50) `Done` across
+  3 waves; 6 PRs merged (#60, #61, #62, #63, #64, #65) plus one integration-fix
+  PR (#66). Zero needs-human items, zero unresolved escalations, zero campaign
+  branches or worktrees remaining, 6/6 pool slots free. One proposed follow-up
+  awaits owner approval (see above) and is deliberately unfiled.

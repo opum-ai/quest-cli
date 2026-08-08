@@ -1,10 +1,10 @@
 ---
 id: QCLI-49
 title: Define the commit step for the orchestrator's dispatch-marking writes
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-07 20:27'
-updated_date: '2026-08-08 01:40'
+updated_date: '2026-08-08 01:48'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
@@ -34,11 +34,11 @@ Note the interaction with `R4d`'s stated purpose: the marking exists so a crashe
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The skill states, at the point of action in `reference/wave-loop.md` section d, whether dispatch-marking and in-flight-pointer writes are committed — and if so, on which ref and with which trailer under QCLI-47 hybrid rule
-- [ ] #2 The merge queue (section g) carries an explicit precondition about the orchestrator own checkout being clean before rebasing a member, or an explicit statement that it cannot be dirty given the chosen answer
-- [ ] #3 The interaction with the worker own committed copy of the same task file is described, including what happens to it at merge
-- [ ] #4 The chosen answer addresses whether dispatch marking survives a crash, since R2/R3 reconciliation depends on it
-- [ ] #5 The rule is stated concretely enough that a future session does not re-derive it: a reader can tell what to run, in what order, without inference
+- [x] #1 The skill states, at the point of action in `reference/wave-loop.md` section d, whether dispatch-marking and in-flight-pointer writes are committed — and if so, on which ref and with which trailer under QCLI-47 hybrid rule
+- [x] #2 The merge queue (section g) carries an explicit precondition about the orchestrator own checkout being clean before rebasing a member, or an explicit statement that it cannot be dirty given the chosen answer
+- [x] #3 The interaction with the worker own committed copy of the same task file is described, including what happens to it at merge
+- [x] #4 The chosen answer addresses whether dispatch marking survives a crash, since R2/R3 reconciliation depends on it
+- [x] #5 The rule is stated concretely enough that a future session does not re-derive it: a reader can tell what to run, in what order, without inference
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -66,4 +66,32 @@ Crash survival: because the dispatch-marking commit lands on <default> synchrono
 Also updated: wave-loop.md section i's trailer table (dispatch marking + in-flight-pointer rows now describe multi-task-per-pass commits, matching actual practice/evidence, not one-commit-per-task); section g now states an explicit clean-checkout precondition before/during the merge walk, tied to (d)'s commit-immediately rule and (f)'s never-commit-mid-wave rule, and cites escalation.md's existing 'Dirty working tree at preflight' STOP row as the fallback if the precondition is ever violated. Bumped skill to 0.9.1-qcli.5 with a Provenance entry.
 
 Out-of-scope discovery (not fixed, recorded only): wave-loop.md never explicitly states WHERE/WHEN the merge-pending label is first applied (only its removal, at settlement and escalation, is shown). Section f's new mid-wave rule covers it generically ('and later merge-pending') but the missing origin step is a pre-existing gap unrelated to this task's scope (the commit policy, not the label-transition step list) — flagging for a future task rather than adding a new step myself, per this task's HARD CONSTRAINTS (stay in scope) and the campaign's no-unprompted-scope-expansion rule.
+
+SETTLEMENT (doc-11 wave 3, 2026-08-07). Merged as `7c68170` (PR #64), plus integration-review follow-up `42bc64e` (PR #66).
+
+Review ran in the skill's degraded mode — an orchestrator-run adversarial pass.
+
+Independently verified rather than accepted from the implementer's report — this task's prose cites specific commits as worked examples, so each claim was checked against real history:
+- `fe92535` → two `Refs:` trailers (QCLI-46, QCLI-48) ✔
+- `3633bc1` → two `Refs:` trailers (QCLI-49, QCLI-50) ✔
+- `61d48af` → touches ONLY `backlog/docs/campaigns/…`, confirming the scope note that in-flight pointer recording writes the campaign doc and never the task file ✔
+- `342e76d` → single trailer ✔
+
+The decision was not a rubber-stamp of the orchestrator's supplied evidence. It distinguished two cases the evidence had run together: dispatch marking (runs *before* any worker commit exists, so re-pinning an empty worktree costs nothing) versus mid-wave `in-review`/`merge-pending` transitions (run *after* the worker has committed its own copy, so no empty worktree remains to re-pin onto → never committed, discarded, reconstructed at settlement). It also added a scope note separating both from campaign-doc in-flight writes.
+
+WAVE-LEVEL INTEGRATION FINDING (found and fixed this wave). Updating `wave-loop.md`'s trailer table left SKILL.md's `**Commits**` row — the summary that explicitly points at that table — still describing dispatch marking and in-flight pointer recording as single-task commits. Two files governing the trailer convention, contradicting each other: the exact defect QCLI-47 exists to prevent. Neither single-task review could see it; only the cumulative-diff pass was positioned to. Fixed in `42bc64e`: the row now states three cases (worker/implementation; settlement, single task; dispatch-marking / in-flight-pointer, one commit per pass with one trailer per task), and corrects 'has one directing task' to 'has a directing task'. Both no-trailer exceptions, QCLI-48's verification sentence, and the section-i pointer were preserved verbatim; no version bump, since this is a correction within this task's own `0.9.1-qcli.5` divergence.
+
+OUT-OF-SCOPE DISCOVERY (verified, deliberately NOT acted on, surfaced to the owner): the skill never states where the `merge-pending` label is first applied. It appears in SKILL.md's state table as a lifecycle stage, and in `wave-loop.md` only as something discarded (section f) or removed at settlement — no step ever adds it. Confirmed by `grep -rn 'merge-pending' .claude/skills/backlog-handover/`. Pre-existing and unrelated to this task's commit-policy scope. Per this project's rule against creating follow-up work unprompted, it is proposed to the owner rather than filed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Settled the open question in `reference/wave-loop.md` sections d and i: with `auto_commit: false`, does the orchestrator commit its own dispatch-marking task-file writes when each worker independently commits its own copy of the same file? The gap broke doc-11 wave 1's merge queue outright (`error: cannot rebase: You have unstaged changes`).
+
+Decision: **commit the dispatch-marking pass on `<default>` immediately**, one `Refs: QCLI-<N>` trailer per task marked in that pass, then re-pin every just-acquired worktree onto that commit before dispatching any worker — safe only there, because no worker commit yet exists to lose. The re-pin is what makes the marking a shared ancestor, so a worker's later commit to its own task file layers on top rather than diverging, and the merge-queue rebase never conflicts on the label lines. This is not a fresh call: doc-11 waves 2 and 3 exercised it twice (`fe92535`, `3633bc1`) with zero rebase conflicts, and all four commits the write-up cites as worked examples were independently verified against real history.
+
+A sharper second root cause was identified and covered: mid-wave `in-review`/`merge-pending` edits run after a worker has already committed leave no empty worktree to re-pin onto, so that class is never committed on `<default>` at all — run, verified label/`updated_date`-only, discarded before rebase, reconstructed at settlement. Sections d, f, g and i now state both rules with runnable commands and worked SHAs, and (g) carries the resulting clean-checkout precondition, which holds by construction rather than by discipline. Crash survival is addressed directly: the marking is a real commit visible in `git log <default>` even unpushed, not a working-tree edit a crash discards.
+
+Skill at `0.9.1-qcli.5`. Merged as `7c68170` (PR #64); a wave-level integration review then caught SKILL.md's summary row still contradicting the updated table, fixed in `42bc64e` (PR #66).
+<!-- SECTION:FINAL_SUMMARY:END -->
