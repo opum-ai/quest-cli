@@ -3,7 +3,7 @@ id: doc-14
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-08 21:44'
-updated_date: '2026-08-08 21:45'
+updated_date: '2026-08-08 22:45'
 ---
 # Backlog campaign tracker
 
@@ -68,8 +68,14 @@ guarantee that any task lands in any particular wave.
 ## Frontier
 
 The ready set is ALWAYS recomputed live at the start of every restore/wave —
-never trust a persisted "next wave" plan. Informational hint only: as of init
-(2026-08-08), **5 queued, 0 in flight, 0 blocked, 0 needs-human**.
+never trust a persisted "next wave" plan. Informational hint only: as of wave-1
+settlement (2026-08-08), **2 queued (QCLI-58, QCLI-59), 0 in flight, 0 blocked,
+0 needs-human**.
+
+**The gate is confirmed open, and the Phase 0 recheck is discharged** (QCLI-56,
+`1962d2a`). QCLI-59's precondition is therefore satisfied — but see the ruling
+note under "Needs a human", because a satisfied precondition is not an
+authorization.
 
 ## Dependency and conflict structure
 
@@ -131,6 +137,9 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
+_Cleared at wave-1 settlement. All three worktrees returned, all branches deleted
+local and remote, zero leases held._
+
 ## Needs a human / blocked
 
 None queued. Two known items are out of scope because they belong to other
@@ -145,13 +154,105 @@ One item inside the queue carries a decision that is the owner's, not an agent's
 **QCLI-58 prepares the D2 runtime comparison but does not decide it.** The ruling
 is the user's, and the task is written to stop short of it.
 
+**Ruling needed before QCLI-59 runs (added at wave-1 settlement).** QCLI-56
+discharged the Phase 0 recheck and recorded the owner reporting the gate open
+with all four predicate items satisfied, in the owner's own "pass/fail"
+vocabulary. That satisfies QCLI-59's stated precondition. It does **not** by
+itself authorize amending `CLAUDE.md`'s prohibition, and both authorities say so
+in terms:
+
+- `lore-doc`'s own gate Spec: opening the gate "removes the *Lore-owned*
+  dependency and nothing else … A worker who reads this section as authorization
+  to start writing Quest product source has misread it."
+- This repository's evidence record: "An open Lore gate is not activation …
+  every gate this repository holds in its own right — clean-room admission,
+  research completeness, and the component activation checks in the delivery
+  roadmap's Phase 0 — is untouched and still owed."
+
+QCLI-56's reviewer drew the distinction that governs here: **the Pass question is
+answerable from evidence; "may implementation begin" is not.** Surfaced to the
+user at R6 rather than decided by the orchestrator.
+
 ## Proposed follow-ups (awaiting user approval)
 
 Never created unprompted — this project requires approval before follow-up work
 is filed.
 
-_(none yet — populated by wave-level integration review)_
+Two carried from wave 1's reviews, neither filed:
+
+1. **`reference/templates.md` should tell workers not to run `lore sync`.** QCLI-56's
+   first worker ran it inside a task branch — the QCLI-43 form violation. Effect was
+   benign (the recorded SHA was already a `dev` ancestor; a 112-SHA sweep found 0
+   non-ancestors), but the root cause is a real prompt gap: `templates.md` contains
+   zero occurrences of "lore", while `backlog/config.yml` sets `auto_commit: false`,
+   making `lore sync`'s auto-commit the advertised way to persist Backlog writes.
+   The fix pass adopted the correct behaviour unprompted (`10875cc` is a manually
+   staged, trailered backlog commit), which is the shape the template should teach.
+2. **A shell-portability nit in the open component decisions register.** The
+   `npm view backlog.md time['1.49.3']` command added by QCLI-57 is correct under
+   its `bash` fence but zsh glob-expands the brackets and returns "no matches
+   found," which reads as "the version is gone." Quoting the argument fixes both.
+   QCLI-57's reviewer explicitly judged this not worth a review pass.
+
+Also recorded, deliberately **not** proposed: QCLI-56's stale frontmatter
+(`summary:`/`timestamp:` still say 2026-08-05). Its reviewer declined to file a
+follow-up, reasoning that under preserve-and-amend the follow-up would itself
+need a dated amendment plus a QCLI-44 citation, for a metadata line that
+misstates no observed fact. Fold into a general docs-metadata sweep if one ever
+runs.
 
 ## Wave log
 
-_(none yet)_
+### Wave 1 — QCLI-56, QCLI-57, QCLI-60 — settled 2026-08-08
+
+**The first genuinely parallel wave in this campaign series.** Three tasks, three
+disjoint clusters, three worktrees, implemented concurrently and reviewed
+pipelined per completed implementer rather than behind a wave-wide barrier. Base
+`0f2c537`; marking commit `b332669`.
+
+| Task | Merged | Review passes | Outcome |
+| --- | --- | --- | --- |
+| QCLI-56 | `1962d2a` (PR #70) | `request_changes` → `approve` | 7/7 ACs |
+| QCLI-57 | `5c24b48` (PR #71) | `request_changes` → `approve` | 6/6 ACs |
+| QCLI-60 | `49bcae9` (PR #72) | `request_changes` ×2 → `approve` | 9/9 ACs |
+
+**The campaign's gating result.** QCLI-56 discharged the Phase 0 recheck. The
+owner reports the gate **open** — "All four predicate items are satisfied at one
+live inspection boundary", `LDOC-4` Done — and the vocabulary gap between that
+and the clause's literal "Pass" was closed from the owner's *own* Authority table
+("Receive a **pass/fail** gate result"), so the record reports a Pass without this
+repository computing one. Preserve-and-amend was proved mechanically: `168 0`,
+zero deletions, lines 1–293 byte-identical to `dev`.
+
+**Every task needed its review.** Three findings that would each have shipped a
+falsehood or a hazard:
+
+- QCLI-60's recovery procedure proved *class membership* and then ran
+  `reset --hard`. For a mid-wave in-flight-pointer commit — which lands after the
+  worktree re-pin and so rides no branch into the squash — that would have
+  destroyed the campaign doc's in-flight table, the very crash-recovery signal R2
+  depends on.
+- QCLI-57 classified `time.modified` as an immutable anchor. It is a moving
+  reference: the packument's last-modified time, 328ms from `1.49.3`'s actual
+  publish timestamp and advancing on any later package write. The Spec lists "a
+  release timestamp" among its immutable *examples*, so the label was applied
+  without testing the behaviour the category is defined by — in the one task
+  devoted to that convention.
+- QCLI-56 stated `lore-cli` had "advanced twice" when it had advanced 25 commits
+  across 6 merged PRs. A wrong number in a record whose stated value is fidelity —
+  and one that a default squash body would have carried onto `dev` permanently,
+  caught by the reviewer as a merge-time hazard and prevented by hand-authoring
+  the squash message.
+
+**The gate corrected itself, twice.** QCLI-60's implementer overruled the
+reviewer's proposed content-presence check, showing the suggested path-diff
+false-positives on the dispatch-marking case; the reviewer verified the objection
+against real history and adopted the implementer's version over its own. QCLI-56's
+fixer declined a reviewer-suggested frontmatter edit after discovering the
+document asserts "nothing above is edited or re-tensed" about itself — it made
+the edit, watched the zero-deletion invariant break, and reverted.
+
+**QCLI-60's own fix was exercised while fixing it.** The push rule was applied by
+hand throughout this wave, because a size-3 wave is exactly where the unfixed
+defect bites. All three members merged with every `--ff-only` sync landing as a
+clean fast-forward.

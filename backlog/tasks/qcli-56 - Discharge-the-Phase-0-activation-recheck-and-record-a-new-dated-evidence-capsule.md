@@ -3,10 +3,10 @@ id: QCLI-56
 title: >-
   Discharge the Phase 0 activation recheck and record a new dated evidence
   capsule
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-08 21:41'
-updated_date: '2026-08-08 22:27'
+updated_date: '2026-08-08 22:42'
 labels:
   - campaign
   - 'cluster:gate'
@@ -47,13 +47,13 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 init, as the gating
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every command in the record's existing Evidence consumed table is re-run live within one narrow, explicitly timestamped inspection boundary, with each command's literal output recorded
-- [ ] #2 lore-doc's current gate-result statement is quoted verbatim from its live Spec at a named HEAD, and LDOC-4's live status is recorded, both read as the owner's conclusion and never computed here
-- [ ] #3 The new capsule is appended as a new dated section and the 2026-08-05 capsule is preserved intact, per the preserve-and-amend ruling governing evidence records (CLAUDE.md, QCLI-45)
-- [ ] #4 The record states whether the four-clause predicate is reported Pass by its owner at this boundary, sourced only to the owner's own words, and computes no gate result of its own
-- [ ] #5 Every moving reference carries the re-verify qualifier and every immutable anchor is stated flat, per the research programme Spec's moving-vs-immutable convention
-- [ ] #6 Any input that changed since the 2026-08-05 capsule is recorded as a new dated fact for lore-doc to rule on, explicitly not acted on here
-- [ ] #7 No product source, package metadata, runtime dependency, executable scaffolding, or install instruction is added by this task
+- [x] #1 Every command in the record's existing Evidence consumed table is re-run live within one narrow, explicitly timestamped inspection boundary, with each command's literal output recorded
+- [x] #2 lore-doc's current gate-result statement is quoted verbatim from its live Spec at a named HEAD, and LDOC-4's live status is recorded, both read as the owner's conclusion and never computed here
+- [x] #3 The new capsule is appended as a new dated section and the 2026-08-05 capsule is preserved intact, per the preserve-and-amend ruling governing evidence records (CLAUDE.md, QCLI-45)
+- [x] #4 The record states whether the four-clause predicate is reported Pass by its owner at this boundary, sourced only to the owner's own words, and computes no gate result of its own
+- [x] #5 Every moving reference carries the re-verify qualifier and every immutable anchor is stated flat, per the research programme Spec's moving-vs-immutable convention
+- [x] #6 Any input that changed since the 2026-08-05 capsule is recorded as a new dated fact for lore-doc to rule on, explicitly not acted on here
+- [x] #7 No product source, package metadata, runtime dependency, executable scaffolding, or install instruction is added by this task
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -109,6 +109,22 @@ Minor fixes: added "(observed 2026-08-08; moving reference, re-verify before rel
 Frontmatter (summary/timestamp, lines 12-13): considered and declined. On the record-vs-current test alone these read as document metadata rather than a preserved dated reading, so QCLI-45's preserve-and-amend would not obviously bar updating them. But this document's own 2026-08-08 capsule section states about itself "nothing above is edited or re-tensed," and the frontmatter is above that section and already existed verbatim on dev before this branch -- editing it in place would (a) make that self-description false and (b) introduce the branch's first real deletion relative to dev (git diff dev --numstat would go from 168/0 to 152/1-ish), breaking the pure-append invariant this fix pass was required to hold. Left unchanged; the discrepancy between the frontmatter's 2026-08-05 date and the document's now-dual-dated content is cosmetic and does not misstate any observed fact.
 
 Verification: lore check --strict clean (47 files, 0 errors, 0 warnings) after all edits. git diff dev --numstat on the evidence record (dev vs current working tree, i.e. what dev...HEAD will read once committed): 168 insertions, 0 deletions -- pure append preserved. Neither peer repo (lore-doc, lore-cli) was mutated: both read via fetch-and-inspect only, lore-cli still parked on its unrelated branch as found. No lore sync run.
+
+## Settlement (doc-14 wave 1, orchestrator)
+
+Merged to \`dev\` as squash commit \`1962d2a\` (PR #70). Review: two passes, \`request_changes\` then \`approve\`, all seven ACs independently confirmed at tip \`e4e351e\`. All seven checked here on that evidence.
+
+**The gate result, as the owner reports it.** At \`lore-doc\` HEAD \`101f9bb39eacd0e2e73df1bb4fa78db04f0a5896\` — verified by the reviewer against \`git ls-remote\`, not only local refs — the gate Spec states "Gate result: OPEN, accepted 2026-08-06 — All four predicate items are satisfied at one live inspection boundary," and \`LDOC-4\` is \`Done\` with all six ACs checked. Both quotations were confirmed byte-identical under whitespace normalization.
+
+**How the "Pass" vocabulary question was settled without this repository computing anything.** The recheck clause asks for confirmation that the predicate reports "Pass"; the owner's words are "OPEN" and "satisfied." The first worker declined to translate and flagged the gap — the right instinct, but one step short. The reviewer found the evidence that closes it in the owner's own document: the same Spec's Authority table (\`:41\`) defines this repository's entitlement as "Receive a **pass/fail** gate result and versioned Lore contract." "pass/fail" is therefore the gate owner's own term for this result. The capsule now records that, quoted, adding no inference of its own.
+
+**The boundary this does not cross, preserved verbatim.** \`lore-doc\`'s own Spec: opening the gate "removes the *Lore-owned* dependency and nothing else … A worker who reads this section as authorization to start writing Quest product source has misread it." This record states that every gate this repository holds in its own right remains untouched and still owed.
+
+**Blocking finding corrected.** The first capsule claimed \`lore-cli\` had "advanced twice" past the boundary \`lore-doc\` cited. Verified independently by the orchestrator and again by the fixer: 25 commits, 6 merge commits, first-parent distance 6 (\`git rev-list --count 87b6d876110a..origin/dev\`, \`--merges\`, \`--first-parent\`) — and \`git log --oneline --merges | grep -c "Merge pull request"\` = 6, so "6 merged pull requests" is precise rather than approximate. A wrong number in a record whose entire stated value is fidelity. Commit \`625136c\`'s message still carries the wrong figure and could not be amended without a force-push; the reviewer flagged that a default squash body would have carried "twice" onto \`dev\` permanently, so the squash message was hand-authored with the corrected counts. Verified post-merge: \`1962d2a\`'s message contains no "twice".
+
+**Preserve-and-amend verified mechanically, not asserted.** \`git diff dev...HEAD --numstat\` on the evidence record: \`168 0\` — zero deletions. The reviewer additionally proved lines 1–293 byte-identical to \`dev\`, so the 2026-08-05 capsule and the QCLI-42/44/45/46/50 amendments are untouched.
+
+**Process notes.** The first worker ran \`lore sync\` inside the task branch — a form violation of the QCLI-43 constraint that syncs run only at settlement on \`<default>\`. Effect was benign (the recorded SHA \`349f0f9\` is already a \`dev\` ancestor; a 112-SHA sweep of \`docs/log.md\` found 0 non-ancestors), and nothing was undone. Root cause is a prompt gap: \`reference/templates.md\` contains no \`lore sync\` prohibition while \`backlog/config.yml\` sets \`auto_commit: false\`, making sync the advertised way to persist Backlog writes. The fix pass adopted the corrected behaviour unprompted — \`10875cc\` is a manually staged, properly trailered backlog commit. Both peer repositories were verified unmutated across both review passes, with \`lore-cli\` deliberately never checked out (it is parked on another session's branch) and all facts cited against \`origin/dev\`.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -120,3 +136,17 @@ created: 2026-08-08 21:59
 Flagging for reviewer weight, not acted on in this task: lore-doc's LDOC-4 is now Done with the gate reported OPEN by the owner (2026-08-06) -- a much bigger change than the campaign's doc-14 init framing anticipated (it assumed LDOC-4 was still To Do / gate closed, per the campaign init's own snapshot). This may affect how downstream doc-14 wave tasks are scoped, since the Lore-owned precondition is now cleared per the owner's own words (though this repo's own Phase 0 gates -- clean-room admission, research completeness, component activation checks -- remain separately owed and untouched by this task). Also: lore-cli's local clone at /Volumes/external/repos/lore-cli is parked on an unrelated branch (chore/lcli-315-3-post-merge-reconciliation), not dev; and lore-cli's origin/dev has advanced twice past the commit lore-doc's own gate decision cites, with no new tag or publish. Both recorded as dated facts in the appended capsule, not resolved here.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Discharged the activation-gate evidence record's mandatory recheck clause and appended a dated 2026-08-08 capsule.
+
+What changed: every command in the record's Evidence-consumed table was re-run live within one narrow, timestamped boundary (21:47:25Z-21:49:55Z, corroborated by both peer clones' FETCH_HEAD mtimes), and the result appended as a new dated section. The capsule records what the gate's owner itself reports -- gate OPEN, all four predicate items satisfied, LDOC-4 Done -- quoted verbatim at a HEAD verified against the remote, together with the owner's own Authority-table term "pass/fail gate result" that makes those words a reported Pass rather than a translation performed here. Changed inputs since 2026-08-05 (LDOC-4 To Do to Done; lore-cli advanced 25 commits across 6 merged PRs; LCLI-278 still open; @opum-ai/quest still E404) are recorded as new dated facts for lore-doc to rule on, not acted on.
+
+Why: the recheck clause was owed and its pins had moved twice; a dated snapshot cannot substitute for the live check, and this repository may not compute a gate result of its own.
+
+What it does not do: an open Lore gate is not Quest activation. The owner's boundary language is preserved verbatim, and every gate this repository holds in its own right remains owed. No product source, package metadata, runtime dependency, or scaffolding was added.
+
+How verified: mandatory review over two passes (request_changes then approve), all seven criteria independently confirmed -- both owner quotations checked byte-identical, the HEAD verified via git ls-remote rather than local refs, preserve-and-amend proved mechanically at 168 insertions and 0 deletions with lines 1-293 byte-identical to dev, a full moving-vs-immutable audit finding no misclassification, lore check --strict clean at 47 files, and both peer repositories confirmed unmutated.
+<!-- SECTION:FINAL_SUMMARY:END -->

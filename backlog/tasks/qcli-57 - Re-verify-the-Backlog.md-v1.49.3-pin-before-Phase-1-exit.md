@@ -1,10 +1,10 @@
 ---
 id: QCLI-57
 title: Re-verify the Backlog.md v1.49.3 pin before Phase 1 exit
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-08 22:02'
+updated_date: '2026-08-08 22:43'
 labels:
   - campaign
   - 'cluster:decisions'
@@ -41,12 +41,12 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 init, as Phase 1's 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 npm view backlog.md version, its dist-tags.latest, and its time.modified are re-run live and recorded with the observation date and literal output
-- [ ] #2 The observed result is compared explicitly against the recorded v1.49.3 pin, and the comparison's outcome is stated whether or not it changed
-- [ ] #3 The migration fidelity contract's recheck obligation is discharged with the new dated observation, or its continuing obligation is restated with reasoning if it cannot be
-- [ ] #4 If the pin moved, the consequence for the FR-MIG requirements resting on that build is named explicitly and the task does not silently re-pin; if it did not move, that is recorded as a positive discharge rather than omitted
-- [ ] #5 Moving references carry the re-verify qualifier and immutable anchors are stated flat, per the research programme Spec's convention
-- [ ] #6 Any edit to the open component decisions register is confined to this pin's recorded status; no other decision entry is altered
+- [x] #1 npm view backlog.md version, its dist-tags.latest, and its time.modified are re-run live and recorded with the observation date and literal output
+- [x] #2 The observed result is compared explicitly against the recorded v1.49.3 pin, and the comparison's outcome is stated whether or not it changed
+- [x] #3 The migration fidelity contract's recheck obligation is discharged with the new dated observation, or its continuing obligation is restated with reasoning if it cannot be
+- [x] #4 If the pin moved, the consequence for the FR-MIG requirements resting on that build is named explicitly and the task does not silently re-pin; if it did not move, that is recorded as a positive discharge rather than omitted
+- [x] #5 Moving references carry the re-verify qualifier and immutable anchors are stated flat, per the research programme Spec's convention
+- [x] #6 Any edit to the open component decisions register is confined to this pin's recorded status; no other decision entry is altered
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -159,4 +159,34 @@ PATH, /Users/jdnewhouse/.bun/bin/backlog, shared by every worktree).
 The 2026-08-05 block (verified state, and QCLI-17's correction note above it)
 is untouched -- out of this pin's scope and explicitly out of bounds per the
 Spec's "Scope of the convention" disclaimer against retroactive rewrite.
+
+## Settlement (doc-14 wave 1, orchestrator)
+
+Merged to \`dev\` as squash commit \`5c24b48\` (PR #71). Review: two passes, \`request_changes\` then \`approve\`, all six ACs independently confirmed at tip \`eabd779\`.
+
+**Result: the pin has not moved.** \`npm view backlog.md version\` and \`dist-tags.latest\` both \`1.49.3\`; \`time.modified\` \`2026-08-03T21:30:58.510Z\`; local \`backlog --version\` \`1.49.3\`. Reproduced independently by the reviewer at 21:54:18Z, seven minutes after the worker's 21:47:45Z observation — all four values identical. Phase 1's last standing Quest-owned exit obligation is discharged.
+
+**Blocking finding, and why it mattered more than a typo.** \`time.modified\` was classified as an *immutable anchor* and stated flat. It is a *moving reference*: it is the packument's last-modified timestamp, not \`1.49.3\`'s publish time — verified empirically, \`time.modified\` = \`…58.510Z\` versus \`time["1.49.3"]\` = \`…58.182Z\`, 328ms apart across a 227-version packument — and it advances on any later write to the package (publish, deprecate, unpublish, dist-tag change, owner change). The justifying sentence named its own mutator.
+
+The reason it slipped through is instructive: the research programme Spec lists "a release timestamp" among its immutable-anchor *examples*, so the citation was textually defensible. The error was applying the label without testing the behaviour the category is actually defined by — "can it change on the next observation without a document edit?" That is precisely the failure mode this convention exists to prevent, in the one task devoted to exercising it.
+
+The fix corrected the semantics rather than merely appending a qualifier, and added \`time['1.49.3']\` as the genuine flat anchor so the section retains a real immutable reference. The reviewer confirmed that value is immutable for a reason worth recording: npm forbids reusing a version number after unpublish, so no future event can produce a different value for that key.
+
+**Scope boundary held.** The 2026-08-05 block carries the same flat treatment and was deliberately *not* retroactively corrected — the Spec's "Scope of the convention" disclaims retroactive rewrite and AC#6 confines edits to this pin's recorded status. The reviewer flagged over-correcting there as the likely breach; hunk boundaries confirm it did not occur.
+
+**Second finding.** The obligation was quoted as "before this phase's exit, or any freeze, whichever comes first" and attributed to the fidelity contract. That string appears only in the delivery roadmap's QCLI-17 correction note; the contract's actual clause reads "Before relying on any table below, re-run…". The obligation was real; the quotation marks misattributed. Now credited to the roadmap for the *wording* while the trigger and contract clause remain what *oblige* the recheck — a division the reviewer judged more accurate than a bare fix.
+
+**Known nit, deliberately not fixed.** The added \`npm view backlog.md time['1.49.3']\` is shell-dependent: correct under the \`bash\` fence as labelled, but zsh glob-expands the brackets and returns "no matches found," which a future reader could misread as the version having disappeared. Quoting the argument fixes it in both shells. Recorded here rather than spent on a third review pass; fold into any later touch of this section.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Re-verified the Backlog.md v1.49.3 pin and discharged Phase 1's last standing Quest-owned exit obligation.
+
+What changed: the migration fidelity contract's recheck clause was re-run live (npm view backlog.md version, dist-tags.latest, time.modified, plus the locally installed backlog --version) and the result recorded as a dated block appended to the open component decisions register. The pin has not moved from 1.49.3, and that is recorded as a positive, dated discharge rather than omitted for being unsurprising -- an unchanged pin still retires a real obligation. The block also draws the distinction that it retires the obligation as it stood at Phase 1 exit, not the recheck clause itself, which remains in force.
+
+Why: every FR-MIG requirement rests on findings from that build, and the contract obliges re-checking before Phase 1 exit or any freeze, whichever comes first.
+
+How verified: mandatory review over two passes (request_changes then approve), all six criteria independently confirmed, with every registry value reproduced by the reviewer seven minutes after the worker's observation. The blocking finding was a misclassification of time.modified as an immutable anchor when it is a moving reference -- disproved empirically (time.modified differs from time["1.49.3"] by 328ms and advances on any later package write) and corrected, with time['1.49.3'] added as the genuine flat anchor. The 2026-08-05 block carrying the same treatment was deliberately left unrewritten per the Spec's disclaimer of retroactive rewrites. lore check --strict clean at 47 files; the fidelity contract itself was never edited, so no silent re-pin occurred.
+<!-- SECTION:FINAL_SUMMARY:END -->

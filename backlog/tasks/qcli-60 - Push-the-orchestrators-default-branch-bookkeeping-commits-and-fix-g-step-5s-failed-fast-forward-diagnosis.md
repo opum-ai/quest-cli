@@ -3,10 +3,10 @@ id: QCLI-60
 title: >-
   Push the orchestrator's default-branch bookkeeping commits and fix (g) step
   5's failed-fast-forward diagnosis
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-08 21:43'
-updated_date: '2026-08-08 22:32'
+updated_date: '2026-08-08 22:44'
 labels:
   - campaign
   - 'cluster:skill-docs'
@@ -65,15 +65,15 @@ Surfaced by doc-13 wave 2's integration review, which hit the failure live at me
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 reference/wave-loop.md (d) step 4 states whether the dispatch-marking commit is pushed to origin/<default> before any worker is dispatched, with reasoning recorded and the no-remote path named
-- [ ] #2 The same decision is applied to the in-flight-pointer-recording commit, or its exemption is stated with reasoning — these two are the only orchestrator-authored <default> commits landing between the wave base and (g)'s walk
-- [ ] #3 If a push is mandated, the procedure states what to do when it is rejected as non-fast-forward, rather than leaving it to improvisation
-- [ ] #4 (g) step 2's claim that the re-pinned marking commit is already an ancestor of origin/<default> is either made true by construction and cross-referenced to what (d) step 4 mandates, or corrected to state the conditions under which it holds
-- [ ] #5 (g) step 5's failed-fast-forward text names the actual cause class (an unpushed local <default> commit folded into a squash-merge) instead of attributing it solely to the clean-checkout precondition, and retains the bug-in-the-loop instruction
-- [ ] #6 A documented recovery exists for an already-diverged <default>, including the check that proves no content was lost before any history-discarding command runs
-- [ ] #7 reference/escalation.md's error-handling table carries a row for a failed fast-forward at (g) step 5, consistent with the above
-- [ ] #8 SKILL.md's Provenance records the change per repo convention, and the version is bumped or the absence explicitly justified
-- [ ] #9 doc-13 wave 2 is cited as worked evidence, naming e532f22, ed3959b, PR #69, and the contrasting clean wave-1 case
+- [x] #1 reference/wave-loop.md (d) step 4 states whether the dispatch-marking commit is pushed to origin/<default> before any worker is dispatched, with reasoning recorded and the no-remote path named
+- [x] #2 The same decision is applied to the in-flight-pointer-recording commit, or its exemption is stated with reasoning — these two are the only orchestrator-authored <default> commits landing between the wave base and (g)'s walk
+- [x] #3 If a push is mandated, the procedure states what to do when it is rejected as non-fast-forward, rather than leaving it to improvisation
+- [x] #4 (g) step 2's claim that the re-pinned marking commit is already an ancestor of origin/<default> is either made true by construction and cross-referenced to what (d) step 4 mandates, or corrected to state the conditions under which it holds
+- [x] #5 (g) step 5's failed-fast-forward text names the actual cause class (an unpushed local <default> commit folded into a squash-merge) instead of attributing it solely to the clean-checkout precondition, and retains the bug-in-the-loop instruction
+- [x] #6 A documented recovery exists for an already-diverged <default>, including the check that proves no content was lost before any history-discarding command runs
+- [x] #7 reference/escalation.md's error-handling table carries a row for a failed fast-forward at (g) step 5, consistent with the above
+- [x] #8 SKILL.md's Provenance records the change per repo convention, and the version is bumped or the absence explicitly justified
+- [x] #9 doc-13 wave 2 is cited as worked evidence, naming e532f22, ed3959b, PR #69, and the contrasting clean wave-1 case
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -165,4 +165,38 @@ FIX 3 (LOW, taken): two related overclaims closed. (a) wave-loop.md:202 said the
 SWEEP: unchanged. `grep -c -i -E 'already an ancestor|ff-only|fast-forward|clean-checkout precondition|diverg|even if the process dies' SKILL.md reference/*.md` still totals 29 (SKILL.md 12, wave-loop.md 15, escalation.md 2, templates.md 0) -- identical to fix-pass-1's final tally. None of this pass's edits added, removed, or altered a line matching the search vocabulary; verified by re-running the sweep after editing and diffing per-file counts against the fix-pass-1 notes.
 
 Confirmed: `git diff --stat dev...HEAD -- docs/` is empty (docs/ untouched). Version frontmatter unchanged at "0.9.1-qcli.9" (not touched this pass; SKILL.md was not edited -- its Provenance text summarizes the recovery in prose and does not reproduce the contradictory sentence verbatim, so no SKILL.md change was needed to close this finding). Only reference/wave-loop.md and reference/escalation.md touched this pass.
+
+## Settlement (doc-14 wave 1, orchestrator)
+
+Merged to \`dev\` as squash commit \`49bcae9\` (PR #72). Review: three passes — \`request_changes\`, \`request_changes\`, \`approve\` — all nine ACs confirmed on independently verified evidence at tip \`587a1d7\`. The fix-cycle budget (2 retries) was used in full but not exhausted into an escalation.
+
+**The HIGH finding, and why it was the most consequential defect this campaign found.** The first recovery draft proved *class membership* and then ran \`git reset --hard\`. That rationale — "the diverged content is already folded into the squash" — holds only for the dispatch-marking commit, which rides the worker branches via (d) step 5's re-pin. It is false for a **mid-wave or R3-recovery in-flight-pointer commit**: that commit lands on \`<default>\` *after* the re-pin, so no worker branch carries it, and since branches rebase onto \`origin/<default>\` at (g) step 2, a failed push means the squash cannot contain it either. \`reset --hard\` would have destroyed the campaign doc's in-flight table — the exact crash-recovery substate signal SKILL.md R2 step 5 depends on. A wrong rule in a procedure that only runs after something has already gone wrong.
+
+The open-ended "or a commit predating QCLI-60" clause had the same hole: age says nothing about whether content reached the remote.
+
+**The implementer overruled the reviewer's proposed fix, and was right.** The reviewer suggested proving content presence with a path-scoped \`git diff\`. That false-positives on the dispatch-marking case: the marking commit touches the member's task file and the worker's own commit edits that same file, so the diff returns non-empty even though the content genuinely rode the squash — routing a safe commit into the cherry-pick path. \`git merge-base --is-ancestor <sha> <branch>\` is exact, with the path-diff retained as a fallback only when the branch ref is gone. The reviewer verified the objection against real history (\`e532f22\` and PR #69's own \`6008456\` touch the same file) and adopted the implementer's version over its own.
+
+**The MEDIUM finding.** Fix pass 1 introduced a contradiction at its own decision point: one sentence escalated on unproven content while another preserved it via cherry-pick — same input, opposite instructions — so an orchestrator obeying the first would halt instead of preserving, defeating the fix. Compounding it, the "failing both checks" phrasing described a state that could not occur, since the fallback runs *instead of* the ancestor check. Corrected to one rule with three disjoint branches: class-check failure → escalate; class pass with content unproven → preserve via cherry-pick; class pass with content proven → discard. The reviewer read both files side by side and confirmed the partition has no overlap and no gap.
+
+**Also closed:** the replayed-SHA dead end. If a concurrent push moves \`origin/<default>\` between (d) step 4 and (g) step 2, the rebase replays the marking commit under a new SHA, the ancestor check returns false for content that *did* reach the remote, and the resulting cherry-pick comes back empty — neither the conflict the text anticipated nor a success. Now handled as \`--skip\`, treat as the discard case, continue.
+
+**The wave-1 account corrected the task description.** This task was filed saying doc-13 wave 1 escaped the bug because the orchestrator pushed \`dev\` incidentally. That is imprecise: \`fe0e46f\` was also never pushed on its own — \`82fca71\`, wave 1's in-flight-pointer commit stacked 23 seconds later, carried it. The reviewer's corroboration is the cleanest form: PR #68 does not list \`fe0e46f\` (already in base), PR #69 does list \`e532f22\` (not in base). The rescue was structural luck about commit ordering, not the orchestrator remembering to push. The merged Provenance records the accurate version.
+
+**Sweep reproduced.** 12 before against \`dev:\`, 29 after, decomposing 9 unrelated + 2 targets still matching + 18 new — the reviewer classified all 29 lines individually rather than checking totals. The decomposition was itself corrected once during review, after fix pass 1 stated 13 new when the corrected (g) step 2 text had dropped out of the hit set.
+
+**Verified in use during this very wave.** The fix was applied by hand throughout doc-14 wave 1 (\`dev\` pushed immediately after the dispatch-marking commit \`b332669\`), and all three members merged with every \`--ff-only\` sync landing as a clean fast-forward — the failure mode this task closes did not recur at wave size 3.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed a defect in the campaign driver that was hit live during doc-13 wave 2, when git pull --ff-only failed with "Diverging branches can't be fast-forwarded."
+
+What changed: reference/wave-loop.md (d) step 4 now pushes <default> immediately after its trailer check, before any worktree is re-pinned or worker dispatched, and section (i)'s scope note applies the identical rule to the in-flight-pointer commit -- the only two orchestrator-authored commits that land between the wave base and (g)'s merge walk. Settlement and docs-sync commits are named exempt, since they run after (g) and (i) step 3 already pushes. (g) step 2's claim that the marking commit is an ancestor of origin/<default> is now true by construction rather than incidentally; (g) step 5 names the real cause class instead of blaming the clean-checkout precondition, which cannot produce a topology error; escalation.md gains a matching row; and a recovery procedure is specified for an already-diverged <default>. Skill version 0.9.1-qcli.8 to 0.9.1-qcli.9.
+
+Why: (d) step 4 mandated a commit and said nothing about a push, and wave-loop.md explicitly contemplated the unpushed state -- so the orchestrator followed the procedure exactly and still diverged. At wave size 1 the cost was one halted pull; at larger sizes the walk halts at the first member with the rest rebased, pushed, and unmerged, a state escalation.md did not cover.
+
+The recovery proves content presence rather than class membership, via git merge-base --is-ancestor against the just-squash-merged branch with a path-scoped diff as fallback only when the branch ref is gone. Content that cannot be proven present is preserved by cherry-pick, never discarded -- which is what protects a mid-wave in-flight-pointer commit, since it lands after the worktree re-pin and therefore rides no branch into the squash.
+
+How verified: mandatory review over three passes (request_changes, request_changes, approve) with all nine criteria independently confirmed -- the divergence mechanism re-run from git and GitHub history, the doc-13 wave-1 contrast re-derived and found more accurate than this task's own description, every sweep count reproduced line by line, and the corrected recovery traced end to end against the mid-wave scenario it exists to protect. The rule was also exercised by hand throughout doc-14 wave 1: three members merged with every --ff-only sync landing as a clean fast-forward.
+<!-- SECTION:FINAL_SUMMARY:END -->
