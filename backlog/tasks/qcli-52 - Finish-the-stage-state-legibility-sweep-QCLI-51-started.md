@@ -4,7 +4,7 @@ title: Finish the stage-state legibility sweep QCLI-51 started
 status: In Progress
 assignee: []
 created_date: '2026-08-08 14:43'
-updated_date: '2026-08-08 16:17'
+updated_date: '2026-08-08 16:33'
 labels:
   - campaign
   - 'cluster:skill-docs'
@@ -110,6 +110,31 @@ Bumped `0.9.1-qcli.6` -> `0.9.1-qcli.7` (frontmatter + new Provenance paragraph)
 ## Out-of-scope discovery (flagged via --comment, not fixed here)
 
 reference/wave-loop.md does not mandate an in-flight-table recording pass at any point after dispatch (e.g., on approval) — the two real recording commits found (68ce681, 82fca71) both only ever recorded stage 1. This means the in-flight table's "Stage reached" can be stale for the entire remainder of a wave unless the orchestrator chooses to re-record it. That's a possible gap in reference/wave-loop.md's mechanics, distinct from QCLI-53's (f)/(g) wording mismatch and from this task's legibility-text scope. Not fixed here; recorded as a comment for the reviewer/user to decide whether it merits a follow-up task.
+
+## Fix pass 1 (mandatory reviewer request_changes, 2026-08-08)
+
+The mandatory reviewer returned `request_changes` with three BLOCKING findings, two MINOR, and one NIT. This section corrects the notes above rather than silently rewriting them — the plan step 2, Passage-2 (AC#2), and out-of-scope sections above all state 'the two real in-flight-pointer-recording commits in history (`68ce681`, `82fca71`), both recording stage 1' — that claim is FALSE and stands corrected here.
+
+Re-running the enumeration:
+```
+git log dev --format='%h %s' | grep -i "in-flight pointer"
+```
+finds FIVE commits, not two: `82fca71` (doc-13 wave-1, records QCLI-52 at stage 1 — dispatched), `68ce681` (doc-12 wave-1, records QCLI-51 at stage 1), `61d48af` (doc-11 wave-2, records QCLI-46 and QCLI-48 both at stage 1), `0b63077` (doc-10 wave-2, recovered, records QCLI-43 at 'Stage reached: 6 — under review'), `146956d` (doc-10 wave-1, records QCLI-44 at stage 1).
+
+`0b63077` is the missed counterexample. Its row: '| QCLI-43 | 2 | ...lease `28eadc44…`, holder `qcli/QCLI-43` | `chore/qcli-43-settlement-log-sync` @ `28e4018` | 6 — under review (implemented, committed, pushed by a session that then died; review dispatched on resume) |' — recorded for a branch that a prior session had implemented, committed, and pushed, then died BEFORE the review gate ran, i.e. actually at stage 5 (pushed), not 6 (approved). Doc-10's own settled campaign doc (`backlog/docs/campaigns/doc-10 - Backlog-campaign-tracker.md`, 'Wave 2 was recovered, not restarted' section) later corrects this same row inline: '...Backlog state and worktree state agreed, so R3 resumed it at its recorded stage (5, pushed) rather than restarting.' That is a committed, explicit correction of the earlier over-report, sitting in this repo's own history the whole time.
+
+So this repo's history contains exactly one later-than-stage-1 in-flight-table record, and it OVER-reports, not confirms. The original wording ('both happen to record stage 1, not a later one') told a reader the table had never carried a later-stage record at all, which suppressed the one piece of evidence that the new signal actually fires — and fires with a defect. The original hedge ('treat later stage as positive proof, absence as inconclusive') guarded only the under-reporting direction; the only real evidence in this repo's history is an over-reporting instance, so the hedge guarded the wrong direction on the one case that matters.
+
+## What this fix pass changed in SKILL.md
+
+1. Line 90 (MINOR): 'labels carry the sub-stage for four of the six stages' attributed to *labels* what the durability column actually measures. Dispatched and Done share an identical committed label set (`campaign`, `wave-<N>`) and are distinguished only by *status* — reworded to 'the committed record distinguishes four of the six stages'.
+2. R2 step 4 (MINOR, orchestrator-directed inclusion, not a silent drive-by): 'In Progress + wave-N means implementation may be mid-flight or done-but-unreviewed' omitted the third, post-QCLI-51 possibility — already reviewed-and-approved — since neither review-adjacent label ever commits. Named explicitly now, with a pointer to step 5's signals.
+3. R2 step 5 (BLOCKING x2): replaced the false 'two commits, both stage 1' claim with the five-commit enumeration above, cited `0b63077` as the worked over-reporting example and its doc-10 correction, keyed the rule on the row's *stated annotation* rather than the bare numeral, required corroboration against the other three signals before crediting a claimed post-dispatch stage, and stated explicitly that both directions of error (under- and over-report) are real — not only the under-reporting direction the prior wording guarded.
+4. Provenance paragraph (BLOCKING): the same false 'two commits' claim was restated in the skill's own evidence record and is corrected there too, with an explicit verified-vs-not-verified statement and a new short paragraph documenting this fix pass, the re-sweep, and that the version stays 0.9.1-qcli.7 (correcting an unmerged entry's own evidentiary support is not a new behavioral change).
+
+Re-ran the AC#3 sweep method (below) over every passage this fix pass touched (Stage-state row, R2 steps 4-5, Provenance) and found no new instance of the pre-QCLI-51 framing introduced.
+
+Confirmed unaffected: `reference/*.md` — `git diff dev...chore/qcli-52-stage-state-legibility-sweep --name-only -- .claude/skills/backlog-handover/reference/` returns zero lines, still QCLI-53's scope. Frontmatter version unchanged at 0.9.1-qcli.7.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
