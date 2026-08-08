@@ -90,6 +90,7 @@
 - 2026-08-08T11:09:02-05:00 1e268f7647768e23577b22b038ddf85bb81b7deb docs: catch up lore log with doc-12 wave-1's own settlement commit
 - 2026-08-08T11:55:15-05:00 354876fb0b0cd0e40dedb666d6811eb9625d7093 docs: sync lore log after wave-1 settlement (doc-13 campaign)
 - 2026-08-08T14:15:15-05:00 349f0f9c66792187a011526f18b9f2db5dde7489 docs: sync lore log after wave-2 settlement (doc-13 campaign complete)
+- 2026-08-08T17:38:11-05:00 1962d2a8874942ba69412a5866aa4b33454c4922 QCLI-56: discharge the Phase 0 activation recheck (#70)
 
 ## docs/adr
 
@@ -162,6 +163,8 @@
 - 2026-08-07T15:16:22-05:00 866b184cad26df377522908f14a7e54fd266e330 QCLI-45: Record the evidence-record amendment ruling and reconcile QCLI-42 in-place replacement (#60)
 - 2026-08-07T20:25:49-05:00 a4276e0a41ee0c1c3d200c00761fa3dcc7e3a492 QCLI-46: Re-derive and reconcile the outstanding inline supersession-citation debt across docs (#62)
 - 2026-08-07T20:44:35-05:00 0f07c27dba547d7d1d9f6ee37f4f4a392e92d613 QCLI-50: Settle whether tense-only edits fall under preserve-and-amend (#65)
+- 2026-08-08T17:38:11-05:00 1962d2a8874942ba69412a5866aa4b33454c4922 QCLI-56: discharge the Phase 0 activation recheck (#70)
+- 2026-08-08T17:40:15-05:00 5c24b489593179829ba7ec283459f37b376b015e QCLI-57: re-verify the Backlog.md v1.49.3 pin before Phase 1 exit (#71)
 
 ## docs/runbooks
 
