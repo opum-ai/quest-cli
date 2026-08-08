@@ -3,7 +3,7 @@ id: doc-12
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-08 13:46'
-updated_date: '2026-08-08 13:47'
+updated_date: '2026-08-08 14:10'
 ---
 # Backlog campaign tracker
 
@@ -115,8 +115,9 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
+| QCLI-51 | 1 | `~/.treehouse/quest-cli-f11e72/1/quest-cli` (lease `c5d2e77207ba…`) | `chore/qcli-51-stage-state-table-reconcile` | 1 — marked `In Progress` + `wave-1`, marking committed on `dev` as `d0c3d06`, worktree re-pinned onto it, worker dispatched |
 
-(clean — campaign initialized, nothing dispatched yet, 6/6 pool slots available)
+Wave base pinned at `10a4293`. 1/6 pool slots leased.
 
 ## Needs a human / blocked
 
