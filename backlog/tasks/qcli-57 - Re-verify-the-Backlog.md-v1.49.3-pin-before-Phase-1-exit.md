@@ -1,13 +1,14 @@
 ---
 id: QCLI-57
 title: Re-verify the Backlog.md v1.49.3 pin before Phase 1 exit
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-08 21:43'
+updated_date: '2026-08-08 21:45'
 labels:
   - campaign
   - 'cluster:decisions'
+  - wave-1
 dependencies: []
 priority: medium
 type: chore

@@ -3,13 +3,14 @@ id: QCLI-60
 title: >-
   Push the orchestrator's default-branch bookkeeping commits and fix (g) step
   5's failed-fast-forward diagnosis
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 21:43'
-updated_date: '2026-08-08 21:44'
+updated_date: '2026-08-08 21:45'
 labels:
   - campaign
   - 'cluster:skill-docs'
+  - wave-1
 dependencies: []
 priority: medium
 type: bug

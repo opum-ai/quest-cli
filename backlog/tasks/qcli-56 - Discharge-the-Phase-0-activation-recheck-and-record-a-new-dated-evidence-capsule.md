@@ -3,13 +3,14 @@ id: QCLI-56
 title: >-
   Discharge the Phase 0 activation recheck and record a new dated evidence
   capsule
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 21:41'
-updated_date: '2026-08-08 21:43'
+updated_date: '2026-08-08 21:45'
 labels:
   - campaign
   - 'cluster:gate'
+  - wave-1
 dependencies: []
 priority: high
 type: chore
