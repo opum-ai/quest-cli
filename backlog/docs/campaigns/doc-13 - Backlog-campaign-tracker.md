@@ -3,7 +3,7 @@ id: doc-13
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-08 14:59'
-updated_date: '2026-08-08 16:53'
+updated_date: '2026-08-08 19:14'
 ---
 # Backlog campaign tracker
 
@@ -16,9 +16,11 @@ loop until the queue is empty or blocked -> write handover.
 
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
-trust a persisted "next wave" plan. Informational hint only: as of doc-13
-wave-1 settlement (2026-08-08), **1 queued (QCLI-53), 0 in flight, 0 blocked,
-0 needs-human**.
+trust a persisted "next wave" plan. **Campaign complete** as of wave-2
+settlement (2026-08-08): **0 queued, 0 in flight, 0 blocked, 0 needs-human** —
+both queued tasks resolved. QCLI-54 and QCLI-55 were filed during this campaign
+but deliberately left unlabelled, so they seed the next campaign rather than
+being swept into this one.
 
 Expected shape: **two waves of one task each**, because the two queued tasks
 conflict (see Conflict note) rather than because either depends on the other. A
@@ -113,7 +115,14 @@ calls (QCLI-53 AC#2 in particular).
 ## Proposed follow-ups (awaiting user approval)
 
 Never created unprompted — this project requires approval before follow-up work
-is filed. Each entry is a ready-to-run proposal.
+is filed.
+
+**Status, corrected at wave-2 settlement:** the wave-1 proposals below are no
+longer merely proposed. With the user's explicit approval at wave 1's R6,
+Proposals A and B were **filed as QCLI-54 and QCLI-55** and Proposal C was
+**folded into QCLI-53 as acceptance criteria #6–#8** (all in commit `626f369`).
+The wave-1 text is kept below as the record of what was proposed and approved.
+Wave 2's proposals, further down, remain unfiled and awaiting approval.
 
 Three proposals from doc-13 wave 1's integration review, plus one narrow bundle.
 **None filed** — awaiting the user's explicit approval.
@@ -211,6 +220,65 @@ The integration reviewer recommends bundling these into Proposal A rather than
 doing them now, since (a) and (b) edit the same paragraph Proposal A's AC#5 would
 revisit.
 
+### Wave 2 proposals — unfiled, awaiting user approval
+
+**1. Push the orchestrator's `<default>` bookkeeping commits, and fix (g) step 5's
+failed-fast-forward diagnosis.** *(the sharpest finding of this campaign)*
+
+Wave 2 hit a reproducible loop failure at (g) step 5: `git pull --ff-only origin
+dev` → "Diverging branches can't be fast-forwarded." (d) step 4 mandates
+committing the dispatch-marking pass on `<default>` and says nothing about
+pushing it; (d) step 5 then re-pins the worktree onto it, so it reaches `origin`
+via the branch push but never `origin/<default>`. GitHub counted `e532f22` as PR
+#69's first commit and the squash folded its content into `ed3959b`, whose parent
+is `626f369` — making local and remote `dev` siblings rather than fast-forwardable.
+
+Verified a gap in the procedure, not a misexecution: `wave-loop.md:87` explicitly
+contemplates the unpushed state. The false assertion is at `wave-loop.md:167`
+("already an ancestor of `origin/<default>`"), false for every wave until the next
+`<default>` push — wave 1 satisfied it only incidentally. **(g) step 5's own
+diagnosis names the wrong cause**, blaming the clean-checkout precondition, which
+was satisfied throughout; working-tree cleanliness cannot produce a topology error.
+
+Scope covers **two** commit types: the dispatch-marking commit and the in-flight
+pointer commit both land between the wave base and (g)'s walk. Settlement and
+docs-sync commits are unaffected — they run after (g), and (i) step 3 pushes.
+
+At wave size 1 the blast radius was one halted pull. At size > 1 the walk halts at
+the first member with the rest rebased, pushed, and unmerged — a state
+`escalation.md` does not cover. Nine drafted ACs cover: the push decision and its
+no-remote path; the same decision for the in-flight commit; what to do when the
+push is rejected; correcting (g) step 2's ancestor claim; correcting (g) step 5's
+diagnosis; a documented recovery including the no-content-lost check *before* any
+history-discarding command; an `escalation.md` row; Provenance; and citing this
+wave as worked evidence (`e532f22`, `ed3959b`, PR #69, against wave 1's clean
+`fe0e46f`/`82fca71`, PR #68, `d652126`).
+
+**2. Define or retire `merge-blocked` in (g)'s walk-start gate.**
+
+`wave-loop.md:163` gates the walk on "every member reached approve /
+merge-blocked / escalated". `merge-blocked` is undefined — (f)'s verdict enum is
+`approve`/`request_changes`/`escalate`, `escalation.md`'s dispositions are
+`reviewer_decided`/`human_needed`, and a repo-wide grep returns exactly one hit:
+that line. QCLI-53 raised the stakes, since (f) step 4 and (g)'s precondition now
+both cite that sentence as the by-construction guarantee.
+
+**3. Amend QCLI-54 (no new task).** Add an AC reconciling R2 step 5's internal
+signal count: wave 1 added a fourth signal and closes with "none of these **four**
+signals", while wave 2 inserted "corroborate … from **the two signals below**"
+three clauses before naming a third. Either the count is wrong or signal #4 is
+silently excluded from corroboration with no reason given — the one genuine
+cross-wave composition slip, and exactly the class only a wave-level pass sees.
+Also add a routing sentence: QCLI-54 AC#6 locates its three corrections in "R2
+step 5", but one target lives inside QCLI-52's dated Provenance entry, where
+CLAUDE.md's record-vs-current-assertion test and the QCLI-44 citation ruling apply.
+
+**4. Amend QCLI-55 (no new task).** Its description quotes "(f) step 4's discard
+deadline ('before that branch's rebase')" — wording QCLI-53 superseded, so a
+worker grepping for it will find only the citation of the old text. Its AC#1
+target is unaffected. AC#4's point is already partly recorded for doc-12 in
+QCLI-53's Provenance, so the write should reference rather than duplicate it.
+
 ## Wave log
 
 ### Wave 1 — QCLI-52 — merged `d652126` (PR #68), settled 2026-08-08
@@ -253,3 +321,48 @@ Also of note: the retry path worked correctly without being documented — (f)
 fires step 2 only on `approve`, so `in-review` correctly persisted across the fix
 pass. Integration review verdict: `findings` (0 blocking, 2 major, 3 minor,
 1 nit), all recorded as proposals above; nothing merged needs reverting.
+
+### Wave 2 — QCLI-53 — merged `ed3959b` (PR #69), settled 2026-08-08
+
+Size 1, as predicted. Base `626f369`. Acceptance criteria #6–#8 were added before
+dispatch, with the user's explicit approval, from wave 1's integration finding.
+
+Review returned **`request_changes`** with an unusual shape — all eight criteria
+confirmed *on substance*, the rejection resting on the evidence record: the notes
+claimed a sweep produced "36 total hits", reproducing under no variant (actual
+14/16 lines, 22/25 occurrences, 17/27 recursive) and traceable to QCLI-48's
+unrelated figure, while the shipped Provenance entry delegates its evidentiary
+weight to those notes. A third defect was substantive: (f)'s escalate limb named
+an instant at reviewer *dispatch*, literally directing a discard before the
+verdict and contradicting the same commit's `SKILL.md:159`. Fix pass 1 reproduced
+every figure independently and corrected in preserve-and-amend form; pass 2
+returned **`approve`**, all eight confirmed at tip.
+
+The orchestrator dispatched that fix rather than settling on the all-confirmed
+verdict, on the ground that this campaign had already returned `request_changes`
+on QCLI-52 for the same false-count class — settling here would have applied a
+weaker standard to the second task than the first.
+
+**What the task uncovered beyond its own framing.** It was filed as a wording
+mismatch. The worker found, and the reviewer independently confirmed, a real hole:
+(g) walks `approve` branches only, so an escalated branch never reaches a rebase
+step and the old discard trigger never fired at all — its dirty `in-review` diff
+would sit through the entire merge walk, since (i) runs after (h) runs after (g).
+
+**A defect in the loop itself fired during this wave's merge** — see wave-2
+proposal 1. `git pull --ff-only` failed on diverged history because (d) step 4
+commits the dispatch-marking pass without pushing it. No content was lost;
+recovery was verified safe before running. Wave 1 escaped the same fate only
+incidentally.
+
+### Campaign complete — 2026-08-08
+
+Both queued tasks resolved across two waves of one task each, exactly the shape
+the Conflict note predicted at init. Two review gates fired `request_changes`
+before approving — one on an unsafe rule, one on a false figure in an evidence
+record — and in both cases the orchestrator verified the reviewer's central claim
+independently before dispatching a fix rather than acting on the report alone.
+
+Per this project's rules, no task was archived and no follow-up was filed without
+explicit approval. Wave 1's approved proposals became QCLI-54 and QCLI-55; wave
+2's four proposals above remain unfiled.

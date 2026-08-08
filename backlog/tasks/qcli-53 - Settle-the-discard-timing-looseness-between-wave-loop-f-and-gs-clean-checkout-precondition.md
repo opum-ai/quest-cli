@@ -3,11 +3,11 @@ id: QCLI-53
 title: >-
   Settle the discard-timing looseness between wave-loop (f) and (g)'s
   clean-checkout precondition
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-08 14:44'
-updated_date: '2026-08-08 18:56'
+updated_date: '2026-08-08 19:13'
 labels:
   - campaign
   - 'cluster:skill-docs'
@@ -48,14 +48,14 @@ Surfaced as a `minor` finding during doc-11-era QCLI-49 work and again by doc-12
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 reference/wave-loop.md names a single unambiguous point at which the mid-wave label edit is discarded, and (f) and (g)'s precondition paragraph agree on it
-- [ ] #2 The chosen disposition is derived from the current text and stated with its reasoning, including why the alternative wording was not adopted
-- [ ] #3 (g)'s clean-checkout precondition remains true by construction under the settled wording, not by orchestrator discipline, for both the in-review and merge-pending edits
-- [ ] #4 No remaining passage across SKILL.md and reference/wave-loop.md states a discard deadline that contradicts the settled one
-- [ ] #5 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
-- [ ] #6 The chosen discard timing states its effect on SKILL.md R2 step 5's first durable signal (the label-only dirty entry on the orchestrator's <default> checkout) — whether the window stays wide enough for a crash to observe the label, and if not, that the loss is named and accepted
-- [ ] #7 If the settled timing materially shrinks that window, SKILL.md R2 step 5's first signal is reworded so it does not promise classification power the mechanics no longer provide, and the remaining signals' sufficiency is stated
-- [ ] #8 No passage across SKILL.md and reference/wave-loop.md is left asserting that the in-review/merge-pending distinction is observable in a dirty diff if the settled timing makes that unreliable
+- [x] #1 reference/wave-loop.md names a single unambiguous point at which the mid-wave label edit is discarded, and (f) and (g)'s precondition paragraph agree on it
+- [x] #2 The chosen disposition is derived from the current text and stated with its reasoning, including why the alternative wording was not adopted
+- [x] #3 (g)'s clean-checkout precondition remains true by construction under the settled wording, not by orchestrator discipline, for both the in-review and merge-pending edits
+- [x] #4 No remaining passage across SKILL.md and reference/wave-loop.md states a discard deadline that contradicts the settled one
+- [x] #5 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
+- [x] #6 The chosen discard timing states its effect on SKILL.md R2 step 5's first durable signal (the label-only dirty entry on the orchestrator's <default> checkout) — whether the window stays wide enough for a crash to observe the label, and if not, that the loss is named and accepted
+- [x] #7 If the settled timing materially shrinks that window, SKILL.md R2 step 5's first signal is reworded so it does not promise classification power the mechanics no longer provide, and the remaining signals' sufficiency is stated
+- [x] #8 No passage across SKILL.md and reference/wave-loop.md is left asserting that the in-review/merge-pending distinction is observable in a dirty diff if the settled timing makes that unreliable
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -118,6 +118,26 @@ Net effect on AC#4/#8: none. The one uncounted `escalation.md` hit is merge-retr
 Also fixed in this pass (reviewer minor finding): wave-loop.md:133's escalate sub-clause previously read "...immediately after step 1's `in-review` edit is confirmed, for an `escalate` outcome..." -- naming step 1's edit-confirmation instant (which happens at reviewer dispatch, per step 3's diff-confirmation applied to step 1) as the escalate discard trigger. That instant long precedes the escalate verdict, contradicting the same sentence's own governing clause ("as soon as that task's own review reaches a terminal verdict") and, read literally, would discard the in-review diff at dispatch -- destroying the before-approve pin that SKILL.md:159 (R2 step 5's first signal) explicitly depends on ("only `in-review`'s appearance still reliably pins that to *before* the branch's `approve` verdict"). Corrected to "...immediately after the `escalate` verdict is returned, for an `escalate` outcome..." -- now naming the terminal-verdict instant on both limbs, consistent with the governing clause and with SKILL.md:159.
 
 Reviewer's remaining nit (in-review's own window carries the same one-action overhang between the approve verdict arriving and step 2's edit completing, marginally over-stating "reliably pins") was left alone per the reviewer's own recommendation -- harmless, conservative failure direction (resume at review), not worth a fix pass.
+
+## Settlement (doc-13 wave 2, orchestrator)
+
+Merged to \`dev\` as squash commit \`ed3959b\` (PR #69). Branch commits: \`4e3145a\`, \`accd7d1\`, \`6008456\`, \`d987784\`, \`830d7bb\` — all five plus the squash commit verified with \`git interpret-trailers --parse\` reporting \`Refs: QCLI-53\` as a genuinely parsed trailer.
+
+Review gate: two passes. Pass 1 returned \`request_changes\` with all eight ACs confirmed on substance but two defects in the evidence record and one real text defect; pass 2 returned \`approve\` with all eight confirmed at tip \`830d7bb\`. All eight checked here on that evidence.
+
+Why the fix pass was dispatched rather than settling on pass 1's all-confirmed: the Implementation Notes stated a sweep produced "36 total hits", which reproduced under no variant (actual: 14 lines on \`dev\`, 16 on branch; 22/25 occurrences; 17/27 recursive) and turned out to be QCLI-48's unrelated figure. The shipped Provenance entry delegates its evidentiary weight to those notes. This campaign returned \`request_changes\` on QCLI-52 for exactly that class, so accepting it here would have applied a weaker standard to the second task than the first. The correction was appended in preserve-and-amend form — naming the bad figure as wrong and leaving the original standing — per the QCLI-45 ruling.
+
+The third defect was substantive: (f)'s escalate limb read "immediately after step 1's \`in-review\` edit is confirmed", an instant at reviewer *dispatch*, which literally directed discarding before the verdict and contradicted the same commit's \`SKILL.md:159\` reliance on the \`in-review\` pin. Now reads "immediately after the \`escalate\` verdict is returned".
+
+Both load-bearing claims independently confirmed by the reviewer: (g)'s opening line gates the walk on every member reaching a terminal verdict; and the escalate-path hole is real — (g) walks \`approve\` branches only, so an escalated branch never reached a rebase step and the old trigger never fired at all, leaving its dirty \`in-review\` diff through the entire merge walk since (i) runs after (h) runs after (g).
+
+## Orchestration defect hit during this task's own merge — recorded here because this task's text is what a fix would touch
+
+\`git pull --ff-only origin dev\` failed at (g) step 5 with "Diverging branches can't be fast-forwarded". Root cause, verified from history by the integration review rather than assumed: (d) step 4 mandates committing the dispatch-marking pass on \`<default>\` and says nothing about pushing it. \`e532f22\` was committed locally and left unpushed; (d) step 5 re-pinned the worktree onto it, so it became an ancestor of the task branch and reached \`origin\` via the branch push but never \`origin/dev\`. \`gh pr view 69 --json commits\` lists it as PR #69's first commit; the squash folded its content into \`ed3959b\`, whose parent is \`626f369\`, not \`e532f22\`. \`git merge-base --is-ancestor e532f22 ed3959b\` is false — siblings.
+
+This is a gap in the procedure, not a misexecution: \`wave-loop.md:87\` explicitly contemplates the unpushed state. The false assertion is at \`wave-loop.md:167\` — the marking commit "is already an ancestor of \`origin/<default>\`" — which under (d) as written is false for every wave until the next \`<default>\` push. Wave 1 satisfied it only incidentally. (g) step 5's own diagnosis points at the wrong cause: it blames the clean-checkout precondition, which was satisfied throughout (\`git status --porcelain\` empty); working-tree cleanliness cannot produce a topology error.
+
+Recovery was \`git reset --hard origin/dev\`, verified safe before running: \`git log ed3959b..e532f22\` listed only the marking commit, and \`ed3959b\`'s copy of this task file carries \`status: In Progress\` and the \`wave-2\` label, so the marking content survived in the squash. Proposed as a follow-up at doc-13's R6, not filed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -136,3 +156,17 @@ Out-of-scope finding for the reviewer/orchestrator, not fixed here (not this tas
 Also confirmed untouched, per the hard scope boundaries given: (f)'s "Evidence:" paragraph and its "has not yet been separately exercised in a recorded wave" sentence (QCLI-55's territory), and the campaign-doc Stage-reached/recording-cadence material and SKILL.md R2 step 5's five-vs-six enumeration / 0b63077 characterisation / "substate" wording (QCLI-54's territory) -- none of these were edited by this task's changes.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Retimed the mid-wave label-diff discard so (f) and (g)'s clean-checkout precondition state one rule in identical words.
+
+What changed: the discard trigger moves from "before that task's branch reaches (g)'s rebase step" to "as soon as that task's own review reaches a terminal verdict" — on approve, immediately after step 2's merge-pending edit; on escalate, immediately after the escalate verdict is returned. The identical phrasing now appears in reference/wave-loop.md (f) and (g)'s precondition and in SKILL.md's Stage-state block. SKILL.md R2 step 5's first crash-recovery signal is reworded to match the narrowed mechanics. Skill version 0.9.1-qcli.7 -> 0.9.1-qcli.8.
+
+Why: (g) already gates its walk on every member having reached a terminal verdict, so the old per-task deadline was strictly looser for every member after the first. More seriously, the old trigger never fired at all on the escalate path, because (g) walks approve branches only — an escalated branch's dirty in-review diff would sit through the entire merge walk. That was a live violation of (g)'s own precondition on a path no wave had exercised.
+
+The cost is named rather than absorbed: merge-pending's dirty window now spans only the gap between two sequential orchestrator actions, so R2 step 5's first signal largely stops working for that label. Only in-review's appearance still pins "before approve"; merge-pending's absence is explicitly declared uninformative, and gh pr list is promoted as the load-bearing corroborator. in-review's window was deliberately left wide, since it always resolves before that task's own review settles anyway, so tightening it would have cost the pin for zero safety gain.
+
+How verified: mandatory review over two passes (request_changes then approve), all eight acceptance criteria independently confirmed at tip, including a trace of (d)->(f)->(g)->(i) across all four review paths (approve, request_changes x1-2 then approve, request_changes x3 auto-escalate, direct escalate) establishing the precondition holds by construction rather than by discipline. Sweeps for contradicting discard deadlines were re-run independently by the reviewer and reproduced figure for figure after the fix pass corrected a false count. No automated gate covers .claude/skills/ in this repo and none was invented.
+<!-- SECTION:FINAL_SUMMARY:END -->
