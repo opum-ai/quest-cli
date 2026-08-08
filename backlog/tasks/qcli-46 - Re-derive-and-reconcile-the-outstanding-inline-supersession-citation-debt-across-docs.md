@@ -3,13 +3,14 @@ id: QCLI-46
 title: >-
   Re-derive and reconcile the outstanding inline supersession-citation debt
   across docs
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-07 20:28'
+updated_date: '2026-08-08 01:08'
 labels:
   - campaign
   - 'cluster:supersession-convention'
+  - wave-2
 dependencies:
   - QCLI-45
 references:

@@ -1,12 +1,14 @@
 ---
 id: QCLI-48
 title: Close the squash-merge Refs trailer-loss vector
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-07 20:27'
+updated_date: '2026-08-08 01:08'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
+  - wave-2
 dependencies: []
 priority: medium
 type: chore
