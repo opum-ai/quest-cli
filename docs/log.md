@@ -81,6 +81,7 @@
 - 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
 - 2026-08-07T08:57:40-05:00 a4f621256f018ecc9319a24c9fa7ea6e1d30f9e9 docs: sync lore log after wave-2 settlement (doc-10 campaign)
 - 2026-08-07T14:49:53-05:00 f955033abe473819397555e435492a40b4770c83 docs: catch up lore log with doc-10's own settlement commit
+- 2026-08-07T15:21:58-05:00 82ec77d9bf5706d8906fd5c8e1a83f730099e075 docs: sync lore log after wave-1 settlement (doc-11 campaign)
 
 ## docs/adr
 
