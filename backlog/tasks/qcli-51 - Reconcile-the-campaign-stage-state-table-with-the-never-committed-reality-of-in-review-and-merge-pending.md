@@ -3,13 +3,14 @@ id: QCLI-51
 title: >-
   Reconcile the campaign stage-state table with the never-committed reality of
   in-review and merge-pending
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 13:46'
-updated_date: '2026-08-08 13:46'
+updated_date: '2026-08-08 14:08'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
+  - wave-1
 dependencies: []
 priority: medium
 type: chore
