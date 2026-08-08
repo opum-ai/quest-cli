@@ -291,7 +291,7 @@ still-unfiled items here is not a decision to file them.
 | Backlog.md's `browser` command exposes an undocumented HTTP JSON endpoint whose field shapes diverge from its own CLI contract | QCLI-2.5 finding 13, flagged for QCLI-2.8, which declined to rule | An unexamined boundary if Quest ever mirrors that surface |
 | `LCLI-316` was filed in `lore-cli` but deliberately left uncommitted | Campaign tracker, wave 5 | Untracked by any quest-cli mechanism; whoever next works in `lore-cli` must commit it |
 
-### The Backlog.md version-pin trigger — not fired (verified 2026-08-05)
+### The Backlog.md version-pin trigger — not fired (verified 2026-08-05; re-verified 2026-08-08, `QCLI-57`)
 
 The migration fidelity contract is pinned to **Backlog.md v1.49.3**, and states its own
 trigger: a newer release requires a re-check before any contract freezes. That pin was set
@@ -325,6 +325,56 @@ schedule assumes, and not something to silently ignore.
 > Phase 1 work. Both claims were false: the registry state above was checked the same day
 > the section was written, and it was already current. The claim is removed; the standing
 > obligation to re-check before the contract freezes is unchanged and restated above.
+
+**Re-verified 2026-08-08 (`QCLI-57`), Phase 1 exit recheck discharged.** This is the
+re-check this section's own trigger and the migration fidelity contract's recheck
+clause oblige, restated in the [delivery roadmap](../specs/quest-cli-delivery-roadmap.md)'s
+`QCLI-17` correction note as "before this phase's exit, or any freeze, whichever comes
+first" — `QCLI-57` was filed and run specifically to discharge it, as the last
+Quest-owned item outstanding in Phase 1. Consistent with `QCLI-17`'s correction above, an
+unchanged result was the expected outcome here, not drift, and is recorded below as
+a positive discharge of that obligation rather than omitted as an unsurprising null
+result:
+
+```bash
+npm view backlog.md version           # 1.49.3 (observed 2026-08-08; moving reference, re-verify before relying)
+npm view backlog.md dist-tags.latest  # 1.49.3 (observed 2026-08-08; moving reference, re-verify before relying)
+npm view backlog.md time.modified     # 2026-08-03T21:30:58.510Z (observed 2026-08-08; moving reference, re-verify before relying)
+npm view backlog.md time['1.49.3']    # 2026-08-03T21:30:58.182Z
+backlog --version                     # 1.49.3 (observed 2026-08-08; moving reference, re-verify before relying)
+```
+
+All registry values are unchanged from the 2026-08-05 observation above. `version`,
+`dist-tags.latest`, and `backlog --version` name current, re-runnable state that can
+change on the next observation without any edit here, so all three carry the
+moving-reference qualifier; `backlog --version` is run against the locally installed
+binary on `PATH` (`/Users/jdnewhouse/.bun/bin/backlog`, a user-global install shared by
+every worktree and the main checkout, not something this worktree pins on its own), and
+is included as a corroborating check named by the fidelity contract's own recheck
+clause. `time.modified` also carries the moving-reference qualifier, not a flat
+immutable-anchor statement: it is the *packument's* last-modified timestamp — a property
+of the whole package document — not `1.49.3`'s own publish time, and it advances on any
+later write to the package (a new publish, a deprecation, an unpublish, a dist-tag
+change, an owner change), which is exactly the "whether a newer version now exists"
+event this section exists to detect. It is only 328ms away from `1.49.3`'s actual
+publish timestamp above because `1.49.3` happens to be the most recent write to the
+package right now; that is a coincidence of present state, not an identity. The genuine
+immutable anchor for this pin is `time['1.49.3']` — the pinned release's own,
+unambiguous publish timestamp: re-observation cannot change when `1.49.3` was
+published, so it is stated flat with no qualifier.
+
+The pin has **not** moved; the trigger has still not fired. This discharges the
+Phase 1 exit recheck obligation for the migration fidelity contract's `v1.49.3` pin
+as of this observation. Like every entry in this document, that discharge is a
+dated fact, not a standing one: any later freeze, after further elapsed time, still
+obliges re-running the same commands before relying on the pin again — this entry
+retires the obligation as it stood at Phase 1 exit, not the recheck clause itself.
+Full reasoning and the per-acceptance-criterion evidence trail are recorded in
+`backlog/tasks/qcli-57 - Re-verify-the-Backlog.md-v1.49.3-pin-before-Phase-1-exit.md`
+(Implementation Notes), cited here for full traceability. This block does not invoke
+the `QCLI-44` directing-task-citation ruling: that ruling binds *inline supersession
+amendments*, and nothing above supersedes the 2026-08-05 record — it remains true and
+stands alongside this dated addition, not corrected or replaced by it.
 
 ### What is not open
 
