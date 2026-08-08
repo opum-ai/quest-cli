@@ -119,6 +119,29 @@ dated amendment; the removed wording is restored there as preserved-and-supersed
 under this ruling. Full reasoning:
 `backlog/tasks/qcli-45 - Record-the-evidence-record-amendment-ruling-and-reconcile-QCLI-42-in-place-replacement.md`.
 
+**Ruling (2026-08-07, `QCLI-50`): tense-only edits are not covered by
+preserve-and-amend, narrowing the "or re-tensing" wording above.** Read in
+isolation, the QCLI-45 sentence that the correct-in-place test "does not
+license deleting or re-tensing an evidence record's own dated reading" could
+be taken to cover any tense change. It does not: re-tensing falls under
+preserve-and-amend only when the edit alters or obscures what the record
+asserts was read. A pure present-to-past shift that leaves the recorded
+reading intact is ordinary housekeeping, not a supersession. This ratifies,
+rather than overturns, the scope judgment QCLI-45's own review already made.
+Applied to the case that raised the question: commit `3b1e9f5` (`QCLI-42`)
+made a second edit beyond the deletion QCLI-45 restored above — it also
+re-tensed a clause in `docs/reference/quest-cli-activation-gate-evidence-record.md`
+from "the Spec now reports items 2, 3, and 4 of the predicate as satisfied"
+to "the Spec reported items 2, 3, and 4 of the predicate as satisfied." That
+re-tensing is not restored: the recorded fact — that the Spec reported items
+2, 3, and 4 satisfied at pin `d2a9a9e11ddf` — survives identically in both
+phrasings, so there is no destroyed reading to mark superseded. The reason
+is also recorded inline in the evidence record itself, where a future
+sweeper auditing that document will find it. A variant requiring a logged
+amendment for every tense-only edit was considered and rejected: it would
+recreate most of the amendment burden this ruling lifts. Full reasoning:
+`backlog/tasks/qcli-50 - Settle-whether-tense-only-edits-fall-under-preserve-and-amend.md`.
+
 When a `*-doc` peer and a `*-cli` peer disagree, that is **drift, i.e. a
 defect** — the `*-cli` peer is authoritative for what currently ships, the
 `*-doc` peer stays normative owner of what the contract is.

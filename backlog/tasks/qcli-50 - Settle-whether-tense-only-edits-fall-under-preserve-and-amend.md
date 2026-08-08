@@ -2,9 +2,10 @@
 id: QCLI-50
 title: Settle whether tense-only edits fall under preserve-and-amend
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-07 20:28'
-updated_date: '2026-08-08 01:32'
+updated_date: '2026-08-08 01:39'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -39,3 +40,44 @@ This ruling settles AC #1 — it *is* the recorded, dated owner decision. AC #3'
 - [ ] #4 The amendment to CLAUDE.md existing QCLI-45 ruling is inline and dated and cites this task; `git diff` shows no rewritten prior ruling text
 - [ ] #5 `lore validate --strict` and `lore check` both pass with 0 errors and 0 warnings, output recorded verbatim in implementation notes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Read CLAUDE.md's QCLI-45 ruling paragraph and the evidence record's re-tensed clause (docs/reference/quest-cli-activation-gate-evidence-record.md, 'Trigger fired 2026-08-06' section, 'the Spec reported items 2, 3, and 4' sentence) to confirm exact anchor text.
+2. Amend CLAUDE.md inline, appending (never rewriting) a new dated paragraph after the existing QCLI-45 ruling paragraph that narrows the 'or re-tensing' wording per the owner ruling: re-tensing is only covered by preserve-and-amend when it alters/obscures what the record asserts was read; a pure present->past shift preserving the recorded reading is ordinary housekeeping. Cite QCLI-50 inline and dated 2026-08-07. Zero deletions.
+3. Add an inline dated note in docs/reference/quest-cli-activation-gate-evidence-record.md near the QCLI-42/QCLI-45 passage in the 'Trigger fired 2026-08-06' section explaining that the re-tensed clause ('reported' vs 'now reports') is NOT restored, citing QCLI-50 and the narrowed test, so a future sweeper does not read the omission as an oversight. This is the primary 'future sweeper' location since that's the file a sweeper audits. Pure addition, no deletion/re-tense.
+4. Run lore validate --strict and lore check from repo root; capture verbatim output. Do NOT run lore sync.
+5. Verify git diff shows 0 deletion lines in both CLAUDE.md and docs/.
+6. Record implementation notes via backlog task edit --append-notes with placement rationale and verbatim gate output.
+7. Commit with Refs: QCLI-50 trailer in final trailer block, verify with git interpret-trailers.
+8. Push branch docs/qcli-50-tense-only-edits-ruling.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented the owner ruling verbatim: tense-only edits that preserve the recorded fact are NOT covered by preserve-and-amend.
+
+PLACEMENT DECISION: both files, each with its own inline dated addition citing QCLI-50 (no cross-referencing shortcut).
+- CLAUDE.md: appended a new dated ruling paragraph immediately after the existing QCLI-45 ruling paragraph (before the '*-doc peer / *-cli peer' paragraph), narrowing 'or re-tensing' to: covered only when the edit alters or obscures what the record asserts was read; a pure present->past shift preserving the reading is housekeeping. States the QCLI-42 application and rejects the logging-every-instance variant, per the owner's rationale.
+- docs/reference/quest-cli-activation-gate-evidence-record.md: appended a 'Disposition recorded 2026-08-07 by QCLI-50' note in the 'Trigger fired 2026-08-06' section, directly after the QCLI-45-restored blockquote and before 'The owner then ruled.' This is the primary 'future sweeper' location per AC #3 -- a sweeper auditing this record for unreconciled QCLI-42 edits reads this file directly, not CLAUDE.md. The note sits immediately below the paragraph containing the actual re-tensed clause ('the Spec reported items 2, 3, and 4...'), so the omission is legible in context.
+Both additions are pure insertions -- git diff shows 0 deletion lines in both CLAUDE.md and docs/. No existing ruling or record text was reworded, deleted, or re-tensed.
+
+AC #3: second branch fires (NOT covered) -- reason recorded in both locations above, per owner ruling.
+
+GATE OUTPUT (verbatim):
+
+$ lore validate --strict
+[... 47 concept files, each 'ok', 6 index/log files 'skip (not a concept)' ...]
+47 files, 0 errors, 0 warnings, 6 skipped
+EXIT_VALIDATE:0
+
+$ lore check
+47 files, 0 errors, 0 warnings
+EXIT_CHECK:0
+
+No lore sync run (forbidden on this branch per dispatch constraints).
+
+Review fix (post-4393fae): the note's locator wording was wrong — it pointed at 'the paragraph preceding this note,' but the paragraph immediately preceding is the LDOC-4 blockquote (which contains no such sentence), not the paragraph with the re-tensed clause, which sits two blocks earlier. Reworded the locator to identify that paragraph by its opening words ('...beginning "The moving reference this record warned about has moved"') instead of by relative position, so the reference stays correct if another dated amendment is inserted between the clause and this note. The before/after quotation of the re-tensed clause is unchanged.
+<!-- SECTION:NOTES:END -->
