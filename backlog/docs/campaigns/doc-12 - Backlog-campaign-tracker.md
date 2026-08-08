@@ -3,7 +3,7 @@ id: doc-12
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-08 13:46'
-updated_date: '2026-08-08 14:38'
+updated_date: '2026-08-08 14:44'
 ---
 # Backlog campaign tracker
 
@@ -130,9 +130,13 @@ and it is fully dispatchable.)
 Never created unprompted — this project requires approval before follow-up work
 is filed.
 
-Two proposals from wave 1's integration review (h), 2026-08-08. **Neither is
-filed.** Both are `minor`, neither is a defect in QCLI-51's merged diff, and
-neither blocks anything. The reviewer recommended this exact split — they divide
+Two proposals from wave 1's integration review (h), 2026-08-08. **Both were
+approved by the user at R6 and filed** — Proposal A as **QCLI-52** (medium),
+Proposal B as **QCLI-53** (low), each carrying five acceptance criteria and no
+implementation plan (per `backlog instructions task-creation`: creation captures
+durable intent; the worker researches and records the plan at pickup). They are
+retained below as the record of what was proposed and why. Both are `minor`,
+neither is a defect in QCLI-51's merged diff, and neither blocks anything. The reviewer recommended this exact split — they divide
 along a real seam (documentation legibility in `SKILL.md` vs. mechanics timing in
 `wave-loop.md`), and folding them together would blur the two axes.
 
