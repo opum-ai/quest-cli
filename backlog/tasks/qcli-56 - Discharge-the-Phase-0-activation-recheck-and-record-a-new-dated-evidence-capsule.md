@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-08 21:41'
-updated_date: '2026-08-08 21:45'
+updated_date: '2026-08-08 21:51'
 labels:
   - campaign
   - 'cluster:gate'
@@ -55,3 +55,15 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 init, as the gating
 - [ ] #6 Any input that changed since the 2026-08-05 capsule is recorded as a new dated fact for lore-doc to rule on, explicitly not acted on here
 - [ ] #7 No product source, package metadata, runtime dependency, executable scaffolding, or install instruction is added by this task
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Fetch lore-doc and lore-cli (already done, read-only) and re-run every command in the evidence record's 2026-08-05 table live, within one narrow date -u-bracketed boundary: LDOC-4 status (lore-doc), gate-Spec HEAD + last-touch commit for quest-integration-and-lore-release-gate.md (lore-doc), lore-cli tags (v0.1.0/v0.1.1) + their resolved commits, lore-cli origin/dev + local HEAD, npm view for @opum-ai/lore and @opum-ai/quest, LCLI-278 status (lore-cli), and quest-cli's own HEAD/remote/status.
+2. Quote lore-doc's gate Spec verbatim at its current HEAD (101f9bb, matches origin/dev) -- it now carries an explicit "#### Gate result: OPEN, accepted 2026-08-06" section stating all four predicate items are satisfied -- and quote LDOC-4's own task record (Status: Done, all ACs checked, "GATE DECISION: OPEN. Accepted by the repository owner 2026-08-06."). Do not translate "open"/"satisfied" into the word "Pass" as a computed conclusion -- report the owner's literal words and note explicitly that the owner's own vocabulary differs from the recheck clause's "Pass" phrasing, without conflating the two.
+3. Append a new dated section ("2026-08-08 recheck capsule") to docs/reference/quest-cli-activation-gate-evidence-record.md following the existing capsule's shape (evaluation boundary, evidence-consumed table, gate result as reported by owner, discrepancies found) -- append only, per QCLI-45's preserve-and-amend ruling; the 2026-08-05 capsule and all prior amendments stay untouched. Cite QCLI-56 per QCLI-44. Apply moving-vs-immutable qualifiers per the research program Spec.
+4. Record discrepancies vs the 2026-08-05 capsule and vs lore-doc's own 2026-08-06 evaluation as new dated facts only (LDOC-4 To Do -> Done/gate open; lore-cli origin/dev advanced past lore-doc's own 87b6d876110a cite; local lore-cli clone parked on an unrelated branch, diff-verified not to touch LCLI-278's file; lore-doc's previously-noted uncommitted stale-owner-link line now resolved/committed and working tree clean; LCLI-278 and @opum-ai/quest unchanged) -- explicitly not acted on, left for lore-doc.
+5. State plainly that an open Lore gate is not Quest activation, matching the 2026-08-05 capsule's own framing, and that this document computes no gate result of its own.
+6. Run `lore check --strict` (0 errors/0 warnings required since docs/ is touched) and re-read the new section to confirm every line is an owner quote or a dated observation.
+7. Record notes via --append-notes with literal outputs, boundary timestamps, and confirmation neither peer repo was mutated; commit with `Refs: QCLI-56` as literal last trailer line; push the existing branch. Do not touch acceptance criteria, status, or campaign docs.
+<!-- SECTION:PLAN:END -->
