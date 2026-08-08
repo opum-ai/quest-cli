@@ -3,13 +3,14 @@ id: QCLI-53
 title: >-
   Settle the discard-timing looseness between wave-loop (f) and (g)'s
   clean-checkout precondition
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 14:44'
-updated_date: '2026-08-08 18:28'
+updated_date: '2026-08-08 18:29'
 labels:
   - campaign
   - 'cluster:skill-docs'
+  - wave-2
 dependencies: []
 priority: low
 type: chore
