@@ -1,10 +1,10 @@
 ---
 id: QCLI-48
 title: Close the squash-merge Refs trailer-loss vector
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-07 20:27'
-updated_date: '2026-08-08 01:12'
+updated_date: '2026-08-08 01:29'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
@@ -32,11 +32,11 @@ Scope: a verification rule plus a sweep. Does **not** rewrite history — no exi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A sweep of `dev` identifies every merged commit whose message text contains a `Refs:` line that `git interpret-trailers --parse` does not report, with the command and the per-commit result recorded
-- [ ] #2 The backlog-handover skill states that a Refs trailer must sit in the final trailer block with no blank line separating it from other trailers, and names `git interpret-trailers --parse` as the verification
-- [ ] #3 The skill shows a worked correct example and a worked incorrect example, so the failure mode is recognizable without re-deriving it
-- [ ] #4 The disposition of the already-merged non-parseable commits (notably `7efc1a4`) is recorded as an explicit decision rather than left implicit
-- [ ] #5 No existing commit is amended or re-trailered; `git log` on `dev` shows no rewritten history
+- [x] #1 A sweep of `dev` identifies every merged commit whose message text contains a `Refs:` line that `git interpret-trailers --parse` does not report, with the command and the per-commit result recorded
+- [x] #2 The backlog-handover skill states that a Refs trailer must sit in the final trailer block with no blank line separating it from other trailers, and names `git interpret-trailers --parse` as the verification
+- [x] #3 The skill shows a worked correct example and a worked incorrect example, so the failure mode is recognizable without re-deriving it
+- [x] #4 The disposition of the already-merged non-parseable commits (notably `7efc1a4`) is recorded as an explicit decision rather than left implicit
+- [x] #5 No existing commit is amended or re-trailered; `git log` on `dev` shows no rewritten history
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -112,4 +112,26 @@ Pattern confirmed: nearly all are either PR squash-merges (#N in subject) whose 
 AC #4 disposition: none of the 36 are amended or re-trailered — out of scope by this task's own framing ("does not rewrite history"). Disposition is: leave them as-is, and treat this sweep (command + full list, reproducible any time) as the durable record of the gap rather than trying to fix the history. Documented inline in reference/wave-loop.md section i ("Disposition of already-merged unparseable commits") and in SKILL.md's new Provenance entry (0.9.1-qcli.4). Forward-looking mitigation: the skill now requires interpret-trailers --parse verification at every commit-authoring step, and any future sweep must report text-present vs parseable as two distinct counts rather than conflating them (the exact confusion that let 7efc1a4 go unnoticed until doc-11 wave-1 review).
 
 Files changed: .claude/skills/backlog-handover/SKILL.md (Commits row pointer, version bump 0.9.1-qcli.3 -> 0.9.1-qcli.4, new Provenance entry), .claude/skills/backlog-handover/reference/wave-loop.md (new "Trailer placement and verification (QCLI-48)" subsection under section i, with worked correct/incorrect examples and the sweep). No docs/ files touched, no lore sync run, no existing commit amended.
+
+SETTLEMENT (doc-11 wave 2, 2026-08-07). Merged as `c47c2a0` (PR #63), rebased onto `dev` after QCLI-46 landed and re-verified before merge.
+
+Review ran in the skill's degraded mode — an orchestrator-run adversarial pass. Note this task's own worker completed fully (committed AND pushed) but its structured return was lost; the work was recovered by inspecting the worktree's git state directly rather than re-dispatching. That is now the 5th return-path failure across two sessions.
+
+Independently re-derived by the orchestrator, not taken on the implementer's word:
+- AC #1: the sweep was re-run from scratch by the orchestrator — 258 scanned, 202 carrying `Refs:` text, 36 unparseable, 166 parsing. Beyond matching the counts, the 36 SHAs were compared as a SET against the worker's recorded list and were byte-identical (`diff` returned empty). Counts agreeing could be coincidence; identical sets could not.
+- AC #3: both worked examples reproduce literally, not just plausibly. `342e76d` → `Refs: QCLI-43`; `7efc1a4` → only `Co-authored-by:`, with `%(trailers:key=Refs)` empty. The documented mechanism was then checked against `7efc1a4`'s actual message structure and confirmed exactly: `Refs: QCLI-43` at line 76, blank line, `---------`, blank line, then a lone `Co-authored-by:` as the real final trailer block.
+- AC #5: `dev` was 0/0 against `origin/dev` throughout; the branch adds exactly one commit and rewrites nothing.
+- Self-referential check: this task's own commit trailer parses, which for this task of all tasks would have been an embarrassing defect to miss.
+
+WAVE-LEVEL INTEGRATION EVIDENCE — the rule is already working. Re-running this task's own sweep on `dev` after both of this wave's merges landed: total 258 → 260 (+2), commits carrying `Refs:` text 202 → 204 (+2), unparseable unchanged at **36**. Both merges this wave were authored with explicit squash bodies and both parse. So the wave that introduced the rule introduced zero new violations of it — empirical confirmation of the forward-looking mitigation, not just a documented intention.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed the squash-merge `Refs` trailer-loss vector: a `Refs: QCLI-<N>` line separated from a message's final trailer block by a blank line reads like a trailer but is not one, so `git interpret-trailers --parse` and `%(trailers:key=Refs)` both silently report nothing — quietly defeating the exact measurement QCLI-47's evidence and provenance record depend on.
+
+Added a 'Trailer placement and verification' subsection to `reference/wave-loop.md` section i stating the placement rule, naming `git interpret-trailers --parse` as the verification, and showing a worked correct example (`342e76d`) beside a worked incorrect one (`7efc1a4`) so the failure mode is recognizable without re-deriving it. SKILL.md's Commits row gained a pointer sentence and a Provenance entry; the skill is now `0.9.1-qcli.4`.
+
+A full sweep of `dev` found 258 commits, 202 carrying `Refs:` text, of which 36 are unparseable — the command and the complete per-commit list are recorded in this task's notes, and the orchestrator's independent re-run produced a set-identical result. Disposition (AC #4), recorded explicitly rather than left implicit: none of the 36 are amended or re-trailered, since this task's scope is a verification rule plus a sweep and not a history rewrite; the re-runnable sweep itself stands as the durable record of the gap. Any future sweep must report 'no `Refs:` text at all' and '`Refs:` text present but unparseable' as two distinct counts — conflating them is what let `7efc1a4` go unnoticed. No existing commit was amended and no history was rewritten. Merged as `c47c2a0` (PR #63).
+<!-- SECTION:FINAL_SUMMARY:END -->

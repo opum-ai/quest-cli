@@ -3,10 +3,10 @@ id: QCLI-46
 title: >-
   Re-derive and reconcile the outstanding inline supersession-citation debt
   across docs
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-08 01:19'
+updated_date: '2026-08-08 01:28'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -51,12 +51,12 @@ This ruling settles AC #4 — it *is* the recorded owner disposition. AC #4 is s
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The outstanding set is re-derived by an independent sweep of every file under docs/, with the sweep methodology and a per-file result recorded, rather than inherited from the counts in QCLI-44 notes
-- [ ] #2 Every non-conformant inline supersession amendment the sweep finds either cites its directing task inline, or appears in a written exception list with a stated reason
-- [ ] #3 Each of the three sites named in the description is accounted for by name in the result, including the two that QCLI-44 final inventory missed
-- [ ] #4 The commit `a4ae6c5` citation gap carries a recorded owner disposition rather than an invented or inferred citation
-- [ ] #5 No historical-record text is rewritten: `git diff` shows every edit as an inline dated addition citing this task
-- [ ] #6 `lore validate --strict` and `lore check` both pass with 0 errors and 0 warnings, with the output recorded verbatim in implementation notes
+- [x] #1 The outstanding set is re-derived by an independent sweep of every file under docs/, with the sweep methodology and a per-file result recorded, rather than inherited from the counts in QCLI-44 notes
+- [x] #2 Every non-conformant inline supersession amendment the sweep finds either cites its directing task inline, or appears in a written exception list with a stated reason
+- [x] #3 Each of the three sites named in the description is accounted for by name in the result, including the two that QCLI-44 final inventory missed
+- [x] #4 The commit `a4ae6c5` citation gap carries a recorded owner disposition rather than an invented or inferred citation
+- [x] #5 No historical-record text is rewritten: `git diff` shows every edit as an inline dated addition citing this task
+- [x] #6 `lore validate --strict` and `lore check` both pass with 0 errors and 0 warnings, with the output recorded verbatim in implementation notes
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -173,4 +173,27 @@ $ lore check
 (exit 0)
 
 No `lore sync` was run on this branch at any point.
+
+SETTLEMENT (doc-11 wave 2, 2026-08-07). Merged as `a4276e0` (PR #62), rebased onto `dev` and re-verified before merge.
+
+Review ran in the skill's degraded mode — an orchestrator-run adversarial pass, not a replay of this worker's self-report. The subagent return path failed again this session (worker-48's return was lost despite its work completing), so per the handover's standing guidance no further dispatches were burned on it.
+
+Independently re-derived by the orchestrator, not taken on the implementer's word:
+- Sweep corroboration (AC #1/#3): an independent orchestrator sweep for paragraph-initial dated amendment markers lacking a nearby citation surfaced NO fourth site. This is the check that mattered — two prior sweeps (QCLI-44's first pass and its own correction) each missed a site the other found, so a third sweep agreeing with this one is the first real convergence. Two apparent extra hits were examined and correctly excluded: `quest-cli-open-component-decisions.md:305` ("Verified registry state") is a dated observation record, and `quest-cli-backlog-adoption-and-migration-playbook.md:38` ("Owner ruling in force") is a standing scope statement at the document head — neither supersedes prior text. A third, `use-quest-cli-for-the-quest-package-and-command.md:57`, was a false positive of the orchestrator's own line-based grep: its marker at :56 reads `**Amendment — 2026-08-04 (QCLI-5).**` and is conformant.
+- Attribution (highest-risk, since this task INTRODUCES new citations): `git blame` independently confirmed register.md:420 → `2246c46` ("QCLI-2.7: Track Lore dependencies and Quest activation evidence") and fidelity-contract.md:561 → `407ea61` ("QCLI-2.5: Research Backlog migration fidelity through public contracts"). Both citations are real, not inferred.
+- AC #5: verified 0 deletion lines across `docs/` and `CLAUDE.md`, both pre-rebase and post-rebase.
+- AC #6: `lore validate --strict` → 47 files, 0 errors, 0 warnings, 6 skipped; `lore check` → 47 files, 0 errors, 0 warnings. Reproduced independently by the orchestrator after the rebase, not just accepted from the branch.
+- AC #4: the owner ruling's hardest requirement — that the recorder/author distinction be legible to a reader — is met explicitly in the added prose ("cited here only as the task that *recorded* this disposition — it is not the amendment's author and does not retroactively become one by being named in this note").
+
+Wave-level integration review: this task's files are provably disjoint from QCLI-48's (empty intersection), and the merged commit's `Refs: QCLI-46` trailer parses under QCLI-48's new rule.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Re-derived the outstanding inline supersession-citation debt across `docs/` from scratch with a three-pass sweep (bold-marker grep over all 44 authored files, per-file date-only sweep of the remainder, keyword/strikethrough pass), deliberately not inheriting either of QCLI-44's two conflicting counts. The sweep confirmed exactly the three-site floor named in the task and found no additional site — independently corroborated by a separate orchestrator sweep, the first time three passes have converged after two earlier ones each missed a site the other found.
+
+Reconciled all three: `quest-cli-research-source-register.md:420` now cites QCLI-2.7 and `quest-cli-backlog-migration-fidelity-contract.md:561` now cites QCLI-2.5, each traced by `git blame` to the commit that actually authored the amendment (`2246c46`, `407ea61`) rather than guessed. The third site — the `a4ae6c5` amendment in `quest-cli-activation-gate-evidence-record.md` — was re-confirmed to have no directing task and implements the owner's ruling verbatim: recorded as explicitly uncitable, with QCLI-46 named only as the task that recorded the gap and expressly not as the amendment's author. No citation was invented, inferred, or manufactured via a retroactive task.
+
+Every edit is an inline dated addition citing QCLI-46: 37 insertions and 0 deletions across the three files, so no historical-record text was rewritten, reworded, or re-tensed. Verified by `lore validate --strict` and `lore check` (47 files, 0 errors, 0 warnings each), reproduced independently after rebase. Merged as `a4276e0` (PR #62).
+<!-- SECTION:FINAL_SUMMARY:END -->

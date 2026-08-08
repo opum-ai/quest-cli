@@ -3,7 +3,7 @@ id: doc-11
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-08 01:09'
+updated_date: '2026-08-08 01:30'
 ---
 # Backlog campaign tracker
 
@@ -17,8 +17,9 @@ loop until the queue is empty or blocked → write handover.
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
 trust a persisted "next wave" plan. Informational hint only: as of
-2026-08-07 at init, 2 ready (QCLI-45, QCLI-47), 1 blocked on a dependency
-(QCLI-46, waiting on QCLI-45), 0 needs-human, 0 Done.
+2026-08-07 after wave 2, **2 ready (QCLI-49, QCLI-50), 0 blocked, 0
+needs-human, 67 Done**. QCLI-49 and QCLI-50 sit in different clusters, so
+they are legally co-schedulable as a single final wave.
 
 ## Origin of this campaign
 
@@ -128,13 +129,9 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
-| QCLI-46 | 2 | treehouse slot 1 (lease `8934fcd2…`, holder `qcli/QCLI-46`) | `docs/qcli-46-supersession-citation-debt` | 1 — dispatched |
-| QCLI-48 | 2 | treehouse slot 2 (lease `bf66aa25…`, holder `qcli/QCLI-48`) | `fix/qcli-48-refs-trailer-loss-vector` | 1 — dispatched |
 
-Wave-2 base pinned at `fe92535`. Both worktrees were reset onto that commit
-*after* the dispatch marking was committed, so each branch already carries its
-own task file's `wave-2` label and cannot conflict on it at rebase — see the
-wave log for why.
+(clean — wave 2 fully settled, both worktrees returned to the pool, both
+branches deleted local and remote, 6/6 pool slots available)
 
 ## Needs a human / blocked
 
@@ -216,3 +213,85 @@ and are now **filed**. Nothing is pending approval.
   owner ruling (record as explicitly uncitable) and written into QCLI-46's
   description. Queue at handover: **4 To Do** (QCLI-46, 48, 49, 50), 0 In
   Progress, 65 Done, 0 needs-human.
+
+- 2026-08-07 — **wave 2: QCLI-46 + QCLI-48, both merged and settled `Done`.**
+  Wave base pinned at `fe92535`. One task from each cluster, the maximum legal
+  wave size here since both clusters hold exactly two tasks. Verified after the
+  fact that the two tasks' file sets are **disjoint (empty intersection)**, so
+  the conflict graph held exactly as computed.
+
+  **A pending owner decision was found that the wave-1 handover had recorded as
+  absent.** The handover stated "zero pending owner decisions"; that was true of
+  QCLI-46's blocker but not of QCLI-50, whose AC #1 requires an owner ruling
+  that had never been obtained and whose description explicitly says not to
+  presume the answer. Obtained at this restore before dispatch, following this
+  campaign's own precedent: **tense-only edits that preserve the recorded fact
+  are ordinary housekeeping, not preserve-and-amend.** `CLAUDE.md`'s "or
+  re-tensing" wording is to be narrowed by an inline dated amendment citing
+  QCLI-50, to the test "covered only when the edit alters or obscures what the
+  record asserts was read"; nothing is restored in the evidence record. Recorded
+  verbatim in QCLI-50's own description (`a0ebdfc`) so it travels with the task.
+  Owner's rationale: it ratifies the scope judgment QCLI-45's review already
+  made, and a logging-every-instance variant was considered and rejected as
+  recreating most of the burden the ruling lifts.
+
+  **R3 was not a no-op.** `lore sync` at restore found `docs/log.md` missing
+  `82ec77d` — doc-11 wave-1's own settlement docs commit, which by construction
+  cannot record itself. The documented one-commit lag, not drift. Gated with
+  `lore check --strict` (47 files, 0 errors, 0 warnings) and committed as
+  `4c1609c`.
+
+  - **QCLI-46** → merged `a4276e0` (PR #62). Three-pass sweep over all 44
+    authored `docs/` files re-derived the outstanding set from scratch,
+    confirming the 3-site floor and finding no fourth site. register.md:420 now
+    cites QCLI-2.7 and fidelity-contract.md:561 now cites QCLI-2.5, each traced
+    by `git blame` to the commit that actually authored the amendment
+    (`2246c46`, `407ea61`) rather than guessed. The `a4ae6c5` site implements
+    the owner's uncitable ruling verbatim, with the recorder/author distinction
+    explicit in the prose. 37 insertions, **0 deletions** across the three
+    files. All 6 ACs confirmed.
+  - **QCLI-48** → merged `c47c2a0` (PR #63), rebased onto `a4276e0` and
+    re-verified before merge. Placement rule plus `git interpret-trailers
+    --parse` verification and a worked correct/incorrect pair added to
+    `wave-loop.md` section i; SKILL.md pointer and Provenance entry; skill at
+    `0.9.1-qcli.4`. Sweep: 258 commits, 202 carrying `Refs:` text, 36
+    unparseable. Disposition recorded explicitly: none amended or re-trailered.
+    All 5 ACs confirmed.
+
+  **Review again ran in degraded mode, and the return-path failure has now
+  spread from reviewers to workers.** QCLI-48's worker completed its work fully
+  — committed *and* pushed — but its structured return never arrived; the work
+  was recovered by inspecting the worktree's git state directly rather than
+  re-dispatching. That is the 5th return-path failure across two sessions. Per
+  the wave-1 handover's standing guidance, no further dispatches were burned on
+  it; the orchestrator ran both reviews itself as explicit adversarial passes,
+  re-deriving every claim rather than replaying the workers' self-reports. Two
+  checks were decisive: QCLI-48's 36 unparseable SHAs were compared as a **set**
+  against the worker's list and were identical (counts agreeing could be
+  coincidence; identical sets could not), and QCLI-46's two **new** citations
+  were independently confirmed by `git blame` — the highest-risk part of that
+  change, since a wrong attribution would have written a false citation into a
+  historical record.
+
+  **Wave-level integration review: no findings, and positive confirmation.**
+  The two tasks' file sets are disjoint. Re-running QCLI-48's own sweep on `dev`
+  after both merges landed: total 258 → 260 (+2), `Refs:`-carrying 202 → 204
+  (+2), unparseable **unchanged at 36**. Both of this wave's merges were
+  authored with explicit squash bodies and both parse — so the wave that
+  introduced the rule introduced zero violations of it. `lore check --strict` on
+  `dev` post-merge: 47 files, 0 errors, 0 warnings. No follow-up tasks proposed.
+
+  **Merge-queue hazard reproduced and characterized (evidence for QCLI-49).**
+  The orchestrator's `--add-label in-review` write on `dev` left QCLI-48's task
+  file dirty while that task's *branch* had also committed its own copy of the
+  same file — so committing the label edit would have conflicted at rebase on
+  the same frontmatter block. Verified the dirty diff contained only
+  `updated_date` and the label (no plan or notes, which live on the branch),
+  discarded it, and reconstructed labels at settlement. This sharpens wave 1's
+  finding: the operative rule is not merely "clean the checkout before
+  rebasing" but **the orchestrator must not edit a task file on `<default>`
+  while that task's branch is unmerged.** Separately, this wave committed its
+  dispatch marking (`fe92535`) and re-pinned both worktrees onto that commit, so
+  each branch already carried its own task file's `wave-2` label and could not
+  conflict on it — which worked cleanly and is offered to QCLI-49 as evidence,
+  not as a pre-empted decision.
