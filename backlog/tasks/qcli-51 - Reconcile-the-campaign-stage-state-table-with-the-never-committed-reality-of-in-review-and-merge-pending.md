@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-08 13:46'
-updated_date: '2026-08-08 14:08'
+updated_date: '2026-08-08 14:29'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
@@ -59,3 +59,48 @@ Whatever shape the fix takes, it must not reintroduce the rebase conflict QCLI-4
 - [ ] #5 No remaining passage across SKILL.md and reference/wave-loop.md describes these labels in a way another passage contradicts, and the result is consistent with QCLI-49 rule that mid-wave task-file label edits are never committed on <default> while the branch is unmerged
 - [ ] #6 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. SKILL.md stage-state table (~L103-114): add a 'Committed to Backlog?' column; mark in-review/merge-pending as No (working-tree-only). Add prose below the table: (a) both labels are applied by (f) on the orchestrator's own <default> checkout and discarded before (g)'s rebase, never an ancestor of any commit; (b) identical durability treatment for the same QCLI-49 reason; (c) distinct points of action stated explicitly: in-review at review dispatch, merge-pending at the reviewer's approve verdict (not 'later'); (d) pointer to R2 for crash-recovery classification.
+2. wave-loop.md section (f): rewrite the intro sentence (drop vague 'transition later'); rewrite the numbered list so step 1 = add in-review at dispatch (point of action stated), new step 2 = swap to merge-pending on approve, before (g) (point of action stated, explicitly reusing the existing run-then-discard mechanism rather than adding a new one in (g) - the three owner-declined alternatives are not reintroduced), renumbered steps 3-5 = confirm diff / discard once / reconstruct at settlement (covering both edits). Add an honest evidence note: in-review's discard-and-reconstruct is evidenced (doc-11 wave 2); merge-pending's own point-of-action edit has not yet been separately exercised in a recorded wave.
+3. SKILL.md R2: add a new step after the existing 4-item list (as step 5) stating that in-review/merge-pending will never be present in committed state, so R2 must not cross-check leftovers against them; instead derive review substage from: the orchestrator's own <default> checkout dirtiness (step 1) with the specific label present pinning pre/post-approve, the worktree's own git log (step 4) for the worker's stage-4 commit, and gh pr list (step 3) since a PR opens only post-approve. State the fallback: no such signal -> presumptively pre-approval, resume at review.
+4. Sweep every in-review/merge-pending occurrence in SKILL.md and wave-loop.md (grep -n, already run) and re-read each post-edit to confirm no contradiction remains (line 128 intro sentence, line 160 (g) precondition paragraph, lines 195/200 settlement label-removal calls, line 222 scope note, the new table/R2 text). escalation.md and templates.md contain zero occurrences (confirmed by grep) - no edit needed there.
+5. Bump SKILL.md frontmatter version 0.9.1-qcli.5 -> 0.9.1-qcli.6 and add a Provenance paragraph after QCLI-49's, in the file's existing style, describing the reconciliation, the origin/re-verification history, the three declined owner alternatives (named but not re-proposed), and the evidence sweep.
+6. Re-read all edited regions post-edit (not carry line numbers from the task description), record notes with the AC#5 sweep table, commit in small logical commits with Refs: QCLI-51 trailers, verify with git interpret-trailers, push.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented. Sweep + verification evidence below (all re-read post-edit; no line numbers copied from the task description — sections cited instead where the prose allows it).
+
+AC#1 (durability distinction, every row): SKILL.md's stage-state table (Campaign stage -> Backlog state) gained a "Committed to Backlog?" column: Queued/Dispatched/Done/Blocked all "Yes" (with the committing step named for Dispatched and Done); In review and Merge-pending both "No -- working-tree-only, see below". Prose immediately below states why (reference/wave-loop.md section (f) applies+discards both before section (g)'s rebase; reconstructed at settlement (i)) and cites QCLI-51/QCLI-49. Read post-edit.
+
+AC#2 (merge-pending disposition + point of action): reference/wave-loop.md section (f)'s numbered list rewritten. New step 1 = add in-review at reviewer dispatch (in-review's point of action). New step 2 = on the reviewer's `approve` verdict, before the branch is handed to (g), swap to merge-pending via `--remove-label in-review --add-label merge-pending` -- merge-pending's point of action, named directly. The old trailing "and later `merge-pending`" phrase no longer exists in the file (replaced, not merely supplemented). Section (g)'s eight-step merge walk still names neither label (verified by re-reading section g in full post-edit) -- the point of action lives in (f), reusing (f)'s existing run-then-discard mechanism rather than adding a new one in (g). This deliberately avoids owner-declined alternative (b) ("point of action in (g) at the cost of a new ceremony there"): no new steps were added to (g).
+
+AC#3 (in-review same treatment, difference stated): both labels get identical durability treatment in the table and in the new SKILL.md prose (same QCLI-49 rebase-conflict reason). The difference -- in-review marks review's start (dispatch), merge-pending marks review's end (approve, pre-(g)) -- is stated explicitly in both SKILL.md's new prose and wave-loop.md section (f)'s rewritten steps, not left implicit.
+
+AC#4 (R2 crash-recovery classification): SKILL.md R2 gained a new step 5 stating neither label is ever present in committed state, so absence must not be read as "review never started/approved". Classification instead uses: step 1's working-tree-clean check on the *orchestrator's own* <default> checkout (a label-only dirty entry for a given task's file pins the crash to before/after that task's own approve verdict, per which label is present -- refined mid-implementation to be explicitly per-task-file, since review is pipelined and multiple members can be mid-review concurrently); step 4's worktree git log (worker's stage-4 commit presence/absence); step 3's `gh pr list` (a PR only opens post-approve in (g), so an open PR is durable proof of passed review even though merge-pending itself leaves no trace). No-signal case is stated as presumptively pre-approval.
+
+AC#5 sweep -- every `in-review`/`merge-pending` occurrence found via `grep -n` in SKILL.md and reference/wave-loop.md, each read in context post-edit:
+- SKILL.md L109-110: table rows -- updated, consistent.
+- SKILL.md L116, L120-121, L123: new explanatory prose -- consistent, matches wave-loop.md (f).
+- SKILL.md L159: new R2 step 5 -- consistent.
+- SKILL.md L217 (QCLI-49 provenance entry): historical incident record ("uncommitted wave-1/in-review label edits...") -- untouched, remains accurate as history, does not contradict new framing.
+- SKILL.md L219: new QCLI-51 provenance entry -- self-consistent, names the 3 declined alternatives without re-proposing them.
+- wave-loop.md L126: in-review dispatch-time marking -- consistent with new step 1.
+- wave-loop.md L128, L130-131, L136: rewritten intro/steps/evidence note -- internally consistent; evidence note is honest that merge-pending's own point-of-action edit has not yet been separately exercised in a recorded wave (only in-review's has, doc-11 wave 2).
+- wave-loop.md L161 ((g) precondition paragraph): "mid-wave label transitions (in-review, merge-pending -- see (f)) are never committed on <default>..." -- still accurate under the new framing (both governed by (f), both run-then-discard); left unchanged since it asserts nothing that changed.
+- wave-loop.md L196, L201 (settlement's `--remove-label "in-review,merge-pending"` calls): unchanged; still a correct defensive normalization even though these labels are never actually present on the merged copy (they were discarded pre-rebase) -- no contradiction.
+- wave-loop.md L223 (QCLI-49 scope note): "they do not appear as a row in this table because they are deliberately never committed at all" -- still accurate, unchanged.
+- reference/escalation.md and reference/templates.md: `grep -n "in-review|merge-pending"` returns zero matches in both (confirmed twice). No edit made to either file, per the task's scope note ("possibly ... IF ... they contain a contradicting passage").
+Consistent with QCLI-49's rule throughout: no label edit for either stage was committed on <default> mid-wave anywhere in the new text; section (g) gained zero new label-handling steps.
+
+AC#6: SKILL.md frontmatter version bumped 0.9.1-qcli.5 -> 0.9.1-qcli.6. New Provenance paragraph added after the QCLI-49 entry, same shape as QCLI-43/47/48/49 (version, task ID, date, what changed, why, origin/re-verification history, the declined alternatives named without being re-proposed, evidence-sweep pointer).
+
+Owner-ruling compliance: did not delete/treat merge-pending as vestigial (alternative a); did not add a write-then-discard ceremony to section (g) (alternative b); did not leave the disposition for a future reader to derive (alternative c) -- the point of action is stated directly in (f).
+
+No out-of-scope discoveries.
+<!-- SECTION:NOTES:END -->
