@@ -4,6 +4,7 @@ title: Settle whether tense-only edits fall under preserve-and-amend
 status: To Do
 assignee: []
 created_date: '2026-08-07 20:28'
+updated_date: '2026-08-08 01:07'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -16,20 +17,17 @@ ordinal: 69000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Raised as a minor finding during `QCLI-45`'s review (doc-11 wave 1, 2026-08-07) and deliberately not acted on there, because it was judged outside that task's AC #2.
+**OWNER RULING (2026-08-07, obtained at doc-11 wave-2 restore, before this task is dispatched) — tense-only edits are NOT covered by preserve-and-amend.**
 
-Commit `3b1e9f5` (`QCLI-42`) made **two** edits to `docs/reference/quest-cli-activation-gate-evidence-record.md`, not one:
+A tense-only edit that preserves the recorded fact is **ordinary housekeeping**, not a supersession. `CLAUDE.md`'s "or re-tensing" wording is to be **narrowed by an inline dated amendment citing this task** to a stated test:
 
-1. It deleted the gate-result paragraph ("`LDOC-4` is still `To Do` ... **the gate result is unchanged: closed.**"). `QCLI-45` restored this verbatim as preserved-and-superseded text.
-2. It **re-tensed** a clause in the immediately preceding paragraph: "and the Spec **now reports** items 2, 3, and 4 of the predicate as satisfied" became "and the Spec **reported** items 2, 3, and 4 of the predicate as satisfied." `QCLI-45` did **not** restore this.
+> Re-tensing is covered by preserve-and-amend **only when the edit alters or obscures what the record asserts was read**. A pure present→past shift that leaves the recorded reading intact is housekeeping.
 
-The reviewer's reasoning for excluding it: no dated reading was destroyed. The recorded fact — that the Spec reported items 2, 3, and 4 satisfied at pin `d2a9a9e11ddf` — survives intact in both versions; only the tense marker relative to the reader's present changed. There is nothing to mark superseded, so AC #2's "restored ... as preserved-and-superseded text" has no referent.
+Concretely: **nothing is restored in `docs/reference/quest-cli-activation-gate-evidence-record.md`.** `QCLI-42`'s re-tensed clause ("the Spec **now reports** items 2, 3, and 4 of the predicate as satisfied" → "the Spec **reported** ...") stays as it is. The reason must be written where a future sweeper will hit it, so the exclusion does not read as an oversight.
 
-The tension: the ruling `QCLI-45` itself wrote into `CLAUDE.md` says the correct-in-place test "does not license deleting **or re-tensing** an evidence record's own dated reading." Read literally, that names re-tensing as covered. So `CLAUDE.md` and the reviewer's scope judgment can be read as disagreeing, and a future reader sweeping the record has no stated way to resolve it.
+Owner's rationale: this ratifies the scope judgment `QCLI-45`'s review already made, rather than overturning it. The recorded fact — that the Spec reported items 2, 3, and 4 satisfied at pin `d2a9a9e11ddf` — survives identically in both versions, so there is no destroyed reading to mark superseded and AC #2's "restored ... as preserved-and-superseded text" would have no referent. A logging-every-instance variant was considered and rejected: it recreates most of the amendment burden the ruling just lifted.
 
-This is a convention question, not a defect: **the owner should decide whether tense-only edits that preserve the recorded fact fall under preserve-and-amend, or whether they are ordinary housekeeping.** Both readings are defensible and the point is to stop the ambiguity, not to presume the answer.
-
-Constraint: whatever is decided, `CLAUDE.md`'s existing `QCLI-45` ruling paragraph is a historical-record amendment and must be amended **inline and dated, citing this task** — not rewritten (`CLAUDE.md`'s `QCLI-44` ruling).
+This ruling settles AC #1 — it *is* the recorded, dated owner decision. AC #3's **second** branch is the one that fires. AC #1 is satisfied by implementing this faithfully, not by seeking a further decision.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
