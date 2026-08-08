@@ -574,6 +574,19 @@ table, above. With that row in place, "all 49 nodes exercised end to end"
 is accurate as of this fix — it was not accurate between the original
 delivery and this correction.
 
+**Directing-task citation added 2026-08-07 by `QCLI-46`:** the "Review-round
+fix" above named no task id. `git blame`/`git log --follow` on this
+paragraph resolve to commit `407ea61`, `QCLI-2.5: Research Backlog
+migration fidelity through public contracts` — the review round and its
+fix both landed inside `QCLI-2.5`'s own delivery commit, pre-merge, which
+is also why the fix's scratch repository above is already named
+`qcli-2.5-fix-scratch`. The directing task for this amendment is
+`QCLI-2.5`, cited here per the ruling in `CLAUDE.md` (`QCLI-44`) that every
+inline supersession amendment must cite its directing task inline.
+`QCLI-46` is the task that identified and recorded this citation gap —
+missed entirely by `QCLI-44`'s own sweep — by independently re-deriving the
+outstanding set; it is not the amendment's author.
+
 One live web fetch was made, to `https://backlog.md` (redirects to
 `github.com/MrLesk/Backlog.md`), read as published documentation prose per
 the register's "Backlog.md public surface" slice, not as source code; no

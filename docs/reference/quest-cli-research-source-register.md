@@ -427,6 +427,18 @@ named slice, never to every file in its repository.
   everything the split rule does not carve out. This register does not
   decide the Quest↔Lore integration boundary, which `lore-doc` owns; it does
   not perform QCLI-2.7's gate-evidence verification.
+- **Directing-task citation added 2026-08-07 by `QCLI-46`:** the amendment
+  above ("amended 2026-08-04 by the owner's split rule") named only the
+  split rule it points to, not the task under which that edit was made.
+  `git blame` on this bullet and on "The lore-cli source-admissibility split
+  rule" section immediately below both resolve to the same commit,
+  `2246c46`, `QCLI-2.7: Track Lore dependencies and Quest activation
+  evidence` — the directing task for this amendment is `QCLI-2.7`, cited
+  here per the ruling in `CLAUDE.md` (`QCLI-44`) that every inline
+  supersession amendment must cite its directing task inline, not only the
+  decision it names. `QCLI-46` is the task that identified and recorded
+  this citation gap, re-deriving it independently of `QCLI-44`'s own sweep
+  (which did not list this file); it is not the amendment's author.
 - **Reclassification triggers:** a further org/repo transfer; a version bump
   changing the documented CLI surface; `lore-doc`'s integration-boundary Spec
   changing what is consumable. Independently worth recording as its own

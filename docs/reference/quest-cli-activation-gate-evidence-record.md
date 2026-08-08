@@ -79,6 +79,18 @@ commit itself cites no task. There is no directing task available to cite
 for this amendment; it is recorded here as unreconciled debt against the
 ruling above, not reconciled by this note, pending owner attention.
 
+**Disposition recorded 2026-08-07 by `QCLI-46`:** the citation gap `QCLI-44`
+noted above is settled as explicitly uncitable, not reconciled. No
+directing task exists for commit `a4ae6c5` — the authoring work was never
+filed as a Backlog task — established by exhausting the task store, first
+by `QCLI-44` and re-confirmed independently by this task's own sweep of
+every file under `docs/`. Per the owner's ruling (obtained 2026-08-07 at
+doc-11 wave-1 report, recorded in `QCLI-46`'s task description): no
+citation is invented or inferred for this amendment, and no retroactive
+task is filed to manufacture one. `QCLI-46` is cited here only as the task
+that *recorded* this disposition — it is not the amendment's author and
+does not retroactively become one by being named in this note.
+
 This record satisfies clause 4 alone. Clauses 1–3 are quoted here only so the
 evidence table below can be organized against them; this document asserts no
 disposition of clauses 1–3, which are `lore-doc`'s to rule on.
