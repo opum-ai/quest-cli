@@ -1,12 +1,14 @@
 ---
 id: QCLI-49
 title: Define the commit step for the orchestrator's dispatch-marking writes
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-07 20:27'
+updated_date: '2026-08-08 01:32'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
+  - wave-3
 dependencies: []
 priority: medium
 type: chore

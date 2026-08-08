@@ -1,13 +1,14 @@
 ---
 id: QCLI-50
 title: Settle whether tense-only edits fall under preserve-and-amend
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-07 20:28'
-updated_date: '2026-08-08 01:07'
+updated_date: '2026-08-08 01:32'
 labels:
   - campaign
   - 'cluster:supersession-convention'
+  - wave-3
 dependencies: []
 priority: low
 type: docs
