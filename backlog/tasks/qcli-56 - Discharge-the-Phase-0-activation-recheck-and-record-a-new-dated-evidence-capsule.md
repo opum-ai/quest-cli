@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-08 21:41'
-updated_date: '2026-08-08 21:59'
+updated_date: '2026-08-08 22:27'
 labels:
   - campaign
   - 'cluster:gate'
@@ -93,6 +93,22 @@ Per-criterion self-assessment (not checking boxes -- finalization is out of scop
 lore check --strict: 47 files, 0 errors, 0 warnings (re-confirmed at 2026-08-08 21:58:17Z-21:58:55Z UTC, after the docs edit and lore sync).
 
 Out-of-scope discoveries, not acted on: lore-cli's local clone at /Volumes/external/repos/lore-cli sits on an unrelated feature branch (chore/lcli-315-3-post-merge-reconciliation) rather than dev -- noted for whoever owns that clone's hygiene, not something this task's scope covers. lore-cli's origin/dev has moved twice past the commit lore-doc's own gate decision cites (87b6d876110a -> b4ab2fbec92167f8a53a1d7e5c6f34b22ac8fddc) with no new tag/publish; flagged in the appended section as a new fact for lore-doc, per the recheck clause's own disposition rule, and not resolved here.
+
+Fix pass (reviewer request_changes, attempt 1 of 2).
+
+Re-ran the lore-cli delta myself, read-only, before writing any number: from /Volumes/external/repos/lore-cli (still parked on chore/lcli-315-3-post-merge-reconciliation, fetched, not checked out or otherwise mutated): `git rev-list --count 87b6d876110a..origin/dev` = 25; `git rev-list --count --merges 87b6d876110a..origin/dev` = 6; `git rev-list --count --first-parent 87b6d876110a..origin/dev` = 6.
+
+The evidence record's "lore-cli's origin/dev has advanced twice since the boundary lore-doc itself evaluated" claim (Discrepancies bullet, 2026-08-08 capsule) was WRONG under its own cited anchor -- not two by any measure above. Root cause: a transposition of this task's own description, which separately and correctly says lore-doc moved "two moves beyond the capsule's own pin" -- that "two" belongs to lore-doc, not lore-cli. Corrected in the evidence record itself to "advanced by 25 commits across 6 merged pull requests ... (observed 2026-08-08; moving reference, re-verify before relying)", with the three counts and the correction note inline.
+
+The same wrong "twice" figure is NOT corrected in three other places, named here rather than quietly restated: (1) commit 625136c's message ("lore-cli origin/dev advanced twice past lore-doc's own cited boundary") -- not amended, no amend/rebase permitted on this branch, so that commit's message permanently carries the uncorrected figure; (2) this task's own prior Implementation Notes, "Out-of-scope discoveries" paragraph ("lore-cli's origin/dev has moved twice past the commit..."); (3) this task's own comment #1 ("lore-cli's origin/dev has advanced twice past the commit..."). Both (2) and (3) are historical entries this append cannot rewrite; they are wrong and should be read alongside this correction, not trusted at face value.
+
+Closed the Authority-table gap the reviewer identified: re-verified myself via `git show 101f9bb39eacd0e2e73df1bb4fa78db04f0a5896:docs/specs/quest-integration-and-lore-release-gate.md | grep -n "pass/fail"` against the local lore-doc clone (branch dev, HEAD and origin/dev both 101f9bb39eacd0e2e73df1bb4fa78db04f0a5896, working tree clean, not mutated). Line 41 of that file at that HEAD reads verbatim: "| Quest component research and implementation | `quest-cli` | Receive a pass/fail gate result and versioned Lore contract |" -- the Authority table's own line for this repository's entitlement. Added one sourced paragraph to the evidence record (after the existing vocabulary-difference observation, before "This record still computes no gate result of its own") quoting this line and stating that "pass/fail" is therefore the gate owner's own term for this result, not a word this record supplies -- the owner reports that result as OPEN with all four predicate items satisfied. Recorded as the owner's report, not a computation here. Added nothing beyond what the quoted line and the existing OPEN/satisfied quotations already carry; did not touch the existing "an open Lore gate is not Quest activation" boundary sentence or lore-doc's own "nothing else" / "has misread it" language, both of which remain immediately adjacent and unedited.
+
+Minor fixes: added "(observed 2026-08-08; moving reference, re-verify before relying)" to the "No further commit has landed on lore-doc's dev since" claim (Evidence consumed (re-run) table, clause-1 predicate-text row) and to the "no third tag exists" claims in both the clause-2 tag-existence table row and the Discrepancies bullet; in the clause-2 table row, restructured the cell so "no third tag exists" reads as a separate, explicitly re-runnable observation rather than part of the "immutable anchors" clause describing the two tag->commit resolutions (which remain correctly stated as immutable).
+
+Frontmatter (summary/timestamp, lines 12-13): considered and declined. On the record-vs-current test alone these read as document metadata rather than a preserved dated reading, so QCLI-45's preserve-and-amend would not obviously bar updating them. But this document's own 2026-08-08 capsule section states about itself "nothing above is edited or re-tensed," and the frontmatter is above that section and already existed verbatim on dev before this branch -- editing it in place would (a) make that self-description false and (b) introduce the branch's first real deletion relative to dev (git diff dev --numstat would go from 168/0 to 152/1-ish), breaking the pure-append invariant this fix pass was required to hold. Left unchanged; the discrepancy between the frontmatter's 2026-08-05 date and the document's now-dual-dated content is cosmetic and does not misstate any observed fact.
+
+Verification: lore check --strict clean (47 files, 0 errors, 0 warnings) after all edits. git diff dev --numstat on the evidence record (dev vs current working tree, i.e. what dev...HEAD will read once committed): 168 insertions, 0 deletions -- pure append preserved. Neither peer repo (lore-doc, lore-cli) was mutated: both read via fetch-and-inspect only, lore-cli still parked on its unrelated branch as found. No lore sync run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
