@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-08 21:43'
-updated_date: '2026-08-08 21:57'
+updated_date: '2026-08-08 22:22'
 labels:
   - campaign
   - 'cluster:skill-docs'
@@ -127,4 +127,24 @@ SWEEP (AC's "no other passage asserts the ancestor claim or wrong diagnosis"): `
 VERSION (AC#8): bumped, not exempted -- see reasoning under CHANGES item 8 above.
 
 NOT VERIFIED / OUT OF SCOPE (recorded, not silently assumed): whether the new push has ever actually failed non-fast-forward in live practice (no recorded case to check against -- the recovery procedure is untested against a real occurrence); whether every historical dispatch-marking/in-flight-pointer commit predating this rule is itself an ancestor of origin/<default> today (explicitly out of scope -- this task governs future waves, not a retroactive audit, and no history is rewritten or amended).
+
+FIX PASS (mandatory review, attempt 1/2): reviewer returned request_changes, confirming ACs #1-#5,#8,#9 and failing #6 (holding #7 on it). Four required findings + one nit, all addressed. Working dir: fix/qcli-60-default-branch-push worktree, new commits on top of 007dd56.
+
+Fix 1 (AC#6/#7, HIGH): the recovery's "no content was lost" check tested commit CLASS (dispatch-marking/in-flight-pointer whose push failed, or predates QCLI-60), not content PRESENCE, and then unconditionally asserted "already folded into origin/<default> by the squash-merge" before discarding via reset --hard. True for the dispatch-marking commit (rides a re-pinned worker branch into the squash by construction) but false for a mid-wave/R3-recovery in-flight-pointer commit -- it postdates every worktree's re-pin, so no worker branch carries it, and a failed push means the squash that caused the divergence never had it either. reset --hard would have silently destroyed the campaign doc's in-flight-table update.
+
+Fixed: reference/wave-loop.md (g)'s recovery now adds a content-presence check per local-only commit that passes the class check -- git merge-base --is-ancestor <sha> <branch> (this iteration's own just-squash-merged branch, still checked out), falling back to a path-scoped content diff (git show --name-only --format= for paths, then git diff <default> origin/<default> -- <paths>) if that branch ref is gone. Only a commit passing BOTH checks is discarded; one passing the class check but failing the content check is preserved instead: reset --hard origin/<default>, then git cherry-pick <sha>, then push (escalate on conflict or repeated push failure). reference/escalation.md:38's row is narrowed the same way.
+
+Traced explicitly against the mid-wave in-flight-pointer scenario: wave with members A, B; mid-wave commit P (campaign doc only) sits on top of already-pushed dispatch-marking commit M; P's push fails, walk proceeds anyway. A's branch (re-pinned onto M before P existed) rebases clean, merges, squashes to S_A (parented on M, never touching the campaign doc). (g) step 5 fails: local-only=[P]. Class check passes (P is this wave's unpushed in-flight-pointer commit). Content check: git merge-base --is-ancestor P <branch-A> is FALSE (P postdates the re-pin); diff fallback on the campaign-doc path is non-empty (S_A never touched it). P fails the content check -> NOT discarded: reset --hard to S_A, cherry-pick P (clean), push -- P's content survives as a new SHA on top of S_A. Under the original unfixed text this would have been silently destroyed. Confirms the finding and confirms the fix closes it.
+
+Fix 2 (required): sweep decomposition was off by one (25 after = "9 unrelated + 3 targets + 13 new", should be "9 unrelated + 2 targets + 14 new" -- (g) step 2's corrected text no longer matches the search pattern). Re-ran the sweep myself against the fully edited tree (which also includes this fix pass's own additions, not just 007dd56's): grep -c -i -E 'already an ancestor|ff-only|fast-forward|clean-checkout precondition|diverg|even if the process dies' SKILL.md reference/*.md -> SKILL.md 12, wave-loop.md 15, escalation.md 2, templates.md 0 = 29 total. Verified by grep -n listing every matching line and classifying each: 9 unrelated (unchanged, same lines as before), 2 targets still matching (the (d) step 4 crash-visibility parenthetical and (g) step 5's diagnosis; (g) step 2's "by construction" text still does not match, confirmed), 18 new (9 in SKILL.md, 9 in wave-loop.md/escalation.md combined -- wave-loop 9 + escalation 1). 9+2+18=29, matches the raw count exactly. Documented in SKILL.md's sweep paragraph with the corrected decomposition and an explicit note that (g) step 2's corrected text no longer matches.
+
+Fix 3 (required): reference/wave-loop.md:102's "R3 must retry it" duty had no counterpart in SKILL.md's R3 (unlike the lore-sync precedent at wave-loop.md:333, which ends "(SKILL.md's R3 carries a pointer to this bullet.)"). Fixed: added the identical back-reference at wave-loop.md:104 (line shifted from insertions), and added a matching sentence to SKILL.md's R3 stating the retry duty and citing wave-loop.md (d) step 4.
+
+Fix 4 (required): SKILL.md's sweep paragraph cited `git show HEAD:<path>` for the "before" tree, which is not re-runnable post-commit (HEAD is the after-state on this branch). Fixed: cited `git show dev:<path>` instead. Re-ran against dev: and confirmed the before-numbers are unchanged (12 total: SKILL.md 4, wave-loop.md 7, escalation.md 1, templates.md 0).
+
+Fix 5 (nit, adopted): (d) step 4's non-fast-forward recovery covered only a non-ff rejection, leaving auth/network/unset-origin/HEAD push failures unhandled -- a live path to the same divergence. Added one clause: any other push failure -> STOP and escalate immediately, do not fetch/rebase/retry.
+
+Added a "Fix pass (mandatory review, 2026-08-08)" Provenance paragraph in SKILL.md documenting all five findings and dispositions, per-finding, plus the mid-wave-in-flight-pointer trace. Version stays 0.9.1-qcli.9 -- QCLI-60 has not yet settled, so this fix pass is still part of finishing the one task the existing bump covers, not a new task; finding 1 is a real behavior change but corrects qcli.9's own not-yet-landed behavior rather than adding new behavior on top of already-landed history.
+
+Confirmed: git diff --stat dev...HEAD -- docs/ is empty (docs/ untouched). Version frontmatter still "0.9.1-qcli.9". Only .claude/skills/backlog-handover/{SKILL.md,reference/wave-loop.md,reference/escalation.md} touched (3 files, 51 insertions/11 deletions per git diff --stat).
 <!-- SECTION:NOTES:END -->
