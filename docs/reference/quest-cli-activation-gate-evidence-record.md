@@ -291,6 +291,174 @@ dated snapshot (this one included) as a substitute for that live check. This
 mirrors the moving-vs-immutable-references and recheck-clause conventions of
 the [research program Spec](../specs/quest-cli-pre-implementation-research-program.md#moving-vs-immutable-references).
 
+### 2026-08-08 recheck capsule (`QCLI-56`)
+
+This section discharges the recheck clause above **for this boundary only**.
+It is filed under `QCLI-56` — cited here per the directing-task-citation
+ruling (`CLAUDE.md`, `QCLI-44`) — the task whose acceptance criteria require
+every command in the "Evidence consumed" table above to be re-run live, and
+`lore-doc`'s own current gate-result statement to be quoted rather than
+computed. It is appended, not a rewrite: per the preserve-and-amend ruling
+governing evidence records (`CLAUDE.md`, `QCLI-45`), nothing above is edited
+or re-tensed, and the 2026-08-05 capsule and every amendment to it stand
+exactly as recorded. The recheck clause itself is left untouched too: it is
+a standing obligation on every future re-consultation of this record, not a
+one-time instruction that this section exhausts.
+
+Both peer repositories were fetched (`git fetch --all`) before anything below
+was read, and neither was mutated by this task: no commit, no checkout that
+changed branch or working-tree state, no edit, no push, to either
+`lore-doc` or `lore-cli`. `lore-doc`'s local clone was clean and already
+sitting on `dev` at the same commit as `origin/dev`. `lore-cli`'s local
+clone was found already checked out to an unrelated in-progress branch,
+`chore/lcli-315-3-post-merge-reconciliation` (local `HEAD`
+`4ef306b306c8486a35b52e4b42175aff1bedd844`, one commit ahead of
+`origin/dev`) — this task did not check it out to `dev`, since doing so
+would change its working-tree state. Every `lore-cli` fact below instead
+cites `origin/dev` explicitly, and the one commit separating the local
+branch from `origin/dev` was diff-verified (`git diff --stat HEAD
+origin/dev`; `git diff origin/dev -- <path>`) to touch only two unrelated
+tracker-related Backlog task files, neither of them `LCLI-278`'s file — so
+`backlog task view LCLI-278 --plain`, run from that checkout, still reflects
+`origin/dev` content byte-for-byte for that file.
+
+#### Evaluation boundary
+
+All observations below were captured live in one narrow inspection window on
+**2026-08-08, between 21:47:25Z and 21:49:55Z UTC** (`date -u` bracketing
+each command, reproduced in full below). This supersedes nothing above; it
+is an independent re-run, not an edit of the 2026-08-05 figures, and not a
+copy of them either.
+
+quest-cli's own consumed revision at the time of this evaluation: this
+worktree's `HEAD` `b3326699b587208c2a26e776aa66facc99f9c7b4` (branch
+`chore/qcli-56-phase0-activation-recheck`), remote
+`git@github.com:opum-ai/quest-cli.git`, clean (`git status --short`).
+
+#### Evidence consumed (re-run)
+
+| Clause | Input | Repository / revision / path | Literal command | Observation (2026-08-08, 21:47:25Z–21:49:55Z UTC) |
+| --- | --- | --- | --- | --- |
+| 1 | Owner acceptance of the Lore release boundary | `lore-doc`, task `LDOC-4`, local clone `/Volumes/external/repos/lore-doc` | `backlog task view LDOC-4 --plain` | `Status: Done` (`Updated: 2026-08-07 02:21 UTC` — observed 2026-08-08; moving reference, re-verify before relying). All 6 acceptance criteria checked. Implementation Notes state, verbatim: "GATE DECISION: OPEN. Accepted by the repository owner 2026-08-06." Changed since the 2026-08-05 capsule, which read `Status: To Do` with no criterion checked. |
+| 1 | Predicate text itself, and whether the owner has issued a newer gate-result statement | `lore-doc`, `docs/specs/quest-integration-and-lore-release-gate.md` | `git rev-parse HEAD`; `git rev-parse origin/dev`; `git log -1 --format='%H %cI %s' -- docs/specs/quest-integration-and-lore-release-gate.md` | `HEAD` and `origin/dev` both `101f9bb39eacd0e2e73df1bb4fa78db04f0a5896` (observed 2026-08-08; moving reference, re-verify before relying) — immutable anchor once stated as a specific commit: that same commit last touched the gate-Spec file, at `2026-08-06T21:21:45-05:00`, message "docs: open the Lore release gate on accepted 0.1.1 evidence." No further commit has landed on `lore-doc`'s `dev` since (observed 2026-08-08; moving reference, re-verify before relying). The quoted predicate (clauses 1-4) is textually unchanged from the 2026-08-05 quotation above; the file now additionally carries a `#### Gate result: OPEN, accepted 2026-08-06` section, quoted below. |
+| 2 | `lore-cli` Git tag existence | `lore-cli`, local clone `/Volumes/external/repos/lore-cli` | `git tag -l -n1`; `git for-each-ref refs/tags --format='%(refname:short) %(objecttype) %(objectname) -> %(*objectname)'` | `v0.1.0` (commit `e621d209be2cc8867d1c38c7c78b4b4acc96d82e`) and `v0.1.1` (annotated tag object `75f61587a734f861fe8d6b06335db4d3d34dd7d2`, dereferences to commit `e7fe3394109830a89fcdf16a675d0636446bcd79`) — both tag→commit resolutions are immutable anchors, unchanged from the 2026-08-05 capsule, and the `v0.1.1` commit matches the one `lore-doc`'s own gate Spec cites for the accepted boundary. Separately — a re-runnable query, not an immutable anchor — no third tag exists as of this check (observed 2026-08-08; moving reference, re-verify before relying). |
+| 2 | `lore-cli` current HEAD | `lore-cli`, local clone (parked on an unrelated branch, see above) | `git rev-parse origin/dev`; `git rev-parse HEAD`; `git branch --show-current` | `origin/dev` `b4ab2fbec92167f8a53a1d7e5c6f34b22ac8fddc` (observed 2026-08-08; moving reference, re-verify before relying) — differs from `87b6d876110a`, the commit `lore-doc`'s gate Spec and `LDOC-4` cite as their own 2026-08-06 evaluation boundary, and from `dae32ed73bfedbc0f40bb3eb1c886a2dbb5499eb`, this repository's 2026-08-05 capsule pin. Local checkout `HEAD` `4ef306b306c8486a35b52e4b42175aff1bedd844` on branch `chore/lcli-315-3-post-merge-reconciliation` (observed 2026-08-08; moving reference) — an unrelated in-progress branch, not read as `lore-cli`'s current `dev` state. |
+| 2 | Published package version | public npm registry, `@opum-ai/lore` | `npm view @opum-ai/lore version`; `npm view @opum-ai/lore dist-tags.latest` | `0.1.1` / `0.1.1` (observed 2026-08-08; moving reference, a registry lookup, re-verify before relying) — unchanged from the 2026-08-05 capsule and matching `lore-doc`'s own cited evidence. |
+| 2 | Target Quest package occupancy (context only — not a clause-2 Lore fact) | public npm registry, `@opum-ai/quest` | `npm view @opum-ai/quest version` | `npm error code E404` (observed 2026-08-08; moving reference, re-verify before relying) — unclaimed. Unchanged since the 2026-08-05 capsule. |
+| 3 | Named owner-held blocker | `lore-cli`, task `LCLI-278`, read via the local clone described above, content diff-verified identical to `origin/dev` for this file | `backlog task view LCLI-278 --plain`; `git diff origin/dev -- "backlog/tasks/lcli-278 - GitHub-billing-plan-blocks-required-reviewer-protection-on-the-release-Environment.md"` | `Status: To Do` (`Updated: 2026-08-04 01:05 UTC` — observed 2026-08-08; moving reference, re-verify before relying); diff against `origin/dev` empty. Unchanged since the 2026-08-05 capsule and since `lore-doc`'s own 2026-08-06 evaluation, both of which recorded this same status and reasoned it does not qualify the released `0.1.1` artifacts. |
+| 4 (this record) | quest-cli's own consumed revision | this repository, this worktree | `git rev-parse HEAD`; `git remote -v`; `git status --short`; `git branch --show-current` | `HEAD b3326699b587208c2a26e776aa66facc99f9c7b4`; branch `chore/qcli-56-phase0-activation-recheck`; `origin git@github.com:opum-ai/quest-cli.git`; clean. |
+
+#### `lore-doc`'s own current gate-result statement, quoted verbatim
+
+From `lore-doc`'s
+[Quest integration and Lore release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
+(Spec, local clone `/Volumes/external/repos/lore-doc`, `HEAD` and
+`origin/dev` both `101f9bb39eacd0e2e73df1bb4fa78db04f0a5896`, read
+2026-08-08 — moving reference for "current HEAD," re-verify before relying;
+the commit itself is an immutable anchor once named):
+
+> #### Gate result: OPEN, accepted 2026-08-06
+>
+> All four predicate items are satisfied at one live inspection boundary. The
+> owner accepted the Lore `0.1.1` release boundary on 2026-08-06 and the gate
+> is **open**.
+>
+> Opening this gate removes the *Lore-owned* dependency and nothing else. It
+> is not an instruction to begin Quest implementation: `quest-doc` and
+> `quest-cli` retain their own provenance, clean-room, research, and
+> activation gates, and each must pass independently on its own owner's
+> authority. A worker who reads this section as authorization to start
+> writing Quest product source has misread it.
+
+And from `lore-doc`'s task `LDOC-4` (`Status: Done` — observed 2026-08-08;
+moving reference, re-verify before relying — all 6 acceptance criteria
+checked, `Updated: 2026-08-07 02:21 UTC`), its Implementation Notes, quoted
+verbatim:
+
+> GATE DECISION: OPEN. Accepted by the repository owner 2026-08-06.
+>
+> Evaluation time: 2026-08-06. Inspected revisions: lore-cli origin/dev
+> 87b6d876110a; lore-doc 556bcda (this change); quest-cli a4ae6c5.
+
+Answering the recheck clause's own question directly, sourced only to the
+quotations above: `lore-doc`'s gate Spec states "All four predicate items are
+satisfied" and reports the gate result as "open"; `LDOC-4` independently
+reports "GATE DECISION: OPEN" with every one of its own acceptance criteria
+checked. The owner's own vocabulary here is "open" / "satisfied," not the
+literal token "Pass" that this record's recheck clause uses — this record
+does not treat that wording difference as a gap to fill by inference; it
+reports the owner's literal terms rather than substituting a computed
+"Pass" of its own.
+
+The same Spec's Authority table
+(`docs/specs/quest-integration-and-lore-release-gate.md:41`, same HEAD
+`101f9bb39eacd0e2e73df1bb4fa78db04f0a5896`) states this repository's
+entitlement as "Receive a pass/fail gate result and versioned Lore
+contract" — so "pass/fail" is the gate owner's own term for this result,
+and the owner reports that result as OPEN with all four predicate items
+satisfied. Recorded as the owner's report, not a computation here.
+
+This record still computes no gate result of its own,
+and — unchanged from the 2026-08-05 capsule's own framing, restated here
+because it bears repeating at every boundary — **an open Lore gate is not
+Quest activation**: it clears the Lore-owned precondition only; this
+repository's own gates (clean-room admission, research completeness, and the
+component activation checks in the delivery roadmap's Phase 0) are untouched
+by anything in this section and are not assessed here.
+
+#### Discrepancies and changed inputs found (2026-08-08)
+
+Recorded as new dated facts only, for `lore-doc` to weigh if and when they
+bear on the boundary it accepted — none of them are acted on here, and none
+of them alter the quotations above:
+
+- **`lore-cli`'s `origin/dev` has advanced by 25 commits across 6 merged
+  pull requests since the boundary `lore-doc` itself evaluated** (observed
+  2026-08-08; moving reference, re-verify before relying — `git rev-list
+  --count 87b6d876110a..origin/dev` = 25, `--merges` = 6, `--first-parent`
+  = 6; corrected here from an earlier "twice" figure that was wrong under
+  this same anchor, see Implementation Notes). `lore-doc`'s gate Spec and
+  `LDOC-4` both cite `lore-cli origin/dev 87b6d876110a` as their 2026-08-06
+  evaluation boundary; this task's live re-check, 2026-08-08, finds
+  `origin/dev` at `b4ab2fbec92167f8a53a1d7e5c6f34b22ac8fddc`. No third tag
+  exists beyond `v0.1.1` (a re-runnable query, not an immutable anchor;
+  observed 2026-08-08, moving reference, re-verify before relying) and the
+  published npm version is still `0.1.1` (both re-verified above), so the
+  accepted release boundary's own artifacts are unchanged; only the branch
+  tip past that boundary has moved. The gate Spec's own text states that a
+  change to `lore-cli`'s release truth, tags, or published packages obliges
+  `lore-doc` to re-inspect; this record does not judge whether an
+  unreleased branch advance meets that bar — it names the fact and leaves
+  the ruling to `lore-doc`.
+- **The `lore-cli` local clone at `/Volumes/external/repos/lore-cli` is
+  parked on an unrelated branch**, `chore/lcli-315-3-post-merge-reconciliation`
+  (`HEAD` `4ef306b306c8486a35b52e4b42175aff1bedd844`), not `dev`. This task
+  did not check it out — doing so would mutate the peer repository's
+  working-tree state, which this task does not do under any circumstance.
+  Every `lore-cli` fact above is instead cited against `origin/dev` after
+  `git fetch --all`, with the local/`origin/dev` divergence diff-verified as
+  described above.
+- **The 2026-08-05 capsule's "Local-clone note" no longer applies as an
+  uncommitted change.** That note flagged an uncommitted line in `lore-doc`'s
+  working tree correcting a stale `salient-data/quest-cli` canonical-owner
+  link to `opum-ai/quest-cli`. `lore-doc`'s working tree is now clean
+  (`git status --short`, empty, observed 2026-08-08), and `LDOC-4`'s own
+  Implementation Notes state the reference correction was made ("Also
+  corrected this task's references from salient-data/lore-cli and
+  salient-data/quest-cli to opum-ai after the 2026-08-01 org move"). This
+  record verified only that the specific uncommitted line the 2026-08-05
+  capsule flagged is no longer uncommitted and that the gate Spec's own
+  Quest-component reference now reads `opum-ai/quest-cli`; it did not sweep
+  `lore-doc` for every other occurrence, and does not edit `lore-doc`.
+- **`LCLI-278` and `@opum-ai/quest` are unchanged** from both the 2026-08-05
+  capsule and `lore-doc`'s own 2026-08-06 evaluation — see the evidence
+  table above.
+
+None of the four items above changes what this section reports in
+"`lore-doc`'s own current gate-result statement": that section reports
+`lore-doc`'s own words, `LDOC-4`'s own live status, and nothing this record
+independently computed.
+
 ## Notes
 
 This task read, read-only: `lore-doc`'s
