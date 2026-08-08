@@ -3,7 +3,7 @@ id: doc-13
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-08 14:59'
-updated_date: '2026-08-08 14:59'
+updated_date: '2026-08-08 16:10'
 ---
 # Backlog campaign tracker
 
@@ -16,8 +16,8 @@ loop until the queue is empty or blocked -> write handover.
 
 The ready set is ALWAYS recomputed live from `backlog task list --json` plus
 each candidate's `task view --json` at the start of every restore/wave — never
-trust a persisted "next wave" plan. Informational hint only: as of init
-(2026-08-08), **2 queued, 0 in flight, 0 blocked, 0 needs-human**.
+trust a persisted "next wave" plan. Informational hint only: as of doc-13
+wave-1 dispatch (2026-08-08), **1 queued, 1 in flight, 0 blocked, 0 needs-human**.
 
 Expected shape: **two waves of one task each**, because the two queued tasks
 conflict (see Conflict note) rather than because either depends on the other. A
@@ -96,6 +96,7 @@ Cleared at settlement; non-empty only mid-wave or after a crash.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
+| QCLI-52 | wave-1 | `~/.treehouse/quest-cli-f11e72/1/quest-cli` (lease `59d2477dc266cf8c38a0a7c2ced7fbb9`, holder `qcli/QCLI-52`) | `chore/qcli-52-stage-state-legibility-sweep` | 1 — dispatched (marking committed `fe0e46f`, worktree re-pinned onto it) |
 
 ## Needs a human / blocked
 
