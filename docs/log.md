@@ -89,6 +89,7 @@
 - 2026-08-08T09:39:33-05:00 50b85ac6863eafe0adde59f6f395542404c95ef3 docs: sync lore log after wave-1 settlement (doc-12 campaign complete)
 - 2026-08-08T11:09:02-05:00 1e268f7647768e23577b22b038ddf85bb81b7deb docs: catch up lore log with doc-12 wave-1's own settlement commit
 - 2026-08-08T11:55:15-05:00 354876fb0b0cd0e40dedb666d6811eb9625d7093 docs: sync lore log after wave-1 settlement (doc-13 campaign)
+- 2026-08-08T14:15:15-05:00 349f0f9c66792187a011526f18b9f2db5dde7489 docs: sync lore log after wave-2 settlement (doc-13 campaign complete)
 
 ## docs/adr
 
