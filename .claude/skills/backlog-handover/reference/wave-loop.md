@@ -39,7 +39,7 @@ Stable-sort by the confirmed queue order from the campaign doc, then greedily ad
 
 Queue order is a **human-confirmed priority, not a scheduling promise** — the builder respects it as a tie-break but guarantees nothing about which wave an item lands in; that depends on live dependency and conflict state.
 
-## d. Acquire worktrees — *then* mark dispatched
+## d. Acquire worktrees — *then* mark dispatched, commit, and re-pin (`QCLI-49`)
 
 > **Ordering matters, and this is a deliberate fix to the upstream skill.** Upstream marked every wave member dispatched *before* acquiring worktrees, so a pool exhaustion (which legitimately shrinks the wave) left tasks marked in-flight that were never dispatched — phantom rows that the next session's R2/R3 would try to reconcile against nonexistent worktrees. Acquire first, shrink to what was actually acquired, mark only those.
 
@@ -64,11 +64,36 @@ Queue order is a **human-confirmed priority, not a scheduling promise** — the 
    Root it as a sibling of the real, symlink-resolved repo: `$(dirname "$TOPLEVEL")/$(basename "$TOPLEVEL").worktrees/qcli-<N>` where `TOPLEVEL=$(git rev-parse --show-toplevel)`. Never under `$TMPDIR` and never on a different filesystem than the repo — cross-device builds can silently produce broken output. One dependency install per worktree, never shared or symlinked.
 
 3. **Shrink the wave to the leases/worktrees actually acquired.** A smaller wave is a correct degradation.
-4. **Now** mark exactly those members, in one serialized pass:
+4. **Now** mark exactly those members, in one serialized pass, and **commit that pass on `<default>` immediately — do not leave it dirty.** `backlog/config.yml` sets `auto_commit: false`, so nothing commits this for you:
    ```bash
-   backlog task edit QCLI-<N> -s "In Progress" --add-label "wave-<N>"
+   backlog task edit QCLI-<N1> -s "In Progress" --add-label "wave-<N>"
+   backlog task edit QCLI-<N2> -s "In Progress" --add-label "wave-<N>"
+   # ... one edit per acquired member ...
+
+   git add backlog/tasks/
+   git commit -m "$(cat <<'EOF'
+   chore(campaign): mark doc-<M> wave-<N> members dispatched
+
+   QCLI-<N1> and QCLI-<N2> to In Progress with the wave-<N> label.
+
+   Refs: QCLI-<N1>
+   Refs: QCLI-<N2>
+   EOF
+   )"
+   git interpret-trailers --parse <<<"$(git log -1 --format=%B)"   # confirm every Refs: line parses (QCLI-48)
    ```
-   This is what lets a crashed session's R2/R3 tell what actually got underway.
+   **One commit per dispatch-marking pass, naming every member marked in it — not one commit per task.** Each marked task gets its own `Refs: QCLI-<N>` line in that commit's final trailer block (QCLI-47's hybrid rule, applied the same way the docs-sync commit in (i) already applies it to a multi-task commit). Worked, verified examples on `dev`: `fe92535` (doc-11 wave 2, two trailers) and `3633bc1` (doc-11 wave 3, two trailers) — both committed cleanly with zero merge-queue conflicts.
+
+   Committing here — instead of leaving the edit dirty — is what lets a crashed session's R2/R3 tell what actually got underway: the marking is a real commit, visible in `git log <default>` even if the process dies before the next push (R2 step 1 already checks for unpushed commits for exactly this reason), not a working-tree edit a crash silently discards.
+
+5. **Re-pin every just-marked worktree onto the marking commit, before dispatching any worker (e):**
+   ```bash
+   MARK_SHA=$(git rev-parse HEAD)   # the commit just made in step 4
+   for path in <acquired worktree paths>; do
+     git -C "$path" reset --hard "$MARK_SHA"
+   done
+   ```
+   This is safe here — and *only* here — because no worker has touched the worktree yet: each branch still holds zero commits beyond `WAVE_BASE`, so `reset --hard` discards nothing. It is also what reconciles this section's "acquire, *then* mark" ordering with giving each worker a base that already contains its own task file's marking: every worker's branch now shares the dispatch-marking commit as a common ancestor with `<default>`, so when the worker later commits its own copy of the same task file — the plan/notes writes from (e) stages 2–3, committed at stage 4 — that commit layers *on top of* the shared status+label edit rather than diverging from it. At the merge queue (g), rebasing that branch onto `origin/<default>` therefore replays only the worker's own commits; the label lines are identical on both sides (same ancestor), so there is nothing to conflict on. The worker's committed copy of the task file is what survives at merge — once its branch merges, that copy (dispatch marking plus the worker's own plan/notes on top) becomes the file's state on `<default>`, and there is no second, diverged copy left to reconcile.
 
 Warm reuse is the point of pooling: dependencies and build cache survive between waves, so do **not** reinstall or clean a pooled worktree "to be safe".
 
@@ -100,6 +125,15 @@ Structured return: `implemented` or self-reported `blocked`, plus a one-line sum
 
 As soon as a member's implementation finishes, mark it (`--add-label in-review`) and dispatch the reviewer **into that same worktree** — no second worktree; the branch is already checked out there.
 
+**This label edit, and the `merge-pending` transition later, are never committed on `<default>` while that task's branch is still unmerged** (`QCLI-49`, sharpening the root cause behind (d)'s commit-and-re-pin rule). By the time a member reaches `in-review`, the worker has already committed its own copy of the task file inside the worktree (stage 4: plan, notes, `updated_date`). Unlike (d) — where the marking commit happens *before* any worker commit exists, so re-pinning an empty worktree onto it costs nothing — there is no empty worktree left here to re-pin onto without discarding the worker's own commits. Committing the label edit on `<default>` at this point would create two independently-edited copies of the same task file's frontmatter block: a real rebase conflict at (g), not a hypothetical one. So instead:
+
+1. Run the edit (`backlog task edit QCLI-<N> --add-label in-review`, and later `merge-pending`).
+2. Confirm the resulting diff touches only label line(s) and `updated_date` (`git diff -- backlog/tasks/`) — if it touches anything else (it shouldn't; plan/notes/ACs only ever live on the branch), stop and investigate before proceeding.
+3. Leave it **uncommitted**, and discard it (`git checkout -- <path>`) before that task's branch reaches (g)'s rebase step — this is what keeps (g)'s clean-checkout precondition true.
+4. The label is not lost: settlement (i) sets the full, correct label set for a `Done` (or `needs-human`) task in one pass, after the branch has merged and only one copy of the file remains — the discarded mid-wave edit is reconstructed there, not persisted separately.
+
+Evidence: doc-11 wave 2 ran `backlog task edit QCLI-48 --add-label in-review` on `dev` while `QCLI-48`'s branch was still unmerged; the resulting dirty diff was confirmed label+`updated_date`-only, discarded per the steps above, and the label reconstructed at settlement.
+
 Give the reviewer:
 
 - The task verbatim, plus `backlog task view QCLI-<N> --plain` for the plan and notes.
@@ -123,15 +157,18 @@ Structured verdict: `approve` / `request_changes` / `escalate`, with per-criteri
 
 ## g. Merge — strictly serial, orchestrator only
 
+**Precondition: the orchestrator's own `<default>` checkout must be clean before this walk starts, and stays clean across every iteration of it** (`git status --porcelain` empty; `QCLI-49`). Under this skill's chosen rule it cannot be dirty by construction: dispatch marking (d) commits its pass immediately instead of leaving edits in the working tree, and mid-wave label transitions (`in-review`, `merge-pending` — see (f)) are never committed on `<default>` while the affected task's branch is still unmerged, only run-then-discarded before that branch's rebase. Nothing this loop does is allowed to leave a stray diff sitting on the orchestrator's checkout at this point. If it is dirty anyway — a bug in the loop, or a hand-run `backlog task edit` outside it — **do not rebase through it**: STOP per `escalation.md`'s "Dirty working tree at preflight" row and resolve it first. This precondition is what closes doc-11 wave 1's actual failure (`error: cannot rebase: You have unstaged changes`, from uncommitted `wave-1`/`in-review` label edits left on the orchestrator's checkout while the merge queue ran) — together with (d) and (f), which are what make the precondition true rather than aspirational.
+
 Once the wave's implement→review pipelines settle (every member reached approve / merge-blocked / escalated), walk the `approve` branches in confirmed queue order. Nothing is pruned yet, so each worktree still exists. For each:
 
+0. Confirm the precondition above still holds (`git status --porcelain` on the orchestrator's own `<default>` checkout is empty) before rebasing this member.
 1. `git -C <worktree> fetch origin`
-2. `git -C <worktree> rebase origin/<default>` — expected for every item after the first in a wave; the **normal** case, not an edge case.
+2. `git -C <worktree> rebase origin/<default>` — expected for every item after the first in a wave; the **normal** case, not an edge case. This branch's own task-file commit (plan/notes, from (e) stage 4) sits on top of the dispatch-marking commit the worktree was re-pinned onto in (d) step 5, which is already an ancestor of `origin/<default>` — so the rebase replays only the worker's own commits and never re-touches the label lines both sides already share.
    - Clean → **mandatorily** re-run the task's verification inside that worktree. Never skip because the rebase "looked clean"; a clean rebase can still change behaviour.
    - Real content conflict → one reviewer escalation call with both diffs (the just-merged predecessor's and this branch's). Disposition only, never resolution — see `escalation.md`.
 3. `git -C <worktree> push --force-with-lease origin <branch>` — publish the rebased, re-verified bytes.
 4. Open the PR if not already open and merge per SKILL.md conventions. PR body: task ID, the path from `task view --json`'s `path` field, and the captured reviewer verdict. **No `Closes` keyword** — Backlog tasks have no GitHub auto-close.
-5. `git checkout <default> && git pull --ff-only origin <default>` — sync the orchestrator's own checkout.
+5. `git checkout <default> && git pull --ff-only origin <default>` — sync the orchestrator's own checkout. This must land as a clean fast-forward; if it doesn't, the precondition above was violated somewhere upstream — treat that as a bug in the loop, not a routine conflict to resolve inline.
 6. Release the worktree — treehouse: `treehouse return --force --if-lease-id <id> --if-lease-holder "qcli/<TASK-ID>" "<path>"` (the reset detaches HEAD, freeing the branch, and the warm tree returns to the pool); fallback: `git worktree remove <worktree>`. Either way **before** branch cleanup — `git branch -d` refuses while a worktree holds the branch. Never return a worktree with uncommitted work: return resets the tree, branch refs survive, dirty files do not.
 7. `git branch -d <branch>` (the remote copy is handled by `--delete-branch`; the no-`gh` path deletes it manually).
 
@@ -170,8 +207,8 @@ SKILL.md's Commits convention is hybrid, not "always except `lore sync`": a `Ref
 
 | Commit | Single directing task? | Trailer |
 | ------ | ----------------------- | ------- |
-| Dispatch marking (d) — committing `backlog task edit QCLI-<N> -s "In Progress" --add-label "wave-<N>"` | Yes — the task being dispatched | **Required**: `Refs: QCLI-<N>` |
-| In-flight pointer recording (mid-wave, or R3 crash recovery) | Yes — the task whose stage is being recorded | **Required**: `Refs: QCLI-<N>` |
+| Dispatch marking (d) — committing the pass's `backlog task edit QCLI-<N> -s "In Progress" --add-label "wave-<N>"` edits | Multiple — every member marked in that pass, not one commit per task (`QCLI-49`) | **Required**: one `Refs: QCLI-<N>` trailer per task marked in that pass (e.g. `fe92535`, `3633bc1`) |
+| In-flight pointer recording (mid-wave, or R3 crash recovery) — records the *campaign doc's* in-flight table, not the task file | Multiple — every task whose stage is being recorded in that pass | **Required**: one `Refs: QCLI-<N>` trailer per task recorded in that pass (e.g. `61d48af`) |
 | Settle (i, above) — committing the per-task settlement writes | Yes — the task being settled, even when the same commit also closes the campaign (e.g. `342e76d`) | **Required**: `Refs: QCLI-<N>` |
 | Docs sync commit (i, step 2 below) | Multiple — every task resolved this wave | **Required**: one `Refs: QCLI-<N>` trailer per resolved task |
 | Campaign init (SKILL.md I3) — campaign doc creation, label application | No — spans the whole queued set, not one task | **Exception**: no trailer |
@@ -181,6 +218,8 @@ SKILL.md's Commits convention is hybrid, not "always except `lore sync`": a `Ref
 | `lore sync`'s own `backlog/` auto-commit | No — hardcoded, outside this skill's control | **Exception** (pre-existing, `QCLI-43`): no trailer |
 
 The dividing line is **not** the commit's category label, it is whether the commit names one specific task. A settle-and-close commit like `342e76d` still carries that task's trailer because it has one; a pure close-out or init commit does not, because it doesn't.
+
+**Scope note (`QCLI-49`):** in-flight pointer recording writes the *campaign doc's* in-flight table (e.g. `61d48af` touches only `backlog/docs/campaigns/…`), never the task file itself, so it carries none of (f)'s rebase-conflict risk and is always committed immediately, same as (d). Mid-wave label transitions on the *task file* (`in-review`, `merge-pending`) are governed by (f) instead, and are never committed on `<default>` while the affected branch is unmerged — they do not appear as a row in this table because they are deliberately never committed at all; they are folded into the settlement commit's label state instead.
 
 ### Trailer placement and verification (`QCLI-48`)
 
@@ -285,7 +324,7 @@ Used by the handover's in-flight table so a resumed session knows exactly where 
 | # | Stage | Owner |
 | - | ----- | ----- |
 | 0 | Worktree + branch acquired from the pinned wave base | Orchestrator |
-| 1 | Task marked `In Progress` + `wave-<N>`, worker dispatched | Orchestrator |
+| 1 | Task marked `In Progress` + `wave-<N>`, marking committed on `<default>` and the worktree re-pinned onto that commit (d), worker dispatched | Orchestrator |
 | 2 | Plan recorded on the task | Worker |
 | 3 | Implemented + verified, notes recorded | Worker |
 | 4 | Committed | Worker |
