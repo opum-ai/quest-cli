@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-07 20:28'
-updated_date: '2026-08-08 01:36'
+updated_date: '2026-08-08 01:39'
 labels:
   - campaign
   - 'cluster:supersession-convention'
@@ -78,4 +78,6 @@ $ lore check
 EXIT_CHECK:0
 
 No lore sync run (forbidden on this branch per dispatch constraints).
+
+Review fix (post-4393fae): the note's locator wording was wrong — it pointed at 'the paragraph preceding this note,' but the paragraph immediately preceding is the LDOC-4 blockquote (which contains no such sentence), not the paragraph with the re-tensed clause, which sits two blocks earlier. Reworded the locator to identify that paragraph by its opening words ('...beginning "The moving reference this record warned about has moved"') instead of by relative position, so the reference stays correct if another dated amendment is inserted between the clause and this note. The before/after quotation of the re-tensed clause is unchanged.
 <!-- SECTION:NOTES:END -->

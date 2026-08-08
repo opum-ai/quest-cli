@@ -229,10 +229,11 @@ stopped describing its source.
 
 **Disposition recorded 2026-08-07 by `QCLI-50`:** commit `3b1e9f5` (`QCLI-42`)
 made a second edit beyond the deletion `QCLI-45` restored above — it also
-re-tensed the sentence in the paragraph preceding this note, from "the Spec
-**now reports** items 2, 3, and 4 of the predicate as satisfied" to "the
-Spec **reported** items 2, 3, and 4 of the predicate as satisfied." That
-re-tensing is deliberately not restored. Per the owner's ruling narrowing
+re-tensed a sentence in the paragraph above beginning "The moving reference
+this record warned about has moved," from "the Spec **now reports** items 2,
+3, and 4 of the predicate as satisfied" to "the Spec **reported** items 2, 3,
+and 4 of the predicate as satisfied." That re-tensing is deliberately not
+restored. Per the owner's ruling narrowing
 `CLAUDE.md`'s (`QCLI-45`) "deleting or re-tensing" wording (`CLAUDE.md`,
 `QCLI-50`), preserve-and-amend covers re-tensing only when the edit alters
 or obscures what the record asserts was read; this edit does not — the
