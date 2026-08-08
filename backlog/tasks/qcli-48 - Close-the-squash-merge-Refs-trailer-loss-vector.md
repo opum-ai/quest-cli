@@ -4,7 +4,7 @@ title: Close the squash-merge Refs trailer-loss vector
 status: In Progress
 assignee: []
 created_date: '2026-08-07 20:27'
-updated_date: '2026-08-08 01:08'
+updated_date: '2026-08-08 01:12'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
@@ -38,3 +38,78 @@ Scope: a verification rule plus a sweep. Does **not** rewrite history — no exi
 - [ ] #4 The disposition of the already-merged non-parseable commits (notably `7efc1a4`) is recorded as an explicit decision rather than left implicit
 - [ ] #5 No existing commit is amended or re-trailered; `git log` on `dev` shows no rewritten history
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Sweep `dev` (258 commits) distinguishing Refs text-present from Refs trailer-parseable, using:
+   `git log dev --format='%H' | while read c; do msg=$(git log -1 --format=%B "$c"); echo "$msg" | grep -qE '^Refs:' && { parsed=$(git interpret-trailers --parse <<<"$msg" | grep -E '^Refs:'); [ -z "$parsed" ] && echo UNPARSEABLE $c || echo OK $c; }; done`
+   Result: 202/258 carry Refs: text, 36 of those unparseable (list captured for task notes). Confirms 7efc1a4 and finds 35 more, mostly pre-QCLI-35 squash merges plus a handful of newer ones (d0b5f41, 9c63769, 146956d, 8721feb, c9353bc, ed14115, fb8e8e3, etc).
+2. Edit `.claude/skills/backlog-handover/reference/wave-loop.md` section i ("Commit trailer convention"): add a subsection stating the placement rule (Refs must be in the final trailer block, no blank line separating it from other trailers e.g. a squash-merge's Co-Authored-By: block) and naming `git interpret-trailers --parse` as verification, with 342e76d as the worked correct example and 7efc1a4 as the worked incorrect example (real excerpts + command output).
+3. Edit SKILL.md's Commits convention row: append a pointer sentence naming the placement rule and verification command, referencing wave-loop.md section i for detail.
+4. Record the AC #4 disposition inline in wave-loop.md and in a new SKILL.md Provenance entry: already-merged unparseable commits (7efc1a4 named) are left as-is — no amend/re-trailer, per scope — and the sweep itself (re-runnable, command recorded in task notes) is the durable record of the gap; future sweeps must run both the text-grep and the interpret-trailers --parse check and report both counts rather than conflating them.
+5. Bump skill version 0.9.1-qcli.3 -> 0.9.1-qcli.4 (frontmatter) and add the Provenance entry in QCLI-47's style.
+6. Record sweep command, full per-commit bad list, and disposition reasoning via --append-notes.
+7. Commit with `Refs: QCLI-48` as the sole line in the final trailer block; verify with `git interpret-trailers --parse <<<"$(git log -1 --format=%B)"` before pushing.
+8. Push fix/qcli-48-refs-trailer-loss-vector.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Sweep executed against dev (258 commits) at HEAD fe92535:
+
+  git log dev --format='%H' | while read c; do
+    msg=$(git log -1 --format=%B "$c")
+    if echo "$msg" | grep -qE '^Refs:'; then
+      parsed=$(git interpret-trailers --parse <<<"$msg" | grep -E '^Refs:' || true)
+      [ -z "$parsed" ] && echo "TEXT_PRESENT_UNPARSEABLE: $c" || echo "OK_PARSES: $c"
+    fi
+  done
+
+Result: 258 scanned, 202 carry Refs: text, 36 unparseable (166 parse correctly).
+
+Unparseable commits (short SHA + subject), newest first:
+7efc1a4 QCLI-43: Fold the lore log sync into campaign settlement to stop recurring docs/log.md SHA drift (#59)
+d0b5f41 chore(campaign): mark QCLI-43 dispatched — wave 2 of doc-10 campaign
+9c63769 chore(campaign): settle QCLI-44 and record wave 1 of doc-10
+146956d chore(campaign): record wave-1 in-flight pointer for QCLI-44
+8721feb chore(campaign): mark QCLI-44 dispatched — wave 1 of doc-10 campaign
+3686859 chore(campaign): init doc-10 for QCLI-43 and QCLI-44 (doc-9's approved follow-ups)
+34bceae chore(backlog): file doc-9's two approved follow-ups (QCLI-43, QCLI-44)
+8caae19 chore(campaign): settle QCLI-40 and close out doc-9 — campaign complete
+c9353bc QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
+748bf5f chore(campaign): mark QCLI-40 dispatched — wave 1 of doc-9 campaign
+6047774 chore(campaign): init doc-9 for QCLI-40 (doc-8's approved follow-up)
+761313d QCLI-38: Reconcile 'naming scheme' terminology against QCLI-25/D4's authored-record layout (#54)
+4640ab3 QCLI-37: Reconcile stale 'record layout' status in the Spec-open-questions mapping table (#53)
+ce4a130 QCLI-34: Reconcile 'file layout' terminology against QCLI-25/D4's authored-record layout (#50)
+2e57876 QCLI-32: Run a centralized lore sync to reconcile the Phase-1-ratification Story (#48)
+6ffc401 QCLI-29: Correct stale 'nothing accepted' prose in three ratified Quest CLI proposal docs (#45)
+9e7a0c0 QCLI-25: Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout (#40)
+ed14115 chore: fix narrow findings from the wave-2 integration review (#37)
+fb8e8e3 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+44a7ed8 QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
+6b78fd0 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
+077d3be QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
+d871d32 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
+1dd4aa6 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
+5464f50 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
+1330ecf QCLI-10: add the derived design layer over the QCLI research corpus
+8935551 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
+f7c93c8 chore(backlog): file the four approved wave-2 follow-ups
+61c79d5 chore(backlog): settle wave 2 and record the campaign log
+79bb99d QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
+2246c46 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
+09c202d QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+0a70a4c chore(backlog): commit wave-2 dispatch marking
+4dd721a chore(backlog): reconcile restore-2 drift and record owner rulings 7-9
+0cf0f34 chore(backlog): init backlog-handover campaign for QCLI-2
+649daad docs: record OCLI-1 supersession for the backlog-handover skill port
+
+Pattern confirmed: nearly all are either PR squash-merges (#N in subject) whose generated body concatenates multiple source commits each ending its own Refs: line, or older chore(campaign)/chore(backlog) bookkeeping commits predating the placement-rule awareness this task adds. 342e76d contrasted as the parseable, directly-authored counter-example (confirmed still parses: `Refs: QCLI-43`).
+
+AC #4 disposition: none of the 36 are amended or re-trailered — out of scope by this task's own framing ("does not rewrite history"). Disposition is: leave them as-is, and treat this sweep (command + full list, reproducible any time) as the durable record of the gap rather than trying to fix the history. Documented inline in reference/wave-loop.md section i ("Disposition of already-merged unparseable commits") and in SKILL.md's new Provenance entry (0.9.1-qcli.4). Forward-looking mitigation: the skill now requires interpret-trailers --parse verification at every commit-authoring step, and any future sweep must report text-present vs parseable as two distinct counts rather than conflating them (the exact confusion that let 7efc1a4 go unnoticed until doc-11 wave-1 review).
+
+Files changed: .claude/skills/backlog-handover/SKILL.md (Commits row pointer, version bump 0.9.1-qcli.3 -> 0.9.1-qcli.4, new Provenance entry), .claude/skills/backlog-handover/reference/wave-loop.md (new "Trailer placement and verification (QCLI-48)" subsection under section i, with worked correct/incorrect examples and the sweep). No docs/ files touched, no lore sync run, no existing commit amended.
+<!-- SECTION:NOTES:END -->

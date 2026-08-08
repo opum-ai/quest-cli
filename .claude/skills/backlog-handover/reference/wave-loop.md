@@ -182,6 +182,55 @@ SKILL.md's Commits convention is hybrid, not "always except `lore sync`": a `Ref
 
 The dividing line is **not** the commit's category label, it is whether the commit names one specific task. A settle-and-close commit like `342e76d` still carries that task's trailer because it has one; a pure close-out or init commit does not, because it doesn't.
 
+### Trailer placement and verification (`QCLI-48`)
+
+A `Refs: QCLI-<N>` **line in the message text is not automatically a trailer git parses.** Git's trailer machinery (`interpret-trailers`, and `%(trailers:...)` in `log --format`) only recognizes a *contiguous run of trailer-shaped lines at the very end of the message* as "the trailer block." A `Refs:` line separated from that final block by a blank line is body text to git, not a trailer — even though it reads identically to a real one.
+
+This bites hardest on PR squash-merges. A generated squash body typically concatenates each source commit's message, and if the branch had more than one commit, each one's own `Refs: QCLI-<N>` line ends up followed by a blank line and then the *next* commit's block — with the final block in the whole message usually being a synthesized `Co-Authored-By:` line contributed by the merge tooling. Result: the `Refs:` text is present and human-readable, but `git interpret-trailers --parse` reports only the trailing `Co-Authored-By:` line, and `%(trailers:key=Refs)` reports empty.
+
+**Verification.** Never trust the text alone, and never trust `%(trailers:key=Refs)` alone when composing a squash-merge body by hand — it silently agrees with the broken case. Use:
+
+```bash
+git interpret-trailers --parse <<<"$(git log -1 --format=%B <sha>)"
+```
+
+and confirm the `Refs: QCLI-<N>` line is present in its output. This is the check every commit-authoring step in this skill (d, e, g's squash-merge, i) and every sweep of already-merged history must use.
+
+**Worked correct example** — `342e76d` (a directly-authored settlement commit; `Refs:` is the last line, nothing after it):
+
+```
+$ git interpret-trailers --parse <<<"$(git log -1 --format=%B 342e76d)"
+Refs: QCLI-43
+```
+
+**Worked incorrect example** — `7efc1a4` (a squash-merge of a multi-commit branch; each source commit's own `Refs: QCLI-43` line sits above a blank line and further commit text, and the message's actual final trailer block is a lone `Co-authored-by:` line):
+
+```
+$ git log -1 --format='%(trailers:key=Refs)' 7efc1a4
+                                                        # <- empty, naive check silently "passes" as absent
+$ git interpret-trailers --parse <<<"$(git log -1 --format=%B 7efc1a4)"
+Co-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>
+                                                        # <- Refs: text is in the message but not reported here
+```
+
+**When authoring a squash-merge body by hand (g):** put the `Refs: QCLI-<N>` trailer as the literal last line(s) of the message, with no blank line before it and nothing after it. If the branch had multiple commits each carrying their own `Refs:` line, do not carry all of them through — one `Refs: QCLI-<N>` trailer in the final block is sufficient and correct, since a squash-merged branch is single-task by construction (e above).
+
+**Disposition of already-merged unparseable commits.** A `dev`-wide sweep (below) found 36 commits whose message text contains a `Refs:` line that `git interpret-trailers --parse` does not report, including `7efc1a4` (the already-merged `QCLI-43` squash commit named in `QCLI-48`'s task). Per this task's scope, **none of these are amended or re-trailered** — no existing commit on `dev` is rewritten. The sweep result itself, re-runnable with the command below, is the durable record of the gap; a future sweep must not conflate "no `Refs:` text at all" with "`Refs:` text present but unparseable" — run both checks (a text grep for `^Refs:` and `interpret-trailers --parse`) and report both counts.
+
+Sweep command and result (run against `dev` at 258 commits, `QCLI-48`, 2026-08-07):
+
+```bash
+git log dev --format='%H' | while read c; do
+  msg=$(git log -1 --format=%B "$c")
+  if echo "$msg" | grep -qE '^Refs:'; then
+    parsed=$(git interpret-trailers --parse <<<"$msg" | grep -E '^Refs:' || true)
+    [ -z "$parsed" ] && echo "TEXT_PRESENT_UNPARSEABLE: $c" || echo "OK_PARSES: $c"
+  fi
+done
+```
+
+258 commits scanned; 202 carry `Refs:` text; 36 of those are unparseable (166 parse correctly). Full per-commit list recorded in `QCLI-48`'s task notes, not duplicated here — this skill file documents the rule and the disposition, not a point-in-time sweep result that would go stale.
+
 ### Lore log sync — mandatory, last, once per wave
 
 **Deliberate divergence from upstream (`QCLI-43`; see SKILL.md Provenance).** `docs/log.md` drifted from `<default>` after every campaign before this rule existed — QCLI-35 closed it for doc-7, QCLI-39 closed it for doc-8, doc-9 reopened it again — but measurement shows two distinct failure modes, not one.
