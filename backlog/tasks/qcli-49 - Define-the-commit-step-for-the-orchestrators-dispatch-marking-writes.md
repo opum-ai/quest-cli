@@ -4,7 +4,7 @@ title: Define the commit step for the orchestrator's dispatch-marking writes
 status: In Progress
 assignee: []
 created_date: '2026-08-07 20:27'
-updated_date: '2026-08-08 01:32'
+updated_date: '2026-08-08 01:40'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
@@ -40,3 +40,30 @@ Note the interaction with `R4d`'s stated purpose: the marking exists so a crashe
 - [ ] #4 The chosen answer addresses whether dispatch marking survives a crash, since R2/R3 reconciliation depends on it
 - [ ] #5 The rule is stated concretely enough that a future session does not re-derive it: a reader can tell what to run, in what order, without inference
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Read wave-loop.md sections d/f/g/i and SKILL.md Commits row + R2/R3; corroborate fresh evidence against real git history (fe92535, 3633bc1, 61d48af).
+2. Decide: commit dispatch-marking writes on <default> immediately (not left dirty), one Refs: QCLI-<N> trailer per task marked in that pass, matching the exercised and working wave-2/wave-3 pattern.
+3. Edit section d: mark+commit the pass in one commit, verify trailers parse, then re-pin every just-acquired worktree onto that commit before dispatching workers (safe only pre-dispatch, since worktrees hold zero commits beyond WAVE_BASE at that point).
+4. Edit section f: state the sharper root cause explicitly — mid-wave in-review/merge-pending label edits on the task file are NEVER committed on <default> while the branch is unmerged (no empty worktree left to re-pin onto); run, verify diff is label/updated_date-only, discard, reconstruct at settlement.
+5. Edit section g: add an explicit clean-checkout precondition (step 0 + preamble) tied to d and f, plus explain why the rebase in step 2 is conflict-free on label lines.
+6. Edit section i: update the dispatch-marking and in-flight-pointer trailer-table rows to reflect multi-task-per-pass commits (mirroring the docs-sync row), and add a scope note distinguishing in-flight-pointer commits (campaign doc, always committed) from mid-wave label edits (task file, never committed).
+7. Bump SKILL.md to 0.9.1-qcli.5 with a Provenance entry in QCLI-47/48's style.
+8. Verify each AC against the edited prose directly (no automated gate exists).
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Decision (QCLI-49): COMMIT the orchestrator's dispatch-marking writes on <default> immediately — do not leave them dirty. This is not a fresh call, it is a description of what doc-11 waves 2 and 3 already did and verified working: fe92535 (wave 2, Refs: QCLI-46 + Refs: QCLI-48, both parse) and 3633bc1 (wave 3, Refs: QCLI-49 + Refs: QCLI-50, both parse) each commit the whole wave's dispatch-marking pass in ONE commit with one Refs: trailer per task marked, then re-pin every just-acquired worktree onto that commit (git reset --hard) before any worker is dispatched. Both waves rebased and merged with zero label-line conflicts. Chose 'commit' over 'leave dirty + discard at settlement' because: (a) it is what was actually exercised twice and worked, not a hypothetical; (b) the re-pin step turns the ordering constraint (R4d: acquire-then-mark) into a conflict-preventer rather than a conflict-source, at zero cost since no worker commit exists yet to lose; (c) the 'leave dirty' alternative still needs the same clean-checkout precondition for the merge queue, but without a committed marking to point to, so it buys nothing.
+
+Sharper root cause (fresh evidence, corroborated): the wave-1 failure and the mid-wave-2 near-miss (backlog task edit QCLI-48 --add-label in-review on dev while QCLI-48's branch was unmerged) are NOT the same bug as dispatch marking, even though both are 'orchestrator writes the task file on <default> while a worker also has a copy.' The distinguishing fact is timing relative to the worker's first commit: dispatch marking (d) runs BEFORE any worker commit exists, so committing it and re-pinning the (still-empty) worktree onto it is free — there's nothing to lose. Mid-wave label edits (f) run AFTER the worker has already committed its own copy of the task file (plan/notes), so there is no empty worktree left to re-pin onto without destroying that work — committing on <default> at that point creates a REAL frontmatter conflict. Resolution: never commit mid-wave in-review/merge-pending edits on <default> at all; run them, verify the diff is label+updated_date only, discard before that branch's rebase, and let settlement (which runs after merge, when only one copy of the file remains) set the final label state. This is now explicit in section f, not just a mid-merge improvisation. Concluded this is IN SCOPE (not declared out of scope) because the fresh evidence directly demonstrates the same failure class and the fix is a natural extension of the same reasoning.
+
+Crash survival: because the dispatch-marking commit lands on <default> synchronously as part of (d), before any worker is dispatched, it survives a crash the same way any other commit does — visible via git log <default> even if never pushed (R2 step 1 already checks for unpushed commits). A resumed session's R2/R3 can distinguish 'lease acquired but never marked' (crash before step 4) from 'marked and dispatched' (commit present) from 'dispatched and worker made progress' (worktree's own git log has commits beyond the marking commit) — exactly the disambiguation R4d's design note says the marking exists to support, and R2 point 4 already instructs checking the worktree's own git log for this.
+
+Also updated: wave-loop.md section i's trailer table (dispatch marking + in-flight-pointer rows now describe multi-task-per-pass commits, matching actual practice/evidence, not one-commit-per-task); section g now states an explicit clean-checkout precondition before/during the merge walk, tied to (d)'s commit-immediately rule and (f)'s never-commit-mid-wave rule, and cites escalation.md's existing 'Dirty working tree at preflight' STOP row as the fallback if the precondition is ever violated. Bumped skill to 0.9.1-qcli.5 with a Provenance entry.
+
+Out-of-scope discovery (not fixed, recorded only): wave-loop.md never explicitly states WHERE/WHEN the merge-pending label is first applied (only its removal, at settlement and escalation, is shown). Section f's new mid-wave rule covers it generically ('and later merge-pending') but the missing origin step is a pre-existing gap unrelated to this task's scope (the commit policy, not the label-transition step list) — flagging for a future task rather than adding a new step myself, per this task's HARD CONSTRAINTS (stay in scope) and the campaign's no-unprompted-scope-expansion rule.
+<!-- SECTION:NOTES:END -->
