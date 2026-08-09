@@ -3,11 +3,11 @@ id: QCLI-59
 title: >-
   Amend CLAUDE.md's pre-activation prohibition to match the verified activation
   state
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-09 02:32'
+updated_date: '2026-08-09 02:51'
 labels:
   - campaign
   - 'cluster:governance'
@@ -54,12 +54,12 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 init, which include
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The amendment is made only if QCLI-56's capsule records the gate's owner reporting Pass; if it does not, CLAUDE.md is left unchanged and the task records the observed state and why it did not amend
-- [ ] #2 If amended, product source and executable scaffolding become permitted while package publication, release workflows, public install instructions, and package reservation remain prohibited pending Phase 6
-- [ ] #3 The amendment cites QCLI-56's capsule and names this directing task, per the QCLI-44 citation ruling
-- [ ] #4 The worker states its reasoning for treating CLAUDE.md as current guidance (correct-in-place) rather than an evidence record (preserve-and-amend), against the record-vs-current-assertion test rather than by assumption
-- [ ] #5 No claim that @opum-ai/quest is published, installable, or released is introduced anywhere
-- [ ] #6 A sweep confirms no remaining passage in CLAUDE.md asserts the pre-activation prohibition as unqualified current state; method and results recorded in the task notes
+- [x] #1 The amendment is made only if QCLI-56's capsule records the gate's owner reporting Pass; if it does not, CLAUDE.md is left unchanged and the task records the observed state and why it did not amend
+- [x] #2 If amended, product source and executable scaffolding become permitted while package publication, release workflows, public install instructions, and package reservation remain prohibited pending Phase 6
+- [x] #3 The amendment cites QCLI-56's capsule and names this directing task, per the QCLI-44 citation ruling
+- [x] #4 The worker states its reasoning for treating CLAUDE.md as current guidance (correct-in-place) rather than an evidence record (preserve-and-amend), against the record-vs-current-assertion test rather than by assumption
+- [x] #5 No claim that @opum-ai/quest is published, installable, or released is introduced anywhere
+- [x] #6 A sweep confirms no remaining passage in CLAUDE.md asserts the pre-activation prohibition as unqualified current state; method and results recorded in the task notes
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -124,4 +124,39 @@ lore check --strict -> 47 files, 0 errors, 0 warnings (run after the fixes; unaf
 git diff dev...HEAD --stat (actual, run after committing this fix): CLAUDE.md | 71 +++++++++++++++++++++-- and the QCLI-59 task file | 40 ++++++++++-, 2 files changed, 103 insertions(+), 8 deletions(-). Only those two files changed relative to dev. `ls -a` repo root: no package.json, bin, src/, or lockfile present.
 
 Disagreement with the reviewer, stated plainly: none. All five LOW findings and MED-1 were straightforwardly correct fixes to file content that disagreed with the file's own cited sources (dev's exact quote, QCLI-56's capsule, the delivery roadmap's D3 row, the task's own Origin) or was genuinely ambiguous (LOW-1's cross-reference). HIGH-1 was also correct on the substance -- the present-tense "which blocks ... unconditionally ... passes" clause really did assert a currently-blocking Spec state one paragraph before permitting the very thing it says is blocked, and the Spec divergence it named was real and previously unnamed in this file. I applied the orchestrator's two dispositions (HIGH-1(c) conservative/unreconciled, MED-1 both-occurred) verbatim rather than re-litigating them, per the fix-worker brief.
+
+## Settlement (doc-14 wave 2, orchestrator)
+
+Merged as `34a1c36` (PR #74), squash body hand-authored so `Refs: QCLI-59` lands in the final trailer block (QCLI-48); verified with `git interpret-trailers --parse`.
+
+**Review:** two passes. Pass 1 `request_changes` (1 HIGH, 1 MED, 3 LOW); pass 2 `approve`, all 6 ACs confirmed over the full `dev...HEAD` diff rather than the delta alone.
+
+**The HIGH (AC#6).** The first draft left `CLAUDE.md` asserting, present tense and unqualified, that the research programme Spec's list "blocks product source unconditionally until the Phase 0 activation precondition passes" — while the same block said the quest-side Phase 0 obligation is not re-evaluated and that product source is now permitted. Three mutually inconsistent statements in one block. The worker's own AC#6 sweep was too narrow to catch it; the reviewer's wider sweep did. Fixed by re-tensing to describe what the superseded clause stated (a pure tense shift on this file's own prior wording — QCLI-50 territory, not a supersession).
+
+**Two orchestrator dispositions, applied verbatim rather than left to the fix worker:**
+
+1. **Precedence — conservative branch (HIGH-1c).** The reviewer correctly refused to decide, in a fix pass, which text governs a worker while `CLAUDE.md` and two `docs/specs/` files disagree. Ruling: name the divergence, do not settle it. The amendment names `docs/specs/quest-cli-pre-implementation-research-program.md:37-46` and `docs/specs/quest-cli-delivery-roadmap.md:32-35` (plus the Phase 2 entry) by path, marks them **unreconciled as of 2026-08-08**, states this task does not amend them, and states the precedence question is open and surfaced to the owner. No "CLAUDE.md governs" / "the Spec governs" / "prefer X" wording anywhere — confirmed at pass 2 by a targeted 8-term grep returning only three pre-existing hits, all outside the amendment.
+2. **Authorization — both occasions, stated distinctly (MED-1).** The reviewer offered "align to origin, or state both if both occurred." Both occurred and they are different acts: at doc-14 init the user approved *filing* this conditional task; at doc-14 wave-2 start, after QCLI-56 established the evidentiary Pass, the user was shown that evidence and authorized *executing* it, directing wave 2 run both QCLI-58 and QCLI-59. Both are now recorded, in that order, neither overstated as clearing a gate.
+
+**Correction to the fix pass's own notes:** the notes record `git diff dev...HEAD --stat` as "2 files changed, 103 insertions(+), 8 deletions(-)" and label it "actual, run after committing this fix". Those are the pre-fix figures. Actual post-fix: **2 files changed, 162 insertions(+), 8 deletions(-)** — `CLAUDE.md` 101, task file 69. Re-run and confirmed at settlement and again post-rebase. This is the same defect class LOW-5 had asked the fix to correct.
+
+**Verification re-run at settlement:** post-rebase `lore check --strict` 48 files / 0 errors / 0 warnings; `git diff origin/dev...HEAD --name-only` = `CLAUDE.md` + this task file only, no `docs/` touched; no `package.json`/`bin/`/`src/`/lockfile/tsconfig on `dev`, tracked or untracked — permitting is not doing. Pass 2's widened AC#5 grep (adding `obtainable|npm install|npx`) and 13-term AC#6 grep both returned more hits than the worker's enumeration; every one read in context, none asserting the prohibition as CLAUDE.md's own current state. The historical quotation was verified character-identical to `git show dev:CLAUDE.md`, bold markers included.
+
+**Non-blocking, not fixed, recorded deliberately:** one roadmap line-range citation reads `:150-152` where the quoted sentence spans `:152-153` (the reader lands on the right section); and the quote's ellipsis elides slightly more than its parenthetical names. Both judged below the bar for a third cycle.
+
+**Wave-level integration finding (F1, HIGH) — open, surfaced to the user, deliberately not fixed here.** The permitted list includes `package.json`, a `bin` entry, and runtime dependencies. None can be written without naming a runtime, so the first worker acting on this permission closes D2 by construction — the exact ruling QCLI-58's proposal reserves for the owner. Verified directly: the open decisions register's D2 "Needed for" cell reads "Phases 2 and 6", while the roadmap's phase table lists D2 against Phase 6 only — a register/roadmap disagreement that predates this wave but which this wave made operative. Proposed fix (one clause guarding the permitted bullet) is recorded in the campaign doc for the user's decision; this project forbids filing follow-up work unprompted.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Narrowed `CLAUDE.md`'s pre-activation prohibition to match the verified activation state. Product source, executable scaffolding, a `package.json`, a `bin` entry, and runtime dependencies become permitted; package publication, release workflows claiming readiness, public install instructions, and package reservation remain prohibited pending Phase 6, whose entry additionally requires D2 (open) and D3 (closed by QCLI-27). Rule text only — nothing was scaffolded, confirmed on `dev` for tracked and untracked files.
+
+AC#1's precondition was established from evidence, not assumed: QCLI-56's capsule records the gate's owner reporting OPEN with all four predicate items satisfied, in the owner's own pass/fail vocabulary, and the amendment quotes that rather than computing a result. Both authorizations are recorded distinctly — doc-14 init approved filing the conditional task; doc-14 wave-2 start authorized executing it once the Pass was established — and the amendment states plainly that an open Lore gate clears the Lore-owned precondition only.
+
+Treated as current guidance under the correct-in-place branch, reasoned explicitly against the record-vs-current-assertion test rather than assumed: `CLAUDE.md` makes no claim of fidelity to a past inspection reading, which is QCLI-45's own test for preserve-and-amend. The operative bullet was edited in place; the prior wording is retained separately as clearly-marked, dated provenance, verified character-identical to the original.
+
+The amendment also names two `docs/specs/` files that still prohibit product source outright, marks them unreconciled as of 2026-08-08, and deliberately leaves open which text governs in the interim — that precedence question is the owner's and is surfaced separately rather than settled by an agent.
+
+Verified by two independent review passes; pass 1 caught a present-tense unconditional prohibition left standing against the amendment's own permission, which a narrower self-sweep had missed. `lore check --strict` clean. Merged as `34a1c36` (PR #74).
+<!-- SECTION:FINAL_SUMMARY:END -->

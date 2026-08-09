@@ -3,7 +3,7 @@ id: doc-14
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-08 21:44'
-updated_date: '2026-08-09 02:09'
+updated_date: '2026-08-09 02:53'
 ---
 # Backlog campaign tracker
 
@@ -67,14 +67,20 @@ guarantee that any task lands in any particular wave.
 
 ## Frontier
 
+**CAMPAIGN COMPLETE — 2026-08-08.** All five queued tasks resolved across two
+waves. Queue: **0 campaign tasks remaining**, 0 in flight, 0 blocked, 0
+needs-human. The two `To Do` tasks left in Backlog (QCLI-54, QCLI-55) are
+unlabelled and were scoped out at init — see "Deliberately excluded".
+
 The ready set is ALWAYS recomputed live at the start of every restore/wave —
-never trust a persisted "next wave" plan. Informational hint only: as of wave-2
-dispatch (2026-08-08), **0 queued, 2 in flight (QCLI-58, QCLI-59), 0 blocked,
-0 needs-human**. Wave 2 is the campaign's final wave if both members settle.
+never trust a persisted "next wave" plan.
 
 **The gate is confirmed open, the Phase 0 recheck is discharged** (QCLI-56,
-`1962d2a`), **and the user has ruled that QCLI-59's amendment proceeds** — see
-"The wave-2 ruling" below.
+`1962d2a`), **the D2 runtime comparison is assembled and awaiting the owner's
+ruling** (QCLI-58, `f123b9b`), **and CLAUDE.md's pre-activation prohibition is
+narrowed** (QCLI-59, `34a1c36`). What remains before a first line of product
+source is a **user decision, not a task** — see "What actually blocks
+implementation now".
 
 ## Dependency and conflict structure
 
@@ -95,8 +101,8 @@ Conflicts, by cluster:
 
 QCLI-57 and QCLI-58 share a cluster because both may edit the open component
 decisions register — a real file-level conflict, so they serialize. Every other
-pair is disjoint, which makes this the first campaign in this series able to run
-a genuinely parallel wave rather than degrading to size 1.
+pair is disjoint, which made this the first campaign in this series to run
+genuinely parallel waves rather than degrading to size 1.
 
 ## Driver defect — FIXED as of wave 2
 
@@ -107,10 +113,11 @@ While it was unfixed, `reference/wave-loop.md` (d) step 4 committed the
 dispatch-marking pass on `<default>` without pushing it; the squash-merge then
 folded that commit's content into the merge commit and local `<default>`
 diverged, halting (g) step 5. **Wave 1 applied the push by hand** as a deliberate
-workaround. **Wave 2 is the first wave where that push is the merged procedure**
-rather than a hand-applied workaround — dispatch-marking commit `7718da8` was
-pushed to `origin/dev` before any worker was dispatched or any worktree re-pinned,
-per the now-merged (d) step 4.
+workaround. **Wave 2 was the first wave where that push was the merged
+procedure** rather than a hand-applied workaround — dispatch-marking commit
+`7718da8` and in-flight-pointer commit `a801c54` were both pushed to `origin/dev`
+before any worker was dispatched or any worktree re-pinned. Both `--ff-only`
+syncs in wave 2's merge walk landed as clean fast-forwards.
 
 ## Clusters
 
@@ -131,18 +138,13 @@ all of it is available to a later campaign.
 
 ## In flight
 
-Cleared at settlement; non-empty only mid-wave or after a crash.
+None. Cleared at wave-2 settlement: both worktrees returned to the pool (6/6
+`available`, zero leases), both branches deleted local and remote, no open PRs.
 
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
-| QCLI-58 | 2 | `~/.treehouse/quest-cli-f11e72/1/quest-cli` | `docs/qcli-58-d2-runtime-proposal` | 1 — dispatched (marking `7718da8` committed and pushed, worktree re-pinned, worker running) |
-| QCLI-59 | 2 | `~/.treehouse/quest-cli-f11e72/2/quest-cli` | `chore/qcli-59-claude-md-activation-amendment` | 1 — dispatched (marking `7718da8` committed and pushed, worktree re-pinned, worker running) |
 
-Wave base `a0ba453`; marking commit `7718da8`. Both stages recorded at dispatch
-and **not** re-recorded at later transitions — per SKILL.md R2 step 5, read a
-stage-1 entry as a lead to corroborate against the worktree's own `git log`,
-`gh pr list`, and the orchestrator's `<default>` working-tree state, never as
-proof that progress stalled there.
+_Empty — campaign complete._
 
 ## The wave-2 ruling — given 2026-08-08
 
@@ -179,10 +181,9 @@ taken at face value:
   live inspection boundary" — which is exactly what QCLI-56 verified.
 
 Read together, that sentence looks like standing boilerplate repeated at every
-boundary, not a live list of outstanding work. **This finding is recorded, not
-acted on:** no document is amended on the strength of it, and QCLI-59's scope is
-CLAUDE.md alone. Whether the evidence record's own sentence should be qualified
-is left open — see the follow-up proposals.
+boundary, not a live list of outstanding work. **This finding was recorded, not
+acted on:** no document was amended on the strength of it, and QCLI-59's scope
+stayed CLAUDE.md alone.
 
 **The ruling.** Presented with that finding, the user authorized the amendment
 and directed that wave 2 run both QCLI-58 and QCLI-59. The stated project goal
@@ -190,10 +191,25 @@ governing it: begin real implementation as soon as possible, but not before the
 docs and tooling foundation is solid.
 
 **What the ruling does not do.** It does not declare every Quest-side gate
-discharged, and QCLI-59's amendment must not imply that. Phase 6 — publication,
+discharged, and QCLI-59's amendment does not imply that. Phase 6 — publication,
 release workflows, public install instructions, package reservation — stays
 prohibited, and its entry additionally requires D2 and D3. `@opum-ai/quest`
 remains unclaimed (`E404`, observed 2026-08-08).
+
+## What actually blocks implementation now
+
+Stated plainly, because this campaign existed to answer it.
+
+**Nothing in Backlog.** The campaign queue is empty. What remains is a decision
+only the owner can make, plus one hazard the wave itself created.
+
+1. **D2 — the runtime — is undecided.** `QCLI-58` assembled the comparison and
+   deliberately stops short of ruling. No product source, `package.json`, or
+   `bin` entry can be written without naming a runtime.
+2. **F1 below is unresolved.** As merged, `CLAUDE.md` permits exactly the
+   artifacts that would decide D2 by construction. Until that is guarded or D2
+   is ruled, the first worker to act on the permission closes the decision the
+   owner reserved.
 
 ## Needs a human / blocked
 
@@ -205,47 +221,76 @@ owners, recorded here so a later session does not mistake them for oversights:
   without it; gate *actor eligibility* cannot be built without it.
 - **The `lore-doc` half of the not-found convention** — needs that owner.
 
-One item inside the queue carries a decision that is the owner's, not an agent's:
-**QCLI-58 prepares the D2 runtime comparison but does not decide it.** The ruling
-is the user's, and the task is written to stop short of it. **D2 is now the one
-substantive thing standing between this repository and its first line of product
-source** — the runtime cannot be inferred, and no `package.json` can be written
-without it.
-
 ## Proposed follow-ups (awaiting user approval)
 
 Never created unprompted — this project requires approval before follow-up work
 is filed.
 
-Two carried from wave 1's reviews, neither filed:
+### From wave 2's integration review
 
-1. **`reference/templates.md` should tell workers not to run `lore sync`.** QCLI-56's
-   first worker ran it inside a task branch — the QCLI-43 form violation. Effect was
-   benign (the recorded SHA was already a `dev` ancestor; a 112-SHA sweep found 0
-   non-ancestors), but the root cause is a real prompt gap: `templates.md` contains
-   zero occurrences of "lore", while `backlog/config.yml` sets `auto_commit: false`,
-   making `lore sync`'s auto-commit the advertised way to persist Backlog writes.
-   The fix pass adopted the correct behaviour unprompted (`10875cc` is a manually
-   staged, trailered backlog commit), which is the shape the template should teach.
+**F1 — HIGH — the wave permits the act that silently closes D2.**
+`CLAUDE.md`'s "Now permitted" bullet lists `package.json`, a `bin` entry, and
+runtime dependencies, and attaches D2 only to Phase 6. But none of those three
+can be written without naming a runtime, so **the first worker acting on the
+permission decides D2 by construction** — the exact ruling `QCLI-58` reserved for
+the owner, and what the roadmap itself calls "an undocumented decision, which is
+worse than a delay." Two documents inside the same wave diff say D2 binds
+earlier: the open decisions register's D2 **Needed for** cell reads "Phases 2
+and 6", and this tracker said D2 is "the one substantive thing standing between
+this repository and its first line of product source."
+*Verified directly at settlement:* register cell reads "Phases 2 and 6";
+roadmap phase table (`:77`) lists Phase 6 against "Phase 0; D2 and D3" and Phase
+2 against "Phase 1; Phase 0 for any code". So the register/roadmap disagreement
+on whether D2 gates Phase 2 **predates this wave** — the wave is what made it
+operative.
+*Narrow fix:* one clause guarding the permitted bullet — permitted, but the
+first artifact naming a runtime closes D2, so the owner's D2 ruling lands first
+(or is explicitly declared unnecessary). *Real work:* reconciling the
+register/roadmap disagreement itself.
+
+**F2 — MED — `docs/index.md:22-23` is now false.** It reads "Product source and
+runtime dependencies remain gated on the full Lore release." The Lore release
+happened (`@opum-ai/lore@0.1.1`, accepted 2026-08-06) and `CLAUDE.md` now permits
+both. Docs-bundle front door, operative prose, so correct-in-place applies.
+*Verified directly at settlement.* Narrow fix: amend in place citing `QCLI-59`.
+
+**F3 — MED — `docs/runbooks/quest-cli-research-handover.md` instructs the
+opposite of `CLAUDE.md`.** Step 4 (`:46-48`) and, worse, its **ready-to-paste
+prompt** (`:75`) both say "Do not add product source, runtime dependencies,
+package scaffolding…" conditioned on a gate that has now passed — so it
+propagates a spent prohibition verbatim into fresh sessions. Narrow fix.
+Separately (`:57`) it names a gate **no other document in the repo names**:
+"Implementation remains prohibited until `quest-doc`'s canonical handover **and**
+the current Lore-owned release gate both pass." Whether that `quest-doc` handover
+is a live outstanding gate or dead runbook prose is **real work** — and it bears
+directly on whether implementation may begin.
+
+**F4 — LOW — same-session date skew.** QCLI-58's artifacts date the wave
+2026-08-09 (UTC); QCLI-59 and this tracker date it 2026-08-08 (local, `-05:00`).
+Both landed in one session. Reads as the proposal postdating an amendment marked
+"unreconciled as of 2026-08-08". Narrow fix: mark the two unqualified register
+mentions as UTC.
+
+### Carried from wave 1, still unfiled
+
+1. **`reference/templates.md` should tell workers not to run `lore sync`.**
+   QCLI-56's first worker ran it inside a task branch — the QCLI-43 form
+   violation. Effect was benign, but `templates.md` contains zero occurrences of
+   "lore" while `backlog/config.yml` sets `auto_commit: false`, making `lore
+   sync`'s auto-commit the advertised way to persist Backlog writes.
 2. **A shell-portability nit in the open component decisions register.** The
-   `npm view backlog.md time['1.49.3']` command added by QCLI-57 is correct under
-   its `bash` fence but zsh glob-expands the brackets and returns "no matches
-   found," which reads as "the version is gone." Quoting the argument fixes both.
-   QCLI-57's reviewer explicitly judged this not worth a review pass.
-
-One added at wave-2 dispatch:
-
+   `npm view backlog.md time['1.49.3']` command is correct under its `bash` fence
+   but zsh glob-expands the brackets and returns "no matches found," which reads
+   as "the version is gone." Quoting the argument fixes both.
 3. **Qualify the evidence record's "still owed" sentence.** Per the wave-2 ruling
-   section above, `docs/reference/quest-cli-activation-gate-evidence-record.md`
-   names clean-room admission, research completeness, and the roadmap's Phase 0
-   component checks as gates "untouched and still owed," but the first two are
-   undefined anywhere else in the corpus and their Stories are `status: done`,
-   while the third's written exit criterion is the very predicate QCLI-56 verified.
-   The sentence appears twice (lines 257 and 405). Because the record is a
-   dedicated evidence record, the `QCLI-45` preserve-and-amend ruling governs: any
-   correction is a dated, superseded-marked appended note citing its directing
-   task, never an in-place rewrite. Left unfiled and unamended — it needs an
-   owner's judgment about whether the sentence is stale or deliberately standing.
+   section above, it names clean-room admission, research completeness, and the
+   roadmap's Phase 0 component checks as gates "untouched and still owed," but
+   the first two are undefined anywhere else in the corpus and their Stories are
+   `status: done`, while the third's written exit criterion is the very predicate
+   QCLI-56 verified. The sentence appears twice (lines 257 and 405). Because the
+   record is a dedicated evidence record, `QCLI-45` preserve-and-amend governs:
+   any correction is a dated, superseded-marked appended note citing its
+   directing task, never an in-place rewrite.
 
 Also recorded, deliberately **not** proposed: QCLI-56's stale frontmatter
 (`summary:`/`timestamp:` still say 2026-08-05). Its reviewer declined to file a
@@ -287,41 +332,82 @@ falsehood or a hazard:
   depends on.
 - QCLI-57 classified `time.modified` as an immutable anchor. It is a moving
   reference: the packument's last-modified time, 328ms from `1.49.3`'s actual
-  publish timestamp and advancing on any later package write. The Spec lists "a
-  release timestamp" among its immutable *examples*, so the label was applied
-  without testing the behaviour the category is defined by — in the one task
-  devoted to that convention.
+  publish timestamp and advancing on any later package write.
 - QCLI-56 stated `lore-cli` had "advanced twice" when it had advanced 25 commits
-  across 6 merged PRs. A wrong number in a record whose stated value is fidelity —
-  and one that a default squash body would have carried onto `dev` permanently,
-  caught by the reviewer as a merge-time hazard and prevented by hand-authoring
-  the squash message.
+  across 6 merged PRs — a wrong number in a record whose stated value is fidelity,
+  which a default squash body would have carried onto `dev` permanently.
 
 **The gate corrected itself, twice.** QCLI-60's implementer overruled the
 reviewer's proposed content-presence check, showing the suggested path-diff
 false-positives on the dispatch-marking case; the reviewer verified the objection
 against real history and adopted the implementer's version over its own. QCLI-56's
 fixer declined a reviewer-suggested frontmatter edit after discovering the
-document asserts "nothing above is edited or re-tensed" about itself — it made
-the edit, watched the zero-deletion invariant break, and reverted.
+document asserts "nothing above is edited or re-tensed" about itself.
 
-**QCLI-60's own fix was exercised while fixing it.** The push rule was applied by
-hand throughout this wave, because a size-3 wave is exactly where the unfixed
-defect bites. All three members merged with every `--ff-only` sync landing as a
-clean fast-forward.
+### Wave 2 — QCLI-58, QCLI-59 — settled 2026-08-08 — CAMPAIGN COMPLETE
 
-### Wave 2 — QCLI-58, QCLI-59 — dispatched 2026-08-08
+Base `a0ba453`; marking commit `7718da8`, committed **and pushed** before
+dispatch — the first wave to do so as merged procedure rather than wave 1's
+hand-applied workaround. Two disjoint clusters, implemented concurrently,
+reviewed pipelined per completed implementer.
 
-In flight at the time of writing. Base `a0ba453`; marking commit `7718da8`,
-committed **and pushed** before dispatch — the first wave to do so as merged
-procedure rather than as wave 1's hand-applied workaround.
+| Task | Merged | Review passes | Outcome |
+| --- | --- | --- | --- |
+| QCLI-58 | `f123b9b` (PR #73) | `request_changes` → `approve` | 7/7 ACs |
+| QCLI-59 | `34a1c36` (PR #74) | `request_changes` → `approve` | 6/6 ACs |
 
-Two disjoint clusters: QCLI-58 (`cluster:decisions`) assembles the D2 runtime
-comparison under `docs/reference/`; QCLI-59 (`cluster:governance`) amends
-`CLAUDE.md` alone. QCLI-59 runs under the explicit user ruling recorded above.
+**Both reviews caught a defect that would have shipped a falsehood.**
 
-An R3 reconciliation preceded this wave: `lore sync` reported one file
-(`docs/log.md`, catching up wave 1's own docs-sync commit `3d9466a` — the
-documented one-commit lag), gated clean by `lore check --strict` at 47 files /
-0 errors / 0 warnings and pushed as `a0ba453`. No drift was found between the
-handover's claims and live ground truth.
+- **QCLI-58: Deno presented as costless.** Its one disclosed limitation —
+  partial npm compatibility via `npm:` specifiers — appeared once at L68 and in
+  *none* of the three comparison tables, including the summary table an owner
+  actually rules from. Every other candidate's drawback was carried through. No
+  recommendation appears anywhere, so the document satisfied "decides nothing"
+  in wording while tilting the comparison in substance — the precise failure a
+  decision-grade document must not have. Pass 2 proved the cure mechanically:
+  a diff filtered for added/removed `| Node.js`, `| Bun`, and `| Compiled` rows
+  returned **0**, so no sibling candidate was softened to compensate.
+- **QCLI-59: a present-tense unconditional prohibition left standing.**
+  `CLAUDE.md` would have shipped saying, in one block, that the prohibition
+  blocks product source until Phase 0 passes / that Phase 0 is not re-evaluated
+  / that product source is now permitted. The worker's own AC#6 sweep was too
+  narrow to catch it; the reviewer's wider sweep did.
+
+**Both reviewers independently surfaced the same larger divergence** from
+opposite sides: amending `CLAUDE.md` alone leaves
+`docs/specs/quest-cli-pre-implementation-research-program.md` and
+`docs/specs/quest-cli-delivery-roadmap.md` still prohibiting product source
+outright. Two agents converging on it from different tasks is corroboration, not
+one reviewer's framing. Disposition, by explicit orchestrator ruling: **named,
+marked unreconciled, left open** — no agent declared CLAUDE.md supreme over a
+Spec, or the reverse.
+
+**`merge-pending`'s point-of-action edit was exercised for the first time.**
+`QCLI-51` recorded that this transition had never been run in a recorded wave,
+only inferred safe by analogy to `in-review`. It behaved as specified:
+label-only diff, confirmed, discarded as soon as that task's own review reached
+a terminal verdict (`QCLI-53`'s per-task trigger), with the orchestrator's
+`<default>` checkout clean before and across the whole merge walk.
+
+**Two stale-figure corrections, both caught by reviewers, not by workers.**
+Each fix worker copied its pre-fix `git diff dev...HEAD --stat` forward into a
+verification note labelled as run *after* the fix: QCLI-58's said 367/3 when it
+was **391/3** (proposal 325 lines, not 318); QCLI-59's said 103/8 when it was
+**162/8**. Both scope conclusions were right; only the counts were wrong. The
+QCLI-58 figure propagated into the orchestrator's own pre-merge check before the
+reviewer corrected it — recorded because a verification record that is wrong
+while claiming to be freshly run is exactly the defect class these notes exist to
+prevent.
+
+**Wave-level integration review** returned 1 HIGH, 2 MED, 2 LOW, all recorded as
+proposed follow-ups above. It also confirmed QCLI-58's own prohibition sentences
+remain true on `dev` (each is scoped to "by this task" or asserts a fact about
+the research programme Spec, whose list is unchanged), that nothing was
+scaffolded (no `package.json`, `bin/`, `src/`, lockfile, tsconfig, or any
+`.ts/.js/.go/.rs` file, tracked or untracked), that no published/installable
+claim was introduced, and that the register and proposal agree with neither
+implying a runtime was chosen. It also cleared several documents explicitly,
+notably the packaging contract (whose "may be drafted … must not be described as
+reserved, live, or installable" split matches the amendment's) and the functional
+requirements Spec (whose prohibition was written conditionally on the Lore gate
+reporting Pass, so it self-released and now agrees with `CLAUDE.md`).

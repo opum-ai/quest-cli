@@ -1,10 +1,10 @@
 ---
 id: QCLI-58
 title: Assemble a decision-ready D2 runtime proposal for the owner's ruling
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-09 02:33'
+updated_date: '2026-08-09 02:50'
 labels:
   - campaign
   - 'cluster:decisions'
@@ -44,13 +44,13 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 init, in a campaign
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The proposal enumerates the candidate runtimes with their tradeoffs assessed against the recorded macOS/Linux/Windows platform matrix, citing QCLI-27 rather than restating it
-- [ ] #2 Each candidate's implications for Phase 6 packaging and clean-install verification are stated, citing the packaging contract's own constraints
-- [ ] #3 Lore's shipped runtime is cited as context with its relevance to Quest's choice argued explicitly, not assumed by precedent
-- [ ] #4 The proposal identifies which architecture-Spec boundaries a runtime choice would actually constrain and which are genuinely runtime-neutral
-- [ ] #5 The document states explicitly that it decides nothing and that D2 remains owned-not-closed pending the owner's ruling
-- [ ] #6 The open component decisions register's D2 entry points at the proposal with its status left unchanged
-- [ ] #7 No runtime is frozen, and no runtime dependency, package metadata, or executable scaffolding is added
+- [x] #1 The proposal enumerates the candidate runtimes with their tradeoffs assessed against the recorded macOS/Linux/Windows platform matrix, citing QCLI-27 rather than restating it
+- [x] #2 Each candidate's implications for Phase 6 packaging and clean-install verification are stated, citing the packaging contract's own constraints
+- [x] #3 Lore's shipped runtime is cited as context with its relevance to Quest's choice argued explicitly, not assumed by precedent
+- [x] #4 The proposal identifies which architecture-Spec boundaries a runtime choice would actually constrain and which are genuinely runtime-neutral
+- [x] #5 The document states explicitly that it decides nothing and that D2 remains owned-not-closed pending the owner's ruling
+- [x] #6 The open component decisions register's D2 entry points at the proposal with its status left unchanged
+- [x] #7 No runtime is frozen, and no runtime dependency, package metadata, or executable scaffolding is added
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -109,4 +109,30 @@ Verification:
 - Re-verified every citation touched in this pass by opening the cited source file at the cited line/section (see above per-finding notes) before writing the fix.
 
 Nothing in the reviewer's findings looks wrong on inspection; all four were verifiable defects and are now fixed with the cited evidence re-checked directly against source line numbers.
+
+## Settlement (doc-14 wave 2, orchestrator)
+
+Merged as `f123b9b` (PR #73), squash body hand-authored so `Refs: QCLI-58` lands in the final trailer block (QCLI-48); verified with `git interpret-trailers --parse`.
+
+**Review:** two passes. Pass 1 `request_changes` (1 MED, 3 LOW); pass 2 `approve`, all 7 ACs confirmed with named evidence.
+
+The MED was the substantive one: Deno was the only candidate with no drawback in any comparison cell — its disclosed npm-interop limitation (`npm:` specifiers) appeared at L68 and in none of the three comparison tables, including the summary table an owner rules from. That satisfies "decides nothing" in wording while tilting the comparison in substance. The fix carried the constraint into the Phase 6/clean-install cell and the summary row. Pass 2 proved the cure mechanically rather than by reading: `git diff dcd8e81..HEAD -- <proposal> | grep -E '^[-+]\| (Node\.js|Bun|Compiled)' | wc -l` = 0, i.e. zero added or removed lines in any Node/Bun/Go-Rust row, so no candidate was softened to compensate. All four now carry an honestly-stated cost.
+
+**Correction to the fix pass's own notes:** the notes record `git diff dev...HEAD --stat` as "367 insertions, 3 deletions" and label it as run after the fix. That is the pre-fix figure, carried forward. Actual post-fix: **3 files, 391 insertions(+), 3 deletions(-)** — proposal 325 lines (not 318), task file 60. Re-run and confirmed at settlement. The scope conclusion (three files only) was correct; only the count was wrong. Recorded here because the stale figure propagated into the orchestrator's own pre-merge check before the reviewer caught it.
+
+**Verification re-run at settlement:** post-rebase `lore check --strict` 48 files / 0 errors / 0 warnings; `lore validate --strict` 0/0, 6 skipped; register D2 Status cell byte-identical `**Blocked**`; live `npm view @opum-ai/lore engines` -> `{ bun: '>=1.3.14' }`, no `node` engine, matching the doc's capsule and labelled a moving reference; no `package.json`/`bin/`/`src/`/lockfile anywhere in the diff or on `dev`, tracked or untracked.
+
+**Non-blocking, not fixed, recorded deliberately:** (a) "rather than native `node_modules` resolution" slightly overstates Deno's limitation — Deno supports an opt-in `node_modules` dir via `--node-modules-dir`; the true claim is that the *default* path is `npm:` specifiers through a global cache. The load-bearing claim (partial npm compatibility needing independent verification) is correct, so the comparison is undistorted. (b) The Recheck clause scopes its moving-reference caveat to platform/cross-compilation characteristics, which does not squarely cover an npm-compatibility claim. Both judged below the bar for a third review cycle; re-opening the Deno cell risked disturbing a balance that is now correct.
+
+**Wave-level integration finding against this document (F1, HIGH):** see QCLI-59's settlement note and the campaign doc. In short, the sibling amendment permits `package.json`/`bin`/runtime dependencies, none of which can be written without naming a runtime — so the permission as merged allows a worker to close D2 by construction, the very ruling this proposal reserves for the owner. This document's own text was verified still true on `dev` (every prohibition sentence is scoped to "by this task" or asserts a fact about the research programme Spec, whose list is unchanged). Surfaced to the user; not acted on here.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added `docs/reference/quest-cli-d2-runtime-proposal.md` (325 lines), a decision-ready comparison of four candidate runtimes — Node.js, Bun, Deno, and compiled Go/Rust distributed via npm `optionalDependencies` — assessed against the QCLI-27 platform matrix (cited, not restated), the packaging contract's Phase 6 constraints including its mandatory release-time recheck clause, Lore's own shipped runtime as context whose relevance is argued rather than assumed, and which architecture-Spec boundaries a runtime choice would actually constrain versus which are genuinely runtime-neutral. Pointed the open component decisions register's D2 entry at it, additively, with its Status left `Blocked`.
+
+It decides nothing: D2 remains owned-not-closed pending the owner's ruling, stated in the frontmatter, the opening, and a dedicated non-decision section.
+
+Verified by two independent review passes. Pass 1 caught the failure this task was most at risk of: Deno presented as costless, its one disclosed npm-interop limitation never reaching the tables an owner rules from — a thumb on the scale that satisfied "decides nothing" in wording. Pass 2 confirmed the fix cured it mechanically, with zero changes to any other candidate's cells. Live `npm view @opum-ai/lore engines` -> `{ bun: '>=1.3.14' }` (no `node` engine) was re-verified at both passes and labelled a moving reference; Bun's Windows arm64 claim confirmed published at 1.3.14. `lore check --strict` and `lore validate --strict` clean at 48 files. No runtime frozen and no package metadata, runtime dependency, or executable scaffolding added — confirmed on `dev` for tracked and untracked files alike. Merged as `f123b9b` (PR #73).
+<!-- SECTION:FINAL_SUMMARY:END -->
