@@ -62,12 +62,11 @@ has moved four times in a single working session.
 - This repo is **`opum-ai/quest-cli`**, not `salient-data/quest-cli`. The old URL
   still **redirects and resolves silently**, so a link that works is *not* proof
   it names the current owner.
-- **`@opum-ai/quest` is NOT published** — registry returns 404 and there is no
-  root `package.json`. Do not describe Quest as installable or released, **and
-  do not create the thing that would make the description true**: no
-  `package.json`, no `bin` entry, no install instructions, no package
-  reservation, no release. Describing nothing while adding scaffolding
-  satisfies the wording and breaks the rule.
+- **`@opum-ai/quest` is NOT published** — registry returns 404 (`E404`,
+  observed 2026-08-08) and no package is reserved. Do not describe Quest as
+  installable, released, or reserved on the registry. This half of the rule
+  is about truthful description, is unconditional on activation phase, and
+  survives the amendment below untouched.
 - Org ownership is **not uniform**: `lore-cli` and `quest-cli` are `opum-ai`;
   `lore-doc`, `quest-doc`, `quest-web`, and `opum-doc` remain `salient-data`.
   Check per repository — and check with something a redirect cannot fake:
@@ -75,6 +74,66 @@ has moved four times in a single working session.
   when queried under the old one. A 200 from the old URL is not a check.
 - The unscoped `quest` and `lore` names on npm belong to **unrelated third
   parties**. Always use the `@opum-ai/` scope.
+
+**Amendment (2026-08-08, `QCLI-59`): the pre-activation prohibition above is
+narrowed, not repealed.** Until this amendment, the bullet above also read:
+"do not create the thing that would make the description true: no
+`package.json`, no `bin` entry, no install instructions, no package
+reservation, no release. Describing nothing while adding scaffolding
+satisfies the wording and breaks the rule." That clause restated the
+research programme Spec's
+`docs/specs/quest-cli-pre-implementation-research-program.md` "Prohibited
+work before activation" list, which blocks product source unconditionally
+until the Phase 0 activation precondition passes. It is narrowed here, not
+ignored or routed around, because two things now hold together — recorded
+together per this repository's citation ruling (`CLAUDE.md`, `QCLI-44`):
+
+- **Evidentiary Pass.** `QCLI-56`'s 2026-08-08 recheck capsule, appended to
+  `docs/reference/quest-cli-activation-gate-evidence-record.md` ("2026-08-08
+  recheck capsule (`QCLI-56`)"), records `lore-doc`'s gate Spec and task
+  `LDOC-4` both reporting the Lore-owned release gate **OPEN**, "all four
+  predicate items satisfied at one live inspection boundary" — in the gate
+  owner's own "pass/fail" vocabulary, quoted from that same Spec's Authority
+  table.
+- **Explicit authorization.** An evidentiary Pass is not by itself
+  activation: the evidence record and `lore-doc`'s own gate Spec both state
+  plainly that an open Lore gate clears the Lore-owned precondition only,
+  and that this repository's own Phase 0 obligation — clean-room admission,
+  research completeness, and the delivery roadmap's component-activation
+  checks — is separate and is not re-evaluated by this amendment. On top of
+  that evidentiary Pass, the user explicitly authorized this amendment to
+  proceed, at doc-14 wave-2 start, 2026-08-08. Neither fact stands in for
+  the other; both are recorded here because both were required.
+
+**Why this is corrected in place rather than preserve-and-amended.** This
+repository's own record-vs-current-assertion test — "is this text recording
+what was once decided, or telling a reader what is true now?" — decides
+between the two conventions defined later in this file. The prohibition
+bullet was never a dated capsule reporting what this file observed at an
+inspection boundary the way the activation-gate evidence record is
+(`CLAUDE.md`, `QCLI-45`) — `CLAUDE.md` makes no claim of fidelity to a past
+reading; it is operative guidance a reader acts on today, and a reader
+following the un-narrowed text after 2026-08-08 would be following a rule
+that is no longer this repository's current state. That makes it exactly
+the class of prose the correct-in-place convention governs — "only prose a
+reader would act on today gets corrected in place" — so the bullet above is
+edited directly rather than superseded by a dated, appended note.
+
+**Scope, narrow and asymmetric — the things Phase 2
+(`docs/specs/quest-cli-delivery-roadmap.md`) needs to exist at all:**
+
+- **Now permitted:** product source, executable scaffolding, a
+  `package.json`, a `bin` entry, runtime dependencies.
+- **Still prohibited, pending Phase 6:** package publication, release
+  workflows that claim readiness, public install instructions, and package
+  reservation. Phase 6 additionally requires `D2` (runtime) and `D3`
+  (platform) decided; this amendment decides neither and does not choose a
+  runtime. `@opum-ai/quest` remains unclaimed (`E404`, observed 2026-08-08).
+
+This narrows nothing else: it does not clear clean-room admission, research
+completeness, or any other component activation check in the delivery
+roadmap, and it does not touch the truthful-description bullet above, which
+stays in force exactly as written.
 
 Existing `salient-data/*` references under `docs/` are frequently **deliberate
 supersession records** — the ADR's original decision text, the migration
