@@ -39,7 +39,7 @@ matter, and publication, release workflows claiming readiness, and public instal
 instructions remain prohibited.
 
 `quest-doc` owns the product-wide staged roadmap; its
-[clean-room execution graph](https://github.com/salient-data/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
+[clean-room execution graph](https://github.com/opum-ai/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
 is the normative record of the eight product stages. This Spec is the component-local
 elaboration of them and does not restate them as normative here.
 

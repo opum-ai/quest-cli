@@ -41,7 +41,7 @@ only a product-level summary and `opum-doc` retains immutable history.
 ### Source provenance boundary
 
 The dated
-[Opum fleet and prior-art inventory](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md),
+[Opum fleet and prior-art inventory](https://github.com/opum-ai/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md),
 historical OCLI Story/Spec/Runbook, OCLI task records, and Git recovery commits
 `7b82afc` and `d42c016` are provenance inputs, not maintained Quest contracts.
 The inventory's 11 scenario seeds remain historical evidence until QCLI-2.3

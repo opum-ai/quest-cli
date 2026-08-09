@@ -17,13 +17,13 @@ timestamp: 2026-08-05T12:57:14.000Z
 
 This Reference is QCLI-2.1's revalidation of the completed OCLI-3.1 provenance
 register after the former `opum-cli` repository's rename to `opum-doc`. It
-replaces the [dated Opum fleet and prior-art inventory](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md)
+replaces the [dated Opum fleet and prior-art inventory](https://github.com/opum-ai/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md)
 as the admission authority for Quest research (the inventory itself remains
 Allowed for citation, see below): no source slice
 informs a QCLI requirement unless it is listed here as **Allowed**, and then
 only for the exact permitted use recorded against it. It stays consistent
 with, and does not restate or override, `quest-doc`'s canonical
-[provenance ledger](https://github.com/salient-data/quest-doc/blob/dev/docs/reference/quest-provenance-and-migration-ledger.md)
+[provenance ledger](https://github.com/opum-ai/quest-doc/blob/dev/docs/reference/quest-provenance-and-migration-ledger.md)
 and the [former OCLI to QCLI migration ledger](former-ocli-to-qcli-migration-ledger.md),
 which remains the normative task-by-task mapping. Every fact below was
 re-verified live on 2026-08-04, not copied from the prior capsule.
@@ -86,7 +86,7 @@ named slice, never to every file in its repository.
 - **Classification:** Allowed (per the classification vocabulary's own
   Allowed example, "Dated fleet inventory").
 - **Repository or URL:** `opum-doc:docs/reference/dated-opum-fleet-and-prior-art-inventory.md`
-  ([link](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md)).
+  ([link](https://github.com/opum-ai/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md)).
 - **Exact revision or retrieval date:** authored 2026-07-31, refreshed
   2026-08-01T02:35Z and 2026-08-01T04:14Z at commits `7b82afc` and `d42c016`
   — **corrected 2026-08-04 by `QCLI-2.7`, superseding this slice's prior
@@ -764,7 +764,7 @@ named slice, never to every file in its repository.
   records... Quest" distinction, and "Rebuildable local projection" (that
   document's lines 114, 128, 141, and 143 respectively); and (4)
   `quest-doc`'s [repository and authority
-  map](https://github.com/salient-data/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md)
+  map](https://github.com/opum-ai/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md)
   Reference — cited by the same component glossary both directly (its
   "Recheck clause," lines 247–274, and Notes, lines 275–295) and as the
   document grounding that glossary's negative-existence claim that

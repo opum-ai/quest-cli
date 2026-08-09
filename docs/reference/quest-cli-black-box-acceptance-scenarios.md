@@ -17,7 +17,7 @@ timestamp: 2026-08-04T15:08:31.000Z
 
 This Reference is `QCLI-2.3`'s deliverable: the current, independently
 authored observable black-box scenario corpus the
-[dated Opum fleet and prior-art inventory](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md)
+[dated Opum fleet and prior-art inventory](https://github.com/opum-ai/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md)
 itself says will replace its own 11 scenario seeds ("These dated,
 implementation-neutral defect classes remain here until QCLI-2.3 replaces
 them with a current, source-attributed corpus"). It is the current

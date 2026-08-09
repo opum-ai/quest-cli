@@ -37,7 +37,7 @@ document draws from those observations.
 ### The predicate this record answers to (quoted from its owner)
 
 Quoted verbatim from `lore-doc`'s
-[Quest integration and Lore release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
+[Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
 (Spec, `lore-doc`, local clone `/Volumes/external/repos/lore-doc`, HEAD
 `45d0d90f68a6c471365494155f1fcae5b7d01196` as read 2026-08-05 — a moving
 reference, re-verify before relying; the predicate section itself was last
@@ -263,7 +263,7 @@ the evidence table, does not refresh this capsule, and does not discharge the
 recheck clause below — an activation session still owes every command in it.
 Its purpose is to stop a future reader from trusting the `45d0d90f68a6` pin as
 current. Recorded under `opum-doc`'s
-[propagation Runbook](https://github.com/salient-data/opum-doc/blob/dev/docs/runbooks/propagate-component-evidence-to-dependent-decisions.md),
+[propagation Runbook](https://github.com/opum-ai/opum-doc/blob/dev/docs/runbooks/propagate-component-evidence-to-dependent-decisions.md),
 which names this repository a dependent of Lore release evidence.
 
 **Directing-task citation added 2026-08-07 by `QCLI-44`:** per `git blame`,
@@ -351,7 +351,7 @@ worktree's `HEAD` `b3326699b587208c2a26e776aa66facc99f9c7b4` (branch
 #### `lore-doc`'s own current gate-result statement, quoted verbatim
 
 From `lore-doc`'s
-[Quest integration and Lore release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
+[Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
 (Spec, local clone `/Volumes/external/repos/lore-doc`, `HEAD` and
 `origin/dev` both `101f9bb39eacd0e2e73df1bb4fa78db04f0a5896`, read
 2026-08-08 — moving reference for "current HEAD," re-verify before relying;

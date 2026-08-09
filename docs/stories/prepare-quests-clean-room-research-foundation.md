@@ -96,5 +96,5 @@ Read the controlling
 and [context-free handover](../runbooks/quest-cli-research-handover.md) before
 selecting a QCLI task. QCLI-2.1's revalidation gates every later research
 task's source admission. The
-[Lore-owned integration and release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
+[Lore-owned integration and release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
 controls later implementation activation.

@@ -38,11 +38,11 @@ task is created.
 
 | Concern | Owner |
 | --- | --- |
-| Quest promise, roadmap, cross-repository architecture, provenance policy | [`quest-doc`](https://github.com/salient-data/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md) |
+| Quest promise, roadmap, cross-repository architecture, provenance policy | [`quest-doc`](https://github.com/opum-ai/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md) |
 | `questgraph.dev` code, design implementation, hosting, DNS, site operations | `quest-web` |
-| Lore-wide policy, integration boundary, and dependency-gate definition | [`lore-doc`](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md) |
+| Lore-wide policy, integration boundary, and dependency-gate definition | [`lore-doc`](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md) |
 | Lore implementation and immutable release evidence | Owning `lore-*` repository, currently `lore-cli` for the package/command |
-| Accounts, billing, hosted collaboration, remote portfolio, Opum pricing | [`opum-doc`](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/opum-product-family-and-documentation-ownership.md) / future Opum component |
+| Accounts, billing, hosted collaboration, remote portfolio, Opum pricing | [`opum-doc`](https://github.com/opum-ai/opum-doc/blob/dev/docs/reference/opum-product-family-and-documentation-ownership.md) / future Opum component |
 
 ### First-release non-goals
 

@@ -96,7 +96,7 @@ stay open and unowned by any current task.
 
 Use **allowed**, **contextual**, **superseded**, **deferred**, **excluded**, and
 **quarantined** as provisional terms from the dated
-[Opum fleet and prior-art inventory](https://github.com/salient-data/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md).
+[Opum fleet and prior-art inventory](https://github.com/opum-ai/opum-doc/blob/dev/docs/reference/dated-opum-fleet-and-prior-art-inventory.md).
 That OCLI register is historical input, not an adopted current Quest source
 register. A class applies only to the named slice, not every file in a
 repository, and no slice may inform a current requirement until QCLI-2.1
@@ -105,7 +105,7 @@ revalidates and admits it.
 ### External activation authority
 
 The maintained Lore integration boundary and release-gate policy is
-[owned by lore-doc](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
+[owned by lore-doc](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
 This program records only component dependency status and evidence
 consumption. It does not redefine Lore's gate or assert that Lore, Quest, or a
 Quest package has been released.

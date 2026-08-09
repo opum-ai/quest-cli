@@ -29,7 +29,7 @@ product implementation remains blocked on Lore release evidence.
 - Lore gate owners: `/Volumes/external/repos/lore-doc` and live
   `/Volumes/external/repos/lore-cli`.
 - Canonical Lore policy:
-  [Quest integration and Lore release gate](https://github.com/salient-data/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
+  [Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
 - Read repository instructions; run `backlog instructions overview` and the
   lifecycle-specific guide, then `lore instructions`.
 - Preserve unexplained worktree changes and never normalize state through a
