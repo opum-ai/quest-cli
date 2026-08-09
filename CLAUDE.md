@@ -132,6 +132,21 @@ divergence between this amendment's permission and that Spec text is
 interim is an open precedence question this task does not decide — it is
 surfaced to the repository owner separately, not resolved here.
 
+**Precedence ruled, 2026-08-09 (`QCLI-64`).** The owner ruled that `CLAUDE.md` is
+authoritative over this repository's Specs for *permission to act*: where this file
+and a Spec disagree about what work is currently allowed, a worker follows this
+file. The paragraph above is preserved as `QCLI-59`'s own record of what it did and
+did not decide; it is not restored as an open question. The two Specs it names were
+reconciled in the same pass, so the divergence it describes no longer exists.
+
+The ruling is narrow and deliberately so. It settles which text governs *permitted
+work*, not which text is authoritative generally: a Spec remains the authority on
+what it uniquely owns — design, contracts, phase content — and this file claims no
+power to overrule that by assertion. The reasoning is that `CLAUDE.md` carried the
+owner's most recent explicit authorization while the Specs had simply not caught up,
+so reading the Specs as controlling would have silently revoked a permission the
+owner deliberately granted.
+
 **Why this is corrected in place rather than preserve-and-amended.** This
 repository's own record-vs-current-assertion test — "is this text recording
 what was once decided, or telling a reader what is true now?" — decides

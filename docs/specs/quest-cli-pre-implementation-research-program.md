@@ -36,7 +36,11 @@ worker can implement after Lore ships; it does not contain product code.
 
 ### Prohibited work before activation
 
-- product source, runtime dependencies, generated CLI or package scaffolding;
+- product source, runtime dependencies, generated CLI or package scaffolding —
+  **lifted 2026-08-08 by `QCLI-59`** once `QCLI-56`'s capsule established a verified
+  Pass, and confirmed authoritative over this Spec by the owner's 2026-08-09
+  precedence ruling (`QCLI-64`, recorded in `CLAUDE.md`); the remaining bullets in
+  this list are unaffected;
 - package publication, release workflows that claim readiness, or public
   install instructions;
 - inspection or derivation from Backlog.md source or internal tests;

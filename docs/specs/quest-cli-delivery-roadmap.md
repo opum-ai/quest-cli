@@ -29,10 +29,14 @@ document, so it is stated here first:
 > its only blockers are Quest's own unresolved component decisions. It is therefore the
 > next actionable unit of work — and it is what unblocks Phases 2 through 5.
 
-Phase 0 and Phase 6 are owner-gated and cannot be worked at all. Phases 2 through 5 are
-describable and designable now, but may not produce product source, a runtime dependency,
-executable scaffolding, or any packaging artifact before Phase 0 passes and is
-independently re-verified live.
+Phase 0 and Phase 6 are owner-gated and cannot be worked at all. Phases 2 through 5 were
+formerly barred from producing product source, a runtime dependency, or executable
+scaffolding before Phase 0 passed and was independently re-verified live. **That bar was
+lifted 2026-08-08 by `QCLI-59`**, once `QCLI-56`'s capsule established the verified Pass
+it was conditional on, and `CLAUDE.md` was confirmed authoritative over this Spec by the
+owner's 2026-08-09 precedence ruling (`QCLI-64`). Packaging artifacts remain a Phase 6
+matter, and publication, release workflows claiming readiness, and public install
+instructions remain prohibited.
 
 `quest-doc` owns the product-wide staged roadmap; its
 [clean-room execution graph](https://github.com/salient-data/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
@@ -150,7 +154,8 @@ overstepped.
 ### Phase 2 — Core execution engine
 
 **Entry.** Phase 1's identifier grammar and envelope decisions are closed. Phase 0 has
-passed, for any code to be written at all.
+passed — verified 2026-08-08 by `QCLI-56`'s capsule, which is what lifted the bar on
+writing code (`QCLI-59`; precedence confirmed by `QCLI-64`).
 
 **Exit.** Claims, leases, heartbeats, the gate mechanism excluding actor eligibility,
 event-derived state, and operation-owned Git mutation satisfying all five invariants.
