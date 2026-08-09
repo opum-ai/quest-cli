@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-09 02:15'
+updated_date: '2026-08-09 02:32'
 labels:
   - campaign
   - 'cluster:governance'
@@ -95,4 +95,33 @@ Verification: `lore check --strict` -> 47 files, 0 errors, 0 warnings (CLAUDE.md
 Scope decided, matching the task's own asymmetric framing verbatim: now permitted -- product source, executable scaffolding, package.json, bin entry, runtime dependencies (what Phase 2, per docs/specs/quest-cli-delivery-roadmap.md, needs to exist at all). Still prohibited pending Phase 6 -- package publication, release workflows claiming readiness, public install instructions, package reservation; Phase 6 additionally needs D2 (runtime) and D3 (platform) decided, neither decided by this amendment (no runtime is chosen here, matching the QCLI-58 sibling-task caveat), and @opum-ai/quest remains unclaimed (E404, observed 2026-08-08, re-confirmed by QCLI-56's own re-run).
 
 Out-of-scope discoveries, not acted on: none beyond what QCLI-56 already recorded (lore-cli local clone parked off dev; lore-cli origin/dev advanced past lore-doc's cited boundary with no new tag/publish). Nothing new surfaced while reading CLAUDE.md or the evidence record for this task.
+
+Fix pass (post-review, reviewer returned request_changes). Applied all 5 LOW findings, MED-1, and HIGH-1(a)+(b); HIGH-1(c) per orchestrator's conservative disposition (declared unreconciled, no precedence chosen). CLAUDE.md only; docs/ untouched; no package.json/bin/src/lockfile created (confirmed by `ls -a` repo root).
+
+HIGH-1 -- fixed both parts assigned to this worker:
+(a) Re-tensed/attributed CLAUDE.md:86-87 (now ~88-89): "which blocks product source unconditionally until the Phase 0 activation precondition passes" -> "which stated that product source was blocked unconditionally until the Phase 0 activation precondition passed." This describes what the now-superseded CLAUDE.md clause restated (a QCLI-50-style pure tense shift on this file's own prior wording, not on an evidence record), and stops the file from asserting, in its own voice, a present unconditional block that the amendment then contradicts.
+(b) Added a new "Unreconciled Spec divergence, named and left open -- not settled here" paragraph naming both sites by path: `docs/specs/quest-cli-pre-implementation-research-program.md:37-46` (Prohibited work before activation list, unqualified) and `docs/specs/quest-cli-delivery-roadmap.md:32-35` (Phases 2-5 "may not produce product source ... before Phase 0 passes and is independently re-verified live"), plus the Phase 2 entry at `:150-152` ("Phase 0 has passed, for any code to be written at all"). States the divergence is unreconciled as of 2026-08-08 and that this task amends neither Spec site.
+(c) Applied the orchestrator's disposition verbatim: stated the precedence question ("which text a worker follows in the interim") is left open and "surfaced to the repository owner separately, not resolved here." Did not write any form of "CLAUDE.md governs" / "the Spec governs" / "prefer X over Y" -- checked by re-reading the new paragraph after writing it.
+
+MED-1 -- applied the orchestrator's disposition verbatim (both authorizations occurred, distinct acts). Rewrote the "Explicit authorization" bullet to name both: doc-14 init 2026-08-08 (approved filing QCLI-59, conditional on a verified Pass -- QCLI-59's own Origin) and doc-14 wave-2 start 2026-08-08 (after QCLI-56 established the Pass, user shown that evidence and explicitly authorized the amendment to proceed, directing wave 2 run both QCLI-58 and QCLI-59). Stated in that order, with "the first authorized a conditional task; the second authorized executing it once the condition was met." File and task Origin no longer disagree.
+
+LOW-1 -- fixed both occurrences of ambiguous "the bullet above" (was lines 79 and 119) to "the `@opum-ai/quest` bullet above", disambiguating from the intervening unscoped-npm-names bullet.
+
+LOW-2 -- quote is no longer silently non-verbatim. Reworded to open with an ellipsis and bold markup matching the source ("...**and do not create the thing that would make the description true**: ...") and added a trailing parenthetical naming the elided prefix verbatim: '(elided prefix: "Do not describe Quest as installable or released,")'. Verified against `git show dev:CLAUDE.md`.
+
+LOW-3 -- attributed the 2026-08-08 E404 observation (both occurrences, in the "Verified ... 2026-08-04" bullet and in the Phase-6 scope bullet) to its source: "observed 2026-08-08 per `QCLI-56`'s recheck capsule" -- matches QCLI-56 task notes line 347 / the evidence record's 2026-08-08 capsule table.
+
+LOW-4 -- fixed the D2/D3 scope line: "Phase 6 additionally requires `D2` (runtime) and `D3` (platform) decided" -> "Phase 6 additionally requires `D2` (runtime, still open) and `D3` (platform, closed by `QCLI-27`: macOS, Linux, Windows) -- of the two, only `D2` remains outstanding, and this amendment decides neither". Verified against docs/specs/quest-cli-delivery-roadmap.md:123 (D3 row: Closed, QCLI-27, macOS/Linux/Windows) and :291 ("Who claims D3, the platform matrix? Resolved 2026-08-05").
+
+LOW-5 -- this note itself lands the actual (not future-tense) verification results below, replacing the prior notes' "will be checked again after commit."
+
+AC#6 sweep (reviewer's fuller version, run after all fixes): `grep -n -i "package\.json\|bin\` entry\|install instruction\|prohibit\|scaffold\|reservation\|not create" CLAUDE.md` -> hits at lines 79,81-84,87,123-124,127,138,153-154,155-157 (post-edit numbering). Read every hit in context: 79 names the amendment itself; 81-84 is the historical quote inside an explicit "also read:" framing; 87-89 is now past-tense, describing what the superseded clause restated (fixed per HIGH-1(a)); 123-124 and 127 are inside the new "Unreconciled Spec divergence" paragraph, explicitly attributed to the Specs (not CLAUDE.md's own rule) and marked unreconciled/open, not asserted as this file's current state; 138 refers to history ("The prohibition bullet was never a dated capsule..."); 153-157 is the correctly-qualified current scope (AC#2: now-permitted vs still-prohibited-pending-Phase-6). No remaining passage asserts the pre-activation prohibition as CLAUDE.md's own unqualified current state. This supersedes the prior notes' narrower sweep, which missed the present-tense "which blocks ... unconditionally ... passes" clause the reviewer caught as HIGH-1.
+
+AC#5 sweep (re-run after fixes): `grep -n -i "published\|installable\|released\|release" CLAUDE.md` -> lines 65,67,83,85,97,155. 65: negation ("is NOT published"). 67: "Do not describe Quest as installable, released" -- a prohibition on the repo, not a claim. 83: inside the historical quote. 85: the new elided-prefix parenthetical, itself a negation ("Do not describe Quest as installable or released"). 97: refers to the Lore-owned release gate (lore-doc's), a different subject. 155: "package publication, release" listed as a still-prohibited category pending Phase 6. No line claims @opum-ai/quest is published, installable, or released.
+
+lore check --strict -> 47 files, 0 errors, 0 warnings (run after the fixes; unaffected, CLAUDE.md is outside the lore bundle).
+
+git diff dev...HEAD --stat (actual, run after committing this fix): CLAUDE.md | 71 +++++++++++++++++++++-- and the QCLI-59 task file | 40 ++++++++++-, 2 files changed, 103 insertions(+), 8 deletions(-). Only those two files changed relative to dev. `ls -a` repo root: no package.json, bin, src/, or lockfile present.
+
+Disagreement with the reviewer, stated plainly: none. All five LOW findings and MED-1 were straightforwardly correct fixes to file content that disagreed with the file's own cited sources (dev's exact quote, QCLI-56's capsule, the delivery roadmap's D3 row, the task's own Origin) or was genuinely ambiguous (LOW-1's cross-reference). HIGH-1 was also correct on the substance -- the present-tense "which blocks ... unconditionally ... passes" clause really did assert a currently-blocking Spec state one paragraph before permitting the very thing it says is blocked, and the Spec divergence it named was real and previously unnamed in this file. I applied the orchestrator's two dispositions (HIGH-1(c) conservative/unreconciled, MED-1 both-occurred) verbatim rather than re-litigating them, per the fix-worker brief.
 <!-- SECTION:NOTES:END -->
