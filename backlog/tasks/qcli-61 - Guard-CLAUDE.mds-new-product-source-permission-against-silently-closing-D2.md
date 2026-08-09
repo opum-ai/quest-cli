@@ -1,9 +1,10 @@
 ---
 id: QCLI-61
 title: Guard CLAUDE.md's new product-source permission against silently closing D2
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-09 03:15'
+updated_date: '2026-08-09 13:51'
 labels: []
 dependencies: []
 priority: high
@@ -55,3 +56,23 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 close, from finding
 - [ ] #5 No claim that @opum-ai/quest is published, installable, or released is introduced, and no package.json, bin entry, src directory, lockfile, or other scaffolding is created
 - [ ] #6 A sweep confirms no other passage in CLAUDE.md now reads as authorizing a runtime-naming artifact without the guard; method and results recorded in the task notes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Closed as discharged on 2026-08-09 without implementing the guard clause, on the owner's ruling. No CLAUDE.md guard was written.
+
+The hazard this task existed to prevent — the first worker writing a package.json, bin entry, or runtime dependency thereby deciding D2 by construction — no longer exists. The owner ruled D2 in a live session on 2026-08-09 (QCLI-63, recorded in docs/reference/quest-cli-d2-runtime-ruling.md): runtime = Bun. A runtime-naming artifact now cites a closed decision instead of pre-empting an open one.
+
+Two of this task's own acceptance criteria were superseded by owner rulings rather than met:
+- AC1 required the guard to state that the D2 ruling must land first 'or be explicitly declared unnecessary'. The ruling landed, which is the first branch of AC1's own disjunction.
+- AC4 required recording the register-versus-roadmap disagreement 'without amending either document'. The owner has since ruled that the register be aligned to the roadmap, which makes the no-amendment constraint obsolete. That alignment is tracked separately.
+
+The remaining ACs (2, 3, 5, 6) were preconditions on a guard clause that is no longer warranted, so they are not met and are not claimed as met.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed as discharged, not implemented: no guard clause was written. QCLI-63's D2 ruling (Bun, 2026-08-09) removed the decide-by-construction hazard this task guarded against, satisfying AC1's own 'or be explicitly declared unnecessary' branch. AC4 was superseded by the owner's ruling to align the register to the roadmap. ACs 2, 3, 5 and 6 are preconditions on a clause no longer warranted and are explicitly not claimed as met.
+<!-- SECTION:FINAL_SUMMARY:END -->
