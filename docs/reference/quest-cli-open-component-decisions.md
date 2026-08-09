@@ -79,7 +79,7 @@ dependency deliverables leave open, from
 | # | Decision | Status | Owner | Unblocked by | Needed for |
 | --- | --- | --- | --- | --- | --- |
 | D1 | Product license and contributor provenance | **Closed** | Product owner | Closed by the [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): MIT license, informal/no contributor-provenance process for now | Phase 1; blocks public release |
-| D2 | Runtime and native packaging | **Blocked** | Component (ownership claimed by `QCLI-27`), post-activation | Ownership (who decides) is closed — the [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`) explicitly claims quest-cli as the owning component. The runtime *choice itself* is unaffected: it remains unblocked only by completed Lore evidence reviewed after the activation gate opens, exactly as before. A decision-ready comparison of candidate runtimes, assembled for the owner's ruling, now exists in the [D2 runtime proposal](quest-cli-d2-runtime-proposal.md) (`QCLI-58`, 2026-08-09) — it decides nothing and this Status cell is unchanged by it | Phases 2 and 6 |
+| D2 | Runtime and native packaging | **Closed** | Component (ownership claimed by `QCLI-27`), post-activation | Ownership (who decides) is closed — the [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`) explicitly claims quest-cli as the owning component. The runtime *choice itself* is unaffected: it remains unblocked only by completed Lore evidence reviewed after the activation gate opens, exactly as before. A decision-ready comparison of candidate runtimes, assembled for the owner's ruling, now exists in the [D2 runtime proposal](quest-cli-d2-runtime-proposal.md) (`QCLI-58`, 2026-08-09) — it decides nothing and this Status cell is unchanged by it. **Closed 2026-08-09 by the owner's live ruling** (`QCLI-63`), recorded in the [D2 runtime ruling](quest-cli-d2-runtime-ruling.md): runtime = Bun, distributed as compiled per-platform binaries behind a minimal Node launcher | Phases 2 and 6 |
 | D3 | Supported-platform matrix and final npm package ownership | **Closed** | Component — claimed by `QCLI-27` | Closed by the [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): macOS, Linux, and Windows; ownership explicitly claimed as quest-cli-owned | Phase 6 |
 | D4 | Canonical ID grammar | **Closed** | Component | Closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) | Phase 2; gates Phases 3 and 4 |
 | D5 | Scale target | **Closed** | Component | Closed by [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) | Phase 3 storage and index design |
@@ -129,7 +129,15 @@ Detail where the one-line status understates the constraint:
   and Phase 6 packaging tradeoffs, Lore's own shipped runtime as argued context, and which
   architecture-Spec boundaries a runtime choice would actually constrain are assembled
   there for the owner's ruling. That document proposes; it does not decide, and this
-  entry's status — Blocked — and every sentence above are unchanged by it.
+  entry's status — Blocked — and every sentence above are unchanged by it. **Closed 2026-08-09 by
+  `QCLI-63`** (the [D2 runtime ruling](quest-cli-d2-runtime-ruling.md)): the owner ruled
+  in a live session that the runtime is Bun, distributed as compiled per-platform binaries
+  behind a minimal Node launcher, matching the pattern `@opum-ai/lore` already ships. Every
+  sentence above is preserved as written and describes the state before that ruling; the
+  status cell now reads Closed. The ruling also discharges `QCLI-61`'s hazard, since the
+  runtime is no longer decided by construction by the first worker to write a
+  `package.json`. It does **not** resolve the roadmap-versus-register disagreement over
+  whether D2 gates Phase 2 or only Phase 6, which `QCLI-61` reserves for a separate ruling.
 - **D3 — Platform.** Distinct from D2 in carrying *no* Lore-evidence gate — it could be
   claimed now. The packaging contract's delivered scope was npm package allocation and
   provenance only, and it claimed neither platform nor runtime. A future task must claim

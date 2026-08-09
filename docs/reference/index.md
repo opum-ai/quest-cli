@@ -12,6 +12,7 @@
 - [Quest CLI component contracts and delivery graph](quest-cli-component-contracts-and-delivery-graph.md)
 - [Quest CLI component glossary, actors, and workflows](quest-cli-component-glossary-actors-and-workflows.md)
 - [Quest CLI D2 runtime proposal](quest-cli-d2-runtime-proposal.md)
+- [Quest CLI D2 runtime ruling](quest-cli-d2-runtime-ruling.md)
 - [Quest CLI Git, filesystem, and concurrency threat model](quest-cli-git-filesystem-and-concurrency-threat-model.md)
 - [Quest CLI license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md)
 - [Quest CLI Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)

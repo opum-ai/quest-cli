@@ -93,6 +93,7 @@
 - 2026-08-08T17:38:11-05:00 1962d2a8874942ba69412a5866aa4b33454c4922 QCLI-56: discharge the Phase 0 activation recheck (#70)
 - 2026-08-08T17:46:51-05:00 3d9466aca2d9ffd1d92caf35faaf26c493f219d8 docs: sync lore log after wave-1 settlement (doc-14 campaign)
 - 2026-08-08T17:57:11-05:00 a0ba4533a3520f916d70f76eade8cc828f7a48bc docs: catch up lore log at doc-14 restore reconciliation
+- 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
 
 ## docs/adr
 
@@ -168,6 +169,7 @@
 - 2026-08-08T17:38:11-05:00 1962d2a8874942ba69412a5866aa4b33454c4922 QCLI-56: discharge the Phase 0 activation recheck (#70)
 - 2026-08-08T17:40:15-05:00 5c24b489593179829ba7ec283459f37b376b015e QCLI-57: re-verify the Backlog.md v1.49.3 pin before Phase 1 exit (#71)
 - 2026-08-08T21:40:21-05:00 f123b9b8c2d587600e4cedc8186102afed8e3455 QCLI-58: assemble a decision-ready D2 runtime proposal (#73)
+- 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
 
 ## docs/runbooks
 
