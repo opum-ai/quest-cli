@@ -1,13 +1,14 @@
 ---
 id: QCLI-58
 title: Assemble a decision-ready D2 runtime proposal for the owner's ruling
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-08 21:43'
+updated_date: '2026-08-09 02:05'
 labels:
   - campaign
   - 'cluster:decisions'
+  - wave-2
 dependencies: []
 priority: high
 type: spike

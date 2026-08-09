@@ -3,13 +3,14 @@ id: QCLI-59
 title: >-
   Amend CLAUDE.md's pre-activation prohibition to match the verified activation
   state
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-08 21:43'
+updated_date: '2026-08-09 02:05'
 labels:
   - campaign
   - 'cluster:governance'
+  - wave-2
 dependencies:
   - QCLI-56
 priority: high
