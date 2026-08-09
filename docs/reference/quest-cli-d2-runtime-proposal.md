@@ -21,9 +21,10 @@ native packaging," recorded **Blocked**, ownership claimed as quest-cli-owned by
 [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md)
 (`QCLI-27`), the runtime choice itself left deferred to post-activation. D2 is the Phase 1
 decision the [delivery roadmap](../specs/quest-cli-delivery-roadmap.md#phase-1--component-decisions)
-records as "**Owned, not closed**" — the only one of the eight Phase 1 rows still in that
+records as "**Owned, not closed**" — the only one of the nine Phase 1 rows still in that
 state once envelope shape, exit-code table, the not-found convention (Quest's own side),
-identifier grammar, license, platform ownership, and scale target all closed.
+identifier grammar, license, platform ownership, scale target, and where an anomaly sits
+in the outcome taxonomy all closed.
 
 **This document proposes a comparison; it does not decide.** No ADR is created here, no
 runtime is frozen, and the [open component decisions register](quest-cli-open-component-decisions.md)'s
@@ -123,7 +124,7 @@ unchanged; neither is a per-candidate variable.
 | --- | --- | --- |
 | Node.js | Either a plain npm package (source + `node_modules`, requiring the installer to already have a compatible Node on `PATH`) or a Node SEA-built single-file binary per platform, injected via `postject` into a copy of the Node binary itself. Cross-platform SEA generation from one host needs the target-platform Node binary and, per Node's own SEA documentation, `useCodeCache`/`useSnapshot` disabled to avoid a cross-arch-incompatible artifact — cross-compiling all three targets from one CI runner is possible but not as uniform as Deno's `--target` flow. | Clean-install verification must additionally prove a compatible Node is present (plain-package path) or that the injected SEA binary starts correctly per platform (SEA path); either way, the packaging contract's recheck clause and conditionality-of-public-claims section apply exactly as written. |
 | Bun | A plain npm package invoked via a `bun`-shebang or Node-compatible entry (Bun executes most Node-targeted npm packages), or a `bun build --compile` single-file executable per platform via `--target bun-{darwin,linux,windows}-{x64,arm64}` — cross-compiled from one host without a target machine, mirroring the pattern `@opum-ai/lore` itself already ships (single `bin/lore.cjs`, no dependencies). | If the plain-package path is chosen, clean-install verification must prove a compatible Bun (or Node, if the entry is written to run under either) is present on the installing machine — Bun is materially less likely than Node to already be installed on an arbitrary developer or CI machine, which is a real clean-install risk this document surfaces without resolving. If the compiled-executable path is chosen, this risk disappears at the cost of a per-platform binary artifact matrix to publish and verify. |
-| Deno | A `deno compile --target <triple>` single-file executable per platform, explicitly supporting cross-compilation to `x86_64-pc-windows-msvc`, `x86_64-apple-darwin`, `aarch64-apple-darwin`, `x86_64-unknown-linux-gnu`, and `aarch64-unknown-linux-gnu` from a single host — the most uniform cross-compile story of the three JavaScript-family candidates, per Deno's own documented target list. | Because the artifact is a self-contained binary, clean-install verification reduces to "does the binary run on a clean machine of each target platform" — no runtime-presence check is needed at all, unlike the plain-package paths above. |
+| Deno | A `deno compile --target <triple>` single-file executable per platform, explicitly supporting cross-compilation to `x86_64-pc-windows-msvc`, `x86_64-apple-darwin`, `aarch64-apple-darwin`, `x86_64-unknown-linux-gnu`, and `aarch64-unknown-linux-gnu` from a single host — the most uniform cross-compile story of the three JavaScript-family candidates, per Deno's own documented target list. | Because the artifact is a self-contained binary, clean-install verification reduces to "does the binary run on a clean machine of each target platform" — no runtime-presence check is needed at all, unlike the plain-package paths above. That check does not extend to npm-package interop, though: Deno's npm compatibility is partial, reached via `npm:` specifiers rather than native `node_modules` resolution (see "Candidate runtimes," above), so any dependency the codebase takes on an npm package would need its own compatibility verification, independent of this clean-install check. |
 | Compiled systems binary (Go/Rust) | Per-platform binaries published as scoped npm packages (e.g. `@opum-ai/quest-darwin-arm64`) with a thin `optionalDependencies`-resolving shim as the main `@opum-ai/quest` package — the pattern already proven at npm scale by `esbuild` and `swc`. | Clean-install verification must prove `optionalDependencies` resolution actually selects and installs the correct platform package on each of the three target platforms — a real, distinct failure mode (a missed platform triple, an npm client that mishandles `optionalDependencies`) that the JavaScript-runtime candidates above do not share, in exchange for no runtime-presence dependency at all once installed. |
 
 Nothing above changes the packaging contract's own scope or its recheck clause; every cell
@@ -166,17 +167,23 @@ findings already in this corpus bound how much weight that input can carry:
    evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) documents that
    existing adapter as one hardcoded external binary resolved from `PATH`, invoked as a
    subprocess, communicating over parsed stdout and a versioned JSON envelope (`QCLI-2.7`,
-   "Invocation surface Lore requires of a task CLI"). Neither direction shares an in-process
-   runtime, a memory space, or a build toolchain — a subprocess boundary is exactly the
-   substitutability point ports-and-adapters architecture is designed to make runtime-
-   irrelevant across. Choosing the same runtime as Lore would not simplify, deepen, or ease
+   "Invocation surface Lore requires of a task CLI"). That same cited section also records
+   one non-subprocess element of that existing adapter — a direct, hardcoded, fixed-path
+   file read of `backlog/config.yml` for an ordered `statuses:` list, bypassing the CLI
+   entirely (Lore dependency and adapter contract evidence, "Invocation surface Lore
+   requires of a task CLI"; its requirements table separately flags the Quest-side analogue
+   as "Requiring a Quest contract change," item 1c). Neither direction — nor this fixed-path
+   read — shares an in-process runtime, a memory space, or a build toolchain with Quest: a
+   subprocess boundary and a fixed-path file read are both exactly the substitutability
+   point ports-and-adapters architecture is designed to make runtime-irrelevant across.
+   Choosing the same runtime as Lore would not simplify, deepen, or ease
    either integration direction, because neither direction was designed to depend on that
    sameness in the first place.
 2. **Lore's own contract documentation records that its inbound and outbound envelope
    shapes diverge from each other on purpose** ("building Quest by mirroring Lore's
    documented `--json` output would produce the wrong shape" — [open component decisions
-   register](quest-cli-open-component-decisions.md), "Where the research programme Spec's
-   open questions landed"). A corpus that already rejects inheriting Lore's *output shape*
+   register](quest-cli-open-component-decisions.md), "Contract-level open items"). A
+   corpus that already rejects inheriting Lore's *output shape*
    by precedent has no standing basis to inherit Lore's *runtime* by precedent either; the
    same discipline applies to both.
 
@@ -273,7 +280,7 @@ any other change this task makes.
 | --- | --- | --- | --- | --- |
 | Node.js | Longest-mature on all three platforms | Plain package or SEA binary; cross-arch SEA needs target-platform Node and disabled code-cache/snapshot | Node is the most likely runtime already present on an arbitrary machine, if the plain-package path is chosen | Diverges from Lore's own choice; no technical cost shown for diverging (see "Lore's shipped runtime," above) |
 | Bun | Full three-platform support, Windows most recently matured of the JS-family candidates | Plain package or `bun build --compile` single-file binary, cross-compiled from one host | If plain-package path chosen, Bun is materially less likely than Node to be pre-installed on an arbitrary machine | Matches Lore's own choice; matching does not by itself simplify integration (see above) — the argued benefit, if any, is packaging-pattern precedent within this org, not a technical coupling |
-| Deno | Full three-platform support; most uniform documented cross-compile flow of the three JS-family candidates | Single-file `deno compile --target` binary per platform; no runtime-presence dependency once installed | None — self-contained binary | Diverges from Lore's own choice; no technical cost shown for diverging |
+| Deno | Full three-platform support; most uniform documented cross-compile flow of the three JS-family candidates | Single-file `deno compile --target` binary per platform; no runtime-presence dependency once installed | None as a runtime-presence risk, but npm-package interop is via `npm:` specifiers with documented gaps rather than native `node_modules` resolution (see "Candidate runtimes," above) — any adapter code depending on npm packages would need to verify compatibility independently of this risk axis | Diverges from Lore's own choice; no technical cost shown for diverging |
 | Compiled systems binary (Go/Rust) | Longest-mature cross-compilation story of any candidate, independent of any JS runtime | Per-platform npm packages plus an `optionalDependencies`-resolving shim (the `esbuild`/`swc` pattern) | None once installed, but `optionalDependencies` resolution correctness becomes its own distinct failure mode to verify per platform | Diverges most from Lore's own choice; also diverges from the corpus's JS/TypeScript-implied vocabulary elsewhere (e.g. the architecture Spec's own examples), which this document notes without treating as dispositive since the Spec itself claims language-neutrality |
 
 None of these figures or comparisons is accepted by this document. Each is offered for the
