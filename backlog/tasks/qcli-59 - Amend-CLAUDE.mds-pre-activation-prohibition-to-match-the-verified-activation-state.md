@@ -4,9 +4,10 @@ title: >-
   Amend CLAUDE.md's pre-activation prohibition to match the verified activation
   state
 status: In Progress
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-09 02:05'
+updated_date: '2026-08-09 02:15'
 labels:
   - campaign
   - 'cluster:governance'
@@ -60,3 +61,38 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 init, which include
 - [ ] #5 No claim that @opum-ai/quest is published, installable, or released is introduced anywhere
 - [ ] #6 A sweep confirms no remaining passage in CLAUDE.md asserts the pre-activation prohibition as unqualified current state; method and results recorded in the task notes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Establish AC#1's precondition myself from evidence (not just the orchestrator's authorization message): read docs/reference/quest-cli-activation-gate-evidence-record.md's 2026-08-08 recheck capsule (QCLI-56) and `backlog task view QCLI-56 --plain`. Confirm the gate's owner (lore-doc) reports the release gate OPEN with all four predicate items satisfied at one live inspection boundary, in the owner's own words, and that the record itself ties that to the "pass/fail" vocabulary via the gate Spec's Authority table — i.e. a reported Pass, not a computed one.
+2. Read CLAUDE.md in full and identify every passage asserting the pre-activation prohibition (the "@opum-ai/quest is NOT published ... do not create the thing that would make the description true" bullet under "Verified in this repo on 2026-08-04") and check for any other occurrence (grep for package.json/bin entry/install instructions/scaffolding/prohibited).
+3. Reason explicitly, in the document, about correct-in-place vs preserve-and-amend for CLAUDE.md using the record-vs-current-assertion test (CLAUDE.md's own convention): CLAUDE.md is operative guidance a reader acts on today, not a dated evidence capsule whose value is fidelity to a past reading (unlike the activation-gate evidence record, QCLI-45) -- so the correct-in-place branch governs, not preserve-and-amend.
+4. Edit CLAUDE.md: (a) trim the existing bullet to keep only the truthful-description half (still true: @opum-ai/quest is NOT published, E404), removing the now-superseded blanket "no package.json/bin entry/scaffolding" prohibition from being asserted as current; (b) add an amendment block, cited to QCLI-59 (this task) and QCLI-56's capsule per the QCLI-44 citation ruling, recording both required inputs -- the evidentiary Pass (QCLI-56's capsule quoting lore-doc's OPEN/satisfied gate result) and the separate explicit user authorization (doc-14 wave-2 start, 2026-08-08) -- and stating the narrow, asymmetric scope: product source/executable scaffolding/package.json/bin entry/runtime deps now permitted; package publication/release workflows/public install instructions/package reservation still prohibited pending Phase 6 (which also needs D2 and D3, not decided here); explicitly not claiming @opum-ai/quest is published/installable/released, and not clearing any other Quest-side gate or choosing a runtime.
+5. Do not touch docs/, do not create package.json/bin/src/lockfile, do not run lore sync. Verify: `lore check --strict` (expect 0/0, unaffected since CLAUDE.md is outside the lore bundle); grep sweeps for AC#5 (published/installable/released claims) and AC#6 (remaining unqualified prohibition assertions); `git diff dev...HEAD --stat` after committing to confirm only CLAUDE.md (+ backlog task file) changed.
+6. Record notes (AC#1 evidence, AC#4 reasoning, AC#6 sweep method+results) via --append-notes; commit in small logical commits with `Refs: QCLI-59` as the literal last trailer line; push the branch.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+AMENDED CLAUDE.md. AC#1 precondition established, verified myself from evidence (not taken on the orchestrator's word):
+
+QCLI-56 is Done (merged dev as squash 1962d2a). Its 2026-08-08 recheck capsule, appended to docs/reference/quest-cli-activation-gate-evidence-record.md ("2026-08-08 recheck capsule (QCLI-56)"), quotes lore-doc's gate Spec at HEAD 101f9bb39eacd0e2e73df1bb4fa78db04f0a5896 (verified by QCLI-56's reviewer against git ls-remote, not only local refs): "Gate result: OPEN, accepted 2026-08-06 -- All four predicate items are satisfied at one live inspection boundary." LDOC-4 (Status: Done, all 6 ACs checked) states in Implementation Notes: "GATE DECISION: OPEN. Accepted by the repository owner 2026-08-06." The capsule further quotes the gate Spec's own Authority table (line 41): "Receive a pass/fail gate result and versioned Lore contract" -- establishing that "pass/fail" is the gate owner's own term for this result, so the owner's OPEN/satisfied report is a reported Pass, not a Pass computed by this repository. This is the gate's owner reporting Pass, quoted, per AC#1's requirement.
+
+Separately, per the AUTHORIZATION given for this task: a satisfied precondition is not itself activation -- both the evidence record ("An open Lore gate is not activation") and lore-doc's own gate Spec ("A worker who reads this section as authorization to start writing Quest product source has misread it") say so explicitly. The user gave the second, separate authorization for this amendment to proceed, at doc-14 wave-2 start, 2026-08-08. Both facts are recorded together in the CLAUDE.md amendment itself (see "Explicit authorization" bullet), not conflated.
+
+AC#4 -- correct-in-place vs preserve-and-amend, reasoned explicitly (also written into CLAUDE.md itself, "Why this is corrected in place rather than preserve-and-amended"): CLAUDE.md's own record-vs-current-assertion test asks whether a passage records what was once decided or tells a reader what is true now. The pre-activation prohibition bullet is not a dated evidence capsule -- CLAUDE.md makes no claim, anywhere, of fidelity to a past inspection reading the way docs/reference/quest-cli-activation-gate-evidence-record.md does (whose stated purpose, per QCLI-45, is exactly that fidelity). CLAUDE.md is operative guidance an agent reads and acts on today; a reader following the un-narrowed prohibition after 2026-08-08 would be following stale instruction, not consulting a historical record. That is precisely the class of prose the correct-in-place branch governs ("Only prose a reader would act on today gets corrected in place"), so the bullet was edited directly, not superseded by an appended dated note. This was reasoned against the test, not assumed -- I considered and rejected treating CLAUDE.md as an evidence record given the file's own explicit QCLI-45 definition of what qualifies as one (a document whose stated value is fidelity to what was read at an inspection boundary); CLAUDE.md nowhere makes that claim about itself.
+
+AC#3 -- citation: the CLAUDE.md amendment names QCLI-59 (this task) in its own heading ("Amendment (2026-08-08, `QCLI-59`)") and cites QCLI-56's 2026-08-08 recheck capsule by file and section name, per the QCLI-44 directing-task-citation ruling.
+
+AC#6 sweep -- method: `grep -n -i "published\|installable\|release" CLAUDE.md` and `grep -n -i "no \`package.json\`\|no \`bin\` entry\|no install instructions\|prohibited\|scaffolding" CLAUDE.md`, run after the edit. Results: every remaining occurrence of the old unqualified wording (lines 81-82, quoting "no `package.json`, no `bin` entry, no install instructions, no package reservation, no release... satisfies the wording and breaks the rule") sits inside an explicitly historical quotation introduced by "Until this amendment, the bullet above also read:" -- not asserted as current state. The one remaining "prohibited" assertion (line 127, "Still prohibited, pending Phase 6: package publication, release workflows...") is the correctly-qualified current state per AC#2. No other passage in the file asserts the blanket pre-activation prohibition as unqualified current fact. This is the full set of occurrences; grep found no others.
+
+AC#5 sweep -- method: `grep -n -i "published\|installable\|release" CLAUDE.md`, read every hit. Results: line 65 states @opum-ai/quest is NOT published (negation); line 67 lists installable/released/reserved as descriptions to avoid; line 82 is inside the historical quote; line 94 refers to the Lore-owned (lore-cli's) release gate, a different subject; line 127 lists "package publication, release workflows" as still-prohibited categories. No line claims @opum-ai/quest is published, installable, or released.
+
+Verification: `lore check --strict` -> 47 files, 0 errors, 0 warnings (CLAUDE.md is outside the lore bundle; run to confirm nothing else broke). `git diff dev...HEAD --stat` will be checked again after commit to confirm only CLAUDE.md (+ this task's own backlog file) changed -- no package.json, bin, src/, or lockfile was created; confirmed by inspection, not just by the diff stat.
+
+Scope decided, matching the task's own asymmetric framing verbatim: now permitted -- product source, executable scaffolding, package.json, bin entry, runtime dependencies (what Phase 2, per docs/specs/quest-cli-delivery-roadmap.md, needs to exist at all). Still prohibited pending Phase 6 -- package publication, release workflows claiming readiness, public install instructions, package reservation; Phase 6 additionally needs D2 (runtime) and D3 (platform) decided, neither decided by this amendment (no runtime is chosen here, matching the QCLI-58 sibling-task caveat), and @opum-ai/quest remains unclaimed (E404, observed 2026-08-08, re-confirmed by QCLI-56's own re-run).
+
+Out-of-scope discoveries, not acted on: none beyond what QCLI-56 already recorded (lore-cli local clone parked off dev; lore-cli origin/dev advanced past lore-doc's cited boundary with no new tag/publish). Nothing new surfaced while reading CLAUDE.md or the evidence record for this task.
+<!-- SECTION:NOTES:END -->
