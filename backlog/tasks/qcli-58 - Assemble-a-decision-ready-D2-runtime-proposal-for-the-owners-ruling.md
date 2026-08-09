@@ -4,7 +4,7 @@ title: Assemble a decision-ready D2 runtime proposal for the owner's ruling
 status: In Progress
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-09 02:05'
+updated_date: '2026-08-09 02:18'
 labels:
   - campaign
   - 'cluster:decisions'
@@ -52,3 +52,44 @@ Filed 2026-08-08 with the user's explicit approval at doc-14 init, in a campaign
 - [ ] #6 The open component decisions register's D2 entry points at the proposal with its status left unchanged
 - [ ] #7 No runtime is frozen, and no runtime dependency, package metadata, or executable scaffolding is added
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Scaffold a new Reference doc via `lore new reference "Quest CLI D2 runtime proposal"` (matches the existing quest-cli-scale-target-proposal.md / quest-cli-canonical-identifier-grammar-...-proposal.md precedent: a dated Reference in docs/reference/, not an ADR, since it proposes for owner ruling rather than recording an accepted decision).
+2. Author the body:
+   - Frame: QCLI-58's deliverable; cites D2 in the open component decisions register and QCLI-27's ownership ruling read-only; states up front and in closing that it decides nothing (AC5).
+   - Candidate set: Node.js, Bun, Deno, and a compiled-native-binary approach (the packaging-contract's own committed npm/`@opum-ai/quest`/`quest` distribution model plus D2's "native packaging" framing makes this the realistic set) — tradeoffs assessed against the macOS/Linux/Windows matrix, citing QCLI-27's record rather than restating its ruling prose (AC1).
+   - Each candidate's Phase 6 packaging + clean-install implications, citing the packaging contract's mandatory release-time recheck clause and its conditionality-of-public-claims section (AC2).
+   - Lore's shipped runtime as argued (not assumed) context: live `npm view @opum-ai/lore` shows `engines: { bun: '>=1.3.14' }`, no `node` engine, bin `lore.cjs`. Argue relevance via the architecture Spec's own Lore port ("absent-by-default", subprocess/CLI+JSON boundary) and the lore-dependency-and-adapter-contract-evidence doc's BacklogAdapter subprocess pattern — the integration boundary is already runtime-neutral by design, so Lore's own runtime is circumstantial/ecosystem precedent, not a technical coupling requirement (AC3).
+   - Architecture-Spec boundary analysis: cite the Spec's own open question ("no mechanism [for enforcing layering] is chosen, and one that depends on the runtime cannot be chosen until D2 is settled") plus the roadmap's note that the BB/TM scenarios aren't expressible as executable tests until D2 is settled, as the concretely runtime-constrained boundaries (layering enforcement, native packaging/distribution shape, adapter implementation effort, executable test harness) versus the ports-and-adapters shape, domain purity, Git trust model, durability tiers, error taxonomy/envelope, and operation shape, which the Spec already states or implies survive runtime choice (AC4).
+3. Edit docs/reference/quest-cli-open-component-decisions.md's D2 table row ("Unblocked by" cell) and its "D2 — Runtime." prose bullet to add one dated, QCLI-58-cited sentence pointing at the new proposal, leaving the Status cell "**Blocked**" and every existing sentence untouched (AC6) — this is a factual addition in this document's own established citation style, not a supersession under the QCLI-44/45/50 rulings (nothing prior is corrected or invalidated).
+4. Verify: `lore validate --strict` on the new file; `lore check --strict` on the bundle (do NOT run `lore sync` — orchestrator's job at settlement); re-read each AC against the actual file text with quotes; `git diff dev...HEAD --stat` to confirm AC7 (no package.json/bin/src/lockfile).
+5. Record implementation notes with the commands run and their results, small logical commits each with a literal trailing `Refs: QCLI-58`, then push the branch. No `--check-ac`, no status change to Done, no campaign-doc edits.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented as a new Reference doc, docs/reference/quest-cli-d2-runtime-proposal.md, scaffolded via `lore new reference "Quest CLI D2 runtime proposal"`. Compares four candidates (Node.js, Bun, Deno, a compiled Go/Rust binary via npm's per-platform optionalDependencies shim pattern — included because the register's own D2 row bundles "runtime" with "native packaging") against the four inputs the task named:
+
+- AC1: platform-matrix table cites QCLI-27's [license, platform, and runtime ownership record] for the macOS/Linux/Windows matrix rather than restating its ruling prose; notes Bun's Windows support is the youngest of the JS-family candidates', Node's the longest-standing, Deno's cross-compile flow the most uniform, and the compiled-binary candidate's platform maturity as a property of its language toolchain rather than any JS runtime.
+- AC2: per-candidate Phase 6/clean-install table cites the packaging contract's "Recorded name (AC3)", "Mandatory release-time recheck clause (AC1)", and "Conditionality of public claims (AC4)" sections verbatim; each candidate's packaging shape (plain package vs SEA/`bun build --compile`/`deno compile` single-file binary vs npm optionalDependencies shim) and clean-install risk stated distinctly.
+- AC3: live `npm view @opum-ai/lore <field>` evidence capsule (2026-08-09T02:12:37Z-02:12:40Z UTC): version 0.1.1, engines `{ bun: '>=1.3.14' }` (no `node` engine declared), bin `lore -> bin/lore.cjs`, dependencies none. Relevance argued, not assumed: cites the architecture Spec's Lore port ("absent-by-default") and the Lore-dependency-and-adapter-contract-evidence doc's BacklogAdapter subprocess/JSON pattern to show both integration directions are already a runtime-neutral subprocess boundary, plus the register's own "mirroring Lore's --json output would produce the wrong shape" finding as a precedent against inheriting Lore's choices by precedent. Concludes Lore's runtime is feasibility precedent for the packaging pattern only, not a technical coupling requirement.
+- AC4: separates architecture-Spec boundaries a runtime choice actually constrains (the Spec's own "one [layering-enforcement mechanism] that depends on the runtime cannot be chosen until D2 is settled"; Phase 6 native-packaging shape; the roadmap's "neither [BB/TM scenario] is expressible as an executable test until D2 is settled"; port *adapter* implementations) from what the Spec itself frames as runtime-neutral (layering/dependency direction, domain purity, Git trust model, durability tiers, error taxonomy/envelope, operation shape).
+- AC5: explicit "This document decides no runtime... D2 remains owned-not-closed" statement in both the opening and a dedicated closing section, plus the frontmatter summary.
+- AC6: docs/reference/quest-cli-open-component-decisions.md's D2 table row ("Unblocked by" cell) and its "D2 — Runtime." prose bullet each get one new, dated, QCLI-58-cited sentence pointing at the proposal. Status cell and every pre-existing sentence left untouched — verified by diff (only additive text, no deletions in the D2 entry). Treated as an additive factual note in this doc's own established citation style, not a QCLI-44/45/50-style supersession, since nothing prior is corrected or invalidated.
+- AC7: no package.json, bin/, lockfile, or src/ added — see verification commands below.
+
+Verification run:
+- `lore validate --strict` on both changed/created files individually: `ok`, 0 errors/warnings each.
+- `lore validate --strict` (whole bundle): "48 files, 0 errors, 0 warnings, 6 skipped".
+- `lore check --strict`: "48 files, 0 errors, 0 warnings" (run twice, before and after two post-review quote-precision fixes — a truncated Phase 6 exit-criteria quote completed to its full sentence, and a quote's capitalization corrected to match its source verbatim).
+- `lore sync` was NOT run, per instructions (orchestrator's job at settlement). The bundle's reference index (docs/reference/index.md) therefore does not yet list the new document; `lore check --strict` passing 0/0 confirms this omission is not a drift/link/anchor error under the current gate.
+- `git diff dev...HEAD --stat` was empty pre-commit (HEAD == dev, no commits yet on this branch) — re-verify post-commit.
+
+Out-of-scope findings (not acted on):
+- None beyond what doc-14's own tracker already records (D6/D7a/D7b, the lore-doc not-found boundary half) — nothing new surfaced by this task's reading.
+
+Sources read (read-only): docs/reference/quest-cli-open-component-decisions.md, quest-cli-license-platform-and-runtime-ownership-record.md, quest-cli-packaging-contract.md, quest-cli-lore-dependency-and-adapter-contract-evidence.md, quest-cli-activation-gate-evidence-record.md, quest-cli-scale-target-proposal.md (structural precedent); docs/specs/quest-cli-architecture.md, quest-cli-delivery-roadmap.md, quest-cli-pre-implementation-research-program.md; docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md; docs/stories/prepare-quest-cli-for-implementation-activation.md and follow-through-on-the-quest-cli-design-layer.md (both status: done, confirmed neither is this task's owning Story — this campaign's wave-1/2 decision-cluster tasks, e.g. QCLI-57, are not Story-linked either, so this task's document is likewise not `lore link`ed to any Story); backlog doc-14 (campaign tracker, read-only, not touched). Live npm registry checked read-only via `npm view @opum-ai/lore <field>` and `npm view @opum-ai/quest version` (still E404/unclaimed, unchanged). External vendor docs (Node.js SEA, Bun `--compile`, Deno `compile --target`) consulted via web search for the platform/packaging comparison tables, cited generically rather than per-URL since this corpus's citation convention is to internal documents and dated commands, not external web sources; flagged explicitly in the proposal's own Recheck clause as moving references an owner ruling should re-verify if materially stale.
+<!-- SECTION:NOTES:END -->
