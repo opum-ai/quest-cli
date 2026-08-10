@@ -95,6 +95,7 @@
 - 2026-08-08T17:57:11-05:00 a0ba4533a3520f916d70f76eade8cc828f7a48bc docs: catch up lore log at doc-14 restore reconciliation
 - 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
 - 2026-08-09T02:45:50-05:00 0182f99ac3be954b1ec237855fe26bc47ebefd40 docs(QCLI-63): record the D2 runtime owner ruling and close the register entry
+- 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
 
 ## docs/adr
 
@@ -172,12 +173,14 @@
 - 2026-08-08T21:40:21-05:00 f123b9b8c2d587600e4cedc8186102afed8e3455 QCLI-58: assemble a decision-ready D2 runtime proposal (#73)
 - 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
 - 2026-08-09T02:45:50-05:00 0182f99ac3be954b1ec237855fe26bc47ebefd40 docs(QCLI-63): record the D2 runtime owner ruling and close the register entry
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 
 ## docs/runbooks
 
 - 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
 - 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 
 ## docs/specs
 
@@ -195,6 +198,8 @@
 - 2026-08-06T10:00:13-05:00 ba2338fe8720f4523ffef7d61e99c28d6288fcef QCLI-33: Reconcile architecture Spec Open Questions bullet 4 against the QCLI-26 ADR (#49)
 - 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
+- 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 
 ## docs/stories
 
@@ -243,3 +248,4 @@
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
 - 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
 - 2026-08-05T23:04:47-05:00 2e57876d8f5617e22e5a5c198835a99bc3db80ad QCLI-32: Run a centralized lore sync to reconcile the Phase-1-ratification Story (#48)
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
