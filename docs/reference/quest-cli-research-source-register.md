@@ -726,7 +726,7 @@ named slice, never to every file in its repository.
 - **Classification:** Allowed (the `quest-doc` half of "quest-doc and
   lore-doc canonical records: Allowed/Contextual respectively" — quest-doc is
   Allowed).
-- **Repository or URL:** `github.com/salient-data/quest-doc`, notably
+- **Repository or URL:** `github.com/opum-ai/quest-doc`, notably
   `docs/reference/quest-provenance-and-migration-ledger.md` and
   `docs/specs/quest-clean-room-execution-graph.md`.
 - **Exact revision or retrieval date:** local checkout at
@@ -785,7 +785,7 @@ named slice, never to every file in its repository.
   Contextual example, "the Lore-owned release gate" — also the `lore-doc`
   half of "quest-doc and lore-doc canonical records: Allowed/Contextual
   respectively").
-- **Repository or URL:** `github.com/salient-data/lore-doc`,
+- **Repository or URL:** `github.com/opum-ai/lore-doc`,
   `docs/specs/quest-integration-and-lore-release-gate.md`.
 - **Exact revision or retrieval date:** not independently re-fetched by this
   task — live gate evidence is `QCLI-2.7`'s scope per the research program's

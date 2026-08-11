@@ -36,7 +36,7 @@ coupling, managed blocks, and cross-links stay coherent.
 ## Fleet routing — read before answering cross-repo questions
 
 Before routing any **cross-repo ownership, package-status, or infrastructure/DNS**
-question, consult the fleet record in `salient-data/opum-doc` (branch `dev`):
+question, consult the fleet record in `opum-ai/opum-doc` (branch `dev`):
 
 - `docs/reference/fleet-peer-routing-and-session-invocation.md` — which peer owns
   which answer, and how live sessions actually reach each other. Read it there;
@@ -68,9 +68,9 @@ has moved four times in a single working session.
   the registry. This half of the rule is about truthful description, is
   unconditional on activation phase, and survives the amendment below
   untouched.
-- Org ownership is **not uniform**: `lore-cli` and `quest-cli` are `opum-ai`;
-  `lore-doc`, `quest-doc`, `quest-web`, and `opum-doc` remain `salient-data`.
-  Check per repository — and check with something a redirect cannot fake:
+- These family repositories are all under **`opum-ai`**: `lore-cli`,
+  `quest-cli`, `lore-doc`, `quest-doc`, `quest-web`, and `opum-doc`. Still
+  check each repository with something a redirect cannot fake:
   `gh api repos/<org>/<repo> --jq .full_name` returns the *current* name even
   when queried under the old one. A 200 from the old URL is not a check.
 - The unscoped `quest` and `lore` names on npm belong to **unrelated third
