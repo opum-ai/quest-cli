@@ -96,6 +96,7 @@
 - 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
 - 2026-08-09T02:45:50-05:00 0182f99ac3be954b1ec237855fe26bc47ebefd40 docs(QCLI-63): record the D2 runtime owner ruling and close the register entry
 - 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
+- 2026-08-10T21:02:33-05:00 75d483e436e863119a1c8a17deaedbdd6b6f06a0 docs(QCLI-66): distinguish frozen OCLI provenance from live ODOC routing (#75)
 
 ## docs/adr
 
@@ -174,6 +175,7 @@
 - 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
 - 2026-08-09T02:45:50-05:00 0182f99ac3be954b1ec237855fe26bc47ebefd40 docs(QCLI-63): record the D2 runtime owner ruling and close the register entry
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
+- 2026-08-10T21:02:33-05:00 75d483e436e863119a1c8a17deaedbdd6b6f06a0 docs(QCLI-66): distinguish frozen OCLI provenance from live ODOC routing (#75)
 
 ## docs/runbooks
 

@@ -50,7 +50,7 @@ The Lore-wide integration boundary and release-gate policy is owned by
 [Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
 (Spec, `lore-doc`, local clone `/Volumes/external/repos/lore-doc`, HEAD
 `1a0aa89` re-read 2026-08-04), gated on task
-[`LDOC-4`](https://github.com/salient-data/lore-doc) "Gate Quest
+[`LDOC-4`](https://github.com/opum-ai/lore-doc) "Gate Quest
 implementation on accepted Lore release evidence" (status **To Do** as of
 2026-08-04, re-verified live via `backlog task view LDOC-4 --plain` in the
 local `lore-doc` clone). This matrix links that gate as the controlling
