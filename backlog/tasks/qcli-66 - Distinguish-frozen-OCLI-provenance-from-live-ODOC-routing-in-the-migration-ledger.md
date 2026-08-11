@@ -3,10 +3,10 @@ id: QCLI-66
 title: >-
   Distinguish frozen OCLI provenance from live ODOC routing in the migration
   ledger
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-10 22:43'
-updated_date: '2026-08-10 22:43'
+updated_date: '2026-08-11 02:03'
 labels:
   - docs
   - provenance
@@ -30,10 +30,10 @@ This is repository-local work per the ledger's own text ('quest-cli is its own n
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The Former record column is unchanged for every row -- no OCLI id is renamed, duplicated, or removed
-- [ ] #2 OCLI-4, OCLI-5, and OCLI-6's disposition text each name their current ODOC id, verified against opum-doc's live Backlog
-- [ ] #3 No other row's disposition text changes
-- [ ] #4 lore validate --strict and lore check --strict pass unpiped
+- [x] #1 The Former record column is unchanged for every row -- no OCLI id is renamed, duplicated, or removed
+- [x] #2 OCLI-4, OCLI-5, and OCLI-6's disposition text each name their current ODOC id, verified against opum-doc's live Backlog
+- [x] #3 No other row's disposition text changes
+- [x] #4 lore validate --strict and lore check --strict pass unpiped
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -45,3 +45,15 @@ This is repository-local work per the ledger's own text ('quest-cli is its own n
 4. Run lore validate --strict and lore check --strict unpiped in quest-cli; capture file/error/warning counts.
 5. Commit with Refs: QCLI-66, present the diff to the user before pushing.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified: the Former record column is byte-for-byte unchanged for every row except the three edited (diff reviewed, only additive parentheticals). OCLI-4/5/6 each checked against opum-doc's live Backlog (ODOC-4 Done, ODOC-5 To Do, ODOC-6 Done) before tagging. lore validate --strict and lore check --strict: 49 files, 0 errors, 0 warnings, both before and after merge. Merged as 75d483e (PR #75, squash) into dev.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added (now tracked as ODOC-N) to the three OCLI-4/5/6 rows whose disposition text makes a present-tense claim about opum-doc's current ownership, plus one dated attributed note explaining the OCLI->ODOC prefix change. Every other row is untouched, preserving the ledger's frozen-provenance rule. Verified with lore validate --strict / lore check --strict (49 files, 0/0). Merged as 75d483e.
+<!-- SECTION:FINAL_SUMMARY:END -->
