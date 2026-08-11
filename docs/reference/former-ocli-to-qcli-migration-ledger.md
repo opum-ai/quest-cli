@@ -34,9 +34,18 @@ only a product-level summary and `opum-doc` retains immutable history.
 | OCLI-3.6 | QCLI-2.6 Git/filesystem/concurrency threats |
 | OCLI-3.7 | QCLI-2.7 Lore evidence matrix |
 | OCLI-3.8 | QCLI-2.8 research synthesis |
-| OCLI-4 | Completed conversion of the former repository into the Opum documentation hub; explicit non-adoption because portfolio authority remains in `opum-doc` |
-| OCLI-5 | Current Opum hosted-platform validation; explicit non-adoption because SaaS roadmap work belongs to `opum-doc` |
-| OCLI-6 | Cross-product documentation authority audit; explicit non-adoption because the control task belongs to `opum-doc` |
+| OCLI-4 | Completed conversion of the former repository into the Opum documentation hub; explicit non-adoption because portfolio authority remains in `opum-doc` (now tracked as **ODOC-4**, Done) |
+| OCLI-5 | Current Opum hosted-platform validation; explicit non-adoption because SaaS roadmap work belongs to `opum-doc` (now tracked as **ODOC-5**) |
+| OCLI-6 | Cross-product documentation authority audit; explicit non-adoption because the control task belongs to `opum-doc` (now tracked as **ODOC-6**, Done) |
+
+**Note added 2026-08-10 (`QCLI-66`):** `opum-doc`'s own Backlog task-id prefix
+changed from `OCLI` to `ODOC` on 2026-08-09 — a Backlog.md config change, not a
+repository rename, and unrelated to the OCLI-to-QCLI component split this
+ledger records. The `Former record` column above intentionally keeps every
+original OCLI id as frozen provenance, per this ledger's own preservation
+rules; only the three rows whose disposition makes a present-tense claim about
+where responsibility currently sits (OCLI-4, OCLI-5, OCLI-6) also name that
+work's current id, so a reader following the claim can actually find it.
 
 ### Source provenance boundary
 
