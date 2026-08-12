@@ -17,6 +17,7 @@
 - [Quest CLI license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md)
 - [Quest CLI Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
 - [Quest CLI open component decisions](quest-cli-open-component-decisions.md)
+- [Quest CLI Opum command-contract local obligation](quest-cli-opum-command-contract-local-obligation.md)
 - [Quest CLI packaging contract](quest-cli-packaging-contract.md)
 - [Quest CLI research source register](quest-cli-research-source-register.md)
 - [Quest CLI result contract proposal: envelope, exit codes, not-found, and anomaly placement](quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md)

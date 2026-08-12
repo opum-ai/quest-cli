@@ -17,6 +17,7 @@ tasks:
   - qcli-26
   - qcli-27
   - qcli-28
+  - qcli-68
 ---
 
 # Ratify the Quest CLI Phase 1 component decisions
@@ -90,6 +91,7 @@ with the roadmap Spec's Phase 1 scope ("no code, not blocked on Phase 0").
 | [QCLI-26](../../backlog/tasks/qcli-26%20-%20Author-an-ADR-for-the-Quest-CLI-scale-target-and-rebuild-on-doubt-conclusion.md) | Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion | Done |
 | [QCLI-27](../../backlog/tasks/qcli-27%20-%20Record-the-Quest-CLI-D1-license-contributor-provenance-and-D3-platform-matrix-ownership-owner-rulings.md) | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | Done |
 | [QCLI-28](../../backlog/tasks/qcli-28%20-%20Reconcile-the-Quest-CLI-open-component-decisions-register-contracts-graph-and-delivery-roadmap-against-the-Phase-1-ADRs.md) | Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs | Done |
+| [QCLI-68](../../backlog/tasks/qcli-68%20-%20Record-quest-cli-local-obligation-to-the-frozen-Opum-command-contract.md) | Record quest-cli local obligation to the frozen Opum command contract | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
