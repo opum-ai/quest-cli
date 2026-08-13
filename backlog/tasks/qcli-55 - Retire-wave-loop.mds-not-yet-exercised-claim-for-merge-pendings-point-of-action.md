@@ -3,11 +3,11 @@ id: QCLI-55
 title: >-
   Retire wave-loop.md's not-yet-exercised claim for merge-pending's point of
   action
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-08 18:29'
-updated_date: '2026-08-13 11:48'
+updated_date: '2026-08-13 12:27'
 labels:
   - wave-3
 dependencies: []
@@ -98,4 +98,13 @@ Adversarial self-review (not independent; subagents were not authorized):
 - AC5 confirmed: the Provenance amendment records the change and baseline/current frontmatter is byte-identical at 0.9.1-qcli.9; no-bump reasoning explicitly distinguishes evidence from behavior.
 - Scope review: source changes are limited to the two declared modified files; the only other diffs are serialized QCLI-55 and doc-15 Backlog bookkeeping. No docs/ files changed.
 - Residual delivery limitation: implementation is verified but remains uncommitted in leased Treehouse slot 1 because commit, push, PR, merge, and cleanup were not authorized. QCLI-55 therefore remains In Progress and receives no final summary or Done transition.
+
+Authorized delivery completed: branch head f069c7e638db5aae12b92bd949c279c1beb681aa was pushed and reviewed through PR #79, then squash-merged to dev as 127445f5bfebfd24e664fe88105cc970d53d4972.
+Post-merge verification: origin/dev equals 127445f5bfebfd24e664fe88105cc970d53d4972; reviewed-head and integration trees are identical; the integration message parses `Refs: QCLI-55`; `git diff --check 127445f5^ 127445f5` passes; the committed evidence checks remain unchanged. No reported PR checks existed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Corrected the live backlog-handover evidence to cite doc-13 wave 1's recorded merge-pending exercise at d652126, preserved QCLI-51's dated Provenance text with a QCLI-55 supersession note, and documented the size-1/QCLI-53 limitation without changing skill version or behavior. Verified from committed task/tracker state, exact-label and byte-preservation checks, git diff --check, and adversarial self-review; delivered through PR #79 as 127445f5bfebfd24e664fe88105cc970d53d4972 with a parsed Refs: QCLI-55 trailer and a tree identical to reviewed head f069c7e638db5aae12b92bd949c279c1beb681aa.
+<!-- SECTION:FINAL_SUMMARY:END -->
