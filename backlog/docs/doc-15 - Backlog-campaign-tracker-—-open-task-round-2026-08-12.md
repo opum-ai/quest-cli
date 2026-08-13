@@ -3,7 +3,7 @@ id: doc-15
 title: Backlog campaign tracker — open-task round 2026-08-12
 type: other
 created_date: '2026-08-13 05:34'
-updated_date: '2026-08-13 13:29'
+updated_date: '2026-08-13 13:33'
 ---
 # Backlog campaign tracker — open-task round 2026-08-12
 
@@ -18,7 +18,7 @@ Informational snapshot only; never a promised next wave.
 
 - Queue: 0 tasks; resolved: 4; in flight: 0; formally blocked or human-decision required: 0 task-semantic blockers.
 - QCLI-62 is `Done`: PR #77 was squash-merged into `dev` as `e1624edfc0887ffb24005efb1aae15105d37f4e5`; the integration tree exactly matches reviewed remote head `7420fceffff532db26a9e26cc42790ca1f6c422f`, whose eight acceptance criteria and strict Lore gates passed.
-- QCLI-65 is `Done` after approved finalization of PR #78 at `f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6`; all five ACs are checked and feature refs/leases are pruned. QCLI-55 is `Done`: PR #79 was squash-merged as `127445f5bfebfd24e664fe88105cc970d53d4972`, finalization PR #80 landed as `bb8f7006f84e006242fca5f9c68f5b32b95c2bfe`, and its implementation/finalization refs plus lease are pruned. QCLI-54 is Done: implementation PR #82 was squash-merged as `d327345c5991bf0c6bbbf531829ea870e5e01653`; all seven ACs are checked, integration matches reviewed head `6123ee550d5fe4a042532f7155a2fb1f9edc1fd8`, and finalization is staged for delivery.
+- QCLI-65 is `Done` after approved finalization of PR #78 at `f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6`; all five ACs are checked and feature refs/leases are pruned. QCLI-55 is `Done`: PR #79 was squash-merged as `127445f5bfebfd24e664fe88105cc970d53d4972`, finalization PR #80 landed as `bb8f7006f84e006242fca5f9c68f5b32b95c2bfe`, and its implementation/finalization refs plus lease are pruned. QCLI-54 is Done: implementation PR #82 was squash-merged as `d327345c5991bf0c6bbbf531829ea870e5e01653`; all seven ACs are checked, integration matches reviewed head `6123ee550d5fe4a042532f7155a2fb1f9edc1fd8`, and finalization PR #83 merged as `88eadf72140383e046d2346e7fb86bfee4acc5fd`; implementation and finalization refs are pruned and the original lease was returned.
 - QCLI-54 and QCLI-55 share the backlog-handover skill-documentation surface; the conflict was serialized, and QCLI-55's completed cleanup leaves no in-flight overlap.
 - The primary checkout remains a retained reconciliation surface: branch `docs/qcli-67-salient-data-citations` at `049eed470b7cd7d8c3290b425c45701e57345ea9`, with an older duplicate QCLI-62 task update plus untracked QCLI-70 and doc-15 artifacts. It is not the implementation or settlement worktree.
 
@@ -29,7 +29,7 @@ Empty — QCLI-54 moved into wave 4 after the approved continuation and live rea
 ## In flight
 | Task | Wave | Worktree path | Branch | Stage reached |
 | --- | --- | --- | --- | --- |
-_Cleared at wave-4 settlement; implementation/finalization refs and the lease remain only until the settlement record lands, with exact cleanup facts to follow._
+_Cleared at wave-4 closure. No QCLI-54 implementation or finalization branch/lease remains. Temporary cleanup-reconciliation branch and lease exist only to deliver this exact closure record._
 
 ## Resolved
 | Task | Date/wave | Evidence and disposition |
@@ -61,4 +61,7 @@ _Cleared at wave-4 settlement; implementation/finalization refs and the lease re
 - 2026-08-13 — Wave 3 closure audit completed. Finalization PR #80 merged exact head `28da4c938b61ef3ea855bb2013260cea20ad2192` as `bb8f7006f84e006242fca5f9c68f5b32b95c2bfe`; the trees are identical, the integration message parses `Refs: QCLI-55`, and its diff passes `git diff --check`. After verifying clean status and squash-tree equivalence, returned original Treehouse lease `9795457de5d9cf9536d20e5176c45edf` and deleted local and remote refs `chore/qcli-55-merge-pending-evidence` and `chore/qcli-55-finalization`. No QCLI-55 implementation, finalization, branch, or lease artifact remains unexplained; the reusable Treehouse pool slot remains infrastructure.
 
 
-- 2026-08-13 — Wave 4 delivery settlement. QCLI-54 implementation PR #82 reviewed exact head `6123ee550d5fe4a042532f7155a2fb1f9edc1fd8` against base `e7114f309a9fde418f9e1057c344410f3070f008`, reported `MERGEABLE/CLEAN` with no reported checks, and squash-merged as `d327345c5991bf0c6bbbf531829ea870e5e01653`. Reviewed and integration trees are identical at `6b436bca8a7e17b3202234638aa6ffd51ab53429`; the integration message parses `Refs: QCLI-54`; the integration diff and 13 contract assertions pass. QCLI-54 is finalized `Done` with all seven ACs checked and a final summary. Finalization delivery and exact ref/lease cleanup are recorded by the closure reconciliation that follows this settlement.
+- 2026-08-13 — Wave 4 delivery settlement. QCLI-54 implementation PR #82 reviewed exact head `6123ee550d5fe4a042532f7155a2fb1f9edc1fd8` against base `e7114f309a9fde418f9e1057c344410f3070f008`, reported `MERGEABLE/CLEAN` with no reported checks, and squash-merged as `d327345c5991bf0c6bbbf531829ea870e5e01653`. Reviewed and integration trees are identical at `6b436bca8a7e17b3202234638aa6ffd51ab53429`; the integration message parses `Refs: QCLI-54`; the integration diff and 13 contract assertions pass. QCLI-54 is finalized `Done` with all seven ACs checked and a final summary. Finalization PR #83 merged exact head `4cdcb0f5fca1e50e9ce5aa789569f205b1717589` as `88eadf72140383e046d2346e7fb86bfee4acc5fd`; trees matched at `c15d05e8b400964587fc0f6bdabc9001b877cf61`, its trailer parsed, and `git diff --check` passed. Original lease `d8b338584906fc3ae4a4cc0826c1e606` was returned and all implementation/finalization local and remote refs are absent after pruning. This cleanup-reconciliation branch/lease exists only to persist these facts.
+
+
+- 2026-08-13 — Campaign closure reconciliation. Finalization PR #83 merged as `88eadf72140383e046d2346e7fb86bfee4acc5fd`; exact reviewed head `4cdcb0f5fca1e50e9ce5aa789569f205b1717589` and integration trees matched at `c15d05e8b400964587fc0f6bdabc9001b877cf61`; `Refs: QCLI-54` parsed and `git diff --check` passed. Original lease `d8b338584906fc3ae4a4cc0826c1e606` was returned, implementation/finalization local and remote refs were absent after fetch-prune, and all six Treehouse slots were available. The temporary cleanup-reconciliation ref and lease are the final artifacts and will be pruned after this record merges. The confirmed queue is empty: 4 resolved, 0 in flight, 0 queued.
