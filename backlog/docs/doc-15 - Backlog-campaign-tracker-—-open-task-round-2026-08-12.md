@@ -3,7 +3,7 @@ id: doc-15
 title: Backlog campaign tracker — open-task round 2026-08-12
 type: other
 created_date: '2026-08-13 05:34'
-updated_date: '2026-08-13 12:28'
+updated_date: '2026-08-13 12:31'
 ---
 # Backlog campaign tracker — open-task round 2026-08-12
 
@@ -18,14 +18,14 @@ Informational snapshot only; never a promised next wave.
 
 - Queue: 1 task; resolved: 3; in flight: 0; formally blocked or human-decision required: 0 task-semantic blockers.
 - QCLI-62 is `Done`: PR #77 was squash-merged into `dev` as `e1624edfc0887ffb24005efb1aae15105d37f4e5`; the integration tree exactly matches reviewed remote head `7420fceffff532db26a9e26cc42790ca1f6c422f`, whose eight acceptance criteria and strict Lore gates passed.
-- QCLI-65 is `Done` after approved finalization of PR #78 at `f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6`; all five ACs are checked and feature refs/leases are pruned. QCLI-55 is `Done`: PR #79 was squash-merged as `127445f5bfebfd24e664fe88105cc970d53d4972`; its integration tree is identical to reviewed head `f069c7e638db5aae12b92bd949c279c1beb681aa`, all five ACs are checked, and the final summary records the evidence. QCLI-54 remains live `To Do` with no formal dependencies; cleanup of QCLI-55's retained refs and lease is the remaining wave-closure step.
-- QCLI-54 and QCLI-55 share the backlog-handover skill-documentation surface and conflict with each other, so they must serialize.
+- QCLI-65 is `Done` after approved finalization of PR #78 at `f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6`; all five ACs are checked and feature refs/leases are pruned. QCLI-55 is `Done`: PR #79 was squash-merged as `127445f5bfebfd24e664fe88105cc970d53d4972`, finalization PR #80 landed as `bb8f7006f84e006242fca5f9c68f5b32b95c2bfe`, and its implementation/finalization refs plus lease are pruned. QCLI-54 remains live `To Do` with no formal dependencies and no in-flight file conflict.
+- QCLI-54 and QCLI-55 share the backlog-handover skill-documentation surface; the conflict was serialized, and QCLI-55's completed cleanup leaves no in-flight overlap.
 - The primary checkout remains a retained reconciliation surface: branch `docs/qcli-67-salient-data-citations` at `049eed470b7cd7d8c3290b425c45701e57345ea9`, with an older duplicate QCLI-62 task update plus untracked QCLI-70 and doc-15 artifacts. It is not the implementation or settlement worktree.
 
 ## Queue
 | Order | Task | Cluster | Formal dependencies | State | Wave | Likely files | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 4 | QCLI-54 | skill-docs | None | Queued | — | `.claude/skills/backlog-handover/reference/wave-loop.md`, `.claude/skills/backlog-handover/reference/templates.md`, `.claude/skills/backlog-handover/SKILL.md` | Broader stage-scale/cadence decision; conflicts with QCLI-55. |
+| 4 | QCLI-54 | skill-docs | None | Queued; live ready after wave-3 cleanup | — | `.claude/skills/backlog-handover/reference/wave-loop.md`, `.claude/skills/backlog-handover/reference/templates.md`, `.claude/skills/backlog-handover/SKILL.md` | Broader stage-scale/cadence decision; no remaining in-flight overlap. |
 
 ## Resolved
 | Task | Date/wave | Evidence and disposition |
@@ -53,3 +53,4 @@ Informational snapshot only; never a promised next wave.
 - 2026-08-13 — Wave 3 dispatched QCLI-55 alone after grounding live task and tracker state at `origin/dev` `4e7a2c0425cc1e870f625ae8f8033b40ffac7396` and leasing clean Treehouse slot 1 under lease `9795457de5d9cf9536d20e5176c45edf`. QCLI-55 is dependency-free and does not overlap unrelated dirty work; QCLI-54 remains queued and serialized on the shared skill-documentation surface.
 - 2026-08-13 — Wave 3 implementation checkpoint: QCLI-55's two scoped skill-documentation edits are complete in Treehouse slot 1. Historical evidence at `d652126` was re-verified from committed QCLI-52 frontmatter and doc-13; `git diff --check` passed; adversarial self-review (not independent) confirmed all five ACs and they are checked. QCLI-55 remains `In Progress`, uncommitted, with lease `9795457de5d9cf9536d20e5176c45edf` retained because commit, push, PR, merge, finalization, and cleanup were not authorized.
 - 2026-08-13 — Wave 3 delivery and settlement completed under explicit full-delivery authorization. Committed the four-path QCLI-55 implementation/bookkeeping diff as `f069c7e638db5aae12b92bd949c279c1beb681aa`, pushed it, opened PR #79, rechecked exact head/base and `MERGEABLE/CLEAN` state with no reported checks, and squash-merged as `127445f5bfebfd24e664fe88105cc970d53d4972`. The reviewed and integration trees are identical, the integration message parses `Refs: QCLI-55`, and the integration diff passes `git diff --check`. QCLI-55's five ACs remain checked, its final summary is written, and status is `Done`. Feature/finalization refs and Treehouse lease `9795457de5d9cf9536d20e5176c45edf` remain retained only until this settlement record lands; exact cleanup is recorded by the follow-up reconciliation.
+- 2026-08-13 — Wave 3 closure audit completed. Finalization PR #80 merged exact head `28da4c938b61ef3ea855bb2013260cea20ad2192` as `bb8f7006f84e006242fca5f9c68f5b32b95c2bfe`; the trees are identical, the integration message parses `Refs: QCLI-55`, and its diff passes `git diff --check`. After verifying clean status and squash-tree equivalence, returned original Treehouse lease `9795457de5d9cf9536d20e5176c45edf` and deleted local and remote refs `chore/qcli-55-merge-pending-evidence` and `chore/qcli-55-finalization`. No QCLI-55 implementation, finalization, branch, or lease artifact remains unexplained; the reusable Treehouse pool slot remains infrastructure.
