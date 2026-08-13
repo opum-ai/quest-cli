@@ -3,7 +3,7 @@ id: doc-1
 title: Backlog campaign tracker
 type: other
 created_date: '2026-08-04 06:01'
-updated_date: '2026-08-04 23:59'
+updated_date: '2026-08-13 14:01'
 ---
 # Backlog campaign tracker
 
@@ -1114,5 +1114,3 @@ Final gates after all wave-5 work: `lore check --strict` 25 files 0/0;
 **Campaign complete.** Queue empty; no further campaign-labelled, non-Done
 tasks. One follow-up proposed (O2, register enumeration), pending owner
 approval.
-
-
