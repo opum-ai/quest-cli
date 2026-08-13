@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-09 13:51'
-updated_date: '2026-08-13 05:51'
+updated_date: '2026-08-13 10:59'
 labels:
   - docs
   - decisions
@@ -49,4 +49,6 @@ This is documentation consistency, not a blocker. D2 was closed by QCLI-63, so i
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented the narrow register-only correction on local branch docs/qcli-65-d2-phase-gating from base 7aad686a6c44e948adccd59911b09fc7c47af148. Register line 82 changes only D2's Needed for value from Phases 2 and 6 to Phase 6. Lines 141-144 append a dated QCLI-65 amendment citing the owner's 2026-08-09 ruling, naming the roadmap as phase-gating authority, and stating that D2 was already closed by QCLI-63 so the correction changes no active gate or permission. Automated verification script passed four assertions: D2 = Phase 6; every other component-decision Needed for cell unchanged; delivery roadmap byte-identical to origin/dev; required ruling/no-active-gate explanation present. lore validate --strict reported 51 files, 0 errors, 0 warnings, 6 skipped; lore check --strict reported 51 files, 0 errors, 0 warnings; git diff --check passed. Lore sync committed the task/tracker dispatch state as 7613e78; its known self-referential QCLI-62 log-only entry was discarded per the active handover. Adversarial self-review (not independent) checked the full diff against all five ACs, preserved the historical statement about what QCLI-63 did not resolve, and found no roadmap, other-row, managed-block, or unrelated-document change. Delivery remains local and uncommitted because commit/push/PR authority has not been granted; task stays In Progress.
+
+Delivery update (2026-08-13): after explicit authorization to stage, commit, push, merge, and prune, committed the verified register change as 04c8439f1bbf2e88c9ff12b2897268374796d565, pushed docs/qcli-65-d2-phase-gating, opened PR #78, and rechecked it at that exact head against unchanged dev base 7aad686a6c44e948adccd59911b09fc7c47af148. GitHub reported CLEAN, MERGEABLE, non-draft, and no status checks. Squash-merged PR #78 as f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6 with Refs: QCLI-65; integration and reviewed-head trees are byte-identical. Returned lease 72148cafe93b76887620d0c866354d7c and deleted both local and remote feature refs. User authorization did not include finalizing the task to Done, so it remains In Progress pending that distinct lifecycle action.
 <!-- SECTION:NOTES:END -->
