@@ -1,9 +1,11 @@
 ---
 id: QCLI-65
 title: Align the register's D2 phase-gating cell to the delivery roadmap
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-09 13:51'
+updated_date: '2026-08-13 05:48'
 labels:
   - docs
   - decisions
@@ -34,3 +36,9 @@ This is documentation consistency, not a blocker. D2 was closed by QCLI-63, so i
 - [ ] #4 No other register row's Needed-for cell is changed
 - [ ] #5 lore validate --strict and lore check both pass with zero errors and zero warnings
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Treat docs/specs/quest-cli-delivery-roadmap.md as the controlling phase-gating record per the owner ruling already captured by QCLI-65, while preserving it byte-for-byte. 2. In docs/reference/quest-cli-open-component-decisions.md, change only D2's Needed for cell from Phases 2 and 6 to Phase 6 and append a dated QCLI-65 amendment to the D2 detail explaining the 2026-08-09 ruling and why closed D2 makes the correction operationally inert. 3. Prove scope with a targeted diff: no roadmap change and no other register Needed-for cell change. Run lore sync, lore validate --strict, lore check --strict, and git diff --check; record exact evidence and perform an adversarial self-review before finalization.
+<!-- SECTION:PLAN:END -->
