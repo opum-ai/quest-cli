@@ -101,6 +101,7 @@
 - 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
 - 2026-08-12T06:26:29-05:00 5038679bf3968511ac11776554ee1e0032c22a5b chore(docs): sync lore log for QCLI-68
 - 2026-08-12T06:28:32-05:00 095f13251ffaf35bc2d2a9967962d530c18e1219 fix(docs): defer QCLI-68 lore log to settlement
+- 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
 
 ## docs/adr
 
@@ -208,6 +209,7 @@
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
 - 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
+- 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
 
 ## docs/stories
 
