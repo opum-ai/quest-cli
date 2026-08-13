@@ -109,6 +109,7 @@
 - 2026-08-13T11:49:00-05:00 a4c2d5bc9fcc8d3664470b0842b37371a4ff23e2 docs(QCLI-69): align result contract with Opum
 - 2026-08-13T11:50:07-05:00 c86e679d0e2279f8d40b05240f683becd761c796 chore(docs): sync Lore log for QCLI-69
 - 2026-08-13T11:51:44-05:00 38151d855e352efa73a1058673ea06927a75ce34 chore(docs): reconcile QCLI-69 campaign log
+- 2026-08-13T12:02:31-05:00 712670622daeba2a6451217551fed4d185baa01f chore(docs): record QCLI-69 PR delivery
 
 ## docs/adr
 
