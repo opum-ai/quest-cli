@@ -1,10 +1,13 @@
 ---
 id: QCLI-69
 title: Reconcile the Quest result-contract ADR with the frozen Opum command contract
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-12 13:46'
-labels: []
+updated_date: '2026-08-13 16:40'
+labels:
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
 references:
   - >-
@@ -14,6 +17,8 @@ references:
     https://github.com/opum-ai/opum-doc/blob/dev/docs/specs/opum-command-contract.md
   - QCLI-68
   - opum-doc ODOC-22
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 type: docs
 ordinal: 88000
 ---
@@ -33,3 +38,9 @@ Before quest-cli implements its result layer, reconcile or explicitly ratify the
 - [ ] #5 Principal establishment and authorization enforcement remain explicitly outside this reconciliation unless separately authorized; the task settles only the reserved command-contract field.
 - [ ] #6 The future quest-cli conformance-test obligation is updated to enforce the resolved contract, and strict Lore validation/check plus repository diff checks pass.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Preserve the 2026-08-05 Quest-specific ruling as historical provenance and append a dated QCLI-69 amendment that explicitly yields every conflicting wire-contract surface to the frozen ODOC-22 Opum command contract. 2. Reconcile each derived Quest document that currently treats the old schemaVersion, kind/outcome, payload, or exit mapping as live; retain the earlier proposal and historical Story claims as historical records while adding explicit amendment provenance. 3. Strengthen the QCLI-68 local obligation so the future quest-cli conformance test covers the numeric {schemaVersion, kind, data, principal} result envelope, structured diagnostic envelopes, frozen exit taxonomy, live dotted kind registry, output/stream discipline, null principal slot, and deliberate-violation cases without entering principal establishment or authorization enforcement. 4. Couple QCLI-69 to the Phase 1 decision Story, run Lore sync, inspect the complete diff adversarially against all six acceptance criteria and the local ODOC-22 Spec, then run strict Lore validation/check and repository diff checks. 5. Record exact evidence and finalize only if every criterion and gate passes; make local commits only, leaving push, PR, merge, and cleanup for separate authorization.
+<!-- SECTION:PLAN:END -->
