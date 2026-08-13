@@ -7,7 +7,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-08 18:28'
-updated_date: '2026-08-13 13:29'
+updated_date: '2026-08-13 13:32'
 labels:
   - wave-4
 dependencies: []
@@ -81,6 +81,8 @@ Surfaced by doc-13 wave 1's integration review (2026-08-08), supersedes that wav
 Implemented the user-approved workflow decision in the three scoped skill files. wave-loop now binds both durable Stage reached columns to one scale, adds one orchestrator-owned terminal-review snapshot after all review pipelines settle and before the merge walk, mandates immediate commit/push plus one parseable Refs trailer per recorded task, and reserves stage 6 for an actual approve verdict. templates cites the scale at both tables. SKILL R2 now uses four durable sources, strengthens the campaign-table signal at the terminal barrier, applies the review-substate and 0b63077 disclosure corrections, and records version 0.9.1-qcli.10 provenance. Historical verification corrected creation-time drift: QCLI-54 was filed against five phrase-keyed versus six content-swept commits, but live base e7114f3 includes later a801c54, making the current counts six versus seven and six stage-1 commits. Objective checks: /private/tmp/qcli54-verify.mjs passed 13 contract assertions covering stage parsing, both template bindings, terminal trigger/owner, commit/push/trailer obligations, legacy 6-under-review rejection, R2 corrections, and version/provenance; git merge-base confirmed a801c54 is an ancestor of e7114f3; the full campaign-doc diff sweep enumerated all seven recording commits and their added stage rows; git diff --check passed. Sequential adversarial self-review, not independent review, found no blocking correctness, scope, or stale-operative-prose issue; QCLI-52 dated Provenance remains intentionally historical and the new QCLI-54 entry supersedes its unresolved cadence question. Only the three declared source files changed, alongside task and doc-15 campaign bookkeeping. No commit, push, PR, merge, final summary, terminal status, or cleanup performed because delivery authority is still absent; retain branch and lease.
 
 Delivery verification: implementation PR #82 reviewed exact remote head 6123ee550d5fe4a042532f7155a2fb1f9edc1fd8 against base e7114f309a9fde418f9e1057c344410f3070f008, reported MERGEABLE/CLEAN with no reported checks, and squash-merged to dev as d327345c5991bf0c6bbbf531829ea870e5e01653. The reviewed-head and integration trees are byte-identical at tree 6b436bca8a7e17b3202234638aa6ffd51ab53429; the integration message parses Refs: QCLI-54; the integration diff passes git diff --check; all 13 contract assertions pass again on the integration tree.
+
+Closure verification: finalization PR #83 reviewed exact head 4cdcb0f5fca1e50e9ce5aa789569f205b1717589 against base d327345c5991bf0c6bbbf531829ea870e5e01653, reported MERGEABLE/CLEAN with no reported checks, and squash-merged as 88eadf72140383e046d2346e7fb86bfee4acc5fd. Reviewed and integration trees are identical at c15d05e8b400964587fc0f6bdabc9001b877cf61; the integration message parses Refs: QCLI-54; git diff --check passed. Original lease d8b338584906fc3ae4a4cc0826c1e606 was returned after clean-state verification; implementation and finalization local/remote refs are absent after remote pruning; all six Treehouse slots were available before the temporary cleanup-reconciliation lease was acquired.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
