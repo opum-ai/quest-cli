@@ -1,0 +1,267 @@
+# Change log
+
+## docs
+
+- 2026-08-01T11:00:55-05:00 287c2b82b2b7cc12d94bbbb1c46ff33d6593968e Initial commit: project scaffolding, Backlog.md, lore docs, backlog-handover skill
+- 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
+- 2026-08-01T12:31:03-05:00 e38e92d9ddc24617dfe3870970b075669a1176a3 docs: sync Quest CLI documentation log
+- 2026-08-01T12:32:15-05:00 64f246ec9f937f227a77624423b5a96b1420dcfd docs: record Quest CLI documentation log sync
+- 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
+- 2026-08-01T18:49:13-05:00 a27ff5f4f6e94e70151df674badc3c2d164a2931 docs: track Quest package allocation research
+- 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
+- 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
+- 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
+- 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
+- 2026-08-04T09:36:25-05:00 f7c93c8fb764df3a58069cb558ad579628c3b78b chore(backlog): file the four approved wave-2 follow-ups
+- 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
+- 2026-08-04T10:28:30-05:00 0d127ee50a630d68e6667683f25a6a106ffb94c1 QCLI-2.4: Define Quest CLI actors, workflows, and domain-language candidates (#6)
+- 2026-08-04T10:29:40-05:00 3b5cd8c5526480c6482dda978307c41aa8c14e05 QCLI-2.11: Correct wave-2 cross-task staleness in the three merged deliverables (#7)
+- 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
+- 2026-08-04T10:41:39-05:00 f30b0c50a5f7104e271607f897ab7dea8a98eb1c docs: sync log.md — fix dangling pre-squash SHA, add missing wave-3 merge entries
+- 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
+- 2026-08-04T10:59:44-05:00 2e0995d799b51ad082846cb959209d46a60f55f8 docs: sync log.md after wave-3 follow-up merges
+- 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
+- 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
+- 2026-08-04T14:06:57-05:00 739aa7e808ad7c8e6ba50aa9895e3fe3bb6c5c33 QCLI-2.6: Model Quest Git, filesystem, and concurrency threats (#13)
+- 2026-08-04T14:08:28-05:00 d55eaf7428ca2904481d40aabd0a90c96513c690 QCLI-2.12: Close the research source register's admission-authority coherence gaps (#14)
+- 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
+- 2026-08-04T14:22:49-05:00 086ee746fa095baec8e7d725430e608276168c5d docs: sync log.md after wave-4 merges
+- 2026-08-04T15:16:00-05:00 418c5eb7d3369d1dd19fe817bc9892e07fb2652e QCLI-2.5 follow-up: fix stale scratch-repo count and evidence-source enumeration (#16)
+- 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
+- 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
+- 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
+- 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
+- 2026-08-04T18:50:59-05:00 8c3133ed9aacfcda116d5076ca8fefab20f7eb74 docs: sync managed blocks after Story-to-Task coupling fix
+- 2026-08-04T18:51:22-05:00 3936fbeb4ae207fdb3b489899ab1ecfcb73772c5 docs: sync log.md
+- 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
+- 2026-08-04T18:55:47-05:00 39dc0eab714d32a04e7d5c9c3f662fc329934abc docs: sync managed blocks after wave-5 settlement
+- 2026-08-04T18:57:15-05:00 86d88d6529df0a085f255157890a6759f1a495a1 docs: sync managed blocks after QCLI-2 parent-epic settlement
+- 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
+- 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
+- 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
+- 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
+- 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T07:08:39-05:00 dde124250d8592970a5e6c0c26316e2e57b02573 docs: sync log.md after the design-layer commit
+- 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
+- 2026-08-05T07:37:13-05:00 ffe8487442e3c168c448e5200bd362c5285f6d1f docs: sync log.md after campaign init
+- 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
+- 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
+- 2026-08-05T08:38:00-05:00 121f0e594d5de6b7592706afcb3cc6e47435a219 docs: sync log.md and story managed block after wave-1 merges
+- 2026-08-05T08:41:47-05:00 077d3beef69b2e953b3d811b620234b36daaed63 QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
+- 2026-08-05T08:42:12-05:00 d03eeaefddd2ad21ea8ba95a03ed5c8adfa458b7 docs: sync log.md after QCLI-14 merge
+- 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
+- 2026-08-05T08:46:13-05:00 ae83301c654d198f48c39a8665e2b8b4eb61e8f1 docs: sync log.md after QCLI-15 merge
+- 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
+- 2026-08-05T08:49:46-05:00 d95c1ee027b5d81f6a5df0e77f3d048bc5298714 docs: sync log.md after QCLI-16 merge
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+- 2026-08-05T08:53:57-05:00 a935a364d4e6b73cf133f14d0721ad78e5a08498 docs: sync log.md after QCLI-17 merge
+- 2026-08-05T09:03:01-05:00 3cf5242efef6680f0277e5b4958b2af87b8a8a04 docs: sync story status and log.md after wave-1 settlement
+- 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
+- 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:07:54-05:00 3c4eb246b77a7246d33e0eb6b3558322dcb3900b QCLI-20: Propose the scale target and its projection implications (#34)
+- 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
+- 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
+- 2026-08-05T11:24:55-05:00 f528d939fc6820985e8468e7e9211e78969a4cc6 chore: regenerate log.md to fix dangling pre-squash SHAs from QCLI-22
+- 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
+- 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
+- 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
+- 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
+- 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
+- 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-06T10:09:43-05:00 2b305600fa7f50a5fd0e28db4100e3c3405c0a9d QCLI-35: Sync docs/log.md to close pre-existing SHA drift from squash-merge rewrites (#51)
+- 2026-08-06T15:19:46-05:00 1f252dd39913d610ef00692a09db0aa593feb3ab QCLI-39: Sync docs/log.md again to close post-wave-1 SHA drift (#56)
+- 2026-08-06T20:08:24-05:00 4c808744bcdd13a4cf4949c27a4de9792988f960 docs: record that the pinned lore-doc gate revision moved
+- 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
+- 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
+- 2026-08-07T08:57:40-05:00 a4f621256f018ecc9319a24c9fa7ea6e1d30f9e9 docs: sync lore log after wave-2 settlement (doc-10 campaign)
+- 2026-08-07T14:49:53-05:00 f955033abe473819397555e435492a40b4770c83 docs: catch up lore log with doc-10's own settlement commit
+- 2026-08-07T15:21:58-05:00 82ec77d9bf5706d8906fd5c8e1a83f730099e075 docs: sync lore log after wave-1 settlement (doc-11 campaign)
+- 2026-08-07T20:02:45-05:00 4c1609cabdae9f9ead6f661ed966c47eb0f4aa1e docs: catch up lore log with doc-11 wave-1's own settlement commit
+- 2026-08-07T20:31:39-05:00 3742bbb6621c9d81333396751921980102d75791 docs: sync lore log after wave-2 settlement (doc-11 campaign)
+- 2026-08-07T20:51:34-05:00 ceab3486e29d984802bcb13261af3255b3dc5268 docs: sync lore log after wave-3 settlement (doc-11 campaign complete)
+- 2026-08-08T09:08:03-05:00 10a4293577cea078138bdc6064243f90eedaeea7 docs: catch up lore log with doc-11 wave-3's own settlement commit
+- 2026-08-08T09:39:33-05:00 50b85ac6863eafe0adde59f6f395542404c95ef3 docs: sync lore log after wave-1 settlement (doc-12 campaign complete)
+- 2026-08-08T11:09:02-05:00 1e268f7647768e23577b22b038ddf85bb81b7deb docs: catch up lore log with doc-12 wave-1's own settlement commit
+- 2026-08-08T11:55:15-05:00 354876fb0b0cd0e40dedb666d6811eb9625d7093 docs: sync lore log after wave-1 settlement (doc-13 campaign)
+- 2026-08-08T14:15:15-05:00 349f0f9c66792187a011526f18b9f2db5dde7489 docs: sync lore log after wave-2 settlement (doc-13 campaign complete)
+- 2026-08-08T17:38:11-05:00 1962d2a8874942ba69412a5866aa4b33454c4922 QCLI-56: discharge the Phase 0 activation recheck (#70)
+- 2026-08-08T17:46:51-05:00 3d9466aca2d9ffd1d92caf35faaf26c493f219d8 docs: sync lore log after wave-1 settlement (doc-14 campaign)
+- 2026-08-08T17:57:11-05:00 a0ba4533a3520f916d70f76eade8cc828f7a48bc docs: catch up lore log at doc-14 restore reconciliation
+- 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
+- 2026-08-09T02:45:50-05:00 0182f99ac3be954b1ec237855fe26bc47ebefd40 docs(QCLI-63): record the D2 runtime owner ruling and close the register entry
+- 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
+- 2026-08-10T21:02:33-05:00 75d483e436e863119a1c8a17deaedbdd6b6f06a0 docs(QCLI-66): distinguish frozen OCLI provenance from live ODOC routing (#75)
+- 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
+- 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
+- 2026-08-12T06:26:29-05:00 5038679bf3968511ac11776554ee1e0032c22a5b chore(docs): sync lore log for QCLI-68
+- 2026-08-12T06:28:32-05:00 095f13251ffaf35bc2d2a9967962d530c18e1219 fix(docs): defer QCLI-68 lore log to settlement
+- 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
+- 2026-08-13T00:37:15-05:00 ff546f00106f05ec915ef1cfc01c476c97597c2d chore(docs): sync Lore log for QCLI-62
+- 2026-08-13T06:01:45-05:00 4af5b11d240d77fe76e32bc317ee29143624e459 chore(docs): sync Lore log for QCLI-65
+- 2026-08-13T09:00:52-05:00 8dcf4f23d2b4e987c91cb121abbc562a76a60ade chore(docs): reconcile Lore log before promotion (#86)
+
+## docs/adr
+
+- 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T18:08:11-05:00 e5c790b80ec01b5c5e40f3d32a60dd827cceeb93 QCLI-24: Author an ADR for the Quest CLI result contract (envelope, exit codes, not-found, anomaly) (#39)
+- 2026-08-05T18:10:43-05:00 9e7a0c093e95e3b707094455cb7c14d3b9d5793b QCLI-25: Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout (#40)
+- 2026-08-05T18:11:39-05:00 589e1a721ceb32aceaa545e22e6217bc354d3201 QCLI-26: Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion (#41)
+- 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
+- 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
+- 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
+
+## docs/reference
+
+- 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
+- 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
+- 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
+- 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T08:58:45-05:00 2246c469723663ca79dfa91bb8e650ea6a216c66 QCLI-2.7: Track Lore dependencies and Quest activation evidence (incl. lore-cli adapter alignment) (#3)
+- 2026-08-04T09:00:15-05:00 79bb99d5036371938956d2a13ae79504be396704 QCLI-2.9: Record the @opum-ai/quest packaging contract with dated registry evidence (#4)
+- 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
+- 2026-08-04T10:28:30-05:00 0d127ee50a630d68e6667683f25a6a106ffb94c1 QCLI-2.4: Define Quest CLI actors, workflows, and domain-language candidates (#6)
+- 2026-08-04T10:29:40-05:00 3b5cd8c5526480c6482dda978307c41aa8c14e05 QCLI-2.11: Correct wave-2 cross-task staleness in the three merged deliverables (#7)
+- 2026-08-04T10:57:21-05:00 883b44537201acf8ada93f2d1a1af0b9297d62dd QCLI-2.3 follow-up: fix ownership pointer, add recheck clause, close ledger condition (#9)
+- 2026-08-04T10:58:20-05:00 63b1e0a33e4b67d87d6034e9b72f127fce10d106 QCLI-2.4 follow-up: add moving-reference recheck clause for quest-doc citation (#10)
+- 2026-08-04T10:59:08-05:00 c09ed473c8432d418c941a3201e33a5e1f1fed3c QCLI-2.13 follow-up: complete AC4 with register-side back-reference (#11)
+- 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
+- 2026-08-04T14:06:57-05:00 739aa7e808ad7c8e6ba50aa9895e3fe3bb6c5c33 QCLI-2.6: Model Quest Git, filesystem, and concurrency threats (#13)
+- 2026-08-04T14:08:28-05:00 d55eaf7428ca2904481d40aabd0a90c96513c690 QCLI-2.12: Close the research source register's admission-authority coherence gaps (#14)
+- 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
+- 2026-08-04T15:16:00-05:00 418c5eb7d3369d1dd19fe817bc9892e07fb2652e QCLI-2.5 follow-up: fix stale scratch-repo count and evidence-source enumeration (#16)
+- 2026-08-04T16:59:53-05:00 c8dfdcacac9afe8bd2d494b97e083d8c9ae1d43c QCLI-2.12 follow-up: fix F2/F3/F4 with a durable self-pin (Option A) (#17)
+- 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
+- 2026-08-04T17:46:36-05:00 de4138943a7df7cfd7759acae8dce9d882fb2322 QCLI-2.10: Author the Backlog-to-Quest adoption and migration playbook (#19)
+- 2026-08-04T18:54:09-05:00 89355515f84ac6a4831db8a16801e42436ca4de6 QCLI-2.8/2.10 integration-review follow-up: cross-document coherence fixes (#20)
+- 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
+- 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
+- 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
+- 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
+- 2026-08-05T08:41:47-05:00 077d3beef69b2e953b3d811b620234b36daaed63 QCLI-14: Correct the bin-path row in the packaging contract's Description column (#27)
+- 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
+- 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+- 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
+- 2026-08-05T11:03:15-05:00 eda251b42e8fd8333377025ef048f98e65313cd6 QCLI-18: Propose the CLI result contract (envelope, exit codes, not-found, anomaly) (#32)
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:07:54-05:00 3c4eb246b77a7246d33e0eb6b3558322dcb3900b QCLI-20: Propose the scale target and its projection implications (#34)
+- 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
+- 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
+- 2026-08-05T11:34:44-05:00 ed14115a4c4ea20e7c370469c1572f4f9fba700d chore: fix narrow findings from the wave-2 integration review (#37)
+- 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
+- 2026-08-05T18:12:33-05:00 f89b370894f577dc063ac290f687e964023acc2b QCLI-27: Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings (#42)
+- 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-05T20:49:49-05:00 6ffc4019bc2bcfe7a50ce7517e613250337f8908 QCLI-29: Correct stale 'nothing accepted' prose in three ratified Quest CLI proposal docs (#45)
+- 2026-08-05T20:51:48-05:00 735d82d23c68f0225ae4686441e59bc8af9e389f QCLI-30: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation (#46)
+- 2026-08-06T10:07:22-05:00 ce4a1307a6b683df02f3a0263c8bbfec43021a14 QCLI-34: Reconcile 'file layout' terminology against QCLI-25/D4's authored-record layout (#50)
+- 2026-08-06T14:51:34-05:00 4640ab34abe17bf2930e919fd9c408fca32040b4 QCLI-37: Reconcile stale 'record layout' status in the Spec-open-questions mapping table (#53)
+- 2026-08-06T14:52:27-05:00 761313daee0615531c575747ea57ef6504999439 QCLI-38: Reconcile 'naming scheme' terminology against QCLI-25/D4's authored-record layout (#54)
+- 2026-08-06T15:03:29-05:00 098dbe6bb3c1ebba247b7d88d5e5ab69c5ac2b37 docs: close naming-scheme gap in the Spec-mapping table (wave-1 integration finding, doc-8 campaign) (#55)
+- 2026-08-06T20:08:24-05:00 4c808744bcdd13a4cf4949c27a4de9792988f960 docs: record that the pinned lore-doc gate revision moved
+- 2026-08-06T20:14:30-05:00 a4ae6c523764a9d7023847c99ab8716c311d2377 docs: flag the superseded tail of the quoted gate predicate
+- 2026-08-06T21:24:14-05:00 3b1e9f57a8751a091bddb81ebb142818c21d74ab docs: record the owner's opened Lore gate
+- 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
+- 2026-08-07T15:16:22-05:00 866b184cad26df377522908f14a7e54fd266e330 QCLI-45: Record the evidence-record amendment ruling and reconcile QCLI-42 in-place replacement (#60)
+- 2026-08-07T20:25:49-05:00 a4276e0a41ee0c1c3d200c00761fa3dcc7e3a492 QCLI-46: Re-derive and reconcile the outstanding inline supersession-citation debt across docs (#62)
+- 2026-08-07T20:44:35-05:00 0f07c27dba547d7d1d9f6ee37f4f4a392e92d613 QCLI-50: Settle whether tense-only edits fall under preserve-and-amend (#65)
+- 2026-08-08T17:38:11-05:00 1962d2a8874942ba69412a5866aa4b33454c4922 QCLI-56: discharge the Phase 0 activation recheck (#70)
+- 2026-08-08T17:40:15-05:00 5c24b489593179829ba7ec283459f37b376b015e QCLI-57: re-verify the Backlog.md v1.49.3 pin before Phase 1 exit (#71)
+- 2026-08-08T21:40:21-05:00 f123b9b8c2d587600e4cedc8186102afed8e3455 QCLI-58: assemble a decision-ready D2 runtime proposal (#73)
+- 2026-08-08T21:54:33-05:00 84442560b75ccc0770d996409024bfc7cb165555 docs: sync lore log after wave-2 settlement (doc-14 campaign complete)
+- 2026-08-09T02:45:50-05:00 0182f99ac3be954b1ec237855fe26bc47ebefd40 docs(QCLI-63): record the D2 runtime owner ruling and close the register entry
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
+- 2026-08-10T21:02:33-05:00 75d483e436e863119a1c8a17deaedbdd6b6f06a0 docs(QCLI-66): distinguish frozen OCLI provenance from live ODOC routing (#75)
+- 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
+- 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
+- 2026-08-13T05:58:42-05:00 f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6 docs(QCLI-65): align D2 phase gating to roadmap (#78)
+
+## docs/runbooks
+
+- 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
+- 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
+- 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
+
+## docs/specs
+
+- 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
+- 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
+- 2026-08-04T10:30:54-05:00 eaa8a0cd4cc71dc1ac6d2ed3c514f48770cc77ee QCLI-2.13: Adopt a moving-vs-immutable reference convention in the research program Spec (#8)
+- 2026-08-04T14:09:46-05:00 157ad563ab6ebc044d7909eb2a420a6fcfb9cf03 QCLI-2.14: Re-home the runtime, native-packaging, and supported-platform question (#15)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+- 2026-08-05T11:34:44-05:00 ed14115a4c4ea20e7c370469c1572f4f9fba700d chore: fix narrow findings from the wave-2 integration review (#37)
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-05T20:51:48-05:00 735d82d23c68f0225ae4686441e59bc8af9e389f QCLI-30: Fix three prose/header inconsistencies left by the QCLI-28 reconciliation (#46)
+- 2026-08-05T22:48:55-05:00 ccb68d190ca53d3ce7672568eb2113ffac8a1884 QCLI-31: Reconcile architecture Spec prose with the ratified Phase 1 ADRs (#47)
+- 2026-08-06T10:00:13-05:00 ba2338fe8720f4523ffef7d61e99c28d6288fcef QCLI-33: Reconcile architecture Spec Open Questions bullet 4 against the QCLI-26 ADR (#49)
+- 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
+- 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
+- 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
+- 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
+
+## docs/stories
+
+- 2026-08-01T12:29:28-05:00 e2b90e2d9efa52f44b3419c96ea3dd17f322613c docs: establish Quest CLI research foundation
+- 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
+- 2026-08-01T18:49:13-05:00 a27ff5f4f6e94e70151df674badc3c2d164a2931 docs: track Quest package allocation research
+- 2026-08-04T00:38:04-05:00 649daadcca8e010e5dfca726724115c3143c0a53 docs: record OCLI-1 supersession for the backlog-handover skill port
+- 2026-08-04T02:05:03-05:00 1f51cce42434ca13436bad5030ea03dae1106e65 QCLI-2.1: Revalidate Quest research provenance and the migration boundary (#1)
+- 2026-08-04T07:21:12-05:00 942da73c9b3595723afc213af6af22ff96ef1ee6 docs: record the opum-ai identity change across the governing documents
+- 2026-08-04T08:56:56-05:00 09c202db55d37074c81df1b1eb4186ae682986d2 QCLI-2.2: Reconcile legacy Opum requirements into Quest CLI candidates (#2)
+- 2026-08-04T09:16:56-05:00 61c79d5ab0908b4e22d084cc93c6ce409a321a89 chore(backlog): settle wave 2 and record the campaign log
+- 2026-08-04T10:27:00-05:00 4ed6ee1f9496f05db8d356e50638bb5ebf92e2a9 QCLI-2.3: Turn prototype failures into Quest black-box scenarios (#5)
+- 2026-08-04T11:02:45-05:00 a12a83c6cdf9fe484b1250c56862b07e953e26f0 docs: sync managed blocks after wave-3 settlement (QCLI-2.3, 2.4, 2.11, 2.13 -> Done)
+- 2026-08-04T14:05:31-05:00 407ea61ba4abba03d652dc06be54acd1776f6fc5 QCLI-2.5: Research Backlog migration fidelity through public contracts (#12)
+- 2026-08-04T15:18:13-05:00 b65087590fdc4014f2af660f5eaed059d95eea2d docs: sync managed blocks after wave-4 settlement
+- 2026-08-04T17:45:28-05:00 8749119bd6799b477045c0228b2c1403e4332095 QCLI-2.8: Synthesize Quest CLI research into activation-ready component contracts (#18)
+- 2026-08-04T18:50:59-05:00 8c3133ed9aacfcda116d5076ca8fefab20f7eb74 docs: sync managed blocks after Story-to-Task coupling fix
+- 2026-08-04T18:55:47-05:00 39dc0eab714d32a04e7d5c9c3f662fc329934abc docs: sync managed blocks after wave-5 settlement
+- 2026-08-04T18:57:15-05:00 86d88d6529df0a085f255157890a6759f1a495a1 docs: sync managed blocks after QCLI-2 parent-epic settlement
+- 2026-08-04T21:30:33-05:00 7bab9e8bc0c52188daf5608cccd41e6f4b45ade5 docs: sync managed blocks after creating QCLI-6
+- 2026-08-04T22:20:04-05:00 d4b71233b90e37e956f37ed6ab02c54d9779c73d QCLI-6: Close remaining research-source-register enumeration gaps (#21)
+- 2026-08-04T22:45:43-05:00 5f47b025bd9893bc401b9af1888bba7535bba539 QCLI-7: Rule Stories out of scope for the register's Prior QCLI research records slice (#22)
+- 2026-08-04T23:46:00-05:00 1a61989b8ed910c36bbfc5f74bc8dd5fa02b4bfd QCLI-8: Reconcile QCLI-2.10's playbook against the closed QCLI-2.5 enumeration gap (#23)
+- 2026-08-05T00:16:30-05:00 b9475f2422f8bbdb718694e9d5d54ad3a75b2c66 QCLI-9: Re-pin QCLI-2.10's playbook after QCLI-8's merge invalidated its commit-pin (#24)
+- 2026-08-05T07:08:23-05:00 1330ecfa6e39fac026e4ad3bfaab675a1ac4017f QCLI-10: add the derived design layer over the QCLI research corpus
+- 2026-08-05T07:37:01-05:00 5464f50a645896af88ad3bbad88da1ff53d91ef0 chore(campaign): init the QCLI-11..QCLI-20 design-layer follow-through campaign
+- 2026-08-05T08:24:52-05:00 1dd4aa6ebf96cd2554fc8338d829c2bd40d625e9 QCLI-12: Fix the stale QCLI-2.8 dependency-order row in the research programme Spec (#25)
+- 2026-08-05T08:28:56-05:00 d871d32009c8afb2017e955eef6cb0328d219098 QCLI-13: Backlink the adoption playbook from the component charter and migration ledger (#26)
+- 2026-08-05T08:38:00-05:00 121f0e594d5de6b7592706afcb3cc6e47435a219 docs: sync log.md and story managed block after wave-1 merges
+- 2026-08-05T08:45:51-05:00 6b78fd0bfebcc68a824e50c62d8aa1270eb48ba6 QCLI-15: Audit two unresolved register findings (untraceable Allowed value, QCLI-2.12's F4/F5) (#28)
+- 2026-08-05T08:49:21-05:00 44a7ed8e5ce1e8bc8e7ecf8222ade110c7e0385b QCLI-16: Audit and correct the licensing-source misattribution in the contracts and delivery graph (#29)
+- 2026-08-05T08:53:32-05:00 fb8e8e3c9d8cabab4b366d9382cd54e9dd6ae171 QCLI-17: Correct the open component decisions register's Backlog.md reclassification-trigger claim (#30)
+- 2026-08-05T09:03:01-05:00 3cf5242efef6680f0277e5b4958b2af87b8a8a04 docs: sync story status and log.md after wave-1 settlement
+- 2026-08-05T09:38:37-05:00 4d8224e47fe91e7c448944817a310d33253432a8 docs: sync log.md and story after filing QCLI-21/22 follow-ups
+- 2026-08-05T11:00:43-05:00 a625577b9e2f61dc225400b400ff34f049b60a5c QCLI-11: Record quest-cli's activation-gate evidence and decision time (#31)
+- 2026-08-05T11:03:15-05:00 eda251b42e8fd8333377025ef048f98e65313cd6 QCLI-18: Propose the CLI result contract (envelope, exit codes, not-found, anomaly) (#32)
+- 2026-08-05T11:05:39-05:00 adea7117f63a4ec4be88644bc179f2c5ee8e3df3 QCLI-19: Propose the canonical identifier grammar and authored-record layout (#33)
+- 2026-08-05T11:09:34-05:00 f43a083379eebc287e05b44c6b92d77da8df104d QCLI-21: Reconcile the open component decisions register and contracts graph against QCLI-12..17 (#35)
+- 2026-08-05T11:11:11-05:00 2fd6c131b684a017334a3181a3fd61cae660dbca QCLI-22: Re-pin the research source register's member pins invalidated by QCLI-12..17 (#36)
+- 2026-08-05T11:28:59-05:00 119949e30ab0a64fce665f8487b155e5a78aca9f docs: sync log.md and story status after wave-2 settlement
+- 2026-08-05T12:38:19-05:00 1f1d50cf9bdcdf491d3b08d25cd6cab7f5762884 docs: sync log.md and story after filing QCLI-23 follow-up
+- 2026-08-05T13:35:27-05:00 af34f1ffa1da6fd0e0e13f54ebc1900fffa44293 QCLI-23: Re-verify QCLI-2.7 drift table against lore-cli v0.1.1 and refresh dependent documents (#38)
+- 2026-08-05T13:37:47-05:00 8dcd3c20643b09d4090665c66f56cc101f2acb9d docs: sync log.md and story status after QCLI-23 settlement
+- 2026-08-05T17:39:39-05:00 cca60a82bc3d579b27b10998aa01661b764aa26c docs: add the ratify-Phase-1-decisions Story and link QCLI-24..28
+- 2026-08-05T17:40:40-05:00 ef15e16ba0c248f40b46f32f879aa5afc9f6cd6b docs: point the Phase-1-ratification Story at campaign doc-4
+- 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
+- 2026-08-05T18:42:05-05:00 43bc22e7456e7a7f47399fcaf3268d94dd50c675 QCLI-28: Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs (#44)
+- 2026-08-05T23:04:47-05:00 2e57876d8f5617e22e5a5c198835a99bc3db80ad QCLI-32: Run a centralized lore sync to reconcile the Phase-1-ratification Story (#48)
+- 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
+- 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
+- 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
