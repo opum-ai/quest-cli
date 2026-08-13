@@ -106,6 +106,7 @@
 - 2026-08-13T06:01:45-05:00 4af5b11d240d77fe76e32bc317ee29143624e459 chore(docs): sync Lore log for QCLI-65
 - 2026-08-13T09:00:52-05:00 8dcf4f23d2b4e987c91cb121abbc562a76a60ade chore(docs): reconcile Lore log before promotion (#86)
 - 2026-08-13T09:03:32-05:00 0f7276bf28252f72f4726f9cd7b3654bb4d4dd95 chore: clear promotion whitespace debt (#87)
+- 2026-08-13T11:49:00-05:00 a4c2d5bc9fcc8d3664470b0842b37371a4ff23e2 docs(QCLI-69): align result contract with Opum
 
 ## docs/adr
 
@@ -118,6 +119,7 @@
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
 - 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
+- 2026-08-13T11:49:00-05:00 a4c2d5bc9fcc8d3664470b0842b37371a4ff23e2 docs(QCLI-69): align result contract with Opum
 
 ## docs/reference
 
@@ -188,6 +190,7 @@
 - 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
 - 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
 - 2026-08-13T05:58:42-05:00 f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6 docs(QCLI-65): align D2 phase gating to roadmap (#78)
+- 2026-08-13T11:49:00-05:00 a4c2d5bc9fcc8d3664470b0842b37371a4ff23e2 docs(QCLI-69): align result contract with Opum
 
 ## docs/runbooks
 
@@ -215,6 +218,7 @@
 - 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 - 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
+- 2026-08-13T11:49:00-05:00 a4c2d5bc9fcc8d3664470b0842b37371a4ff23e2 docs(QCLI-69): align result contract with Opum
 
 ## docs/stories
 
@@ -266,3 +270,4 @@
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 - 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
 - 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
+- 2026-08-13T11:49:00-05:00 a4c2d5bc9fcc8d3664470b0842b37371a4ff23e2 docs(QCLI-69): align result contract with Opum
