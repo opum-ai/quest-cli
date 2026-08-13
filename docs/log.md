@@ -183,6 +183,7 @@
 - 2026-08-10T21:02:33-05:00 75d483e436e863119a1c8a17deaedbdd6b6f06a0 docs(QCLI-66): distinguish frozen OCLI provenance from live ODOC routing (#75)
 - 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
 - 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
+- 2026-08-13T05:58:42-05:00 f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6 docs(QCLI-65): align D2 phase gating to roadmap (#78)
 
 ## docs/runbooks
 
