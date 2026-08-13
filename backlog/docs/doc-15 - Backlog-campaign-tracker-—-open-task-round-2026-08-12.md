@@ -3,7 +3,7 @@ id: doc-15
 title: Backlog campaign tracker — open-task round 2026-08-12
 type: other
 created_date: '2026-08-13 05:34'
-updated_date: '2026-08-13 05:36'
+updated_date: '2026-08-13 05:38'
 ---
 # Backlog campaign tracker — open-task round 2026-08-12
 
@@ -46,3 +46,4 @@ Informational snapshot only; never a promised next wave.
 - 2026-08-13 — Follow-up reconciliation after the user approved a local branch and commit only. Created `docs/qcli-62-dependency-ready-set`; Lore committed the branch-local QCLI-62 task record as `9a3f050191e7307d0ee71f33b96173c332b03c33`, then the verified three-file documentation change was committed as `2c68e15c144214671bd5a51dd9ab2b4f4e2cf1d8` with a parseable `Refs: QCLI-62` trailer. Post-commit strict Lore gates remained 51 files, 0 errors, 0 warnings; the branch was clean and 2 commits ahead of `origin/dev`.
 - 2026-08-13 — Remote delivery authorized and completed without merge. Refreshed `origin/dev` at `484fd30d27fd343d1c39b46433adc5dd64be06f6`; rebase was a no-op. Post-rebase strict Lore gates and `git diff --check` passed. Pushed the branch, opened PR #77, recorded the PR in QCLI-62 notes through Lore's standard Backlog commit `7420fceffff532db26a9e26cc42790ca1f6c422f`, and pushed that head. Feature-SHA log lines were deliberately withheld so settlement could record the durable squash SHA.
 - 2026-08-13 — The user authorized full closure. Rechecked PR #77 at exact head `7420fceffff532db26a9e26cc42790ca1f6c422f`: open, non-draft, base `dev`, mergeable `MERGEABLE`, state `CLEAN`, no reported checks, and unchanged base `484fd30d27fd343d1c39b46433adc5dd64be06f6`. Squash-merged it as `e1624edfc0887ffb24005efb1aae15105d37f4e5`. Verified the integration tree is byte-identical to the reviewed head and the integration message contains `Refs: QCLI-62`; finalized QCLI-62 `Done` with all acceptance evidence retained. Cleanup disposition is recorded by the follow-up reconciliation after branch and lease cleanup.
+- 2026-08-13 — Settlement and cleanup completed. Lore committed the QCLI-62 final task record and doc-15 tracker as `c7876c407cb6e0cc12e70d1d02bfff6d51fac2cf`, then generated the durable integration-SHA log entries committed as `ff546f00106f05ec915ef1cfc01c476c97597c2d`; strict Lore validation/check remained 51 files with 0 errors and 0 warnings, and both commits were pushed to `dev`. After re-verifying the clean feature worktree and exact tree equivalence, returned Treehouse lease `8b883fa8873374998695d04a0579e609` and deleted both local and remote `docs/qcli-62-dependency-ready-set` branches. QCLI-65 is the next live ready task by the confirmed tie-break, but remains undispatched.
