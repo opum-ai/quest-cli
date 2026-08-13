@@ -3,11 +3,18 @@ id: QCLI-54
 title: >-
   Bind the campaign doc's Stage reached column to a stage scale and settle
   post-dispatch recording cadence
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-08 18:28'
-labels: []
+updated_date: '2026-08-13 13:24'
+labels:
+  - wave-4
 dependencies: []
+modified_files:
+  - .claude/skills/backlog-handover/reference/wave-loop.md
+  - .claude/skills/backlog-handover/reference/templates.md
+  - .claude/skills/backlog-handover/SKILL.md
 priority: medium
 type: chore
 ordinal: 73000
@@ -53,11 +60,23 @@ Surfaced by doc-13 wave 1's integration review (2026-08-08), supersedes that wav
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 reference/wave-loop.md's per-task stage-number table explicitly states whether it governs the campaign doc's in-flight Stage reached column, the handover's, or both; reference/templates.md's two Stage reached columns each cite the governing scale
-- [ ] #2 A settled decision, with stated reasoning, on whether a recording pass is mandated at any point after dispatch — including the explicit option of not mandating one, with the cost to SKILL.md R2 step 5's fourth signal named and accepted
-- [ ] #3 If further passes are mandated, reference/wave-loop.md names each trigger point and its owner, consistent with QCLI-49's rule that in-flight-pointer recording is committed immediately and QCLI-47's one-trailer-per-recorded-task rule
-- [ ] #4 The rule requires the recorded annotation to be consistent with the cited stage numeral, so 0b63077's '6 — under review' would be prevented or flagged rather than written
-- [ ] #5 SKILL.md R2 step 5's fourth-signal wording is reconciled with whatever is settled — strengthened if recording becomes mandated, left hedged if not — with no passage left overstating the signal
-- [ ] #6 The three folded-in narrow corrections in SKILL.md R2 step 5 are applied: the five-vs-six enumeration is corrected with both methods named, the circular consistency clause is dropped, 0b63077 is characterised as a disclosing recovery record, and 'substate' is narrowed to 'review-substate'
-- [ ] #7 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
+- [x] #1 reference/wave-loop.md's per-task stage-number table explicitly states whether it governs the campaign doc's in-flight Stage reached column, the handover's, or both; reference/templates.md's two Stage reached columns each cite the governing scale
+- [x] #2 A settled decision, with stated reasoning, on whether a recording pass is mandated at any point after dispatch — including the explicit option of not mandating one, with the cost to SKILL.md R2 step 5's fourth signal named and accepted
+- [x] #3 If further passes are mandated, reference/wave-loop.md names each trigger point and its owner, consistent with QCLI-49's rule that in-flight-pointer recording is committed immediately and QCLI-47's one-trailer-per-recorded-task rule
+- [x] #4 The rule requires the recorded annotation to be consistent with the cited stage numeral, so 0b63077's '6 — under review' would be prevented or flagged rather than written
+- [x] #5 SKILL.md R2 step 5's fourth-signal wording is reconciled with whatever is settled — strengthened if recording becomes mandated, left hedged if not — with no passage left overstating the signal
+- [x] #6 The three folded-in narrow corrections in SKILL.md R2 step 5 are applied: the five-vs-six enumeration is corrected with both methods named, the circular consistency clause is dropped, 0b63077 is characterised as a disclosing recovery record, and 'substate' is narrowed to 'review-substate'
+- [x] #7 The skill Provenance section records this change per the repo convention, and the skill version is bumped or the absence of a bump is explicitly justified
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Bind the per-task stage scale to both durable Stage reached columns and require the annotation to restate the defined stage meaning; terminal review outcomes that are not approve retain the last completed numeric stage and name the non-approve verdict separately. 2. Add one orchestrator-owned terminal-review snapshot pass after every member review pipeline has reached approve, merge-blocked, or escalated and before the merge walk starts. Record all wave members in one campaign-doc pass, commit immediately, push immediately, and include one Refs trailer per recorded task under the existing QCLI-47, QCLI-49, and QCLI-60 rules. This fills the approved-before-PR recovery gap while limiting cost to one additional bookkeeping commit and push per wave; per-transition recording is rejected as disproportionate churn, and no added pass is rejected because it leaves the fourth recovery signal stale for the entire wave. 3. Reconcile SKILL.md R2 step 5 with the mandated snapshot: correct the phrase-keyed five versus content-sweep six history, remove the circular enumeration claim, characterize 0b63077 as a fully disclosing recovery record whose numeral drifted, narrow substate to review-substate, and make signal counts and evidentiary limits internally consistent. 4. Add QCLI-54 provenance and bump 0.9.1-qcli.9 to 0.9.1-qcli.10 because the new snapshot pass is required orchestrator behavior. 5. Verify all seven acceptance criteria by targeted searches, historical commit inspection, git diff --check, and sequential adversarial self-review before finalization.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented the user-approved workflow decision in the three scoped skill files. wave-loop now binds both durable Stage reached columns to one scale, adds one orchestrator-owned terminal-review snapshot after all review pipelines settle and before the merge walk, mandates immediate commit/push plus one parseable Refs trailer per recorded task, and reserves stage 6 for an actual approve verdict. templates cites the scale at both tables. SKILL R2 now uses four durable sources, strengthens the campaign-table signal at the terminal barrier, applies the review-substate and 0b63077 disclosure corrections, and records version 0.9.1-qcli.10 provenance. Historical verification corrected creation-time drift: QCLI-54 was filed against five phrase-keyed versus six content-swept commits, but live base e7114f3 includes later a801c54, making the current counts six versus seven and six stage-1 commits. Objective checks: /private/tmp/qcli54-verify.mjs passed 13 contract assertions covering stage parsing, both template bindings, terminal trigger/owner, commit/push/trailer obligations, legacy 6-under-review rejection, R2 corrections, and version/provenance; git merge-base confirmed a801c54 is an ancestor of e7114f3; the full campaign-doc diff sweep enumerated all seven recording commits and their added stage rows; git diff --check passed. Sequential adversarial self-review, not independent review, found no blocking correctness, scope, or stale-operative-prose issue; QCLI-52 dated Provenance remains intentionally historical and the new QCLI-54 entry supersedes its unresolved cadence question. Only the three declared source files changed, alongside task and doc-15 campaign bookkeeping. No commit, push, PR, merge, final summary, terminal status, or cleanup performed because delivery authority is still absent; retain branch and lease.
+<!-- SECTION:NOTES:END -->
