@@ -104,6 +104,7 @@
 - 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
 - 2026-08-13T00:37:15-05:00 ff546f00106f05ec915ef1cfc01c476c97597c2d chore(docs): sync Lore log for QCLI-62
 - 2026-08-13T06:01:45-05:00 4af5b11d240d77fe76e32bc317ee29143624e459 chore(docs): sync Lore log for QCLI-65
+- 2026-08-13T09:00:52-05:00 8dcf4f23d2b4e987c91cb121abbc562a76a60ade chore(docs): reconcile Lore log before promotion (#86)
 
 ## docs/adr
 
