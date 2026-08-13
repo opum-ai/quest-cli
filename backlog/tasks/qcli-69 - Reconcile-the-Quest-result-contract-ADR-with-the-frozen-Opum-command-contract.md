@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-12 13:46'
-updated_date: '2026-08-13 16:48'
+updated_date: '2026-08-13 17:01'
 labels:
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
@@ -65,10 +65,12 @@ Before quest-cli implements its result layer, reconcile or explicitly ratify the
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented the QCLI-69 reconciliation through Lore-managed documentation. The accepted ADR now carries a dated amendment and exact old-versus-frozen contract table while preserving the original 2026-08-05 decision and consequences under explicit historical headings. Reconciled the local obligation, contracts graph, open-decision register, roadmap, architecture, dependency ready-set design, D2 proposal, historical proposal provenance, and owning Story. The resolved wire contract is numeric {schemaVersion, kind, data, principal}; structured diagnostics; shared exits 0/1/2/3/4/5/6; a live dotted-kind registry; stream/output discipline; and required principal:null until separate ratification. Principal identity and authorization remain out of scope. Verification: first lore validate --strict correctly failed because the amended ADR lacked literal required Decision/Consequences headings; corrected those headings and added current consequences. Then lore sync --json reported 0 files changed; lore validate --strict --plain passed (51 files, 0 errors, 0 warnings, 6 skipped); lore check --strict --plain passed (51 files, 0 errors, 0 warnings); git diff --check passed.
+
+Delivery follow-through on 2026-08-13: refreshed origin/dev to 0f7276bf28252f72f4726f9cd7b3654bb4d4dd95; it remained an ancestor of the clean feature branch, so no rebase was required. Re-ran lore validate --strict (51 files, 0 errors, 0 warnings), lore check --strict (51 files, 0 errors, 0 warnings), and git diff --check against the refreshed base. Pushed docs/qcli-69-result-contract-reconciliation and opened unmerged PR #89 to dev: https://github.com/opum-ai/quest-cli/pull/89. Merge and cleanup remain unauthorized.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Amended the accepted Quest result-contract ADR to align the live wire contract with ODOC-22 while preserving the 2026-08-05 ruling as explicit historical provenance. Reconciled every derived document that carried the old wire semantics, strengthened QCLI-68 with executable future conformance obligations, and kept principal establishment and authorization out of scope. Verified against the clean local Opum contract source, a 12-assertion focused consistency audit, idempotent Lore sync, lore validate --strict (51 files, 0 errors, 0 warnings), lore check --strict (51 files, 0 errors, 0 warnings), and git diff --check. Adversarial self-review found no remaining live old-contract assertion outside sections explicitly marked historical. Delivery is local-commit only; no push, PR, or merge was authorized.
+Amended the accepted Quest result-contract ADR to align the live wire contract with ODOC-22 while preserving the 2026-08-05 ruling as explicit historical provenance. Reconciled every derived document that carried the old wire semantics, strengthened QCLI-68 with executable future conformance obligations, and kept principal establishment and authorization out of scope. Verified against the clean local Opum contract source, a 12-assertion focused consistency audit, idempotent Lore sync, lore validate --strict (51 files, 0 errors, 0 warnings), lore check --strict (51 files, 0 errors, 0 warnings), and git diff --check. Adversarial self-review found no remaining live old-contract assertion outside sections explicitly marked historical. Delivered for review in unmerged PR #89 to dev: https://github.com/opum-ai/quest-cli/pull/89.
 <!-- SECTION:FINAL_SUMMARY:END -->
