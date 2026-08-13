@@ -1,11 +1,11 @@
 ---
 id: QCLI-69
 title: Reconcile the Quest result-contract ADR with the frozen Opum command contract
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-12 13:46'
-updated_date: '2026-08-13 16:40'
+updated_date: '2026-08-13 16:48'
 labels:
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
@@ -18,6 +18,22 @@ references:
   - QCLI-68
   - opum-doc ODOC-22
 documentation:
+  - >-
+    docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md
+  - docs/reference/quest-cli-opum-command-contract-local-obligation.md
+modified_files:
+  - >-
+    docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md
+  - docs/log.md
+  - docs/reference/quest-cli-component-contracts-and-delivery-graph.md
+  - docs/reference/quest-cli-d2-runtime-proposal.md
+  - docs/reference/quest-cli-open-component-decisions.md
+  - docs/reference/quest-cli-opum-command-contract-local-obligation.md
+  - >-
+    docs/reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md
+  - docs/specs/quest-cli-architecture.md
+  - docs/specs/quest-cli-delivery-roadmap.md
+  - docs/specs/quest-cli-dependency-ready-set-and-blocking-design.md
   - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 type: docs
 ordinal: 88000
@@ -31,12 +47,12 @@ Before quest-cli implements its result layer, reconcile or explicitly ratify the
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The exact differences between the accepted Quest result-contract ADR and the frozen Opum command contract are enumerated across envelope fields and types, payload placement, exit-code meanings, kind registry, diagnostics, and reserved principal handling.
-- [ ] #2 A durable, authority-backed ruling either aligns the Quest contract to the shared pattern or explicitly ratifies each retained divergence and identifies the required opum-doc contract amendment or exception; no difference remains implicit.
-- [ ] #3 The accepted ADR and every derived Quest contract document affected by the ruling are reconciled consistently, with supersession or amendment provenance preserved rather than silently rewriting history.
-- [ ] #4 QCLI-68 remains truthful after reconciliation: before any result-layer implementation ships, quest-cli has one unambiguous contract for its result envelope, exit codes, live kind registry, diagnostics, and reserved wire-form `principal: null`.
-- [ ] #5 Principal establishment and authorization enforcement remain explicitly outside this reconciliation unless separately authorized; the task settles only the reserved command-contract field.
-- [ ] #6 The future quest-cli conformance-test obligation is updated to enforce the resolved contract, and strict Lore validation/check plus repository diff checks pass.
+- [x] #1 The exact differences between the accepted Quest result-contract ADR and the frozen Opum command contract are enumerated across envelope fields and types, payload placement, exit-code meanings, kind registry, diagnostics, and reserved principal handling.
+- [x] #2 A durable, authority-backed ruling either aligns the Quest contract to the shared pattern or explicitly ratifies each retained divergence and identifies the required opum-doc contract amendment or exception; no difference remains implicit.
+- [x] #3 The accepted ADR and every derived Quest contract document affected by the ruling are reconciled consistently, with supersession or amendment provenance preserved rather than silently rewriting history.
+- [x] #4 QCLI-68 remains truthful after reconciliation: before any result-layer implementation ships, quest-cli has one unambiguous contract for its result envelope, exit codes, live kind registry, diagnostics, and reserved wire-form `principal: null`.
+- [x] #5 Principal establishment and authorization enforcement remain explicitly outside this reconciliation unless separately authorized; the task settles only the reserved command-contract field.
+- [x] #6 The future quest-cli conformance-test obligation is updated to enforce the resolved contract, and strict Lore validation/check plus repository diff checks pass.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -44,3 +60,15 @@ Before quest-cli implements its result layer, reconcile or explicitly ratify the
 <!-- SECTION:PLAN:BEGIN -->
 1. Preserve the 2026-08-05 Quest-specific ruling as historical provenance and append a dated QCLI-69 amendment that explicitly yields every conflicting wire-contract surface to the frozen ODOC-22 Opum command contract. 2. Reconcile each derived Quest document that currently treats the old schemaVersion, kind/outcome, payload, or exit mapping as live; retain the earlier proposal and historical Story claims as historical records while adding explicit amendment provenance. 3. Strengthen the QCLI-68 local obligation so the future quest-cli conformance test covers the numeric {schemaVersion, kind, data, principal} result envelope, structured diagnostic envelopes, frozen exit taxonomy, live dotted kind registry, output/stream discipline, null principal slot, and deliberate-violation cases without entering principal establishment or authorization enforcement. 4. Couple QCLI-69 to the Phase 1 decision Story, run Lore sync, inspect the complete diff adversarially against all six acceptance criteria and the local ODOC-22 Spec, then run strict Lore validation/check and repository diff checks. 5. Record exact evidence and finalize only if every criterion and gate passes; make local commits only, leaving push, PR, merge, and cleanup for separate authorization.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented the QCLI-69 reconciliation through Lore-managed documentation. The accepted ADR now carries a dated amendment and exact old-versus-frozen contract table while preserving the original 2026-08-05 decision and consequences under explicit historical headings. Reconciled the local obligation, contracts graph, open-decision register, roadmap, architecture, dependency ready-set design, D2 proposal, historical proposal provenance, and owning Story. The resolved wire contract is numeric {schemaVersion, kind, data, principal}; structured diagnostics; shared exits 0/1/2/3/4/5/6; a live dotted-kind registry; stream/output discipline; and required principal:null until separate ratification. Principal identity and authorization remain out of scope. Verification: first lore validate --strict correctly failed because the amended ADR lacked literal required Decision/Consequences headings; corrected those headings and added current consequences. Then lore sync --json reported 0 files changed; lore validate --strict --plain passed (51 files, 0 errors, 0 warnings, 6 skipped); lore check --strict --plain passed (51 files, 0 errors, 0 warnings); git diff --check passed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Amended the accepted Quest result-contract ADR to align the live wire contract with ODOC-22 while preserving the 2026-08-05 ruling as explicit historical provenance. Reconciled every derived document that carried the old wire semantics, strengthened QCLI-68 with executable future conformance obligations, and kept principal establishment and authorization out of scope. Verified against the clean local Opum contract source, a 12-assertion focused consistency audit, idempotent Lore sync, lore validate --strict (51 files, 0 errors, 0 warnings), lore check --strict (51 files, 0 errors, 0 warnings), and git diff --check. Adversarial self-review found no remaining live old-contract assertion outside sections explicitly marked historical. Delivery is local-commit only; no push, PR, or merge was authorized.
+<!-- SECTION:FINAL_SUMMARY:END -->
