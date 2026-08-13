@@ -3,34 +3,33 @@ id: doc-16
 title: Backlog campaign tracker — QCLI-69 result-contract reconciliation
 type: other
 created_date: '2026-08-13 14:47'
-updated_date: '2026-08-13 16:40'
+updated_date: '2026-08-13 16:50'
 ---
 # Backlog campaign tracker — QCLI-69 result-contract reconciliation
 
 ## Scope and order confirmation
 - Scope: QCLI-69 only.
 - Confirmed by the user: "approved: QCLI-69 only" on 2026-08-13.
-- Order is a tie-break; readiness is recomputed live.
-- Execution model is a sequential wave of one task; no subagent or parallel-wave authorization was given.
+- Order was a tie-break; readiness was recomputed live.
+- Execution model was a sequential wave of one task; no subagent or parallel-wave authorization was given.
 - On 2026-08-13 the user authorized a local feature branch and local commits, including Lore automatic Backlog commits. Push, PR, merge, cleanup, and remote mutations remain unauthorized.
 
 ## Frontier
 Informational snapshot only; never a promised next wave.
 
-- Queue: 1 task; resolved: 0; in flight: 1; formally blocked or human-decision required: 0.
-- QCLI-69 was re-read live before dispatch: `To Do`, no formal dependencies, no file-conflict peer, and no overlapping unrelated dirty work.
-- Completed QCLI-68 supplies the authority-backed alignment direction: the accepted Quest-specific record must yield to the frozen Opum command contract without silently rewriting provenance.
-- Remote freshness remains unverified because Backlog cannot write `.git/FETCH_HEAD` in this environment; locally known `dev` and `origin/dev` were identical at dispatch.
+- Campaign complete: queue 0; resolved 1; in flight 0; formally blocked or human-decision required 0.
+- No task remains to dispatch. A new scope requires a newly confirmed campaign rather than reopening this tracker.
+- Remote freshness remains unverified because Backlog cannot write `.git/FETCH_HEAD` in this environment. Locally known `dev` and `origin/dev` were identical at dispatch; no fetch, push, PR, or merge was performed.
 
 ## Queue
 | Order | Task | Cluster | Formal dependencies | State | Wave | Likely files | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | QCLI-69 | Result-contract documentation | None | Dispatching | Wave 1 | Quest result-contract ADR; Opum command-contract obligation reference; Story and derived contract references; Lore-managed indexes and logs as generated | Align to the frozen shared contract through an explicit successor/amendment record, preserve the 2026-08-05 ruling as historical provenance, and update the future conformance obligation. |
+| — | None | — | — | Queue exhausted | — | — | QCLI-69 moved to Resolved. |
 
 ## Resolved
 | Task | Date/wave | Evidence and disposition |
 | --- | --- | --- |
-| None | — | No campaign task has been resolved. |
+| QCLI-69 | 2026-08-13 / Wave 1 | `Done`; all six acceptance criteria checked. The ADR amendment aligns Quest to ODOC-22 while preserving the 2026-08-05 ruling as historical provenance; derived contract documents and the future conformance obligation are reconciled. Verification passed: local Opum contract source clean and locally 0/0 against its origin/dev; 12 focused consistency assertions; idempotent Lore sync; `lore validate --strict` 51 files, 0 errors, 0 warnings; `lore check --strict` 51 files, 0 errors, 0 warnings; `git diff --check`. Adversarial self-review found no live old-wire assertion outside explicitly historical sections. Local delivery commits: task lifecycle `6e81d9a`; documentation `a4c2d5b`; Lore log `c86e679`. No remote delivery was attempted. |
 
 ## Not queued — blocked, deferred, or human decision required
 - None in the confirmed campaign scope.
@@ -38,4 +37,5 @@ Informational snapshot only; never a promised next wave.
 
 ## Wave log
 - 2026-08-13 — Init completed after the user explicitly confirmed QCLI-69 as the sole scoped task. Inventory found one To Do task, zero formal dependencies, no in-scope file-conflict edge, and no task-semantic blocker. No task was dispatched or mutated. Grounding: clean dev at 0f7276bf28252f72f4726f9cd7b3654bb4d4dd95, locally 0 ahead / 0 behind origin/dev; remote freshness unverified because SSH authentication was unavailable.
-- 2026-08-13 — Wave 1 dispatched sequentially on local branch `docs/qcli-69-result-contract-reconciliation` from `0f7276bf28252f72f4726f9cd7b3654bb4d4dd95`. Local commits are authorized; remote delivery and cleanup are not.
+- 2026-08-13 — Wave 1 dispatched sequentially on local branch `docs/qcli-69-result-contract-reconciliation` from `0f7276bf28252f72f4726f9cd7b3654bb4d4dd95`. Local commits were authorized; remote delivery and cleanup were not.
+- 2026-08-13 — Wave 1 settled and the campaign closed. QCLI-69 is Done with all criteria met; strict Lore and diff gates pass; the verified work is retained on local branch `docs/qcli-69-result-contract-reconciliation`. Push, PR, merge, branch deletion, and worktree cleanup were not authorized and were not performed.
