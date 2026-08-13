@@ -41,6 +41,12 @@ is the accepted ADR that closes them. The "this document decides nothing" framin
 longer holds; it is preserved here unedited, as the proposal that ADR rules on, per this
 project's inline-supersession convention.
 
+**Wire ruling amended — 2026-08-13 (`QCLI-69`).** The accepted ADR now preserves this
+proposal and the 2026-08-05 owner ruling as historical provenance while aligning the live
+Quest wire contract to the later frozen Opum command contract. The recommendations below
+remain intentionally unchanged; they are proposal history, not current implementation
+options.
+
 ## Details
 
 ### Grounding
