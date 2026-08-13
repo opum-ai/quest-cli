@@ -44,6 +44,8 @@ guarantee that any task lands in any particular wave.
 
 Cleared at settlement; non-empty only mid-wave or after a crash.
 
+`Stage reached` uses `reference/wave-loop.md`'s **Per-task stage numbers** scale. Its numeral and stage annotation must name the same defined stage; append extra context only after that matching annotation.
+
 | Task | Wave | Worktree path | Branch | Stage reached |
 | ---- | ---- | ------------- | ------ | ------------- |
 
@@ -97,6 +99,8 @@ branch + last completed stage number.}
 | ---- | ------ |
 
 ## This session's in-flight wave (omit if clean)
+
+`Stage reached` uses `reference/wave-loop.md`'s **Per-task stage numbers** scale. Its numeral and stage annotation must name the same defined stage; append extra context only after that matching annotation.
 
 | Task | Worktree path | Branch | Stage reached | Note |
 | ---- | ------------- | ------ | ------------- | ---- |
