@@ -390,7 +390,7 @@ adapter's write path already assumes (items 4b/4c) — the latter half of
 that question is a `lore-doc` boundary decision, not resolvable by Quest
 alone.
 
-**Closed 2026-08-05** by [Ratify the Quest CLI result contract: envelope,
+**Originally closed 2026-08-05** by [Ratify the Quest CLI result contract: envelope,
 exit codes, not-found, and
 anomaly](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
 (`QCLI-24`): `schemaVersion` is the literal string `"1"`; the envelope
@@ -403,7 +403,18 @@ on the shared decline exit code; and `create`/`edit` emit the JSON
 envelope uniformly with every other command. **Still open:** the
 not-found convention's `lore-doc` boundary half (item 5b's other half) —
 not decided, proposed, or assumed resolved by `QCLI-24`, and not touched
-by this reconciliation either.
+by the 2026-08-05 reconciliation either.
+
+**Amended 2026-08-13 by `QCLI-69`.** After `ODOC-22` froze the shared Opum
+command contract and `QCLI-68` adopted it locally, the historical details above were
+superseded for the wire boundary. The live result shape is numeric
+`{schemaVersion: 1, kind, data, principal}`, with dotted `command.payload` kinds from a
+machine-discoverable live registry and `principal: null` until separately ratified for
+population. Classified failures are structured diagnostics on stderr; the shared exit
+taxonomy is `0` success, `1` uncaught, `2` usage, `3` not_found, `4` denied, `5` conflict,
+and `6` validation or drift. Domain success/decline/error/anomaly classifications remain
+useful inside the application layer but do not add wire fields, payload keys, or exit
+codes. The `lore-doc` adapter-boundary half remains open.
 
 #### 4. Git mutation
 

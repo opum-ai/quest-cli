@@ -181,11 +181,16 @@ distinguish "someone else got there first" from "something is broken" (`FR-CLI-1
 
 Two consequences for layering. The application layer cannot model results as
 success-or-throw, because decline is neither. And an **anomaly** — two evaluators
-disagreeing about a lease — is a fourth thing that fits none of the three cleanly; it is
-neither success nor a correct decline nor an internal fault. [Ratify the Quest CLI result
+disagreeing about a lease — is a fourth domain condition that fits none of the three
+cleanly; it is neither success nor a correct decline nor an internal fault.
+
+The command boundary does not expose those domain classes as a second wire taxonomy.
+[Ratify the Quest CLI result
 contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
-(`QCLI-24`) places it as a distinguishable fourth outcome value, with its own exit code, in
-Quest's own envelope.
+(`QCLI-24`, amended by `QCLI-69`) maps successful results and classified non-successes
+onto the shared Opum result/diagnostic contract. In particular, evaluator disagreement is
+reported as a structured `drift` diagnostic on exit `6`, not an anomaly-specific envelope
+field or exit code.
 
 ### Operation shape
 
@@ -227,7 +232,7 @@ tracked with owner and unblock condition in the
 | Scale target | D5 — closed by [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) |
 | Archival and retention model | D7a |
 | Command vocabulary, flags | CLI contract open items |
-| Envelope shape, exit table | Closed by [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`) |
+| Envelope shape, exit table | Closed by [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`, amended by `QCLI-69`) against the frozen Opum command contract |
 
 ### Proposals routed to quest-doc
 
@@ -238,23 +243,23 @@ Two things this Spec touches that it does not own. Both are proposals, not decis
   and **not yet written there by any task in any repository**. The component actor table
   describes how these roles act within Quest CLI and corroborates rather than resolves the
   routed question.
-- **Whether to canonize "anomaly" as a first-class outcome class in Quest's
-  product-wide result vocabulary**, alongside success, decline, and error.
+- **Whether to canonize "anomaly" as a first-class domain outcome class in Quest's
+  product-wide vocabulary**, alongside success, decline, and error.
   [Ratify the Quest CLI result
   contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
-  (`QCLI-24`) already settled this at the component level — anomaly is a
-  distinguishable fourth outcome value, with its own exit code and payload key, in
-  Quest's own envelope. It arises from that component-local mechanism, but canonizing
-  it as a product-wide vocabulary term is a separate proposal this Spec does not own.
+  (`QCLI-24`, amended by `QCLI-69`) keeps anomaly distinguishable in the component's
+  domain model while mapping it through the shared diagnostic taxonomy at the wire
+  boundary. It arises from that component-local condition, but canonizing it as a
+  product-wide vocabulary term is a separate proposal this Spec does not own.
 
 ## Open questions
 
-- **Anomaly's placement in the outcome taxonomy is resolved.** A detected lease
+- **Anomaly's placement in the domain taxonomy and wire mapping is resolved.** A detected lease
   disagreement is neither success, nor a correct decline, nor an internal fault.
   [Ratify the Quest CLI result
   contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
-  (`QCLI-24`) places it as a distinguishable fourth outcome value, with its own exit
-  code, in Quest's own envelope and exit table.
+  (`QCLI-24`, amended by `QCLI-69`) keeps it distinguishable as a domain condition and
+  maps evaluator disagreement to a structured `drift` diagnostic on exit `6`.
 - **What enforces the layering?** The ADR calls the boundary *enforced*, which requires a
   mechanism — an import-graph check, a build constraint, a review gate. No mechanism is
   chosen, and one that depends on the runtime cannot be chosen until D2 is settled.

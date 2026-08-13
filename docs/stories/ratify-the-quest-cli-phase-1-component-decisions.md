@@ -18,6 +18,7 @@ tasks:
   - qcli-27
   - qcli-28
   - qcli-68
+  - qcli-69
 ---
 
 # Ratify the Quest CLI Phase 1 component decisions
@@ -38,6 +39,16 @@ be checked off truthfully.
 
 **No code.** This Story produces ADRs and reference-document reconciliation only, consistent
 with the roadmap Spec's Phase 1 scope ("no code, not blocked on Phase 0").
+
+## Amendment — 2026-08-13 (`QCLI-69`)
+
+The acceptance criteria below preserve the component owner's 2026-08-05 ruling as
+historical fact. They no longer state the live wire contract. After `ODOC-22` froze the
+cross-component Opum command contract and `QCLI-68` committed Quest to it, `QCLI-69`
+amended the result-contract ADR to align the live Quest wire shape, exit taxonomy, kind
+registry, diagnostics, and reserved `principal: null` field with that shared authority.
+No Opum exception was retained. Principal establishment and authorization enforcement
+remain outside the amendment.
 
 ## Acceptance criteria
 
@@ -92,6 +103,7 @@ with the roadmap Spec's Phase 1 scope ("no code, not blocked on Phase 0").
 | [QCLI-27](../../backlog/tasks/qcli-27%20-%20Record-the-Quest-CLI-D1-license-contributor-provenance-and-D3-platform-matrix-ownership-owner-rulings.md) | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | Done |
 | [QCLI-28](../../backlog/tasks/qcli-28%20-%20Reconcile-the-Quest-CLI-open-component-decisions-register-contracts-graph-and-delivery-roadmap-against-the-Phase-1-ADRs.md) | Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs | Done |
 | [QCLI-68](../../backlog/tasks/qcli-68%20-%20Record-quest-cli-local-obligation-to-the-frozen-Opum-command-contract.md) | Record quest-cli local obligation to the frozen Opum command contract | Done |
+| [QCLI-69](../../backlog/tasks/qcli-69%20-%20Reconcile-the-Quest-result-contract-ADR-with-the-frozen-Opum-command-contract.md) | Reconcile the Quest result-contract ADR with the frozen Opum command contract | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

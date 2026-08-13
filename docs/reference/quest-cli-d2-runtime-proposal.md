@@ -223,10 +223,11 @@ reshape these):
 - **The Git trust model** — "Git's conditional ref update is the only ordering authority"
   is a property of Git itself, invoked through whatever the Git port's adapter turns out to
   be; the trust model does not change shape based on what calls Git.
-- **Durability tiers** and the **error taxonomy / three-outcome classification** — both are
+- **Durability tiers** and the **domain error/outcome classification** — both are
   conceptual classifications the [result contract ADR](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
-  (`QCLI-24`) already settled at the envelope/exit-code level, independent of implementation
-  language.
+  (`QCLI-24`, with its `QCLI-69` wire-contract amendment) settles independently of
+  implementation language. The command boundary projects those classifications into the
+  frozen Opum result/diagnostic envelope and exit taxonomy.
 - **Operation shape** (read basis → decide → compute owned paths → write → commit → report)
   — an algorithmic sequencing constraint, not a runtime-API constraint.
 
