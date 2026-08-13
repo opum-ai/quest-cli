@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-12 13:46'
-updated_date: '2026-08-13 17:12'
+updated_date: '2026-08-13 18:17'
 labels:
   - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
@@ -69,10 +69,14 @@ Implemented the QCLI-69 reconciliation through Lore-managed documentation. The a
 Delivery follow-through on 2026-08-13: refreshed origin/dev to 0f7276bf28252f72f4726f9cd7b3654bb4d4dd95; it remained an ancestor of the clean feature branch, so no rebase was required. Re-ran lore validate --strict (51 files, 0 errors, 0 warnings), lore check --strict (51 files, 0 errors, 0 warnings), and git diff --check against the refreshed base. Pushed docs/qcli-69-result-contract-reconciliation and opened unmerged PR #89 to dev: https://github.com/opum-ai/quest-cli/pull/89. Merge and cleanup remain unauthorized.
 
 Merge authorization on 2026-08-13: after PR #89 was verified OPEN, MERGEABLE, and CLEAN at head 712670622daeba2a6451217551fed4d185baa01f, the user replied "approved" to the explicit merge decision. This provenance update is being added to the PR before the approved squash merge. Branch and worktree cleanup remain unauthorized.
+
+Post-merge reconciliation on 2026-08-13: PR #89 was squash-merged to `dev` at 2026-08-13T17:13:54Z. Exact PR head: `6b0492b917ed4ed794e00b6b470fb88a4cda9724`; exact integration commit: `f2f3ef3b7bac1e3df3686521a1d3f68055970bf0`. The source and integration trees were identical at tree `e18b2db11446170ca317941526dba52b54cb8e09`, and the post-merge strict Lore gates plus `git diff --check` passed. After the user explicitly approved cleanup, the exact local and remote `docs/qcli-69-result-contract-reconciliation` refs were deleted and their absence was verified. The reusable Treehouse worktrees were clean and left untouched.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 Amended the accepted Quest result-contract ADR to align the live wire contract with ODOC-22 while preserving the 2026-08-05 ruling as explicit historical provenance. Reconciled every derived document that carried the old wire semantics, strengthened QCLI-68 with executable future conformance obligations, and kept principal establishment and authorization out of scope. Verified against the clean local Opum contract source, a 12-assertion focused consistency audit, idempotent Lore sync, lore validate --strict (51 files, 0 errors, 0 warnings), lore check --strict (51 files, 0 errors, 0 warnings), and git diff --check. Adversarial self-review found no remaining live old-contract assertion outside sections explicitly marked historical. Delivered in PR #89 to dev; the user authorized its squash merge after GitHub reported the PR MERGEABLE and CLEAN. The merge follows the tracked authorization record; cleanup remains separately unauthorized.
+
+Post-merge settlement: PR #89 merged as `f2f3ef3b7bac1e3df3686521a1d3f68055970bf0`; its source tree matched the integrated tree exactly, final validation passed, and the user-authorized local and remote feature-branch cleanup completed without touching Treehouse worktrees.
 <!-- SECTION:FINAL_SUMMARY:END -->
