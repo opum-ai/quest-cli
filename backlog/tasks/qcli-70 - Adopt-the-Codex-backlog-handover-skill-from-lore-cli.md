@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-13 04:16'
-updated_date: '2026-08-13 04:19'
+updated_date: '2026-08-13 13:56'
 labels: []
 dependencies: []
 references:
@@ -44,6 +44,8 @@ Add the Codex-native backlog campaign skill maintained in the sibling lore-cli r
 Implemented the current lore-cli Codex skill bundle at `.codex/skills/backlog-handover/`: `SKILL.md` and `agents/openai.yaml` are byte-identical to the source working tree; the audit script differs only by adapting the runnable task directive from `LCLI-*` to `QCLI-*`. Verification: skill-creator `quick_validate.py` passed; a canonical active handover fixture exited 0; a historical `Resume QCLI-70` fixture exited 1 with `task resume directive`; the same `LCLI-70` historical text exited 0; `rg` found no retained LCLI token; `git diff --check` passed.
 
 Final acceptance pass: `quick_validate.py` and `node --check` exited 0; exact comparisons confirmed `SKILL.md` and `agents/openai.yaml` match lore-cli; the audit-script diff contains only `LCLI` → `QCLI`; the canonical fixture passed and the historical `Resume QCLI-70` fixture failed with the expected runnable-signal diagnostics. Running the audit with no path reached Quest `.claude/handovers/` and reported `active.md is missing`, confirming repository-root resolution; that missing pointer is current repository state, not an adoption defect.
+
+Clean delivery-branch verification at 7a6e489: skill-creator quick_validate.py passed; node --check passed; SKILL.md and agents/openai.yaml are byte-identical to /Volumes/external/repos/lore-cli; the audit-script diff is exactly LCLI → QCLI in the task-resume regex. Focused fixtures produced good=0, bad_qcli=1 with task-resume diagnostics, and lcli_only=0. git diff --check passed.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
