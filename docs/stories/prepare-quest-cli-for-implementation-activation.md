@@ -20,6 +20,9 @@ tasks:
   - qcli-10.4
   - qcli-10.5
   - qcli-11
+  - qcli-41
+  - qcli-42
+  - qcli-56
 ---
 
 # Prepare Quest CLI for implementation activation
@@ -67,6 +70,9 @@ what order; it authorises none of it.
 | [QCLI-10.4](../../backlog/tasks/qcli-10.4%20-%20Author-the-Quest-CLI-architecture-Spec.md) | Author the Quest CLI architecture Spec | Done |
 | [QCLI-10.5](../../backlog/tasks/qcli-10.5%20-%20Author-the-Quest-CLI-delivery-roadmap-Spec.md) | Author the Quest CLI delivery roadmap Spec | Done |
 | [QCLI-11](../../backlog/tasks/qcli-11%20-%20Record-quest-clis-activation-gate-evidence-and-decision-time.md) | Record quest-cli's activation-gate evidence and decision time | Done |
+| [QCLI-41](../../backlog/tasks/qcli-41%20-%20Record-that-the-pinned-lore-doc-gate-revision-moved.md) | Record that the pinned lore-doc gate revision moved | Done |
+| [QCLI-42](../../backlog/tasks/qcli-42%20-%20Record-the-owners-opened-Lore-gate-in-the-activation-gate-evidence-record.md) | Record the owner's opened Lore gate in the activation-gate evidence record | Done |
+| [QCLI-56](../../backlog/tasks/qcli-56%20-%20Discharge-the-Phase-0-activation-recheck-and-record-a-new-dated-evidence-capsule.md) | Discharge the Phase 0 activation recheck and record a new dated evidence capsule | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

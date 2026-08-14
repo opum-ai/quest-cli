@@ -109,6 +109,7 @@
 - 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
+- 2026-08-13T23:09:49-05:00 006bde8b03c8af046d50a6c7124e017489aa9316 docs: sync Quest log
 
 ## docs/adr
 
