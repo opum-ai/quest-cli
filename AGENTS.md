@@ -47,6 +47,16 @@ overlap; destructive action outside campaign-created artifacts; or any scope exp
 quest-cli. Promotion from `dev` to `main` is never standing authority. A check is repeatedly failed
 only after diagnosis, one safe in-scope remediation and rerun, plus an independent review or
 alternate safe fix when available; a first transient failure is not a stopping condition.
+
+Keep executing through task work, independent review, commits, `dev` pull requests and merges,
+settlement, safe cleanup, and newly ready waves. A wave boundary, merged pull request, cleanup pass,
+or subjective context-size preference is not a stopping condition. Every nonterminal stop must be
+one of two explicit forms: a named human decision or blocker from the list above, or a session
+renewal after durable state is flushed because the environment must end or context is no longer
+reliable. A session renewal must tell the operator to run `/clear`, start a new session in
+`quest-cli`, invoke `$backlog-handover restore`, and continue the persisted campaign without
+reconfirmation. In either form, report the tracker, queue counts, branch and worktree, last completed
+stage, retained artifacts, and exact next action.
 <!-- autonomous-docs:end -->
 
 <!-- lore:agents:begin -->
