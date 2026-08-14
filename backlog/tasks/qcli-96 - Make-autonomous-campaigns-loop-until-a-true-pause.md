@@ -1,11 +1,11 @@
 ---
 id: QCLI-96
 title: Make autonomous campaigns loop until a true pause
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-14 19:49'
-updated_date: '2026-08-14 20:19'
+updated_date: '2026-08-14 20:31'
 labels:
   - campaign
   - automation
@@ -21,6 +21,10 @@ modified_files:
   - AGENTS.md
   - .gitignore
   - treehouse.toml
+  - .codex/agents/docs-explorer.toml
+  - .codex/agents/docs-reviewer.toml
+  - .codex/agents/docs-sweeper.toml
+  - .codex/agents/docs-writer.toml
   - .codex/skills/backlog-handover/SKILL.md
   - .codex/skills/backlog-handover/references/restore.md
   - .codex/skills/backlog-handover/references/handover.md
@@ -44,12 +48,12 @@ Quest CLI campaign sessions can currently stop at vague session boundaries or le
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Init and restore continue across task, review, commit, PR, merge, settlement, cleanup, and newly ready waves; a successful wave, merged PR, cleanup pass, or subjective session-size judgment is not a stopping point.
-- [ ] #2 Every nonterminal stop is classified as either a named human decision/blocker or a session/environment renewal, with grounded tracker, queue, branch, worktree, last completed stage, exact next action, and no vague continuation language.
-- [ ] #3 Session renewal explicitly tells the operator to clear the current session, start a new session in quest-cli, invoke `$backlog-handover restore`, and continue the persisted campaign without asking for reconfirmation.
-- [ ] #4 The loop defaults to the widest safe wave of up to three parallel agents in isolated worktrees, preserves coordinator ownership of Backlog, Lore, handover, integration, and delivery state, and performs serial cumulative review and hygiene settlement.
-- [ ] #5 Executable lifecycle fixtures reject ambiguous or stale executable cursors and prove the human-decision and session-renewal stop forms, while the active handover is reconciled to the current campaign state.
-- [ ] #6 Focused script/configuration checks, Lore agent bridge checks, strict Lore validation/coherence, diff hygiene, independent review, dev delivery, and post-merge branch/worktree cleanup evidence pass at the delivered tree.
+- [x] #1 Init and restore continue across task, review, commit, PR, merge, settlement, cleanup, and newly ready waves; a successful wave, merged PR, cleanup pass, or subjective session-size judgment is not a stopping point.
+- [x] #2 Every nonterminal stop is classified as either a named human decision/blocker or a session/environment renewal, with grounded tracker, queue, branch, worktree, last completed stage, exact next action, and no vague continuation language.
+- [x] #3 Session renewal explicitly tells the operator to clear the current session, start a new session in quest-cli, invoke `$backlog-handover restore`, and continue the persisted campaign without asking for reconfirmation.
+- [x] #4 The loop defaults to the widest safe wave of up to three parallel agents in isolated worktrees, preserves coordinator ownership of Backlog, Lore, handover, integration, and delivery state, and performs serial cumulative review and hygiene settlement.
+- [x] #5 Executable lifecycle fixtures reject ambiguous or stale executable cursors and prove the human-decision and session-renewal stop forms, while the active handover is reconciled to the current campaign state.
+- [x] #6 Focused script/configuration checks, Lore agent bridge checks, strict Lore validation/coherence, diff hygiene, independent review, dev delivery, and post-merge branch/worktree cleanup evidence pass at the delivered tree.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -60,20 +64,26 @@ Quest CLI campaign sessions can currently stop at vague session boundaries or le
 3. Add a repository-local Treehouse worktree skill with fenced leases, coordinator ownership, patch-equivalence cleanup, recovery preservation, and safe pooled-worktree hygiene for parallel subagents.
 4. Extend lifecycle auditing and fixtures to require grounded cursor fields, numeric queue state, retained-artifact disposition, exact next action, and exactly one stop class; reject vague/stale/foreign continuation and prove queue-empty cursor removal.
 5. Update and couple the Lore operating record, correct the stale active-campaign index claim, reconcile the local active cursor, run focused/strict gates, obtain independent cumulative review, deliver one PR to dev, and perform a post-merge artifact audit with only provably safe cleanup.
+
+6. Migrate the sole executable cursor from the misleading legacy .claude handover path to .codex/handovers, explicitly exclude .claude/skills from Codex execution, and align every local agent profile to Terra/medium.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-User clarified the operating client is Codex using Terra/medium, not Claude. QCLI-96 therefore leaves `.claude/skills/**` and `CLAUDE.md` unchanged; `.claude/handovers/active.md` remains only the existing local cursor location. The user also identified the concrete bad prompt: a bulk approval request that mixed two dirty worktree discards with safe pruning, merged-branch deletion, and a clean fast-forward. The new cleanup contract must classify patch equivalence first, preserve unique in-scope work, and execute independently safe hygiene without prompting.
+User confirmed Quest campaigns run in Codex with gpt-5.6-terra at medium reasoning, not Claude. The sole executable cursor is .codex/handovers/active.md. A legacy .claude/handovers/active.md is migration input only, is removed after live grounding, and .claude/skills/** is never loaded by the Codex handover flow. The repository default and all four local agent profiles are Terra/medium.
 
-Treehouse forward test: repository-local config parsed and `treehouse status --json`/`treehouse prune --verbose` passed. A `qcli-96-skill-test` lease was acquired as JSON with an immutable lease ID and returned successfully using both `--if-lease-id` and `--if-lease-holder`; the only warning was sandbox denial of optional lingering-process scanning. The reusable test pool remains ignored inside the disposable QCLI-96 coordinator worktree and will be removed with that worktree after delivery.
+The cleanup contract directly addresses the reported bad prompt: safe pruning, merged-branch deletion, and clean fast-forwarding are never bundled with a request to discard unique dirty work. Patch-equivalent merged artifacts are cleaned automatically; unique in-scope work is preserved and delivered; unrelated or decision-dependent work is retained with an owner and exact reason.
 
-First independent review rejected the candidate on three concrete grounds: duplicate Stop class lines and prompt-only renewal actions could bypass the lifecycle audit; formatted cursors were not bound to live tracker/Git/queue expectations; and the Treehouse config was changed before proving lease visibility. Remediation now parses required sections structurally, requires exactly one stop class, binds decision/action text to their sections, requires live expected tracker/SHA/branch/worktree/state arguments, and adds duplicate/prompt-only/stale-cursor fixtures. Treehouse uses one stable repo-local root; a second round trip proved the leased path/ID/holder appears in `treehouse status --json` and the identity-fenced return clears the lease while leaving the pool entry available.
+Treehouse was validated with a repository-local three-tree pool, a JSON lease, visible lease ID and holder, and an identity-fenced return. The reusable external six-tree pool remains intentionally retained. The QCLI-96 implementation and nested Treehouse worktrees were clean, patch-equivalent to merged PR #96, and removed; the campaign-created feature branch was deleted.
 
-Second independent review rejected two remaining parser gaps: an extra invalid stop classification could coexist with a valid one, and duplicate state counts or a missing in-flight row could pass. Remediation now counts every Stop class line and accepts exactly one of the two allowed values, requires exactly one numeric row per state label, and makes the in-flight table row count plus task/branch-or-worktree/last-stage cells match State. New adversarial fixtures cover invalid extra classification, duplicate Ready counts, and missing in-flight rows; the lifecycle suite now has 20 cases.
+Four independent review rounds drove lifecycle hardening for duplicate or invalid stop classes, prompt-only renewal, stale live expectations, duplicate counts, missing in-flight rows, contradictory lifecycle markers, foreign or Markdown-nested continuation directives, and unknown stages. The suite now covers 26 lifecycle cases plus 3 tracker cases. Settlement review additionally required the explicit legacy audit command and removal of contradictory Claude-era task evidence.
 
-Third independent review rejected three remaining cursor ambiguities: contradictory current/historical markers, a bulleted historical Resume directive, and an in-flight stage cell containing only `not known`. Remediation makes lifecycle markers mutually exclusive and singular, detects list/numbered/blockquote continuation forms in historical files, and requires each in-flight stage cell to contain a full SHA plus a concrete lifecycle stage. Three new adversarial fixtures bring the lifecycle suite to 23 cases.
-
-Fourth independent review found one remaining historical-cursor hole: nested Markdown prefixes such as blockquote-plus-list and list-plus-numbering could hide Resume/Continue imperatives. The detector now consumes repeated blockquote, unordered-list, and ordered-list prefixes. Three new fixtures cover the reported forms; the lifecycle suite now has 26 cases.
+Final objective evidence: PR #96 merged to dev at fe0dfcf3225e5140522a56603aef73922fcfc342 with tree identity to reviewed feature HEAD 63595ce6f92ac1b78c7ec29ff6179187d53bb05b. Post-merge cleanup removed the campaign feature worktree, nested Treehouse test worktree, and feature branch. Settlement gates passed: 26 lifecycle fixtures, 3 tracker fixtures, both skill validations, strict Codex config load, Lore agent bridge, Lore validate/check 54 files with zero findings, diff hygiene, grounded Codex cursor audit, legacy Claude cursor complete audit, and independent approval.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Made Quest CLI Codex campaigns continue through ready work, cumulative review, commit, dev PR/merge, settlement, and safe cleanup, with only human-decision or explicit /clear plus $backlog-handover restore renewal exits. Added fenced Treehouse worktree operations, adversarial cursor fixtures, patch-equivalence cleanup rules, a sole .codex handover cursor that never loads Claude skills, and Terra/medium defaults for all local agents. Verified 26 lifecycle and 3 tracker fixtures, strict Codex config, both skill validators, Lore agents/validate/check, diff hygiene, independent review, merged PR #96, and post-merge artifact cleanup.
+<!-- SECTION:FINAL_SUMMARY:END -->
