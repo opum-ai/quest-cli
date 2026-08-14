@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 01:34'
-updated_date: '2026-08-14 01:48'
+updated_date: '2026-08-14 01:52'
 labels:
   - campaign
   - performance
@@ -44,10 +44,10 @@ Port the reviewed ODOC-54 campaign loop into quest-cli as a repository-local ope
 
 <!-- SECTION:PLAN:BEGIN -->
 1. Reconcile the portable ODOC-54 fast-lane contract with quest-cli current authority, handover, Backlog, and Lore surfaces, preserving the in-flight ODOC-55.5.1 consolidation edits.
-2. Add a trusted-project Terra/medium profile, three narrow documentation roles, Quest-local least-privilege permissions, and durable autonomous-docs boundaries in AGENTS.md.
-3. Refactor the Codex backlog-handover skill into progressive init/restore/delivery/handover references with compact lifecycle enforcement, and disable implicit Backlog remote operations.
-4. Author a Quest-local Lore operating reference, link it to the appropriate Story, reconcile managed surfaces, and run lifecycle, configuration, offline-read, strict Lore, and diff gates.
-5. Independently review the complete tree, remediate any authority or portability findings, and deliver one batch to the non-production integration branch.
+2. Add a trusted-project Terra/medium profile, four narrow documentation roles sharing a maximum of three concurrent spawned-agent slots, Quest-local least-privilege permissions, and durable autonomous-docs boundaries in AGENTS.md.
+3. Refactor the Codex backlog-handover skill into progressive init/restore/delivery/handover references with compact lifecycle and tracker enforcement, and disable implicit Backlog remote operations.
+4. Author and couple a Quest-local Lore operating reference, reconcile managed surfaces, and run lifecycle, tracker, configuration, offline-read, strict Lore, agent-bridge, and staged-tree diff gates.
+5. Independently review the complete tree, remediate authority or portability findings, and deliver one batch to the non-production integration branch.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
