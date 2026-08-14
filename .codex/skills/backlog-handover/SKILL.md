@@ -18,8 +18,14 @@ bounded-parallel execution while stopping at this repository's explicit human-de
    - `restore`: ground and continue the active campaign until complete or genuinely blocked.
    - `write`: flush unfinished state and replace the active handover.
    - `status`: inspect and report without mutation; use only when intent is genuinely ambiguous.
-4. Run `node .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs` whenever
-   `.claude/handovers/` exists. Reconcile drift before unrelated dispatch.
+4. Use `.codex/handovers/active.md` as the only current Codex cursor. If the legacy
+   `.claude/handovers/active.md` exists, treat it only as migration input: ground its tracker and Git
+   claims live, write any still-incomplete state to the Codex cursor, remove the legacy active file,
+   and run `node .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs
+   .claude/handovers --complete`. Never load `.claude/skills/**` for this flow.
+   Audit the Codex directory whenever it exists. A nonterminal audit must include live expected
+   tracker, SHA, branch, worktree, and queue counts as specified by `references/handover.md`;
+   reconcile drift before unrelated dispatch.
 5. Read the complete mode reference before continuing: `references/init.md` (then
    `references/restore.md`) for init, `references/restore.md` for restore,
    `references/handover.md` for write/status, and `references/delivery.md` only once an integrated
@@ -31,7 +37,7 @@ task-execution`. Before final task disposition, run `backlog instructions task-f
 ## State and ownership
 
 Trust live Backlog tasks first, then the active campaign's Backlog document, then the short
-`.claude/handovers/active.md` restart pointer. Treat `doc-1` as frozen legacy history: never append
+`.codex/handovers/active.md` restart pointer. Treat `doc-1` as frozen legacy history: never append
 another campaign or copy completed history into it.
 
 The coordinator alone writes Backlog tasks, campaign documents, handovers, Lore-generated surfaces,
@@ -41,9 +47,13 @@ worktrees and return structured evidence. Serialize all shared-state mutation.
 ## Execution policy
 
 - Dispatch the widest safe wave, up to three agents, whenever ready tasks lack dependency and
-  file-conflict edges; do not default to one task.
+  file-conflict edges; do not default to one task. When Treehouse is available, use the
+  `treehouse-worktrees` skill to lease and settle reusable isolated worktrees safely.
 - Recompute readiness after settlement and continue directly; wave, PR, or cleanup completion is
   not itself a stopping point.
+- Carry each ready task through implementation, independent review, commit, `dev` PR and merge,
+  settlement, and owned artifact cleanup before treating it as resolved. Run a cumulative review on
+  the integrated wave before settlement.
 - Batch reviewed work into at most one PR for this repository per wave, targeting `dev` only when
   the governing `AGENTS.md` authority applies.
 - Record validation by exact tree SHA and reuse it only while the tree is identical. Rerun only gates
@@ -65,6 +75,11 @@ worktrees and return structured evidence. Serialize all shared-state mutation.
 - A first failed gate triggers diagnosis, one safe remediation, and a rerun. If it still fails, use
   independent review or an alternate safe fix when available; persist a handover only if that bounded
   loop still fails or a stated pause condition applies.
+- Every nonterminal exit is either `human-decision` with the exact decision or blocker named, or
+  `session-renewal` after durable state is flushed because the environment must end or context is no
+  longer reliable. A subjective preference for a smaller transcript does not justify either class.
 
-End each mode with compact queue counts, unresolved exceptions, and either the next automatic action
-taken or the exact human decision required.
+End each mode with compact queue counts, tracker, branch/worktree and last-stage grounding, retained
+artifact disposition, and either the next automatic action already taken or the exact human decision
+required. A session renewal must explicitly tell the operator to run `/clear`, start a new session in
+`quest-cli`, invoke `$backlog-handover restore`, and continue without reconfirmation.

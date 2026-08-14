@@ -18,6 +18,7 @@ tasks:
   - qcli-67
   - qcli-71
   - qcli-66
+  - qcli-96
 ---
 
 # Audit Quest CLI documentation authority
@@ -53,6 +54,7 @@ gate through its owner without adding product implementation.
 | [QCLI-67](../../backlog/tasks/qcli-67%20-%20Classify-and-correct-superseded-salient-data-citations.md) | Classify and correct superseded salient-data citations | Done |
 | [QCLI-71](../../backlog/tasks/qcli-71%20-%20Adopt-the-autonomous-documentation-campaign-fast-lane.md) | Adopt the autonomous documentation campaign fast lane | Done |
 | [QCLI-66](../../backlog/tasks/qcli-66%20-%20Distinguish-frozen-OCLI-provenance-from-live-ODOC-routing-in-the-migration-ledger.md) | Distinguish frozen OCLI provenance from live ODOC routing in the migration ledger | Done |
+| [QCLI-96](../../backlog/tasks/qcli-96%20-%20Make-autonomous-campaigns-loop-until-a-true-pause.md) | Make autonomous campaigns loop until a true pause | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

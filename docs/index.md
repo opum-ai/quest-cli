@@ -75,8 +75,8 @@ they are cited rather than rewritten.
 ## Campaigns
 
 - [Prepare Quest CLI for implementation activation](stories/prepare-quest-cli-for-implementation-activation.md)
-  is the active campaign: the derived design layer and the activation-gate
-  evidence record.
+  is the completed activation-preparation campaign and its derived design and
+  activation-gate evidence record.
 - [Prepare Quest's clean-room research foundation](stories/prepare-quests-clean-room-research-foundation.md)
   is the completed research campaign.
 - [Audit Quest CLI documentation authority](stories/audit-quest-cli-documentation-authority.md)

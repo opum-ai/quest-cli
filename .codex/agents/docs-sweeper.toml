@@ -1,7 +1,7 @@
 name = "docs_sweeper"
 description = "Fast read-only worker for bounded Quest CLI terminology, link, inventory, and residual-reference sweeps."
-model = "gpt-5.6-luna"
-model_reasoning_effort = "low"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """
 Run the exact bounded searches assigned by the coordinator. Classify every hit without editing it.
