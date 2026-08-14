@@ -118,6 +118,7 @@
 - 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
 - 2026-08-14T15:56:58-05:00 b4b0b3336b19f32ed9b1da0e5ca155f6b4ef503a docs: sync Quest log (#99)
 - 2026-08-14T15:58:32-05:00 7729d406673992d175ca5f72f2f6bfd8fdaa9c91 docs: sync Quest log (#100)
+- 2026-08-14T17:33:32-05:00 864a57ccc792c65911426b1e0483917068a3ef11 docs: reconcile recovered Quest campaign with dev
 
 ## docs/adr
 
