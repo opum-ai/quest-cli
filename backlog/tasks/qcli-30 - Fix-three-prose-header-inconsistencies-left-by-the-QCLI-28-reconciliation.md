@@ -5,16 +5,19 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 00:29'
-updated_date: '2026-08-06 01:52'
+updated_date: '2026-08-14 12:17'
 labels:
   - campaign
   - 'cluster:reconciliation-cleanup'
   - wave-1
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
 references:
   - docs/reference/quest-cli-component-contracts-and-delivery-graph.md
   - docs/specs/quest-cli-delivery-roadmap.md
   - docs/specs/quest-cli-architecture.md
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 priority: low
 type: docs
 ordinal: 49000
