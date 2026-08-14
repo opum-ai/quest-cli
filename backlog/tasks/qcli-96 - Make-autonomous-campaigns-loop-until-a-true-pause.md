@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 19:49'
-updated_date: '2026-08-14 20:00'
+updated_date: '2026-08-14 20:04'
 labels:
   - campaign
   - automation
@@ -19,6 +19,8 @@ documentation:
   - docs/stories/audit-quest-cli-documentation-authority.md
 modified_files:
   - AGENTS.md
+  - .gitignore
+  - treehouse.toml
   - .codex/skills/backlog-handover/SKILL.md
   - .codex/skills/backlog-handover/references/restore.md
   - .codex/skills/backlog-handover/references/handover.md
@@ -64,4 +66,6 @@ Quest CLI campaign sessions can currently stop at vague session boundaries or le
 
 <!-- SECTION:NOTES:BEGIN -->
 User clarified the operating client is Codex using Terra/medium, not Claude. QCLI-96 therefore leaves `.claude/skills/**` and `CLAUDE.md` unchanged; `.claude/handovers/active.md` remains only the existing local cursor location. The user also identified the concrete bad prompt: a bulk approval request that mixed two dirty worktree discards with safe pruning, merged-branch deletion, and a clean fast-forward. The new cleanup contract must classify patch equivalence first, preserve unique in-scope work, and execute independently safe hygiene without prompting.
+
+Treehouse forward test: repository-local config parsed and `treehouse status --json`/`treehouse prune --verbose` passed. A `qcli-96-skill-test` lease was acquired as JSON with an immutable lease ID and returned successfully using both `--if-lease-id` and `--if-lease-holder`; the only warning was sandbox denial of optional lingering-process scanning. The reusable test pool remains ignored inside the disposable QCLI-96 coordinator worktree and will be removed with that worktree after delivery.
 <!-- SECTION:NOTES:END -->
