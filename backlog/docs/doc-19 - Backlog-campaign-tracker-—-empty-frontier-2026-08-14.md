@@ -3,7 +3,7 @@ id: doc-19
 title: Backlog campaign tracker — empty frontier 2026-08-14
 type: other
 created_date: '2026-08-14 20:53'
-updated_date: '2026-08-14 20:54'
+updated_date: '2026-08-14 20:55'
 tags:
   - campaign
   - automation
@@ -21,7 +21,7 @@ tags:
 ## Repository
 | Repository | Task ids | AGENTS authority | Integration base | Required gates |
 |---|---|---|---|---|
-| quest-cli | none | autonomous-docs, dev only | 2689860f788c86a3adc7be69f45c1d42e0b217f8 | tracker audit, lifecycle audit, clean Git grounding |
+| quest-cli | none | autonomous-docs, dev only | 3326af13ff83c6c1ab89629abab717f710c66d8f | tracker audit, lifecycle audit, Lore strict gates, clean Git grounding |
 
 ## Frontier
 Resolved 0; in flight 0; blocked 0; ready 0.
@@ -40,5 +40,5 @@ Resolved 0; in flight 0; blocked 0; ready 0.
 - None.
 
 ## Wave log
-- Initialization grounded all live tasks on 2026-08-14: no nonterminal tasks, no active cursor, no Treehouse leases, and dev equals origin/dev at 2689860f788c86a3adc7be69f45c1d42e0b217f8.
-- No dispatch occurred because the ready frontier is empty.
+- Wave 1: initialization grounded all live tasks on 2026-08-14: no nonterminal tasks, no active cursor, no Treehouse leases, and dev equaled origin/dev at 2689860f788c86a3adc7be69f45c1d42e0b217f8. No dispatch occurred because the ready frontier was empty.
+- Settlement: PR #98 merged the tracker at 3326af13ff83c6c1ab89629abab717f710c66d8f. Its required Lore sync surfaced pre-existing generated log drift for the preceding QCLI-96 settlement; a narrow cleanup delivery follows.
