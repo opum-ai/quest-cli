@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 19:49'
-updated_date: '2026-08-14 20:14'
+updated_date: '2026-08-14 20:17'
 labels:
   - campaign
   - automation
@@ -72,4 +72,6 @@ Treehouse forward test: repository-local config parsed and `treehouse status --j
 First independent review rejected the candidate on three concrete grounds: duplicate Stop class lines and prompt-only renewal actions could bypass the lifecycle audit; formatted cursors were not bound to live tracker/Git/queue expectations; and the Treehouse config was changed before proving lease visibility. Remediation now parses required sections structurally, requires exactly one stop class, binds decision/action text to their sections, requires live expected tracker/SHA/branch/worktree/state arguments, and adds duplicate/prompt-only/stale-cursor fixtures. Treehouse uses one stable repo-local root; a second round trip proved the leased path/ID/holder appears in `treehouse status --json` and the identity-fenced return clears the lease while leaving the pool entry available.
 
 Second independent review rejected two remaining parser gaps: an extra invalid stop classification could coexist with a valid one, and duplicate state counts or a missing in-flight row could pass. Remediation now counts every Stop class line and accepts exactly one of the two allowed values, requires exactly one numeric row per state label, and makes the in-flight table row count plus task/branch-or-worktree/last-stage cells match State. New adversarial fixtures cover invalid extra classification, duplicate Ready counts, and missing in-flight rows; the lifecycle suite now has 20 cases.
+
+Third independent review rejected three remaining cursor ambiguities: contradictory current/historical markers, a bulleted historical Resume directive, and an in-flight stage cell containing only `not known`. Remediation makes lifecycle markers mutually exclusive and singular, detects list/numbered/blockquote continuation forms in historical files, and requires each in-flight stage cell to contain a full SHA plus a concrete lifecycle stage. Three new adversarial fixtures bring the lifecycle suite to 23 cases.
 <!-- SECTION:NOTES:END -->
