@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 19:49'
-updated_date: '2026-08-14 20:10'
+updated_date: '2026-08-14 20:14'
 labels:
   - campaign
   - automation
@@ -70,4 +70,6 @@ User clarified the operating client is Codex using Terra/medium, not Claude. QCL
 Treehouse forward test: repository-local config parsed and `treehouse status --json`/`treehouse prune --verbose` passed. A `qcli-96-skill-test` lease was acquired as JSON with an immutable lease ID and returned successfully using both `--if-lease-id` and `--if-lease-holder`; the only warning was sandbox denial of optional lingering-process scanning. The reusable test pool remains ignored inside the disposable QCLI-96 coordinator worktree and will be removed with that worktree after delivery.
 
 First independent review rejected the candidate on three concrete grounds: duplicate Stop class lines and prompt-only renewal actions could bypass the lifecycle audit; formatted cursors were not bound to live tracker/Git/queue expectations; and the Treehouse config was changed before proving lease visibility. Remediation now parses required sections structurally, requires exactly one stop class, binds decision/action text to their sections, requires live expected tracker/SHA/branch/worktree/state arguments, and adds duplicate/prompt-only/stale-cursor fixtures. Treehouse uses one stable repo-local root; a second round trip proved the leased path/ID/holder appears in `treehouse status --json` and the identity-fenced return clears the lease while leaving the pool entry available.
+
+Second independent review rejected two remaining parser gaps: an extra invalid stop classification could coexist with a valid one, and duplicate state counts or a missing in-flight row could pass. Remediation now counts every Stop class line and accepts exactly one of the two allowed values, requires exactly one numeric row per state label, and makes the in-flight table row count plus task/branch-or-worktree/last-stage cells match State. New adversarial fixtures cover invalid extra classification, duplicate Ready counts, and missing in-flight rows; the lifecycle suite now has 20 cases.
 <!-- SECTION:NOTES:END -->
