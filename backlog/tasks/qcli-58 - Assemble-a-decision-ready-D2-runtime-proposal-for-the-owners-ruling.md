@@ -4,12 +4,15 @@ title: Assemble a decision-ready D2 runtime proposal for the owner's ruling
 status: Done
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-09 02:50'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:decisions'
   - wave-2
+  - 'doc:stories/record-quest-cli-post-activation-design-rulings'
 dependencies: []
+documentation:
+  - docs/stories/record-quest-cli-post-activation-design-rulings.md
 priority: high
 type: spike
 ordinal: 77000
