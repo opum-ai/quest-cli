@@ -10,12 +10,13 @@ tags:
   - no-implementation
 summary: Align component authority, OCLI provenance, Lore gate pointers, and navigation without implementing Quest.
 timestamp: 2026-08-01T17:54:44.190Z
-status: done
+status: in-progress
 tasks:
   - qcli-3
   - qcli-4
   - qcli-5
   - qcli-67
+  - qcli-71
 ---
 
 # Audit Quest CLI documentation authority
@@ -49,6 +50,7 @@ gate through its owner without adding product implementation.
 | [QCLI-4](../../backlog/tasks/qcli-4%20-%20Record-supersession-of-OCLI-1-non-adoption-for-the-backlog-handover-skill.md) | Record supersession of OCLI-1 non-adoption for the backlog-handover skill | Done |
 | [QCLI-5](../../backlog/tasks/qcli-5%20-%20Record-the-opum-ai-identity-change-across-the-charter-ADR-and-source-register.md) | Record the opum-ai identity change across the charter, ADR, and source register | Done |
 | [QCLI-67](../../backlog/tasks/qcli-67%20-%20Classify-and-correct-superseded-salient-data-citations.md) | Classify and correct superseded salient-data citations | Done |
+| [QCLI-71](../../backlog/tasks/qcli-71%20-%20Adopt-the-autonomous-documentation-campaign-fast-lane.md) | Adopt the autonomous documentation campaign fast lane | In Progress |
 <!-- lore:tasks:end -->
 
 ## Notes
