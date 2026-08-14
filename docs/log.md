@@ -112,6 +112,7 @@
 - 2026-08-13T23:09:49-05:00 006bde8b03c8af046d50a6c7124e017489aa9316 docs: sync Quest log
 - 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
 - 2026-08-14T15:04:34-05:00 e2ee50ac6c8825c6ae314a533954539709974341 feat: keep autonomous campaigns in motion
+- 2026-08-14T15:11:30-05:00 2e3cd0c56c0fa26a1e4d9db3bca0f9c5eeb52fb6 fix: bind handovers to grounded state
 
 ## docs/adr
 

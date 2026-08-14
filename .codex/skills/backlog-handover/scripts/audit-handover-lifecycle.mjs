@@ -8,7 +8,8 @@ const PASTE_READY_HEADING = /^##\s+Paste-ready prompt\s*$/im;
 const GROUNDED_LINE = /^\*\*Grounded against\*\*:\s*.+\b[0-9a-f]{40}\b.*$/im;
 const TRACKER_LINE = /^\*\*Tracker\*\*:\s*doc-[0-9]+\b.+$/im;
 const MODE_LINE = /^\*\*Mode\*\*:\s*autonomous-docs\s*$/im;
-const STOP_CLASS_LINE = /^\*\*Stop class\*\*:\s*(human-decision|session-renewal)\s*$/gim;
+const STOP_CLASS_LINE = /^\*\*Stop class\*\*:\s*(.+?)\s*$/gim;
+const VALID_STOP_CLASSES = new Set(["human-decision", "session-renewal"]);
 const STATE_COUNTS = ["Resolved", "In flight", "Blocked", "Ready"];
 const REQUIRED_SECTIONS = ["Paste-ready prompt", "State", "In flight", "Retained artifacts", "Decision required", "Next action"];
 const DECISION_LINE = /^- Decision:\s*(.+)$/gim;
@@ -57,6 +58,15 @@ function sections(body, heading) {
   return bodies;
 }
 
+function tableRows(sectionBody) {
+  return sectionBody
+    .split(/\r?\n/)
+    .filter((line) => /^\s*\|/.test(line))
+    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()))
+    .filter((cells) => cells.length > 0 && !cells.every((cell) => /^:?-{3,}:?$/.test(cell)))
+    .filter((cells) => cells[0]?.toLowerCase() !== "task");
+}
+
 if (!completeMode) {
   for (const option of valueOptions) {
     if (!optionValues.get(option)) failures.push(`nonterminal audit requires ${option}`);
@@ -95,8 +105,12 @@ if (!existsSync(handoverDirectory)) {
       if (!MODE_LINE.test(body)) failures.push("active.md lacks **Mode**: autonomous-docs");
 
       const stopMatches = [...body.matchAll(STOP_CLASS_LINE)];
-      if (stopMatches.length !== 1) {
-        failures.push(`active.md must contain exactly one valid Stop class; found ${stopMatches.length}`);
+      if (stopMatches.length !== 1 || !VALID_STOP_CLASSES.has(stopMatches[0]?.[1]?.trim())) {
+        failures.push(
+          `active.md must contain exactly one Stop class from human-decision or session-renewal; found ${
+            stopMatches.map((match) => match[1]?.trim()).join(", ") || "none"
+          }`,
+        );
       }
       const sectionMap = new Map();
       for (const heading of REQUIRED_SECTIONS) {
@@ -110,9 +124,31 @@ if (!existsSync(handoverDirectory)) {
       const stateSection = sectionMap.get("State");
       const actualState = [];
       for (const label of STATE_COUNTS) {
-        const match = stateSection.match(new RegExp(`^- ${label}:\\s*([0-9]+)(?:\\s|$)`, "im"));
-        if (!match) failures.push(`active.md lacks a numeric ${label} state count in State`);
-        actualState.push(match?.[1]);
+        const matches = [...stateSection.matchAll(new RegExp(`^- ${label}:\\s*([0-9]+)(?:\\s|$)`, "gim"))];
+        if (matches.length !== 1) {
+          failures.push(`active.md State must contain exactly one numeric ${label} count; found ${matches.length}`);
+        }
+        actualState.push(matches[0]?.[1]);
+      }
+
+      const inFlightRows = tableRows(sectionMap.get("In flight"));
+      const expectedInFlightRows = Number(actualState[1]);
+      if (Number.isInteger(expectedInFlightRows) && inFlightRows.length !== expectedInFlightRows) {
+        failures.push(
+          `active.md In flight table has ${inFlightRows.length} task rows but State declares ${expectedInFlightRows}`,
+        );
+      }
+      for (const [index, cells] of inFlightRows.entries()) {
+        if (cells.length < 4) failures.push(`active.md In flight row ${index + 1} has fewer than four cells`);
+        if (!/^QCLI-[0-9]+(?:\.[0-9]+)*$/i.test(cells[0] ?? "")) {
+          failures.push(`active.md In flight row ${index + 1} lacks a Quest task id`);
+        }
+        if (!cells[1] || cells[1] === "-" || cells[1].startsWith("<")) {
+          failures.push(`active.md In flight row ${index + 1} lacks a branch/worktree`);
+        }
+        if (!cells[2] || cells[2] === "-" || cells[2].startsWith("<")) {
+          failures.push(`active.md In flight row ${index + 1} lacks a last verified tree and stage`);
+        }
       }
 
       const decisionMatches = [...sectionMap.get("Decision required").matchAll(DECISION_LINE)];
@@ -125,12 +161,13 @@ if (!existsSync(handoverDirectory)) {
       if (!/\$backlog-handover\s+restore\b/i.test(sectionMap.get("Paste-ready prompt"))) {
         failures.push("active.md Paste-ready prompt lacks $backlog-handover restore");
       }
-      if (stopMatches[0]?.[1] === "human-decision") {
+      const stopClass = stopMatches[0]?.[1]?.trim();
+      if (stopClass === "human-decision") {
         if (!decision || decision.startsWith("<") || /^none\b/i.test(decision)) {
           failures.push("human-decision cursor lacks the exact decision or blocker");
         }
       }
-      if (stopMatches[0]?.[1] === "session-renewal") {
+      if (stopClass === "session-renewal") {
         if (!/^none\s+[—-]\s+session renewal$/i.test(decision ?? "")) {
           failures.push("session-renewal cursor must state that no human decision is required");
         }
