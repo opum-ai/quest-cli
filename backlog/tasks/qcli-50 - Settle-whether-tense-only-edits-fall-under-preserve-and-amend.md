@@ -5,12 +5,15 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-07 20:28'
-updated_date: '2026-08-08 01:49'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:supersession-convention'
   - wave-3
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: low
 type: docs
 ordinal: 69000

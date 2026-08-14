@@ -5,9 +5,10 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-09 07:09'
-updated_date: '2026-08-13 05:35'
+updated_date: '2026-08-14 12:18'
 labels:
   - design
+  - 'doc:stories/record-quest-cli-post-activation-design-rulings'
 dependencies: []
 references:
   - docs/specs/quest-cli-functional-requirements.md
@@ -17,6 +18,7 @@ references:
   - .claude/skills/backlog-handover/reference/wave-loop.md
 documentation:
   - docs/specs/quest-cli-dependency-ready-set-and-blocking-design.md
+  - docs/stories/record-quest-cli-post-activation-design-rulings.md
 modified_files:
   - docs/specs/quest-cli-dependency-ready-set-and-blocking-design.md
   - docs/specs/index.md

@@ -7,12 +7,15 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-08 14:44'
-updated_date: '2026-08-08 19:13'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:skill-docs'
   - wave-2
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: low
 type: chore
 ordinal: 72000

@@ -6,15 +6,18 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-06 20:53'
-updated_date: '2026-08-07 03:22'
+updated_date: '2026-08-14 12:17'
 labels:
   - campaign
   - 'cluster:open-item-bundles'
   - wave-1
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
 references:
   - docs/adr/require-atomic-idempotent-operation-owned-mutations.md
   - docs/specs/quest-cli-architecture.md
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 ordinal: 59000
 ---
 

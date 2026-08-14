@@ -7,17 +7,20 @@ status: Done
 assignee:
   - '@jeremy.newhouse'
 created_date: '2026-08-06 02:01'
-updated_date: '2026-08-06 03:49'
+updated_date: '2026-08-14 12:17'
 labels:
   - 'cluster:architecture-spec'
   - campaign
   - wave-1
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
 references:
   - docs/specs/quest-cli-architecture.md
   - docs/reference/quest-cli-open-component-decisions.md
   - >-
     docs/adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 priority: high
 type: docs
 ordinal: 50000

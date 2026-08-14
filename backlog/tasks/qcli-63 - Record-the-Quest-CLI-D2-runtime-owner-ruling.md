@@ -4,15 +4,18 @@ title: Record the Quest CLI D2 runtime owner ruling
 status: Done
 assignee: []
 created_date: '2026-08-09 07:42'
-updated_date: '2026-08-09 07:45'
+updated_date: '2026-08-14 12:18'
 labels:
   - decisions
   - governance
+  - 'doc:stories/record-quest-cli-post-activation-design-rulings'
 dependencies: []
 references:
   - docs/reference/quest-cli-open-component-decisions.md
   - docs/reference/quest-cli-d2-runtime-proposal.md
   - docs/reference/quest-cli-license-platform-and-runtime-ownership-record.md
+documentation:
+  - docs/stories/record-quest-cli-post-activation-design-rulings.md
 priority: high
 type: docs
 ordinal: 82000

@@ -5,12 +5,15 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 20:04'
+updated_date: '2026-08-14 12:17'
 labels:
   - campaign
   - 'cluster:register-mapping-table'
   - wave-1
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 ordinal: 56000
 ---
 

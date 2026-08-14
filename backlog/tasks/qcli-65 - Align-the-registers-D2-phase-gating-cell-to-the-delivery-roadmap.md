@@ -5,14 +5,17 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-09 13:51'
-updated_date: '2026-08-13 11:09'
+updated_date: '2026-08-14 12:18'
 labels:
   - docs
   - decisions
+  - 'doc:stories/record-quest-cli-post-activation-design-rulings'
 dependencies: []
 references:
   - docs/reference/quest-cli-open-component-decisions.md
   - docs/specs/quest-cli-delivery-roadmap.md
+documentation:
+  - docs/stories/record-quest-cli-post-activation-design-rulings.md
 modified_files:
   - docs/reference/quest-cli-open-component-decisions.md
 priority: low

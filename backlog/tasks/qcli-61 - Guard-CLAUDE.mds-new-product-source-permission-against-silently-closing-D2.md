@@ -4,9 +4,12 @@ title: Guard CLAUDE.md's new product-source permission against silently closing 
 status: Done
 assignee: []
 created_date: '2026-08-09 03:15'
-updated_date: '2026-08-09 13:51'
-labels: []
+updated_date: '2026-08-14 12:18'
+labels:
+  - 'doc:stories/record-quest-cli-post-activation-design-rulings'
 dependencies: []
+documentation:
+  - docs/stories/record-quest-cli-post-activation-design-rulings.md
 priority: high
 type: chore
 ordinal: 80000
