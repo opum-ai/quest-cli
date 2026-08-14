@@ -6,12 +6,15 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-08 21:43'
-updated_date: '2026-08-08 22:44'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:skill-docs'
   - wave-1
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: medium
 type: bug
 ordinal: 79000

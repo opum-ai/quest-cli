@@ -6,16 +6,19 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-07 05:03'
-updated_date: '2026-08-07 13:58'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
   - wave-2
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
 references:
   - docs/log.md
   - .claude/skills/backlog-handover/SKILL.md
   - .claude/skills/backlog-handover/reference/wave-loop.md
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: medium
 type: chore
 ordinal: 62000

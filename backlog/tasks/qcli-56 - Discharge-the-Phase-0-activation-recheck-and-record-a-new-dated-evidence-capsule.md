@@ -6,12 +6,15 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-08 21:41'
-updated_date: '2026-08-08 22:42'
+updated_date: '2026-08-14 12:17'
 labels:
   - campaign
   - 'cluster:gate'
   - wave-1
+  - 'doc:stories/prepare-quest-cli-for-implementation-activation'
 dependencies: []
+documentation:
+  - docs/stories/prepare-quest-cli-for-implementation-activation.md
 priority: high
 type: chore
 ordinal: 75000

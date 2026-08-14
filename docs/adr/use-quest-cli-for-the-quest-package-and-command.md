@@ -44,8 +44,9 @@ there is a demonstrated second consumer.
    measured subprocess cost justifies it.
 4. This repository owns local formats and behavior, Git/filesystem mutation,
    migration, projection, tests, packaging, releases, and component runbooks.
-   Quest-wide strategy belongs to `quest-doc`; the website belongs to
-   `quest-web`; Opum SaaS belongs to `opum-doc`.
+   Quest-wide strategy and retained provenance route through
+   [Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md);
+   the website belongs to `quest-web`; Opum SaaS belongs to `opum-doc`.
 5. Adopt former OCLI research only through the migration ledger and fresh
    provenance checks. Do not copy legacy or Backlog.md implementation source
    or internal tests.

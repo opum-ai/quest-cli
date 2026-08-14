@@ -6,15 +6,18 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-09 13:49'
-updated_date: '2026-08-09 13:51'
+updated_date: '2026-08-14 12:18'
 labels:
   - decisions
   - governance
+  - 'doc:stories/record-quest-cli-post-activation-design-rulings'
 dependencies: []
 references:
   - CLAUDE.md
   - docs/specs/quest-cli-pre-implementation-research-program.md
   - docs/specs/quest-cli-delivery-roadmap.md
+documentation:
+  - docs/stories/record-quest-cli-post-activation-design-rulings.md
 priority: high
 type: docs
 ordinal: 83000

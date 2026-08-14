@@ -5,14 +5,17 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 02:01'
-updated_date: '2026-08-06 04:05'
+updated_date: '2026-08-14 12:17'
 labels:
   - 'cluster:lore-sync'
   - campaign
   - wave-2
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies:
   - QCLI-31
 references:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
+documentation:
   - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 priority: low
 type: chore

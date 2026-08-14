@@ -4,15 +4,17 @@ title: Record that the pinned lore-doc gate revision moved
 status: Done
 assignee: []
 created_date: '2026-08-07 01:06'
-updated_date: '2026-08-07 01:07'
+updated_date: '2026-08-14 12:17'
 labels:
   - documentation
   - activation-gate
   - evidence
   - cross-repository
+  - 'doc:stories/prepare-quest-cli-for-implementation-activation'
 dependencies: []
 documentation:
   - docs/reference/quest-cli-activation-gate-evidence-record.md
+  - docs/stories/prepare-quest-cli-for-implementation-activation.md
 priority: medium
 type: docs
 ordinal: 60000

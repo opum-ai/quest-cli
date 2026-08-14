@@ -6,15 +6,18 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-07 20:18'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:supersession-convention'
   - wave-1
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
 references:
   - CLAUDE.md
   - docs/reference/quest-cli-activation-gate-evidence-record.md
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: medium
 type: docs
 ordinal: 64000

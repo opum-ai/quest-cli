@@ -7,13 +7,16 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-09 02:51'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:governance'
   - wave-2
+  - 'doc:stories/record-quest-cli-post-activation-design-rulings'
 dependencies:
   - QCLI-56
+documentation:
+  - docs/stories/record-quest-cli-post-activation-design-rulings.md
 priority: high
 type: chore
 ordinal: 78000

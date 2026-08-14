@@ -5,15 +5,18 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-07 20:19'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
   - wave-1
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
 references:
   - .claude/skills/backlog-handover/SKILL.md
   - .claude/skills/backlog-handover/reference/wave-loop.md
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: low
 type: chore
 ordinal: 66000

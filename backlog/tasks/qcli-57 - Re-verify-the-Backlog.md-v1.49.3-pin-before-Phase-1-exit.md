@@ -4,12 +4,15 @@ title: Re-verify the Backlog.md v1.49.3 pin before Phase 1 exit
 status: Done
 assignee: []
 created_date: '2026-08-08 21:42'
-updated_date: '2026-08-08 22:43'
+updated_date: '2026-08-14 12:17'
 labels:
   - campaign
   - 'cluster:decisions'
   - wave-1
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 priority: medium
 type: chore
 ordinal: 76000

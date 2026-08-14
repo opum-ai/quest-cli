@@ -6,11 +6,12 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-07 18:52'
-updated_date: '2026-08-08 01:28'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:supersession-convention'
   - wave-2
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies:
   - QCLI-45
 references:
@@ -18,6 +19,8 @@ references:
   - docs/reference/quest-cli-research-source-register.md
   - docs/reference/quest-cli-backlog-migration-fidelity-contract.md
   - docs/reference/quest-cli-activation-gate-evidence-record.md
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: medium
 type: docs
 ordinal: 65000
