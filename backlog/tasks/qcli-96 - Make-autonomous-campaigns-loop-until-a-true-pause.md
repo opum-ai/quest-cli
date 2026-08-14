@@ -1,0 +1,67 @@
+---
+id: QCLI-96
+title: Make autonomous campaigns loop until a true pause
+status: In Progress
+assignee:
+  - '@codex'
+created_date: '2026-08-14 19:49'
+updated_date: '2026-08-14 20:00'
+labels:
+  - campaign
+  - automation
+  - codex
+  - docs
+  - 'doc:stories/audit-quest-cli-documentation-authority'
+dependencies: []
+references:
+  - docs/reference/operate-quest-cli-autonomous-documentation-campaigns.md
+documentation:
+  - docs/stories/audit-quest-cli-documentation-authority.md
+modified_files:
+  - AGENTS.md
+  - .codex/skills/backlog-handover/SKILL.md
+  - .codex/skills/backlog-handover/references/restore.md
+  - .codex/skills/backlog-handover/references/handover.md
+  - .codex/skills/backlog-handover/references/delivery.md
+  - .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs
+  - .codex/skills/backlog-handover/scripts/test-audit-handover-lifecycle.mjs
+  - .codex/skills/treehouse-worktrees/SKILL.md
+  - .codex/skills/treehouse-worktrees/agents/openai.yaml
+  - docs/index.md
+  - docs/reference/operate-quest-cli-autonomous-documentation-campaigns.md
+priority: high
+type: enhancement
+ordinal: 90000
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Quest CLI campaign sessions can currently stop at vague session boundaries or leave a structurally valid but operationally ambiguous cursor. Strengthen the repository-local backlog-handover contract and executable audits so a campaign continues through ready issues, independent review, commit, dev delivery, settlement, and safe cleanup. A run may stop only for an explicit human-decision boundary or a context/environment renewal that durably tells the operator to clear the session, start a fresh one, run the exact restore command, and resume from grounded state.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Init and restore continue across task, review, commit, PR, merge, settlement, cleanup, and newly ready waves; a successful wave, merged PR, cleanup pass, or subjective session-size judgment is not a stopping point.
+- [ ] #2 Every nonterminal stop is classified as either a named human decision/blocker or a session/environment renewal, with grounded tracker, queue, branch, worktree, last completed stage, exact next action, and no vague continuation language.
+- [ ] #3 Session renewal explicitly tells the operator to clear the current session, start a new session in quest-cli, invoke `$backlog-handover restore`, and continue the persisted campaign without asking for reconfirmation.
+- [ ] #4 The loop defaults to the widest safe wave of up to three parallel agents in isolated worktrees, preserves coordinator ownership of Backlog, Lore, handover, integration, and delivery state, and performs serial cumulative review and hygiene settlement.
+- [ ] #5 Executable lifecycle fixtures reject ambiguous or stale executable cursors and prove the human-decision and session-renewal stop forms, while the active handover is reconciled to the current campaign state.
+- [ ] #6 Focused script/configuration checks, Lore agent bridge checks, strict Lore validation/coherence, diff hygiene, independent review, dev delivery, and post-merge branch/worktree cleanup evidence pass at the delivered tree.
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Reconcile the current Codex/Terra-medium fast lane, active cursor, recent session evidence, and worktree state against QCLI-96’s two legitimate nonterminal exit classes.
+2. Strengthen AGENTS and the progressive Codex skill references so init/restore keep executing through review, commit, dev PR/merge, settlement, and exact housekeeping; define an explicit session-renewal protocol with `/clear`, a new quest-cli session, and `$backlog-handover restore`.
+3. Add a repository-local Treehouse worktree skill with fenced leases, coordinator ownership, patch-equivalence cleanup, recovery preservation, and safe pooled-worktree hygiene for parallel subagents.
+4. Extend lifecycle auditing and fixtures to require grounded cursor fields, numeric queue state, retained-artifact disposition, exact next action, and exactly one stop class; reject vague/stale/foreign continuation and prove queue-empty cursor removal.
+5. Update and couple the Lore operating record, correct the stale active-campaign index claim, reconcile the local active cursor, run focused/strict gates, obtain independent cumulative review, deliver one PR to dev, and perform a post-merge artifact audit with only provably safe cleanup.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+User clarified the operating client is Codex using Terra/medium, not Claude. QCLI-96 therefore leaves `.claude/skills/**` and `CLAUDE.md` unchanged; `.claude/handovers/active.md` remains only the existing local cursor location. The user also identified the concrete bad prompt: a bulk approval request that mixed two dirty worktree discards with safe pruning, merged-branch deletion, and a clean fast-forward. The new cleanup contract must classify patch equivalence first, preserve unique in-scope work, and execute independently safe hygiene without prompting.
+<!-- SECTION:NOTES:END -->
