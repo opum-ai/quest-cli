@@ -15,7 +15,7 @@ timestamp: 2026-08-05T15:28:15.750Z
 
 # Quest CLI activation-gate evidence record
 
-This Reference is `QCLI-11`'s output: quest-cli's own record of clause 4 of the
+This Reference is `QCLI-11`'s historical output: quest-cli's own record of clause 4 of the
 Lore-owned release-gate predicate — "`quest-cli` records the exact evidence it
 consumed and the decision time" — per the
 [delivery roadmap](../specs/quest-cli-delivery-roadmap.md#phase-0--activation-precondition)'s
@@ -31,6 +31,10 @@ repository — this one — cannot infer it. Every result stated below is either
 a literal quote of what the gate's own owner has already said, or a dated
 observation of an input the predicate depends on, never a conclusion this
 document draws from those observations.
+
+All quotations, commands, revisions, and task statuses below are retained as
+explicitly dated historical evidence. They are not a current gate procedure or
+status source; consult the canonical route above for live authority.
 
 ## Details
 
@@ -274,36 +278,26 @@ originally reported with the paragraphs above reporting the owner's later
 ruling that the gate opened — was subsequently revised by `QCLI-42`; see
 `QCLI-44`'s implementation notes.
 
-### Recheck clause
+### Historical recheck clause
 
-A future activation session, or any session re-consulting this record, MUST
-re-run every command in the "Evidence consumed" table above — not reuse this
-capsule's 2026-08-05 output as current — and MUST separately obtain live
-confirmation from `lore-doc`'s own owner-held evidence (a new `LDOC-4`
-status, or a new explicit statement in the gate Spec) that the release-gate
-predicate reports **Pass**, before treating implementation as active. A
-changed result on any re-run (a new `lore-cli` tag or release, an `LDOC-4`
-status change, a resolved or newly-opened `LCLI-278`, a claimed
-`@opum-ai/quest`) is a new fact for `lore-doc`, as the gate's owner, to rule
-on — never grounds for a worker in this repository to assert the gate has
-opened, to compute a Pass/Fail from the recheck's own output, or to treat a
-dated snapshot (this one included) as a substitute for that live check. This
-mirrors the moving-vs-immutable-references and recheck-clause conventions of
-the [research program Spec](../specs/quest-cli-pre-implementation-research-program.md#moving-vs-immutable-references).
+The former recheck instruction is retained only to explain this record's
+2026-08-05 and 2026-08-08 capsules. It is not executable guidance. Current
+gate authority, owner-held evidence, and any applicable procedure are at
+[Opum's Lore integration and release gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md).
+No worker may infer an activation result from this dated record.
 
 ### 2026-08-08 recheck capsule (`QCLI-56`)
 
-This section discharges the recheck clause above **for this boundary only**.
+This historical section recorded the then-applicable recheck boundary only.
 It is filed under `QCLI-56` — cited here per the directing-task-citation
 ruling (`CLAUDE.md`, `QCLI-44`) — the task whose acceptance criteria require
 every command in the "Evidence consumed" table above to be re-run live, and
-`lore-doc`'s own current gate-result statement to be quoted rather than
+the then-current `lore-doc` gate-result statement to be quoted rather than
 computed. It is appended, not a rewrite: per the preserve-and-amend ruling
 governing evidence records (`CLAUDE.md`, `QCLI-45`), nothing above is edited
 or re-tensed, and the 2026-08-05 capsule and every amendment to it stand
-exactly as recorded. The recheck clause itself is left untouched too: it is
-a standing obligation on every future re-consultation of this record, not a
-one-time instruction that this section exhausts.
+exactly as recorded. The historical clause is not a standing obligation;
+the consolidated Lore authority above is the sole current route.
 
 Both peer repositories were fetched (`git fetch --all`) before anything below
 was read, and neither was mutated by this task: no commit, no checkout that
@@ -348,10 +342,10 @@ worktree's `HEAD` `b3326699b587208c2a26e776aa66facc99f9c7b4` (branch
 | 3 | Named owner-held blocker | `lore-cli`, task `LCLI-278`, read via the local clone described above, content diff-verified identical to `origin/dev` for this file | `backlog task view LCLI-278 --plain`; `git diff origin/dev -- "backlog/tasks/lcli-278 - GitHub-billing-plan-blocks-required-reviewer-protection-on-the-release-Environment.md"` | `Status: To Do` (`Updated: 2026-08-04 01:05 UTC` — observed 2026-08-08; moving reference, re-verify before relying); diff against `origin/dev` empty. Unchanged since the 2026-08-05 capsule and since `lore-doc`'s own 2026-08-06 evaluation, both of which recorded this same status and reasoned it does not qualify the released `0.1.1` artifacts. |
 | 4 (this record) | quest-cli's own consumed revision | this repository, this worktree | `git rev-parse HEAD`; `git remote -v`; `git status --short`; `git branch --show-current` | `HEAD b3326699b587208c2a26e776aa66facc99f9c7b4`; branch `chore/qcli-56-phase0-activation-recheck`; `origin git@github.com:opum-ai/quest-cli.git`; clean. |
 
-#### `lore-doc`'s own current gate-result statement, quoted verbatim
+#### Dated 2026-08-08 `lore-doc` gate-result statement, quoted verbatim
 
-From `lore-doc`'s
-[consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore)
+From the then-current `lore-doc` source, retained as dated historical evidence:
+[Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
 (Spec, local clone `/Volumes/external/repos/lore-doc`, `HEAD` and
 `origin/dev` both `101f9bb39eacd0e2e73df1bb4fa78db04f0a5896`, read
 2026-08-08 — moving reference for "current HEAD," re-verify before relying;
@@ -380,7 +374,7 @@ verbatim:
 > Evaluation time: 2026-08-06. Inspected revisions: lore-cli origin/dev
 > 87b6d876110a; lore-doc 556bcda (this change); quest-cli a4ae6c5.
 
-Answering the recheck clause's own question directly, sourced only to the
+Answering the historical recheck clause's question directly, sourced only to the
 quotations above: `lore-doc`'s gate Spec states "All four predicate items are
 satisfied" and reports the gate result as "open"; `LDOC-4` independently
 reports "GATE DECISION: OPEN" with every one of its own acceptance criteria

@@ -234,15 +234,15 @@ tracked with owner and unblock condition in the
 | Command vocabulary, flags | CLI contract open items |
 | Envelope shape, exit table | Closed by [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`, amended by `QCLI-69`) against the frozen Opum command contract |
 
-### Proposals routed to quest-doc
+### Proposals routed to Quest-wide authority
 
 Two things this Spec touches that it does not own. Both are proposals, not decisions:
 
 - **Gate-approval actor eligibility** — who counts as an accountable human, delegated
-  agent, reviewer, or approver. Quest-wide, routed to `quest-doc` as register entry D6,
-  and **not yet written there by any task in any repository**. The component actor table
-  describes how these roles act within Quest CLI and corroborates rather than resolves the
-  routed question.
+  agent, reviewer, or approver. Quest-wide, routed through
+  [Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
+  The component actor table describes how these roles act within Quest CLI and
+  corroborates rather than resolves the routed question.
 - **Whether to canonize "anomaly" as a first-class domain outcome class in Quest's
   product-wide vocabulary**, alongside success, decline, and error.
   [Ratify the Quest CLI result
