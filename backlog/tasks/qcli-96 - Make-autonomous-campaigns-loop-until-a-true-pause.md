@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 19:49'
-updated_date: '2026-08-14 20:17'
+updated_date: '2026-08-14 20:19'
 labels:
   - campaign
   - automation
@@ -74,4 +74,6 @@ First independent review rejected the candidate on three concrete grounds: dupli
 Second independent review rejected two remaining parser gaps: an extra invalid stop classification could coexist with a valid one, and duplicate state counts or a missing in-flight row could pass. Remediation now counts every Stop class line and accepts exactly one of the two allowed values, requires exactly one numeric row per state label, and makes the in-flight table row count plus task/branch-or-worktree/last-stage cells match State. New adversarial fixtures cover invalid extra classification, duplicate Ready counts, and missing in-flight rows; the lifecycle suite now has 20 cases.
 
 Third independent review rejected three remaining cursor ambiguities: contradictory current/historical markers, a bulleted historical Resume directive, and an in-flight stage cell containing only `not known`. Remediation makes lifecycle markers mutually exclusive and singular, detects list/numbered/blockquote continuation forms in historical files, and requires each in-flight stage cell to contain a full SHA plus a concrete lifecycle stage. Three new adversarial fixtures bring the lifecycle suite to 23 cases.
+
+Fourth independent review found one remaining historical-cursor hole: nested Markdown prefixes such as blockquote-plus-list and list-plus-numbering could hide Resume/Continue imperatives. The detector now consumes repeated blockquote, unordered-list, and ordered-list prefixes. Three new fixtures cover the reported forms; the lifecycle suite now has 26 cases.
 <!-- SECTION:NOTES:END -->
