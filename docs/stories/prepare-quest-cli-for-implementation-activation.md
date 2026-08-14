@@ -88,6 +88,6 @@ QCLI-10.4 and QCLI-10.5 both reference. QCLI-11 is independent of all of them.
 Only one task may edit any given pre-existing document — every task here writes into one
 bundle, so cluster disjointness alone is not enough to make two tasks concurrent.
 
-`quest-doc` owns product-wide architecture and roadmap; anything this campaign produces
+The consolidated Quest namespace owns product-wide architecture and roadmap; anything this campaign produces
 that would change Quest-wide vocabulary, the actor model, or the product promise is a
 proposal to that repository, not normative because a QCLI task wrote it.

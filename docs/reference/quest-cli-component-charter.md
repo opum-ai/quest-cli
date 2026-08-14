@@ -7,7 +7,7 @@ tags:
   - cli
   - ownership
   - boundaries
-summary: Defines what quest-cli owns, what it consumes, and what belongs to quest-doc, quest-web, lore-doc, and opum-doc.
+summary: Defines what quest-cli owns, what it consumes, and what belongs to the consolidated Quest and Lore namespaces, quest-web, and opum-doc.
 timestamp: 2026-08-01T17:11:23.833Z
 ---
 
@@ -38,11 +38,11 @@ task is created.
 
 | Concern | Owner |
 | --- | --- |
-| Quest promise, roadmap, cross-repository architecture, provenance policy | [`quest-doc`](https://github.com/opum-ai/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md) |
+| Quest promise, roadmap, cross-repository architecture, provenance policy | [Consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest) |
 | `questgraph.dev` code, design implementation, hosting, DNS, site operations | `quest-web` |
-| Lore-wide policy, integration boundary, and dependency-gate definition | [`lore-doc`](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md) |
+| Lore-wide policy, integration boundary, and dependency-gate definition | [Consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore) |
 | Lore implementation and immutable release evidence | Owning `lore-*` repository, currently `lore-cli` for the package/command |
-| Accounts, billing, hosted collaboration, remote portfolio, Opum pricing | [`opum-doc`](https://github.com/opum-ai/opum-doc/blob/dev/docs/reference/opum-product-family-and-documentation-ownership.md) / future Opum component |
+| Accounts, billing, hosted collaboration, remote portfolio, Opum pricing | `opum-doc` / future Opum component |
 
 ### First-release non-goals
 
@@ -57,5 +57,5 @@ Lore and Quest exchange versioned public data; neither writes the other's
 private files or database.
 
 Any research result that would change the Quest-wide vocabulary, actor model,
-architecture, or roadmap is a proposal to `quest-doc`. It is not normative
+architecture, or roadmap is a proposal to the consolidated Quest namespace. It is not normative
 merely because a QCLI task produced it.
