@@ -39,7 +39,9 @@ authority; a cross-repository request is a new scope boundary.
 One coordinator owns every Backlog task and tracker mutation, handover, Lore-generated
 surface, integration branch, and remote action. Up to three agents may explore, sweep,
 write, review, or test in parallel only from one pinned base and with explicit
-non-overlapping path budgets. Workers return evidence rather than mutate shared state.
+non-overlapping path budgets. The project default and all four repository-local agent
+profiles use Codex `gpt-5.6-terra` at medium reasoning. Workers return evidence rather
+than mutate shared state.
 
 The loop pauses only for a material product, security, publication, release, or
 repository-admin decision; missing credentials; unresolved merge conflict; unrelated
@@ -96,6 +98,11 @@ sets `remote_operations: false`. Delivery grounds Git remote state explicitly on
 the standing authority and a delivery decision require it.
 
 ### Compact state and validation economy
+
+Codex keeps its sole executable cursor at `.codex/handovers/active.md`; it does not load
+`.claude/skills/**`. A legacy `.claude/handovers/active.md` is migration input only: ground it
+against live Backlog and Git state, preserve any incomplete campaign in the Codex cursor, then
+remove the legacy executable file and audit that directory as complete.
 
 Each tracker stays below 200 lines and 32 KiB; the one executable `active.md` cursor
 stays below 120 lines and 16 KiB. Historical handovers are non-executable. Commands,

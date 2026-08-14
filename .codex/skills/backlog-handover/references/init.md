@@ -38,6 +38,6 @@ Before creating the handover, mechanically verify the new campaign tracker throu
 backlog doc view <tracker-id> --plain | node .codex/skills/backlog-handover/scripts/audit-campaign-tracker.mjs
 ```
 
-The audit must pass (at most 200 lines and 32 KiB). Then write `.claude/handovers/active.md`, run the
+The audit must pass (at most 200 lines and 32 KiB). Then write `.codex/handovers/active.md`, run the
 lifecycle audit, read `restore.md` completely, and continue in the same turn. Initialization is not a
 stopping point.

@@ -40,7 +40,7 @@ A successful wave, merged PR, cleanup pass, routine context growth, or preferenc
 session is not a stop condition. If neither nonterminal form applies, keep looping.
 
 When the queue is empty, mark the tracker complete, finish the artifact audit, and remove
-`.claude/handovers/active.md`; do not leave a completed campaign as an executable cursor. If any
+`.codex/handovers/active.md`; do not leave a completed campaign as an executable cursor. If any
 local provenance must be retained, rewrite it as historical, remove every runnable continuation,
 and store it outside the active cursor path. Run
 `node .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs --complete`. A later
