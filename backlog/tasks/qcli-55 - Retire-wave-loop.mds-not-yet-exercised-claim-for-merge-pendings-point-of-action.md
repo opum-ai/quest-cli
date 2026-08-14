@@ -7,10 +7,13 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-08 18:29'
-updated_date: '2026-08-13 12:27'
+updated_date: '2026-08-14 12:18'
 labels:
   - wave-3
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 modified_files:
   - .claude/skills/backlog-handover/reference/wave-loop.md
   - .claude/skills/backlog-handover/SKILL.md

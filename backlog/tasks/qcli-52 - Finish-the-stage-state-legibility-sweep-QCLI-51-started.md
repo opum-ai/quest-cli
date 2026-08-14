@@ -4,12 +4,15 @@ title: Finish the stage-state legibility sweep QCLI-51 started
 status: Done
 assignee: []
 created_date: '2026-08-08 14:43'
-updated_date: '2026-08-08 16:53'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:skill-docs'
   - wave-1
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: medium
 type: chore
 ordinal: 71000
