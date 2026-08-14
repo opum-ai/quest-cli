@@ -19,8 +19,8 @@ const MAX_ACTIVE_LINES = 120;
 const MAX_ACTIVE_BYTES = 16 * 1024;
 const RUNNABLE_SIGNALS = [
   ["paste-ready prompt", PASTE_READY_HEADING],
-  ["continue directive", /^\s*(?:(?:[-*+]\s+|[0-9]+[.)]\s+|>\s+))?(?:Continue|Resume) (?:this|the) backlog campaign\b/im],
-  ["task resume directive", /^\s*(?:(?:[-*+]\s+|[0-9]+[.)]\s+|>\s+))?Resume [A-Z][A-Z0-9]*-[0-9]+(?:\.[0-9]+)*\b/im],
+  ["continue directive", /^\s*(?:(?:[-*+]\s+|[0-9]+[.)]\s+|>\s*))*(?:Continue|Resume) (?:this|the) backlog campaign\b/im],
+  ["task resume directive", /^\s*(?:(?:[-*+]\s+|[0-9]+[.)]\s+|>\s*))*Resume [A-Z][A-Z0-9]*-[0-9]+(?:\.[0-9]+)*\b/im],
   ["safe-resume sequence", /^(?:##\s+Safe[- ]resume\b|Safe resume(?: sequence)?:)/im],
   ["backlog-handover invocation", /\$backlog-handover(?:\s+(?:init|restore|write|status))?\b/i],
 ];

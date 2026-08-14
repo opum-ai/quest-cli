@@ -114,6 +114,7 @@
 - 2026-08-14T15:04:34-05:00 e2ee50ac6c8825c6ae314a533954539709974341 feat: keep autonomous campaigns in motion
 - 2026-08-14T15:11:30-05:00 2e3cd0c56c0fa26a1e4d9db3bca0f9c5eeb52fb6 fix: bind handovers to grounded state
 - 2026-08-14T15:14:40-05:00 9ce15a2c1a260d8a4e78ee8d3470c2a7102f2c04 fix: enforce grounded queue evidence
+- 2026-08-14T15:17:55-05:00 548dc606c5465afe68d9d20727e272a14e4c02df fix: reject ambiguous campaign cursors
 
 ## docs/adr
 
