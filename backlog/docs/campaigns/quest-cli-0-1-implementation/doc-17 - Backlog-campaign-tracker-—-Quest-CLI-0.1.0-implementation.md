@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-14 18:32'
 tags:
   - quest
   - quest-0.1
@@ -75,4 +75,4 @@ Informational snapshot only; never a promised next wave.
 ## Wave log
 
 - 2026-08-14 — Initialized the confirmed implementation campaign from local origin/dev f1761679. Created milestone Quest CLI 0.1.0 and QCLI-72 through QCLI-95 with formal dependencies, documentation references, acceptance criteria, and likely-file metadata. Created external companion records ODOC-57 and LCLI-330 through LCLI-333, refining existing LCLI-315.4 rather than duplicating it. No implementation task was activated.
-- 2026-08-14 — Commit and push authority granted. Created Lore Story `stories/deliver-quest-cli-0-1-0`, coupled QCLI-72 through QCLI-95, and prepared the three campaign branches for remote delivery; publication authority remains excluded.
+- 2026-08-14 — Commit and push authority granted. Created Lore Story `stories/deliver-quest-cli-0-1-0` and coupled QCLI-72 through QCLI-95. Delivered the initialized campaign records to `origin/feat/quest-0-1-implementation-campaign` at `0cbe60a`, ODOC-57 to `origin/docs/quest-actor-vocabulary-campaign` at `825a338`, and the Lore companion queue to `origin/feat/quest-integration-campaign` at `dd4214b`. Publication authority remains excluded.
