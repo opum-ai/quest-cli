@@ -11,7 +11,7 @@ const sessionRenewal = [
   "# Campaign handover",
   "",
   "**Lifecycle**: executable-current",
-  "**Grounded against**: quest-cli fix/qcli-96 @ 0123456789abcdef0123456789abcdef01234567; clean; origin/dev known",
+  "**Grounded against**: quest-cli fix/qcli-96 @ 0123456789abcdef0123456789abcdef01234567; worktree /tmp/qcli-96; clean; origin/dev known",
   "**Tracker**: doc-17 - Autonomous loop",
   "**Mode**: autonomous-docs",
   "**Stop class**: session-renewal",
@@ -66,7 +66,17 @@ function runCase(name, files, expectedStatus, expectedText, extraArguments = [])
   const directory = join(root, name);
   mkdirSync(directory);
   for (const [file, body] of Object.entries(files)) writeFileSync(join(directory, file), body, { flag: "wx" });
-  const result = spawnSync(process.execPath, [auditPath, directory, ...extraArguments], { encoding: "utf8" });
+  const groundedArguments = [
+    "--expect-tracker", "doc-17",
+    "--expect-sha", "0123456789abcdef0123456789abcdef01234567",
+    "--expect-branch", "fix/qcli-96",
+    "--expect-worktree", "/tmp/qcli-96",
+    "--expect-state", "1,1,0,2",
+  ];
+  const argumentsForCase = extraArguments.includes("--complete")
+    ? extraArguments
+    : [...groundedArguments, ...extraArguments];
+  const result = spawnSync(process.execPath, [auditPath, directory, ...argumentsForCase], { encoding: "utf8" });
   const output = `${result.stdout}${result.stderr}`;
   if (result.status !== expectedStatus || !output.includes(expectedText)) {
     throw new Error(`${name}: expected ${expectedStatus}/${JSON.stringify(expectedText)}; received ${result.status}\n${output}`);
@@ -78,16 +88,23 @@ try {
   const vagueRenewal = sessionRenewal
     .replace("Run /clear, start a new session in `quest-cli`, then use $backlog-handover restore without reconfirmation.", "Continue later.")
     .replace("- Action: Run /clear, start a new session in `quest-cli`, invoke $backlog-handover restore, and continue without reconfirmation.", "- Action: Continue later.");
+  const promptOnlyRenewal = sessionRenewal.replace(
+    "- Action: Run /clear, start a new session in `quest-cli`, invoke $backlog-handover restore, and continue without reconfirmation.",
+    "- Action: See prompt.",
+  );
   const cases = [
     ["valid-session-renewal", { "active.md": sessionRenewal, "settled.md": historical }, 0, "sole grounded executable cursor"],
     ["valid-human-decision", { "active.md": humanDecision, "settled.md": historical }, 0, "sole grounded executable cursor"],
     ["duplicate-cursor", { "active.md": sessionRenewal, "legacy.md": `${historical}\nUse $backlog-handover restore to continue.\n` }, 1, "legacy.md contains runnable signal(s): backlog-handover invocation"],
     ["historical-resume-qcli-71", { "active.md": sessionRenewal, "legacy.md": `${historical}\nResume QCLI-71\n` }, 1, "legacy.md contains runnable signal(s): task resume directive"],
     ["historical-resume-foreign-task", { "active.md": sessionRenewal, "legacy.md": `${historical}\nResume ODOC-54\n` }, 1, "legacy.md contains runnable signal(s): task resume directive"],
-    ["missing-stop-class", { "active.md": sessionRenewal.replace(/^\*\*Stop class\*\*.*\n/m, "") }, 1, "active.md lacks a valid Stop class"],
+    ["missing-stop-class", { "active.md": sessionRenewal.replace(/^\*\*Stop class\*\*.*\n/m, "") }, 1, "exactly one valid Stop class; found 0"],
     ["missing-grounding", { "active.md": sessionRenewal.replace(/^\*\*Grounded against\*\*.*\n/m, "") }, 1, "full SHA"],
-    ["vague-session-renewal", { "active.md": vagueRenewal }, 1, "session-renewal cursor lacks /clear"],
+    ["duplicate-stop-class", { "active.md": sessionRenewal.replace("**Stop class**: session-renewal", "**Stop class**: session-renewal\n**Stop class**: human-decision") }, 1, "exactly one valid Stop class; found 2"],
+    ["vague-session-renewal", { "active.md": vagueRenewal }, 1, "session-renewal Paste-ready prompt lacks /clear"],
+    ["prompt-only-renewal", { "active.md": promptOnlyRenewal }, 1, "session-renewal Next action lacks /clear"],
     ["human-without-decision", { "active.md": humanDecision.replace("- Decision: Choose whether the public format may change.", "- Decision: None") }, 1, "human-decision cursor lacks"],
+    ["stale-grounded-cursor", { "active.md": sessionRenewal }, 1, "does not match expected SHA", ["--expect-sha", "ffffffffffffffffffffffffffffffffffffffff"]],
     ["exact-boundary", { "active.md": boundary, "settled.md": historical }, 0, "handover lifecycle audit passed"],
     ["line-overflow", { "active.md": `${boundary}\nextra` }, 1, "active.md exceeds 120 lines: 121"],
     ["byte-overflow", { "active.md": `${boundary}x` }, 1, "active.md exceeds 16384 bytes: 16385"],

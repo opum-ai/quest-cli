@@ -111,6 +111,7 @@
 - 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
 - 2026-08-13T23:09:49-05:00 006bde8b03c8af046d50a6c7124e017489aa9316 docs: sync Quest log
 - 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
+- 2026-08-14T15:04:34-05:00 e2ee50ac6c8825c6ae314a533954539709974341 feat: keep autonomous campaigns in motion
 
 ## docs/adr
 
@@ -199,6 +200,7 @@
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T21:07:27-05:00 ad36ba8f43c8586f8d987614ef53858f000bce5c feat: adopt autonomous documentation fast lane
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-14T15:04:34-05:00 e2ee50ac6c8825c6ae314a533954539709974341 feat: keep autonomous campaigns in motion
 
 ## docs/runbooks
 
@@ -287,3 +289,4 @@
 - 2026-08-13T21:07:27-05:00 ad36ba8f43c8586f8d987614ef53858f000bce5c feat: adopt autonomous documentation fast lane
 - 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
 - 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
+- 2026-08-14T15:04:34-05:00 e2ee50ac6c8825c6ae314a533954539709974341 feat: keep autonomous campaigns in motion

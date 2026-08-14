@@ -8,14 +8,11 @@ const PASTE_READY_HEADING = /^##\s+Paste-ready prompt\s*$/im;
 const GROUNDED_LINE = /^\*\*Grounded against\*\*:\s*.+\b[0-9a-f]{40}\b.*$/im;
 const TRACKER_LINE = /^\*\*Tracker\*\*:\s*doc-[0-9]+\b.+$/im;
 const MODE_LINE = /^\*\*Mode\*\*:\s*autonomous-docs\s*$/im;
-const STOP_CLASS_LINE = /^\*\*Stop class\*\*:\s*(human-decision|session-renewal)\s*$/im;
+const STOP_CLASS_LINE = /^\*\*Stop class\*\*:\s*(human-decision|session-renewal)\s*$/gim;
 const STATE_COUNTS = ["Resolved", "In flight", "Blocked", "Ready"];
-const IN_FLIGHT_HEADING = /^##\s+In flight\s*$/im;
-const RETAINED_HEADING = /^##\s+Retained artifacts\s*$/im;
-const DECISION_HEADING = /^##\s+Decision required\s*$/im;
-const NEXT_ACTION_HEADING = /^##\s+Next action\s*$/im;
-const DECISION_LINE = /^- Decision:\s*(.+)$/im;
-const NEXT_ACTION_LINE = /^- Action:\s*(.+)$/im;
+const REQUIRED_SECTIONS = ["Paste-ready prompt", "State", "In flight", "Retained artifacts", "Decision required", "Next action"];
+const DECISION_LINE = /^- Decision:\s*(.+)$/gim;
+const NEXT_ACTION_LINE = /^- Action:\s*(.+)$/gim;
 const MAX_ACTIVE_LINES = 120;
 const MAX_ACTIVE_BYTES = 16 * 1024;
 const RUNNABLE_SIGNALS = [
@@ -28,10 +25,43 @@ const RUNNABLE_SIGNALS = [
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const defaultDirectory = resolve(scriptDir, "../../../..", ".claude/handovers");
-const completeMode = process.argv.includes("--complete");
-const directoryArgument = process.argv.slice(2).find((argument) => !argument.startsWith("--"));
+const argumentsList = process.argv.slice(2);
+const completeMode = argumentsList.includes("--complete");
+const valueOptions = new Set(["--expect-tracker", "--expect-sha", "--expect-branch", "--expect-worktree", "--expect-state"]);
+const optionValues = new Map();
+let directoryArgument;
+for (let index = 0; index < argumentsList.length; index += 1) {
+  const argument = argumentsList[index];
+  if (valueOptions.has(argument)) {
+    optionValues.set(argument, argumentsList[index + 1]);
+    index += 1;
+  } else if (argument !== "--complete" && !argument.startsWith("--") && !directoryArgument) {
+    directoryArgument = argument;
+  }
+}
 const handoverDirectory = resolve(directoryArgument ?? defaultDirectory);
 const failures = [];
+
+function sections(body, heading) {
+  const lines = body.split(/\r?\n/);
+  const bodies = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index].trim().toLowerCase() !== `## ${heading}`.toLowerCase()) continue;
+    const section = [];
+    for (index += 1; index < lines.length && !/^##\s+/.test(lines[index]); index += 1) {
+      section.push(lines[index]);
+    }
+    index -= 1;
+    bodies.push(section.join("\n"));
+  }
+  return bodies;
+}
+
+if (!completeMode) {
+  for (const option of valueOptions) {
+    if (!optionValues.get(option)) failures.push(`nonterminal audit requires ${option}`);
+  }
+}
 
 if (!existsSync(handoverDirectory)) {
   if (!completeMode) failures.push(`handover directory is missing: ${handoverDirectory}`);
@@ -57,32 +87,50 @@ if (!existsSync(handoverDirectory)) {
     if (name === "active.md") {
       if (completeMode) continue;
       if (!current) failures.push("active.md lacks **Lifecycle**: executable-current");
+      const groundedLine = body.match(GROUNDED_LINE)?.[0];
+      const trackerLine = body.match(TRACKER_LINE)?.[0];
       if (!PASTE_READY_HEADING.test(body)) failures.push("active.md lacks a Paste-ready prompt section");
-      if (!GROUNDED_LINE.test(body)) failures.push("active.md lacks a Grounded against line with a full SHA");
-      if (!TRACKER_LINE.test(body)) failures.push("active.md lacks a concrete doc-N Tracker line");
+      if (!groundedLine) failures.push("active.md lacks a Grounded against line with a full SHA");
+      if (!trackerLine) failures.push("active.md lacks a concrete doc-N Tracker line");
       if (!MODE_LINE.test(body)) failures.push("active.md lacks **Mode**: autonomous-docs");
 
-      const stopMatch = body.match(STOP_CLASS_LINE);
-      if (!stopMatch) failures.push("active.md lacks a valid Stop class");
-      if (!IN_FLIGHT_HEADING.test(body)) failures.push("active.md lacks an In flight section");
-      if (!RETAINED_HEADING.test(body)) failures.push("active.md lacks a Retained artifacts section");
-      if (!DECISION_HEADING.test(body)) failures.push("active.md lacks a Decision required section");
-      if (!NEXT_ACTION_HEADING.test(body)) failures.push("active.md lacks a Next action section");
-      for (const label of STATE_COUNTS) {
-        if (!new RegExp(`^- ${label}:\\s*[0-9]+(?:\\s|$)`, "im").test(body)) {
-          failures.push(`active.md lacks a numeric ${label} state count`);
+      const stopMatches = [...body.matchAll(STOP_CLASS_LINE)];
+      if (stopMatches.length !== 1) {
+        failures.push(`active.md must contain exactly one valid Stop class; found ${stopMatches.length}`);
+      }
+      const sectionMap = new Map();
+      for (const heading of REQUIRED_SECTIONS) {
+        const found = sections(body, heading);
+        if (found.length !== 1) {
+          failures.push(`active.md must contain exactly one ${heading} section; found ${found.length}`);
         }
+        sectionMap.set(heading, found[0] ?? "");
       }
 
-      const decision = body.match(DECISION_LINE)?.[1]?.trim();
-      const nextAction = body.match(NEXT_ACTION_LINE)?.[1]?.trim();
+      const stateSection = sectionMap.get("State");
+      const actualState = [];
+      for (const label of STATE_COUNTS) {
+        const match = stateSection.match(new RegExp(`^- ${label}:\\s*([0-9]+)(?:\\s|$)`, "im"));
+        if (!match) failures.push(`active.md lacks a numeric ${label} state count in State`);
+        actualState.push(match?.[1]);
+      }
+
+      const decisionMatches = [...sectionMap.get("Decision required").matchAll(DECISION_LINE)];
+      const actionMatches = [...sectionMap.get("Next action").matchAll(NEXT_ACTION_LINE)];
+      if (decisionMatches.length !== 1) failures.push("active.md Decision required section must contain exactly one Decision line");
+      if (actionMatches.length !== 1) failures.push("active.md Next action section must contain exactly one Action line");
+      const decision = decisionMatches[0]?.[1]?.trim();
+      const nextAction = actionMatches[0]?.[1]?.trim();
       if (!nextAction || nextAction.startsWith("<")) failures.push("active.md lacks an exact next action");
-      if (stopMatch?.[1] === "human-decision") {
+      if (!/\$backlog-handover\s+restore\b/i.test(sectionMap.get("Paste-ready prompt"))) {
+        failures.push("active.md Paste-ready prompt lacks $backlog-handover restore");
+      }
+      if (stopMatches[0]?.[1] === "human-decision") {
         if (!decision || decision.startsWith("<") || /^none\b/i.test(decision)) {
           failures.push("human-decision cursor lacks the exact decision or blocker");
         }
       }
-      if (stopMatch?.[1] === "session-renewal") {
+      if (stopMatches[0]?.[1] === "session-renewal") {
         if (!/^none\s+[—-]\s+session renewal$/i.test(decision ?? "")) {
           failures.push("session-renewal cursor must state that no human decision is required");
         }
@@ -93,8 +141,34 @@ if (!existsSync(handoverDirectory)) {
           ["without reconfirmation", /without reconfirmation/i],
         ];
         for (const [label, pattern] of renewalSignals) {
-          if (!pattern.test(body)) failures.push(`session-renewal cursor lacks ${label}`);
+          if (!pattern.test(sectionMap.get("Paste-ready prompt"))) {
+            failures.push(`session-renewal Paste-ready prompt lacks ${label}`);
+          }
+          if (!pattern.test(sectionMap.get("Next action"))) {
+            failures.push(`session-renewal Next action lacks ${label}`);
+          }
         }
+      }
+
+      const expectedTracker = optionValues.get("--expect-tracker");
+      const expectedSha = optionValues.get("--expect-sha");
+      const expectedBranch = optionValues.get("--expect-branch");
+      const expectedWorktree = optionValues.get("--expect-worktree");
+      const expectedState = optionValues.get("--expect-state");
+      if (expectedTracker && !new RegExp(`\\b${expectedTracker.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`).test(trackerLine ?? "")) {
+        failures.push(`active.md tracker does not match expected ${expectedTracker}`);
+      }
+      for (const [label, expected] of [
+        ["SHA", expectedSha],
+        ["branch", expectedBranch],
+        ["worktree", expectedWorktree],
+      ]) {
+        if (expected && !(groundedLine ?? "").includes(expected)) {
+          failures.push(`active.md Grounded against does not match expected ${label} ${expected}`);
+        }
+      }
+      if (expectedState && actualState.join(",") !== expectedState) {
+        failures.push(`active.md state ${actualState.join(",")} does not match expected ${expectedState}`);
       }
       const lineCount = body.split(/\r?\n/).length;
       const byteCount = Buffer.byteLength(body, "utf8");

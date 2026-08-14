@@ -19,7 +19,9 @@ bounded-parallel execution while stopping at this repository's explicit human-de
    - `write`: flush unfinished state and replace the active handover.
    - `status`: inspect and report without mutation; use only when intent is genuinely ambiguous.
 4. Run `node .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs` whenever
-   `.claude/handovers/` exists. Reconcile drift before unrelated dispatch.
+   `.claude/handovers/` exists. A nonterminal cursor audit must include live expected tracker, SHA,
+   branch, worktree, and queue counts as specified by `references/handover.md`; reconcile drift
+   before unrelated dispatch.
 5. Read the complete mode reference before continuing: `references/init.md` (then
    `references/restore.md`) for init, `references/restore.md` for restore,
    `references/handover.md` for write/status, and `references/delivery.md` only once an integrated

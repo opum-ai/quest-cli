@@ -55,4 +55,13 @@ disposition, exact next action, or incomplete session-renewal language. After wr
 only “continue,” “context is large,” “start a new session,” or “see handover.”
 
 Historical handovers use the historical marker, omit the prompt, and contain no imperative or
-`$backlog-handover` continuation text. Run the lifecycle audit after replacement.
+`$backlog-handover` continuation text. After grounding live state, run the lifecycle audit with all
+expected values so a well-formed but stale cursor cannot pass:
+
+```sh
+node .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs \
+  --expect-tracker <doc-id> --expect-sha <worktree-head> --expect-branch <branch> \
+  --expect-worktree <absolute-path> --expect-state <resolved,in-flight,blocked,ready>
+```
+
+Do not report a handover written until this grounded invocation passes.
