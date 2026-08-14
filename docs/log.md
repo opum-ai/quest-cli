@@ -109,6 +109,8 @@
 - 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
+- 2026-08-13T23:09:49-05:00 006bde8b03c8af046d50a6c7124e017489aa9316 docs: sync Quest log
+- 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
 - 2026-08-14T13:28:49-05:00 cd4f05a6cbb9ac4d65526359fbea997d8b4e7cc4 docs: add Quest 0.1 implementation story
 
 ## docs/adr
@@ -123,6 +125,7 @@
 - 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
 - 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 
 ## docs/reference
 
@@ -196,6 +199,7 @@
 - 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T21:07:27-05:00 ad36ba8f43c8586f8d987614ef53858f000bce5c feat: adopt autonomous documentation fast lane
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 
 ## docs/runbooks
 
@@ -204,6 +208,7 @@
 - 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 
 ## docs/specs
 
@@ -226,6 +231,7 @@
 - 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
 - 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 
 ## docs/stories
 
@@ -281,4 +287,5 @@
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T21:07:27-05:00 ad36ba8f43c8586f8d987614ef53858f000bce5c feat: adopt autonomous documentation fast lane
 - 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
+- 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
 - 2026-08-14T13:28:49-05:00 cd4f05a6cbb9ac4d65526359fbea997d8b4e7cc4 docs: add Quest 0.1 implementation story
