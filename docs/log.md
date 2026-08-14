@@ -113,6 +113,7 @@
 - 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
 - 2026-08-14T15:04:34-05:00 e2ee50ac6c8825c6ae314a533954539709974341 feat: keep autonomous campaigns in motion
 - 2026-08-14T15:11:30-05:00 2e3cd0c56c0fa26a1e4d9db3bca0f9c5eeb52fb6 fix: bind handovers to grounded state
+- 2026-08-14T15:14:40-05:00 9ce15a2c1a260d8a4e78ee8d3470c2a7102f2c04 fix: enforce grounded queue evidence
 
 ## docs/adr
 

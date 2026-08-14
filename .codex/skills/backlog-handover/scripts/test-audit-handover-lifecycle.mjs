@@ -95,8 +95,10 @@ try {
   const cases = [
     ["valid-session-renewal", { "active.md": sessionRenewal, "settled.md": historical }, 0, "sole grounded executable cursor"],
     ["valid-human-decision", { "active.md": humanDecision, "settled.md": historical }, 0, "sole grounded executable cursor"],
+    ["contradictory-lifecycle-markers", { "active.md": sessionRenewal.replace("**Lifecycle**: executable-current", "**Lifecycle**: executable-current\n**Lifecycle**: historical-non-executable") }, 1, "no historical marker; found 1/1"],
     ["duplicate-cursor", { "active.md": sessionRenewal, "legacy.md": `${historical}\nUse $backlog-handover restore to continue.\n` }, 1, "legacy.md contains runnable signal(s): backlog-handover invocation"],
     ["historical-resume-qcli-71", { "active.md": sessionRenewal, "legacy.md": `${historical}\nResume QCLI-71\n` }, 1, "legacy.md contains runnable signal(s): task resume directive"],
+    ["historical-bulleted-resume", { "active.md": sessionRenewal, "legacy.md": `${historical}\n- Resume QCLI-96\n` }, 1, "legacy.md contains runnable signal(s): task resume directive"],
     ["historical-resume-foreign-task", { "active.md": sessionRenewal, "legacy.md": `${historical}\nResume ODOC-54\n` }, 1, "legacy.md contains runnable signal(s): task resume directive"],
     ["missing-stop-class", { "active.md": sessionRenewal.replace(/^\*\*Stop class\*\*.*\n/m, "") }, 1, "exactly one Stop class"],
     ["missing-grounding", { "active.md": sessionRenewal.replace(/^\*\*Grounded against\*\*.*\n/m, "") }, 1, "full SHA"],
@@ -106,6 +108,7 @@ try {
     ["prompt-only-renewal", { "active.md": promptOnlyRenewal }, 1, "session-renewal Next action lacks /clear"],
     ["human-without-decision", { "active.md": humanDecision.replace("- Decision: Choose whether the public format may change.", "- Decision: None") }, 1, "human-decision cursor lacks"],
     ["missing-in-flight-row", { "active.md": sessionRenewal.replace("| QCLI-96 | fix/qcli-96 | 0123456789abcdef0123456789abcdef01234567, reviewed | Restore and deliver |\n", "") }, 1, "In flight table has 0 task rows but State declares 1"],
+    ["unknown-in-flight-stage", { "active.md": sessionRenewal.replace("0123456789abcdef0123456789abcdef01234567, reviewed", "not known") }, 1, "lacks a full SHA plus a concrete lifecycle stage"],
     ["duplicate-ready-count", { "active.md": sessionRenewal.replace("- Ready: 2", "- Ready: 2\n- Ready: 999") }, 1, "exactly one numeric Ready count; found 2"],
     ["stale-grounded-cursor", { "active.md": sessionRenewal }, 1, "does not match expected SHA", ["--expect-sha", "ffffffffffffffffffffffffffffffffffffffff"]],
     ["exact-boundary", { "active.md": boundary, "settled.md": historical }, 0, "handover lifecycle audit passed"],

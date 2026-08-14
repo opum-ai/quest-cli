@@ -2,8 +2,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CURRENT_MARKER = /^\*\*Lifecycle\*\*:\s*executable-current\s*$/im;
-const HISTORICAL_MARKER = /^\*\*Lifecycle\*\*:\s*historical-non-executable\s*$/im;
+const CURRENT_MARKER = /^\*\*Lifecycle\*\*:\s*executable-current\s*$/gim;
+const HISTORICAL_MARKER = /^\*\*Lifecycle\*\*:\s*historical-non-executable\s*$/gim;
 const PASTE_READY_HEADING = /^##\s+Paste-ready prompt\s*$/im;
 const GROUNDED_LINE = /^\*\*Grounded against\*\*:\s*.+\b[0-9a-f]{40}\b.*$/im;
 const TRACKER_LINE = /^\*\*Tracker\*\*:\s*doc-[0-9]+\b.+$/im;
@@ -14,12 +14,13 @@ const STATE_COUNTS = ["Resolved", "In flight", "Blocked", "Ready"];
 const REQUIRED_SECTIONS = ["Paste-ready prompt", "State", "In flight", "Retained artifacts", "Decision required", "Next action"];
 const DECISION_LINE = /^- Decision:\s*(.+)$/gim;
 const NEXT_ACTION_LINE = /^- Action:\s*(.+)$/gim;
+const VERIFIED_STAGE = /\b[0-9a-f]{40}\b(?=[\s\S]*\b(?:planned|editing|implemented|committed|under review|reviewed|approved|pr opened|merged|settled|cleanup complete|blocked)\b)/i;
 const MAX_ACTIVE_LINES = 120;
 const MAX_ACTIVE_BYTES = 16 * 1024;
 const RUNNABLE_SIGNALS = [
   ["paste-ready prompt", PASTE_READY_HEADING],
-  ["continue directive", /^(?:Continue|Resume) (?:this|the) backlog campaign\b/im],
-  ["task resume directive", /^Resume [A-Z][A-Z0-9]*-[0-9]+(?:\.[0-9]+)*\b/im],
+  ["continue directive", /^\s*(?:(?:[-*+]\s+|[0-9]+[.)]\s+|>\s+))?(?:Continue|Resume) (?:this|the) backlog campaign\b/im],
+  ["task resume directive", /^\s*(?:(?:[-*+]\s+|[0-9]+[.)]\s+|>\s+))?Resume [A-Z][A-Z0-9]*-[0-9]+(?:\.[0-9]+)*\b/im],
   ["safe-resume sequence", /^(?:##\s+Safe[- ]resume\b|Safe resume(?: sequence)?:)/im],
   ["backlog-handover invocation", /\$backlog-handover(?:\s+(?:init|restore|write|status))?\b/i],
 ];
@@ -89,14 +90,20 @@ if (!existsSync(handoverDirectory)) {
   const executableFiles = [];
   for (const name of files) {
     const body = readFileSync(resolve(handoverDirectory, name), "utf8");
-    const current = CURRENT_MARKER.test(body);
+    const currentMarkers = [...body.matchAll(CURRENT_MARKER)];
+    const historicalMarkers = [...body.matchAll(HISTORICAL_MARKER)];
+    const current = currentMarkers.length > 0;
     const signals = RUNNABLE_SIGNALS.filter(([, pattern]) => pattern.test(body)).map(([label]) => label);
     const executable = current || signals.length > 0;
     if (executable) executableFiles.push(name);
 
     if (name === "active.md") {
       if (completeMode) continue;
-      if (!current) failures.push("active.md lacks **Lifecycle**: executable-current");
+      if (currentMarkers.length !== 1 || historicalMarkers.length !== 0) {
+        failures.push(
+          `active.md must contain exactly one executable-current marker and no historical marker; found ${currentMarkers.length}/${historicalMarkers.length}`,
+        );
+      }
       const groundedLine = body.match(GROUNDED_LINE)?.[0];
       const trackerLine = body.match(TRACKER_LINE)?.[0];
       if (!PASTE_READY_HEADING.test(body)) failures.push("active.md lacks a Paste-ready prompt section");
@@ -146,8 +153,8 @@ if (!existsSync(handoverDirectory)) {
         if (!cells[1] || cells[1] === "-" || cells[1].startsWith("<")) {
           failures.push(`active.md In flight row ${index + 1} lacks a branch/worktree`);
         }
-        if (!cells[2] || cells[2] === "-" || cells[2].startsWith("<")) {
-          failures.push(`active.md In flight row ${index + 1} lacks a last verified tree and stage`);
+        if (!VERIFIED_STAGE.test(cells[2] ?? "")) {
+          failures.push(`active.md In flight row ${index + 1} lacks a full SHA plus a concrete lifecycle stage`);
         }
       }
 
@@ -218,10 +225,10 @@ if (!existsSync(handoverDirectory)) {
       continue;
     }
 
-    if (current) failures.push(`${name} incorrectly carries the executable-current marker`);
+    if (currentMarkers.length > 0) failures.push(`${name} incorrectly carries the executable-current marker`);
     if (signals.length > 0) failures.push(`${name} contains runnable signal(s): ${signals.join(", ")}`);
-    if (!HISTORICAL_MARKER.test(body)) {
-      failures.push(`${name} lacks **Lifecycle**: historical-non-executable`);
+    if (historicalMarkers.length !== 1) {
+      failures.push(`${name} must contain exactly one **Lifecycle**: historical-non-executable marker; found ${historicalMarkers.length}`);
     }
   }
 
