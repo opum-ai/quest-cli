@@ -112,6 +112,7 @@
 - 2026-08-13T23:09:49-05:00 006bde8b03c8af046d50a6c7124e017489aa9316 docs: sync Quest log
 - 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
 - 2026-08-14T13:28:49-05:00 cd4f05a6cbb9ac4d65526359fbea997d8b4e7cc4 docs: add Quest 0.1 implementation story
+- 2026-08-14T13:30:52-05:00 0cbe60a953019f01c66893d618ff9d5598790c67 chore(docs): sync Quest campaign log
 
 ## docs/adr
 
