@@ -35,7 +35,7 @@ read-only purity — are all statements about **boundaries**, not algorithms. Ge
 boundaries wrong and no amount of careful implementation recovers them; get them right and
 each property has one place it can be enforced and one place it can be tested.
 
-Quest-wide architecture is canonical in `quest-doc`. This Spec describes the component
+Quest-wide architecture is canonical in the [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest). This Spec describes the component
 only, and anything here that would change Quest-wide vocabulary, the actor model, or the
 product promise is a **proposal** to that repository, not normative because a QCLI
 document states it.

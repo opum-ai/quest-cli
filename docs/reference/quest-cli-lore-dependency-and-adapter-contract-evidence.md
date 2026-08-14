@@ -36,28 +36,20 @@ and does not restate or override, the
 per-slice admission authority — see its new "Lore-cli source admissibility
 split rule" section for the citation discipline this document follows) or
 the Lore-owned release gate linked in Part 1 (this document records only
-Quest's consumer status and evidence pointers, per
-[`quest-doc`'s own scoping of this task](https://github.com/opum-ai/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md#implementation-activation-dependency)).
+Quest's consumer status and evidence pointers, per the
+[consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)).
 
 ## Details
 
 ### Part 1 — Lore dependency and activation-evidence matrix
 
-#### The canonical Lore-wide gate (link only)
+#### The consolidated Lore-wide gate (link only)
 
-The Lore-wide integration boundary and release-gate policy is owned by
-`lore-doc`:
-[Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
-(Spec, `lore-doc`, local clone `/Volumes/external/repos/lore-doc`, HEAD
-`1a0aa89` re-read 2026-08-04), gated on task
-[`LDOC-4`](https://github.com/opum-ai/lore-doc) "Gate Quest
-implementation on accepted Lore release evidence" (status **To Do** as of
-2026-08-04, re-verified live via `backlog task view LDOC-4 --plain` in the
-local `lore-doc` clone). This matrix links that gate as the controlling
-external authority and does not reproduce its release-gate predicate, or
-either list, in full here — those lists are `lore-doc`'s to own, and they
-are mutable; row 5 of the matrix below quotes one fragment of each solely
-to name the specific gap it evidences, not to restate either list.
+The Lore-wide integration boundary and release-gate policy is owned by the
+[consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore).
+This matrix links that authority and does not reproduce its mutable predicate
+or completion criteria. The dated `lore-doc` observations below are historical
+provenance only, not an active routing step or current gate result.
 `lore-doc`'s own remote stayed
 `salient-data/lore-doc`, unlike `lore-cli` and `quest-cli`, which both
 transferred to `opum-ai` on 2026-08-04 — re-verified live via `git remote -v`
@@ -82,11 +74,11 @@ vocabulary (which classifies *sources*). These classify a Quest CLI
 
 | Quest CLI choice | Lore dependency | Owning Lore task / spec / runbook / evidence | Classification | Evidence pointer (dated 2026-08-04) |
 | --- | --- | --- | --- | --- |
-| Whether *any* Quest product implementation may activate | The Lore-wide release-gate predicate must report Pass from live owner evidence | `LDOC-4` (task, `lore-doc`) + [Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md) (Spec, `lore-doc`, link only) | Requiring owner input | `LDOC-4` re-verified **To Do** via `backlog task view LDOC-4 --plain` in `/Volumes/external/repos/lore-doc`. A dated observation, not a substitute for the next live check (see Activation handover, below). |
+| Whether *any* Quest product implementation may activate | The Lore-wide release-gate predicate must report Pass from live owner evidence | Historical `LDOC-4` observation + [consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore) (current owner route) | Requiring owner input | `LDOC-4` re-verified **To Do** via `backlog task view LDOC-4 --plain` in `/Volumes/external/repos/lore-doc`. A dated observation, not a substitute for the next live check (see Activation handover, below). |
 | Which published Lore release Quest research currently targets | `lore-cli`'s package/command identity and immutable `0.1.0` release evidence | [Lore CLI release truth](https://github.com/opum-ai/lore-cli/blob/dev/docs/reference/lore-cli-release-truth.md) (Reference, `lore-cli`) + task `LCLI-296` | Evidence-complete | Re-verified live: `npm view @opum-ai/lore version` → `0.1.0`; `lore --version` → `0.1.0`; `git rev-list -n1 v0.1.0` → `e621d209be2cc8867d1c38c7c78b4b4acc96d82e`, matching the release-truth record's tag/commit and the source register's own citation. This is component-level (`lore-cli`) evidence, distinct from — and only one of the further, separately-held conditions feeding — the program-level gate row above; a fully evidenced component release does not by itself open `LDOC-4`. |
 | Whether a *future* Lore version bump can be trusted the same way `0.1.0` was | `lore-cli`'s automated-publish control (`publish: true` dispatch) remains unprotected | Task `LCLI-278` (`lore-cli`) + [Lore CLI release truth](https://github.com/opum-ai/lore-cli/blob/dev/docs/reference/lore-cli-release-truth.md) ("Evidence required to call Lore released," condition 6) | Blocked on a named owner result | `LCLI-278` re-verified **To Do** via `backlog task view LCLI-278 --plain` in `/Volumes/external/repos/lore-cli` — GitHub's billing plan blocks required-reviewer protection on the `release` Environment; `0.1.0` itself was authorized via a one-time interactive bootstrap, which this row does not call into question. |
 | The versioned Lore import/link/adapter behavior quest-cli's charter commits it to build | The concrete contract `lore-cli`'s current `BacklogAdapter` places on any task-tracker backend it invokes | `src/adapters/backlog.ts` (`lore-cli`, tag `v0.1.0`) — reviewed in full in Part 2, below | Provisionally researchable | The contract itself is fully describable now from admissible source (Part 2). Quest's compliance path is not yet decided, and several sub-requirements resolve only via a `lore-doc` boundary decision (Part 2's classification). |
-| Whether Lore treats a future Quest CLI as a drop-in `backlog`-shaped target or builds it a distinct adapter | No committed answer exists on either side yet | [Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md) ("Integration obligations": "A Lore adapter for Quest is activated only through its owning component task after the public contract is accepted..."; "Open questions": "accepted jointly but implemented by the owning components") | Requiring owner input | Confirmed live 2026-08-04 by source inspection (Part 2's central finding): `lore-cli`'s only adapter type today is `BacklogAdapter`, referenced by name in 27 of its own source files; no generic pluggable interface exists to implement against. Building a second adapter is unstarted on Lore's side as of this revision. |
+| Whether Lore treats a future Quest CLI as a drop-in `backlog`-shaped target or builds it a distinct adapter | No committed answer exists on either side yet | [Consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore) (owner route; the quoted 2026-08-04 language is historical) | Requiring owner input | Confirmed live 2026-08-04 by source inspection (Part 2's central finding): `lore-cli`'s only adapter type today is `BacklogAdapter`, referenced by name in 27 of its own source files; no generic pluggable interface exists to implement against. Building a second adapter is unstarted on Lore's side as of this revision. |
 
 Runtime, native-packaging, and supported-platform choices that might take
 `lore-cli`'s own distribution precedent as evidence are explicitly **not**

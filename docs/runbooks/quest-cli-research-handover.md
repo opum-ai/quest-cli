@@ -23,13 +23,11 @@ product implementation remains blocked on Lore release evidence.
 
 - Worktree: `/Volumes/external/repos/quest-cli`; remote
   `git@github.com:opum-ai/quest-cli.git`; Backlog prefix QCLI.
-- Product hub: `/Volumes/external/repos/quest-doc`.
-- Former OCLI provenance and Opum SaaS hub:
-  `/Volumes/external/repos/opum-doc`.
-- Lore gate owners: `/Volumes/external/repos/lore-doc` and live
-  `/Volumes/external/repos/lore-cli`.
-- Canonical Lore policy:
-  [Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
+- Product authority: [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest).
+- Former OCLI provenance and Opum portfolio authority: `opum-doc`.
+- Lore gate authority: [consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore).
+- Local release evidence remains with the owning `lore-*` component; do not use
+  a local clone or a historical handover as a gate result.
 - Read repository instructions; run `backlog instructions overview` and the
   lifecycle-specific guide, then `lore instructions`.
 - Preserve unexplained worktree changes and never normalize state through a
@@ -54,11 +52,11 @@ product implementation remains blocked on Lore release evidence.
 
 ### Activation check for a later implementation session
 
-Implementation remains prohibited until `quest-doc`'s canonical handover and
-the current Lore-owned release gate both pass from live owner evidence. Follow
-the linked Lore Spec and its owner-held evidence; do not reconstruct or copy
-the gate here. A local build, a dated snapshot, or a consumer summary is not
-proof that the gate passed.
+Implementation may proceed only under the current owner decisions in the
+[consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
+and the [consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore).
+Follow those owner-held records; do not reconstruct or copy gate criteria here.
+A local build, dated snapshot, or consumer summary is not proof of a gate result.
 
 ### Ready-to-paste prompt
 
@@ -69,12 +67,11 @@ read the component ADR, charter, OCLI-to-QCLI ledger, research program, and
 handover. Inspect QCLI-2 and select only the next eligible assigned research
 task; QCLI-2.1 is the first dependency when the foundation is complete.
 
-Quest owns execution and its command is quest. quest-doc owns product-wide
-decisions; opum-doc owns future SaaS policy and former OCLI provenance. This is
-research-only until the full Lore release gate passes. Do not add product
-source, runtime dependencies, package scaffolding, or publication; do not
-inspect Backlog.md source/tests or quarantined artifacts. Preserve old OCLI IDs
-and cite exact admitted evidence.
+Quest CLI owns execution and its command is `quest`. The consolidated Quest
+namespace owns product-wide decisions; `opum-doc` owns portfolio policy and
+former OCLI provenance. Follow the current consolidated Lore authority for any
+activation question. Do not add publication or public-install claims without
+owner-held release evidence. Preserve old OCLI IDs and cite exact admitted evidence.
 ```
 
 ## Rollback

@@ -38,9 +38,8 @@ owner's 2026-08-09 precedence ruling (`QCLI-64`). Packaging artifacts remain a P
 matter, and publication, release workflows claiming readiness, and public install
 instructions remain prohibited.
 
-`quest-doc` owns the product-wide staged roadmap; its
-[clean-room execution graph](https://github.com/opum-ai/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
-is the normative record of the eight product stages. This Spec is the component-local
+The [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
+owns the product-wide staged roadmap. This Spec is the component-local
 elaboration of them and does not restate them as normative here.
 
 ## Requirements
@@ -77,28 +76,24 @@ stale before it was actionable.
 | 2 | Core execution engine | Phase 1; Phase 0 for any code | Design only |
 | 3 | Local projection | Phase 2 | Design only |
 | 4 | Backlog migration | Phases 2 and 3 | Design only |
-| 5 | Lore adapter | Phase 1; `lore-doc` boundary decisions | Partially, externally blocked |
+| 5 | Lore adapter | Phase 1; consolidated Lore boundary decisions | Partially, externally blocked |
 | 6 | Packaging and release | Phase 0; D2 and D3 | No |
 
 ---
 
 ### Phase 0 — Activation precondition
 
-**Owner:** `lore-doc`, task `LDOC-4`. Not a Quest-side task.
+**Owner:** [consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore). Not a Quest-side task.
 
 **Entry.** None; it is the root.
 
-**Exit.** All four clauses of the gate predicate hold at one live inspection boundary: the
-owner has accepted the then-current Lore release boundary; `lore-cli`'s live Backlog,
-release documentation, artifact metadata, and immutable publication evidence agree that
-boundary is complete; no relevant owner-held blocker or contradictory handover remains;
-and quest-cli records the exact evidence it consumed and the decision time. Any false,
-stale, missing, or contradictory input makes the result **closed**.
+**Exit.** The consolidated Lore owner alone publishes the current predicate and result.
+Read it at the linked namespace at the point of action; do not use these historical
+component documents to reconstruct mutable criteria.
 
-**Status.** `LDOC-4` was To Do when last observed on 2026-08-04, and remained To Do on
-`QCLI-11`'s live re-verification on 2026-08-05 (see the [activation-gate evidence
-record](../reference/quest-cli-activation-gate-evidence-record.md)) — a moving reference,
-re-verify with `backlog task view LDOC-4 --plain` against a live fetched clone.
+**Status.** The local [activation-gate evidence record](../reference/quest-cli-activation-gate-evidence-record.md)
+preserves what quest-cli consumed at dated inspection boundaries. It is not the current
+Lore result and must not be promoted to one.
 
 **What a consumer may not do.** A dated snapshot, a local build, a consumer summary, or
 the existence of Quest documentation cannot open this gate. Clause 4 is quest-cli's own

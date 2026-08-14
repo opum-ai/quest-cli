@@ -24,7 +24,7 @@ tasks:
 
 Keep `quest-cli` authoritative only for the `quest` package, command, component
 contracts, research, migration, tests, and releases. Prove exact OCLI
-provenance, route product-wide decisions to `quest-doc`, and consume Lore's
+provenance, route product-wide decisions to the consolidated Quest namespace, and consume Lore's
 gate through its owner without adding product implementation.
 
 ## Acceptance criteria
@@ -35,7 +35,7 @@ gate through its owner without adding product implementation.
   current Spec, migration ledger, and context-free handover.
 - Dated OCLI inputs are provisional until QCLI-2.1 revalidates them, and no
   task can reactivate the former OCLI campaign.
-- Lore gate policy is linked from `lore-doc`; local records contain only the
+- Lore gate policy is linked from the consolidated Lore namespace; local records contain only the
   Quest CLI evidence-consumer obligation.
 - Strict Lore, task-rollup, agent-bridge, and Git checks pass with no product
   source, dependency, package scaffold, or release claim.

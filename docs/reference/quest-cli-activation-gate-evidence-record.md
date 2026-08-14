@@ -26,7 +26,7 @@ this one.
 **What this record does not do, stated up front because the task that
 produced it forbids it:** it does not evaluate the gate, does not compute or
 infer a Pass/Fail result of its own, and does not open implementation. The
-gate decision belongs to `lore-doc` and its task `LDOC-4`; a consumer
+gate decision belongs to the [consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore); a consumer
 repository — this one — cannot infer it. Every result stated below is either
 a literal quote of what the gate's own owner has already said, or a dated
 observation of an input the predicate depends on, never a conclusion this
@@ -34,10 +34,10 @@ document draws from those observations.
 
 ## Details
 
-### The predicate this record answers to (quoted from its owner)
+### Historical predicate capsule (quoted from its former owner record)
 
-Quoted verbatim from `lore-doc`'s
-[Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
+Quoted verbatim from the former `lore-doc` record,
+[Quest integration and Lore release gate](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore)
 (Spec, `lore-doc`, local clone `/Volumes/external/repos/lore-doc`, HEAD
 `45d0d90f68a6c471365494155f1fcae5b7d01196` as read 2026-08-05 — a moving
 reference, re-verify before relying; the predicate section itself was last
@@ -91,7 +91,7 @@ task is filed to manufacture one. `QCLI-46` is cited here only as the task
 that *recorded* this disposition — it is not the amendment's author and
 does not retroactively become one by being named in this note.
 
-This record satisfies clause 4 alone. Clauses 1–3 are quoted here only so the
+This historical record satisfies clause 4 alone. Clauses 1–3 are quoted here only so the
 evidence table below can be organized against them; this document asserts no
 disposition of clauses 1–3, which are `lore-doc`'s to rule on.
 
@@ -351,7 +351,7 @@ worktree's `HEAD` `b3326699b587208c2a26e776aa66facc99f9c7b4` (branch
 #### `lore-doc`'s own current gate-result statement, quoted verbatim
 
 From `lore-doc`'s
-[Quest integration and Lore release gate](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md)
+[consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore)
 (Spec, local clone `/Volumes/external/repos/lore-doc`, `HEAD` and
 `origin/dev` both `101f9bb39eacd0e2e73df1bb4fa78db04f0a5896`, read
 2026-08-08 — moving reference for "current HEAD," re-verify before relying;

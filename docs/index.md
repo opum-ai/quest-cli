@@ -14,10 +14,11 @@ package and command, component-local functional contracts, authored formats,
 Git/filesystem behavior, projection, migration, tests, releases, and operating
 runbooks.
 
-Quest-wide strategy and cross-repository architecture are canonical in
-`quest-doc`. The public `questgraph.dev` site belongs to `quest-web`; Lore-wide
-gates belong to `lore-doc`; Opum SaaS and commercial policy belong to
-`opum-doc`.
+Quest-wide strategy and cross-repository architecture are canonical in the
+[consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest).
+The public `questgraph.dev` site belongs to `quest-web`; Lore-wide gates belong
+to the [consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore);
+Opum SaaS and commercial policy belong to `opum-doc`.
 
 This repository currently contains planning, provenance, research, and design
 only. Product source and runtime dependencies remain gated on the full Lore
