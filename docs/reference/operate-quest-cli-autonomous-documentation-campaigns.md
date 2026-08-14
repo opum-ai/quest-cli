@@ -23,7 +23,8 @@ future `quest` product or to decide product, security, publication, or release p
 [`AGENTS.md`](../../AGENTS.md#autonomous-documentation-campaigns) is the normative
 authorization; the project [`backlog-handover` skill](../../.codex/skills/backlog-handover/SKILL.md)
 implements it. [QCLI-71](../../backlog/tasks/qcli-71%20-%20Adopt-the-autonomous-documentation-campaign-fast-lane.md)
-owns this record.
+established this record; [QCLI-96](../../backlog/tasks/qcli-96%20-%20Make-autonomous-campaigns-loop-until-a-true-pause.md)
+owns its continuous-loop and session-renewal amendments.
 
 ## Details
 
@@ -58,7 +59,37 @@ outside this authority.
 4. Settle each task's detailed evidence on that task, one compact disposition per task
    in its tracker, and recompute readiness immediately. A completed wave is not a pause.
 5. Integrate reviewed work into at most one Quest CLI pull request per wave to `dev`.
-   Hand over only for a genuine blocker, environment stop, or unsafe context growth.
+   Continue through merge verification, task settlement, artifact cleanup, and the next
+   ready wave. A PR, merge, or cleanup boundary is not a pause.
+
+### Stop and session-renewal contract
+
+A nonterminal run has exactly two exit forms. `human-decision` names a real authority
+boundary or external blocker and the one human action that unblocks it. `session-renewal`
+is used only after durable state is flushed because the environment must end or the
+context is demonstrably unreliable. It tells the operator to run `/clear`, start a new
+session in `quest-cli`, invoke `$backlog-handover restore`, and continue without
+reconfirmation. Routine context growth or a preference for a smaller session is not a
+reason to stop.
+
+Both forms record the tracker, numeric queue partition, branch and worktree, exact last
+completed stage, retained artifacts, and exact next action. The lifecycle audit rejects
+a vague or ungrounded cursor. When the queue is empty, the coordinator completes the
+tracker, removes the executable cursor, audits completion, and leaves no closed campaign
+available to restore.
+
+### Worktree and cleanup hygiene
+
+The [`treehouse-worktrees` skill](../../.codex/skills/treehouse-worktrees/SKILL.md) gives
+the coordinator a fenced lease workflow for reusable agent worktrees. Clean detached pool
+entries are infrastructure, not debris; workers never release their own leases.
+
+Dirty campaign work is classified by content, not by `git status` alone. Work already
+represented on `dev` may be cleaned under merged-artifact authority. Unique in-scope work
+is preserved on an owned recovery branch and returned through review and delivery. Unique
+unrelated or decision-dependent work is retained with exact ownership and disposition.
+Safe pruning, merged-branch cleanup, and a clean fast-forward proceed separately instead
+of being bundled into a request to discard unique changes.
 
 Backlog task/status reads do not fetch: [`backlog/config.yml`](../../backlog/config.yml)
 sets `remote_operations: false`. Delivery grounds Git remote state explicitly only when
