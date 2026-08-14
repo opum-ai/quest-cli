@@ -113,6 +113,11 @@
 - 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
 - 2026-08-14T13:28:49-05:00 cd4f05a6cbb9ac4d65526359fbea997d8b4e7cc4 docs: add Quest 0.1 implementation story
 - 2026-08-14T13:30:52-05:00 0cbe60a953019f01c66893d618ff9d5598790c67 chore(docs): sync Quest campaign log
+- 2026-08-14T13:33:02-05:00 9b4e537b84305330acc6ea01a4676259ce5acd8e chore(docs): record campaign delivery
+- 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
+- 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
+- 2026-08-14T15:56:58-05:00 b4b0b3336b19f32ed9b1da0e5ca155f6b4ef503a docs: sync Quest log (#99)
+- 2026-08-14T15:58:32-05:00 7729d406673992d175ca5f72f2f6bfd8fdaa9c91 docs: sync Quest log (#100)
 
 ## docs/adr
 
@@ -201,6 +206,8 @@
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T21:07:27-05:00 ad36ba8f43c8586f8d987614ef53858f000bce5c feat: adopt autonomous documentation fast lane
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
+- 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
 
 ## docs/runbooks
 
@@ -290,3 +297,5 @@
 - 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
 - 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
 - 2026-08-14T13:28:49-05:00 cd4f05a6cbb9ac4d65526359fbea997d8b4e7cc4 docs: add Quest 0.1 implementation story
+- 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
+- 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
