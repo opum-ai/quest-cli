@@ -6,13 +6,16 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-08-10 22:43'
-updated_date: '2026-08-11 02:03'
+updated_date: '2026-08-14 12:17'
 labels:
   - docs
   - provenance
   - odoc
   - follow-up
+  - 'doc:stories/audit-quest-cli-documentation-authority'
 dependencies: []
+documentation:
+  - docs/stories/audit-quest-cli-documentation-authority.md
 ordinal: 85000
 ---
 
