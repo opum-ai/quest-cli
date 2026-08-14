@@ -26,7 +26,7 @@ const RUNNABLE_SIGNALS = [
 ];
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const defaultDirectory = resolve(scriptDir, "../../../..", ".claude/handovers");
+const defaultDirectory = resolve(scriptDir, "../../../..", ".codex/handovers");
 const argumentsList = process.argv.slice(2);
 const completeMode = argumentsList.includes("--complete");
 const valueOptions = new Set(["--expect-tracker", "--expect-sha", "--expect-branch", "--expect-worktree", "--expect-state"]);

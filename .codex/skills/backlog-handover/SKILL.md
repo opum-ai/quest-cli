@@ -18,10 +18,14 @@ bounded-parallel execution while stopping at this repository's explicit human-de
    - `restore`: ground and continue the active campaign until complete or genuinely blocked.
    - `write`: flush unfinished state and replace the active handover.
    - `status`: inspect and report without mutation; use only when intent is genuinely ambiguous.
-4. Run `node .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs` whenever
-   `.claude/handovers/` exists. A nonterminal cursor audit must include live expected tracker, SHA,
-   branch, worktree, and queue counts as specified by `references/handover.md`; reconcile drift
-   before unrelated dispatch.
+4. Use `.codex/handovers/active.md` as the only current Codex cursor. If the legacy
+   `.claude/handovers/active.md` exists, treat it only as migration input: ground its tracker and Git
+   claims live, write any still-incomplete state to the Codex cursor, remove the legacy active file,
+   and run `node .codex/skills/backlog-handover/scripts/audit-handover-lifecycle.mjs
+   .claude/handovers --complete`. Never load `.claude/skills/**` for this flow.
+   Audit the Codex directory whenever it exists. A nonterminal audit must include live expected
+   tracker, SHA, branch, worktree, and queue counts as specified by `references/handover.md`;
+   reconcile drift before unrelated dispatch.
 5. Read the complete mode reference before continuing: `references/init.md` (then
    `references/restore.md`) for init, `references/restore.md` for restore,
    `references/handover.md` for write/status, and `references/delivery.md` only once an integrated
@@ -33,7 +37,7 @@ task-execution`. Before final task disposition, run `backlog instructions task-f
 ## State and ownership
 
 Trust live Backlog tasks first, then the active campaign's Backlog document, then the short
-`.claude/handovers/active.md` restart pointer. Treat `doc-1` as frozen legacy history: never append
+`.codex/handovers/active.md` restart pointer. Treat `doc-1` as frozen legacy history: never append
 another campaign or copy completed history into it.
 
 The coordinator alone writes Backlog tasks, campaign documents, handovers, Lore-generated surfaces,

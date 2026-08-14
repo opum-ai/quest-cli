@@ -13,7 +13,7 @@ context that is demonstrably no longer reliable—not a successful wave, merged 
 subjective context-size preference. Classify the stop as exactly one of `human-decision` or
 `session-renewal`.
 Flush task and compact tracker facts through Backlog, then mechanically audit the tracker before
-replacing `.claude/handovers/active.md`:
+replacing `.codex/handovers/active.md`:
 
 ```sh
 backlog doc view <tracker-id> --plain | node .codex/skills/backlog-handover/scripts/audit-campaign-tracker.mjs
