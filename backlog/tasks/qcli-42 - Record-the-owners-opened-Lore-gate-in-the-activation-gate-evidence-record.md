@@ -4,15 +4,17 @@ title: Record the owner's opened Lore gate in the activation-gate evidence recor
 status: Done
 assignee: []
 created_date: '2026-08-07 02:22'
-updated_date: '2026-08-07 02:23'
+updated_date: '2026-08-14 12:17'
 labels:
   - documentation
   - activation-gate
   - evidence
   - cross-repository
+  - 'doc:stories/prepare-quest-cli-for-implementation-activation'
 dependencies: []
 documentation:
   - docs/reference/quest-cli-activation-gate-evidence-record.md
+  - docs/stories/prepare-quest-cli-for-implementation-activation.md
 priority: high
 type: docs
 ordinal: 61000
