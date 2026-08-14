@@ -29,19 +29,16 @@ document, so it is stated here first:
 > its only blockers are Quest's own unresolved component decisions. It is therefore the
 > next actionable unit of work — and it is what unblocks Phases 2 through 5.
 
-Phase 0 and Phase 6 are owner-gated and cannot be worked at all. Phases 2 through 5 were
-formerly barred from producing product source, a runtime dependency, or executable
-scaffolding before Phase 0 passed and was independently re-verified live. **That bar was
-lifted 2026-08-08 by `QCLI-59`**, once `QCLI-56`'s capsule established the verified Pass
-it was conditional on, and `CLAUDE.md` was confirmed authoritative over this Spec by the
-owner's 2026-08-09 precedence ruling (`QCLI-64`). Packaging artifacts remain a Phase 6
-matter, and publication, release workflows claiming readiness, and public install
-instructions remain prohibited.
+Phase 0 and Phase 6 are owner-gated. Current activation status, gate procedure, and
+product-wide sequencing are intentionally not copied here: consult the
+[Lore integration and release gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md)
+and [Quest external routing and provenance](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
+Packaging artifacts remain a Phase 6 matter, and publication, release workflows claiming
+readiness, and public install instructions remain prohibited.
 
-`quest-doc` owns the product-wide staged roadmap; its
-[clean-room execution graph](https://github.com/opum-ai/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
-is the normative record of the eight product stages. This Spec is the component-local
-elaboration of them and does not restate them as normative here.
+This Spec is a component-local elaboration. Quest-wide roadmap and clean-room provenance
+route through [Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md),
+not through a duplicated component contract.
 
 ## Requirements
 
@@ -72,33 +69,26 @@ stale before it was actionable.
 
 | Phase | Scope | Blocked by | Workable now? |
 | --- | --- | --- | --- |
-| 0 | Activation precondition | The Lore-owned gate; `LCLI-278` | No — owner-held |
+| 0 | Activation precondition | Lore-owned gate | Owner-held; consult the canonical gate |
 | 1 | Component decisions, no code | Quest's own open decisions only | **Yes** |
 | 2 | Core execution engine | Phase 1; Phase 0 for any code | Design only |
 | 3 | Local projection | Phase 2 | Design only |
 | 4 | Backlog migration | Phases 2 and 3 | Design only |
-| 5 | Lore adapter | Phase 1; `lore-doc` boundary decisions | Partially, externally blocked |
+| 5 | Lore adapter | Phase 1; external Lore boundary decisions | Partially, externally blocked |
 | 6 | Packaging and release | Phase 0; D2 and D3 | No |
 
 ---
 
 ### Phase 0 — Activation precondition
 
-**Owner:** `lore-doc`, task `LDOC-4`. Not a Quest-side task.
+**Owner route:** [Opum Lore integration and release gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md).
+Not a Quest-side task.
 
 **Entry.** None; it is the root.
 
-**Exit.** All four clauses of the gate predicate hold at one live inspection boundary: the
-owner has accepted the then-current Lore release boundary; `lore-cli`'s live Backlog,
-release documentation, artifact metadata, and immutable publication evidence agree that
-boundary is complete; no relevant owner-held blocker or contradictory handover remains;
-and quest-cli records the exact evidence it consumed and the decision time. Any false,
-stale, missing, or contradictory input makes the result **closed**.
-
-**Status.** `LDOC-4` was To Do when last observed on 2026-08-04, and remained To Do on
-`QCLI-11`'s live re-verification on 2026-08-05 (see the [activation-gate evidence
-record](../reference/quest-cli-activation-gate-evidence-record.md)) — a moving reference,
-re-verify with `backlog task view LDOC-4 --plain` against a live fetched clone.
+**Exit.** The owner evaluates its predicate from owner-held evidence. This component
+consults the canonical gate rather than copying the predicate, its procedure, or a mutable
+status into this roadmap.
 
 **What a consumer may not do.** A dated snapshot, a local build, a consumer summary, or
 the existence of Quest documentation cannot open this gate. Clause 4 is quest-cli's own
@@ -110,7 +100,8 @@ record](../reference/quest-cli-activation-gate-evidence-record.md) `QCLI-11` pro
 
 ### Phase 1 — Component decisions
 
-**No code. Not blocked on Phase 0.** This is the actionable work today.
+**No code.** Authorize component decision work only through the assigned task; this
+roadmap does not determine current campaign readiness.
 
 **Entry.** The open component decisions register exists and enumerates what must be
 closed. It does.
@@ -121,13 +112,13 @@ closed. It does.
 | --- | --- | --- |
 | JSON envelope shape — `schemaVersion` form, `kind` naming, payload key structure | CLI contract open items | **Closed and amended** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`, amended by `QCLI-69`) aligns to numeric `{schemaVersion, kind, data, principal}` and the live dotted-kind registry |
 | The literal exit-code-to-outcome table | CLI contract open items | **Closed and amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) adopts the shared `0` through `6` semantic taxonomy |
-| The not-found signal convention | CLI contract open items, partly `lore-doc` | **Closed, Quest's own side; amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) uses diagnostic `error_type: "not_found"` on exit `3`; the `lore-doc` boundary half stays open, unowned by Quest |
+| The not-found signal convention | CLI contract open items, partly external Lore authority | **Closed, Quest's own side; amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) uses diagnostic `error_type: "not_found"` on exit `3`; the external Lore boundary half stays open, unowned by Quest |
 | Canonical identifier grammar | D4 | **Closed** — [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
 | Product license and contributor provenance | D1 | **Closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): MIT, informal/none for now |
 | Explicit ownership of the platform question | D3 — Component, claimed by `QCLI-27` | **Closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): macOS, Linux, Windows; claimed as quest-cli-owned |
 | Explicit ownership of the runtime question | D2 — blocked, but ownership is not | **Owned, not closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`) claims quest-cli ownership; the runtime choice itself remains blocked, post-activation |
 | Scale target | D5 | **Closed** — [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) |
-| Where an anomaly sits in the outcome taxonomy | Architecture open questions | **Closed at the domain layer; wire mapping amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) preserves anomaly as a distinguishable domain condition but removes the Quest-only wire outcome/code; evaluator disagreement is a `drift` diagnostic on exit `6`. Full product-wide outcome-vocabulary canonization remains a separate `quest-doc` proposal |
+| Where an anomaly sits in the outcome taxonomy | Architecture open questions | **Closed at the domain layer; wire mapping amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) preserves anomaly as a distinguishable domain condition but removes the Quest-only wire outcome/code; evaluator disagreement is a `drift` diagnostic on exit `6`. Full product-wide outcome-vocabulary canonization remains a separate Quest-wide proposal |
 
 Plus one standing re-verification obligation: the migration fidelity contract is pinned to
 Backlog.md **v1.49.3** and its own recheck clause obliges re-checking before anything
@@ -144,18 +135,19 @@ whichever comes first, is unchanged.*
 **Requirements decided (not implemented):** `FR-CLI-1`, `FR-CLI-2`, `FR-CLI-4`,
 `FR-CLI-7`, `FR-IDENT-3`, `FR-MIG-7`.
 
-**Two decisions are not Quest's to make.** D6, the product-wide actor model, must be
-authored into `quest-doc` — no task in any repository has done so. The `lore-doc` half of
-the not-found convention needs that owner. A phase that "decides" either unilaterally has
-overstepped.
+**Two decisions are not Quest's to make.** D6, the product-wide actor model, routes through
+[Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
+The external Lore half of the not-found convention follows the
+[canonical Lore gate route](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md).
+A phase that "decides" either unilaterally has overstepped.
 
 ---
 
 ### Phase 2 — Core execution engine
 
-**Entry.** Phase 1's identifier grammar and envelope decisions are closed. Phase 0 has
-passed — verified 2026-08-08 by `QCLI-56`'s capsule, which is what lifted the bar on
-writing code (`QCLI-59`; precedence confirmed by `QCLI-64`).
+**Entry.** Phase 1's identifier grammar and envelope decisions are closed, and the
+external activation authority has authorized the applicable work. Consult the canonical
+gate; do not infer its current result from this roadmap.
 
 **Exit.** Claims, leases, heartbeats, the gate mechanism excluding actor eligibility,
 event-derived state, and operation-owned Git mutation satisfying all five invariants.
@@ -213,14 +205,16 @@ matters.
 
 ### Phase 5 — Lore adapter
 
-**Entry.** Phase 1's envelope decision. Externally: `lore-doc` boundary decisions.
+**Entry.** Phase 1's envelope decision. Externally: the
+[canonical Lore gate route](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md)
+for boundary decisions.
 
 **Exit.** The already-satisfiable adapter obligations are met; the boundary-dependent ones
 are either resolved by their owner or explicitly deferred.
 
 **Requirements:** all `FR-LORE`.
 
-**Blocked, structurally.** Three adapter obligations need a `lore-doc` decision — the
+**Blocked, structurally.** Three adapter obligations need an external Lore decision — the
 binary invocation surface, the write-response shape, and whether the coupling label format
 is reused. Beyond those, `BacklogAdapter` is `lore-cli`'s only tracker adapter type, with
 no generic abstraction to implement a second backend against. **This phase cannot complete
@@ -272,14 +266,14 @@ contains only the research handover. They are a Phase 6 exit criterion.
 
 ```text
 Phase 0 ──────────────────────────────────────┐
-(owner-gated: LDOC-4, LCLI-278)               │
+(owner-gated: canonical Lore route)           │
                                               v
 Phase 1 ───> Phase 2 ───> Phase 3 ───> Phase 4
 (no code,        │            │
  available       │            │
  now)            │            └──> (projection to populate)
                  │
-                 └──> Phase 5  (also needs lore-doc decisions)
+                 └──> Phase 5  (also needs external Lore decisions)
 
 Phase 6 <── Phase 0 + D2 runtime + D3 platform
 ```
@@ -288,18 +282,17 @@ Phase 0 gates any code in Phases 2 through 6. Phase 1 needs neither.
 
 ## Open questions
 
-- **When does Phase 0 get evaluated?** `LDOC-4` has been To Do since before Lore shipped.
-  The evidence it waits on has since changed — `@opum-ai/lore` is published with release
-  tags, where the audit that closed the gate found none — but evaluating that is
-  `lore-doc`'s call, and a consumer repository cannot infer it. Task `QCLI-11` records
-  what quest-cli consumed; it does not open anything.
+- **When does Phase 0 get evaluated?** This roadmap does not preserve a mutable answer.
+  The [canonical Lore gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md)
+  owns the route; a component consumer cannot infer its result. Historical consumption is
+  retained in the activation-gate evidence record, but does not open anything.
 - ~~**Who claims D3, the platform matrix?**~~ **Resolved 2026-08-05** by the
   [license, platform, and runtime ownership
   record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md)
   (`QCLI-27`): supported-platform matrix macOS, Linux, and Windows; ownership
   explicitly claimed as quest-cli-owned.
-- **Who authors D6 into `quest-doc`?** Gate actor eligibility blocks part of Phase 2 and no
-  task in any repository has been filed for it.
+- **Who authors D6?** Gate actor eligibility blocks part of Phase 2; route the question
+  through [Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
 - **Can Phase 5 be usefully split** into the unilaterally satisfiable obligations and the
   externally blocked ones, so the first half is not held hostage to the second?
 - **Is a coexistence period part of Phase 4's exit, or a phase of its own?** The playbook
