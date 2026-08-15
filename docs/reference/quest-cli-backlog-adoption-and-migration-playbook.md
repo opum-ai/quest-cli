@@ -51,16 +51,16 @@ This document opened no Backlog.md implementation source, the local
 Backlog.md clone, or any Quarantined or Contextual-only (lore-cli Backlog
 corpus) artifact.
 
-**Pinned research revision (AC6 of `QCLI-2.5`, restated here because this
-document depends on the same pin):** `backlog.md` **v1.49.3** — reconfirmed
-live 2026-08-04 immediately before authoring this document, both as the
-locally installed build (`backlog --version` → `1.49.3`) and the current npm
-release (`npm view backlog.md version` → `1.49.3`).
+**Requalified public revision (QCLI-73):** `backlog.md` **v1.50.1** — confirmed
+on 2026-08-15 as both the locally installed build (`backlog --version` →
+`1.50.1`) and the current npm release/latest tag. The v1.49.3 observations
+remain dated evidence; the fidelity contract's QCLI-73 requalification is the
+current public-contract baseline for this procedure.
 
-**Recheck clause.** Every procedure below assumes v1.49.3's observed public
+**Recheck clause.** Every procedure below assumes v1.50.1's observed public
 contract. Before a project follows this playbook, re-run `backlog --version`
 and `npm view backlog.md version`; if either reports a version other than
-`1.49.3`, treat that as a reclassification trigger identical to the one the
+later than `1.50.1`, treat that as a requalification trigger identical to the one the
 fidelity contract's own recheck clause defines — re-verify the cited rows of
 that document (and, where this document adds its own fresh citations, those
 too) against the new build before relying on this procedure, and record the
@@ -183,7 +183,7 @@ verifiable from a public interface; none requires reading Backlog.md source.
 
 | # | Precondition | How it is confirmed | Why it matters |
 | --- | --- | --- | --- |
-| P1 | Installed Backlog.md matches (or has been re-verified against) the pinned revision | `backlog --version` and, if network access is available, `npm view backlog.md version`; both reported `1.49.3` live 2026-08-04 for this document | This playbook's every claim about Backlog behavior is scoped to that revision; the recheck clause above governs a mismatch |
+| P1 | Installed Backlog.md matches (or has been re-verified against) the current revision | `backlog --version` and, if network access is available, `npm view backlog.md version`; both reported `1.50.1` live 2026-08-15 for this document | This playbook's every claim about Backlog behavior is scoped to that revision; the recheck clause above governs a later release |
 | P2 | The project's own configuration is captured verbatim | `backlog config list` (21 keys observed at pinned revision per the fidelity contract's Initialization Execution evidence) | Task-ID prefix, zero-padding, `--backlog-dir` location, config-file location, the live `statuses`/`priorities`/`types` value sets, and `autoCommit` are all project-configurable, not fixed — the fidelity contract's [Field-by-field disposition](quest-cli-backlog-migration-fidelity-contract.md#field-by-field-disposition-ac2) table is explicit that migration "must read the *project's* config, not assume `TASK-N`" |
 | P3 | No same-scope duplicate task IDs exist | `backlog doctor` (no `--fix`) exits 0 with `No duplicate task IDs found in active or completed tasks.` | `doctor`'s own scope is "active or completed tasks" only (its own wording, per the fidelity contract's Duplicate-ID collision table) — this precondition closes that class before migration begins, using Backlog's own tooling, never Quest's |
 | P4 | No cross-scope duplicate task IDs exist between the active/completed set and the archive set | Enumerate IDs from `backlog task list --json` (covers active + completed, per the fidelity contract's Inventory table) and separately from the raw frontmatter of every file under `backlog/archive/tasks/` and `backlog/archive/drafts/` (no ID-addressed command reaches the archive folders at all, per the same Inventory table's Archived row); diff the two ID sets for any overlap | This collision class is invisible to `doctor` and to `task view`'s own ambiguity guard — "not a manufactured adversarial case — it results from ordinary archive-then-recreate usage" per the fidelity contract's Findings #3; migration must scan wider than Backlog's own tooling does, per [Collision handling](quest-cli-backlog-migration-fidelity-contract.md#collision-handling) class 2 |

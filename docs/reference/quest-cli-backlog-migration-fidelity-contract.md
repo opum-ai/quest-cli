@@ -10,7 +10,7 @@ tags:
   - fidelity
   - clean-room
   - research
-summary: Defines what Quest must preserve from Backlog.md through its documented public contracts, backed by exhaustive CLI enumeration and exercise against a throwaway scratch repository at pinned v1.49.3.
+summary: Defines what Quest must preserve from Backlog.md through its documented public contracts, backed by exhaustive CLI enumeration and disposable-fixture exercise, requalified at v1.50.1.
 timestamp: 2026-08-04T16:52:32.136Z
 ---
 
@@ -52,11 +52,12 @@ local HTTP server (recorded below as evidence of what `browser` serves, but
 — as the Execution evidence `browser` row itself states — not treated as a
 citable public contract).
 
-**Pinned research revision (AC6):** `backlog.md` **v1.49.3** — confirmed as
-both the locally installed build and the register's own pin via `backlog
---version` → `1.49.3`, re-run live 2026-08-04 immediately before this task's
-enumeration began. This document's every command transcript below was
-captured against that exact build. It stays consistent with, and does not
+**Requalified public revision (QCLI-73):** `backlog.md` **v1.50.1** — confirmed
+as both the locally installed build (`backlog --version` → `1.50.1`) and the
+published npm `version`/`dist-tags.latest` (both `1.50.1`; registry modified
+`2026-08-10T07:49:40.987Z`) on 2026-08-15. The v1.49.3 transcripts below remain
+dated evidence; the requalification evidence below establishes the current
+baseline. This document stays consistent with, and does not
 restate or override, the
 [research source register](quest-cli-research-source-register.md)'s
 "Backlog.md public surface" and "Backlog.md implementation source and
@@ -65,12 +66,12 @@ internal tests" slices, the [component charter](quest-cli-component-charter.md)'
 line, and the [research program Spec](../specs/quest-cli-pre-implementation-research-program.md).
 
 **Recheck clause (moving-vs-immutable-references convention).** This
-document's every finding depends on the pinned v1.49.3 build being the
+document's every current finding depends on the requalified v1.50.1 build being the
 build a later worker actually has installed. Before relying on any table
 below, re-run `backlog --version` and `npm view backlog.md version`; if
-either reports a version other than `1.49.3`, that is a reclassification
+either reports a version later than `1.50.1`, that is a requalification
 trigger per the register's own "Backlog.md public surface" slice — every
-finding in this document must be re-verified against the new build before
+finding in this document must be reverified against the new build before
 further reliance, and the new version number is a fact for the owner to
 record, not grounds for a worker to silently treat this document as still
 current.
@@ -82,6 +83,28 @@ records no finding of that kind — every finding here is either a
 Backlog.md public-contract observation or a component-level Quest migration
 contract, both squarely inside `quest-cli`'s own charter ("migration,
 coexistence, aliases, and reversible fidelity reports").
+
+## Requalification evidence — 2026-08-15 (QCLI-73)
+
+Only the installed CLI, npm registry metadata, documented help, public command output,
+and a disposable filesystem-only fixture were used. No Backlog.md implementation source or
+internal tests were inspected.
+
+The fixture initialized with a letters-only custom prefix `Q` and three-digit zero padding.
+It exercised task creation with acceptance and DoD fields, parent/subtask allocation
+(`Q-001.01`), drafts, milestones, documents, decisions, `task list --json`, plain list
+surfaces, and `doctor`. The public contract still exposes task lifecycle commands
+`create`, `edit`, `archive`, `complete`, and `demote`; drafts expose `create`, `list`,
+`view`, `archive`, and `promote`; documents retain list/view/create/update; and decisions
+remain create-only. A numeric custom prefix was rejected before initialization, confirming
+the documented letters-only constraint rather than creating a different identifier grammar.
+
+The source-to-Quest disposition is unchanged: migrate current record state and the
+source-folder-qualified identifier as persisted provenance; do not inherit Backlog prefix,
+zero-padding, or hierarchy syntax as Quest identity; do not treat source identifiers as
+implicit Quest aliases; and retain target-side rollback tuples. Cross-scope duplicate-ID
+scanning, explicit unsupported gaps, source immutability, and one-way coexistence remain
+required exactly as the matrix below specifies.
 
 ## Details
 

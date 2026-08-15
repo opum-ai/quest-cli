@@ -123,6 +123,7 @@
 - 2026-08-14T19:51:34-05:00 d8c4b7831bb29c7bdf8eb387a823d9f9a0b9a029 docs: sync Quest log
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
 - 2026-08-14T20:15:33-05:00 0e6a831f1c259694b3755871d2cf52f85ffccdf7 docs: sync Quest log
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 
 ## docs/adr
 
@@ -137,6 +138,7 @@
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
 - 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 
 ## docs/reference
 
@@ -214,6 +216,7 @@
 - 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
 - 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 
 ## docs/runbooks
 
@@ -247,6 +250,7 @@
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 
 ## docs/stories
 
@@ -307,3 +311,4 @@
 - 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
 - 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
