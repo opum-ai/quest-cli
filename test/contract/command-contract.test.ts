@@ -9,7 +9,10 @@ import {
   success,
   validateCommandManifest,
 } from "../../src/application/command-contract.ts";
-import { validateQuestConfiguration } from "../../src/adapters/toml-configuration.ts";
+import {
+  readQuestConfiguration,
+  validateQuestConfiguration,
+} from "../../src/adapters/toml-configuration.ts";
 
 test("success envelopes have the frozen Opum wire shape", () => {
   expect(success("query.results", { tasks: [] })).toEqual({
@@ -21,14 +24,24 @@ test("success envelopes have the frozen Opum wire shape", () => {
 });
 
 test("diagnostics classify every non-success exit and retain principal", () => {
-  expect(diagnostic("not_found", "Missing.")).toEqual({
-    error_type: "not_found",
-    message: "Missing.",
-    principal: null,
-  });
-  expect(exitCodeFor("not_found")).toBe(3);
-  expect(exitCodeFor("drift")).toBe(6);
-  expect(exitCodeFor("uncaught")).toBe(1);
+  const expectedExits = {
+    uncaught: 1,
+    usage: 2,
+    not_found: 3,
+    denied: 4,
+    conflict: 5,
+    validation: 6,
+    drift: 6,
+  } as const;
+  for (const [errorType, exitCode] of Object.entries(expectedExits)) {
+    const typedError = errorType as keyof typeof expectedExits;
+    expect(diagnostic(typedError, "Failure.")).toEqual({
+      error_type: typedError,
+      message: "Failure.",
+      principal: null,
+    });
+    expect(exitCodeFor(typedError)).toBe(exitCode);
+  }
 });
 
 test("JSON wins over plain, and non-TTY output is plain", () => {
@@ -52,6 +65,38 @@ test("configuration is additive and rejects unsupported schemas without mutation
     errorType: "drift",
     message: "Unsupported Quest configuration schema 2; expected 1.",
   });
+  expect(validateQuestConfiguration('schemaVersion = "one"')).toMatchObject({
+    ok: false,
+    errorType: "validation",
+  });
+  expect(validateQuestConfiguration("not valid TOML =")).toMatchObject({
+    ok: false,
+    errorType: "validation",
+  });
+});
+
+test("configuration reads through its read-only port without normalizing input", async () => {
+  const original = 'schemaVersion = 1\nextra = "allowed"';
+  let reads = 0;
+  const result = await readQuestConfiguration({
+    async read() {
+      reads += 1;
+      return original;
+    },
+  });
+  expect(reads).toBe(1);
+  expect(result).toMatchObject({
+    ok: true,
+    configuration: { extra: "allowed" },
+  });
+  expect(original).toBe('schemaVersion = 1\nextra = "allowed"');
+  expect(
+    await readQuestConfiguration({
+      async read() {
+        return undefined;
+      },
+    }),
+  ).toBe(undefined);
 });
 
 test("the live manifest is non-empty and matches its result golden", () => {
