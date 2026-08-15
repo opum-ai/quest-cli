@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 17:21'
+updated_date: '2026-08-15 17:43'
 labels:
   - quest-0.1
   - 'wave:foundation'
@@ -47,8 +47,15 @@ Implement Quest's authoritative record primitives before workflows: tracked conf
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Reconcile the canonical-ID, actor, and authored-record ADRs with the QCLI-76 shell and inspect current domain/adapter conventions.
-2. Implement pure domain codecs for IDs, aliases, actors, events, and deterministic replay plus record adapters for UTF-8/schema validation.
-3. Add domain/record contract tests for allocation, Unicode collision prevention, actor rules, event idempotence, replay, and fail-closed corrupt input cases.
-4. Run focused and cumulative checks, obtain independent review, synchronize Lore, and finalize.
+1. Reconcile the accepted identifier, record-layout, actor, and Git-CAS ADRs with the QCLI-76 shell and current domain/adapter conventions.
+2. Add a narrowly scoped Git-backed global-counter record port that makes the allocation precondition and replacement revision explicit, without duplicating QCLI-79's full mutation engine.
+3. Strengthen pure authored-record validation: validate accountable-human references against declarations, enforce event-stream bases, and decode typed records rather than only their envelope.
+4. Add contract tests for counter CAS semantics, actor links, invalid bases, malformed version-1 records, idempotence, replay, and fail-closed input.
+5. Run focused and cumulative checks, obtain independent review, synchronize Lore, and finalize.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-15 restoration: primary `bun run check` at 26543cc failed before tests because `unicode-case-folding` is missing from node_modules. `bun install --frozen-lockfile` failed with Bun `PermissionDenied` writing its tempdir both sandboxed and escalated. Independent read-only review at 26543cc found blockers: no Git-coordinated counter adapter, event bases are unchecked, and decodeAuthoredRecord validates only the version envelope. Corrective slice planned; source tree remains clean.
+<!-- SECTION:NOTES:END -->
