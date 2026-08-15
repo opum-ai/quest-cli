@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 02:15'
+updated_date: '2026-08-15 02:21'
 labels:
   - quest-0.1
   - 'wave:foundation'
@@ -50,3 +50,9 @@ Implement the stable CLI/application shell every later command consumes: reposit
 3. Add goldens and contract tests for envelope, diagnostics, output precedence, configuration, and manifest validation.
 4. Run focused and cumulative checks, obtain independent review, synchronize Lore, and finalize.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented and verified the result/diagnostic wire shell, output-mode precedence, additive TOML validation, manifest registry validation with negative cases, and CLI stream/exit contract tests. bun run check passed after independent review remediation.
+<!-- SECTION:NOTES:END -->
