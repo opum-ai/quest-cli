@@ -132,6 +132,7 @@
 - 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
 - 2026-08-15T12:21:44-05:00 1f2fc44802709e6d3469970067b8129574464f5d chore(backlog): activate QCLI-77
 - 2026-08-15T12:49:03-05:00 e9aebb08a231a230160e8bf5e4b0dd761abebecd feat(QCLI-77): harden authored record primitives
+- 2026-08-15T12:57:04-05:00 a7d40e8c43cdbaba9be29e292e1555ce518f3783 fix(QCLI-78): initialize at worktree root
 
 ## docs/adr
 
@@ -329,3 +330,4 @@
 - 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
 - 2026-08-15T12:21:44-05:00 1f2fc44802709e6d3469970067b8129574464f5d chore(backlog): activate QCLI-77
 - 2026-08-15T12:49:03-05:00 e9aebb08a231a230160e8bf5e4b0dd761abebecd feat(QCLI-77): harden authored record primitives
+- 2026-08-15T12:57:04-05:00 a7d40e8c43cdbaba9be29e292e1555ce518f3783 fix(QCLI-78): initialize at worktree root
