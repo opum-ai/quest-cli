@@ -135,6 +135,7 @@
 - 2026-08-15T12:57:04-05:00 a7d40e8c43cdbaba9be29e292e1555ce518f3783 fix(QCLI-78): initialize at worktree root
 - 2026-08-15T13:37:55-05:00 487d60c6613c64174788b76a72ae392a885d0048 chore(backlog): dispatch QCLI-79
 - 2026-08-15T13:56:39-05:00 90dfe7837aafb4c7b31ab10ac4600645d21fceba chore(backlog): settle QCLI-79
+- 2026-08-15T13:58:01-05:00 f2356c30b695291d072b5a0147b3f6a5d44168cb chore(backlog): dispatch QCLI-80
 
 ## docs/adr
 
@@ -335,3 +336,4 @@
 - 2026-08-15T12:57:04-05:00 a7d40e8c43cdbaba9be29e292e1555ce518f3783 fix(QCLI-78): initialize at worktree root
 - 2026-08-15T13:37:55-05:00 487d60c6613c64174788b76a72ae392a885d0048 chore(backlog): dispatch QCLI-79
 - 2026-08-15T13:56:39-05:00 90dfe7837aafb4c7b31ab10ac4600645d21fceba chore(backlog): settle QCLI-79
+- 2026-08-15T13:58:01-05:00 f2356c30b695291d072b5a0147b3f6a5d44168cb chore(backlog): dispatch QCLI-80
