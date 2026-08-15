@@ -10,7 +10,7 @@ tags:
   - release
 summary: Implement and qualify the standalone Quest CLI, its Lore tracker contract, migration paths, packaging, and release gates.
 timestamp: 2026-08-14T18:26:29.020Z
-status: todo
+status: in-progress
 tasks:
   - qcli-72
   - qcli-73
@@ -77,7 +77,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-77](../../backlog/tasks/qcli-77%20-%20Implement-authored-codecs-actors-IDs-aliases-events-and-replay.md) | Implement authored codecs, actors, IDs, aliases, events, and replay | Done |
 | [QCLI-78](../../backlog/tasks/qcli-78%20-%20Implement-safe-Quest-workspace-initialization-discovery-and-enrollment.md) | Implement safe Quest workspace initialization, discovery, and enrollment | Done |
 | [QCLI-79](../../backlog/tasks/qcli-79%20-%20Implement-operation-owned-Git-CAS-synchronization-and-crash-recovery.md) | Implement operation-owned Git CAS, synchronization, and crash recovery | Done |
-| [QCLI-80](../../backlog/tasks/qcli-80%20-%20Implement-the-Quest-task-graph-lifecycle-CRUD-search-and-readiness.md) | Implement the Quest task graph, lifecycle, CRUD, search, and readiness | To Do |
+| [QCLI-80](../../backlog/tasks/qcli-80%20-%20Implement-the-Quest-task-graph-lifecycle-CRUD-search-and-readiness.md) | Implement the Quest task graph, lifecycle, CRUD, search, and readiness | In Progress |
 | [QCLI-81](../../backlog/tasks/qcli-81%20-%20Implement-Quest-claims-leases-heartbeats-reclamation-and-delegation.md) | Implement Quest claims, leases, heartbeats, reclamation, and delegation | To Do |
 | [QCLI-82](../../backlog/tasks/qcli-82%20-%20Implement-Quest-gates-review-evidence-and-completion-enforcement.md) | Implement Quest gates, review evidence, and completion enforcement | To Do |
 | [QCLI-83](../../backlog/tasks/qcli-83%20-%20Ship-the-Quest-tracker-subprocess-contract-and-Lore-conformance-kit.md) | Ship the Quest tracker subprocess contract and Lore conformance kit | To Do |
