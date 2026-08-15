@@ -138,6 +138,7 @@
 - 2026-08-15T13:58:01-05:00 f2356c30b695291d072b5a0147b3f6a5d44168cb chore(backlog): dispatch QCLI-80
 - 2026-08-15T14:49:40-05:00 f993e6b3b0e44623bceb3d23cf5937b2e80f5b31 chore(docs): sync QCLI-80 completion
 - 2026-08-15T14:50:11-05:00 05e41a8aa7d6655b03441876ac0231e32d5bd695 chore(docs): record QCLI-80 settlement
+- 2026-08-15T14:51:55-05:00 d4be0795ac63bf82f964c68f90ebf4fa19d21313 chore(docs): dispatch QCLI-81 QCLI-83 QCLI-90
 
 ## docs/adr
 
@@ -340,3 +341,4 @@
 - 2026-08-15T13:56:39-05:00 90dfe7837aafb4c7b31ab10ac4600645d21fceba chore(backlog): settle QCLI-79
 - 2026-08-15T13:58:01-05:00 f2356c30b695291d072b5a0147b3f6a5d44168cb chore(backlog): dispatch QCLI-80
 - 2026-08-15T14:49:40-05:00 f993e6b3b0e44623bceb3d23cf5937b2e80f5b31 chore(docs): sync QCLI-80 completion
+- 2026-08-15T14:51:55-05:00 d4be0795ac63bf82f964c68f90ebf4fa19d21313 chore(docs): dispatch QCLI-81 QCLI-83 QCLI-90

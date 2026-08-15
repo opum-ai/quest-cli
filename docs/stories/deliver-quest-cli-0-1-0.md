@@ -78,7 +78,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-78](../../backlog/tasks/qcli-78%20-%20Implement-safe-Quest-workspace-initialization-discovery-and-enrollment.md) | Implement safe Quest workspace initialization, discovery, and enrollment | Done |
 | [QCLI-79](../../backlog/tasks/qcli-79%20-%20Implement-operation-owned-Git-CAS-synchronization-and-crash-recovery.md) | Implement operation-owned Git CAS, synchronization, and crash recovery | Done |
 | [QCLI-80](../../backlog/tasks/qcli-80%20-%20Implement-the-Quest-task-graph-lifecycle-CRUD-search-and-readiness.md) | Implement the Quest task graph, lifecycle, CRUD, search, and readiness | Done |
-| [QCLI-81](../../backlog/tasks/qcli-81%20-%20Implement-Quest-claims-leases-heartbeats-reclamation-and-delegation.md) | Implement Quest claims, leases, heartbeats, reclamation, and delegation | In Progress |
+| [QCLI-81](../../backlog/tasks/qcli-81%20-%20Implement-Quest-claims-leases-heartbeats-reclamation-and-delegation.md) | Implement Quest claims, leases, heartbeats, reclamation, and delegation | Done |
 | [QCLI-82](../../backlog/tasks/qcli-82%20-%20Implement-Quest-gates-review-evidence-and-completion-enforcement.md) | Implement Quest gates, review evidence, and completion enforcement | To Do |
 | [QCLI-83](../../backlog/tasks/qcli-83%20-%20Ship-the-Quest-tracker-subprocess-contract-and-Lore-conformance-kit.md) | Ship the Quest tracker subprocess contract and Lore conformance kit | In Progress |
 | [QCLI-84](../../backlog/tasks/qcli-84%20-%20Implement-the-Bun-SQLite-projection-schema-and-atomic-rebuild.md) | Implement the Bun SQLite projection schema and atomic rebuild | To Do |
@@ -87,7 +87,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-87](../../backlog/tasks/qcli-87%20-%20Implement-the-Backlog.md-issue-importer.md) | Implement the Backlog.md issue importer | To Do |
 | [QCLI-88](../../backlog/tasks/qcli-88%20-%20Implement-Backlog-knowledge-partitioning-and-the-Quest-Lore-migration-saga.md) | Implement Backlog knowledge partitioning and the Quest-Lore migration saga | To Do |
 | [QCLI-89](../../backlog/tasks/qcli-89%20-%20Implement-the-Jira-Cloud-importer-through-jira-cli.md) | Implement the Jira Cloud importer through jira-cli | To Do |
-| [QCLI-90](../../backlog/tasks/qcli-90%20-%20Implement-optional-Lore-concept-linking.md) | Implement optional Lore concept linking | In Progress |
+| [QCLI-90](../../backlog/tasks/qcli-90%20-%20Implement-optional-Lore-concept-linking.md) | Implement optional Lore concept linking | Done |
 | [QCLI-91](../../backlog/tasks/qcli-91%20-%20Qualify-Quest-migrations-and-Lore-interoperation-end-to-end.md) | Qualify Quest migrations and Lore interoperation end to end | To Do |
 | [QCLI-92](../../backlog/tasks/qcli-92%20-%20Build-six-compiled-Quest-platform-packages-and-the-npm-launcher.md) | Build six compiled Quest platform packages and the npm launcher | To Do |
 | [QCLI-93](../../backlog/tasks/qcli-93%20-%20Complete-Quest-release-fault-clone-scale-and-supply-chain-qualification.md) | Complete Quest release, fault, clone, scale, and supply-chain qualification | To Do |
