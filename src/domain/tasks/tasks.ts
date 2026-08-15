@@ -10,8 +10,32 @@ import {
 } from "../records.ts";
 
 export const taskStatuses = ["To Do", "In Progress", "Done"] as const;
-export type TaskStatus = (typeof taskStatuses)[number];
-export const terminalStatuses = new Set<TaskStatus>(["Done"]);
+export type TaskStatus = string;
+export interface LifecyclePolicy {
+  readonly statuses: readonly TaskStatus[];
+  readonly terminalStatuses: readonly TaskStatus[];
+}
+export const defaultLifecyclePolicy: LifecyclePolicy = {
+  statuses: taskStatuses,
+  terminalStatuses: ["Done"],
+};
+
+function lifecyclePolicy(policy: LifecyclePolicy): LifecyclePolicy {
+  if (
+    !policy.statuses.length ||
+    new Set(policy.statuses).size !== policy.statuses.length
+  )
+    throw new RecordValidationError(
+      "Lifecycle statuses must be a non-empty unique order.",
+    );
+  if (
+    policy.terminalStatuses.some((status) => !policy.statuses.includes(status))
+  )
+    throw new RecordValidationError(
+      "Lifecycle terminal status is not configured.",
+    );
+  return policy;
+}
 
 export interface TaskComment {
   readonly id: string;
@@ -41,6 +65,14 @@ export interface TaskClaim {
   readonly expiresAt: string;
 }
 
+export interface TaskGate {
+  readonly id: string;
+  readonly title: string;
+  readonly state: "pending" | "satisfied";
+  readonly evidence: readonly string[];
+  readonly satisfiedBy?: string;
+}
+
 export interface TaskState {
   readonly id: CanonicalId;
   readonly aliases: readonly string[];
@@ -61,6 +93,7 @@ export interface TaskState {
   readonly parentId?: string;
   readonly dependencies: readonly string[];
   readonly blockers: readonly BlockerEvent[];
+  readonly gates: readonly TaskGate[];
   readonly claim?: TaskClaim;
   readonly source?: SourceProvenance;
 }
@@ -80,6 +113,7 @@ export interface TaskInput
     | "documentation"
     | "dependencies"
     | "blockers"
+    | "gates"
   > {
   readonly status?: TaskStatus;
   readonly aliases?: readonly string[];
@@ -92,9 +126,10 @@ export interface TaskInput
   readonly documentation?: readonly string[];
   readonly dependencies?: readonly string[];
   readonly blockers?: readonly BlockerEvent[];
+  readonly gates?: readonly TaskGate[];
 }
 
-const statusSchema = z.enum(taskStatuses);
+const statusSchema = z.string().min(1);
 const taskSchema = z.object({
   id: canonicalIdSchema,
   aliases: z.array(z.string().min(1)),
@@ -131,6 +166,15 @@ const taskSchema = z.object({
       evidence: z.array(z.string()).optional(),
     }),
   ),
+  gates: z.array(
+    z.object({
+      id: z.string().min(1),
+      title: z.string().min(1),
+      state: z.enum(["pending", "satisfied"]),
+      evidence: z.array(z.string()),
+      satisfiedBy: z.string().min(1).optional(),
+    }),
+  ),
   claim: z
     .object({
       holderId: z.string().min(1),
@@ -164,6 +208,19 @@ export function taskState(value: TaskState): TaskState {
     "Comment ids",
   );
   unique(state.aliases.map(aliasKey), "Aliases");
+  unique(
+    state.gates.map((gate) => gate.id),
+    "Gate ids",
+  );
+  for (const gate of state.gates) {
+    if (
+      gate.state === "satisfied" &&
+      (!gate.evidence.length || !gate.satisfiedBy)
+    )
+      throw new RecordValidationError("gate_satisfied_without_evidence");
+    if (gate.state === "pending" && (gate.evidence.length || gate.satisfiedBy))
+      throw new RecordValidationError("gate_pending_has_satisfaction");
+  }
   return state;
 }
 
@@ -182,12 +239,22 @@ export function createTask(id: string, input: TaskInput): TaskState {
     documentation: input.documentation ?? [],
     dependencies: input.dependencies ?? [],
     blockers: input.blockers ?? [],
+    gates: input.gates ?? [],
   });
 }
 
-export function transitionTask(task: TaskState, next: TaskStatus): TaskState {
-  const position = taskStatuses.indexOf(task.status);
-  if (taskStatuses.indexOf(next) !== position + 1)
+export function transitionTask(
+  task: TaskState,
+  next: TaskStatus,
+  policy = defaultLifecyclePolicy,
+): TaskState {
+  const configured = lifecyclePolicy(policy);
+  const position = configured.statuses.indexOf(task.status);
+  if (position < 0 || !configured.statuses.includes(next))
+    throw new RecordValidationError(
+      "Task transition uses an unconfigured status.",
+    );
+  if (configured.statuses.indexOf(next) !== position + 1)
     throw new RecordValidationError(
       `Illegal task transition: ${task.status} -> ${next}.`,
     );
@@ -305,24 +372,51 @@ export function validateTaskGraph(
   return links;
 }
 
+/** Canonicalizes aliases before an authored record is persisted. */
+export function canonicalizeTaskLinks(
+  tasks: readonly TaskState[],
+): readonly TaskState[] {
+  for (const task of tasks) taskState(task);
+  const aliases = resolver(tasks);
+  const resolve = (raw: string): CanonicalId => {
+    const id = aliases.get(aliasKey(raw));
+    if (!id) throw new RecordValidationError("dependency_target_not_found");
+    return id;
+  };
+  const canonical = tasks.map((task) =>
+    taskState({
+      ...task,
+      dependencies: task.dependencies.map(resolve),
+      parentId: task.parentId ? resolve(task.parentId) : undefined,
+    }),
+  );
+  validateTaskGraph(canonical);
+  return canonical;
+}
+
 /** Pure, deterministic ready-set evaluation; validates the whole graph before returning anything. */
 export function evaluateReadySet(
   tasks: readonly TaskState[],
   now: Date,
+  policy = defaultLifecyclePolicy,
 ): ReadySet {
+  const configured = lifecyclePolicy(policy);
   const links = validateTaskGraph(tasks);
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const ready: CanonicalId[] = [];
   const excluded: ReadinessReason[] = [];
   for (const task of [...tasks].sort((a, b) => a.id.localeCompare(b.id))) {
-    if (task.status !== "To Do") {
+    if (task.status !== configured.statuses[0]) {
       excluded.push({ taskId: task.id, reason: "lifecycle_ineligible" });
       continue;
     }
     if (
       (links.get(task.id) ?? []).some((id) => {
         const dependency = byId.get(id);
-        return !dependency || !terminalStatuses.has(dependency.status);
+        return (
+          !dependency ||
+          !configured.terminalStatuses.includes(dependency.status)
+        );
       })
     ) {
       excluded.push({ taskId: task.id, reason: "dependency_incomplete" });
@@ -330,6 +424,10 @@ export function evaluateReadySet(
     }
     if (activeBlockers(task.blockers).length) {
       excluded.push({ taskId: task.id, reason: "explicitly_blocked" });
+      continue;
+    }
+    if (task.gates.some((gate) => gate.state === "pending")) {
+      excluded.push({ taskId: task.id, reason: "pending_gate" });
       continue;
     }
     if (claimState(task, now) === "live") {

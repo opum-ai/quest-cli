@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 
 import {
   createTask,
+  defaultLifecyclePolicy,
   evaluateReadySet,
   transitionTask,
 } from "../../../src/domain/tasks/tasks.ts";
@@ -21,14 +22,27 @@ function task(
 class MemoryTasks implements TaskRepository {
   reads = 0;
   writes = 0;
+  private revision = "r-1";
   constructor(private tasks: ReturnType<typeof createTask>[] = []) {}
   async readAll() {
     this.reads += 1;
-    return this.tasks;
+    return { revision: this.revision, tasks: this.tasks };
   }
-  async write(next: ReturnType<typeof createTask>) {
+  async write(request: Parameters<TaskRepository["write"]>[0]) {
+    if (request.expectedRevision !== this.revision)
+      return {
+        kind: "conflict" as const,
+        expectedRevision: request.expectedRevision,
+        actualRevision: this.revision,
+        operationId: request.operationId,
+        ownedPaths: request.ownedPaths,
+      };
     this.writes += 1;
-    this.tasks = this.tasks.filter((item) => item.id !== next.id).concat(next);
+    this.tasks = this.tasks
+      .filter((item) => item.id !== request.task.id)
+      .concat(request.task);
+    this.revision = `r-${this.writes + 1}`;
+    return { kind: "success" as const, revision: this.revision };
   }
 }
 
@@ -56,7 +70,10 @@ test("CRUD retains all authored task fields and reads never write", async () => 
     },
     "create-1",
   );
-  expect(created.title).toBe('Unicode "quotes" ✓');
+  expect(created).toMatchObject({
+    kind: "success",
+    task: { title: 'Unicode "quotes" ✓' },
+  });
   expect((await tasks.view("one")).source?.reference).toBe("QCLI-80");
   expect((await tasks.search("narrative"))[0]?.id).toBe("T-1");
   expect(store.writes).toBe(1);
@@ -68,7 +85,10 @@ test("CRUD retains all authored task fields and reads never write", async () => 
     { labels: ["core", "ready"], parentId: undefined },
     "edit-1",
   );
-  expect(edited.labels).toEqual(["core", "ready"]);
+  expect(edited).toMatchObject({
+    kind: "success",
+    task: { labels: ["core", "ready"] },
+  });
 });
 
 test("lifecycle only moves through its configured order and retains done records", () => {
@@ -77,6 +97,27 @@ test("lifecycle only moves through its configured order and retains done records
   expect(transitionTask(progress, "Done").status).toBe("Done");
   expect(() => transitionTask(todo, "Done")).toThrow(RecordValidationError);
   expect(() => transitionTask(progress, "To Do")).toThrow(
+    RecordValidationError,
+  );
+});
+
+test("lifecycle policy accepts a configured ordered vocabulary and terminal definition", () => {
+  const policy = {
+    statuses: ["Queued", "Working", "Closed"],
+    terminalStatuses: ["Closed"],
+  };
+  const queued = task("T-1", { status: "Queued" });
+  expect(transitionTask(queued, "Working", policy).status).toBe("Working");
+  expect(
+    transitionTask(transitionTask(queued, "Working", policy), "Closed", policy)
+      .status,
+  ).toBe("Closed");
+  expect(defaultLifecyclePolicy.statuses).toEqual([
+    "To Do",
+    "In Progress",
+    "Done",
+  ]);
+  expect(() => transitionTask(queued, "Closed", policy)).toThrow(
     RecordValidationError,
   );
 });
@@ -165,4 +206,67 @@ test("invalid references, hierarchy cycles, and blocker histories fail before ap
   expect(() =>
     evaluateReadySet([openedThenClearedWithoutEvidence], new Date()),
   ).toThrow("blocker_clear_requires_evidence");
+});
+
+test("service canonicalizes alias links, rejects status jumps without a write, and gates exclude readiness", async () => {
+  const first = task("T-1", { aliases: ["first"] });
+  const store = new MemoryTasks([first]);
+  const service = new TaskService(store);
+  const created = await service.create(
+    "T-2",
+    { title: "linked", dependencies: ["FIRST"], parentId: "first" },
+    "create",
+  );
+  expect(created).toMatchObject({
+    kind: "success",
+    task: { dependencies: ["T-1"], parentId: "T-1" },
+  });
+  await expect(service.edit("T-2", { status: "Done" }, "jump")).rejects.toThrow(
+    "Illegal task transition",
+  );
+  expect(store.writes).toBe(1);
+  const pending = task("T-3", {
+    gates: [{ id: "review", title: "Review", state: "pending", evidence: [] }],
+  });
+  expect(evaluateReadySet([pending], new Date())).toEqual({
+    ready: [],
+    excluded: [{ taskId: "T-3", reason: "pending_gate" }],
+  });
+  const satisfied = task("T-4", {
+    gates: [
+      {
+        id: "review",
+        title: "Review",
+        state: "satisfied",
+        evidence: ["https://evidence"],
+        satisfiedBy: "reviewer",
+      },
+    ],
+  });
+  expect(evaluateReadySet([satisfied], new Date()).ready).toEqual(["T-4"]);
+});
+
+test("a repository CAS conflict includes its observed basis and never reports a lost write as success", async () => {
+  const stale: TaskRepository = {
+    readAll: async () => ({ revision: "before", tasks: [] }),
+    write: async (request) => ({
+      kind: "conflict",
+      expectedRevision: request.expectedRevision,
+      actualRevision: "after",
+      operationId: request.operationId,
+      ownedPaths: request.ownedPaths,
+    }),
+  };
+  const result = await new TaskService(stale).create(
+    "T-1",
+    { title: "raced" },
+    "operation-1",
+  );
+  expect(result).toEqual({
+    kind: "conflict",
+    expectedRevision: "before",
+    actualRevision: "after",
+    operationId: "operation-1",
+    ownedPaths: [".quest/tasks/T-1.md"],
+  });
 });
