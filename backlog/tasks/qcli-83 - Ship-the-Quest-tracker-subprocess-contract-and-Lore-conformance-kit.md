@@ -1,10 +1,11 @@
 ---
 id: QCLI-83
 title: Ship the Quest tracker subprocess contract and Lore conformance kit
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 19:50'
 labels:
   - quest-0.1
   - 'wave:interop'
@@ -40,3 +41,11 @@ Publish the stable Quest subprocess contract lore-cli LCLI-315.4 will consume af
 - [ ] #4 A versioned conformance fixture suite can be run by lore-cli without reading Quest private files
 - [ ] #5 The contract documents actor selection for writes and leaves read operations actor-independent
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Define the public versioned tracker contract and conformance fixtures without importing Lore private files.
+2. Implement argv-safe Quest CLI task commands and bounded JSON subprocess mapping for probe, reads, and writes with deterministic outcome categories.
+3. Add contract coverage for semver/schema compatibility, lossless fields and patches, timeouts/errors, actor selection, and external fixture execution; run targeted and repository checks.
+<!-- SECTION:PLAN:END -->

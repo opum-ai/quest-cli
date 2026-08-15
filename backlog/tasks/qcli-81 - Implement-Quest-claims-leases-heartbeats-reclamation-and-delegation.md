@@ -1,10 +1,11 @@
 ---
 id: QCLI-81
 title: 'Implement Quest claims, leases, heartbeats, reclamation, and delegation'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 19:50'
 labels:
   - quest-0.1
   - 'wave:core'
@@ -40,3 +41,11 @@ Implement authored ownership claims independently of task status. Lease validity
 - [ ] #4 Reclamation appends a new event and preserves the expired holder, timing, and generation history
 - [ ] #5 Delegated agents require their accountable human and every concurrency or clock anomaly is surfaced deterministically
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Define the claims domain and configuration validation in the dedicated claims paths, retaining immutable lease-generation history.
+2. Add claim application use cases that resolve canonical task identifiers and enforce evaluator-clock, heartbeat, reclamation, delegation, and anomaly rules through the mutation kernel.
+3. Add focused integration coverage for lease exclusivity, configuration, stale renewals, reclamation, delegation, and deterministic anomalies; run targeted and repository checks.
+<!-- SECTION:PLAN:END -->

@@ -1,10 +1,11 @@
 ---
 id: QCLI-90
 title: Implement optional Lore concept linking
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 19:50'
 labels:
   - quest-0.1
   - 'wave:interop'
@@ -40,3 +41,11 @@ Implement explicit task-to-Lore concept linking through Lore's versioned public 
 - [ ] #4 No Quest-only command or workflow requires Lore to be installed or reachable
 - [ ] #5 Contract and integration tests use only Lore public records and commands
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Define the optional Lore public-record capability boundary and provenance validation in the dedicated adapter and application paths.
+2. Implement explicit documentation-reference mutation only after validating identity, repository, revision, path, schema, and content provenance.
+3. Add integration coverage for valid links and all unavailable/incompatible/stale/missing failure paths, proving Quest-only flows remain Lore-independent; run targeted and repository checks.
+<!-- SECTION:PLAN:END -->
