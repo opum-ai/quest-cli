@@ -96,6 +96,63 @@ interface ResultEnvelope {
   readonly data: unknown;
 }
 
+function isStringArray(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function isSummary(value: unknown): value is TrackerSummary {
+  if (!value || typeof value !== "object") return false;
+  const task = value as Partial<TrackerSummary>;
+  return (
+    typeof task.id === "string" &&
+    typeof task.title === "string" &&
+    typeof task.status === "string" &&
+    isStringArray(task.labels) &&
+    (task.summary === undefined || typeof task.summary === "string") &&
+    (task.priority === undefined || typeof task.priority === "string") &&
+    (task.type === undefined || typeof task.type === "string")
+  );
+}
+
+function isTask(value: unknown): value is TrackerTask {
+  if (!isSummary(value)) return false;
+  const task = value as Partial<TrackerTask>;
+  return (
+    (task.description === undefined || typeof task.description === "string") &&
+    isStringArray(task.acceptanceCriteria) &&
+    isStringArray(task.definitionOfDone) &&
+    isStringArray(task.plan) &&
+    isStringArray(task.implementationNotes) &&
+    Array.isArray(task.comments) &&
+    isStringArray(task.documentation) &&
+    isStringArray(task.dependencies) &&
+    (task.parentId === undefined || typeof task.parentId === "string")
+  );
+}
+
+function validData(kind: string, data: unknown): boolean {
+  switch (kind) {
+    case "task.status-flow":
+      return (
+        !!data &&
+        typeof data === "object" &&
+        isStringArray((data as Partial<TrackerStatusFlow>).statuses) &&
+        isStringArray((data as Partial<TrackerStatusFlow>).terminalStatuses)
+      );
+    case "task.list":
+    case "task.search":
+      return Array.isArray(data) && data.every(isSummary);
+    case "task.view":
+    case "task.created":
+    case "task.updated":
+      return isTask(data);
+    default:
+      return true;
+  }
+}
+
 function parseSemver(
   value: string,
 ): readonly [number, number, number] | undefined {
@@ -163,7 +220,8 @@ function parseEnvelope(
     if (
       envelope.schemaVersion !== TRACKER_CONTRACT_VERSION ||
       envelope.kind !== expectedKind ||
-      !("data" in envelope)
+      !("data" in envelope) ||
+      !validData(expectedKind, envelope.data)
     )
       throw new Error();
     return envelope as ResultEnvelope;

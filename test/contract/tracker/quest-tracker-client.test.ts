@@ -82,3 +82,24 @@ test("the client rejects timeouts, schema drift, and actor-free writes determini
     new QuestTrackerClient(runner).create({ title: "no actor" }),
   ).rejects.toMatchObject({ error_type: "denied" });
 });
+
+test("the client rejects malformed success payloads as contract drift", async () => {
+  const malformed: TrackerProcessRunner = {
+    async run(argv) {
+      return argv[0] === "--version"
+        ? { exitCode: 0, stdout: "0.1.0\n", stderr: "" }
+        : {
+            exitCode: 0,
+            stdout: JSON.stringify({
+              schemaVersion: 1,
+              kind: "task.list",
+              data: [{ id: "T-1", title: "missing fields" }],
+            }),
+            stderr: "",
+          };
+    },
+  };
+  await expect(new QuestTrackerClient(malformed).list()).rejects.toMatchObject({
+    error_type: "drift",
+  });
+});

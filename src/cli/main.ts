@@ -77,7 +77,7 @@ function flags(argv: readonly string[]):
     }
     if (!flag?.startsWith("--")) return undefined;
     const value = argv[index + 1];
-    if (value === undefined || value.startsWith("--")) return undefined;
+    if (value === undefined) return undefined;
     const entries = values.get(flag) ?? [];
     entries.push(value);
     values.set(flag, entries);
@@ -119,6 +119,15 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
     kind,
     ...(accountableHumanId ? { accountableHumanId } : {}),
   } as const;
+}
+
+async function nextTaskId(tasks: TaskService): Promise<string> {
+  const ids = await tasks.list();
+  const highest = ids.reduce((maximum, task) => {
+    const numeric = Number(task.id.slice(2));
+    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
+  }, 0);
+  return `T-${highest + 1}`;
 }
 
 /** Executes the stable public tracker CLI against repository-local task storage. */
@@ -215,10 +224,11 @@ export async function runQuest(
           "denied",
           "Tracker writes require an explicit actor declaration.",
         );
+      const tasks = taskService();
       return output(
-        await dispatchTrackerTaskCommand(taskService(), {
+        await dispatchTrackerTaskCommand(tasks, {
           command,
-          id: one(parsed, "--id") ?? `T-${crypto.randomUUID()}`,
+          id: one(parsed, "--id") ?? (await nextTaskId(tasks)),
           operationId: crypto.randomUUID(),
           actor: writeActor,
           input: {

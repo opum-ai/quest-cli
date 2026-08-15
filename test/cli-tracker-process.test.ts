@@ -5,6 +5,14 @@ import { join } from "node:path";
 import { expect, test } from "bun:test";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
+const conformance = join(
+  import.meta.dir,
+  "..",
+  "fixtures",
+  "tracker",
+  "v1",
+  "conformance.mjs",
+);
 
 async function quest(store: string, argv: readonly string[]) {
   const child = Bun.spawn(["bun", source, ...argv], {
@@ -38,8 +46,6 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "task",
       "create",
       "argv; safe",
-      "--id",
-      "T-1",
       "--label",
       "one",
       "--doc",
@@ -51,10 +57,12 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "--json",
     ]);
     expect(created.exitCode).toBe(0);
-    expect(JSON.parse(created.stdout)).toMatchObject({
-      kind: "task.created",
-      data: { id: "T-1", title: "argv; safe", labels: ["one"] },
+    const createdTask = JSON.parse(created.stdout).data;
+    expect(createdTask).toMatchObject({
+      title: "argv; safe",
+      labels: ["one"],
     });
+    expect(createdTask.id).toMatch(/^T-[1-9][0-9]*$/);
     const listed = await quest(store, [
       "task",
       "list",
@@ -64,12 +72,12 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     ]);
     expect(JSON.parse(listed.stdout)).toMatchObject({
       kind: "task.list",
-      data: [{ id: "T-1" }],
+      data: [{ id: createdTask.id }],
     });
     const edited = await quest(store, [
       "task",
       "edit",
-      "T-1",
+      createdTask.id,
       "--add-label",
       "two",
       "--actor",
@@ -84,9 +92,49 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       kind: "task.updated",
       data: { labels: ["one", "two"] },
     });
+    const dashValue = await quest(store, [
+      "task",
+      "create",
+      "dash value",
+      "--description",
+      "--starts-with-dashes",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(dashValue.stdout)).toMatchObject({
+      kind: "task.created",
+      data: { description: "--starts-with-dashes" },
+    });
     const denied = await quest(store, ["task", "create", "no actor", "--json"]);
     expect(denied.exitCode).toBe(4);
     expect(JSON.parse(denied.stderr)).toMatchObject({ error_type: "denied" });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("the versioned fixture runs without importing Quest source", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-conformance-"));
+  try {
+    const child = Bun.spawn(["bun", conformance], {
+      cwd: store,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        ...Bun.env,
+        QUEST_TASK_STORE: store,
+        QUEST_EXECUTABLE: "bun",
+        QUEST_EXECUTABLE_ARGS: JSON.stringify([source]),
+      },
+    });
+    expect(await child.exited).toBe(0);
+    expect(await new Response(child.stdout).text()).toContain(
+      "Tracker conformance fixture v1 passed.",
+    );
+    expect(await new Response(child.stderr).text()).toBe("");
   } finally {
     await rm(store, { recursive: true, force: true });
   }
