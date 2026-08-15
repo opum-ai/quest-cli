@@ -257,21 +257,23 @@ export class QuestTrackerClient {
     const manifest = envelope.data as Partial<TrackerManifest>;
     const commands = manifest.commands;
     const required = [
-      "task status-flow",
-      "task list",
-      "task view",
-      "search",
-      "task create",
-      "task edit",
-    ];
+      ["task status-flow", "task.status-flow", false],
+      ["task list", "task.list", false],
+      ["task view", "task.view", false],
+      ["search", "task.search", false],
+      ["task create", "task.created", true],
+      ["task edit", "task.updated", true],
+    ] as const;
     if (
       !Array.isArray(commands) ||
       required.some(
-        (name) =>
+        ([name, kind, mutates]) =>
           !commands.some(
             (command) =>
               command?.name === name &&
-              command.schemaVersion === TRACKER_CONTRACT_VERSION,
+              command.schemaVersion === TRACKER_CONTRACT_VERSION &&
+              command.kind === kind &&
+              command.mutates === mutates,
           ),
       )
     ) {

@@ -1,7 +1,7 @@
 {
   "name": "@opum-ai/quest",
-  "version": "0.0.0-development",
-  "description": "Development scaffold for the Quest CLI; not published or installable.",
+  "version": "0.1.0",
+  "description": "Quest CLI tracker subprocess contract.",
   "license": "MIT",
   "private": true,
   "type": "module",

@@ -28,7 +28,13 @@ export type TaskCommandRequest =
   | {
       readonly command: "edit";
       readonly reference: string;
-      readonly patch: Parameters<TaskService["edit"]>[1];
+      readonly patch: {
+        readonly status?: string;
+        readonly description?: string;
+        readonly addLabels?: readonly string[];
+        readonly removeLabels?: readonly string[];
+        readonly documentation?: readonly string[];
+      };
       readonly operationId: string;
       readonly actor: TaskCommandActor;
     };
@@ -126,18 +132,39 @@ export async function dispatchTrackerTaskCommand(
           await tasks.create(request.id, request.input, request.operationId),
         ),
       };
-    case "edit":
+    case "edit": {
       requireWriteActor(request.actor);
+      const current = await tasks.view(request.reference);
+      const labels = [
+        ...current.labels.filter(
+          (label) => !request.patch.removeLabels?.includes(label),
+        ),
+        ...(request.patch.addLabels ?? []).filter(
+          (label) => !current.labels.includes(label),
+        ),
+      ];
+      const patch = {
+        ...(request.patch.status !== undefined
+          ? { status: request.patch.status }
+          : {}),
+        ...(request.patch.description !== undefined
+          ? { description: request.patch.description }
+          : {}),
+        ...(request.patch.addLabels?.length ||
+        request.patch.removeLabels?.length
+          ? { labels }
+          : {}),
+        ...(request.patch.documentation !== undefined
+          ? { documentation: request.patch.documentation }
+          : {}),
+      };
       return {
         schemaVersion: 1,
         kind: "task.updated",
         data: taskFromMutation(
-          await tasks.edit(
-            request.reference,
-            request.patch,
-            request.operationId,
-          ),
+          await tasks.edit(request.reference, patch, request.operationId),
         ),
       };
+    }
   }
 }

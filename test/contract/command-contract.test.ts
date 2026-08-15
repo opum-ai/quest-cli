@@ -113,6 +113,27 @@ test("the live manifest is non-empty and matches its result golden", () => {
       kind: null,
       mutates: false,
     },
+    {
+      name: "task status-flow",
+      schemaVersion: 1,
+      kind: "task.status-flow",
+      mutates: false,
+    },
+    { name: "task list", schemaVersion: 1, kind: "task.list", mutates: false },
+    { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
+    { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
+    {
+      name: "task create",
+      schemaVersion: 1,
+      kind: "task.created",
+      mutates: true,
+    },
+    {
+      name: "task edit",
+      schemaVersion: 1,
+      kind: "task.updated",
+      mutates: true,
+    },
   ]);
   expect(manifestResult()).toMatchObject({
     schemaVersion: 1,

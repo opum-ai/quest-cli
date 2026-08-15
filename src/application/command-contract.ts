@@ -55,10 +55,18 @@ export function exitCodeFor(
 }
 
 export interface CommandManifestEntry {
-  readonly name: "manifest" | "version";
+  readonly name:
+    | "manifest"
+    | "version"
+    | "task status-flow"
+    | "task list"
+    | "task view"
+    | "search"
+    | "task create"
+    | "task edit";
   readonly schemaVersion: 1;
   readonly kind: `${string}.${string}` | null;
-  readonly mutates: false;
+  readonly mutates: boolean;
 }
 
 export const commandManifest = {
@@ -74,6 +82,27 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: null,
       mutates: false,
+    },
+    {
+      name: "task status-flow",
+      schemaVersion: 1,
+      kind: "task.status-flow",
+      mutates: false,
+    },
+    { name: "task list", schemaVersion: 1, kind: "task.list", mutates: false },
+    { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
+    { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
+    {
+      name: "task create",
+      schemaVersion: 1,
+      kind: "task.created",
+      mutates: true,
+    },
+    {
+      name: "task edit",
+      schemaVersion: 1,
+      kind: "task.updated",
+      mutates: true,
     },
   ] satisfies readonly CommandManifestEntry[],
   exitCodes,
