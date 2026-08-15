@@ -1,13 +1,13 @@
 import {
+  WorkspaceError,
   type WorkspaceIdentity,
   type WorkspacePort,
-  WorkspaceError,
 } from "../../ports/workspaces.ts";
 
 export {
+  WorkspaceError,
   type WorkspaceIdentity,
   type WorkspacePort,
-  WorkspaceError,
 } from "../../ports/workspaces.ts";
 
 export interface WorkspaceEntry extends WorkspaceIdentity {
@@ -49,7 +49,7 @@ export async function initializeWorkspace(
 ): Promise<WorkspaceIdentity> {
   assertSafeWorkspaceRelativePath(workspaceConfigurationPath);
   const identity = await port.inspect(path);
-  await port.writeInitialization(path, configuration);
+  await port.writeInitialization(identity.worktreePath, configuration);
   return identity;
 }
 

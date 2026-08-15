@@ -7,9 +7,9 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-
+import { join } from "node:path";
+import { LocalWorkspacePort } from "../../../src/adapters/workspaces/local-workspaces.ts";
 import {
   assertSafeWorkspaceRelativePath,
   discoverWorkspaces,
@@ -17,7 +17,6 @@ import {
   initializeWorkspace,
   WorkspaceError,
 } from "../../../src/application/workspaces/workspaces.ts";
-import { LocalWorkspacePort } from "../../../src/adapters/workspaces/local-workspaces.ts";
 
 async function command(path: string, ...args: string[]): Promise<void> {
   const process = Bun.spawn(["git", "-C", path, ...args], {
@@ -80,6 +79,13 @@ test("current-worktree identity is deterministic from a nested directory", async
     expect((await port.inspect(nested)).worktreePath).toBe(
       (await port.inspect(root)).worktreePath,
     );
+    await initializeWorkspace(port, nested);
+    expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
+      "schemaVersion = 1\n",
+    );
+    await expect(
+      readFile(join(nested, ".quest/workspace.toml"), "utf8"),
+    ).rejects.toThrow();
   } finally {
     await rm(root, { recursive: true, force: true });
   }

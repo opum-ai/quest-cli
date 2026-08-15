@@ -75,7 +75,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-75](../../backlog/tasks/qcli-75%20-%20Scaffold-the-Lore-aligned-Bun-package-and-architecture.md) | Scaffold the Lore-aligned Bun package and architecture | Done |
 | [QCLI-76](../../backlog/tasks/qcli-76%20-%20Implement-Quest-configuration-command-results-diagnostics-and-manifest.md) | Implement Quest configuration, command results, diagnostics, and manifest | Done |
 | [QCLI-77](../../backlog/tasks/qcli-77%20-%20Implement-authored-codecs-actors-IDs-aliases-events-and-replay.md) | Implement authored codecs, actors, IDs, aliases, events, and replay | Done |
-| [QCLI-78](../../backlog/tasks/qcli-78%20-%20Implement-safe-Quest-workspace-initialization-discovery-and-enrollment.md) | Implement safe Quest workspace initialization, discovery, and enrollment | To Do |
+| [QCLI-78](../../backlog/tasks/qcli-78%20-%20Implement-safe-Quest-workspace-initialization-discovery-and-enrollment.md) | Implement safe Quest workspace initialization, discovery, and enrollment | Done |
 | [QCLI-79](../../backlog/tasks/qcli-79%20-%20Implement-operation-owned-Git-CAS-synchronization-and-crash-recovery.md) | Implement operation-owned Git CAS, synchronization, and crash recovery | To Do |
 | [QCLI-80](../../backlog/tasks/qcli-80%20-%20Implement-the-Quest-task-graph-lifecycle-CRUD-search-and-readiness.md) | Implement the Quest task graph, lifecycle, CRUD, search, and readiness | To Do |
 | [QCLI-81](../../backlog/tasks/qcli-81%20-%20Implement-Quest-claims-leases-heartbeats-reclamation-and-delegation.md) | Implement Quest claims, leases, heartbeats, reclamation, and delegation | To Do |

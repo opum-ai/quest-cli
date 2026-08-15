@@ -131,6 +131,7 @@
 - 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
 - 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
 - 2026-08-15T12:21:44-05:00 1f2fc44802709e6d3469970067b8129574464f5d chore(backlog): activate QCLI-77
+- 2026-08-15T12:49:03-05:00 e9aebb08a231a230160e8bf5e4b0dd761abebecd feat(QCLI-77): harden authored record primitives
 
 ## docs/adr
 
@@ -327,3 +328,4 @@
 - 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
 - 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
 - 2026-08-15T12:21:44-05:00 1f2fc44802709e6d3469970067b8129574464f5d chore(backlog): activate QCLI-77
+- 2026-08-15T12:49:03-05:00 e9aebb08a231a230160e8bf5e4b0dd761abebecd feat(QCLI-77): harden authored record primitives
