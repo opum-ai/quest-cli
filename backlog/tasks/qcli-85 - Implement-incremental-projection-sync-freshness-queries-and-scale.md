@@ -1,10 +1,11 @@
 ---
 id: QCLI-85
 title: 'Implement incremental projection sync, freshness, queries, and scale'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 23:50'
 labels:
   - quest-0.1
   - 'wave:projection'
@@ -40,3 +41,9 @@ Add resumable incremental projection updates and query routing without violating
 - [ ] #4 Cross-workspace list and search operate only over explicitly enrolled workspaces and report missing members
 - [ ] #5 The accepted approximately 10k-task, 100k-to-150k-event per-workspace and 25-workspace rebuild/query budgets pass
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Activated after QCLI-84 completed and its six-platform Bun SQLite qualification passed on GitHub Actions run 31915704673. Beginning repository and authoritative-query research from dev at ace8210.
+<!-- SECTION:NOTES:END -->
