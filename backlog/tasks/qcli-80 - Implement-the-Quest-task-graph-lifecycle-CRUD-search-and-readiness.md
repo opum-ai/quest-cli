@@ -1,10 +1,11 @@
 ---
 id: QCLI-80
 title: 'Implement the Quest task graph, lifecycle, CRUD, search, and readiness'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 18:57'
 labels:
   - quest-0.1
   - 'wave:core'
@@ -39,3 +40,12 @@ Implement the authoritative task surface and dependency DAG on the mutation kern
 - [ ] #4 Ready-set evaluation is deterministic from authoritative events, terminal dependencies, blocking gates, and live claims
 - [ ] #5 All read paths remain correct without a projection and perform zero writes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Define authoritative task graph, lifecycle, CRUD, search, and ready-set domain types over the Git mutation kernel.
+2. Implement application use cases and read-only query paths, including configuration-driven status transitions and pre-mutation validation.
+3. Enforce dependency/parent graph integrity, aliases, provenance, blocking gates, and claim-aware readiness deterministically from authored events.
+4. Add integration tests for full task fields, transitions, graph rejection, readiness, and zero-mutation reads; run targeted and repository checks.
+<!-- SECTION:PLAN:END -->
