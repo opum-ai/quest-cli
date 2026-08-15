@@ -127,7 +127,7 @@ and a supplied instant** — it does not read a clock, it is given one, which is
 | **Filesystem** | Read, write, enumerate, byte-preserving | Case folding, Unicode normalisation, and path handling differ per platform, and `TM-10` runs against two real filesystems |
 | **Clock** | Supply the current instant | Lease expiry is evaluator-local by design; `TM-05` injects skew, which a direct system-clock read makes untestable |
 | **Lore** | Resolve a concept identifier, exchange versioned records | Lore is optional and externally versioned; the adapter must be absent-by-default (`FR-LORE-1`) |
-| **Projection store** | Write, read, rebuild, report freshness | Disposable and rebuildable; the engine is an open decision, so the domain must not know it |
+| **Projection store** | Write, read, rebuild, report freshness | Bun SQLite is disposable and rebuildable; the domain never treats it as authority |
 
 The clock port is the one most often omitted as over-engineering, and it is the one this
 design most depends on. Without it, the single most important concurrency property —
@@ -222,13 +222,13 @@ tracked with owner and unblock condition in the
 
 | Deferred | Register entry |
 | --- | --- |
-| Runtime, language, toolchain, native packaging | D2 — blocked, post-activation |
+| Runtime, language, toolchain, native packaging | D2 — closed: Bun, compiled per-platform binaries behind a minimal Node launcher |
 | Supported platform matrix | D3 — closed; Component, claimed by `QCLI-27` |
 | Canonical identifier grammar, authored-record layout | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
 | Naming scheme | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`); directing-task citation added 2026-08-07 by `QCLI-44`: this entry's own reconciling task is `QCLI-40` |
 | Event schema | Git mutation contract open items |
 | Locking primitive for local serialisation, merge and rebase strategy | Git mutation contract open items |
-| Projection storage or index engine | Projection contract open items |
+| Projection storage or index engine | Bun SQLite; disposable projection only |
 | Scale target | D5 — closed by [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) |
 | Archival and retention model | D7a |
 | Command vocabulary, flags | CLI contract open items |

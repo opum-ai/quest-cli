@@ -301,11 +301,10 @@ Duplicate-ID collision table):
   produces byte-identical output. A dry run that is not reproducible cannot
   be reviewed and consented to (Step 5) with any confidence that Step 6
   will apply the thing that was actually reviewed.
-- **Exits with the outstanding-preview signaled, not silently.** Mirroring
-  `doctor`'s own convention of a non-zero exit while its preview is
-  unapplied, a dry run's evidence record must itself be marked
-  outstanding/unapplied until a Step 5 consent record supersedes it — never
-  presented as though it were already in effect.
+- **Successful preview is success, not a failure.** A complete read-only preview exits
+  `0` and returns `requiresApproval: true` with a deterministic digest of the exact
+  previewed mapping. The evidence remains unapplied until Step 5 records consent; that
+  state is represented in the result, never by a non-zero exit.
 
 ### Rollback — definition and evidence
 

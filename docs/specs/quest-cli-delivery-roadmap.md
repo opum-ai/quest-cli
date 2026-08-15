@@ -119,7 +119,7 @@ closed. It does.
 | Canonical identifier grammar | D4 | **Closed** — [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
 | Product license and contributor provenance | D1 | **Closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): MIT, informal/none for now |
 | Explicit ownership of the platform question | D3 — Component, claimed by `QCLI-27` | **Closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): macOS, Linux, Windows; claimed as quest-cli-owned |
-| Explicit ownership of the runtime question | D2 — blocked, but ownership is not | **Owned, not closed** — [license, platform, and runtime ownership record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`) claims quest-cli ownership; the runtime choice itself remains blocked, post-activation |
+| Runtime and native packaging | D2 | **Closed** — [D2 runtime ruling](../reference/quest-cli-d2-runtime-ruling.md) (`QCLI-63`): Bun, compiled per-platform binaries behind a minimal Node launcher |
 | Scale target | D5 | **Closed** — [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) |
 | Where an anomaly sits in the outcome taxonomy | Architecture open questions | **Closed at the domain layer; wire mapping amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) preserves anomaly as a distinguishable domain condition but removes the Quest-only wire outcome/code; evaluator disagreement is a `drift` diagnostic on exit `6`. Full product-wide outcome-vocabulary canonization remains a separate Quest-wide proposal |
 
@@ -152,8 +152,8 @@ A phase that "decides" either unilaterally has overstepped.
 external activation authority has authorized the applicable work. Consult the canonical
 gate; do not infer its current result from this roadmap.
 
-**Exit.** Claims, leases, heartbeats, the gate mechanism excluding actor eligibility,
-event-derived state, and operation-owned Git mutation satisfying all five invariants.
+**Exit.** Claims, leases, heartbeats, gates using the accepted ODOC-57 actor-eligibility
+rules, event-derived state, and operation-owned Git mutation satisfying all five invariants.
 
 **Requirements:** `FR-IDENT-2` … `FR-IDENT-8`, all `FR-LIFE`, all `FR-CLI`, `FR-GIT-1` …
 `FR-GIT-5`, `FR-GIT-8` … `FR-GIT-10`.
@@ -179,9 +179,8 @@ synchronization, corruption recovery, and a documented forced-rebuild escape hat
 
 **Verified by:** `BB-07`, `BB-08`, `BB-16`, `BB-17`.
 
-**Notes.** Blocked on D5, the scale target, for any storage-engine choice — a projection
-cannot be sized before the target it is sized for exists. The rule that survives every
-engine choice: on disagreement, Git wins and the disagreement is reported.
+**Notes.** The disposable projection engine is Bun SQLite. Git wins on disagreement, the
+disagreement is reported, and rebuild-on-doubt remains the recovery path.
 
 ---
 
@@ -217,10 +216,10 @@ are either resolved by their owner or explicitly deferred.
 
 **Requirements:** all `FR-LORE`.
 
-**Blocked, structurally.** Three adapter obligations need an external Lore decision — the
+**Boundary-dependent.** Three adapter obligations need an external Lore decision — the
 binary invocation surface, the write-response shape, and whether the coupling label format
-is reused. Beyond those, `BacklogAdapter` is `lore-cli`'s only tracker adapter type, with
-no generic abstraction to implement a second backend against. **This phase cannot complete
+is reused. Quest's seam is a bounded, versioned tracker subprocess contract; it must not
+assume a Backlog-only adapter or dual-write private Lore state. **This phase cannot complete
 on Quest's readiness alone**, however well Phases 1 through 4 go.
 
 ---
@@ -294,8 +293,10 @@ Phase 0 gates any code in Phases 2 through 6. Phase 1 needs neither.
   record](../reference/quest-cli-license-platform-and-runtime-ownership-record.md)
   (`QCLI-27`): supported-platform matrix macOS, Linux, and Windows; ownership
   explicitly claimed as quest-cli-owned.
-- **Who authors D6?** Gate actor eligibility blocks part of Phase 2; route the question
-  through [Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
+- ~~**Who authors D6?**~~ **Resolved by ODOC-57 (2026-08-14):** Quest uses opaque
+  `human` and `delegated-agent` actors, accountable-human delegation, and distinct
+  reviewer/maintainer roles; a delegated agent cannot satisfy human-judgement or
+  separation-of-duty gates.
 - **Can Phase 5 be usefully split** into the unilaterally satisfiable obligations and the
   externally blocked ones, so the first half is not held hostage to the second?
 - **Is a coexistence period part of Phase 4's exit, or a phase of its own?** The playbook

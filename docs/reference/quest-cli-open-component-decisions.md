@@ -83,7 +83,7 @@ dependency deliverables leave open, from
 | D3 | Supported-platform matrix and final npm package ownership | **Closed** | Component — claimed by `QCLI-27` | Closed by the [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): macOS, Linux, and Windows; ownership explicitly claimed as quest-cli-owned | Phase 6 |
 | D4 | Canonical ID grammar | **Closed** | Component | Closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) | Phase 2; gates Phases 3 and 4 |
 | D5 | Scale target | **Closed** | Component | Closed by [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) | Phase 3 storage and index design |
-| D6 | Product-wide actor and governance model | Routed, **unwritten** | `quest-doc` | A task authoring it into `quest-doc` | Phase 2 gate-approval eligibility |
+| D6 | Local Quest actor and delegation vocabulary | **Closed** | `opum-doc` / `quest-cli` | [ODOC-57 accepted ADR](https://github.com/opum-ai/opum-doc/blob/dev/docs/adr/adopt-local-quest-actor-and-delegation-vocabulary.md): human/delegated-agent kinds, accountable delegation, reviewer/maintainer roles | Phase 2 gate-approval eligibility |
 | D7a | Quest's own archival and retention model | Open | Component | A component decision | Phase 2 record layout |
 | D7b | Legacy Opum evidence retention and remote disposition | **Blocked** | `opum-doc`, task `OCLI-7` | `OCLI-7` deciding | Nothing in Quest's delivery path |
 
@@ -158,11 +158,11 @@ Detail where the one-line status understates the constraint:
   (`QCLI-25`): fixed literal prefix `T`, flat unpadded decimal sequence from a single
   global counter, ASCII-only alphabet, one fixed canonical case; the authored-record
   layout and Unicode-normalisation/case-folding rules accepted as proposed.
-- **D6 — Governance.** Quest-wide, not component-local, and already routed to
-  `quest-doc`. The component actor-responsibility table answers only how these roles act
-  *within* Quest CLI and "corroborates rather than resolves" the routed proposal. **No
-  task in any repository has authored it into `quest-doc`.** Phase 2 can build the gate
-  mechanism without it, but not gate-approval actor eligibility.
+- **D6 — Governance.** **Closed 2026-08-14 by ODOC-57**: actor kinds are `human` and
+  `delegated-agent`; a delegation names one accountable human; reviewer and maintainer
+  are roles. Delegated agents may submit work and evidence but cannot satisfy
+  human-judgement or separation-of-duty gates. These local records are not authentication,
+  RBAC, proof of identity, or hosted authorization.
 - **D7a — Archival.** The migration research found a real collision hazard in Backlog.md's
   archive-folder handling — an active and an archived record can share an ID, invisible to
   every enumerated command — which Quest's own collision scan must cover independently.
@@ -201,7 +201,7 @@ narrower than the component decisions above and mostly resolve inside Phase 1.
 | CLI identity | Final availability of `@opum-ai/quest` at release time | Component, at release | Phase 6 | Open |
 | Lifecycle | Concrete lease and heartbeat timing parameters | Component | Phase 2 | Open |
 | Lifecycle | The specific lifecycle-stage enum | Component | Phase 2 | Open |
-| Lifecycle | Gate-approval actor eligibility | `quest-doc` (D6) | Phase 2 | Open |
+| Lifecycle | Gate-approval actor eligibility | `opum-doc` / `quest-cli` (D6) | Phase 2 | **Closed** — ODOC-57 local actor/delegation vocabulary |
 | JSON and exits | Exact envelope shape — `schemaVersion` form, `kind` naming, shared `data` key or per-`kind` payload key, per-command payload-key naming | Component | Phase 1 | **Closed and amended** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`, amended by `QCLI-69`): numeric `{schemaVersion: 1, kind, data, principal}`, dotted live-registry `kind`, and `principal: null` until separately ratified for population |
 | JSON and exits | The literal exit-code-to-outcome table | Component | Phase 1 | **Closed and amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) adopts the shared `0` success, `1` uncaught, `2` usage, `3` not_found, `4` denied, `5` conflict, `6` validation/drift taxonomy |
 | JSON and exits | The not-found signal convention — Quest's own side | Component | Phase 1 | **Closed and amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`): structured `error_type: "not_found"` diagnostic on stderr, exit `3` |
@@ -212,7 +212,7 @@ narrower than the component decisions above and mostly resolve inside Phase 1.
 | Git mutation | Event schema, locking primitive, merge and rebase strategy, storage engine | Component | Phase 2 | Open |
 | Migration | Whether and how to preserve Backlog-era Git history | Component | Phase 4 | Open |
 | Migration | Whether Quest needs an analogue of Backlog's cross-branch task-state overlay | Component | Phase 4 | Open |
-| Projection | Any concrete storage or index engine | Component | Phase 3 | Open |
+| Projection | Disposable projection engine | Component | Phase 3 | **Closed** — Bun SQLite; Git remains authoritative and rebuild-on-doubt applies |
 | Lore integration | Exact binary-invocation surface — binary name, operator override, probe sequence | `lore-doc` | Phase 5 | Open |
 | Lore integration | Whether Lore's write path accepts a JSON-flagged create or edit response | `lore-doc` | Phase 5 | Open |
 | Lore integration | Whether the coupling convention reuses the literal `doc:` label format | `lore-doc` | Phase 5 | Open |
@@ -238,10 +238,9 @@ obligation to record the exact evidence it consumed and the decision time — tr
 as `QCLI-11`. A dated snapshot, a local build, a consumer summary, or the existence of
 Quest documentation cannot open the gate.
 
-There is also a **structural** Lore-side blocker that no task closes: `BacklogAdapter` is
-`lore-cli`'s only task-tracker adapter type, and no generic tracker abstraction exists to
-implement a second backend against. Phase 5 depends on work that is unstarted on Lore's
-side, independent of how ready Quest is internally.
+Quest's Lore seam is a bounded, versioned tracker subprocess contract. It must not assume
+a Backlog-only adapter, silently initialize or migrate Lore state, fall back, or dual-write
+private files; the listed Lore-owned boundary decisions still govern Phase 5.
 
 ### Boundary decisions Quest cannot make alone
 
