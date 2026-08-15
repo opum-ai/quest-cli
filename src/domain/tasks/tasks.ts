@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import {
+  blockingGatesSatisfied,
+  replayGateHistory,
+  type GateEvent,
+} from "../gates/gates.ts";
+import {
   aliasKey,
   canonicalId,
   canonicalIdSchema,
@@ -68,6 +73,7 @@ export interface TaskClaim {
 export interface TaskGate {
   readonly id: string;
   readonly title: string;
+  readonly blocking?: boolean;
   readonly state: "pending" | "satisfied";
   readonly evidence: readonly string[];
   readonly satisfiedBy?: string;
@@ -94,6 +100,8 @@ export interface TaskState {
   readonly dependencies: readonly string[];
   readonly blockers: readonly BlockerEvent[];
   readonly gates: readonly TaskGate[];
+  /** Append-only authored gate history; `gates` is its materialized projection. */
+  readonly gateEvents: readonly GateEvent[];
   readonly claim?: TaskClaim;
   readonly source?: SourceProvenance;
 }
@@ -114,6 +122,7 @@ export interface TaskInput
     | "dependencies"
     | "blockers"
     | "gates"
+    | "gateEvents"
   > {
   readonly status?: TaskStatus;
   readonly aliases?: readonly string[];
@@ -127,6 +136,7 @@ export interface TaskInput
   readonly dependencies?: readonly string[];
   readonly blockers?: readonly BlockerEvent[];
   readonly gates?: readonly TaskGate[];
+  readonly gateEvents?: readonly GateEvent[];
 }
 
 const statusSchema = z.string().min(1);
@@ -170,11 +180,13 @@ const taskSchema = z.object({
     z.object({
       id: z.string().min(1),
       title: z.string().min(1),
+      blocking: z.boolean().optional(),
       state: z.enum(["pending", "satisfied"]),
       evidence: z.array(z.string()),
       satisfiedBy: z.string().min(1).optional(),
     }),
   ),
+  gateEvents: z.array(z.unknown()),
   claim: z
     .object({
       holderId: z.string().min(1),
@@ -200,7 +212,7 @@ function unique(values: readonly string[], name: string): void {
 export function taskState(value: TaskState): TaskState {
   const parsed = taskSchema.safeParse(value);
   if (!parsed.success) throw new RecordValidationError("Invalid task state.");
-  const state = parsed.data;
+  let state = parsed.data as TaskState;
   unique(state.labels, "Labels");
   unique(state.documentation, "Documentation links");
   unique(
@@ -218,8 +230,28 @@ export function taskState(value: TaskState): TaskState {
       (!gate.evidence.length || !gate.satisfiedBy)
     )
       throw new RecordValidationError("gate_satisfied_without_evidence");
-    if (gate.state === "pending" && (gate.evidence.length || gate.satisfiedBy))
+    if (
+      gate.state === "pending" &&
+      (gate.satisfiedBy || (!state.gateEvents.length && gate.evidence.length))
+    )
       throw new RecordValidationError("gate_pending_has_satisfaction");
+  }
+  if (state.gateEvents.length) {
+    const replayed = replayGateHistory(state.gateEvents);
+    if (replayed.taskId !== state.id)
+      throw new RecordValidationError("gate_task_mismatch");
+    const gates: readonly TaskGate[] = replayed.gates.map((gate) => ({
+      id: gate.id,
+      title: gate.title,
+      blocking: gate.blocking,
+      state: gate.state,
+      evidence: gate.evidence.map((item) => item.reference),
+      ...(gate.satisfiedBy ? { satisfiedBy: gate.satisfiedBy } : {}),
+    }));
+    // A projection is never separately authored when a gate event stream exists.
+    if (JSON.stringify(state.gates) !== JSON.stringify(gates))
+      throw new RecordValidationError("gate_materialization_drift");
+    state = { ...state, gates };
   }
   return state;
 }
@@ -248,6 +280,7 @@ export function createTask(
     dependencies: input.dependencies ?? [],
     blockers: input.blockers ?? [],
     gates: input.gates ?? [],
+    gateEvents: input.gateEvents ?? [],
   });
 }
 
@@ -266,6 +299,22 @@ export function transitionTask(
     throw new RecordValidationError(
       `Illegal task transition: ${task.status} -> ${next}.`,
     );
+  if (
+    configured.terminalStatuses.includes(next) &&
+    !blockingGatesSatisfied(
+      task.gateEvents.length
+        ? replayGateHistory(task.gateEvents).gates
+        : task.gates.map((gate) => ({
+            id: gate.id,
+            title: gate.title,
+            blocking: gate.blocking ?? true,
+            state: gate.state,
+            evidence: [],
+            ...(gate.satisfiedBy ? { satisfiedBy: gate.satisfiedBy } : {}),
+          })),
+    )
+  )
+    throw new RecordValidationError("task_terminal_transition_gate_blocked");
   return taskState({ ...task, status: next });
 }
 
