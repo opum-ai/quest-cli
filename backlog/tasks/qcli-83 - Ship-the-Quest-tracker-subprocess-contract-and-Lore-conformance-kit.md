@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 19:50'
+updated_date: '2026-08-15 20:01'
 labels:
   - quest-0.1
   - 'wave:interop'
@@ -49,3 +49,9 @@ Publish the stable Quest subprocess contract lore-cli LCLI-315.4 will consume af
 2. Implement argv-safe Quest CLI task commands and bounded JSON subprocess mapping for probe, reads, and writes with deterministic outcome categories.
 3. Add contract coverage for semver/schema compatibility, lossless fields and patches, timeouts/errors, actor selection, and external fixture execution; run targeted and repository checks.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Independent review blocks finalization: live CLI remains command-free (development version, manifest lacks tracker commands, task argv routes/storage composition absent), and fixtures are private TypeScript rather than a public consumable artifact. Next work: implement CLI routing/storage, live manifest/version/envelopes/diagnostics, public fixture artifact, and spawned black-box tests.
+<!-- SECTION:NOTES:END -->
