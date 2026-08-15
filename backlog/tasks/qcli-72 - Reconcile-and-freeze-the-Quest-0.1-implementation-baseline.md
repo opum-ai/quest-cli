@@ -4,7 +4,7 @@ title: Reconcile and freeze the Quest 0.1 implementation baseline
 status: To Do
 assignee: []
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 00:50'
 labels:
   - quest-0.1
   - 'wave:contracts'
@@ -39,3 +39,9 @@ Freeze a coherent implementation baseline from the accepted Quest research and c
 - [ ] #4 The open-decisions register and delivery roadmap contain no stale D2, D6, Backlog-only Lore-adapter, or pre-activation blocker claims
 - [ ] #5 lore sync, lore validate --strict, lore check --strict, and git diff --check pass
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-14 campaign grounding: not activated. Live repository evidence still routes gate-approval actor eligibility and D6 to the external ODOC-57 ruling; the target docs contain no adopted ruling. QCLI-72 cannot truthfully freeze the requested actor vocabulary until the ODOC-57 outcome is available in the authorized quest-cli scope.
+<!-- SECTION:NOTES:END -->
