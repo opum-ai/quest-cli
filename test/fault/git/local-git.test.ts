@@ -494,3 +494,75 @@ test("synchronization journals no-op and fast-forward operation IDs", async () =
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("CAS-interrupted fast-forward and merge synchronize retries publish once", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalGitPort();
+    const base = await port.readRevision(root, "refs/heads/main");
+    await command(root, "branch", "source", base);
+    await port.commit({
+      ...operation(root, "ff-fault-source"),
+      targetRef: "refs/heads/source",
+      expectedRevision: base,
+    });
+    const source = await port.readRevision(root, "refs/heads/source");
+    const ff = {
+      repositoryPath: root,
+      targetRef: "refs/heads/main",
+      expectedRevision: base,
+      sourceRevision: source,
+      operationId: "ff-cas",
+      message: "sync",
+    };
+    await expect(
+      port.synchronize({
+        ...ff,
+        checkpoint: (phase) => {
+          if (phase === "cas") throw new GitInterruptedError();
+        },
+      }),
+    ).rejects.toBeInstanceOf(GitInterruptedError);
+    expect(await port.synchronize(ff)).toMatchObject({
+      kind: "success",
+      revision: source,
+      recovered: true,
+    });
+
+    await command(root, "branch", "other", base);
+    await port.commit({
+      ...operation(root, "merge-source", ".quest/tasks/T-2.json"),
+      targetRef: "refs/heads/other",
+      expectedRevision: base,
+    });
+    const other = await port.readRevision(root, "refs/heads/other");
+    const current = await port.readRevision(root, "refs/heads/main");
+    const merge = {
+      repositoryPath: root,
+      targetRef: "refs/heads/main",
+      expectedRevision: current,
+      sourceRevision: other,
+      operationId: "merge-cas",
+      message: "sync",
+    };
+    await expect(
+      port.synchronize({
+        ...merge,
+        checkpoint: (phase) => {
+          if (phase === "cas") throw new GitInterruptedError();
+        },
+      }),
+    ).rejects.toBeInstanceOf(GitInterruptedError);
+    expect(await port.synchronize(merge)).toMatchObject({
+      kind: "success",
+      recovered: true,
+    });
+    expect(
+      (await command(root, "log", "--format=%s", "refs/heads/main"))
+        .split("\n")
+        .filter((line) => line === "sync"),
+    ).toHaveLength(1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

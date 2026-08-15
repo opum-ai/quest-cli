@@ -274,12 +274,18 @@ export class LocalGitPort implements GitPort {
         );
         const expectedDigest = operationDigest(operation);
         if (existing) {
-          if (existing.digest === expectedDigest)
-            return {
-              kind: "success",
-              revision: existing.result ?? existing.revision,
-              recovered: true,
-            };
+          if (existing.digest === expectedDigest) {
+            const intended = existing.result ?? existing.revision;
+            const current = await this.readRevision(
+              operation.repositoryPath,
+              operation.targetRef,
+            );
+            if (current === intended)
+              return { kind: "success", revision: intended, recovered: true };
+            if (current !== operation.expectedRevision)
+              return this.casConflict(operation, current);
+            return { prepared: true, revision: intended, recovered: true };
+          }
           return this.operationConflict(operation, existing.revision);
         }
         const current = await this.readRevision(
