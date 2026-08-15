@@ -1,9 +1,12 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { LocalGitPort } from "../../../src/adapters/git/local-git.ts";
+import {
+  GitInterruptedError,
+  LocalGitPort,
+} from "../../../src/adapters/git/local-git.ts";
 import { commitOwnedOperation } from "../../../src/application/mutations/mutations.ts";
 
 async function command(root: string, ...args: string[]): Promise<string> {
@@ -105,6 +108,80 @@ test("a retry recovers one matching operation and rejects a divergent duplicate"
   }
 });
 
+test("recovery finds an operation after later commits have advanced the ref", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalGitPort();
+    const first = await commitOwnedOperation(
+      port,
+      operation(root, "old-operation"),
+    );
+    await commitOwnedOperation(
+      port,
+      operation(root, "later-operation", ".quest/tasks/T-2.json"),
+    );
+    const retry = await commitOwnedOperation(
+      port,
+      operation(root, "old-operation"),
+    );
+    expect(first).toMatchObject({ kind: "success", recovered: false });
+    expect(retry).toMatchObject({ kind: "success", recovered: true });
+    if (first.kind === "success" && retry.kind === "success")
+      expect(retry.revision).toBe(first.revision);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an injected interruption after staging preserves dirty work and retries cleanly", async () => {
+  const root = await repository();
+  try {
+    await writeFile(join(root, "staged.txt"), "staged\n");
+    await command(root, "add", "staged.txt");
+    await writeFile(join(root, "unstaged.txt"), "unstaged\n");
+    await writeFile(join(root, "untracked.txt"), "untracked\n");
+    const port = new LocalGitPort();
+    await expect(
+      commitOwnedOperation(port, {
+        ...operation(root, "interrupted"),
+        checkpoint: (phase) => {
+          if (phase === "staged") throw new GitInterruptedError();
+        },
+      }),
+    ).rejects.toBeInstanceOf(GitInterruptedError);
+    expect(await command(root, "ls-files", "--stage")).toContain("staged.txt");
+    expect(await readFile(join(root, "unstaged.txt"), "utf8")).toBe(
+      "unstaged\n",
+    );
+    expect(await readFile(join(root, "untracked.txt"), "utf8")).toBe(
+      "untracked\n",
+    );
+    expect(
+      await commitOwnedOperation(port, operation(root, "interrupted")),
+    ).toMatchObject({ kind: "success" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a stale cross-process lock owner is reclaimed instead of wedging preparation", async () => {
+  const root = await repository();
+  try {
+    const common = await command(root, "rev-parse", "--git-common-dir");
+    const lock = join(root, common, "quest-operation-preparation.lock");
+    await mkdir(lock);
+    await writeFile(join(lock, "owner.json"), JSON.stringify({ pid: 999999 }));
+    expect(
+      await commitOwnedOperation(
+        new LocalGitPort(),
+        operation(root, "reclaimed-lock"),
+      ),
+    ).toMatchObject({ kind: "success" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a stale basis is a structured CAS conflict and never changes the ref", async () => {
   const root = await repository();
   try {
@@ -150,6 +227,49 @@ test("an ambiguous owned scope fails before it can update Git", async () => {
   }
 });
 
+test("a rejected non-fast-forward push is structured and leaves the remote winner", async () => {
+  const remote = await mkdtemp(join(tmpdir(), "quest-remote-"));
+  const first = await repository();
+  const second = await mkdtemp(join(tmpdir(), "quest-clone-"));
+  try {
+    await command(remote, "init", "--bare", "-q");
+    await command(first, "remote", "add", "origin", remote);
+    await command(first, "push", "-qu", "origin", "main");
+    await command(second, "clone", "-q", remote, ".");
+    await command(second, "config", "user.email", "quest@example.test");
+    await command(second, "config", "user.name", "Quest Test");
+    const port = new LocalGitPort();
+    await commitOwnedOperation(port, operation(first, "remote-winner"));
+    expect(
+      await port.push({
+        repositoryPath: first,
+        remote: "origin",
+        sourceRef: "refs/heads/main",
+        targetRef: "refs/heads/main",
+      }),
+    ).toMatchObject({ kind: "success" });
+    await commitOwnedOperation(
+      port,
+      operation(second, "remote-loser", ".quest/tasks/T-2.json"),
+    );
+    expect(
+      await port.push({
+        repositoryPath: second,
+        remote: "origin",
+        sourceRef: "refs/heads/main",
+        targetRef: "refs/heads/main",
+      }),
+    ).toMatchObject({ kind: "conflict", code: "push_rejected" });
+    expect(await command(remote, "log", "--format=%s", "-1", "main")).toBe(
+      "quest mutation",
+    );
+  } finally {
+    await rm(remote, { recursive: true, force: true });
+    await rm(first, { recursive: true, force: true });
+    await rm(second, { recursive: true, force: true });
+  }
+});
+
 test("synchronization integrates sorted disjoint paths but reports shared namespaces", async () => {
   const root = await repository();
   try {
@@ -192,6 +312,56 @@ test("synchronization integrates sorted disjoint paths but reports shared namesp
     expect(
       await command(root, "ls-tree", "-r", "--name-only", "refs/heads/main"),
     ).toContain(".quest/tasks/T-1.json");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("synchronization fast-forwards and rejects a same-path divergence", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalGitPort();
+    const base = await port.readRevision(root, "refs/heads/main");
+    await command(root, "branch", "source", base);
+    await port.commit({
+      ...operation(root, "ff-source"),
+      targetRef: "refs/heads/source",
+      expectedRevision: base,
+    });
+    const source = await port.readRevision(root, "refs/heads/source");
+    expect(
+      await port.synchronize({
+        repositoryPath: root,
+        targetRef: "refs/heads/main",
+        expectedRevision: base,
+        sourceRevision: source,
+        operationId: "fast-forward",
+        message: "sync",
+      }),
+    ).toMatchObject({ kind: "success", revision: source });
+
+    await command(root, "branch", "other", base);
+    await port.commit({
+      ...operation(root, "other-path"),
+      targetRef: "refs/heads/other",
+      expectedRevision: base,
+      changes: [{ path: ".quest/tasks/T-1.json", content: "other\n" }],
+    });
+    const other = await port.readRevision(root, "refs/heads/other");
+    expect(
+      await port.synchronize({
+        repositoryPath: root,
+        targetRef: "refs/heads/main",
+        expectedRevision: source,
+        sourceRevision: other,
+        operationId: "same-path",
+        message: "sync",
+      }),
+    ).toMatchObject({
+      kind: "conflict",
+      code: "integration_conflict",
+      paths: [".quest/tasks/T-1.json"],
+    });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

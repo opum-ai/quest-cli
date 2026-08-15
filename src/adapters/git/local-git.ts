@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import type {
@@ -6,6 +6,7 @@ import type {
   GitOperationConflict,
   GitOperationResult,
   GitPort,
+  GitPush,
   GitSynchronization,
 } from "../../ports/git.ts";
 
@@ -15,6 +16,13 @@ export class GitPreparationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "GitPreparationError";
+  }
+}
+
+export class GitInterruptedError extends Error {
+  constructor(message = "Git operation interrupted at a checkpoint.") {
+    super(message);
+    this.name = "GitInterruptedError";
   }
 }
 
@@ -106,8 +114,9 @@ function parseOperationCommit(
 ):
   | { readonly revision: string; readonly digest: string | undefined }
   | undefined {
-  for (const entry of output.split("\u0000\u0000")) {
-    const [revision, body] = entry.split("\u0000", 2);
+  for (const entry of output.split("\u001e")) {
+    const [rawRevision, body] = entry.split("\u0000", 2);
+    const revision = rawRevision?.trim();
     if (!revision || !body) continue;
     const foundId = /^Quest-Operation-Id: (.+)$/mu.exec(body)?.[1];
     if (foundId !== operationId) continue;
@@ -206,11 +215,13 @@ export class LocalGitPort implements GitPort {
               env: { GIT_INDEX_FILE: indexPath },
             },
           );
+          await operation.checkpoint?.("staged");
           const revision = await requiredGit(
             operation.repositoryPath,
             ["commit-tree", tree, "-p", operation.expectedRevision],
             { stdin: this.message(operation, expectedDigest) },
           );
+          await operation.checkpoint?.("committed");
           return { prepared: true, revision };
         } finally {
           await rm(indexPath, { force: true });
@@ -218,7 +229,7 @@ export class LocalGitPort implements GitPort {
       },
     );
     return "prepared" in prepared
-      ? this.updateRef(operation, prepared.revision)
+      ? this.updateRef(operation, prepared.revision, operation.checkpoint)
       : prepared;
   }
 
@@ -320,8 +331,36 @@ export class LocalGitPort implements GitPort {
       },
     );
     return "prepared" in prepared
-      ? this.updateRef(operation, prepared.revision)
+      ? this.updateRef(operation, prepared.revision, operation.checkpoint)
       : prepared;
+  }
+
+  async push(operation: GitPush): Promise<GitOperationResult> {
+    const expectedRevision = await this.readRevision(
+      operation.repositoryPath,
+      operation.sourceRef,
+    );
+    const result = await git(operation.repositoryPath, [
+      "push",
+      "--porcelain",
+      operation.remote,
+      `${operation.sourceRef}:${operation.targetRef}`,
+    ]);
+    if (result.code === 0)
+      return { kind: "success", revision: expectedRevision, recovered: false };
+    const remote = await git(operation.repositoryPath, [
+      "ls-remote",
+      operation.remote,
+      operation.targetRef,
+    ]);
+    const actualRevision = remote.stdout.split(/\s/u)[0] || "";
+    return {
+      kind: "conflict",
+      code: "push_rejected",
+      expectedRevision,
+      actualRevision,
+      paths: [],
+    };
   }
 
   private async commonDirectory(repositoryPath: string): Promise<string> {
@@ -377,7 +416,7 @@ export class LocalGitPort implements GitPort {
     );
     let acquired = false;
     try {
-      await mkdir(lockDirectory);
+      await this.acquirePreparationLock(lockDirectory);
       acquired = true;
       return await action();
     } catch (error) {
@@ -395,6 +434,50 @@ export class LocalGitPort implements GitPort {
     }
   }
 
+  /** A directory creation is cross-process atomic; dead owners are reclaimed. */
+  private async acquirePreparationLock(lockDirectory: string): Promise<void> {
+    for (;;) {
+      try {
+        await mkdir(lockDirectory);
+        await writeFile(
+          join(lockDirectory, "owner.json"),
+          JSON.stringify({ pid: process.pid, startedAt: Date.now() }),
+          "utf8",
+        );
+        return;
+      } catch (error) {
+        if ((error as { code?: string }).code !== "EEXIST") throw error;
+        if (await this.lockOwnerIsDead(lockDirectory)) {
+          await rm(lockDirectory, { recursive: true, force: true });
+          continue;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    }
+  }
+
+  private async lockOwnerIsDead(lockDirectory: string): Promise<boolean> {
+    try {
+      const owner = JSON.parse(
+        await readFile(join(lockDirectory, "owner.json"), "utf8"),
+      ) as { pid?: unknown };
+      if (typeof owner.pid !== "number" || !Number.isInteger(owner.pid))
+        return true;
+      try {
+        process.kill(owner.pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    } catch {
+      try {
+        return Date.now() - (await stat(lockDirectory)).mtimeMs > 100;
+      } catch {
+        return true;
+      }
+    }
+  }
+
   private async findOperation(
     repositoryPath: string,
     ref: string,
@@ -402,7 +485,7 @@ export class LocalGitPort implements GitPort {
   ) {
     const result = await git(repositoryPath, [
       "log",
-      "--format=%H%x00%B%x00",
+      "--format=%H%x00%B%x1e",
       ref,
     ]);
     return result.code === 0
@@ -434,7 +517,11 @@ export class LocalGitPort implements GitPort {
   private async updateRef(
     operation: GitOperation | GitSynchronization,
     revision: string,
+    checkpoint?: (
+      phase: "staged" | "committed" | "cas",
+    ) => void | Promise<void>,
   ): Promise<GitOperationResult> {
+    await checkpoint?.("cas");
     const result = await git(operation.repositoryPath, [
       "update-ref",
       operation.targetRef,
