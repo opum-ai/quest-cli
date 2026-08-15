@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -38,7 +38,7 @@ test("local repository serializes stale concurrent writes into one structured co
   }
 });
 
-test("local repository recovers stale locks and bounds a live lock as conflict", async () => {
+test("local repository does not remove stale-looking locks and bounds them as conflicts", async () => {
   const directory = join(await mkdtemp(join(tmpdir(), "quest-lock-")), "tasks");
   try {
     const repository = new LocalTaskRepository(directory);
@@ -47,17 +47,12 @@ test("local repository recovers stale locks and bounds a live lock as conflict",
     await mkdir(lock, { recursive: true });
     const stale = new Date(Date.now() - 2_000);
     await utimes(lock, stale, stale);
-    await expect(
-      repository.write(request("T-1", snapshot.revision)),
-    ).resolves.toMatchObject({ kind: "success" });
-
-    const current = await repository.readAll();
-    await mkdir(lock);
     const started = performance.now();
     await expect(
-      repository.write(request("T-2", current.revision)),
+      repository.write(request("T-1", snapshot.revision)),
     ).resolves.toMatchObject({ kind: "conflict" });
     expect(performance.now() - started).toBeLessThan(1_000);
+    expect((await stat(lock)).isDirectory()).toBe(true);
   } finally {
     await rm(join(directory, ".."), { recursive: true, force: true });
   }

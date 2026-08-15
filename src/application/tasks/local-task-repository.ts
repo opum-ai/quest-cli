@@ -4,7 +4,6 @@ import {
   readdir,
   rename,
   rm,
-  stat,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -13,7 +12,6 @@ import type { TaskRepository, TaskWriteRequest } from "./tasks.ts";
 import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
 
 const LOCK_WAIT_MS = 500;
-const LOCK_STALE_MS = 1_000;
 
 /**
  * Small repository-local storage used by the executable composition root.
@@ -60,15 +58,6 @@ export class LocalTaskRepository implements TaskRepository {
         return true;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      }
-      try {
-        const lockAge = Date.now() - (await stat(lock)).mtimeMs;
-        if (lockAge > LOCK_STALE_MS) {
-          await rm(lock, { recursive: true, force: true });
-          continue;
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
       await Bun.sleep(5);
     }
