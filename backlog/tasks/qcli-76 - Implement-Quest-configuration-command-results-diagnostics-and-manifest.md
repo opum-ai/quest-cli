@@ -1,10 +1,11 @@
 ---
 id: QCLI-76
 title: 'Implement Quest configuration, command results, diagnostics, and manifest'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 02:15'
 labels:
   - quest-0.1
   - 'wave:foundation'
@@ -40,3 +41,12 @@ Implement the stable CLI/application shell every later command consumes: reposit
 - [ ] #4 Configuration validates additive TOML safely and reports unsupported schema or drift without mutation
 - [ ] #5 The live manifest enumerates every command, result kind, schema version, and read-only or mutating classification and is covered by goldens
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Reconcile the frozen Opum command contract with the QCLI-76 acceptance criteria and inspect the QCLI-75 scaffold.
+2. Implement typed result/diagnostic, output-mode, manifest, and additive configuration boundaries; expose only the contract shell with CLI wiring.
+3. Add goldens and contract tests for envelope, diagnostics, output precedence, configuration, and manifest validation.
+4. Run focused and cumulative checks, obtain independent review, synchronize Lore, and finalize.
+<!-- SECTION:PLAN:END -->
