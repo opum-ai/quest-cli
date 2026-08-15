@@ -1,10 +1,11 @@
 ---
 id: QCLI-77
 title: 'Implement authored codecs, actors, IDs, aliases, events, and replay'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 17:21'
 labels:
   - quest-0.1
   - 'wave:foundation'
@@ -42,3 +43,12 @@ Implement Quest's authoritative record primitives before workflows: tracked conf
 - [ ] #4 Task events are append-only, versioned, operation-idempotent, actor-attributed, basis-aware, and replay to the exact persisted materialization
 - [ ] #5 Unsupported major schemas, malformed UTF-8, duplicate events, alias collisions, and replay drift fail loud with no partial mutation
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Reconcile the canonical-ID, actor, and authored-record ADRs with the QCLI-76 shell and inspect current domain/adapter conventions.
+2. Implement pure domain codecs for IDs, aliases, actors, events, and deterministic replay plus record adapters for UTF-8/schema validation.
+3. Add domain/record contract tests for allocation, Unicode collision prevention, actor rules, event idempotence, replay, and fail-closed corrupt input cases.
+4. Run focused and cumulative checks, obtain independent review, synchronize Lore, and finalize.
+<!-- SECTION:PLAN:END -->
