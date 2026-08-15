@@ -4,8 +4,13 @@ import {
   createTask,
   defaultLifecyclePolicy,
   evaluateReadySet,
+  taskState,
   transitionTask,
 } from "../../../src/domain/tasks/tasks.ts";
+import {
+  replayGateHistory,
+  type GateEvent,
+} from "../../../src/domain/gates/gates.ts";
 import {
   TaskService,
   type TaskRepository,
@@ -17,6 +22,49 @@ function task(
   overrides: Partial<ReturnType<typeof createTask>> = {},
 ) {
   return createTask(id, { title: `Task ${id}`, ...overrides });
+}
+
+function gatedTask(id: string, satisfied = false) {
+  const events: readonly GateEvent[] = [
+    {
+      eventId: `${id}-gate`,
+      operationId: `${id}-define`,
+      taskId: id as `T-${number}`,
+      kind: "gate-defined",
+      definition: {
+        id: "review",
+        title: "Review",
+        blocking: true,
+        requiresHumanJudgement: false,
+      },
+    },
+    ...(satisfied
+      ? [
+          {
+            eventId: `${id}-evidence`,
+            operationId: `${id}-evidence-op`,
+            taskId: id as `T-${number}`,
+            kind: "evidence-submitted" as const,
+            gateId: "review",
+            evidence: {
+              id: "evidence",
+              reference: "https://evidence",
+              actor: { id: "reviewer", kind: "human" as const, roles: [] },
+              submittedAt: "2026-01-01T00:00:00Z",
+            },
+          },
+        ]
+      : []),
+  ];
+  const gates = replayGateHistory(events).gates.map((gate) => ({
+    id: gate.id,
+    title: gate.title,
+    blocking: gate.blocking,
+    state: gate.state,
+    evidence: gate.evidence.map((evidence) => evidence.reference),
+    ...(gate.satisfiedBy ? { satisfiedBy: gate.satisfiedBy } : {}),
+  }));
+  return taskState({ ...task(id), gateEvents: events, gates });
 }
 
 class MemoryTasks implements TaskRepository {
@@ -248,24 +296,12 @@ test("service canonicalizes alias links, rejects status jumps without a write, a
     "Illegal task transition",
   );
   expect(store.writes).toBe(1);
-  const pending = task("T-3", {
-    gates: [{ id: "review", title: "Review", state: "pending", evidence: [] }],
-  });
+  const pending = gatedTask("T-3");
   expect(evaluateReadySet([pending], new Date())).toEqual({
     ready: [],
     excluded: [{ taskId: "T-3", reason: "pending_gate" }],
   });
-  const satisfied = task("T-4", {
-    gates: [
-      {
-        id: "review",
-        title: "Review",
-        state: "satisfied",
-        evidence: ["https://evidence"],
-        satisfiedBy: "reviewer",
-      },
-    ],
-  });
+  const satisfied = gatedTask("T-4", true);
   expect(evaluateReadySet([satisfied], new Date()).ready).toEqual(["T-4"]);
 });
 

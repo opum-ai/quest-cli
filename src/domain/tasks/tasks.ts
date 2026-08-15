@@ -135,8 +135,6 @@ export interface TaskInput
   readonly documentation?: readonly string[];
   readonly dependencies?: readonly string[];
   readonly blockers?: readonly BlockerEvent[];
-  readonly gates?: readonly TaskGate[];
-  readonly gateEvents?: readonly GateEvent[];
 }
 
 const statusSchema = z.string().min(1);
@@ -224,19 +222,10 @@ export function taskState(value: TaskState): TaskState {
     state.gates.map((gate) => gate.id),
     "Gate ids",
   );
-  for (const gate of state.gates) {
-    if (
-      gate.state === "satisfied" &&
-      (!gate.evidence.length || !gate.satisfiedBy)
-    )
-      throw new RecordValidationError("gate_satisfied_without_evidence");
-    if (
-      gate.state === "pending" &&
-      (gate.satisfiedBy || (!state.gateEvents.length && gate.evidence.length))
-    )
-      throw new RecordValidationError("gate_pending_has_satisfaction");
-  }
-  if (state.gateEvents.length) {
+  if (!state.gateEvents.length) {
+    if (state.gates.length)
+      throw new RecordValidationError("gate_materialization_drift");
+  } else {
     const replayed = replayGateHistory(state.gateEvents);
     if (replayed.taskId !== state.id)
       throw new RecordValidationError("gate_task_mismatch");
@@ -279,8 +268,8 @@ export function createTask(
     documentation: input.documentation ?? [],
     dependencies: input.dependencies ?? [],
     blockers: input.blockers ?? [],
-    gates: input.gates ?? [],
-    gateEvents: input.gateEvents ?? [],
+    gates: [],
+    gateEvents: [],
   });
 }
 

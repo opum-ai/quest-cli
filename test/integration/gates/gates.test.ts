@@ -168,3 +168,53 @@ test("evidence eligibility is frozen in its event despite later actor declaratio
     satisfiedBy: "reviewer",
   });
 });
+
+test("generic task writes cannot erase gate history or inject a satisfied gate", async () => {
+  const store = new MemoryTasks();
+  const gates = new GateService(store, [author, reviewer, agent]);
+  await gates.define({
+    reference: "gate",
+    definition: {
+      id: "review",
+      title: "Review",
+      blocking: true,
+      requiresHumanJudgement: true,
+    },
+    eventId: "g-1",
+    operationId: "define",
+  });
+  const tasks = new TaskService(store);
+  await tasks.transition("gate", "In Progress", "start");
+  const writesBeforeAttack = store.writes;
+  await expect(
+    tasks.edit(
+      "gate",
+      {
+        status: "Done",
+        gates: [],
+        gateEvents: [],
+      } as never,
+      "wipe",
+    ),
+  ).rejects.toThrow("task_gate_events_managed");
+  expect(store.writes).toBe(writesBeforeAttack);
+  await expect(tasks.transition("gate", "Done", "finish")).rejects.toThrow(
+    "task_terminal_transition_gate_blocked",
+  );
+  expect(store.writes).toBe(writesBeforeAttack);
+
+  expect(
+    createTask("T-2", {
+      title: "forged",
+      gates: [
+        {
+          id: "forged",
+          title: "Forged",
+          state: "satisfied",
+          evidence: ["forged"],
+          satisfiedBy: "attacker",
+        },
+      ],
+    } as never).gates,
+  ).toEqual([]);
+});

@@ -13,6 +13,7 @@ import {
   type TaskState,
   type TaskStatus,
 } from "../../domain/tasks/tasks.ts";
+import { RecordValidationError } from "../../domain/records.ts";
 
 /** The authoritative store is Git-backed in production; query methods deliberately have no write capability. */
 export interface TaskReader {
@@ -97,15 +98,22 @@ export class TaskService {
   }
   async edit(
     reference: string,
-    patch: Partial<Omit<TaskState, "id">>,
+    patch: Partial<Omit<TaskState, "id" | "gates" | "gateEvents">>,
     operationId: string,
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
     const tasks = snapshot.tasks;
     const task = findTask(tasks, reference);
-    if (patch.status !== undefined && patch.status !== task.status)
-      transitionTask(task, patch.status, this.lifecycle);
-    const next = taskState({ ...task, ...patch, id: task.id });
+    const unsafe = patch as Partial<TaskState>;
+    if ("gates" in unsafe || "gateEvents" in unsafe)
+      throw new RecordValidationError("task_gate_events_managed");
+    const authorizedPatch = unsafe;
+    if (
+      authorizedPatch.status !== undefined &&
+      authorizedPatch.status !== task.status
+    )
+      transitionTask(task, authorizedPatch.status, this.lifecycle);
+    const next = taskState({ ...task, ...authorizedPatch, id: task.id });
     const canonical = canonicalizeTaskLinks(
       tasks.map((item) => (item.id === task.id ? next : item)),
     );
