@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Quest CLI tracker subprocess contract.",
   "license": "MIT",
-  "private": false,
+  "private": true,
   "type": "module",
   "packageManager": "bun@1.3.14",
   "engines": {

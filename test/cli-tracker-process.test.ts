@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -135,6 +135,31 @@ test("the versioned fixture runs without importing Quest source", async () => {
       "Tracker conformance fixture v1 passed.",
     );
     expect(await new Response(child.stderr).text()).toBe("");
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("a live storage lock produces a bounded conflict diagnostic", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-lock-diagnostic-"));
+  try {
+    await mkdir(join(store, ".quest", "tasks", ".write.lock"), {
+      recursive: true,
+    });
+    const started = performance.now();
+    const result = await quest(store, [
+      "task",
+      "create",
+      "blocked",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(performance.now() - started).toBeLessThan(1_000);
+    expect(result.exitCode).toBe(5);
+    expect(JSON.parse(result.stderr)).toMatchObject({ error_type: "conflict" });
   } finally {
     await rm(store, { recursive: true, force: true });
   }

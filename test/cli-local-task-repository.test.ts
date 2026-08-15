@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -6,6 +6,15 @@ import { expect, test } from "bun:test";
 
 import { LocalTaskRepository } from "../src/application/tasks/local-task-repository.ts";
 import { createTask } from "../src/domain/tasks/tasks.ts";
+
+function request(id: string, revision: string) {
+  return {
+    task: createTask(id, { title: id }),
+    expectedRevision: revision,
+    operationId: id,
+    ownedPaths: [`.quest/tasks/${id}.md`],
+  };
+}
 
 test("local repository serializes stale concurrent writes into one structured conflict", async () => {
   const directory = join(await mkdtemp(join(tmpdir(), "quest-lock-")), "tasks");
@@ -15,18 +24,8 @@ test("local repository serializes stale concurrent writes into one structured co
     const first = await one.readAll();
     const second = await two.readAll();
     const results = await Promise.all([
-      one.write({
-        task: createTask("T-1", { title: "one" }),
-        expectedRevision: first.revision,
-        operationId: "one",
-        ownedPaths: [".quest/tasks/T-1.md"],
-      }),
-      two.write({
-        task: createTask("T-2", { title: "two" }),
-        expectedRevision: second.revision,
-        operationId: "two",
-        ownedPaths: [".quest/tasks/T-2.md"],
-      }),
+      one.write(request("T-1", first.revision)),
+      two.write(request("T-2", second.revision)),
     ]);
     expect(results.filter((result) => result.kind === "success")).toHaveLength(
       1,
@@ -34,6 +33,31 @@ test("local repository serializes stale concurrent writes into one structured co
     expect(results.filter((result) => result.kind === "conflict")).toHaveLength(
       1,
     );
+  } finally {
+    await rm(join(directory, ".."), { recursive: true, force: true });
+  }
+});
+
+test("local repository recovers stale locks and bounds a live lock as conflict", async () => {
+  const directory = join(await mkdtemp(join(tmpdir(), "quest-lock-")), "tasks");
+  try {
+    const repository = new LocalTaskRepository(directory);
+    const snapshot = await repository.readAll();
+    const lock = join(directory, ".write.lock");
+    await mkdir(lock, { recursive: true });
+    const stale = new Date(Date.now() - 2_000);
+    await utimes(lock, stale, stale);
+    await expect(
+      repository.write(request("T-1", snapshot.revision)),
+    ).resolves.toMatchObject({ kind: "success" });
+
+    const current = await repository.readAll();
+    await mkdir(lock);
+    const started = performance.now();
+    await expect(
+      repository.write(request("T-2", current.revision)),
+    ).resolves.toMatchObject({ kind: "conflict" });
+    expect(performance.now() - started).toBeLessThan(1_000);
   } finally {
     await rm(join(directory, ".."), { recursive: true, force: true });
   }

@@ -4,12 +4,16 @@ import {
   readdir,
   rename,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { TaskRepository, TaskWriteRequest } from "./tasks.ts";
 import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
+
+const LOCK_WAIT_MS = 500;
+const LOCK_STALE_MS = 1_000;
 
 /**
  * Small repository-local storage used by the executable composition root.
@@ -48,6 +52,29 @@ export class LocalTaskRepository implements TaskRepository {
       .digest("hex");
   }
 
+  private async acquireLock(lock: string): Promise<boolean> {
+    const deadline = Date.now() + LOCK_WAIT_MS;
+    while (Date.now() < deadline) {
+      try {
+        await mkdir(lock);
+        return true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      }
+      try {
+        const lockAge = Date.now() - (await stat(lock)).mtimeMs;
+        if (lockAge > LOCK_STALE_MS) {
+          await rm(lock, { recursive: true, force: true });
+          continue;
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+      await Bun.sleep(5);
+    }
+    return false;
+  }
+
   async readAll() {
     const tasks = await this.snapshot();
     return { revision: this.revision(tasks), tasks };
@@ -56,14 +83,15 @@ export class LocalTaskRepository implements TaskRepository {
   async write(request: TaskWriteRequest) {
     await mkdir(this.directory, { recursive: true });
     const lock = join(this.directory, ".write.lock");
-    while (true) {
-      try {
-        await mkdir(lock);
-        break;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-        await Bun.sleep(1);
-      }
+    if (!(await this.acquireLock(lock))) {
+      const current = await this.readAll();
+      return {
+        kind: "conflict" as const,
+        expectedRevision: request.expectedRevision,
+        actualRevision: current.revision,
+        operationId: request.operationId,
+        ownedPaths: request.ownedPaths,
+      };
     }
     try {
       // The revision check occurs while holding an inter-process lock, so a
