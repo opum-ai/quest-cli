@@ -1,0 +1,413 @@
+import { Database } from "bun:sqlite";
+import { mkdir, rename, rm, stat } from "node:fs/promises";
+import { dirname } from "node:path";
+import {
+  type ClaimEvent,
+  replayClaimHistory,
+} from "../../domain/claims/claims.ts";
+import { type Actor, aliasKey, declareActors } from "../../domain/records.ts";
+import { type TaskState, taskState } from "../../domain/tasks/tasks.ts";
+
+export const projectionSchemaVersion = 1;
+
+type ProjectionCounts = Readonly<Record<string, number>>;
+
+export interface GitCheckpoint {
+  readonly revision: string;
+  readonly observedAt: string;
+}
+
+export interface SourceMapping {
+  readonly taskId: string;
+  readonly system: string;
+  readonly reference: string;
+  readonly importedAt?: string;
+}
+
+/** Git-derived input only; the adapter never reads a prior SQLite row as input. */
+export interface AuthoritativeProjectionSnapshot {
+  readonly workspaceId: string;
+  readonly checkpoint: GitCheckpoint;
+  readonly tasks: readonly TaskState[];
+  readonly actors: readonly Actor[];
+  readonly claimEvents: readonly ClaimEvent[];
+  readonly sourceMappings?: readonly SourceMapping[];
+  readonly checkpoints?: readonly GitCheckpoint[];
+}
+
+export interface AuthoritativeProjectionSource {
+  enumerate(): Promise<AuthoritativeProjectionSnapshot>;
+}
+
+export interface ProjectionRebuildResult {
+  readonly kind: "rebuilt";
+  readonly checkpoint: GitCheckpoint;
+}
+
+export type ProjectionRefreshResult =
+  | ProjectionRebuildResult
+  | { readonly kind: "reused"; readonly checkpoint: GitCheckpoint };
+
+const schema = `
+CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL,
+  payload TEXT NOT NULL
+);
+CREATE TABLE dependencies (
+  task_id TEXT NOT NULL, dependency_id TEXT NOT NULL,
+  PRIMARY KEY (task_id, dependency_id),
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+CREATE TABLE aliases (
+  task_id TEXT NOT NULL, alias TEXT NOT NULL, alias_key TEXT NOT NULL,
+  PRIMARY KEY (task_id, alias_key), FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+CREATE TABLE actors (id TEXT PRIMARY KEY, kind TEXT NOT NULL, payload TEXT NOT NULL);
+CREATE TABLE claims (
+  task_id TEXT PRIMARY KEY, holder_id TEXT NOT NULL, lease_generation TEXT NOT NULL,
+  expires_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+CREATE TABLE gates (
+  task_id TEXT NOT NULL, gate_id TEXT NOT NULL, title TEXT NOT NULL,
+  blocking INTEGER NOT NULL, state TEXT NOT NULL, satisfied_by TEXT,
+  PRIMARY KEY (task_id, gate_id), FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+CREATE TABLE evidence (
+  task_id TEXT NOT NULL, gate_id TEXT NOT NULL, evidence_id TEXT NOT NULL,
+  reference TEXT NOT NULL, actor_id TEXT NOT NULL, submitted_at TEXT NOT NULL,
+  payload TEXT NOT NULL, PRIMARY KEY (task_id, gate_id, evidence_id),
+  FOREIGN KEY (task_id, gate_id) REFERENCES gates(task_id, gate_id)
+);
+CREATE TABLE events (
+  event_id TEXT PRIMARY KEY, operation_id TEXT NOT NULL UNIQUE, task_id TEXT NOT NULL,
+  stream TEXT NOT NULL, kind TEXT NOT NULL, ordinal INTEGER NOT NULL, payload TEXT NOT NULL,
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+CREATE TABLE source_mappings (
+  task_id TEXT NOT NULL, system TEXT NOT NULL, reference TEXT NOT NULL,
+  imported_at TEXT, PRIMARY KEY (task_id, system, reference),
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+CREATE TABLE git_checkpoints (
+  revision TEXT PRIMARY KEY, observed_at TEXT NOT NULL, ordinal INTEGER NOT NULL
+);
+`;
+
+function count(db: Database, table: string): number {
+  return (
+    db.query(`SELECT COUNT(*) AS value FROM ${table}`).get() as {
+      value: number;
+    }
+  ).value;
+}
+
+function insert(
+  db: Database,
+  sql: string,
+  values: readonly (string | number | null)[],
+): void {
+  db.query(sql).run(...values);
+}
+
+function allSourceMappings(
+  snapshot: AuthoritativeProjectionSnapshot,
+): readonly SourceMapping[] {
+  const mappings = [
+    ...snapshot.tasks.flatMap((task) =>
+      task.source
+        ? [{ taskId: task.id, ...task.source }]
+        : ([] as readonly SourceMapping[]),
+    ),
+    ...(snapshot.sourceMappings ?? []),
+  ];
+  const seen = new Set<string>();
+  return mappings.filter((mapping) => {
+    const key = `${mapping.taskId}\u0000${mapping.system}\u0000${mapping.reference}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** Validate authoritative replay before opening a replacement projection. */
+function validate(snapshot: AuthoritativeProjectionSnapshot): void {
+  if (!snapshot.workspaceId || !snapshot.checkpoint.revision)
+    throw new Error("projection_authoritative_checkpoint_invalid");
+  const tasks = snapshot.tasks.map(taskState);
+  if (new Set(tasks.map((task) => task.id)).size !== tasks.length)
+    throw new Error("projection_authoritative_task_duplicate");
+  const actors = declareActors(snapshot.actors);
+  const claimsByTask = new Map<string, ClaimEvent[]>();
+  for (const event of snapshot.claimEvents) {
+    const events = claimsByTask.get(event.taskId) ?? [];
+    claimsByTask.set(event.taskId, [...events, event]);
+  }
+  for (const events of claimsByTask.values())
+    replayClaimHistory(events, actors);
+  const taskIds = new Set(tasks.map((task) => task.id));
+  const eventIds = new Set<string>();
+  const operationIds = new Set<string>();
+  for (const event of [
+    ...tasks.flatMap((task) => task.gateEvents),
+    ...snapshot.claimEvents,
+  ]) {
+    if (!taskIds.has(event.taskId))
+      throw new Error("projection_authoritative_event_unknown_task");
+    if (eventIds.has(event.eventId) || operationIds.has(event.operationId))
+      throw new Error("projection_authoritative_event_duplicate");
+    eventIds.add(event.eventId);
+    operationIds.add(event.operationId);
+  }
+  for (const mapping of allSourceMappings(snapshot)) {
+    if (!taskIds.has(mapping.taskId))
+      throw new Error("projection_source_mapping_unknown_task");
+  }
+  const revisions = new Set<string>();
+  for (const checkpoint of [
+    snapshot.checkpoint,
+    ...(snapshot.checkpoints ?? []),
+  ]) {
+    if (
+      !checkpoint.revision ||
+      !checkpoint.observedAt ||
+      revisions.has(checkpoint.revision)
+    )
+      throw new Error(
+        "projection_authoritative_checkpoint_duplicate_or_invalid",
+      );
+    revisions.add(checkpoint.revision);
+  }
+}
+
+function expectedCounts(
+  snapshot: AuthoritativeProjectionSnapshot,
+): ProjectionCounts {
+  const tasks = snapshot.tasks;
+  return {
+    tasks: tasks.length,
+    dependencies: tasks.reduce(
+      (total, task) => total + task.dependencies.length,
+      0,
+    ),
+    aliases: tasks.reduce((total, task) => total + task.aliases.length, 0),
+    actors: snapshot.actors.length,
+    claims: tasks.filter((task) => task.claim).length,
+    gates: tasks.reduce((total, task) => total + task.gates.length, 0),
+    evidence: tasks.reduce(
+      (total, task) =>
+        total +
+        task.gateEvents.filter((event) => event.kind === "evidence-submitted")
+          .length,
+      0,
+    ),
+    events:
+      snapshot.claimEvents.length +
+      tasks.reduce((total, task) => total + task.gateEvents.length, 0),
+    source_mappings: allSourceMappings(snapshot).length,
+    git_checkpoints: 1 + (snapshot.checkpoints?.length ?? 0),
+  };
+}
+
+function populate(
+  db: Database,
+  snapshot: AuthoritativeProjectionSnapshot,
+): void {
+  insert(db, "INSERT INTO metadata VALUES (?, ?)", [
+    "schema_version",
+    String(projectionSchemaVersion),
+  ]);
+  insert(db, "INSERT INTO metadata VALUES (?, ?)", [
+    "workspace_id",
+    snapshot.workspaceId,
+  ]);
+  for (const task of snapshot.tasks) {
+    insert(db, "INSERT INTO tasks VALUES (?, ?, ?, ?)", [
+      task.id,
+      task.title,
+      task.status,
+      JSON.stringify(task),
+    ]);
+    for (const dependency of task.dependencies)
+      insert(db, "INSERT INTO dependencies VALUES (?, ?)", [
+        task.id,
+        dependency,
+      ]);
+    for (const alias of task.aliases)
+      insert(db, "INSERT INTO aliases VALUES (?, ?, ?)", [
+        task.id,
+        alias,
+        aliasKey(alias),
+      ]);
+    if (task.claim)
+      insert(db, "INSERT INTO claims VALUES (?, ?, ?, ?)", [
+        task.id,
+        task.claim.holderId,
+        task.claim.leaseGeneration,
+        task.claim.expiresAt,
+      ]);
+    for (const gate of task.gates)
+      insert(db, "INSERT INTO gates VALUES (?, ?, ?, ?, ?, ?)", [
+        task.id,
+        gate.id,
+        gate.title,
+        gate.blocking === false ? 0 : 1,
+        gate.state,
+        gate.satisfiedBy ?? null,
+      ]);
+    for (const [ordinal, event] of task.gateEvents.entries()) {
+      insert(db, "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?)", [
+        event.eventId,
+        event.operationId,
+        task.id,
+        "gate",
+        event.kind,
+        ordinal,
+        JSON.stringify(event),
+      ]);
+      if (event.kind === "evidence-submitted")
+        insert(db, "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)", [
+          task.id,
+          event.gateId,
+          event.evidence.id,
+          event.evidence.reference,
+          event.evidence.actor.id,
+          event.evidence.submittedAt,
+          JSON.stringify(event.evidence),
+        ]);
+    }
+  }
+  for (const actor of snapshot.actors)
+    insert(db, "INSERT INTO actors VALUES (?, ?, ?)", [
+      actor.id,
+      actor.kind,
+      JSON.stringify(actor),
+    ]);
+  for (const [ordinal, event] of snapshot.claimEvents.entries())
+    insert(db, "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?)", [
+      event.eventId,
+      event.operationId,
+      event.taskId,
+      "claim",
+      event.kind,
+      ordinal,
+      JSON.stringify(event),
+    ]);
+  for (const mapping of allSourceMappings(snapshot))
+    insert(db, "INSERT INTO source_mappings VALUES (?, ?, ?, ?)", [
+      mapping.taskId,
+      mapping.system,
+      mapping.reference,
+      mapping.importedAt ?? null,
+    ]);
+  for (const [ordinal, checkpoint] of [
+    snapshot.checkpoint,
+    ...(snapshot.checkpoints ?? []),
+  ].entries())
+    insert(db, "INSERT INTO git_checkpoints VALUES (?, ?, ?)", [
+      checkpoint.revision,
+      checkpoint.observedAt,
+      ordinal,
+    ]);
+}
+
+function validateReplacement(
+  db: Database,
+  snapshot: AuthoritativeProjectionSnapshot,
+): void {
+  const integrity = db.query("PRAGMA integrity_check").get() as {
+    integrity_check: string;
+  };
+  if (integrity.integrity_check !== "ok")
+    throw new Error("projection_integrity_failed");
+  for (const [table, expected] of Object.entries(expectedCounts(snapshot))) {
+    if (count(db, table) !== expected)
+      throw new Error(`projection_count_mismatch:${table}`);
+  }
+  const replayed = db.query("SELECT payload FROM tasks ORDER BY id").all() as {
+    payload: string;
+  }[];
+  for (const row of replayed) taskState(JSON.parse(row.payload));
+}
+
+/** Bun SQLite adapter for a disposable, workspace-local projection database. */
+export class SqliteProjectionStore {
+  constructor(private readonly databasePath: string) {}
+
+  private async healthy(): Promise<GitCheckpoint | undefined> {
+    try {
+      await stat(this.databasePath);
+      const db = new Database(this.databasePath, {
+        readonly: true,
+        strict: true,
+      });
+      try {
+        const integrity = db.query("PRAGMA integrity_check").get() as {
+          integrity_check: string;
+        };
+        const version = db
+          .query("SELECT value FROM metadata WHERE key = 'schema_version'")
+          .get() as { value?: string } | null;
+        const checkpoint = db
+          .query(
+            "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal DESC LIMIT 1",
+          )
+          .get() as { revision?: string; observed_at?: string } | null;
+        if (
+          integrity.integrity_check !== "ok" ||
+          version?.value !== String(projectionSchemaVersion) ||
+          !checkpoint?.revision ||
+          !checkpoint.observed_at
+        )
+          return undefined;
+        return {
+          revision: checkpoint.revision,
+          observedAt: checkpoint.observed_at,
+        };
+      } finally {
+        db.close();
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  async rebuild(
+    source: AuthoritativeProjectionSource,
+  ): Promise<ProjectionRebuildResult> {
+    const snapshot = await source.enumerate();
+    validate(snapshot);
+    await mkdir(dirname(this.databasePath), { recursive: true });
+    const temporary = `${this.databasePath}.${crypto.randomUUID()}.rebuild`;
+    let db: Database | undefined;
+    try {
+      db = new Database(temporary, { create: true, strict: true });
+      db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = DELETE;");
+      db.exec(schema);
+      db.exec("BEGIN IMMEDIATE");
+      populate(db, snapshot);
+      db.exec("COMMIT");
+      validateReplacement(db, snapshot);
+      db.close();
+      db = undefined;
+      await rename(temporary, this.databasePath);
+      return { kind: "rebuilt", checkpoint: snapshot.checkpoint };
+    } catch (error) {
+      try {
+        db?.exec("ROLLBACK");
+      } catch {
+        // The replacement is discarded below; the prior projection remains intact.
+      }
+      db?.close();
+      await rm(temporary, { force: true });
+      throw error;
+    }
+  }
+
+  async rebuildIfNeeded(
+    source: AuthoritativeProjectionSource,
+  ): Promise<ProjectionRefreshResult> {
+    const checkpoint = await this.healthy();
+    return checkpoint ? { kind: "reused", checkpoint } : this.rebuild(source);
+  }
+}
