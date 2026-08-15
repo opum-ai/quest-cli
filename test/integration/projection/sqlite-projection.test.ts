@@ -206,6 +206,58 @@ test("a valid SQLite file with deleted data or a missing table is rebuilt from G
   }
 });
 
+test("same-count tampering across projection families is never reused", async () => {
+  const path = await databasePath();
+  const source = snapshot();
+  const store = new SqliteProjectionStore(path);
+  await store.rebuild({ enumerate: async () => source });
+  const tampered = new Database(path);
+  tampered.exec(`
+    UPDATE metadata SET value = 'other-workspace' WHERE key = 'workspace_id';
+    UPDATE tasks SET title = 'tampered', status = 'Done', payload = '{}' WHERE id = 'T-1';
+    UPDATE dependencies SET dependency_id = 'T-2';
+    UPDATE aliases SET alias = 'tampered', alias_key = 'tampered';
+    UPDATE actors SET payload = '{}' WHERE id = 'reviewer';
+    UPDATE claims SET holder_id = 'other-worker';
+    UPDATE gates SET state = 'pending';
+    UPDATE evidence SET reference = 'tampered';
+    UPDATE events SET payload = '{}';
+    UPDATE source_mappings SET reference = 'tampered';
+    UPDATE git_checkpoints SET observed_at = 'tampered';
+  `);
+  tampered.close();
+
+  expect(
+    await store.rebuildIfNeeded({ enumerate: async () => source }),
+  ).toMatchObject({ kind: "rebuilt" });
+  const rebuilt = new Database(path, { readonly: true });
+  try {
+    expect(
+      (
+        rebuilt.query("SELECT title FROM tasks WHERE id = 'T-1'").get() as {
+          title: string;
+        }
+      ).title,
+    ).toBe("One");
+    expect(
+      (
+        rebuilt
+          .query("SELECT value FROM metadata WHERE key = 'workspace_id'")
+          .get() as { value: string }
+      ).value,
+    ).toBe("workspace-1");
+    expect(
+      (
+        rebuilt.query("SELECT reference FROM evidence").get() as {
+          reference: string;
+        }
+      ).reference,
+    ).toBe("https://example.test/proof");
+  } finally {
+    rebuilt.close();
+  }
+});
+
 test("failed validation leaves the prior projection in place", async () => {
   const path = await databasePath();
   const source = snapshot();

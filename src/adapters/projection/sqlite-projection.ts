@@ -311,6 +311,164 @@ function populate(
     ]);
 }
 
+type ProjectionRow = Readonly<Record<string, string | number | null>>;
+
+function sameRows(
+  actual: readonly ProjectionRow[],
+  expected: readonly ProjectionRow[],
+): boolean {
+  const encoded = (rows: readonly ProjectionRow[]) =>
+    rows
+      .map((row) => JSON.stringify(row))
+      .sort()
+      .join("\n");
+  return encoded(actual) === encoded(expected);
+}
+
+function rowsMatch(
+  db: Database,
+  query: string,
+  expected: readonly ProjectionRow[],
+): boolean {
+  return sameRows(db.query(query).all() as ProjectionRow[], expected);
+}
+
+/** Compare every disposable row with the just-enumerated Git snapshot. */
+function matchesAuthoritativeSnapshot(
+  db: Database,
+  snapshot: AuthoritativeProjectionSnapshot,
+): boolean {
+  const taskRows: ProjectionRow[] = [];
+  const dependencyRows: ProjectionRow[] = [];
+  const aliasRows: ProjectionRow[] = [];
+  const claimRows: ProjectionRow[] = [];
+  const gateRows: ProjectionRow[] = [];
+  const evidenceRows: ProjectionRow[] = [];
+  const eventRows: ProjectionRow[] = [];
+  for (const task of snapshot.tasks) {
+    taskRows.push({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      payload: JSON.stringify(task),
+    });
+    for (const dependency of task.dependencies)
+      dependencyRows.push({ task_id: task.id, dependency_id: dependency });
+    for (const alias of task.aliases)
+      aliasRows.push({ task_id: task.id, alias, alias_key: aliasKey(alias) });
+    if (task.claim)
+      claimRows.push({
+        task_id: task.id,
+        holder_id: task.claim.holderId,
+        lease_generation: task.claim.leaseGeneration,
+        expires_at: task.claim.expiresAt,
+      });
+    for (const gate of task.gates)
+      gateRows.push({
+        task_id: task.id,
+        gate_id: gate.id,
+        title: gate.title,
+        blocking: gate.blocking === false ? 0 : 1,
+        state: gate.state,
+        satisfied_by: gate.satisfiedBy ?? null,
+      });
+    for (const [ordinal, event] of task.gateEvents.entries()) {
+      eventRows.push({
+        event_id: event.eventId,
+        operation_id: event.operationId,
+        task_id: task.id,
+        stream: "gate",
+        kind: event.kind,
+        ordinal,
+        payload: JSON.stringify(event),
+      });
+      if (event.kind === "evidence-submitted")
+        evidenceRows.push({
+          task_id: task.id,
+          gate_id: event.gateId,
+          evidence_id: event.evidence.id,
+          reference: event.evidence.reference,
+          actor_id: event.evidence.actor.id,
+          submitted_at: event.evidence.submittedAt,
+          payload: JSON.stringify(event.evidence),
+        });
+    }
+  }
+  for (const [ordinal, event] of snapshot.claimEvents.entries())
+    eventRows.push({
+      event_id: event.eventId,
+      operation_id: event.operationId,
+      task_id: event.taskId,
+      stream: "claim",
+      kind: event.kind,
+      ordinal,
+      payload: JSON.stringify(event),
+    });
+  return [
+    rowsMatch(db, "SELECT key, value FROM metadata", [
+      { key: "schema_version", value: String(projectionSchemaVersion) },
+      { key: "workspace_id", value: snapshot.workspaceId },
+    ]),
+    rowsMatch(db, "SELECT id, title, status, payload FROM tasks", taskRows),
+    rowsMatch(
+      db,
+      "SELECT task_id, dependency_id FROM dependencies",
+      dependencyRows,
+    ),
+    rowsMatch(db, "SELECT task_id, alias, alias_key FROM aliases", aliasRows),
+    rowsMatch(
+      db,
+      "SELECT id, kind, payload FROM actors",
+      snapshot.actors.map((actor) => ({
+        id: actor.id,
+        kind: actor.kind,
+        payload: JSON.stringify(actor),
+      })),
+    ),
+    rowsMatch(
+      db,
+      "SELECT task_id, holder_id, lease_generation, expires_at FROM claims",
+      claimRows,
+    ),
+    rowsMatch(
+      db,
+      "SELECT task_id, gate_id, title, blocking, state, satisfied_by FROM gates",
+      gateRows,
+    ),
+    rowsMatch(
+      db,
+      "SELECT task_id, gate_id, evidence_id, reference, actor_id, submitted_at, payload FROM evidence",
+      evidenceRows,
+    ),
+    rowsMatch(
+      db,
+      "SELECT event_id, operation_id, task_id, stream, kind, ordinal, payload FROM events",
+      eventRows,
+    ),
+    rowsMatch(
+      db,
+      "SELECT task_id, system, reference, imported_at FROM source_mappings",
+      allSourceMappings(snapshot).map((mapping) => ({
+        task_id: mapping.taskId,
+        system: mapping.system,
+        reference: mapping.reference,
+        imported_at: mapping.importedAt ?? null,
+      })),
+    ),
+    rowsMatch(
+      db,
+      "SELECT revision, observed_at, ordinal FROM git_checkpoints",
+      [snapshot.checkpoint, ...(snapshot.checkpoints ?? [])].map(
+        (checkpoint, ordinal) => ({
+          revision: checkpoint.revision,
+          observed_at: checkpoint.observedAt,
+          ordinal,
+        }),
+      ),
+    ),
+  ].every(Boolean);
+}
+
 function validateReplacement(
   db: Database,
   snapshot: AuthoritativeProjectionSnapshot,
@@ -328,6 +486,8 @@ function validateReplacement(
     payload: string;
   }[];
   for (const row of replayed) taskState(JSON.parse(row.payload));
+  if (!matchesAuthoritativeSnapshot(db, snapshot))
+    throw new Error("projection_content_mismatch");
 }
 
 /** Bun SQLite adapter for a disposable, workspace-local projection database. */
@@ -363,14 +523,9 @@ export class SqliteProjectionStore {
           checkpoint.revision !== snapshot.checkpoint.revision
         )
           return undefined;
-        // Integrity_check only covers SQLite page consistency. A valid SQLite
-        // file can still have a removed table or missing projected row, so
-        // check every required table against the Git-derived enumeration.
-        for (const [table, expected] of Object.entries(
-          expectedCounts(snapshot),
-        )) {
-          if (count(db, table) !== expected) return undefined;
-        }
+        // Integrity_check only covers SQLite page consistency. Compare every
+        // projected row, including metadata and checkpoints, with Git input.
+        if (!matchesAuthoritativeSnapshot(db, snapshot)) return undefined;
         const replayed = db
           .query("SELECT payload FROM tasks ORDER BY id")
           .all() as { payload: string }[];
