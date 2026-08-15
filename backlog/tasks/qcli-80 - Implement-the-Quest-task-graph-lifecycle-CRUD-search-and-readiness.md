@@ -1,11 +1,11 @@
 ---
 id: QCLI-80
 title: 'Implement the Quest task graph, lifecycle, CRUD, search, and readiness'
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 18:57'
+updated_date: '2026-08-15 19:49'
 labels:
   - quest-0.1
   - 'wave:core'
@@ -34,11 +34,11 @@ Implement the authoritative task surface and dependency DAG on the mutation kern
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Create, list, view, search, and edit cover the full accepted summary and detail fields, criteria, narrative sections, comments, labels, documentation, hierarchy, and source provenance
-- [ ] #2 Configured status order and transitions default to To Do, In Progress, and Done, with terminal records retained in place
-- [ ] #3 Dependency and parent cycles, missing references, ambiguous aliases, and illegal transitions are rejected without mutation
-- [ ] #4 Ready-set evaluation is deterministic from authoritative events, terminal dependencies, blocking gates, and live claims
-- [ ] #5 All read paths remain correct without a projection and perform zero writes
+- [x] #1 Create, list, view, search, and edit cover the full accepted summary and detail fields, criteria, narrative sections, comments, labels, documentation, hierarchy, and source provenance
+- [x] #2 Configured status order and transitions default to To Do, In Progress, and Done, with terminal records retained in place
+- [x] #3 Dependency and parent cycles, missing references, ambiguous aliases, and illegal transitions are rejected without mutation
+- [x] #4 Ready-set evaluation is deterministic from authoritative events, terminal dependencies, blocking gates, and live claims
+- [x] #5 All read paths remain correct without a projection and perform zero writes
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -49,3 +49,15 @@ Implement the authoritative task surface and dependency DAG on the mutation kern
 3. Enforce dependency/parent graph integrity, aliases, provenance, blocking gates, and claim-aware readiness deterministically from authored events.
 4. Add integration tests for full task fields, transitions, graph rejection, readiness, and zero-mutation reads; run targeted and repository checks.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Final validation on integrated dev tree af36fd5146cbe6c84b534491d1602954cf87fc9a: bun test test/integration/tasks/tasks.test.ts (9 pass); bun run typecheck; bun run layer:check; source-scoped Biome lint and format checks (25 files); git diff --check. Verified read-only query coverage and deterministic graph/lifecycle/readiness behavior.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented the authoritative task graph, lifecycle, CRUD/search/read paths, graph validation, and claim-aware readiness. Integrated tree verified by the nine-case integration suite plus typecheck, layer check, source-scoped Biome lint/format, and diff check.
+<!-- SECTION:FINAL_SUMMARY:END -->
