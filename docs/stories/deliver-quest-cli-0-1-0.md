@@ -10,7 +10,7 @@ tags:
   - release
 summary: Implement and qualify the standalone Quest CLI, its Lore tracker contract, migration paths, packaging, and release gates.
 timestamp: 2026-08-14T18:26:29.020Z
-status: in-progress
+status: todo
 tasks:
   - qcli-72
   - qcli-73
@@ -80,7 +80,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-80](../../backlog/tasks/qcli-80%20-%20Implement-the-Quest-task-graph-lifecycle-CRUD-search-and-readiness.md) | Implement the Quest task graph, lifecycle, CRUD, search, and readiness | Done |
 | [QCLI-81](../../backlog/tasks/qcli-81%20-%20Implement-Quest-claims-leases-heartbeats-reclamation-and-delegation.md) | Implement Quest claims, leases, heartbeats, reclamation, and delegation | Done |
 | [QCLI-82](../../backlog/tasks/qcli-82%20-%20Implement-Quest-gates-review-evidence-and-completion-enforcement.md) | Implement Quest gates, review evidence, and completion enforcement | To Do |
-| [QCLI-83](../../backlog/tasks/qcli-83%20-%20Ship-the-Quest-tracker-subprocess-contract-and-Lore-conformance-kit.md) | Ship the Quest tracker subprocess contract and Lore conformance kit | In Progress |
+| [QCLI-83](../../backlog/tasks/qcli-83%20-%20Ship-the-Quest-tracker-subprocess-contract-and-Lore-conformance-kit.md) | Ship the Quest tracker subprocess contract and Lore conformance kit | Done |
 | [QCLI-84](../../backlog/tasks/qcli-84%20-%20Implement-the-Bun-SQLite-projection-schema-and-atomic-rebuild.md) | Implement the Bun SQLite projection schema and atomic rebuild | To Do |
 | [QCLI-85](../../backlog/tasks/qcli-85%20-%20Implement-incremental-projection-sync-freshness-queries-and-scale.md) | Implement incremental projection sync, freshness, queries, and scale | To Do |
 | [QCLI-86](../../backlog/tasks/qcli-86%20-%20Implement-the-generic-Quest-migration-transaction-engine.md) | Implement the generic Quest migration transaction engine | To Do |
