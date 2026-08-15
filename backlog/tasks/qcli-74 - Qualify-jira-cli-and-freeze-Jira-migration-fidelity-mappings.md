@@ -1,10 +1,11 @@
 ---
 id: QCLI-74
 title: Qualify jira-cli and freeze Jira migration fidelity mappings
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 01:24'
 labels:
   - quest-0.1
   - 'wave:contracts'
@@ -38,3 +39,11 @@ Qualify the installed @salient-ai/jira-cli public JSON and process contract for 
 - [ ] #4 Quest never reads Jira credentials, calls Jira HTTP APIs, or parses ADF directly
 - [ ] #5 Paging, missing issues, permission failures, source changes, and rate or transport failures have deterministic adapter outcomes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Record the installed jira-cli version and enumerate its public CLI and JSON surfaces without reading credentials or calling Jira directly.
+2. Capture a core-plus-comments fidelity mapping, deterministic failure classifications, and explicit unsupported preview gaps using public contract evidence only.
+3. Author the Quest migration-fidelity contract, sync Lore, run strict checks, and finalize with objective evidence.
+<!-- SECTION:PLAN:END -->
