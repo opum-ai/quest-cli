@@ -182,6 +182,39 @@ test("a stale cross-process lock owner is reclaimed instead of wedging preparati
   }
 });
 
+test("a live external process lock waits, then recovers after its owner exits", async () => {
+  const root = await repository();
+  try {
+    const common = await command(root, "rev-parse", "--git-common-dir");
+    const lock = join(root, common, "quest-operation-preparation.lock");
+    const child = Bun.spawn([
+      process.execPath,
+      "-e",
+      "const fs=require('node:fs/promises'); const lock=process.argv[1]; (async()=>{await fs.mkdir(lock); await fs.writeFile(lock + '/owner.json', JSON.stringify({pid:process.pid})); setTimeout(()=>process.exit(0), 120)})()",
+      lock,
+    ]);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        await readFile(join(lock, "owner.json"));
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    const started = Date.now();
+    expect(
+      await commitOwnedOperation(
+        new LocalGitPort(),
+        operation(root, "waited-lock"),
+      ),
+    ).toMatchObject({ kind: "success" });
+    expect(Date.now() - started).toBeGreaterThanOrEqual(80);
+    expect(await child.exited).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a stale basis is a structured CAS conflict and never changes the ref", async () => {
   const root = await repository();
   try {
