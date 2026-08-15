@@ -65,10 +65,11 @@ inherit Backlog.md's identifier grammar.**
 
 Six properties, all normative:
 
-1. **Deterministic dry runs.** A no-mutation preview reports exactly what the migration
-   would create and map, and exits non-zero while the preview is outstanding. The preview
-   enumerates, per source record, its lifecycle-folder origin, source identifier, proposed
-   target identifier, and any flagged collision or gap.
+1. **Deterministic dry runs.** A complete no-mutation preview reports exactly what the
+   migration would create and map, exits `0`, and returns `requiresApproval: true` plus a
+   deterministic digest while approval is outstanding. The preview enumerates, per source
+   record, its lifecycle-folder origin, source identifier, proposed target identifier, and
+   any flagged collision or gap.
 2. **Reversible identifier mapping**, persisted and keyed on **the pair of source folder
    and source identifier** — never the identifier alone, because the identifier alone is
    not unique. Given a target identifier, Quest recovers the exact source file without
@@ -103,8 +104,9 @@ reconciliation algorithm is not derivable from any admissible public surface.
 
 - **Migration is a first-class subsystem with its own persisted state**, not a one-shot
   import script. The mapping outlives the migration because rollback depends on it.
-- **Preview exiting non-zero is deliberate** and will surprise someone. It exists so a
-  scripted migration cannot mistake a preview for a completed run.
+- **Preview success is explicit, not a completed apply.** A successful read-only preview
+  exits `0`, while `requiresApproval: true` and its deterministic digest prevent a caller
+  from mistaking reviewable evidence for an applied migration.
 - **Some fidelity gaps are permanent and must be stated as gaps**, not quietly
   approximated: a derived completion percentage has no stored counterpart to copy, and
   fuzzy-index state is not exposed by any documented surface.

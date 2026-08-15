@@ -10,7 +10,7 @@ tags:
   - release
 summary: Implement and qualify the standalone Quest CLI, its Lore tracker contract, migration paths, packaging, and release gates.
 timestamp: 2026-08-14T18:26:29.020Z
-status: in-progress
+status: todo
 tasks:
   - qcli-72
   - qcli-73
@@ -69,7 +69,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-72](../../backlog/tasks/qcli-72%20-%20Reconcile-and-freeze-the-Quest-0.1-implementation-baseline.md) | Reconcile and freeze the Quest 0.1 implementation baseline | In Progress |
+| [QCLI-72](../../backlog/tasks/qcli-72%20-%20Reconcile-and-freeze-the-Quest-0.1-implementation-baseline.md) | Reconcile and freeze the Quest 0.1 implementation baseline | Done |
 | [QCLI-73](../../backlog/tasks/qcli-73%20-%20Requalify-Backlog.mds-public-migration-surface.md) | Requalify Backlog.md's public migration surface | To Do |
 | [QCLI-74](../../backlog/tasks/qcli-74%20-%20Qualify-jira-cli-and-freeze-Jira-migration-fidelity-mappings.md) | Qualify jira-cli and freeze Jira migration fidelity mappings | To Do |
 | [QCLI-75](../../backlog/tasks/qcli-75%20-%20Scaffold-the-Lore-aligned-Bun-package-and-architecture.md) | Scaffold the Lore-aligned Bun package and architecture | To Do |

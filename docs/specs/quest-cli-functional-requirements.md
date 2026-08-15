@@ -46,8 +46,10 @@ Identifiers are `FR-AREA-n` across seven areas, matching the seven functional co
 | `PROJ` | Local projection, rebuild, freshness, recovery |
 | `LORE` | Lore optionality and versioned exchange |
 
-**Nothing here is activated.** Implementation remains gated on the Lore-owned release
-gate; this document describes what would be built, not permission to build it.
+**Implementation authority.** The Lore-owned gate has opened and the component's
+pre-activation prohibition on product source and runtime dependencies has been lifted.
+This Spec remains a design contract, not publication authority; release and public install
+claims remain Phase 6 owner-gated.
 
 ## Requirements
 
@@ -82,7 +84,7 @@ is the completeness check — a set with no requirements pointing at it would be
 | Threat categories | 13 | Dirty worktrees `FR-GIT-4`, `FR-GIT-8`; partial writes `FR-GIT-1`, `FR-GIT-10`; retries and duplicate events `FR-GIT-2`; aliases `FR-IDENT-3`, `FR-LIFE-8`; clocks and leases `FR-LIFE-4` … `FR-LIFE-6`; races `FR-LIFE-7`, `FR-GIT-3`; divergence `FR-GIT-3`, `FR-PROJ-1`; hostile paths `FR-IDENT-6`; encoding `FR-IDENT-8`; case sensitivity `FR-IDENT-4`; subdirectories `FR-IDENT-7`; repository removal `FR-GIT-9` |
 | Migration fidelity properties | 6 | `FR-MIG-1` … `FR-MIG-6` |
 | End-to-end workflows | 6 | Claim and deliver `FR-LIFE-2`, `FR-LIFE-9`; lease expiry and reclamation `FR-LIFE-3`, `FR-LIFE-11`; human review gate `FR-LIFE-9`, `FR-LIFE-10`; projection rebuild `FR-PROJ-2`, `FR-PROJ-5`; optional Lore link `FR-LORE-1`, `FR-LORE-2`; delegation handoff `FR-LIFE-13` |
-| Actor constraint sets | 7 | Delegated agent `FR-LIFE-13`; reviewer and approver `FR-LIFE-10`; Lore `FR-LORE-4`; Git `FR-GIT-3`; projection `FR-PROJ-8`; accountable human and maintainer `FR-LIFE-13` (**open**, pending register D6) |
+| Actor constraint sets | 7 | Delegated agent `FR-LIFE-13`; reviewer and approver `FR-LIFE-10`; Lore `FR-LORE-4`; Git `FR-GIT-3`; projection `FR-PROJ-8`; accountable human and maintainer `FR-LIFE-13` (closed by ODOC-57) |
 | Lore adapter rows | 15 | Already satisfiable `FR-CLI-3` … `FR-CLI-5`, `FR-LORE-1` … `FR-LORE-4`; Quest-decision `FR-CLI-2`, `FR-CLI-4`, `FR-CLI-7`, `FR-MIG-7`; externally blocked rows tracked in the register, not as requirements |
 | Legacy candidates, Reusable and Adapted | 9 | `FR-CLI-1`, `FR-GIT-4`, `FR-LIFE-2` … `FR-LIFE-5`, `FR-LIFE-9`, `FR-LIFE-12`, `FR-IDENT-3`, `FR-IDENT-5`, `FR-CLI-6` |
 | Black-box scenarios | 17 | Full mapping under Design, below |
@@ -113,7 +115,7 @@ entries instead.
 | --- | --- | --- | --- | --- |
 | `FR-LIFE-1` | A task moves through `To Do` → `In Progress` → `Done`; terminal records are retained in place. | Contract 2 | Integration tests | 2 |
 | `FR-LIFE-2` | Claims are authored records, conditioned on the state they read | Contract 2; legacy candidate 3 | `BB-15` | 2 |
-| `FR-LIFE-3` | A claim is valid only while its TTL lease is live; the default lease is 30 minutes with a 5-minute heartbeat, validated through configuration. | Contract 2; legacy candidate 4 | `BB-01` | 2 |
+| `FR-LIFE-3` | A claim is valid only while its configured TTL lease is live; lease and heartbeat timing are explicit component configuration, with no fixed default frozen by this baseline. | Contract 2; legacy candidate 4 | `BB-01` | 2 |
 | `FR-LIFE-4` | Lease expiry is evaluable from authored history plus the evaluating actor's own local clock alone | Threat model, "Clocks and leases" 1 | `BB-01`, `TM-05` | 2 |
 | `FR-LIFE-5` | Two honest evaluators computing expiry for the same history at materially the same moment reach the same status; a detected disagreement surfaces as a named anomaly and is never silently resolved | Threat model, "Clocks and leases" 2 | `TM-05` | 2 |
 | `FR-LIFE-6` | A lease renewal is scoped to the exact lease generation it was issued against; a late or stale renewal can never extend a newer holder's lease | Threat model, "Clocks and leases" 4 | `BB-02` | 2 |
@@ -162,7 +164,7 @@ entries instead.
 | `FR-MIG-4` | The read phase never invokes a source-mutating command against a user's live project, at any point, including for convenience | Fidelity contract, "Source immutability" | Migration tests | 4 |
 | `FR-MIG-5` | Migration assumes no quiescence signal from the source; a long-running read pass re-scans and diffs the file list on completion and flags, never silently merges, anything that changed mid-scan | Fidelity contract, "One-writer coexistence" | Migration tests | 4 |
 | `FR-MIG-6` | Every created target record carries source folder, source identifier, target identifier, and a timestamp sufficient for manual rollback | Fidelity contract, "Rollback evidence" | Migration tests | 4 |
-| `FR-MIG-7` | Quest defines its own canonical identifier grammar and does not inherit the source tool's configurable prefix, zero-padding, or dot-suffixed hierarchy. **Open:** the grammar itself, register D4 | Fidelity contract, field disposition | Migration tests | 1 decides, 4 applies |
+| `FR-MIG-7` | Quest defines its own canonical identifier grammar and does not inherit the source tool's configurable prefix, zero-padding, or dot-suffixed hierarchy; D4 fixes it as a `T`-prefixed flat, unpadded decimal sequence. | Fidelity contract, field disposition; D4 | Migration tests | 1 decides, 4 applies |
 | `FR-MIG-8` | Fidelity gaps are declared as gaps rather than approximated — including derived values with no stored counterpart and index state no documented surface exposes | Fidelity contract, field disposition | Documentation review | 4 |
 
 ### PROJ — local projection
@@ -206,9 +208,9 @@ the worktree. No source informs a requirement unless the
 [research source register](../reference/quest-cli-research-source-register.md) classifies
 it Allowed for the exact use cited.
 
-**Activation** — no product source, runtime dependency, executable scaffolding, package
-metadata, or publication before the [Lore-owned gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md)
-is satisfied by its owner-held evidence.
+**Activation and release** — the Lore-owned gate is open and the component's product-source,
+runtime-dependency, executable-scaffolding, and package-metadata prohibition is lifted.
+Publication and public install instructions remain separately owner-gated Phase 6 work.
 
 ## Design
 
@@ -299,8 +301,10 @@ The items that most constrain this document:
   because there is no contract to assert against.
 - **The canonical identifier grammar** (`FR-IDENT-3`, `FR-MIG-7`, register D4). It gates
   the record layout, so it gates Phase 2.
-- **Gate-approval actor eligibility** (`FR-LIFE-13`, register D6). Routed through
-  [Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
+- **Gate-approval actor eligibility** (`FR-LIFE-13`, register D6). Closed by ODOC-57:
+  opaque `human` and `delegated-agent` actors, accountable-human delegation, and distinct
+  reviewer/maintainer roles; delegated agents cannot satisfy human-judgement or
+  separation-of-duty gates.
 - **Scale target and projection engine** (`FR-PROJ-9`, register D5). Phase 3 cannot size
   its storage without them.
 - **The Backlog.md version pin.** Every `FR-MIG` requirement rests on findings from build

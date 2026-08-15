@@ -138,11 +138,11 @@ whichever comes first, is unchanged.*
 **Requirements decided (not implemented):** `FR-CLI-1`, `FR-CLI-2`, `FR-CLI-4`,
 `FR-CLI-7`, `FR-IDENT-3`, `FR-MIG-7`.
 
-**Two decisions are not Quest's to make.** D6, the product-wide actor model, routes through
-[Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
-The external Lore half of the not-found convention follows the
+**One boundary decision is not Quest's to make.** D6 is closed locally by ODOC-57; Quest
+uses its accepted actor and delegation vocabulary for gate eligibility. The external Lore
+half of the not-found convention follows the
 [canonical Lore gate route](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md).
-A phase that "decides" either unilaterally has overstepped.
+A phase that decides that Lore boundary unilaterally has overstepped.
 
 ---
 
@@ -163,8 +163,8 @@ subdirectory half.
 
 **Notes.** This is the phase where the architecture's boundaries either hold or do not.
 The clock port, the pre-computed owned path set, and the read-only classification are all
-enforceable here and effectively unrecoverable later. The gate *mechanism* can be built
-without D6; gate *actor eligibility* cannot.
+enforceable here and effectively unrecoverable later. Gate implementation uses D6's
+accepted ODOC-57 eligibility rules; it does not re-decide them.
 
 ---
 
@@ -255,9 +255,9 @@ they are scheduled rather than discovered late.
 of unit, contract, integration, real-clone, fault, packaging, and release tests. The
 repository currently has **no automated test, build, or lint gate at all**; the only gates
 are Lore's validation, link checking, and orphan reporting. The `BB` and `TM` scenarios are
-raw material for a suite, not a suite design — and both were authored before any runtime
-was chosen, so neither is expressible as an executable test until D2 is settled. What can
-be designed now: the harness shape, the fixture policy (throwaway scratch repositories
+raw material for a suite, not a suite design. D2 is now settled as Bun, so implementation
+may express them as executable tests; this baseline still leaves the harness shape and
+fixture policy (throwaway scratch repositories
 only, never a user project), and which scenarios need real multi-clone topologies rather
 than mocks.
 

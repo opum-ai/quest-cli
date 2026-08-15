@@ -142,12 +142,13 @@ Unicode/case-folding rules, and nothing beyond them:
 - **The exact persisted shape of the global sequence counter** (a file, a derived value, or
   something else) beyond that its allocation is a Git compare-and-swap write, per the accepted
   [coordination ADR](coordinate-through-git-compare-and-swap-without-a-central-arbiter.md).
-- **Whether a migrated source identifier is automatically registered as an alias** — a
-  migration-design call this ADR does not make.
+- **Migrated source identifiers are provenance, not implicit aliases.** The one-way
+  source-to-target mapping remains reversible without automatically registering the source
+  identifier as a second task identity.
 
-This ADR also does not freeze runtime, native packaging, or the projection storage/index
-engine (register D2 stays deferred to post-activation), and does not touch D6 (routed to
-`quest-doc`), D7b, or the not-found convention's `lore-doc` boundary half. Reconciling the
+This ADR predates, and does not itself decide, the later D2 Bun ruling, Bun SQLite
+projection baseline, or D6 actor/delegation ruling. It still does not touch D7b or the
+not-found convention's `lore-doc` boundary half. Reconciling the
 [open component decisions register](../reference/quest-cli-open-component-decisions.md), the
 [component contracts and delivery graph](../reference/quest-cli-component-contracts-and-delivery-graph.md),
 and the
