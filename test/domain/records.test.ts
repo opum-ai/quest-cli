@@ -58,6 +58,10 @@ test("aliases preserve display spelling while NFC/default-fold collisions stop b
   expect(() => assertAliasesAvailable(["ᾀ"], [alias("ᾈ")])).toThrow(
     RecordConflictError,
   );
+  // U+0345 folds to iota, a mapping outside the previous exception table.
+  expect(() => assertAliasesAvailable(["ι"], [alias("\u0345")])).toThrow(
+    RecordConflictError,
+  );
 });
 
 test("actors are opaque, distinguish kinds, and require accountable humans for delegation", () => {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { caseFold } from "unicode-case-folding";
 
 export const RECORD_SCHEMA_VERSION = 1 as const;
 
@@ -49,88 +50,11 @@ export function allocateCanonicalId(
   };
 }
 
-// ECMAScript has no Unicode default-case-fold operation. These mappings cover
-// the default-fold exceptions to ICU lowercasing (including the expansions).
-const fullCaseFold: Readonly<Record<string, string>> = {
-  ŉ: "ʼn",
-  ſ: "s",
-  ǰ: "ǰ",
-  ß: "ss",
-  ẞ: "ss",
-  ς: "σ",
-  ΐ: "ΐ",
-  ΰ: "ΰ",
-  ẖ: "ẖ",
-  ẗ: "ẗ",
-  ẘ: "ẘ",
-  ẙ: "ẙ",
-  ẚ: "aʾ",
-  ὐ: "ὐ",
-  ὒ: "ὒ",
-  ὔ: "ὔ",
-  ὖ: "ὖ",
-  ᾀ: "ἀι",
-  ᾁ: "ἁι",
-  ᾂ: "ἂι",
-  ᾃ: "ἃι",
-  ᾄ: "ἄι",
-  ᾅ: "ἅι",
-  ᾆ: "ἆι",
-  ᾇ: "ἇι",
-  ᾐ: "ἠι",
-  ᾑ: "ἡι",
-  ᾒ: "ἢι",
-  ᾓ: "ἣι",
-  ᾔ: "ἤι",
-  ᾕ: "ἥι",
-  ᾖ: "ἦι",
-  ᾗ: "ἧι",
-  ᾠ: "ὠι",
-  ᾡ: "ὡι",
-  ᾢ: "ὢι",
-  ᾣ: "ὣι",
-  ᾤ: "ὤι",
-  ᾥ: "ὥι",
-  ᾦ: "ὦι",
-  ᾧ: "ὧι",
-  ᾲ: "ὰι",
-  ᾴ: "άι",
-  ᾷ: "ᾶι",
-  ᾼ: "αι",
-  ῂ: "ὴι",
-  ῄ: "ήι",
-  ῇ: "ῆι",
-  ῌ: "ηι",
-  ῒ: "ῒ",
-  ΐ: "ΐ",
-  ῗ: "ῗ",
-  ῢ: "ῢ",
-  ΰ: "ΰ",
-  ῧ: "ῧ",
-  ῲ: "ὼι",
-  ῳ: "ωι",
-  ῴ: "ώι",
-  ῷ: "ῶι",
-  ῼ: "ωι",
-  K: "k",
-  Å: "å",
-  ﬀ: "ff",
-  ﬁ: "fi",
-  ﬂ: "fl",
-  ﬃ: "ffi",
-  ﬄ: "ffl",
-  ﬅ: "st",
-  ﬆ: "st",
-};
-
 /** NFC plus Unicode default-case-fold comparison key; input spelling is retained. */
 export function aliasKey(alias: string): string {
   if (alias.length === 0)
     throw new RecordValidationError("Alias cannot be empty.");
-  return Array.from(alias.normalize("NFC"), (character) => {
-    const lowered = character.toLowerCase();
-    return fullCaseFold[character] ?? fullCaseFold[lowered] ?? lowered;
-  }).join("");
+  return caseFold(alias.normalize("NFC"));
 }
 
 export interface Alias {
