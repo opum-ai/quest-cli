@@ -125,6 +125,7 @@
 - 2026-08-14T20:15:33-05:00 0e6a831f1c259694b3755871d2cf52f85ffccdf7 docs: sync Quest log
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 - 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
+- 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
 
 ## docs/adr
 
@@ -219,6 +220,7 @@
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 - 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
+- 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
 
 ## docs/runbooks
 
@@ -315,3 +317,4 @@
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 - 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
+- 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity

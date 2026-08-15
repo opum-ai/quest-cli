@@ -2,3 +2,4 @@
 .codex/handovers/
 .treehouse/
 /.treehouse/.treehouse
+node_modules/
