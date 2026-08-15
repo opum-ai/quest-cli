@@ -1,22 +1,24 @@
 import { expect, test } from "bun:test";
-
-import {
-  alias,
-  appendTaskEvent,
-  assertAliasesAvailable,
-  assertReplayMatches,
-  allocateCanonicalId,
-  canonicalId,
-  declareActor,
-  materializeTask,
-  RecordConflictError,
-  RecordValidationError,
-  type TaskEvent,
-} from "../../src/domain/records.ts";
 import {
   decodeAuthoredRecord,
   encodeAuthoredRecord,
 } from "../../src/adapters/records/codec.ts";
+import {
+  alias,
+  allocateCanonicalId,
+  allocateCanonicalIdFromGit,
+  appendTaskEvent,
+  assertAliasesAvailable,
+  assertReplayMatches,
+  canonicalId,
+  declareActor,
+  declareActors,
+  materializeTask,
+  RecordConflictError,
+  RecordValidationError,
+  type TaskEvent,
+  taskEventSchema,
+} from "../../src/domain/records.ts";
 
 const created: TaskEvent = {
   schemaVersion: 1,
@@ -45,6 +47,28 @@ test("canonical IDs allocate unpadded decimals from one revision-guarded counter
       "old",
     ),
   ).toThrow(RecordConflictError);
+});
+
+test("canonical IDs commit through the global Git counter CAS boundary", async () => {
+  const calls: unknown[] = [];
+  const result = await allocateCanonicalIdFromGit({
+    read: async () => ({
+      schemaVersion: 1,
+      revision: "git-a",
+      nextSequence: "42",
+    }),
+    compareAndSwap: async (expected, replacement) => {
+      calls.push({ expected, replacement });
+      return { revision: "git-b" };
+    },
+  });
+  expect(result).toEqual({ id: "T-42", revision: "git-b" });
+  expect(calls).toEqual([
+    {
+      expected: "git-a",
+      replacement: { schemaVersion: 1, revision: "git-a", nextSequence: "43" },
+    },
+  ]);
 });
 
 test("aliases preserve display spelling while NFC/default-fold collisions stop before writes", () => {
@@ -83,6 +107,17 @@ test("actors are opaque, distinguish kinds, and require accountable humans for d
       accountableHumanId: "agent",
     }),
   ).toThrow(RecordValidationError);
+  expect(() =>
+    declareActors([
+      { id: "agent", kind: "delegated-agent", accountableHumanId: "missing" },
+    ]),
+  ).toThrow(RecordValidationError);
+  expect(
+    declareActors([
+      { id: "human", kind: "human" },
+      { id: "agent", kind: "delegated-agent", accountableHumanId: "human" },
+    ]),
+  ).toHaveLength(2);
 });
 
 test("events are append-only, idempotent by operation, and replay exactly", () => {
@@ -112,18 +147,39 @@ test("events are append-only, idempotent by operation, and replay exactly", () =
   expect(() =>
     appendTaskEvent(stream, { ...created, patch: { title: "changed" } }),
   ).toThrow(RecordConflictError);
+  expect(() =>
+    appendTaskEvent(stream, {
+      ...created,
+      eventId: "e-3",
+      operationId: "op-3",
+      basis: "missing",
+    }),
+  ).toThrow(RecordConflictError);
+  expect(() => materializeTask([created, created])).toThrow(
+    RecordConflictError,
+  );
 });
 
 test("record codec fails closed on corrupt bytes and schemas without mutating callers", () => {
-  const original = { schemaVersion: 1, aliases: ["One"] };
-  expect(decodeAuthoredRecord(encodeAuthoredRecord(original))).toEqual(
-    original,
-  );
-  expect(() => decodeAuthoredRecord(new Uint8Array([0xc3, 0x28]))).toThrow(
-    RecordValidationError,
-  );
+  expect(
+    decodeAuthoredRecord(
+      encodeAuthoredRecord(created, taskEventSchema),
+      taskEventSchema,
+    ),
+  ).toEqual(created);
   expect(() =>
-    decodeAuthoredRecord(new TextEncoder().encode('{"schemaVersion":2}')),
+    decodeAuthoredRecord(new Uint8Array([0xc3, 0x28]), taskEventSchema),
   ).toThrow(RecordValidationError);
-  expect(original).toEqual({ schemaVersion: 1, aliases: ["One"] });
+  expect(() =>
+    decodeAuthoredRecord(
+      new TextEncoder().encode('{"schemaVersion":2}'),
+      taskEventSchema,
+    ),
+  ).toThrow(RecordValidationError);
+  expect(() =>
+    decodeAuthoredRecord(
+      new TextEncoder().encode('{"schemaVersion":1,"eventId":"e"}'),
+      taskEventSchema,
+    ),
+  ).toThrow(RecordValidationError);
 });

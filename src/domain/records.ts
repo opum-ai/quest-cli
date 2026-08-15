@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { caseFold } from "unicode-case-folding";
+import { z } from "zod";
 
 export const RECORD_SCHEMA_VERSION = 1 as const;
 
@@ -29,6 +29,15 @@ export interface GlobalCounter {
   readonly nextSequence: string;
 }
 
+/** The Git CAS boundary for the one global canonical-id counter. */
+export interface GitGlobalCounterStore {
+  read(): Promise<GlobalCounter>;
+  compareAndSwap(
+    expectedRevision: string,
+    replacement: GlobalCounter,
+  ): Promise<{ readonly revision: string }>;
+}
+
 /**
  * Produces the CAS precondition and replacement counter record; the Git adapter
  * owns comparing `expectedRevision` and writing the result atomically.
@@ -48,6 +57,19 @@ export function allocateCanonicalId(
     id: canonicalId(`T-${sequence}`),
     replacement: { ...counter, nextSequence: String(sequence + 1n) },
   };
+}
+
+/** Allocate from the Git-backed namespace counter in one compare-and-swap attempt. */
+export async function allocateCanonicalIdFromGit(
+  store: GitGlobalCounterStore,
+): Promise<{ readonly id: CanonicalId; readonly revision: string }> {
+  const counter = await store.read();
+  const allocation = allocateCanonicalId(counter, counter.revision);
+  const committed = await store.compareAndSwap(
+    counter.revision,
+    allocation.replacement,
+  );
+  return { id: allocation.id, revision: committed.revision };
 }
 
 /** NFC plus Unicode default-case-fold comparison key; input spelling is retained. */
@@ -121,6 +143,26 @@ export function declareActor(value: unknown): Actor {
   return parsed.data;
 }
 
+/** Validates a declaration set, including links to declared accountable humans. */
+export function declareActors(values: readonly unknown[]): readonly Actor[] {
+  const actors = values.map(declareActor);
+  const byId = new Map<string, Actor>();
+  for (const actor of actors) {
+    if (byId.has(actor.id))
+      throw new RecordConflictError(`Duplicate actor id: ${actor.id}.`);
+    byId.set(actor.id, actor);
+  }
+  for (const actor of actors) {
+    if (actor.kind !== "delegated-agent") continue;
+    if (byId.get(actor.accountableHumanId)?.kind !== "human") {
+      throw new RecordValidationError(
+        "A delegated agent must link to a declared accountable human.",
+      );
+    }
+  }
+  return actors;
+}
+
 export const taskEventSchema = z.object({
   schemaVersion: z.literal(RECORD_SCHEMA_VERSION),
   eventId: z.string().min(1),
@@ -180,6 +222,12 @@ export function appendTaskEvent(
       "A task event stream may contain one task only.",
     );
   }
+  const expectedBasis = events.at(-1)?.eventId ?? null;
+  if (normalized.basis !== expectedBasis) {
+    throw new RecordConflictError(
+      "Task event basis does not match the current event-stream head.",
+    );
+  }
   return [...events, normalized];
 }
 
@@ -194,7 +242,13 @@ export function materializeTask(
   let accepted: readonly TaskEvent[] = [];
   let state: Record<string, unknown> = {};
   for (const event of events) {
-    accepted = appendTaskEvent(accepted, event);
+    const next = appendTaskEvent(accepted, event);
+    if (next === accepted) {
+      throw new RecordConflictError(
+        "Persisted task event stream contains a duplicate event or operation id.",
+      );
+    }
+    accepted = next;
     state = { ...state, ...event.patch };
   }
   return {
