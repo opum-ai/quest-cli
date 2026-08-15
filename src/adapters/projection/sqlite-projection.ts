@@ -328,13 +328,16 @@ function sameRows(
 async function retryWindowsFileRelease(
   operation: () => Promise<void>,
 ): Promise<void> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  // Windows ARM runners can retain Bun's SQLite handle for several seconds
+  // after close(). Preserve atomic replacement by waiting for that release,
+  // rather than replacing the database in place.
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     try {
       await operation();
       return;
     } catch (error) {
       const code = (error as { code?: unknown }).code;
-      if ((code !== "EBUSY" && code !== "EPERM") || attempt === 19) throw error;
+      if ((code !== "EBUSY" && code !== "EPERM") || attempt === 99) throw error;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
