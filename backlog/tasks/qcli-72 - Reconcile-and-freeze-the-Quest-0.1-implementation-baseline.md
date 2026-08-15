@@ -1,11 +1,11 @@
 ---
 id: QCLI-72
 title: Reconcile and freeze the Quest 0.1 implementation baseline
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 01:15'
+updated_date: '2026-08-15 01:20'
 labels:
   - quest-0.1
   - 'wave:contracts'
@@ -34,11 +34,11 @@ Freeze a coherent implementation baseline from the accepted Quest research and c
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The active design layer consistently records Bun, Bun SQLite, the current Opum result contract, and the current Lore tracker seam
-- [ ] #2 Lifecycle defaults, lease timing, terminal retention, actor eligibility, source aliases, and one-way migration behavior match the approved implementation campaign
-- [ ] #3 The older nonzero outstanding-preview rule is superseded so a successful read-only migration preview exits 0 with requiresApproval and a digest
-- [ ] #4 The open-decisions register and delivery roadmap contain no stale D2, D6, Backlog-only Lore-adapter, or pre-activation blocker claims
-- [ ] #5 lore sync, lore validate --strict, lore check --strict, and git diff --check pass
+- [x] #1 The active design layer consistently records Bun, Bun SQLite, the current Opum result contract, and the current Lore tracker seam
+- [x] #2 Lifecycle defaults, lease timing, terminal retention, actor eligibility, source aliases, and one-way migration behavior match the approved implementation campaign
+- [x] #3 The older nonzero outstanding-preview rule is superseded so a successful read-only migration preview exits 0 with requiresApproval and a digest
+- [x] #4 The open-decisions register and delivery roadmap contain no stale D2, D6, Backlog-only Lore-adapter, or pre-activation blocker claims
+- [x] #5 lore sync, lore validate --strict, lore check --strict, and git diff --check pass
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -57,4 +57,12 @@ Freeze a coherent implementation baseline from the accepted Quest research and c
 2026-08-14 external recheck: ODOC-57 is Done on opum-doc origin/dev. Its accepted ADR defines opaque human/delegated-agent actors, accountable-human delegation, role separation, and the prohibition on delegated-agent satisfaction of human-judgement or separation-of-duty gates.
 
 2026-08-14 handover: ODOC-57 was verified Done on opum-doc origin/dev and its accepted local actor/delegation ADR was consumed. In-progress baseline edits cover D2/Bun, Bun SQLite, ODOC-57 actor eligibility, the tracker subprocess seam, and exit-0 migration previews. Strict Lore validation/check and diff hygiene passed before handover; remaining review must sweep residual stale activation, lifecycle-default, alias, and one-way-adoption claims before finalization.
+
+2026-08-15 final reconciliation: corrected residual active-design claims for D2/Bun, Bun SQLite, ODOC-57 actor eligibility, activation authority, configurable lifecycle timing, one-way source aliases, and read-only migration-preview exit semantics. Verified on tree 0e6a831f1c259694b3755871d2cf52f85ffccdf7 plus the final working changes with lore sync, lore validate --strict, lore check --strict, git diff --check, and an exact stale-claim sweep; all passed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Frozen the Quest 0.1 implementation baseline: Bun and disposable Bun SQLite, ODOC-57 actor/delegation rules, the Lore tracker seam, configurable lifecycle timing, one-way source aliases, and exit-0 approval-required migration previews are consistent across the active design layer. Verified by Lore sync, strict validation/check, diff hygiene, and a residual-claim sweep.
+<!-- SECTION:FINAL_SUMMARY:END -->
