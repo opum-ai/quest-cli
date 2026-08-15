@@ -185,6 +185,48 @@ test("reclamation appends a fresh generation and retains expired holder history"
   });
 });
 
+test("clock regressions and early reclamation are surfaced deterministically", () => {
+  const history = replayClaimHistory(
+    [
+      {
+        eventId: "e-1",
+        operationId: "op-1",
+        taskId: "T-1",
+        kind: "claimed",
+        generation: "g-1",
+        holderId: "human",
+        accountableHumanId: "human",
+        at: at(10).toISOString(),
+      },
+      {
+        eventId: "e-2",
+        operationId: "op-2",
+        taskId: "T-1",
+        kind: "renewed",
+        generation: "g-1",
+        holderId: "human",
+        accountableHumanId: "human",
+        at: at(0).toISOString(),
+      },
+      {
+        eventId: "e-3",
+        operationId: "op-3",
+        taskId: "T-1",
+        kind: "reclaimed",
+        generation: "g-2",
+        holderId: "agent",
+        accountableHumanId: "human",
+        at: at(1).toISOString(),
+      },
+    ],
+    actors,
+  );
+  expect(evaluateClaim(history, at(2)).anomalies).toEqual([
+    "claim_history_clock_regressed",
+    "claim_reclamation_before_expiry",
+  ]);
+});
+
 test("concurrent CAS loss is reported deterministically and never called success", async () => {
   const stale: ClaimRepository = {
     read: async () => ({

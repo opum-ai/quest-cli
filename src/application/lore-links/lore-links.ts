@@ -1,44 +1,27 @@
 import { RecordValidationError } from "../../domain/records.ts";
 import type { TaskState } from "../../domain/tasks/tasks.ts";
+import {
+  type LoreConceptRecord,
+  type LoreProjection,
+  type LoreProjectionManifest,
+  type LoreProjectionReader,
+  loreProjectionSchemaVersion,
+} from "../../ports/lore.ts";
 
-export const LORE_PROJECTION_SCHEMA_VERSION = "1.0" as const;
-
-export interface LoreProjectionManifest {
-  readonly record: "manifest";
-  readonly schemaVersion: typeof LORE_PROJECTION_SCHEMA_VERSION;
-  readonly bundle: {
-    readonly id: string;
-    readonly gitCommit: string;
-  };
-}
-
-export interface LoreConceptRecord {
-  readonly record: "concept";
-  readonly id: string;
-  readonly path: string;
-  readonly contentHash: string;
-}
-
-export interface LoreProjection {
-  readonly schemaVersion: 1;
-  readonly kind: "projection.export";
-  readonly data: {
-    readonly projectionSchemaVersion: typeof LORE_PROJECTION_SCHEMA_VERSION;
-    readonly records: readonly (LoreProjectionManifest | LoreConceptRecord)[];
-  };
-}
-
-/** Read-only boundary over Lore's public `lore export --json` record contract. */
-export interface LoreProjectionReader {
-  exportProjection(): Promise<LoreProjection>;
-}
+export type {
+  LoreConceptRecord,
+  LoreProjection,
+  LoreProjectionManifest,
+  LoreProjectionReader,
+};
+export { loreProjectionSchemaVersion as LORE_PROJECTION_SCHEMA_VERSION };
 
 export interface LoreConceptIdentity {
   readonly conceptId: string;
   readonly sourceRepository: string;
   readonly revision: string;
   readonly path: string;
-  readonly schemaVersion: typeof LORE_PROJECTION_SCHEMA_VERSION;
+  readonly schemaVersion: typeof loreProjectionSchemaVersion;
   readonly contentProvenance: string;
 }
 
@@ -103,7 +86,7 @@ export function validateLoreConcept(
   if (
     projection.schemaVersion !== 1 ||
     projection.kind !== "projection.export" ||
-    projection.data.projectionSchemaVersion !== LORE_PROJECTION_SCHEMA_VERSION
+    projection.data.projectionSchemaVersion !== loreProjectionSchemaVersion
   ) {
     invalid("Lore export capability or schema is incompatible.");
   }
@@ -121,7 +104,7 @@ export function validateLoreConcept(
   if (concepts.length !== 1)
     invalid("Lore concept identifier is missing or ambiguous.");
   const concept = concepts[0];
-  if (!concept || requested.schemaVersion !== LORE_PROJECTION_SCHEMA_VERSION)
+  if (!concept || requested.schemaVersion !== loreProjectionSchemaVersion)
     invalid("Lore concept schema is incompatible.");
   if (concept.path !== requested.path)
     invalid("Lore concept path does not match the requested concept.");

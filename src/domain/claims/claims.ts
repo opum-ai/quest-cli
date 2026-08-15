@@ -68,6 +68,7 @@ export interface ClaimHistory {
   readonly taskId: CanonicalId;
   readonly events: readonly ClaimEvent[];
   readonly lease?: Lease;
+  readonly anomalies: readonly string[];
 }
 
 export type ClaimStatus = "unclaimed" | "live" | "reclaimable";
@@ -133,9 +134,15 @@ export function replayClaimHistory(
   const seenEvents = new Set<string>();
   const seenOperations = new Set<string>();
   const generations = new Set<string>();
+  const anomalies: string[] = [];
   let lease: Lease | undefined;
+  let previousAt: number | undefined;
   for (const event of events) {
     assertEvent(event, declared);
+    const eventAt = timestamp(event.at);
+    if (previousAt !== undefined && eventAt < previousAt)
+      anomalies.push("claim_history_clock_regressed");
+    previousAt = eventAt;
     if (event.taskId !== taskId)
       throw new RecordValidationError("claim_task_mismatch");
     if (seenEvents.has(event.eventId) || seenOperations.has(event.operationId))
@@ -149,6 +156,13 @@ export function replayClaimHistory(
         throw new RecordConflictError("claim_already_exists");
       if (event.kind === "reclaimed" && !lease)
         throw new RecordValidationError("claim_reclamation_without_history");
+      if (
+        event.kind === "reclaimed" &&
+        lease &&
+        eventAt < timestamp(lease.expiresAt)
+      ) {
+        anomalies.push("claim_reclamation_before_expiry");
+      }
       generations.add(event.generation);
       lease = {
         taskId,
@@ -158,7 +172,7 @@ export function replayClaimHistory(
         startedAt: event.at,
         renewedAt: event.at,
         expiresAt: new Date(
-          timestamp(event.at) + claimLeasePolicy(policy).leaseDurationMs,
+          eventAt + claimLeasePolicy(policy).leaseDurationMs,
         ).toISOString(),
       };
       continue;
@@ -175,7 +189,7 @@ export function replayClaimHistory(
         ...lease,
         renewedAt: event.at,
         expiresAt: new Date(
-          timestamp(event.at) + claimLeasePolicy(policy).leaseDurationMs,
+          eventAt + claimLeasePolicy(policy).leaseDurationMs,
         ).toISOString(),
       };
     } else {
@@ -186,7 +200,7 @@ export function replayClaimHistory(
       lease = { ...lease, holderId: event.holderId };
     }
   }
-  return { taskId, events: [...events], lease };
+  return { taskId, events: [...events], lease, anomalies };
 }
 
 /** Evaluates expiry only from persisted history and the caller-supplied clock. */
@@ -194,13 +208,17 @@ export function evaluateClaim(
   history: ClaimHistory | undefined,
   now: Date,
 ): ClaimEvaluation {
-  if (!history?.lease) return { status: "unclaimed", anomalies: [] };
+  if (!history?.lease)
+    return { status: "unclaimed", anomalies: history?.anomalies ?? [] };
   const nowMs = now.getTime();
   if (Number.isNaN(nowMs))
     throw new RecordValidationError("claim_clock_invalid");
   const expiry = timestamp(history.lease.expiresAt);
   const renewed = timestamp(history.lease.renewedAt);
-  const anomalies = renewed > expiry ? ["claim_clock_anomaly"] : [];
+  const anomalies = [
+    ...(history.anomalies ?? []),
+    ...(renewed > expiry ? ["claim_clock_anomaly"] : []),
+  ];
   return {
     status: expiry > nowMs ? "live" : "reclaimable",
     lease: history.lease,

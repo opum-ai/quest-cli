@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-
+import {
+  decodeLoreProjection,
+  LoreIncompatibleError,
+} from "../../../src/adapters/lore/lore-cli.ts";
 import {
   type LoreConceptIdentity,
   type LoreLinkStore,
@@ -91,6 +94,13 @@ test("unreachable Lore leaves the authoritative task bytes identical", async () 
   ).rejects.toThrow("unreachable");
   expect(JSON.stringify(store.task)).toBe(before);
   expect(store.writes).toBe(0);
+});
+
+test("the public Lore adapter decodes only a compatible export contract", () => {
+  expect(decodeLoreProjection(projection())).toEqual(projection());
+  expect(() =>
+    decodeLoreProjection({ schemaVersion: 1, kind: "wrong" }),
+  ).toThrow(LoreIncompatibleError);
 });
 
 for (const [name, altered] of [
