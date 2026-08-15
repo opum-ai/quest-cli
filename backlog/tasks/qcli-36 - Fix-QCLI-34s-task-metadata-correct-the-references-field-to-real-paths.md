@@ -5,12 +5,15 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 16:54'
-updated_date: '2026-08-06 20:04'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:task-metadata'
   - wave-1
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 ordinal: 55000
 ---
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Backlog Handover"
-  short_description: "Continue multi-session Backlog campaigns safely"
-  default_prompt: "Use $backlog-handover to inspect, initialize, restore, or hand over this repository backlog campaign."
+  short_description: "Run autonomous multi-session Backlog campaigns"
+  default_prompt: "Use $backlog-handover. Restore the incomplete active campaign when one exists; otherwise initialize a new autonomous documentation campaign. Continue until complete or genuinely blocked."

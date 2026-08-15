@@ -23,6 +23,42 @@ Do not edit Backlog task, draft, document, decision, or milestone markdown files
 </CRITICAL_INSTRUCTION>
 <!-- BACKLOG.MD GUIDELINES END -->
 
+<!-- autonomous-docs:begin -->
+## Autonomous documentation campaigns
+
+A user invocation of `$backlog-handover init` or `$backlog-handover restore`, or a request to
+burn down Quest CLI documentation backlog work, authorizes `autonomous-docs` mode for the confirmed
+quest-cli-only scope. A bare `init` means every ready, agent-resolvable documentation and
+repository-process task in this repository, excluding `do-not-activate` history, external-state
+blockers, and material owner decisions.
+
+Within that scope, proceed without further prompts through local Backlog and Lore mutations,
+in-scope quest-cli edits, isolated worktrees and branches, commits, pushes, pull requests to this
+repository's non-production integration branch `dev`, merges after required checks, and deletion of
+only campaign-created merged branches and disposable worktrees. This authority does not grant
+access to sibling repositories: they are neither selected nor writable under this contract. The
+coordinator alone owns Backlog, campaign, generated Lore, integration, and remote delivery state;
+workers receive isolated worktrees and explicit non-overlapping path budgets. Parallel execution
+with up to three subagents is authorized. Do not amend, force-push, or rewrite Git history.
+
+Pause for a material product, security, publication, release, or repository-admin decision; missing
+credentials; repeatedly failed required verification; unresolved merge conflicts; unrelated dirty
+overlap; destructive action outside campaign-created artifacts; or any scope expansion beyond
+quest-cli. Promotion from `dev` to `main` is never standing authority. A check is repeatedly failed
+only after diagnosis, one safe in-scope remediation and rerun, plus an independent review or
+alternate safe fix when available; a first transient failure is not a stopping condition.
+
+Keep executing through task work, independent review, commits, `dev` pull requests and merges,
+settlement, safe cleanup, and newly ready waves. A wave boundary, merged pull request, cleanup pass,
+or subjective context-size preference is not a stopping condition. Every nonterminal stop must be
+one of two explicit forms: a named human decision or blocker from the list above, or a session
+renewal after durable state is flushed because the environment must end or context is no longer
+reliable. A session renewal must tell the operator to run `/clear`, start a new session in
+`quest-cli`, invoke `$backlog-handover restore`, and continue the persisted campaign without
+reconfirmation. In either form, report the tracker, queue counts, branch and worktree, last completed
+stage, retained artifacts, and exact next action.
+<!-- autonomous-docs:end -->
+
 <!-- lore:agents:begin -->
 This repo uses **lore** — an OKF-native documentation CLI — for the docs bundle under `docs/`.
 When working on documentation, drive it through `lore` (not a plain editor) so Story <-> Task

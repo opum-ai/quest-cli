@@ -46,8 +46,10 @@ Identifiers are `FR-AREA-n` across seven areas, matching the seven functional co
 | `PROJ` | Local projection, rebuild, freshness, recovery |
 | `LORE` | Lore optionality and versioned exchange |
 
-**Nothing here is activated.** Implementation remains gated on the Lore-owned release
-gate; this document describes what would be built, not permission to build it.
+**Implementation authority.** The Lore-owned gate has opened and the component's
+pre-activation prohibition on product source and runtime dependencies has been lifted.
+This Spec remains a design contract, not publication authority; release and public install
+claims remain Phase 6 owner-gated.
 
 ## Requirements
 
@@ -69,7 +71,7 @@ The `Source` column names a document and heading. Each maps to the task that set
 | Adapter item | [Lore dependency and adapter contract evidence](../reference/quest-cli-lore-dependency-and-adapter-contract-evidence.md) | `QCLI-2.7` |
 | Charter | [Component charter](../reference/quest-cli-component-charter.md) | `QCLI-1` |
 | Component ADR; packaging contract | [Use quest-cli for the Quest package and command](../adr/use-quest-cli-for-the-quest-package-and-command.md); [packaging contract](../reference/quest-cli-packaging-contract.md) | `QCLI-1`, amended `QCLI-5`; `QCLI-2.9` |
-| Lore-owned gate specification | `lore-doc`, Quest integration and Lore release gate | `LDOC-4` (external) |
+| Lore-owned gate specification | [Opum Lore integration and release gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md) | External owner route |
 
 ### Source coverage
 
@@ -82,15 +84,15 @@ is the completeness check — a set with no requirements pointing at it would be
 | Threat categories | 13 | Dirty worktrees `FR-GIT-4`, `FR-GIT-8`; partial writes `FR-GIT-1`, `FR-GIT-10`; retries and duplicate events `FR-GIT-2`; aliases `FR-IDENT-3`, `FR-LIFE-8`; clocks and leases `FR-LIFE-4` … `FR-LIFE-6`; races `FR-LIFE-7`, `FR-GIT-3`; divergence `FR-GIT-3`, `FR-PROJ-1`; hostile paths `FR-IDENT-6`; encoding `FR-IDENT-8`; case sensitivity `FR-IDENT-4`; subdirectories `FR-IDENT-7`; repository removal `FR-GIT-9` |
 | Migration fidelity properties | 6 | `FR-MIG-1` … `FR-MIG-6` |
 | End-to-end workflows | 6 | Claim and deliver `FR-LIFE-2`, `FR-LIFE-9`; lease expiry and reclamation `FR-LIFE-3`, `FR-LIFE-11`; human review gate `FR-LIFE-9`, `FR-LIFE-10`; projection rebuild `FR-PROJ-2`, `FR-PROJ-5`; optional Lore link `FR-LORE-1`, `FR-LORE-2`; delegation handoff `FR-LIFE-13` |
-| Actor constraint sets | 7 | Delegated agent `FR-LIFE-13`; reviewer and approver `FR-LIFE-10`; Lore `FR-LORE-4`; Git `FR-GIT-3`; projection `FR-PROJ-8`; accountable human and maintainer `FR-LIFE-13` (**open**, pending register D6) |
-| Lore adapter rows | 15 | Already satisfiable `FR-CLI-3` … `FR-CLI-5`, `FR-LORE-1` … `FR-LORE-4`; Quest-decision `FR-CLI-2`, `FR-CLI-4`, `FR-CLI-7`, `FR-MIG-7`; `lore-doc`-blocked tracked in the register, not as requirements |
+| Actor constraint sets | 7 | Delegated agent `FR-LIFE-13`; reviewer and approver `FR-LIFE-10`; Lore `FR-LORE-4`; Git `FR-GIT-3`; projection `FR-PROJ-8`; accountable human and maintainer `FR-LIFE-13` (closed by ODOC-57) |
+| Lore adapter rows | 15 | Already satisfiable `FR-CLI-3` … `FR-CLI-5`, `FR-LORE-1` … `FR-LORE-4`; Quest-decision `FR-CLI-2`, `FR-CLI-4`, `FR-CLI-7`, `FR-MIG-7`; externally blocked rows tracked in the register, not as requirements |
 | Legacy candidates, Reusable and Adapted | 9 | `FR-CLI-1`, `FR-GIT-4`, `FR-LIFE-2` … `FR-LIFE-5`, `FR-LIFE-9`, `FR-LIFE-12`, `FR-IDENT-3`, `FR-IDENT-5`, `FR-CLI-6` |
 | Black-box scenarios | 17 | Full mapping under Design, below |
 | Fault-injection scenarios | 12 | Full mapping under Design, below |
 
 The five **rejected**, two **superseded**, and two **deferred** legacy candidates are
 deliberately absent: they are recorded dispositions, not requirements. The
-`lore-doc`-blocked adapter rows are likewise absent as requirements, because Quest cannot
+Externally blocked adapter rows are likewise absent as requirements, because Quest cannot
 state an obligation whose shape another owner has not decided — they are register
 entries instead.
 
@@ -111,9 +113,9 @@ entries instead.
 
 | ID | Requirement | Source | Verified by | Phase |
 | --- | --- | --- | --- | --- |
-| `FR-LIFE-1` | A task's lifecycle position is a defined stage sequence. **Open:** the enum itself is undecided | Contract 2 | Integration tests | 2 |
+| `FR-LIFE-1` | A task moves through `To Do` → `In Progress` → `Done`; terminal records are retained in place. | Contract 2 | Integration tests | 2 |
 | `FR-LIFE-2` | Claims are authored records, conditioned on the state they read | Contract 2; legacy candidate 3 | `BB-15` | 2 |
-| `FR-LIFE-3` | A claim is valid only while its TTL lease is live. **Open:** timing parameters undecided | Contract 2; legacy candidate 4 | `BB-01` | 2 |
+| `FR-LIFE-3` | A claim is valid only while its configured TTL lease is live; lease and heartbeat timing are explicit component configuration, with no fixed default frozen by this baseline. | Contract 2; legacy candidate 4 | `BB-01` | 2 |
 | `FR-LIFE-4` | Lease expiry is evaluable from authored history plus the evaluating actor's own local clock alone | Threat model, "Clocks and leases" 1 | `BB-01`, `TM-05` | 2 |
 | `FR-LIFE-5` | Two honest evaluators computing expiry for the same history at materially the same moment reach the same status; a detected disagreement surfaces as a named anomaly and is never silently resolved | Threat model, "Clocks and leases" 2 | `TM-05` | 2 |
 | `FR-LIFE-6` | A lease renewal is scoped to the exact lease generation it was issued against; a late or stale renewal can never extend a newer holder's lease | Threat model, "Clocks and leases" 4 | `BB-02` | 2 |
@@ -123,19 +125,19 @@ entries instead.
 | `FR-LIFE-10` | Self-supplied approval evidence never satisfies a gate requiring separation | Contract 2 | `BB-04` | 2 |
 | `FR-LIFE-11` | Reclaiming an expired lease appends a new claim event; it never rewrites the expired claim's history | Contract 2; glossary, "Reclamation" | `TM-06` | 2 |
 | `FR-LIFE-12` | State is derived from recorded events | Legacy candidate 1 | Integration tests | 2 |
-| `FR-LIFE-13` | A delegated agent cannot hold accountable ownership, and cannot satisfy a human-judgement gate. **Open:** actor eligibility is routed to `quest-doc` and unwritten | Actor table, "Cannot do"; register D6 | `BB-04` | 2 |
+| `FR-LIFE-13` | A `delegated-agent` cites one accountable `human` actor, may submit work and evidence, but cannot itself satisfy a human-judgement or separation-of-duty gate; reviewer and maintainer are roles, not actor kinds. Opaque authored identities are not authentication or authorization. | ODOC-57 accepted local actor/delegation vocabulary | `BB-04` | 2 |
 
 ### CLI — command outcomes and machine-readable results
 
 | ID | Requirement | Source | Verified by | Phase |
 | --- | --- | --- | --- | --- |
 | `FR-CLI-1` | Every command distinguishes at minimum three categorical outcomes: success; a structured decline or conflict distinct from success; and a structured error distinct from both | Contract 3 | `BB-02`, `BB-03`, `BB-11`, `BB-15`, `BB-17` | 1 decides, 2 implements |
-| `FR-CLI-2` | Every command produces a deterministic, versioned, machine-parseable result on request. **Open:** the envelope shape | Contract 3; charter | Contract tests | 1 decides, 2 implements |
+| `FR-CLI-2` | Every command produces `{schemaVersion: 1, kind, data, principal}` with dotted live kinds; `principal` remains `null` until its population is separately ratified. | QCLI-69 result-contract amendment | Contract tests | 2 |
 | `FR-CLI-3` | A mutating command's success result carries enough structure to recover a newly minted identifier without parsing human-readable stdout | Contract 3; adapter item 4b | Contract tests | 2 |
-| `FR-CLI-4` | A read command's not-found outcome is unambiguous and distinct from an unrelated hard error. **Open:** the signal convention, partly a `lore-doc` boundary decision | Contract 3; adapter items 5a, 5b | Contract tests | 1 decides, 2 implements |
+| `FR-CLI-4` | A read command's not-found outcome is unambiguous and distinct from an unrelated hard error. **Open:** the signal convention, partly an external Lore boundary decision | Contract 3; adapter items 5a, 5b | Contract tests | 1 decides, 2 implements |
 | `FR-CLI-5` | The version command reports a bare, parseable semantic version and exits zero | Contract 3; adapter item 3a | Contract tests | 2 |
 | `FR-CLI-6` | Read-only commands perform zero mutation as a caller-observable part of their result contract, on every path including not-found and error | Contract 3; `INV-5` | `BB-05`, `BB-06` | 2 |
-| `FR-CLI-7` | Exit codes map to outcome classes deterministically. **Open:** the literal table | Contract 3 | Contract tests | 1 decides, 2 implements |
+| `FR-CLI-7` | Exit codes are deterministic: 0 success, 1 uncaught, 2 usage, 3 not_found, 4 denied, 5 conflict, 6 validation/drift. | QCLI-69 result-contract amendment | Contract tests | 2 |
 
 ### GIT — mutation invariants and durability
 
@@ -156,13 +158,13 @@ entries instead.
 
 | ID | Requirement | Source | Verified by | Phase |
 | --- | --- | --- | --- | --- |
-| `FR-MIG-1` | A no-mutation dry run reports exactly what migration would create and map, enumerating per source record its lifecycle-folder origin, source identifier, proposed target identifier, and any flagged collision or gap; it exits non-zero while the preview is outstanding | Fidelity contract, "Deterministic dry runs" | Migration tests | 4 |
+| `FR-MIG-1` | A no-mutation dry run reports exactly what migration would create and map, enumerating per source record its lifecycle-folder origin, source identifier, proposed target identifier, and any flagged collision or gap; a complete read-only preview exits `0` with `requiresApproval: true` and a deterministic digest | Fidelity contract, "Deterministic dry runs" | Migration tests | 4 |
 | `FR-MIG-2` | The source-to-target identifier mapping is persisted, keyed on the pair of source folder and source identifier, and reversible without re-scanning the source | Fidelity contract, "Reversible ID mapping" | Migration tests | 4 |
 | `FR-MIG-3` | Same-scope and cross-scope duplicate identifiers are detected and reported, never silently resolved; the scan is strictly wider than the source tool's own repair scope | Fidelity contract, "Collision handling"; finding 3 | Migration tests | 4 |
 | `FR-MIG-4` | The read phase never invokes a source-mutating command against a user's live project, at any point, including for convenience | Fidelity contract, "Source immutability" | Migration tests | 4 |
 | `FR-MIG-5` | Migration assumes no quiescence signal from the source; a long-running read pass re-scans and diffs the file list on completion and flags, never silently merges, anything that changed mid-scan | Fidelity contract, "One-writer coexistence" | Migration tests | 4 |
 | `FR-MIG-6` | Every created target record carries source folder, source identifier, target identifier, and a timestamp sufficient for manual rollback | Fidelity contract, "Rollback evidence" | Migration tests | 4 |
-| `FR-MIG-7` | Quest defines its own canonical identifier grammar and does not inherit the source tool's configurable prefix, zero-padding, or dot-suffixed hierarchy. **Open:** the grammar itself, register D4 | Fidelity contract, field disposition | Migration tests | 1 decides, 4 applies |
+| `FR-MIG-7` | Quest defines its own canonical identifier grammar and does not inherit the source tool's configurable prefix, zero-padding, or dot-suffixed hierarchy; D4 fixes it as a `T`-prefixed flat, unpadded decimal sequence. | Fidelity contract, field disposition; D4 | Migration tests | 1 decides, 4 applies |
 | `FR-MIG-8` | Fidelity gaps are declared as gaps rather than approximated — including derived values with no stored counterpart and index state no documented surface exposes | Fidelity contract, field disposition | Documentation review | 4 |
 
 ### PROJ — local projection
@@ -177,7 +179,7 @@ entries instead.
 | `FR-PROJ-6` | Projection freshness is reportable to the caller | Contract 6 | Integration tests | 3 |
 | `FR-PROJ-7` | The projection is explicitly scoped to enrolled workspaces | Charter, "Sources of truth" | Integration tests | 3 |
 | `FR-PROJ-8` | A projection can never satisfy a gate, hold a claim, or answer authoritatively | Actor table, "Cannot do" | Integration tests | 3 |
-| `FR-PROJ-9` | Corruption is detected and recoverable by rebuild. **Open:** scale target and storage engine, register D5 | Contract 6 | Fault tests | 3 |
+| `FR-PROJ-9` | Corruption is detected and recoverable by rebuild. Bun SQLite is disposable; Git-authored records remain authoritative. | Contract 6; D5 projection decision | Fault tests | 3 |
 
 ### LORE — optional integration
 
@@ -206,8 +208,9 @@ the worktree. No source informs a requirement unless the
 [research source register](../reference/quest-cli-research-source-register.md) classifies
 it Allowed for the exact use cited.
 
-**Activation** — no product source, runtime dependency, executable scaffolding, package
-metadata, or publication before the Lore-owned gate reports Pass from live owner evidence.
+**Activation and release** — the Lore-owned gate is open and the component's product-source,
+runtime-dependency, executable-scaffolding, and package-metadata prohibition is lifted.
+Publication and public install instructions remain separately owner-gated Phase 6 work.
 
 ## Design
 
@@ -298,8 +301,10 @@ The items that most constrain this document:
   because there is no contract to assert against.
 - **The canonical identifier grammar** (`FR-IDENT-3`, `FR-MIG-7`, register D4). It gates
   the record layout, so it gates Phase 2.
-- **Gate-approval actor eligibility** (`FR-LIFE-13`, register D6). Routed to `quest-doc`
-  and not yet written there by any task in any repository.
+- **Gate-approval actor eligibility** (`FR-LIFE-13`, register D6). Closed by ODOC-57:
+  opaque `human` and `delegated-agent` actors, accountable-human delegation, and distinct
+  reviewer/maintainer roles; delegated agents cannot satisfy human-judgement or
+  separation-of-duty gates.
 - **Scale target and projection engine** (`FR-PROJ-9`, register D5). Phase 3 cannot size
   its storage without them.
 - **The Backlog.md version pin.** Every `FR-MIG` requirement rests on findings from build

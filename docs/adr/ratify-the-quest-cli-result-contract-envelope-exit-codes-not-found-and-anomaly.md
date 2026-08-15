@@ -11,7 +11,7 @@ tags:
   - anomaly
   - phase-1
   - cli-contract
-summary: Owner ruling on the CLI result envelope, exit-code table, Quest's own not-found convention, and anomaly placement, ratifying QCLI-18's proposal with one deliberate deviation.
+summary: Preserves the original Quest-specific result ruling and its QCLI-69 amendment aligning the live wire contract with the frozen Opum command contract.
 timestamp: 2026-08-05T22:53:01.790Z
 ---
 
@@ -19,7 +19,11 @@ timestamp: 2026-08-05T22:53:01.790Z
 
 ## Status
 
-Accepted. Rules on the items
+Accepted on 2026-08-05, then **amended on 2026-08-13 by `QCLI-69`**. The
+original Quest-specific wire details remain below as decision provenance, but the amendment
+is the live contract wherever the two conflict.
+
+The original rules on the items
 [QCLI-18's proposal](../reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement.md)
 left as recommendations rather than decisions, in a live session on 2026-08-05 captured by
 the
@@ -50,6 +54,63 @@ The component owner ruled on all of it, including the uncovered fifth item, in a
 session on 2026-08-05.
 
 ## Decision
+
+### Amendment — 2026-08-13 (`QCLI-69`)
+
+After this ADR was accepted, `opum-doc` task `ODOC-22` froze the shared
+[Opum command contract](https://github.com/opum-ai/opum-doc/blob/dev/docs/specs/opum-command-contract.md)
+that every Opum command-line component must implement. Quest then recorded its local
+adoption obligation in
+[Quest CLI Opum command-contract local obligation](../reference/quest-cli-opum-command-contract-local-obligation.md)
+(`QCLI-68`). That later, cross-component authority conflicts with the original ruling on
+multiple wire surfaces. Quest aligns to it; no `opum-doc` exception or amendment is
+requested.
+
+### Exact reconciliation
+
+| Surface | Original 2026-08-05 Quest ruling | Frozen Opum contract and live Quest ruling |
+| --- | --- | --- |
+| Result-envelope version | String `"1"` | JSON number `1` |
+| Result-envelope fields | Separate top-level `kind` and `outcome` fields | `{schemaVersion, kind, data, principal}`; no top-level wire `outcome` field |
+| Payload placement | Outcome-specific `result`, `decline`, `error`, or `anomaly` key | One shared `data` object or array on successful result envelopes |
+| `kind` | Bare command name such as `claim` or `list` | Stable dotted `command.payload` value such as `query.results`, declared by each command |
+| `kind` registry | No live, machine-discoverable registry requirement | Component-owned live manifest/registry whose command names, kinds, and exit codes can be enumerated from source; consumers tolerate additive unknown kinds |
+| Failures and diagnostics | Domain `outcome` plus an outcome-specific payload in the result envelope | Structured diagnostic envelope on stderr: `{error_type, message, hint?, input?, principal}`; uncaught failures use `error_type: "uncaught"`; stdout contains only successful payloads or stays silent |
+| Exit meanings | `0` success, `1` decline/conflict, `2` error, `3` anomaly, `64` usage | `0` success, `1` uncaught, `2` usage, `3` not_found, `4` denied, `5` conflict, `6` validation or drift |
+| Not found | Decline envelope on exit `1` | Diagnostic `error_type: "not_found"` on exit `3` |
+| Conflict | Decline envelope on exit `1` | Diagnostic `error_type: "conflict"` on exit `5` |
+| Anomaly | Wire `outcome: "anomaly"`, `anomaly` payload, exit `3` | No anomaly-specific wire field or code; the already-named evaluator-disagreement case is a structured `drift` diagnostic on exit `6` |
+| Principal | Not reserved | Required final top-level key on successful, classified-error, and uncaught envelopes; emit `principal: null` until the shared `PrincipalRef` shape is ratified and populated |
+
+The original `success` / `decline` / `error` / `anomaly` vocabulary may still describe
+application-layer decisions and caller intent. It no longer defines the wire envelope or
+exit table. Every command boundary must project its domain result into the frozen result
+or diagnostic form: a successful operation emits the numeric-versioned result envelope on
+stdout and exits `0`; a classified non-success emits the matching diagnostic on stderr and
+uses the shared semantic exit; an unclassified bug uses `uncaught` and exits `1`.
+
+The shared contract also controls output behavior: `--json` takes precedence over
+`--plain`, which takes precedence over pretty output; non-TTY stdout selects plain output;
+and an invocation does not mix output modes. `create` and `edit` remain uniform with other
+commands under that rule rather than retaining a Quest-only envelope variant.
+
+The local conformance obligation must enumerate Quest's live command, dotted-`kind`, and
+exit registries; assert non-empty exact equality against independently maintained golden
+expectations; and demonstrate failure for vacuous, corrupted, missing, colliding, and
+out-of-band cases. Once handlers exist, Quest's tests must additionally invoke representative
+success, classified-error, and uncaught paths to prove stream discipline, exact envelope
+shape, and the required final `principal: null` slot. Populating that slot remains subject
+to the shared contract's ratifying-amendment rule.
+
+This amendment reserves the field only. Establishing principal identity, defining
+`PrincipalRef`, and enforcing authorization remain outside this ADR and require separate
+cross-component authority.
+
+## Original decision — 2026-08-05 (wire details superseded)
+
+The text in this section records what the owner accepted on 2026-08-05. It is intentionally
+preserved rather than silently rewritten; the 2026-08-13 amendment above governs every
+conflicting wire detail.
 
 **`schemaVersion` is the literal string `"1"`** — QCLI-18's recommended Option C, accepted
 as proposed. A JSON number invites cross-parser coercion/printing footguns (`1` vs `1.0`);
@@ -121,6 +182,22 @@ above uniformly with every other command — there is no special-cased plain-tex
 partial-output path for mutating commands.
 
 ## Consequences
+
+- Quest has one live result/diagnostic wire contract: the frozen Opum command contract.
+  No component-local exception or shared-contract amendment is required.
+- Future command and conformance-test design must use the numeric result envelope, shared
+  diagnostic shape and exits, live dotted-kind registry, stream/output discipline, and
+  reserved final `principal: null` slot described above.
+- Domain outcomes remain useful inside the application layer, but code and documentation
+  must not expose the original Quest-only `outcome` field, payload-key split, or exit table
+  as current wire behavior.
+- The 2026-08-05 decision and proposal remain auditable below and in their original records;
+  their conflicting wire details are historical rather than silently rewritten.
+- Principal establishment, `PrincipalRef`, authorization enforcement, the `lore-doc`
+  adapter-boundary half of not-found behavior, and product-wide anomaly vocabulary remain
+  outside this amendment.
+
+## Original consequences — 2026-08-05 (wire details superseded)
 
 - The envelope's outcome-class payload keys are now four (`result` / `decline` / `error` /
   `anomaly`), and the exit-code table spans five values (`0`, `1`, `2`, `3`, `64`); Phase 2

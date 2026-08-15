@@ -41,7 +41,7 @@ restated or re-classified), and `QCLI-2.7`'s
 [Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
 (cited here read-only for its central finding that no generic Lore↔task-tracker
 adapter abstraction exists today). It also cites `quest-doc`'s own canonical
-[Quest clean-room execution graph](https://github.com/opum-ai/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
+[consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
 (Spec, `quest-doc`, local clone `/Volumes/external/repos/quest-doc`, commit
 `7d4d60c2854a533bbba63e6b69320587b8f88e83` (observed 2026-08-04; moving
 reference, re-verify before relying), clean tree per `git status` at that
@@ -84,7 +84,7 @@ This document is that component-level mapping, and nothing more:
   would bind `quest-doc`, `quest-web`, or a future Opum component the same
   way.
 - Where a term already appears in `quest-doc`'s own canonical
-  [execution graph](https://github.com/opum-ai/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md)
+  [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
   ("Core behavioral contract": "stable task, event, repository, workspace,
   and canonical-ID semantics"; "dependency readiness, explicit blocking,
   claims, TTL leases, heartbeats, human ownership, delegation, plan/review
@@ -228,7 +228,7 @@ Quest-wide vocabulary, cross-repository architecture, or roadmap:
 - The base vocabulary (task, event, workspace, claim, lease, gate, delivery
   evidence, human ownership, delegation) is not newly proposed here — it is
   already adopted Quest-wide in `quest-doc`'s own
-  [execution graph](https://github.com/opum-ai/quest-doc/blob/dev/docs/specs/quest-clean-room-execution-graph.md),
+  [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest),
   cited throughout the glossary above; this document gives it component-scoped
   definitions, not a new product-wide meaning.
 - The "Lore" and "Git" rows in the actor table describe how quest-cli's own

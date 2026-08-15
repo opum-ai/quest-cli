@@ -4,12 +4,15 @@ title: Close the squash-merge Refs trailer-loss vector
 status: Done
 assignee: []
 created_date: '2026-08-07 20:27'
-updated_date: '2026-08-08 01:29'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:campaign-machinery'
   - wave-2
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: medium
 type: chore
 ordinal: 67000

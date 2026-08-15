@@ -5,14 +5,17 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 10:49'
-updated_date: '2026-08-06 15:13'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:lore-log-sync'
   - wave-1
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
 references:
   - docs/log.md
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: low
 type: chore
 ordinal: 54000

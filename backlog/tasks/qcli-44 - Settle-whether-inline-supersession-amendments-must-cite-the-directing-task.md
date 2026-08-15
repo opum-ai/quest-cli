@@ -4,17 +4,20 @@ title: Settle whether inline supersession amendments must cite the directing tas
 status: Done
 assignee: []
 created_date: '2026-08-07 05:04'
-updated_date: '2026-08-07 12:49'
+updated_date: '2026-08-14 12:18'
 labels:
   - campaign
   - 'cluster:supersession-convention'
   - wave-1
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
 references:
   - CLAUDE.md
   - docs/reference/quest-cli-open-component-decisions.md
   - docs/reference/quest-cli-component-contracts-and-delivery-graph.md
   - docs/adr/require-atomic-idempotent-operation-owned-mutations.md
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 priority: low
 type: docs
 ordinal: 63000

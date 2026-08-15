@@ -25,7 +25,7 @@ worker can implement after Lore ships; it does not contain product code.
 
 - revalidate the source register and quarantine boundary;
 - reconcile admitted legacy Opum requirements into Quest CLI component
-  candidates and route product-wide proposals to `quest-doc`;
+  candidates and route product-wide proposals to the consolidated Quest namespace;
 - translate observable defect narratives into black-box scenarios;
 - define actors, workflows, domain language, and authority;
 - study Backlog migration through public user contracts and owner data;
@@ -104,8 +104,8 @@ revalidates and admits it.
 
 ### External activation authority
 
-The maintained Lore integration boundary and release-gate policy is
-[owned by lore-doc](https://github.com/opum-ai/lore-doc/blob/dev/docs/specs/quest-integration-and-lore-release-gate.md).
+The maintained Lore integration boundary and release-gate policy is owned by the
+[consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore).
 This program records only component dependency status and evidence
 consumption. It does not redefine Lore's gate or assert that Lore, Quest, or a
 Quest package has been released.

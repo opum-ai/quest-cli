@@ -7,11 +7,12 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 00:29'
-updated_date: '2026-08-06 01:51'
+updated_date: '2026-08-14 12:17'
 labels:
   - campaign
   - 'cluster:proposal-docs'
   - wave-1
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
 references:
   - >-
@@ -19,6 +20,8 @@ references:
   - >-
     docs/reference/quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md
   - docs/reference/quest-cli-scale-target-proposal.md
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 priority: medium
 type: docs
 ordinal: 48000

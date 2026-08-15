@@ -5,11 +5,14 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-13 04:16'
-updated_date: '2026-08-13 13:56'
-labels: []
+updated_date: '2026-08-14 12:18'
+labels:
+  - 'doc:stories/preserve-quest-cli-documentation-campaign-provenance'
 dependencies: []
 references:
   - ../lore-cli/.codex/skills/backlog-handover
+documentation:
+  - docs/stories/preserve-quest-cli-documentation-campaign-provenance.md
 modified_files:
   - .codex/skills/backlog-handover/SKILL.md
   - .codex/skills/backlog-handover/agents/openai.yaml

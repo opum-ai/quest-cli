@@ -7,15 +7,18 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-08-06 10:48'
-updated_date: '2026-08-06 19:04'
+updated_date: '2026-08-14 12:17'
 labels:
   - campaign
   - 'cluster:terminology-reconciliation'
   - wave-1
+  - 'doc:stories/ratify-the-quest-cli-phase-1-component-decisions'
 dependencies: []
 references:
   - docs/reference/quest-cli-open-component-decisions.md
   - docs/reference/quest-cli-component-contracts-and-delivery-graph.md
+documentation:
+  - docs/stories/ratify-the-quest-cli-phase-1-component-decisions.md
 priority: low
 type: docs
 ordinal: 53000

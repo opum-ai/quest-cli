@@ -41,7 +41,7 @@ already established relative to
 [`QCLI-2.3`](quest-cli-black-box-acceptance-scenarios.md).
 
 This document settles no Quest-wide vocabulary, actor model, architecture,
-or roadmap question — see "Routing to `quest-doc` and inactive status"
+or roadmap question — see "Routing to Quest-wide authority and inactive status"
 (AC4), below. It authorizes no implementation. Every component decision
 this campaign left evidence-dependent stays open here, named explicitly as
 an open question, a component decision, a product-owner proposal, or a
@@ -156,43 +156,43 @@ either, and this document adds no new citation of them.
 
 The [component charter](quest-cli-component-charter.md) states plainly:
 "Any research result that would change the Quest-wide vocabulary, actor
-model, architecture, or roadmap is a proposal to `quest-doc`. It is not
+model, architecture, or roadmap is a proposal to Quest-wide authority. It is not
 normative merely because a QCLI task produced it." This document is the
 synthesis of six deliverables that already drew that line — `QCLI-2.2`
 first identified the one candidate that crosses it (candidate #6,
 accountable-human delegation and actor responsibilities as a cross-repository
-model) and routed it to `quest-doc`; `QCLI-2.4` independently corroborated,
+model) and routed it to Quest-wide authority; `QCLI-2.4` independently corroborated,
 without resolving, that same routing with its own component-level actor
 table. This document does not reopen, re-decide, or restate that routing as
-if it were new — see "Routing to `quest-doc` and inactive status" (AC4),
+if it were new — see "Routing to Quest-wide authority and inactive status" (AC4),
 below, which consolidates it as an already-existing fact this synthesis
 inherits.
 
 Every functional contract below describes how the Quest CLI **component**
 itself behaves — its own command surface, its own local records, its own
 Git usage, its own consumption of Lore's published contract. None of it
-binds `quest-doc`, `quest-web`, or a future Opum component the way a
+binds the Quest-wide authority, `quest-web`, or a future Opum component the way a
 product-wide decision would.
 
 ### Activation gate and dormancy
 
-The Lore-wide integration boundary and release-gate policy is owned by
-`lore-doc`, per the [component charter](quest-cli-component-charter.md)'s
-routing table; Lore implementation and immutable release evidence belongs
+The Lore-wide integration boundary and release-gate policy routes through
+[Opum's Lore integration and release gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md).
+Lore implementation and immutable release evidence belongs
 to the owning `lore-*` repository, currently `lore-cli`. `QCLI-2.7`'s
 [Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
 is the maintained Quest-side consumer view of that gate. This document does
 not reproduce, approximate, or restate the gate's own predicate, the
 integration-obligation list, or the open-questions list `QCLI-2.7`'s own
-Part 1 already declines to reproduce in full — those remain `lore-doc`'s
-to own and are mutable.
+Part 1 already declines to reproduce in full — the canonical owner route
+holds those mutable details.
 
 `QCLI-2.7`'s Part 1 matrix classifies five Quest CLI choices against Lore.
 Two bear directly on activation and are cited here by classification only,
 not restated: "Whether *any* Quest product implementation may activate" is
-**Requiring owner input**, gated on task `LDOC-4` (`lore-doc`); "Whether a
+**Requiring owner input**, routed through the canonical Lore gate; "Whether a
 *future* Lore version bump can be trusted the same way `0.1.0` was" is
-**Blocked on a named owner result**, gated on task `LCLI-278` (`lore-cli`).
+**Blocked on a named owner result**, with immutable release evidence held by `lore-cli`.
 The remaining three choices — the published release Quest research
 currently targets, the versioned Lore import/link/adapter behavior, and
 whether Lore treats a future Quest CLI as a drop-in `backlog`-shaped target
@@ -202,16 +202,12 @@ this document's "Lore integration" contract and the "Unresolved component
 decisions" section, below, carry each forward at the same classification,
 without upgrading any of them.
 
-`QCLI-2.7`'s Part 1 also states an explicit **Activation handover
-requirement**: a future activation session must, at minimum, re-run the
-matrix's live commands with a new date, separately obtain live confirmation
-from `lore-doc`'s own owner-held evidence that the release-gate predicate
-reports Pass, and treat any choice still reading "blocked on a named owner
-result" or "requiring owner input" as an unconditional stop, not a judgment
-call to override. This document adopts that same requirement without
-weakening it and adds nothing of its own beyond naming it.
+`QCLI-2.7`'s historical Part 1 record includes an activation handover
+requirement. It is not a current procedure: consult the
+[canonical Lore gate](https://github.com/opum-ai/opum-doc/blob/dev/docs/lore/specs/quest-integration-and-lore-release-gate.md)
+for owner-held evidence and routing.
 
-**Live re-verification performed for this document (2026-08-04).**
+**Historical live re-verification performed for this document (2026-08-04).**
 Independent of `QCLI-2.7`'s own dated observation, this task re-ran, in the
 local read-only clones:
 
@@ -227,25 +223,15 @@ references"](../specs/quest-cli-pre-implementation-research-program.md#moving-vs
 subsection names. Per that subsection's
 ["Recheck clause
 requirement"](../specs/quest-cli-pre-implementation-research-program.md#recheck-clause-requirement),
-any later worker or activation session relying on this document's dormancy
-conclusion **must** re-run both commands above (against live, fetched
-clones, not a stale local checkout) before treating either status as
-current, and must treat a changed result — either task moving off **To
-Do** — as a new fact for the owner or the activation session to rule on,
-exactly as `QCLI-2.7`'s own Activation handover requirement already states;
-a worker may not silently treat either task landing as sufficient on its
-own to begin implementation, since the Lore-wide gate predicate itself is a
-separate, owner-held fact this document does not observe.
+these dated results are preserved as evidence only. They are not a current
+activation procedure or status source; consult the canonical Lore gate for
+the owner-held route and evidence.
 
 **Therefore:** every functional contract in the next section and every
-node in the proposed delivery graph below is dormant. Each is describable
-now, from admitted evidence, but none may begin implementation until (1)
-the Lore-owned release gate reports Pass from `lore-doc`'s own live owner
-evidence, and (2) a later, explicitly authorized activation session
-performs the live re-verification this section and `QCLI-2.7`'s Activation
-handover requirement both name — never a reuse of this document's or
-`QCLI-2.7`'s dated observation as current proof. This document performs no
-such activation and authorizes none.
+node in the proposed delivery graph below is descriptive, not authority to
+start work. The current activation route is the canonical Lore gate, never a
+reuse of this document's or `QCLI-2.7`'s dated observations. This document
+performs no activation and authorizes none.
 
 ### Component contracts (AC2)
 
@@ -336,7 +322,7 @@ gates — mechanism only, all Adapted); `QCLI-2.6`'s
 *Explicitly open:* concrete lease/heartbeat timing parameters; the specific
 lifecycle-stage enum; gate-approval actor eligibility (who counts as an
 accountable human, delegated agent, reviewer, or approver) — routed to
-`quest-doc`, see "Governance" under Unresolved component decisions, below.
+the Quest-wide authority, see "Governance" under Unresolved component decisions, below.
 
 #### 3. JSON and exits
 
@@ -387,10 +373,10 @@ exit-code-to-outcome table; the not-found signal convention (item 5b);
 whether create/edit commands emit a JSON envelope uniformly (Quest's own
 likely preference) or something narrower to match what a current Lore
 adapter's write path already assumes (items 4b/4c) — the latter half of
-that question is a `lore-doc` boundary decision, not resolvable by Quest
+that question is an external Lore boundary decision, not resolvable by Quest
 alone.
 
-**Closed 2026-08-05** by [Ratify the Quest CLI result contract: envelope,
+**Originally closed 2026-08-05** by [Ratify the Quest CLI result contract: envelope,
 exit codes, not-found, and
 anomaly](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
 (`QCLI-24`): `schemaVersion` is the literal string `"1"`; the envelope
@@ -401,9 +387,20 @@ and `outcome` (`success`/`decline`/`error`/`anomaly`), with payload keys
 convention is a JSON-first decline envelope with a `reason` discriminant,
 on the shared decline exit code; and `create`/`edit` emit the JSON
 envelope uniformly with every other command. **Still open:** the
-not-found convention's `lore-doc` boundary half (item 5b's other half) —
+not-found convention's external Lore boundary half (item 5b's other half) —
 not decided, proposed, or assumed resolved by `QCLI-24`, and not touched
-by this reconciliation either.
+by the 2026-08-05 reconciliation either.
+
+**Amended 2026-08-13 by `QCLI-69`.** After `ODOC-22` froze the shared Opum
+command contract and `QCLI-68` adopted it locally, the historical details above were
+superseded for the wire boundary. The live result shape is numeric
+`{schemaVersion: 1, kind, data, principal}`, with dotted `command.payload` kinds from a
+machine-discoverable live registry and `principal: null` until separately ratified for
+population. Classified failures are structured diagnostics on stderr; the shared exit
+taxonomy is `0` success, `1` uncaught, `2` usage, `3` not_found, `4` denied, `5` conflict,
+and `6` validation or drift. Domain success/decline/error/anomaly classifications remain
+useful inside the application layer but do not add wire fields, payload keys, or exit
+codes. The external Lore adapter-boundary half remains open.
 
 #### 4. Git mutation
 
@@ -587,12 +584,12 @@ workflow row.
   behavior is already stated functionally in the JSON/exits and Migration
   contracts above; the concrete choice is an open component decision (see
   below), not resolved by this document.
-- Where a requirement's resolution depends on `lore-cli` or `lore-doc`'s
+- Where a requirement's resolution depends on `lore-cli` or external Lore
   own unbuilt or undecided side (`QCLI-2.7` `AC5` items 1b, 3b, 4c, the
-  `lore-doc` half of 5b, 6c) — including the central finding that
+  authority's half of 5b, 6c) — including the central finding that
   `lore-cli`'s only adapter type today is `BacklogAdapter`, with no
   generic pluggable interface to implement a second, differently-shaped
-  backend against — it is an explicit blocker awaiting a `lore-doc`
+  backend against — it is an explicit blocker awaiting an external Lore
   boundary decision, carried into "Unresolved component decisions" and the
   delivery graph below, never treated as settled by this document.
 
@@ -707,15 +704,14 @@ performed by this document.
 6. **Governance.** The product-wide accountable-human / delegated-agent /
    reviewer / approver actor model. `QCLI-2.2`'s candidate #6 already
    identifies this as Quest-wide, not quest-cli-local, and explicitly
-   routes it to `quest-doc`, stating the proposal "belongs in `quest-doc`'s
-   own repository, not authored here and not authored into `quest-doc` by
-   this quest-cli task." `QCLI-2.4`'s own component-level actor-
+   routes it to Quest-wide authority: the proposal belongs outside this
+   component and is not authored by this quest-cli task. `QCLI-2.4`'s own component-level actor-
    responsibility table answers only how these roles act **within**
    Quest CLI, explicitly not a cross-repository definition, and states it
    "corroborates rather than resolves candidate #6." This document does
    not reopen that routing beyond re-affirming it (see AC4, below); it
-   remains a proposal a later task must author into `quest-doc`'s own
-   repository. **Status:** product-owner proposal, already routed, not
+   remains a proposal for the consolidated Quest-wide route. **Status:**
+   product-owner proposal, already routed, not
    authored here.
 
 7. **Archival.** Two distinct facets, kept separate:
@@ -762,23 +758,23 @@ runtime dependencies, generated CLI or package scaffolding").
 
 | Phase | Candidate scope | Builds on (contracts) | Blocked by | Status |
 | --- | --- | --- | --- | --- |
-| 0 — Activation precondition | The Lore-owned release gate reports Pass from live `lore-doc` owner evidence; `LCLI-278`'s automated-publish control is resolved or an equivalent out-of-band control is approved | n/a | The Lore-wide gate (owner-held, see "Activation gate and dormancy," above) | Not started; gate unpassed as of this document's 2026-08-04 re-verification |
+| 0 — Activation precondition | Consult the canonical Lore gate for its owner-held predicate and evidence | n/a | The Lore-wide gate (owner-held, see "Activation gate and dormancy," above) | Not determined by this historical proposal |
 | 1 — Component decisions (no code) | Resolve the JSON-envelope shape, the not-found signal convention, canonical ID grammar, product license, and explicit ownership of the platform and runtime open questions | CLI identity; JSON and exits | The seven categories in "Unresolved component decisions," above; not blocked on the Lore gate itself | Proposal only |
 | 2 — Core execution engine | Claims, leases, gate mechanism (excluding actor eligibility), event-derived state, operation-owned Git mutation satisfying `INV-1`–`INV-5` | Lifecycle; Git mutation | Phase 1's ID-grammar and envelope decisions | Proposal only, depends on Phase 1 |
 | 3 — Local projection | Rebuildable projection, freshness/staleness reporting, resume-not-restart synchronization per `BB-07`/`BB-08` | Projection | Phase 2 | Proposal only, depends on Phase 2 |
 | 4 — Backlog migration | Deterministic dry-run preview, reversible ID mapping, collision handling across both scopes, rollback evidence — `QCLI-2.10`'s [Backlog adoption and migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md) is the authored operational procedure for this phase (informational cross-reference only; not a synthesis input, per the research program Spec's dependency table) | Migration | Phase 2 (a canonical ID grammar to map into); Phase 3 (a projection to populate) | Proposal only, depends on Phases 2–3 |
-| 5 — Lore adapter | Satisfy the `AC5` "already satisfiable" items unilaterally; the "requiring a `lore-doc` boundary decision" items (binary name/override, probe sequence, write-response shape, coupling-label format reuse) cannot start regardless of internal readiness | Lore integration | Phase 1 (envelope shape); `lore-doc` boundary decisions — an external blocker, not a Quest-side task | Proposal only, partially blocked externally |
+| 5 — Lore adapter | Satisfy the `AC5` "already satisfiable" items unilaterally; the externally owned boundary-decision items (binary name/override, probe sequence, write-response shape, coupling-label format reuse) cannot start regardless of internal readiness | Lore integration | Phase 1 (envelope shape); external Lore boundary decisions — an external blocker, not a Quest-side task | Proposal only, partially blocked externally |
 | 6 — Packaging and release | Clean-install verification; protected publication of `@opum-ai/quest`; component release and rollback runbooks | CLI identity (packaging) | Phase 0's gate; the runtime and platform decisions named in Unresolved component decisions; the ADR's own consequence — "must not display a working install command until a protected immutable package is actually published and clean-install verification passes" | Proposal only, last phase, cannot begin before Phase 0 regardless of other phases' readiness |
 
 Phases 1–5 are, in principle, describable and could be scoped as further
 research or design work even before Phase 0's gate passes, consistent with
 the Spec's Allowed-work list. None of them may, at any point before Phase
-0's gate passes and is independently re-verified live, produce product
+0's owner-held activation authority is satisfied, produce product
 source, a runtime dependency, executable scaffolding, or a packaging or
 release artifact — the Spec's Prohibited-work list applies to every phase
 in this graph exactly as it applies to this document.
 
-### Routing to `quest-doc` and inactive status (AC4)
+### Routing to Quest-wide authority and inactive status (AC4)
 
 Exactly one candidate in the entire corpus this document synthesizes
 crosses the charter's product-wide line, and it is not new here:
@@ -788,14 +784,14 @@ actor responsibilities as a cross-repository, Quest-wide model.
 corroborates, without resolving, that same routing. This document adds no
 further Quest-wide finding of its own: it consolidates candidate #6's
 existing routing (see "Governance" under Unresolved component decisions,
-above) rather than reopening it, and it authors nothing into `quest-doc`'s
-own repository.
+above) rather than reopening it. The active route is
+[Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
 
 No other content in this document proposes a change to Quest-wide
 vocabulary, cross-repository architecture, or roadmap. Where a functional
-contract above cites vocabulary `quest-doc` already adopts (task, event,
+contract above cites vocabulary the retained Quest authority already adopts (task, event,
 workspace, claim, lease, gate, delivery evidence, human ownership,
-delegation — per `QCLI-2.4`'s own grounding in `quest-doc`'s canonical
+delegation — per `QCLI-2.4`'s own grounding in the retained Quest-wide
 execution graph), this document treats it as already settled elsewhere,
 not newly proposed here.
 
@@ -803,9 +799,8 @@ not newly proposed here.
 creates no Backlog task, assigns no task, checks no acceptance criterion
 belonging to a future implementation task, and activates nothing. Every
 phase in the proposed delivery graph above is dormant pending both
-conditions stated under "Activation gate and dormancy": the Lore-owned
-release gate reporting Pass, and a later, explicitly authorized session's
-live re-verification of that fact — never a reuse of any dated observation
+conditions stated under "Activation gate and dormancy": the canonical
+Lore-owned gate's owner-held evidence — never a reuse of any dated observation
 recorded in this document or in any of its ten dependencies.
 
 ### Reconciliation across the ten dependencies

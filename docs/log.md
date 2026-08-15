@@ -105,6 +105,31 @@
 - 2026-08-13T00:37:15-05:00 ff546f00106f05ec915ef1cfc01c476c97597c2d chore(docs): sync Lore log for QCLI-62
 - 2026-08-13T06:01:45-05:00 4af5b11d240d77fe76e32bc317ee29143624e459 chore(docs): sync Lore log for QCLI-65
 - 2026-08-13T09:00:52-05:00 8dcf4f23d2b4e987c91cb121abbc562a76a60ade chore(docs): reconcile Lore log before promotion (#86)
+- 2026-08-13T09:03:32-05:00 0f7276bf28252f72f4726f9cd7b3654bb4d4dd95 chore: clear promotion whitespace debt (#87)
+- 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
+- 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
+- 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
+- 2026-08-13T23:09:49-05:00 006bde8b03c8af046d50a6c7124e017489aa9316 docs: sync Quest log
+- 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
+- 2026-08-14T13:28:49-05:00 cd4f05a6cbb9ac4d65526359fbea997d8b4e7cc4 docs: add Quest 0.1 implementation story
+- 2026-08-14T13:30:52-05:00 0cbe60a953019f01c66893d618ff9d5598790c67 chore(docs): sync Quest campaign log
+- 2026-08-14T13:33:02-05:00 9b4e537b84305330acc6ea01a4676259ce5acd8e chore(docs): record campaign delivery
+- 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
+- 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
+- 2026-08-14T15:56:58-05:00 b4b0b3336b19f32ed9b1da0e5ca155f6b4ef503a docs: sync Quest log (#99)
+- 2026-08-14T15:58:32-05:00 7729d406673992d175ca5f72f2f6bfd8fdaa9c91 docs: sync Quest log (#100)
+- 2026-08-14T17:33:32-05:00 864a57ccc792c65911426b1e0483917068a3ef11 docs: reconcile recovered Quest campaign with dev
+- 2026-08-14T17:53:00-05:00 93d99bc86a0ee5e1a7c1689b23a4ab711811d499 docs: settle Quest 0.1 campaign recovery
+- 2026-08-14T19:51:34-05:00 d8c4b7831bb29c7bdf8eb387a823d9f9a0b9a029 docs: sync Quest log
+- 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
+- 2026-08-14T20:15:33-05:00 0e6a831f1c259694b3755871d2cf52f85ffccdf7 docs: sync Quest log
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
+- 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
+- 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
+- 2026-08-14T21:13:30-05:00 4e3336e3805656f584d34a503fe33a224eddfa88 feat(QCLI-75): scaffold Quest Bun architecture
+- 2026-08-14T21:14:39-05:00 f4103db127596d20643be220b009d526f0ab2b8e docs: sync Quest log
+- 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
+- 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
 
 ## docs/adr
 
@@ -117,6 +142,9 @@
 - 2026-08-05T18:18:21-05:00 859af6a049b38d69fb678b2cf28c55ea48555965 chore(docs): centralized lore sync after wave-1 Phase-1 ADRs merge (#43)
 - 2026-08-06T22:21:11-05:00 c9353bc0446c66e9b766ba28e1135e75126d8036 QCLI-40: Reconcile stale file layout/naming scheme open-item bundles outside the register and delivery-graph docs (#57)
 - 2026-08-07T07:48:06-05:00 5b2234b414cf881a155223cf232d9be0692140c0 QCLI-44: Settle whether inline supersession amendments must cite the directing task (#58)
+- 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 
 ## docs/reference
 
@@ -187,6 +215,16 @@
 - 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
 - 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
 - 2026-08-13T05:58:42-05:00 f0874555a29bd57a97a9de3b8f19ac52f3e2c4f6 docs(QCLI-65): align D2 phase gating to roadmap (#78)
+- 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
+- 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
+- 2026-08-13T21:07:27-05:00 ad36ba8f43c8586f8d987614ef53858f000bce5c feat: adopt autonomous documentation fast lane
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
+- 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
+- 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
+- 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
+- 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
 
 ## docs/runbooks
 
@@ -194,6 +232,8 @@
 - 2026-08-01T13:19:14-05:00 ec42c2f67ea7f12569c3b96aee1ccd04e36181c4 docs: align Quest CLI documentation authority
 - 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
+- 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 
 ## docs/specs
 
@@ -214,6 +254,11 @@
 - 2026-08-09T08:52:29-05:00 e79a94e32e38c2a32766bbc3f5a026cdef5efba5 docs(QCLI-64): record the precedence ruling and reconcile the Specs
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 - 2026-08-13T00:32:25-05:00 e1624edfc0887ffb24005efb1aae15105d37f4e5 docs(QCLI-62): define dependency and ready-set semantics (#77)
+- 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
+- 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
+- 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 
 ## docs/stories
 
@@ -265,3 +310,18 @@
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 - 2026-08-11T08:22:33-05:00 72dd8032c687ffbcf49390b9eec691e94b415050 docs(QCLI-67): correct live org citations (#76)
 - 2026-08-12T06:25:46-05:00 931e11b5fb04e43012f399a1ce3af96a990c6740 docs(QCLI-68): record Opum command-contract obligation
+- 2026-08-13T12:13:54-05:00 f2f3ef3b7bac1e3df3686521a1d3f68055970bf0 docs(QCLI-69): align Quest result contract with Opum (#89)
+- 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
+- 2026-08-13T21:07:27-05:00 ad36ba8f43c8586f8d987614ef53858f000bce5c feat: adopt autonomous documentation fast lane
+- 2026-08-13T21:07:27-05:00 eeb263682bc7e4358fd713ed8f37d3c2e48a0e30 docs: settle QCLI-71 fast-lane adoption
+- 2026-08-14T07:20:31-05:00 2c7e1a57ca7ba8228720a248e79814200d50d0e3 docs: couple historical Quest tasks to truthful Stories
+- 2026-08-14T13:28:49-05:00 cd4f05a6cbb9ac4d65526359fbea997d8b4e7cc4 docs: add Quest 0.1 implementation story
+- 2026-08-14T15:22:43-05:00 fe0dfcf3225e5140522a56603aef73922fcfc342 Keep autonomous campaigns in motion (#96)
+- 2026-08-14T15:32:06-05:00 2689860f788c86a3adc7be69f45c1d42e0b217f8 Settle the QCLI-96 Codex campaign loop (#97)
+- 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
+- 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
+- 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
+- 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
+- 2026-08-14T21:13:30-05:00 4e3336e3805656f584d34a503fe33a224eddfa88 feat(QCLI-75): scaffold Quest Bun architecture
+- 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
+- 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion

@@ -83,7 +83,7 @@ dependency deliverables leave open, from
 | D3 | Supported-platform matrix and final npm package ownership | **Closed** | Component — claimed by `QCLI-27` | Closed by the [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md) (`QCLI-27`): macOS, Linux, and Windows; ownership explicitly claimed as quest-cli-owned | Phase 6 |
 | D4 | Canonical ID grammar | **Closed** | Component | Closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) | Phase 2; gates Phases 3 and 4 |
 | D5 | Scale target | **Closed** | Component | Closed by [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) | Phase 3 storage and index design |
-| D6 | Product-wide actor and governance model | Routed, **unwritten** | `quest-doc` | A task authoring it into `quest-doc` | Phase 2 gate-approval eligibility |
+| D6 | Local Quest actor and delegation vocabulary | **Closed** | `opum-doc` / `quest-cli` | [ODOC-57 accepted ADR](https://github.com/opum-ai/opum-doc/blob/dev/docs/adr/adopt-local-quest-actor-and-delegation-vocabulary.md): human/delegated-agent kinds, accountable delegation, reviewer/maintainer roles | Phase 2 gate-approval eligibility |
 | D7a | Quest's own archival and retention model | Open | Component | A component decision | Phase 2 record layout |
 | D7b | Legacy Opum evidence retention and remote disposition | **Blocked** | `opum-doc`, task `OCLI-7` | `OCLI-7` deciding | Nothing in Quest's delivery path |
 
@@ -158,11 +158,11 @@ Detail where the one-line status understates the constraint:
   (`QCLI-25`): fixed literal prefix `T`, flat unpadded decimal sequence from a single
   global counter, ASCII-only alphabet, one fixed canonical case; the authored-record
   layout and Unicode-normalisation/case-folding rules accepted as proposed.
-- **D6 — Governance.** Quest-wide, not component-local, and already routed to
-  `quest-doc`. The component actor-responsibility table answers only how these roles act
-  *within* Quest CLI and "corroborates rather than resolves" the routed proposal. **No
-  task in any repository has authored it into `quest-doc`.** Phase 2 can build the gate
-  mechanism without it, but not gate-approval actor eligibility.
+- **D6 — Governance.** **Closed 2026-08-14 by ODOC-57**: actor kinds are `human` and
+  `delegated-agent`; a delegation names one accountable human; reviewer and maintainer
+  are roles. Delegated agents may submit work and evidence but cannot satisfy
+  human-judgement or separation-of-duty gates. These local records are not authentication,
+  RBAC, proof of identity, or hosted authorization.
 - **D7a — Archival.** The migration research found a real collision hazard in Backlog.md's
   archive-folder handling — an active and an archived record can share an ID, invisible to
   every enumerated command — which Quest's own collision scan must cover independently.
@@ -180,16 +180,16 @@ closed while the other still holds the question open.
 | --- | --- |
 | Product license and contributor provenance | D1 — **closed** |
 | Final npm package ownership and supported platform matrix | D3 — **closed**, claimed by `QCLI-27`; plus the CLI identity contract item on release-time availability |
-| Runtime and native packaging after Lore's completed evidence is reviewed | D2 — **blocked** (ownership claimed by `QCLI-27`; the runtime choice itself stays blocked) |
+| Runtime and native packaging after Lore's completed evidence is reviewed | D2 — **closed** by `QCLI-63`: Bun, compiled per-platform binaries behind a minimal Node launcher |
 | Canonical ID grammar, authored-record layout, event schema, and scale target | D4 — **closed**; D5 — **closed**; the Git mutation contract item on record layout — **closed** (same decision as D4; `QCLI-25`, reconciled here by `QCLI-34`); the Git mutation contract item on naming scheme — **closed** (same decision as D4; `QCLI-25`, reconciled here by `QCLI-38`); and the Git mutation contract item on event schema |
 | Projection engine and lifecycle, and the first stable Lore exchange contract | D5 — **closed**; the projection contract item on storage engine; and the three Lore integration contract items |
 
 The two the Spec itself flagged as unowned by any current task were the second and third.
 Both now have explicit ownership, claimed by `QCLI-27` (the [license, platform, and
 runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md)):
-D3 is fully closed, while D2's runtime choice itself remains blocked pending post-activation
-Lore evidence — only its ownership question is closed. Neither the packaging contract nor
-the adoption playbook resolves either; `QCLI-27` is the resolving document for ownership.
+D3 is fully closed, and D2 is closed by the owner's 2026-08-09 Bun ruling (`QCLI-63`).
+Neither the packaging contract nor the adoption playbook supplies that runtime decision;
+`QCLI-27` remains the resolving document for the ownership record.
 
 ### Contract-level open items
 
@@ -201,18 +201,18 @@ narrower than the component decisions above and mostly resolve inside Phase 1.
 | CLI identity | Final availability of `@opum-ai/quest` at release time | Component, at release | Phase 6 | Open |
 | Lifecycle | Concrete lease and heartbeat timing parameters | Component | Phase 2 | Open |
 | Lifecycle | The specific lifecycle-stage enum | Component | Phase 2 | Open |
-| Lifecycle | Gate-approval actor eligibility | `quest-doc` (D6) | Phase 2 | Open |
-| JSON and exits | Exact envelope shape — `schemaVersion` form, `kind` naming, shared `data` key or per-`kind` payload key, per-command payload-key naming | Component | Phase 1 | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`) |
-| JSON and exits | The literal exit-code-to-outcome table | Component | Phase 1 | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`) |
-| JSON and exits | The not-found signal convention — Quest's own side | Component | Phase 1 | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`): JSON-first decline envelope with a `reason` discriminant, on the shared decline exit code |
+| Lifecycle | Gate-approval actor eligibility | `opum-doc` / `quest-cli` (D6) | Phase 2 | **Closed** — ODOC-57 local actor/delegation vocabulary |
+| JSON and exits | Exact envelope shape — `schemaVersion` form, `kind` naming, shared `data` key or per-`kind` payload key, per-command payload-key naming | Component | Phase 1 | **Closed and amended** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`, amended by `QCLI-69`): numeric `{schemaVersion: 1, kind, data, principal}`, dotted live-registry `kind`, and `principal: null` until separately ratified for population |
+| JSON and exits | The literal exit-code-to-outcome table | Component | Phase 1 | **Closed and amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`) adopts the shared `0` success, `1` uncaught, `2` usage, `3` not_found, `4` denied, `5` conflict, `6` validation/drift taxonomy |
+| JSON and exits | The not-found signal convention — Quest's own side | Component | Phase 1 | **Closed and amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`): structured `error_type: "not_found"` diagnostic on stderr, exit `3` |
 | JSON and exits | The not-found signal convention — `lore-doc` boundary half | `lore-doc` | Phase 1 | Open — unchanged; not decided by `QCLI-24` or by this reconciliation |
-| JSON and exits | Whether create and edit emit a JSON envelope uniformly | Component | Phase 1 | **Closed** — [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`): they do, uniformly with every other command |
+| JSON and exits | Whether create and edit emit a JSON envelope uniformly | Component | Phase 1 | **Closed and amended** — the same ADR (`QCLI-24`, amended by `QCLI-69`): they use the shared result/diagnostic output seam uniformly with every other command |
 | Git mutation | File layout | Component | Phase 2 | **Closed** — same on-disk-structure decision as D4's authored-record layout; closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`); directing-task citation added 2026-08-07 by `QCLI-44`: this entry's own reconciling task is `QCLI-34` |
 | Git mutation | Naming scheme | Component | Phase 2 | **Closed** — same on-disk-structure decision as D4's authored-record layout (its filename-anchored-on-the-canonical-id-in-fixed-case convention, from `QCLI-19`'s proposal's own "Authored-record layout and naming scheme" section, accepted as proposed); closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`); directing-task citation added 2026-08-07 by `QCLI-44`: this entry's own reconciling task is `QCLI-38` |
 | Git mutation | Event schema, locking primitive, merge and rebase strategy, storage engine | Component | Phase 2 | Open |
 | Migration | Whether and how to preserve Backlog-era Git history | Component | Phase 4 | Open |
 | Migration | Whether Quest needs an analogue of Backlog's cross-branch task-state overlay | Component | Phase 4 | Open |
-| Projection | Any concrete storage or index engine | Component | Phase 3 | Open |
+| Projection | Disposable projection engine | Component | Phase 3 | **Closed** — Bun SQLite; Git remains authoritative and rebuild-on-doubt applies |
 | Lore integration | Exact binary-invocation surface — binary name, operator override, probe sequence | `lore-doc` | Phase 5 | Open |
 | Lore integration | Whether Lore's write path accepts a JSON-flagged create or edit response | `lore-doc` | Phase 5 | Open |
 | Lore integration | Whether the coupling convention reuses the literal `doc:` label format | `lore-doc` | Phase 5 | Open |
@@ -238,10 +238,9 @@ obligation to record the exact evidence it consumed and the decision time — tr
 as `QCLI-11`. A dated snapshot, a local build, a consumer summary, or the existence of
 Quest documentation cannot open the gate.
 
-There is also a **structural** Lore-side blocker that no task closes: `BacklogAdapter` is
-`lore-cli`'s only task-tracker adapter type, and no generic tracker abstraction exists to
-implement a second backend against. Phase 5 depends on work that is unstarted on Lore's
-side, independent of how ready Quest is internally.
+Quest's Lore seam is a bounded, versioned tracker subprocess contract. It must not assume
+a Backlog-only adapter, silently initialize or migrate Lore state, fall back, or dual-write
+private files; the listed Lore-owned boundary decisions still govern Phase 5.
 
 ### Boundary decisions Quest cannot make alone
 
@@ -298,7 +297,7 @@ still-unfiled items here is not a decision to file them.
 | Item | Source | Consequence if left |
 | --- | --- | --- |
 | **Closed by `QCLI-27`.** The supported-platform matrix now has an explicit claimant | QCLI-2.8 decision 3 — "a future task must claim it explicitly" | Fixed: the [license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md) claims D3 as quest-cli-owned and records the matrix as macOS, Linux, and Windows, dated 2026-08-05 |
-| The product-wide actor model was routed to `quest-doc` but never authored there | QCLI-2.2 candidate 6, corroborated by QCLI-2.4 | D6 stays unwritten; Phase 2 cannot settle gate eligibility |
+| **Closed by ODOC-57.** The local Quest actor and delegation vocabulary is recorded in the accepted `opum-doc` ADR | QCLI-2.2 candidate 6, corroborated by QCLI-2.4 | Quest uses human/delegated-agent kinds, accountable-human delegation, and reviewer/maintainer roles; Phase 2 gate eligibility is settled |
 | **Closed by `QCLI-12` (`1dd4aa6`).** The research programme Spec's dependency-order row for QCLI-2.8 was stale — it read a range that predated the 2.11–2.14 corrections | QCLI-2.14, deferred to an owner decision | Fixed: the Spec's [Dependency order](../specs/quest-cli-pre-implementation-research-program.md#dependency-order) table's `QCLI-2.8` row now names the full ten-item dependency set, corrected and dated 2026-08-05 |
 | QCLI-2.12's findings F4 and F5 were "left for the orchestrator to track" — **remain open** | `QCLI-15`'s audit (`6b78fd0`, 2026-08-05), confirming `QCLI-2.12`'s original notes | **Recovered 2026-08-05 by `QCLI-21`** from an out-of-repo Claude Code session transcript — `~/.claude/projects/-Volumes-external-repos-quest-cli/a6226b48-8acf-4fd0-beb5-18c099fc4540.jsonl`, line 225, `uuid ab85399e-c963-48a0-b029-315e23081241`, timestamp `2026-08-04T17:05:34.273Z` (an assistant message headed "# VERDICT: `request_changes` — **QCLI-2.12** on `fix/qcli-2.12-register-admission-coherence` @ `9a843d9` (base `94529f0`)", the pre-merge PR #14 review); a second copy of the same text exists in `d92cd86b-56f8-47fc-87e7-fe0fbe46cd6d.jsonl` in the same directory. **F4** (non-blocking, AC4): the "owner-ruled" qualifier doesn't obviously cover `QCLI-2.12` itself — the amended ledger sentence admits "a later task's owner-ruled amendment", but `QCLI-2.12`'s own register edits are marked "clarified/widened/added by `QCLI-2.12`" without asserting owner ruling; defensible, since owner approval exists for the ACs (`94529f0`), but the ledger sentence and the register's own amendment markers don't connect. **F5** (non-blocking, cross-wave coordination): Register:594–598 quotes a specific row heading ("What the 29 commits touch in `docs/`") from the [lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md) — a file `QCLI-2.14` owns this wave; no edit to that file (scope was clean), but if `QCLI-2.14` rewrites that drift-table row, this quote goes stale — worth a settlement-time recheck. **Remaining open question:** now that the substance is recovered, the question is no longer whether F4/F5 are recoverable — it is whether each still applies to the current register/ledger text, a judgeable question rather than an unknown one. **Disambiguation:** `QCLI-2.12`'s notes carry two independent F-numbered schemes; this is Scheme 1 (pre-merge, 2026-08-04). The wave-4 integration review's separately-numbered F4 (ledger attribution gap) is a different item, already resolved via PR #17, squash commit `c8dfdca`. No new Backlog task is filed for F4/F5 here — this project requires owner approval before follow-up work is filed |
 | **Closed by `QCLI-13` (`d871d32`).** The playbook and the charter and migration ledger were not backlinked to each other | QCLI-2.10, which was instructed not to edit either file | Fixed: the [component charter](quest-cli-component-charter.md)'s migration Owns-here bullet (line 28) now links to the [Backlog adoption and migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md); the [migration ledger](former-ocli-to-qcli-migration-ledger.md)'s Source provenance boundary section (line 123) now notes the playbook's citation of it, dated 2026-08-05 |

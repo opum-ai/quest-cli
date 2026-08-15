@@ -99,9 +99,10 @@ revision:
 | Scope | Cross-workspace edges are invalid in this first design. A record cannot acquire an implicit workspace by being referenced. |
 | Acyclic whole graph | After the checks above, the evaluation-scope graph contains no directed cycle. |
 
-The named edge-validation failures are structured **errors** under the accepted result
-contract and therefore exit `2`. Rejecting rather than normalising malformed authored
-data makes a writer, a full rebuild, and a cold reader produce the same answer.
+The named edge-validation failures are structured `validation` diagnostics under the
+accepted result contract and therefore exit `6`. Rejecting rather than normalising
+malformed authored data makes a writer, a full rebuild, and a cold reader produce the
+same answer.
 
 The `dependencies` collection is co-located with the task's aliases, lifecycle events,
 claims, and gates in the one record whose filename is anchored on its canonical id. It
@@ -125,9 +126,9 @@ Evaluation proceeds in this order:
 A component with more than one member is cyclic. A self-edge has already failed at step
 3, so it cannot reach step 4. The error payload MUST name `dependency_cycle` and include
 all cyclic components, with member ids and components sorted by canonical task id so two
-evaluators report the same evidence. It uses outcome `error` and exit `2`, the result
-contract's established code for invalid or corrupt authored state. It MUST NOT be reported
-as a decline, anomaly, warning, final layer, or partially usable result.
+evaluators report the same evidence. It uses `error_type: "validation"` and exit `6`, the
+result contract's shared code for invalid authored state. It MUST NOT be reported as a
+domain decline, anomaly, warning, final layer, or partially usable result.
 
 Cycle handling is fail-closed for the entire evaluation scope. Even tasks outside the
 cycle are not returned from that ready-set request: returning them would make behavior
@@ -145,7 +146,7 @@ at revision `R` and supplied instant `now`:
 | No claim | Passes the claim/lease clause. |
 | Live lease | Not ready; another live claim holds execution rights. |
 | Expired lease | Passes as **reclaimable**. The later claim operation must append the required reclamation and new-claim events atomically; enumeration itself writes nothing. |
-| Lease disagreement or invalid claim history | The request returns the established anomaly outcome and exit `3`; it does not guess readiness. |
+| Lease disagreement or invalid claim history | The request returns a structured `drift` diagnostic on exit `6`; it does not guess readiness. |
 
 This preserves the accepted lease ADR: expiry is computed from authored history and an
 injected instant, never stored as an `expired` flag; reclamation appends; and exactly one
@@ -173,7 +174,7 @@ At revision `R`, a blocker is active exactly when its opened event is present an
 cleared event for that `block_id` is present later in the same authored history. A task is
 explicitly blocked when its active-blocker set is non-empty. Opening a duplicate id,
 clearing an unknown id, or clearing an already-cleared blocker is invalid authored history
-and returns a named error on exit `2`; it is never repaired in a projection.
+and returns a named `validation` diagnostic on exit `6`; it is never repaired in a projection.
 
 `block_id` is local correlation within one canonical task, not another task identity and
 not a second global namespace. The blocker events stay in that task's one Git-tracked
@@ -236,7 +237,7 @@ It is a useful layering implementation, not a safe autonomous scheduling contrac
 | Builds layers from the supplied tasks and ignores dependencies whose targets are outside that set | [`sequences.ts` lines 19–33](https://github.com/jeremy-newhouse/Backlog.md/blob/a80b7a16e2ba78db89565703f520e519d70731f7/src/core/sequences.ts#L19-L33) | Evaluate the complete enrolled workspace; a missing target is a named error. |
 | Separates edge-free tasks without an ordinal into `unsequenced` and excludes them from layering | [`sequences.ts` lines 35–44](https://github.com/jeremy-newhouse/Backlog.md/blob/a80b7a16e2ba78db89565703f520e519d70731f7/src/core/sequences.ts#L35-L44) | Evaluate isolated tasks normally; the dependency clause is vacuously true. |
 | Uses indegree alone; task lifecycle, blockers, claims, and leases are not inputs | [`sequences.ts` lines 46–65](https://github.com/jeremy-newhouse/Backlog.md/blob/a80b7a16e2ba78db89565703f520e519d70731f7/src/core/sequences.ts#L46-L65) | Apply the explicit point-in-time ready predicate after graph validation. |
-| When no zero-indegree node remains, emits every remaining task as a deterministic final layer | [`sequences.ts` lines 67–76](https://github.com/jeremy-newhouse/Backlog.md/blob/a80b7a16e2ba78db89565703f520e519d70731f7/src/core/sequences.ts#L67-L76) | Return `dependency_cycle`, outcome `error`, exit `2`, with no ready tasks. |
+| When no zero-indegree node remains, emits every remaining task as a deterministic final layer | [`sequences.ts` lines 67–76](https://github.com/jeremy-newhouse/Backlog.md/blob/a80b7a16e2ba78db89565703f520e519d70731f7/src/core/sequences.ts#L67-L76) | Return a `validation` diagnostic naming `dependency_cycle`, exit `6`, with no ready tasks. |
 
 The divergence is deliberate: Backlog.md promises that every supplied task appears once
 for presentation, while Quest must ensure that no malformed or currently unavailable task
@@ -262,7 +263,8 @@ An implementation is conformant only if focused tests cover at least:
 - alias canonicalisation before self-edge and duplicate-edge checks;
 - missing, ambiguous, self, duplicate, and cross-workspace targets;
 - a two-node cycle, a longer cycle, multiple disjoint cycles, and an acyclic task outside a
-  cycle all producing one fail-closed `dependency_cycle` result on exit `2`;
+  cycle all producing one fail-closed `validation` diagnostic naming
+  `dependency_cycle` on exit `6`;
 - an isolated unclaimed task appearing in the ready set;
 - each ready-predicate clause independently excluding a task;
 - live, expired/reclaimable, and anomalous lease evaluation with an injected clock;

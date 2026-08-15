@@ -23,7 +23,7 @@ Allowed for citation, see below): no source slice
 informs a QCLI requirement unless it is listed here as **Allowed**, and then
 only for the exact permitted use recorded against it. It stays consistent
 with, and does not restate or override, `quest-doc`'s canonical
-[provenance ledger](https://github.com/opum-ai/quest-doc/blob/dev/docs/reference/quest-provenance-and-migration-ledger.md)
+[consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
 and the [former OCLI to QCLI migration ledger](former-ocli-to-qcli-migration-ledger.md),
 which remains the normative task-by-task mapping. Every fact below was
 re-verified live on 2026-08-04, not copied from the prior capsule.
@@ -764,7 +764,7 @@ named slice, never to every file in its repository.
   records... Quest" distinction, and "Rebuildable local projection" (that
   document's lines 114, 128, 141, and 143 respectively); and (4)
   `quest-doc`'s [repository and authority
-  map](https://github.com/opum-ai/quest-doc/blob/dev/docs/reference/quest-repository-and-authority-map.md)
+  map](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
   Reference — cited by the same component glossary both directly (its
   "Recheck clause," lines 247–274, and Notes, lines 275–295) and as the
   document grounding that glossary's negative-existence claim that

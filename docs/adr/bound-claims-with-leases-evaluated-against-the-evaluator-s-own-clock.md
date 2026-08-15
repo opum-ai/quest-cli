@@ -73,11 +73,11 @@ from authored history plus the evaluating actor's own local clock, and nothing e
   self-supplied approval evidence never satisfies a gate that requires separation
   (`BB-03`, `BB-04`).
 
-Deliberately **not** decided here: concrete lease and heartbeat timing parameters, the
-specific lifecycle-stage enum, and gate-approval actor eligibility. The first two are
-component decisions; the third is routed to `quest-doc` as D6 in the
-[open component decisions register](../reference/quest-cli-open-component-decisions.md)
-and is **not yet written there**.
+Deliberately **not** decided here: concrete lease and heartbeat timing parameters and the
+specific lifecycle-stage enum. Timing remains configurable rather than acquiring an
+implicit default. Gate-approval actor eligibility is now closed by D6's accepted ODOC-57
+local actor/delegation vocabulary: delegated agents may submit work and evidence but not
+satisfy human-judgement or separation-of-duty gates.
 
 ## Consequences
 

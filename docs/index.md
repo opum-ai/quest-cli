@@ -14,10 +14,11 @@ package and command, component-local functional contracts, authored formats,
 Git/filesystem behavior, projection, migration, tests, releases, and operating
 runbooks.
 
-Quest-wide strategy and cross-repository architecture are canonical in
-`quest-doc`. The public `questgraph.dev` site belongs to `quest-web`; Lore-wide
-gates belong to `lore-doc`; Opum SaaS and commercial policy belong to
-`opum-doc`.
+Quest-wide strategy and cross-repository architecture are canonical in the
+[consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest).
+The public `questgraph.dev` site belongs to `quest-web`; Lore-wide gates belong
+to the [consolidated Lore namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/lore);
+Opum SaaS and commercial policy belong to `opum-doc`.
 
 This repository currently contains planning, provenance, research, and design
 only. Product source and runtime dependencies remain gated on the full Lore
@@ -74,8 +75,8 @@ they are cited rather than rewritten.
 ## Campaigns
 
 - [Prepare Quest CLI for implementation activation](stories/prepare-quest-cli-for-implementation-activation.md)
-  is the active campaign: the derived design layer and the activation-gate
-  evidence record.
+  is the completed activation-preparation campaign and its derived design and
+  activation-gate evidence record.
 - [Prepare Quest's clean-room research foundation](stories/prepare-quests-clean-room-research-foundation.md)
   is the completed research campaign.
 - [Audit Quest CLI documentation authority](stories/audit-quest-cli-documentation-authority.md)

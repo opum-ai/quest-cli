@@ -8,7 +8,7 @@ tags:
   - scale
   - projection
   - decisions
-summary: Accepts QCLI-20's proposed scale target and rebuild-on-doubt conclusion for register entry D5, choosing no storage or index engine.
+summary: Accepts QCLI-20's proposed scale target and rebuild-on-doubt conclusion for register entry D5; the later implementation baseline selects Bun SQLite as the disposable projection engine.
 timestamp: 2026-08-05T22:53:44.432Z
 ---
 
@@ -49,8 +49,7 @@ corpus and to Quest's own chartered shape (event-derived state, opt-in per-repos
 enrollment, a non-hosted first release), plus a rebuild time budget for the documented
 forced-full-rebuild escape hatch (`FR-PROJ-5`, `BB-08`). It also reasoned from that target
 to a conclusion about the transactional-semantics question, and separately explained why
-it chose no storage or index engine: register entry D2 (runtime and native packaging)
-stays blocked, structurally, until after activation, and the
+it chose no storage or index engine at that time: D2 had not yet been ruled, and the
 [research programme Spec](../specs/quest-cli-pre-implementation-research-program.md)
 prohibits "freezing runtime... packaging, supported-platform, or integration choices
 whose required Lore evidence is unfinished" — a concrete engine choice is exactly such a
@@ -64,8 +63,8 @@ records.
 ## Decision
 
 **`QCLI-20`'s proposed design points, rebuild time budget, and rebuild-on-doubt
-conclusion are accepted as-is. Register entry D5 is closed. No storage or index engine is
-chosen.**
+conclusion are accepted as-is. Register entry D5 is closed. This ADR made no engine choice;
+the later QCLI-72 implementation baseline selects Bun SQLite as the disposable engine.**
 
 | Dimension | Accepted design point |
 | --- | --- |
@@ -87,19 +86,15 @@ per-workspace order of magnitude is accepted as completing inside the accepted r
 time budget, so the cheaper implementation — rebuild-on-doubt over a durable
 transactional index — is the one this scale target requires.
 
-**No storage or index engine is chosen by this ADR**, for the same two reasons `QCLI-20`
-gave and that this ADR now accepts rather than re-derives: register entry D2 (runtime and
-native packaging) remains blocked, structurally, post-activation, and the research
-programme Spec prohibits freezing a runtime-dependent choice — which a concrete storage
-or index engine necessarily is — before Phase 0 evidence is complete. This scale target
-and rebuild time budget are the sizing inputs a future engine choice will need; supplying
-those inputs is not the same act as spending them on a choice, and this ADR does only the
-former.
+**No storage or index engine was chosen by this ADR.** At its 2026-08-05 decision point,
+D2 had not been ruled and the research programme prohibited a runtime-dependent choice.
+That historical boundary no longer describes the active baseline: D2 is Bun and QCLI-72
+selects Bun SQLite as the disposable projection engine. This scale target and rebuild time
+budget remain that engine's sizing inputs.
 
-Deliberately **not** decided here: the storage or index engine itself; register entry D2
-(runtime and native packaging), which stays blocked post-activation; D6 (routed to
-`quest-doc`); D7a (Quest's archival model) and D7b (legacy Opum evidence retention,
-routed to `opum-doc`); the not-found convention's `lore-doc` boundary half; and any edit
+Deliberately **not** decided here: D7a (Quest's archival model) and D7b (legacy Opum
+evidence retention, routed to `opum-doc`); the not-found convention's `lore-doc` boundary
+half; and any edit
 to the open component decisions register, the component contracts and delivery graph, or
 the delivery roadmap — all reserved for `QCLI-28`.
 
@@ -125,9 +120,8 @@ the delivery roadmap — all reserved for `QCLI-28`.
   is out of this component's chartered scope today, this ADR does not design for it, and
   does not foreclose a future ADR reopening this question if the scale target itself is
   later revised.
-- **A future storage or index engine choice must treat this scale target and rebuild time
-  budget as its sizing input**, once register entry D2 unblocks post-activation. This ADR
-  spends none of that budget on a concrete engine.
+- **The Bun SQLite projection must treat this scale target and rebuild time budget as its
+  sizing input.** This ADR did not spend that budget on an engine choice; QCLI-72 did.
 - **At the ~25-workspace aggregate bound, the operator-confirmation UX for a very large or
   multi-workspace rebuild stops being optional.** Designing that UX is not fixed by this
   ADR; it is a candidate this scale target now obliges a future task to adopt rather than

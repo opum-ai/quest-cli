@@ -3,6 +3,7 @@
 <!-- lore:index:begin -->
 - [Former OCLI to QCLI migration ledger](former-ocli-to-qcli-migration-ledger.md)
 - [Legacy Opum requirement reconciliation for Quest CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md)
+- [Operate Quest CLI autonomous documentation campaigns](operate-quest-cli-autonomous-documentation-campaigns.md)
 - [Quest CLI activation-gate evidence record](quest-cli-activation-gate-evidence-record.md)
 - [Quest CLI Backlog adoption and migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md)
 - [Quest CLI Backlog migration fidelity contract](quest-cli-backlog-migration-fidelity-contract.md)
@@ -14,6 +15,7 @@
 - [Quest CLI D2 runtime proposal](quest-cli-d2-runtime-proposal.md)
 - [Quest CLI D2 runtime ruling](quest-cli-d2-runtime-ruling.md)
 - [Quest CLI Git, filesystem, and concurrency threat model](quest-cli-git-filesystem-and-concurrency-threat-model.md)
+- [Quest CLI Jira migration fidelity contract](quest-cli-jira-migration-fidelity-contract.md)
 - [Quest CLI license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md)
 - [Quest CLI Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
 - [Quest CLI open component decisions](quest-cli-open-component-decisions.md)

@@ -35,7 +35,7 @@ read-only purity — are all statements about **boundaries**, not algorithms. Ge
 boundaries wrong and no amount of careful implementation recovers them; get them right and
 each property has one place it can be enforced and one place it can be tested.
 
-Quest-wide architecture is canonical in `quest-doc`. This Spec describes the component
+Quest-wide architecture is canonical in the [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest). This Spec describes the component
 only, and anything here that would change Quest-wide vocabulary, the actor model, or the
 product promise is a **proposal** to that repository, not normative because a QCLI
 document states it.
@@ -127,7 +127,7 @@ and a supplied instant** — it does not read a clock, it is given one, which is
 | **Filesystem** | Read, write, enumerate, byte-preserving | Case folding, Unicode normalisation, and path handling differ per platform, and `TM-10` runs against two real filesystems |
 | **Clock** | Supply the current instant | Lease expiry is evaluator-local by design; `TM-05` injects skew, which a direct system-clock read makes untestable |
 | **Lore** | Resolve a concept identifier, exchange versioned records | Lore is optional and externally versioned; the adapter must be absent-by-default (`FR-LORE-1`) |
-| **Projection store** | Write, read, rebuild, report freshness | Disposable and rebuildable; the engine is an open decision, so the domain must not know it |
+| **Projection store** | Write, read, rebuild, report freshness | Bun SQLite is disposable and rebuildable; the domain never treats it as authority |
 
 The clock port is the one most often omitted as over-engineering, and it is the one this
 design most depends on. Without it, the single most important concurrency property —
@@ -181,11 +181,16 @@ distinguish "someone else got there first" from "something is broken" (`FR-CLI-1
 
 Two consequences for layering. The application layer cannot model results as
 success-or-throw, because decline is neither. And an **anomaly** — two evaluators
-disagreeing about a lease — is a fourth thing that fits none of the three cleanly; it is
-neither success nor a correct decline nor an internal fault. [Ratify the Quest CLI result
+disagreeing about a lease — is a fourth domain condition that fits none of the three
+cleanly; it is neither success nor a correct decline nor an internal fault.
+
+The command boundary does not expose those domain classes as a second wire taxonomy.
+[Ratify the Quest CLI result
 contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
-(`QCLI-24`) places it as a distinguishable fourth outcome value, with its own exit code, in
-Quest's own envelope.
+(`QCLI-24`, amended by `QCLI-69`) maps successful results and classified non-successes
+onto the shared Opum result/diagnostic contract. In particular, evaluator disagreement is
+reported as a structured `drift` diagnostic on exit `6`, not an anomaly-specific envelope
+field or exit code.
 
 ### Operation shape
 
@@ -217,44 +222,44 @@ tracked with owner and unblock condition in the
 
 | Deferred | Register entry |
 | --- | --- |
-| Runtime, language, toolchain, native packaging | D2 — blocked, post-activation |
+| Runtime, language, toolchain, native packaging | D2 — closed: Bun, compiled per-platform binaries behind a minimal Node launcher |
 | Supported platform matrix | D3 — closed; Component, claimed by `QCLI-27` |
 | Canonical identifier grammar, authored-record layout | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`) |
 | Naming scheme | D4 — closed by [Adopt a T-prefixed canonical identifier grammar and its authored-record layout](../adr/adopt-a-t-prefixed-canonical-identifier-grammar-and-its-authored-record-layout.md) (`QCLI-25`); directing-task citation added 2026-08-07 by `QCLI-44`: this entry's own reconciling task is `QCLI-40` |
 | Event schema | Git mutation contract open items |
 | Locking primitive for local serialisation, merge and rebase strategy | Git mutation contract open items |
-| Projection storage or index engine | Projection contract open items |
+| Projection storage or index engine | Bun SQLite; disposable projection only |
 | Scale target | D5 — closed by [Adopt the Quest CLI projection scale target and accept rebuild-on-doubt as sufficient](../adr/adopt-the-quest-cli-projection-scale-target-and-accept-rebuild-on-doubt-as-sufficient.md) (`QCLI-26`) |
 | Archival and retention model | D7a |
 | Command vocabulary, flags | CLI contract open items |
-| Envelope shape, exit table | Closed by [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`) |
+| Envelope shape, exit table | Closed by [Ratify the Quest CLI result contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md) (`QCLI-24`, amended by `QCLI-69`) against the frozen Opum command contract |
 
-### Proposals routed to quest-doc
+### Proposals routed to Quest-wide authority
 
 Two things this Spec touches that it does not own. Both are proposals, not decisions:
 
 - **Gate-approval actor eligibility** — who counts as an accountable human, delegated
-  agent, reviewer, or approver. Quest-wide, routed to `quest-doc` as register entry D6,
-  and **not yet written there by any task in any repository**. The component actor table
-  describes how these roles act within Quest CLI and corroborates rather than resolves the
-  routed question.
-- **Whether to canonize "anomaly" as a first-class outcome class in Quest's
-  product-wide result vocabulary**, alongside success, decline, and error.
+  agent, reviewer, or approver. Quest-wide, routed through
+  [Opum's Quest external routing and provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md).
+  The component actor table describes how these roles act within Quest CLI and
+  corroborates rather than resolves the routed question.
+- **Whether to canonize "anomaly" as a first-class domain outcome class in Quest's
+  product-wide vocabulary**, alongside success, decline, and error.
   [Ratify the Quest CLI result
   contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
-  (`QCLI-24`) already settled this at the component level — anomaly is a
-  distinguishable fourth outcome value, with its own exit code and payload key, in
-  Quest's own envelope. It arises from that component-local mechanism, but canonizing
-  it as a product-wide vocabulary term is a separate proposal this Spec does not own.
+  (`QCLI-24`, amended by `QCLI-69`) keeps anomaly distinguishable in the component's
+  domain model while mapping it through the shared diagnostic taxonomy at the wire
+  boundary. It arises from that component-local condition, but canonizing it as a
+  product-wide vocabulary term is a separate proposal this Spec does not own.
 
 ## Open questions
 
-- **Anomaly's placement in the outcome taxonomy is resolved.** A detected lease
+- **Anomaly's placement in the domain taxonomy and wire mapping is resolved.** A detected lease
   disagreement is neither success, nor a correct decline, nor an internal fault.
   [Ratify the Quest CLI result
   contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
-  (`QCLI-24`) places it as a distinguishable fourth outcome value, with its own exit
-  code, in Quest's own envelope and exit table.
+  (`QCLI-24`, amended by `QCLI-69`) keeps it distinguishable as a domain condition and
+  maps evaluator disagreement to a structured `drift` diagnostic on exit `6`.
 - **What enforces the layering?** The ADR calls the boundary *enforced*, which requires a
   mechanism — an import-graph check, a build constraint, a review gate. No mechanism is
   chosen, and one that depends on the runtime cannot be chosen until D2 is settled.
