@@ -129,6 +129,7 @@
 - 2026-08-14T21:13:30-05:00 4e3336e3805656f584d34a503fe33a224eddfa88 feat(QCLI-75): scaffold Quest Bun architecture
 - 2026-08-14T21:14:39-05:00 f4103db127596d20643be220b009d526f0ab2b8e docs: sync Quest log
 - 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
+- 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
 
 ## docs/adr
 
@@ -323,3 +324,4 @@
 - 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
 - 2026-08-14T21:13:30-05:00 4e3336e3805656f584d34a503fe33a224eddfa88 feat(QCLI-75): scaffold Quest Bun architecture
 - 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
+- 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
