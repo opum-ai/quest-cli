@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 01:01'
+updated_date: '2026-08-15 01:15'
 labels:
   - quest-0.1
   - 'wave:contracts'
@@ -55,4 +55,6 @@ Freeze a coherent implementation baseline from the accepted Quest research and c
 2026-08-14 campaign grounding: not activated. Live repository evidence still routes gate-approval actor eligibility and D6 to the external ODOC-57 ruling; the target docs contain no adopted ruling. QCLI-72 cannot truthfully freeze the requested actor vocabulary until the ODOC-57 outcome is available in the authorized quest-cli scope.
 
 2026-08-14 external recheck: ODOC-57 is Done on opum-doc origin/dev. Its accepted ADR defines opaque human/delegated-agent actors, accountable-human delegation, role separation, and the prohibition on delegated-agent satisfaction of human-judgement or separation-of-duty gates.
+
+2026-08-14 handover: ODOC-57 was verified Done on opum-doc origin/dev and its accepted local actor/delegation ADR was consumed. In-progress baseline edits cover D2/Bun, Bun SQLite, ODOC-57 actor eligibility, the tracker subprocess seam, and exit-0 migration previews. Strict Lore validation/check and diff hygiene passed before handover; remaining review must sweep residual stale activation, lifecycle-default, alias, and one-way-adoption claims before finalization.
 <!-- SECTION:NOTES:END -->
