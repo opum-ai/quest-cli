@@ -334,7 +334,9 @@ function validateReplacement(
 export class SqliteProjectionStore {
   constructor(private readonly databasePath: string) {}
 
-  private async healthy(): Promise<GitCheckpoint | undefined> {
+  private async healthy(
+    snapshot: AuthoritativeProjectionSnapshot,
+  ): Promise<GitCheckpoint | undefined> {
     try {
       await stat(this.databasePath);
       const db = new Database(this.databasePath, {
@@ -357,9 +359,22 @@ export class SqliteProjectionStore {
           integrity.integrity_check !== "ok" ||
           version?.value !== String(projectionSchemaVersion) ||
           !checkpoint?.revision ||
-          !checkpoint.observed_at
+          !checkpoint.observed_at ||
+          checkpoint.revision !== snapshot.checkpoint.revision
         )
           return undefined;
+        // Integrity_check only covers SQLite page consistency. A valid SQLite
+        // file can still have a removed table or missing projected row, so
+        // check every required table against the Git-derived enumeration.
+        for (const [table, expected] of Object.entries(
+          expectedCounts(snapshot),
+        )) {
+          if (count(db, table) !== expected) return undefined;
+        }
+        const replayed = db
+          .query("SELECT payload FROM tasks ORDER BY id")
+          .all() as { payload: string }[];
+        for (const row of replayed) taskState(JSON.parse(row.payload));
         return {
           revision: checkpoint.revision,
           observedAt: checkpoint.observed_at,
@@ -376,6 +391,12 @@ export class SqliteProjectionStore {
     source: AuthoritativeProjectionSource,
   ): Promise<ProjectionRebuildResult> {
     const snapshot = await source.enumerate();
+    return this.rebuildSnapshot(snapshot);
+  }
+
+  private async rebuildSnapshot(
+    snapshot: AuthoritativeProjectionSnapshot,
+  ): Promise<ProjectionRebuildResult> {
     validate(snapshot);
     await mkdir(dirname(this.databasePath), { recursive: true });
     const temporary = `${this.databasePath}.${crypto.randomUUID()}.rebuild`;
@@ -407,7 +428,13 @@ export class SqliteProjectionStore {
   async rebuildIfNeeded(
     source: AuthoritativeProjectionSource,
   ): Promise<ProjectionRefreshResult> {
-    const checkpoint = await this.healthy();
-    return checkpoint ? { kind: "reused", checkpoint } : this.rebuild(source);
+    // Enumeration is intentionally Git-only. It lets health detect a valid
+    // SQLite file whose contents are stale or semantically incomplete.
+    const snapshot = await source.enumerate();
+    validate(snapshot);
+    const checkpoint = await this.healthy(snapshot);
+    return checkpoint
+      ? { kind: "reused", checkpoint }
+      : this.rebuildSnapshot(snapshot);
   }
 }

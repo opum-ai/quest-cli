@@ -166,6 +166,46 @@ test("missing or corrupt SQLite is replaced from Git-derived input without touch
   );
 });
 
+test("a valid SQLite file with deleted data or a missing table is rebuilt from Git", async () => {
+  const path = await databasePath();
+  const source = snapshot();
+  const store = new SqliteProjectionStore(path);
+  await store.rebuild({ enumerate: async () => source });
+
+  const deletedData = new Database(path);
+  deletedData.exec("DELETE FROM tasks WHERE id = 'T-2'");
+  deletedData.close();
+  expect(
+    await store.rebuildIfNeeded({ enumerate: async () => source }),
+  ).toMatchObject({ kind: "rebuilt" });
+
+  const missingTable = new Database(path);
+  missingTable.exec("DROP TABLE aliases");
+  missingTable.close();
+  expect(
+    await store.rebuildIfNeeded({ enumerate: async () => source }),
+  ).toMatchObject({ kind: "rebuilt" });
+  const rebuilt = new Database(path, { readonly: true });
+  try {
+    expect(
+      (
+        rebuilt.query("SELECT COUNT(*) AS count FROM tasks").get() as {
+          count: number;
+        }
+      ).count,
+    ).toBe(2);
+    expect(
+      (
+        rebuilt.query("SELECT COUNT(*) AS count FROM aliases").get() as {
+          count: number;
+        }
+      ).count,
+    ).toBe(2);
+  } finally {
+    rebuilt.close();
+  }
+});
+
 test("failed validation leaves the prior projection in place", async () => {
   const path = await databasePath();
   const source = snapshot();
