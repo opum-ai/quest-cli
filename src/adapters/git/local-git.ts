@@ -112,7 +112,11 @@ function parseOperationCommit(
   output: string,
   operationId: string,
 ):
-  | { readonly revision: string; readonly digest: string | undefined }
+  | {
+      readonly revision: string;
+      readonly digest: string | undefined;
+      readonly result: string | undefined;
+    }
   | undefined {
   for (const entry of output.split("\u001e")) {
     const [rawRevision, body] = entry.split("\u0000", 2);
@@ -123,6 +127,7 @@ function parseOperationCommit(
     return {
       revision,
       digest: /^Quest-Operation-Digest: ([a-f0-9]+)$/mu.exec(body)?.[1],
+      result: /^Quest-Result-Revision: ([a-f0-9]+)$/mu.exec(body)?.[1],
     };
   }
   return undefined;
@@ -139,7 +144,11 @@ export class LocalGitPort implements GitPort {
       operation.repositoryPath,
       async (): Promise<
         | GitOperationResult
-        | { readonly prepared: true; readonly revision: string }
+        | {
+            readonly prepared: true;
+            readonly revision: string;
+            readonly recovered?: boolean;
+          }
       > => {
         const existing = await this.findOperation(
           operation.repositoryPath,
@@ -150,7 +159,7 @@ export class LocalGitPort implements GitPort {
         if (existing) {
           if (existing.digest === expectedDigest) {
             return {
-              kind: "success",
+              prepared: true,
               revision: existing.revision,
               recovered: true,
             };
@@ -221,6 +230,11 @@ export class LocalGitPort implements GitPort {
             ["commit-tree", tree, "-p", operation.expectedRevision],
             { stdin: this.message(operation, expectedDigest) },
           );
+          await this.recordJournal(
+            operation.repositoryPath,
+            operation.operationId,
+            revision,
+          );
           await operation.checkpoint?.("committed");
           return { prepared: true, revision };
         } finally {
@@ -229,7 +243,12 @@ export class LocalGitPort implements GitPort {
       },
     );
     return "prepared" in prepared
-      ? this.updateRef(operation, prepared.revision, operation.checkpoint)
+      ? this.updateRef(
+          operation,
+          prepared.revision,
+          operation.checkpoint,
+          prepared.recovered ?? false,
+        )
       : prepared;
   }
 
@@ -242,7 +261,11 @@ export class LocalGitPort implements GitPort {
       operation.repositoryPath,
       async (): Promise<
         | GitOperationResult
-        | { readonly prepared: true; readonly revision: string }
+        | {
+            readonly prepared: true;
+            readonly revision: string;
+            readonly recovered?: boolean;
+          }
       > => {
         const existing = await this.findOperation(
           operation.repositoryPath,
@@ -254,7 +277,7 @@ export class LocalGitPort implements GitPort {
           if (existing.digest === expectedDigest)
             return {
               kind: "success",
-              revision: existing.revision,
+              revision: existing.result ?? existing.revision,
               recovered: true,
             };
           return this.operationConflict(operation, existing.revision);
@@ -266,16 +289,21 @@ export class LocalGitPort implements GitPort {
         if (current !== operation.expectedRevision)
           return this.casConflict(operation, current);
         if (operation.sourceRevision === current)
-          return { kind: "success", revision: current, recovered: false };
+          return this.recordSynchronizationNoop(operation, current);
         const base = await requiredGit(operation.repositoryPath, [
           "merge-base",
           current,
           operation.sourceRevision,
         ]);
         if (base === operation.sourceRevision)
-          return { kind: "success", revision: current, recovered: false };
-        if (base === current)
+          return this.recordSynchronizationNoop(operation, current);
+        if (base === current) {
+          await this.recordSynchronizationNoop(
+            operation,
+            operation.sourceRevision,
+          );
           return { prepared: true, revision: operation.sourceRevision };
+        }
 
         const targetChanges = await this.changedPaths(
           operation.repositoryPath,
@@ -327,11 +355,21 @@ export class LocalGitPort implements GitPort {
             stdin: this.message(operation, expectedDigest),
           },
         );
+        await this.recordJournal(
+          operation.repositoryPath,
+          operation.operationId,
+          revision,
+        );
         return { prepared: true, revision };
       },
     );
     return "prepared" in prepared
-      ? this.updateRef(operation, prepared.revision, operation.checkpoint)
+      ? this.updateRef(
+          operation,
+          prepared.revision,
+          operation.checkpoint,
+          prepared.recovered ?? false,
+        )
       : prepared;
   }
 
@@ -483,6 +521,15 @@ export class LocalGitPort implements GitPort {
     ref: string,
     operationId: string,
   ) {
+    const journal = await git(repositoryPath, [
+      "log",
+      "--format=%H%x00%B%x1e",
+      this.journalRef(operationId),
+    ]);
+    if (journal.code === 0) {
+      const found = parseOperationCommit(journal.stdout, operationId);
+      if (found) return found;
+    }
     const result = await git(repositoryPath, [
       "log",
       "--format=%H%x00%B%x1e",
@@ -491,6 +538,45 @@ export class LocalGitPort implements GitPort {
     return result.code === 0
       ? parseOperationCommit(result.stdout, operationId)
       : undefined;
+  }
+
+  private journalRef(operationId: string): string {
+    return `refs/quest/operations/${digest(operationId)}`;
+  }
+
+  private async recordJournal(
+    repositoryPath: string,
+    operationId: string,
+    revision: string,
+  ): Promise<void> {
+    await requiredGit(repositoryPath, [
+      "update-ref",
+      this.journalRef(operationId),
+      revision,
+    ]);
+  }
+
+  private async recordSynchronizationNoop(
+    operation: GitSynchronization,
+    revision: string,
+  ): Promise<GitOperationResult> {
+    const tree = await requiredGit(operation.repositoryPath, [
+      "rev-parse",
+      `${revision}^{tree}`,
+    ]);
+    const journal = await requiredGit(
+      operation.repositoryPath,
+      ["commit-tree", tree, "-p", revision],
+      {
+        stdin: `${this.message(operation, operationDigest(operation))}Quest-Result-Revision: ${revision}\n`,
+      },
+    );
+    await this.recordJournal(
+      operation.repositoryPath,
+      operation.operationId,
+      journal,
+    );
+    return { kind: "success", revision, recovered: false };
   }
 
   private async changedPaths(
@@ -520,6 +606,7 @@ export class LocalGitPort implements GitPort {
     checkpoint?: (
       phase: "staged" | "committed" | "cas",
     ) => void | Promise<void>,
+    recovered = false,
   ): Promise<GitOperationResult> {
     await checkpoint?.("cas");
     const result = await git(operation.repositoryPath, [
@@ -528,8 +615,7 @@ export class LocalGitPort implements GitPort {
       revision,
       operation.expectedRevision,
     ]);
-    if (result.code === 0)
-      return { kind: "success", revision, recovered: false };
+    if (result.code === 0) return { kind: "success", revision, recovered };
     return this.casConflict(
       operation,
       await this.readRevision(operation.repositoryPath, operation.targetRef),

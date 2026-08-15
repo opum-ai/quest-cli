@@ -164,6 +164,33 @@ test("an injected interruption after staging preserves dirty work and retries cl
   }
 });
 
+test("a committed journal publishes the original prepared commit on retry", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalGitPort();
+    await expect(
+      commitOwnedOperation(port, {
+        ...operation(root, "after-commit"),
+        checkpoint: (phase) => {
+          if (phase === "committed") throw new GitInterruptedError();
+        },
+      }),
+    ).rejects.toBeInstanceOf(GitInterruptedError);
+    const retry = await commitOwnedOperation(
+      port,
+      operation(root, "after-commit"),
+    );
+    expect(retry).toMatchObject({ kind: "success", recovered: true });
+    expect(
+      (await command(root, "log", "--format=%s", "refs/heads/main")).split(
+        "\n",
+      ),
+    ).toHaveLength(2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a stale cross-process lock owner is reclaimed instead of wedging preparation", async () => {
   const root = await repository();
   try {
@@ -211,6 +238,31 @@ test("a live external process lock waits, then recovers after its owner exits", 
     expect(Date.now() - started).toBeGreaterThanOrEqual(80);
     expect(await child.exited).toBe(0);
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a linked worktree shares preparation safely without absorbing its dirty state", async () => {
+  const root = await repository();
+  const linked = `${root}-linked`;
+  try {
+    await command(root, "worktree", "add", "--detach", linked);
+    await writeFile(join(linked, "linked-user.txt"), "dirty\n");
+    await command(linked, "add", "linked-user.txt");
+    expect(
+      await commitOwnedOperation(
+        new LocalGitPort(),
+        operation(root, "linked-worktree"),
+      ),
+    ).toMatchObject({ kind: "success" });
+    expect(await command(linked, "ls-files", "--stage")).toContain(
+      "linked-user.txt",
+    );
+    expect(await command(linked, "rev-parse", "--git-common-dir")).toEndWith(
+      "/.git",
+    );
+  } finally {
+    await rm(linked, { recursive: true, force: true });
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -395,6 +447,49 @@ test("synchronization fast-forwards and rejects a same-path divergence", async (
       code: "integration_conflict",
       paths: [".quest/tasks/T-1.json"],
     });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("synchronization journals no-op and fast-forward operation IDs", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalGitPort();
+    const base = await port.readRevision(root, "refs/heads/main");
+    const noop = {
+      repositoryPath: root,
+      targetRef: "refs/heads/main",
+      expectedRevision: base,
+      sourceRevision: base,
+      operationId: "noop-sync",
+      message: "sync",
+    };
+    expect(await port.synchronize(noop)).toMatchObject({ kind: "success" });
+    expect(
+      await port.synchronize({ ...noop, sourceRevision: "deadbeef" }),
+    ).toMatchObject({ kind: "conflict", code: "operation_conflict" });
+    await command(root, "branch", "source", base);
+    await port.commit({
+      ...operation(root, "sync-source"),
+      targetRef: "refs/heads/source",
+      expectedRevision: base,
+    });
+    const source = await port.readRevision(root, "refs/heads/source");
+    expect(
+      await port.synchronize({
+        ...noop,
+        operationId: "ff-journal",
+        sourceRevision: source,
+      }),
+    ).toMatchObject({ kind: "success" });
+    expect(
+      await port.synchronize({
+        ...noop,
+        operationId: "ff-journal",
+        sourceRevision: base,
+      }),
+    ).toMatchObject({ kind: "conflict", code: "operation_conflict" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
