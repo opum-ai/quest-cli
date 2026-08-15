@@ -1,10 +1,11 @@
 ---
 id: QCLI-73
 title: Requalify Backlog.md's public migration surface
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 01:22'
 labels:
   - quest-0.1
   - 'wave:contracts'
@@ -39,3 +40,11 @@ Re-run the clean-room Backlog.md public-contract qualification against the insta
 - [ ] #4 The source-read, current-state-only Git provenance, namespaced alias, and rollback contracts are updated without inheriting Backlog's ID grammar
 - [ ] #5 All evidence is reproducible from documented public commands and disposable fixtures
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Record the installed and current registry Backlog.md versions and identify the official public surfaces to requalify.
+2. Exercise the documented migration-relevant lifecycle, metadata, collision, and output surfaces only in disposable fixtures; do not inspect implementation source or internal tests.
+3. Reconcile the fidelity contract and adoption playbook with reproducible evidence, sync Lore, run strict documentation checks, and finalize with objective results.
+<!-- SECTION:PLAN:END -->
