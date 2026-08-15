@@ -15,6 +15,7 @@
 - [Quest CLI D2 runtime proposal](quest-cli-d2-runtime-proposal.md)
 - [Quest CLI D2 runtime ruling](quest-cli-d2-runtime-ruling.md)
 - [Quest CLI Git, filesystem, and concurrency threat model](quest-cli-git-filesystem-and-concurrency-threat-model.md)
+- [Quest CLI Jira migration fidelity contract](quest-cli-jira-migration-fidelity-contract.md)
 - [Quest CLI license, platform, and runtime ownership record](quest-cli-license-platform-and-runtime-ownership-record.md)
 - [Quest CLI Lore dependency and adapter contract evidence](quest-cli-lore-dependency-and-adapter-contract-evidence.md)
 - [Quest CLI open component decisions](quest-cli-open-component-decisions.md)
