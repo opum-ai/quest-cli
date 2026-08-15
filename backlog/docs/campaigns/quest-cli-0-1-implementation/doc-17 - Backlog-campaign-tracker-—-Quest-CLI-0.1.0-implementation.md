@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-15 17:21'
+updated_date: '2026-08-15 17:29'
 tags:
   - quest
   - quest-0.1
@@ -19,16 +19,16 @@ tags:
 ## State
 
 - Resolved: QCLI-72, QCLI-73, QCLI-74, QCLI-75, QCLI-76.
-- In flight: none.
-- Ready: QCLI-77.
+- In flight: QCLI-77.
+- Ready: none.
 - External/owner gated: QCLI-88 requires LCLI-332; QCLI-95 and Lore publication tasks require explicit authorization.
 
 ## Frontier
 
 | Task | State | Delivery/evidence | Next action |
 | --- | --- | --- | --- |
-| QCLI-76 | Done | `ad12f2d` implementation; `ec77389` review remediation; `bun run check`, strict Lore gates, and `git diff --check` passed | Delivered locally; push integrated wave |
-| QCLI-77 | Ready | QCLI-73, QCLI-74, and QCLI-76 satisfied | Activate, plan, and implement record primitives |
+| QCLI-76 | Done | Delivered to `origin/dev` at `1f2fc44`; code/Lore gates passed | Delivered |
+| QCLI-77 | In progress | Record primitives at `22d3809` and complete Unicode folding at `0592592`; isolated writer check passed (14 tests/63 assertions) | Resolve primary-checkout Bun temp/install and Treehouse nested-Biome verification, then review and finalize |
 
 ## Queue
 
@@ -36,8 +36,6 @@ tags:
 
 ## Wave log
 
-- 2026-08-15 — QCLI-72 reconciled and delivered at `70e416c`.
-- 2026-08-15 — QCLI-73 requalified Backlog.md at v1.50.1 and delivered at `a726462`.
-- 2026-08-15 — QCLI-74 qualified jira-cli 1.0.2 and froze the subprocess fidelity contract at `3159554`.
-- 2026-08-15 — QCLI-75 delivered at `4e3336e`: strict ESM Bun package scaffold, enforced layers, scripts, and initial test.
-- 2026-08-15 — QCLI-76 delivered locally through `906b611`: command-contract shell, independent review, and cumulative code/Lore checks.
+- 2026-08-15 — QCLI-72..75 delivered as prior foundation slices.
+- 2026-08-15 — QCLI-76 delivered to `origin/dev` at `1f2fc44`: command-contract shell, independent review, and cumulative checks.
+- 2026-08-15 — QCLI-77 implementation integrated locally at `0592592`; full Unicode-folding dependency added, pending final primary-checkout gate.
