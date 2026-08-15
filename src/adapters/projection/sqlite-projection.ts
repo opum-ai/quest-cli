@@ -325,6 +325,21 @@ function sameRows(
   return encoded(actual) === encoded(expected);
 }
 
+async function retryWindowsFileRelease(
+  operation: () => Promise<void>,
+): Promise<void> {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      await operation();
+      return;
+    } catch (error) {
+      const code = (error as { code?: unknown }).code;
+      if ((code !== "EBUSY" && code !== "EPERM") || attempt === 3) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
+}
+
 function rowsMatch(
   db: Database,
   query: string,
@@ -566,7 +581,7 @@ export class SqliteProjectionStore {
       validateReplacement(db, snapshot);
       db.close();
       db = undefined;
-      await rename(temporary, this.databasePath);
+      await retryWindowsFileRelease(() => rename(temporary, this.databasePath));
       return { kind: "rebuilt", checkpoint: snapshot.checkpoint };
     } catch (error) {
       try {
@@ -575,7 +590,11 @@ export class SqliteProjectionStore {
         // The replacement is discarded below; the prior projection remains intact.
       }
       db?.close();
-      await rm(temporary, { force: true });
+      try {
+        await retryWindowsFileRelease(() => rm(temporary, { force: true }));
+      } catch {
+        // Preserve the original rebuild failure; a later rebuild can discard the temp file.
+      }
       throw error;
     }
   }
