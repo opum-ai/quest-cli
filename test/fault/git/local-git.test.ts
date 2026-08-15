@@ -566,3 +566,51 @@ test("CAS-interrupted fast-forward and merge synchronize retries publish once", 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("root and linked worktree serialize preparation while CAS selects the winner", async () => {
+  const root = await repository();
+  const linked = `${root}-linked`;
+  try {
+    await command(root, "worktree", "add", "--detach", linked);
+    await writeFile(join(root, "root-user.txt"), "root dirty\n");
+    await command(root, "add", "root-user.txt");
+    await writeFile(join(linked, "linked-user.txt"), "linked dirty\n");
+    await command(linked, "add", "linked-user.txt");
+    const port = new LocalGitPort();
+    const basis = await port.readRevision(root, "refs/heads/main");
+    let staged = false;
+    const rootAttempt = port.commit({
+      ...operation(root, "root-lock"),
+      expectedRevision: basis,
+      checkpoint: async (phase) => {
+        if (phase !== "staged") return;
+        staged = true;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      },
+    });
+    while (!staged) await new Promise((resolve) => setTimeout(resolve, 5));
+    const started = Date.now();
+    const linkedAttempt = port.commit({
+      ...operation(linked, "linked-lock", ".quest/tasks/T-2.json"),
+      expectedRevision: basis,
+    });
+    expect(await rootAttempt).toMatchObject({ kind: "success" });
+    expect(await linkedAttempt).toMatchObject({
+      kind: "conflict",
+      code: "cas_conflict",
+    });
+    expect(Date.now() - started).toBeGreaterThanOrEqual(70);
+    expect(await command(root, "ls-files", "--stage")).toContain(
+      "root-user.txt",
+    );
+    expect(await command(linked, "ls-files", "--stage")).toContain(
+      "linked-user.txt",
+    );
+    expect(await command(linked, "ls-files", "--stage")).not.toContain(
+      "T-2.json",
+    );
+  } finally {
+    await rm(linked, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true });
+  }
+});
