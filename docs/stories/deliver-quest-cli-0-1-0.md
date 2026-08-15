@@ -10,7 +10,7 @@ tags:
   - release
 summary: Implement and qualify the standalone Quest CLI, its Lore tracker contract, migration paths, packaging, and release gates.
 timestamp: 2026-08-14T18:26:29.020Z
-status: todo
+status: in-progress
 tasks:
   - qcli-72
   - qcli-73
@@ -73,7 +73,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-73](../../backlog/tasks/qcli-73%20-%20Requalify-Backlog.mds-public-migration-surface.md) | Requalify Backlog.md's public migration surface | Done |
 | [QCLI-74](../../backlog/tasks/qcli-74%20-%20Qualify-jira-cli-and-freeze-Jira-migration-fidelity-mappings.md) | Qualify jira-cli and freeze Jira migration fidelity mappings | Done |
 | [QCLI-75](../../backlog/tasks/qcli-75%20-%20Scaffold-the-Lore-aligned-Bun-package-and-architecture.md) | Scaffold the Lore-aligned Bun package and architecture | Done |
-| [QCLI-76](../../backlog/tasks/qcli-76%20-%20Implement-Quest-configuration-command-results-diagnostics-and-manifest.md) | Implement Quest configuration, command results, diagnostics, and manifest | To Do |
+| [QCLI-76](../../backlog/tasks/qcli-76%20-%20Implement-Quest-configuration-command-results-diagnostics-and-manifest.md) | Implement Quest configuration, command results, diagnostics, and manifest | In Progress |
 | [QCLI-77](../../backlog/tasks/qcli-77%20-%20Implement-authored-codecs-actors-IDs-aliases-events-and-replay.md) | Implement authored codecs, actors, IDs, aliases, events, and replay | To Do |
 | [QCLI-78](../../backlog/tasks/qcli-78%20-%20Implement-safe-Quest-workspace-initialization-discovery-and-enrollment.md) | Implement safe Quest workspace initialization, discovery, and enrollment | To Do |
 | [QCLI-79](../../backlog/tasks/qcli-79%20-%20Implement-operation-owned-Git-CAS-synchronization-and-crash-recovery.md) | Implement operation-owned Git CAS, synchronization, and crash recovery | To Do |
