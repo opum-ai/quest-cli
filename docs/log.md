@@ -142,6 +142,7 @@
 - 2026-08-15T15:01:28-05:00 5463658b2fe8d2c36ddea5a2cfdd47a1fad15c22 chore(docs): settle QCLI-81 and QCLI-90
 - 2026-08-15T15:02:03-05:00 4507095b6c429dc8dd4d32aeef55a03d761a44cd chore(docs): record QCLI-81 and QCLI-90 delivery
 - 2026-08-15T16:07:25-05:00 3042708d27a389beae1d21c4d6dd0bbeb63a2975 chore: settle QCLI-83 tracker delivery
+- 2026-08-15T16:17:50-05:00 fa8ec73496da64749439532eedb05508baa79982 chore: settle QCLI-82 gate delivery
 
 ## docs/adr
 
@@ -347,3 +348,4 @@
 - 2026-08-15T14:51:55-05:00 d4be0795ac63bf82f964c68f90ebf4fa19d21313 chore(docs): dispatch QCLI-81 QCLI-83 QCLI-90
 - 2026-08-15T15:01:28-05:00 5463658b2fe8d2c36ddea5a2cfdd47a1fad15c22 chore(docs): settle QCLI-81 and QCLI-90
 - 2026-08-15T16:07:25-05:00 3042708d27a389beae1d21c4d6dd0bbeb63a2975 chore: settle QCLI-83 tracker delivery
+- 2026-08-15T16:17:50-05:00 fa8ec73496da64749439532eedb05508baa79982 chore: settle QCLI-82 gate delivery
