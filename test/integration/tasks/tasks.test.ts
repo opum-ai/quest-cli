@@ -106,7 +106,11 @@ test("lifecycle policy accepts a configured ordered vocabulary and terminal defi
     statuses: ["Queued", "Working", "Closed"],
     terminalStatuses: ["Closed"],
   };
-  const queued = task("T-1", { status: "Queued" });
+  const queued = createTask(
+    "T-1",
+    { title: "queued", status: "Queued" },
+    policy,
+  );
   expect(transitionTask(queued, "Working", policy).status).toBe("Working");
   expect(
     transitionTask(transitionTask(queued, "Working", policy), "Closed", policy)
@@ -120,6 +124,25 @@ test("lifecycle policy accepts a configured ordered vocabulary and terminal defi
   expect(() => transitionTask(queued, "Closed", policy)).toThrow(
     RecordValidationError,
   );
+});
+
+test("service creation uses its lifecycle start status and rejects unconfigured input without writing", async () => {
+  const policy = {
+    statuses: ["Queued", "Working", "Closed"],
+    terminalStatuses: ["Closed"],
+  };
+  const store = new MemoryTasks();
+  const service = new TaskService(store, policy);
+  const created = await service.create("T-1", { title: "queued" }, "create");
+  expect(created).toMatchObject({
+    kind: "success",
+    task: { status: "Queued" },
+  });
+  expect((await service.ready(new Date())).ready).toEqual(["T-1"]);
+  await expect(
+    service.create("T-2", { title: "bad", status: "Done" }, "bad-create"),
+  ).rejects.toThrow("Task status is not configured");
+  expect(store.writes).toBe(1);
 });
 
 test("ready evaluation is deterministic and distinguishes completion, blockers, claims, and expiry", () => {

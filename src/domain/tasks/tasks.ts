@@ -224,11 +224,19 @@ export function taskState(value: TaskState): TaskState {
   return state;
 }
 
-export function createTask(id: string, input: TaskInput): TaskState {
+export function createTask(
+  id: string,
+  input: TaskInput,
+  policy = defaultLifecyclePolicy,
+): TaskState {
+  const configured = lifecyclePolicy(policy);
+  const status = input.status ?? configured.statuses[0];
+  if (!status || !configured.statuses.includes(status))
+    throw new RecordValidationError("Task status is not configured.");
   return taskState({
     ...input,
     id: canonicalId(id),
-    status: input.status ?? "To Do",
+    status,
     aliases: input.aliases ?? [],
     acceptanceCriteria: input.acceptanceCriteria ?? [],
     definitionOfDone: input.definitionOfDone ?? [],

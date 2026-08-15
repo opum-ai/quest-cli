@@ -67,7 +67,7 @@ export class TaskService {
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
     const tasks = snapshot.tasks;
-    const task = createTask(id, input);
+    const task = createTask(id, input, this.lifecycle);
     // Validation before persistence makes bad references and alias conflicts non-mutating.
     const canonical = canonicalizeTaskLinks([...tasks, task]);
     const persisted = canonical.at(-1);
