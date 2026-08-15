@@ -1,10 +1,11 @@
 ---
 id: QCLI-75
 title: Scaffold the Lore-aligned Bun package and architecture
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 01:26'
 labels:
   - quest-0.1
   - 'wave:foundation'
@@ -40,3 +41,11 @@ Create the minimal Quest package/tooling scaffold aligned to lore-cli without im
 - [ ] #4 Typecheck, lint, format-check, layer-check, and an initial test suite run from documented scripts
 - [ ] #5 No domain behavior, runtime service, LadybugDB dependency, authentication, RBAC, MCP, or hosted component is introduced
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inspect the current repository, tooling conventions, and the D2/package contracts.
+2. Add a strict ESM Bun TypeScript package scaffold with the requested layers, scripts, and automated dependency-boundary check, without domain behavior.
+3. Run all documented checks, record objective evidence, and finalize after independent review.
+<!-- SECTION:PLAN:END -->
