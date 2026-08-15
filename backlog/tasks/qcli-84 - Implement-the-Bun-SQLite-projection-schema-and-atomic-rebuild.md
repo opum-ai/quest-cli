@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 23:03'
+updated_date: '2026-08-15 23:16'
 labels:
   - quest-0.1
   - 'wave:projection'
@@ -35,10 +35,10 @@ Implement a disposable per-workspace SQLite projection using Bun's built-in SQLi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The projection schema covers tasks, dependencies, actors, claims, gates, evidence, aliases, events, source mappings, and Git checkpoints
-- [ ] #2 A missing or corrupt projection is detected and rebuilt from Git without changing authored records
-- [ ] #3 Rebuild writes a temporary database, validates it against authoritative counts and replay, and atomically replaces the prior database
-- [ ] #4 Projection data can never satisfy a gate, hold a claim, or override authored disagreement
+- [x] #1 The projection schema covers tasks, dependencies, actors, claims, gates, evidence, aliases, events, source mappings, and Git checkpoints
+- [x] #2 A missing or corrupt projection is detected and rebuilt from Git without changing authored records
+- [x] #3 Rebuild writes a temporary database, validates it against authoritative counts and replay, and atomically replaces the prior database
+- [x] #4 Projection data can never satisfy a gate, hold a claim, or override authored disagreement
 - [ ] #5 Bun SQLite behaves consistently on the supported operating-system and architecture matrix
 <!-- AC:END -->
 
@@ -52,4 +52,6 @@ Implement a disposable per-workspace SQLite projection using Bun's built-in SQLi
 
 <!-- SECTION:NOTES:BEGIN -->
 Restored 2026-08-15 from campaign cursor grounded at fa8ec73496da64749439532eedb05508baa79982. QCLI-82 is live Done; QCLI-84 is the current dependency-ready projection task. Dispatching from the pinned dev base in an isolated Treehouse lease.
+
+Integrated on dev at 07f2452 after independent review. Validation: Bun 1.3.14 Darwin arm64; projection-scoped Biome CI, typecheck, layer check, 77-test Bun suite, Lore validate/check strict, and diff check passed. Two review remediations make reuse fail closed: missing/invalid and same-count tampering across all projection tables trigger rebuild from a freshly enumerated authoritative snapshot. AC5 remains unchecked: the required supported OS/architecture matrix is not available locally and this repository has no CI workflow; QCLI-93 owns platform qualification, but this task cannot be finalized without a matrix-evidence decision.
 <!-- SECTION:NOTES:END -->
