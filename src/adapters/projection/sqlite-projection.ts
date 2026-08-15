@@ -328,14 +328,14 @@ function sameRows(
 async function retryWindowsFileRelease(
   operation: () => Promise<void>,
 ): Promise<void> {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
       await operation();
       return;
     } catch (error) {
       const code = (error as { code?: unknown }).code;
-      if ((code !== "EBUSY" && code !== "EPERM") || attempt === 3) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+      if ((code !== "EBUSY" && code !== "EPERM") || attempt === 19) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 }
