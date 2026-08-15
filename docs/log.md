@@ -126,6 +126,7 @@
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 - 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
 - 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
+- 2026-08-14T21:13:30-05:00 4e3336e3805656f584d34a503fe33a224eddfa88 feat(QCLI-75): scaffold Quest Bun architecture
 
 ## docs/adr
 
@@ -318,3 +319,4 @@
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 - 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
 - 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
+- 2026-08-14T21:13:30-05:00 4e3336e3805656f584d34a503fe33a224eddfa88 feat(QCLI-75): scaffold Quest Bun architecture
