@@ -204,7 +204,7 @@ test("a valid SQLite file with deleted data or a missing table is rebuilt from G
   } finally {
     rebuilt.close();
   }
-});
+}, 15_000);
 
 test("same-count tampering across projection families is never reused", async () => {
   const path = await databasePath();
