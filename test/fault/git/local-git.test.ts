@@ -320,7 +320,7 @@ test("a rejected non-fast-forward push is structured and leaves the remote winne
     await command(remote, "init", "--bare", "-q");
     await command(first, "remote", "add", "origin", remote);
     await command(first, "push", "-qu", "origin", "main");
-    await command(second, "clone", "-q", remote, ".");
+    await command(second, "clone", "-q", "--branch", "main", remote, ".");
     await command(second, "config", "user.email", "quest@example.test");
     await command(second, "config", "user.name", "Quest Test");
     const port = new LocalGitPort();
