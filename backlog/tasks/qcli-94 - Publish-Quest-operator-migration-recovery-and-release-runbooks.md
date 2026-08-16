@@ -1,10 +1,11 @@
 ---
 id: QCLI-94
 title: 'Publish Quest operator, migration, recovery, and release runbooks'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-16 18:26'
 labels:
   - quest-0.1
   - 'wave:release'
@@ -40,3 +41,9 @@ Author the operational documentation required to initialize, run, recover, migra
 - [ ] #4 Release and package rollback procedures use immutable artifacts and preserve unpublished-package truth until publication succeeds
 - [ ] #5 lore sync, lore validate --strict, lore check --strict, command examples, and git diff --check pass
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inspect the release story, existing operator interfaces, migration and recovery contracts, plus Lore documentation coupling. 2. Author Lore-compatible runbooks for operations, migrations, recovery, release, and rollback without changing managed blocks manually. 3. Synchronize and strictly validate the documentation bundle; exercise command examples where practical. 4. Obtain independent review, integrate, and settle evidence.
+<!-- SECTION:PLAN:END -->
