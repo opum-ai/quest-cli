@@ -23,6 +23,14 @@ export interface MigrationSourceSnapshot {
 /** Read-only by contract: source adapters expose no mutation method to this engine. */
 export interface MigrationSource {
   readSnapshot(): Promise<MigrationSourceSnapshot>;
+  /** Holds a source-side fingerprint/CAS lease for the complete target mutation. */
+  runIfFingerprint<T>(
+    expectedFingerprint: string,
+    operation: () => Promise<T>,
+  ): Promise<
+    | { readonly kind: "success"; readonly value: T }
+    | { readonly kind: "conflict" }
+  >;
 }
 
 export interface MigrationTarget {
@@ -47,7 +55,7 @@ export interface MigrationTarget {
   /** The sole target mutation permitted during shadow; must be idempotent. */
   refreshIfCurrent?(
     request: MigrationRefreshRequest,
-  ): Promise<readonly MigrationTargetFingerprint[]>;
+  ): Promise<MigrationTargetRefreshResult>;
   /** All non-migration target writes must enter through this guarded seam. */
   writeOrdinaryIfState(
     command: MigrationTargetWrite,
@@ -60,12 +68,20 @@ export interface MigrationApplyRequest {
   readonly plan: MigrationState["plan"];
   readonly expectedSourceFingerprint: string;
   readonly expectedTargetFingerprint: string;
+  /** Must match the authoritative persisted applying state at target mutation time. */
+  readonly guard: MigrationStateGuard;
 }
 export interface MigrationTargetFingerprint {
   readonly targetIdentifier: string;
   readonly fingerprint: string;
 }
 export type MigrationTargetApplyResult =
+  | {
+      readonly kind: "success";
+      readonly mappings: readonly MigrationTargetFingerprint[];
+    }
+  | { readonly kind: "conflict" };
+export type MigrationTargetRefreshResult =
   | {
       readonly kind: "success";
       readonly mappings: readonly MigrationTargetFingerprint[];
@@ -79,6 +95,9 @@ export interface MigrationRefreshRequest {
   readonly digest: string;
   readonly mappings: readonly MigrationMapping[];
   readonly guard: MigrationStateGuard;
+  readonly shadowDeadline: string;
+  /** Service admission time; target must also compare its own clock to deadline. */
+  readonly observedAt: string;
 }
 
 export interface MigrationTargetWrite {
@@ -176,19 +195,30 @@ export class MigrationService {
     const completed = await this.completeApply(state, begun.revision);
     // The target operation is idempotently keyed by the digest. One CAS loss
     // after its side effect therefore safely resumes from the durable map.
-    return completed.kind === "conflict" ? await this.resume() : completed;
+    if (completed.kind !== "conflict") return completed;
+    const current = await this.store.read();
+    return current.state?.phase === "applying"
+      ? await this.resume()
+      : { kind: "conflict", actualRevision: current.revision };
   }
 
   private async completeApply(
     applying: MigrationState,
     revision: string,
   ): Promise<MigrationApplyResult> {
-    const target = await this.target.applyIfApproved({
-      digest: applying.digest,
-      plan: applying.plan,
-      expectedSourceFingerprint: applying.plan.sourceFingerprint,
-      expectedTargetFingerprint: applying.plan.targetFingerprint,
-    });
+    const source = await this.source.runIfFingerprint(
+      applying.plan.sourceFingerprint,
+      () =>
+        this.target.applyIfApproved({
+          digest: applying.digest,
+          plan: applying.plan,
+          expectedSourceFingerprint: applying.plan.sourceFingerprint,
+          expectedTargetFingerprint: applying.plan.targetFingerprint,
+          guard: { revision, phase: applying.phase },
+        }),
+    );
+    if (source.kind === "conflict") return { kind: "conflict" };
+    const target = source.value;
     if (target.kind === "conflict") return { kind: "conflict" };
     const fingerprints = new Map(
       target.mappings.map((mapping) => [
@@ -253,9 +283,13 @@ export class MigrationService {
       digest: state.digest,
       mappings: state.mappings,
       guard: { revision: stored.revision, phase: state.phase },
+      shadowDeadline: state.shadowDeadline ?? "",
+      observedAt: this.now().toISOString(),
     });
+    if (refreshed.kind === "conflict")
+      throw new RecordConflictError("migration_shadow_refresh_target_conflict");
     const fingerprints = new Map(
-      refreshed.map((mapping) => [
+      refreshed.mappings.map((mapping) => [
         mapping.targetIdentifier,
         mapping.fingerprint,
       ]),

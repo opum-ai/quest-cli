@@ -20,6 +20,7 @@ class Source implements MigrationSource {
   fingerprint = "source-a";
   reads = 0;
   reverseTraversal = false;
+  beforeApply: (() => Promise<void>) | undefined;
   async readSnapshot() {
     this.reads += 1;
     const records = [
@@ -42,6 +43,15 @@ class Source implements MigrationSource {
       records: this.reverseTraversal ? records.reverse() : records,
     };
   }
+  async runIfFingerprint<T>(
+    expectedFingerprint: string,
+    operation: () => Promise<T>,
+  ) {
+    await this.beforeApply?.();
+    if (this.fingerprint !== expectedFingerprint)
+      return { kind: "conflict" as const };
+    return { kind: "success" as const, value: await operation() };
+  }
 }
 
 class Target implements MigrationTarget {
@@ -60,6 +70,9 @@ class Target implements MigrationTarget {
   ordinaryWrites = 0;
   stateRevision: (() => string) | undefined;
   beforeOrdinary: (() => Promise<void>) | undefined;
+  beforeApply: (() => Promise<void>) | undefined;
+  beforeRefresh: (() => void) | undefined;
+  now: (() => Date) | undefined;
   async readFingerprint() {
     return this.fingerprint;
   }
@@ -76,6 +89,12 @@ class Target implements MigrationTarget {
     request: Parameters<MigrationTarget["applyIfApproved"]>[0],
   ) {
     this.applyCalls += 1;
+    await this.beforeApply?.();
+    if (
+      this.stateRevision?.() !== request.guard.revision ||
+      request.guard.phase !== "applying"
+    )
+      return { kind: "conflict" as const };
     const existing = this.applied.get(request.digest);
     if (existing) return { kind: "success" as const, mappings: existing };
     if (this.changeTargetBeforeApply) this.fingerprint = "target-raced";
@@ -105,13 +124,20 @@ class Target implements MigrationTarget {
   async refreshIfCurrent(
     request: Parameters<NonNullable<MigrationTarget["refreshIfCurrent"]>>[0],
   ) {
+    this.beforeRefresh?.();
     if (this.stateRevision?.() !== request.guard.revision)
-      throw new RecordConflictError("target_state_guard_conflict");
-    return request.mappings.map((mapping) => {
+      return { kind: "conflict" as const };
+    if (
+      !request.shadowDeadline ||
+      (this.now?.().getTime() ?? 0) >= Date.parse(request.shadowDeadline)
+    )
+      return { kind: "conflict" as const };
+    const mappings = request.mappings.map((mapping) => {
       const fingerprint = this.records.get(mapping.targetIdentifier);
       if (!fingerprint) throw new Error("missing target");
       return { targetIdentifier: mapping.targetIdentifier, fingerprint };
     });
+    return { kind: "success" as const, mappings };
   }
   async writeOrdinaryIfState(
     command: {
@@ -163,6 +189,7 @@ function fixture() {
   const store = new Store();
   target.stateRevision = () => store.revision;
   const clock = { now: new Date("2026-01-01T00:00:00Z") };
+  target.now = () => clock.now;
   return {
     source,
     target,
@@ -232,6 +259,18 @@ test("apply requires the exact review digest and current source and target bases
     sourceRace.service.apply(sourceRacePreview, sourceRacePreview.digest),
   ).resolves.toMatchObject({ kind: "conflict" });
   expect(sourceRace.target.records).toHaveLength(0);
+  const sourceLeaseRace = fixture();
+  const sourceLeasePreview = await sourceLeaseRace.service.preview();
+  sourceLeaseRace.source.beforeApply = async () => {
+    sourceLeaseRace.source.fingerprint = "source-mutated-under-lease";
+  };
+  await expect(
+    sourceLeaseRace.service.apply(
+      sourceLeasePreview,
+      sourceLeasePreview.digest,
+    ),
+  ).resolves.toMatchObject({ kind: "conflict" });
+  expect(sourceLeaseRace.target.records).toHaveLength(0);
 });
 
 test("shadow has a UTC deadline, guards ordinary writes, and requires explicit cutover", async () => {
@@ -266,6 +305,17 @@ test("refresh rejects once the explicit shadow deadline expires", async () => {
   await service.apply(preview, preview.digest);
   await service.shadow("2026-01-02T00:00:00Z");
   clock.now = new Date("2026-01-02T00:00:00Z");
+  await expect(service.refresh()).rejects.toBeInstanceOf(RecordConflictError);
+});
+
+test("target refresh rechecks its own clock against the carried shadow deadline", async () => {
+  const { service, target, clock } = fixture();
+  const preview = await service.preview();
+  await service.apply(preview, preview.digest);
+  await service.shadow("2026-01-02T00:00:00Z");
+  target.beforeRefresh = () => {
+    clock.now = new Date("2026-01-02T00:00:00Z");
+  };
   await expect(service.refresh()).rejects.toBeInstanceOf(RecordConflictError);
 });
 
@@ -304,6 +354,19 @@ test("ordinary write rejects when shadow commits between its check and target mu
     }),
   ).rejects.toBeInstanceOf(RecordConflictError);
   expect(target.ordinaryWrites).toBe(0);
+});
+
+test("apply target mutation rejects when rollback commits after applying state is persisted", async () => {
+  const { service, target, store } = fixture();
+  const preview = await service.preview();
+  target.beforeApply = async () => {
+    await service.rollback();
+  };
+  await expect(service.apply(preview, preview.digest)).resolves.toMatchObject({
+    kind: "conflict",
+  });
+  expect(store.state?.phase).toBe("rolled-back");
+  expect(target.records).toHaveLength(0);
 });
 
 test("rollback only removes unchanged migration records and names post-cutover edits", async () => {
