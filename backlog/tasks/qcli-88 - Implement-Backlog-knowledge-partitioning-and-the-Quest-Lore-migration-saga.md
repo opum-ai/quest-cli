@@ -1,11 +1,11 @@
 ---
 id: QCLI-88
 title: Implement Backlog knowledge partitioning and the Quest-Lore migration saga
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-16 15:12'
+updated_date: '2026-08-16 17:47'
 labels:
   - quest-0.1
   - 'wave:migration'
@@ -35,11 +35,11 @@ Coordinate optional full Backlog adoption with Lore's released knowledge-adoptio
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Issue-only Backlog adoption remains fully usable when Lore is absent
-- [ ] #2 Full adoption requires a compatible Lore manifest and routes decisions, specs, guides or runbooks, and other documents to the accepted Lore types
-- [ ] #3 One approved plan covers both products; Lore applies first, Quest applies second, and verification succeeds only when both mappings agree
-- [ ] #4 Failure at every boundary compensates Quest then Lore in reverse order or records blocked-incomplete with every surviving artifact
-- [ ] #5 Quest never writes Lore documents, managed blocks, indexes, configuration, or projection databases directly
+- [x] #1 Issue-only Backlog adoption remains fully usable when Lore is absent
+- [x] #2 Full adoption requires a compatible Lore manifest and routes decisions, specs, guides or runbooks, and other documents to the accepted Lore types
+- [x] #3 One approved plan covers both products; Lore applies first, Quest applies second, and verification succeeds only when both mappings agree
+- [x] #4 Failure at every boundary compensates Quest then Lore in reverse order or records blocked-incomplete with every surviving artifact
+- [x] #5 Quest never writes Lore documents, managed blocks, indexes, configuration, or projection databases directly
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -51,3 +51,15 @@ Coordinate optional full Backlog adoption with Lore's released knowledge-adoptio
 4. Add compensation for every Lore/Quest boundary, preserving exact blocked-incomplete survivors when compensation cannot complete and never writing Lore-owned storage directly.
 5. Add integration/fault coverage, run focused checks, obtain independent review, integrate, and settle evidence.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Integrated tree `5aa93ba`: final verification passed `bun test test/integration/migration/lore-saga.test.ts test/integration/migration/migration.test.ts` (22 passing, 75 assertions), `bun run typecheck`, focused Biome, and `git diff --check`. Independent review verified CLI-only Lore boundary, compensation safety, and complete mapping checks.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented the Lore 0.3 public-CLI Backlog adoption saga: issue-only operation, knowledge partition/type routing, combined approval, Lore-first/Quest-second apply, stable concept links, and guarded reverse compensation with explicit blocked-incomplete evidence. Verified through 22 migration tests and independent review.
+<!-- SECTION:FINAL_SUMMARY:END -->
