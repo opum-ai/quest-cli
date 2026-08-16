@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-16 17:47'
+updated_date: '2026-08-16 18:14'
 tags:
   - quest
   - quest-0.1
@@ -16,25 +16,23 @@ tags:
 
 ## State
 
-- Resolved: QCLI-72 through QCLI-90.
-- In flight: none.
+- Resolved: QCLI-72 through QCLI-91.
+- In flight: QCLI-92 packaging in Treehouse lease `7977f4f47eb3344d2fd5c1cb7269c850`, pinned from `ed9a7a2`.
 - Blocked: QCLI-95 requires explicit owner authorization immediately before publication.
-- Ready: QCLI-91 is ready for integrated migration and Lore qualification.
+- Ready: none; QCLI-94 waits for QCLI-92.
 
 ## Frontier
 
 | Task | State | Delivery/evidence | Next action |
 | --- | --- | --- | --- |
-| QCLI-88 | Done | Integrated through `5aa93ba`; independent safety review; 22 migration tests, typecheck, focused Biome, and strict Lore gates passed. | Settled. |
-| QCLI-91 | Ready | QCLI-87 through QCLI-90 are delivered. | Activate and qualify migration/Lore interoperation in an isolated worktree. |
+| QCLI-91 | Done | Integrated through `ed9a7a2`; 40 migration qualification tests, typecheck, scoped Biome, diff check, and independent approval. | Settled. |
+| QCLI-92 | In progress | Isolated `campaign/qcli-92-packages` from `ed9a7a2`, Treehouse lease `7977f4f47eb3344d2fd5c1cb7269c850`. | Build, review, integrate, and settle package artifacts. |
 
 ## Queue
 
-- QCLI-92 and QCLI-94 wait on QCLI-91; QCLI-93 waits on QCLI-92; QCLI-95 waits on QCLI-93, QCLI-94, and explicit owner authorization.
+- QCLI-94 waits on QCLI-92; QCLI-93 waits on QCLI-92; QCLI-95 waits on QCLI-93, QCLI-94, and explicit owner authorization.
 
 ## Wave log
 
-- 2026-08-16 — QCLI-88 Backlog/Lore migration saga integrated through `5aa93ba`, independently reviewed for compensation and mapping safety, verified by 22 migration tests, typecheck, focused Biome, and strict Lore gates; task and Story status settled.
-- 2026-08-16 — QCLI-89 Jira migration importer integrated through `b340fb0`, independently reviewed twice, verified by 30 migration tests, typecheck, focused Biome, and strict Lore checks; task and Story status settled.
-- 2026-08-16 — QCLI-86 drift compensation delivered through `40dbd8a`, independently reviewed, and validated.
-- 2026-08-16 — QCLI-87 delivered through `9ea0e08`: source inventory and provenance, bounded path containment, approved drift compensation, Backlog/Lore settlement, and Treehouse cleanup completed.
+- 2026-08-16 — QCLI-91 settled through `ed9a7a2`: independent review approved real mid-scan Backlog drift, Jira denial/missing-field and precise paging qualification; focused migration evidence passed.
+- 2026-08-16 — QCLI-92 activated in Treehouse from `ed9a7a2` with source-isolated package paths.
