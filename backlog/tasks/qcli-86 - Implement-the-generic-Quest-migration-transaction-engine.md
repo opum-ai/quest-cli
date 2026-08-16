@@ -1,10 +1,11 @@
 ---
 id: QCLI-86
 title: Implement the generic Quest migration transaction engine
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-16 01:18'
 labels:
   - quest-0.1
   - 'wave:migration'
@@ -40,3 +41,15 @@ Implement source-neutral migration planning and transaction behavior before eith
 - [ ] #4 Shadow mode requires an explicit UTC deadline, rejects ordinary target writes, supports idempotent refresh, and requires explicit cutover or rollback
 - [ ] #5 Automatic rollback removes only unchanged migration-owned records and reports post-cutover edits for manual reconciliation without data loss
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Map the existing authored-record, Git CAS, and task lifecycle boundaries needed for source-neutral migration state. 2. Define deterministic preview, digest, fingerprint, mapping, shadow, cutover, and rollback domain/application contracts. 3. Implement migration persistence and transaction workflows with focused integration coverage for approval, conflicts, shadow mode, and safe rollback. 4. Run migration, type, layer, formatting, and cumulative qualification.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Activated after QCLI-85 delivery at 839e64f; QCLI-86 is now the sole dependency-ready task.
+<!-- SECTION:NOTES:END -->
