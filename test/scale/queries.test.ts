@@ -1,12 +1,11 @@
 import { expect, test } from "bun:test";
-
-import { createTask } from "../../src/domain/tasks/tasks.ts";
 import {
   EnrolledWorkspaceQueries,
-  WorkspaceTaskQueries,
   type ProjectionTaskReader,
+  WorkspaceTaskQueries,
 } from "../../src/application/queries/queries.ts";
 import type { TaskReader } from "../../src/application/tasks/tasks.ts";
+import { createTask } from "../../src/domain/tasks/tasks.ts";
 
 const task = (id: string, title = `Task ${id}`) => createTask(id, { title });
 

@@ -803,3 +803,41 @@ export class SqliteProjectionStore {
       : this.rebuildSnapshot(snapshot);
   }
 }
+
+/** Opens an existing SQLite projection strictly read-only for query routing. */
+export class SqliteProjectionTaskReader {
+  constructor(private readonly databasePath: string) {}
+
+  async readAll(): Promise<{
+    readonly workspaceId: string;
+    readonly revision: string;
+    readonly tasks: readonly TaskState[];
+  }> {
+    const db = new Database(this.databasePath, {
+      readonly: true,
+      strict: true,
+    });
+    try {
+      const workspace = db
+        .query("SELECT value FROM metadata WHERE key = 'workspace_id'")
+        .get() as { value?: string } | null;
+      const checkpoint = db
+        .query(
+          "SELECT revision FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
+        )
+        .get() as { revision?: string } | null;
+      if (!workspace?.value || !checkpoint?.revision)
+        throw new Error("projection_query_metadata_missing");
+      const rows = db.query("SELECT payload FROM tasks ORDER BY id").all() as {
+        payload: string;
+      }[];
+      return {
+        workspaceId: workspace.value,
+        revision: checkpoint.revision,
+        tasks: rows.map((row) => taskState(JSON.parse(row.payload))),
+      };
+    } finally {
+      db.close();
+    }
+  }
+}

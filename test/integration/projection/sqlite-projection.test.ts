@@ -4,7 +4,10 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { SqliteProjectionStore } from "../../../src/adapters/projection/sqlite-projection.ts";
+import {
+  SqliteProjectionStore,
+  SqliteProjectionTaskReader,
+} from "../../../src/adapters/projection/sqlite-projection.ts";
 import type { AuthoritativeProjectionSnapshot } from "../../../src/application/projection/projection.ts";
 import {
   type GateEvent,
@@ -376,4 +379,19 @@ test("interrupted projection sync resumes its durable cursor and rebuilds from G
     recovery: "none",
   });
   expect(await Bun.file(`${path}.sync.json`).exists()).toBe(false);
+});
+
+test("query reader opens an existing projection read-only", async () => {
+  const path = await databasePath();
+  const source = snapshot();
+  await new SqliteProjectionStore(path).rebuild({
+    enumerate: async () => source,
+  });
+  await expect(new SqliteProjectionTaskReader(path).readAll()).resolves.toEqual(
+    {
+      workspaceId: source.workspaceId,
+      revision: source.checkpoint.revision,
+      tasks: source.tasks,
+    },
+  );
 });
