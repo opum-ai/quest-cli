@@ -43,6 +43,7 @@ export class WorkspaceTaskQueries {
     const authoritative = await this.authoritative.readAll();
     const projection = await this.readMatchingProjection(
       authoritative.revision,
+      authoritative.tasks,
     );
     if (projection.snapshot)
       return {
@@ -64,7 +65,10 @@ export class WorkspaceTaskQueries {
     return { ...result, tasks: searchTasks(result.tasks, query) };
   }
 
-  private async readMatchingProjection(revision: string): Promise<{
+  private async readMatchingProjection(
+    revision: string,
+    authoritative: readonly TaskState[],
+  ): Promise<{
     readonly snapshot?: ProjectionTaskSnapshot;
     readonly state: "unavailable" | "stale";
   }> {
@@ -72,13 +76,26 @@ export class WorkspaceTaskQueries {
     try {
       const snapshot = await this.projection.readAll();
       return snapshot.workspaceId === this.workspaceId &&
-        snapshot.revision === revision
+        snapshot.revision === revision &&
+        sameTasks(snapshot.tasks, authoritative)
         ? { snapshot, state: "unavailable" }
         : { state: "stale" };
     } catch {
       return { state: "unavailable" };
     }
   }
+}
+
+function sameTasks(
+  left: readonly TaskState[],
+  right: readonly TaskState[],
+): boolean {
+  const encode = (tasks: readonly TaskState[]) =>
+    tasks
+      .map((task) => JSON.stringify(task))
+      .sort()
+      .join("\n");
+  return encode(left) === encode(right);
 }
 
 export interface EnrolledWorkspaceQueryMember {

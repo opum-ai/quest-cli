@@ -87,6 +87,19 @@ test("stale and unreadable projections fall back without a repair capability", a
     source: "authoritative",
     projection: "unavailable",
   });
+
+  const tampered = new ReadOnlyProjection({
+    workspaceId: "workspace-a",
+    revision: "r-2",
+    tasks: [task("T-1", "Tampered")],
+  });
+  await expect(
+    new WorkspaceTaskQueries("workspace-a", authoritative, tampered).list(),
+  ).resolves.toMatchObject({
+    source: "authoritative",
+    projection: "stale",
+    tasks: [{ title: "Authoritative" }],
+  });
 });
 
 test("cross-workspace queries exclude un-enrolled members and report enrolled absences", async () => {

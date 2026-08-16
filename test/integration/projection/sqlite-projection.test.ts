@@ -381,6 +381,20 @@ test("interrupted projection sync resumes its durable cursor and rebuilds from G
   expect(await Bun.file(`${path}.sync.json`).exists()).toBe(false);
 });
 
+test("invalid sync progress is discarded rather than wedging refresh", async () => {
+  const path = await databasePath();
+  const source = snapshot();
+  await writeFile(
+    `${path}.sync.json`,
+    JSON.stringify({ checkpoint: source.checkpoint, nextTask: -1 }),
+  );
+  await expect(
+    new SqliteProjectionStore(path).synchronize({
+      enumerate: async () => source,
+    }),
+  ).resolves.toMatchObject({ kind: "caught_up", resumedFrom: 0 });
+});
+
 test("query reader opens an existing projection read-only", async () => {
   const path = await databasePath();
   const source = snapshot();

@@ -552,7 +552,8 @@ export class SqliteProjectionStore {
       if (
         !parsed ||
         typeof parsed !== "object" ||
-        typeof (parsed as SyncProgress).nextTask !== "number" ||
+        !Number.isSafeInteger((parsed as SyncProgress).nextTask) ||
+        (parsed as SyncProgress).nextTask < 0 ||
         typeof (parsed as SyncProgress).checkpoint?.revision !== "string" ||
         typeof (parsed as SyncProgress).checkpoint?.observedAt !== "string"
       )
@@ -627,7 +628,10 @@ export class SqliteProjectionStore {
           current?.revision === snapshot.checkpoint.revision &&
           matchesAuthoritativeSnapshot(db, snapshot);
         return {
-          schemaVersion: Number(version?.value),
+          schemaVersion:
+            version?.value && Number.isFinite(Number(version.value))
+              ? Number(version.value)
+              : undefined,
           checkpoint: current,
           authoritativeCheckpoint: snapshot.checkpoint,
           freshness: fresh ? "fresh" : "stale",
