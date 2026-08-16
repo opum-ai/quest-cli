@@ -328,3 +328,52 @@ test("SQLite changes cannot satisfy authored gates or release authored claims", 
     },
   );
 });
+
+test("status is read-only and gives explicit recovery guidance", async () => {
+  const path = await databasePath();
+  const source = snapshot();
+  const store = new SqliteProjectionStore(path);
+  expect(await store.status({ enumerate: async () => source })).toMatchObject({
+    freshness: "missing",
+    recovery: "rebuild",
+    checkpoint: undefined,
+    authoritativeCheckpoint: source.checkpoint,
+  });
+  expect(await Bun.file(path).exists()).toBe(false);
+
+  await store.rebuild({ enumerate: async () => source });
+  expect(await store.status({ enumerate: async () => source })).toMatchObject({
+    freshness: "fresh",
+    recovery: "none",
+    checkpoint: source.checkpoint,
+  });
+});
+
+test("interrupted projection sync resumes its durable cursor and rebuilds from Git", async () => {
+  const path = await databasePath();
+  const source = snapshot();
+  const store = new SqliteProjectionStore(path);
+  expect(
+    await store.synchronize(
+      { enumerate: async () => source },
+      { interruptAfter: 1 },
+    ),
+  ).toMatchObject({ kind: "interrupted", resumedFrom: 0, processed: 1 });
+  expect(await store.status({ enumerate: async () => source })).toMatchObject({
+    freshness: "recovering",
+    recovery: "sync",
+  });
+  expect(
+    await store.synchronize({ enumerate: async () => source }),
+  ).toMatchObject({
+    kind: "resumed",
+    resumedFrom: 1,
+    processed: 1,
+    checkpoint: source.checkpoint,
+  });
+  expect(await store.status({ enumerate: async () => source })).toMatchObject({
+    freshness: "fresh",
+    recovery: "none",
+  });
+  expect(await Bun.file(`${path}.sync.json`).exists()).toBe(false);
+});

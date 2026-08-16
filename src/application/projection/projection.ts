@@ -49,6 +49,30 @@ export type ProjectionRefreshResult =
   | ProjectionRebuildResult
   | ProjectionReuseResult;
 
+/** Observable cache health.  This is advisory only; Git remains authoritative. */
+export type ProjectionFreshness =
+  | "fresh"
+  | "stale"
+  | "missing"
+  | "corrupt"
+  | "recovering";
+
+export interface ProjectionStatus {
+  readonly schemaVersion: number | undefined;
+  readonly checkpoint: GitCheckpoint | undefined;
+  readonly authoritativeCheckpoint: GitCheckpoint;
+  readonly freshness: ProjectionFreshness;
+  readonly corruption: boolean;
+  readonly recovery: "none" | "sync" | "rebuild";
+}
+
+export interface ProjectionSyncResult {
+  readonly kind: "caught_up" | "resumed" | "interrupted";
+  readonly checkpoint: GitCheckpoint;
+  readonly resumedFrom: number;
+  readonly processed: number;
+}
+
 /**
  * Projection stores intentionally provide rebuilding and health detection only.
  * Gate evaluation, claim ownership, and authored conflict resolution stay in
@@ -61,4 +85,8 @@ export interface ProjectionStore {
   rebuildIfNeeded(
     source: AuthoritativeProjectionSource,
   ): Promise<ProjectionRefreshResult>;
+  status(source: AuthoritativeProjectionSource): Promise<ProjectionStatus>;
+  synchronize(
+    source: AuthoritativeProjectionSource,
+  ): Promise<ProjectionSyncResult>;
 }

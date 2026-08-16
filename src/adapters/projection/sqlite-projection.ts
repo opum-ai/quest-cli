@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { mkdir, rename, rm, stat } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
   type ClaimEvent,
@@ -47,6 +47,34 @@ export interface ProjectionRebuildResult {
 export type ProjectionRefreshResult =
   | ProjectionRebuildResult
   | { readonly kind: "reused"; readonly checkpoint: GitCheckpoint };
+
+export type ProjectionFreshness =
+  | "fresh"
+  | "stale"
+  | "missing"
+  | "corrupt"
+  | "recovering";
+
+export interface ProjectionStatus {
+  readonly schemaVersion: number | undefined;
+  readonly checkpoint: GitCheckpoint | undefined;
+  readonly authoritativeCheckpoint: GitCheckpoint;
+  readonly freshness: ProjectionFreshness;
+  readonly corruption: boolean;
+  readonly recovery: "none" | "sync" | "rebuild";
+}
+
+export interface ProjectionSyncResult {
+  readonly kind: "caught_up" | "resumed" | "interrupted";
+  readonly checkpoint: GitCheckpoint;
+  readonly resumedFrom: number;
+  readonly processed: number;
+}
+
+interface SyncProgress {
+  readonly checkpoint: GitCheckpoint;
+  readonly nextTask: number;
+}
 
 const schema = `
 CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -512,6 +540,166 @@ function validateReplacement(
 export class SqliteProjectionStore {
   constructor(private readonly databasePath: string) {}
 
+  private progressPath(): string {
+    return `${this.databasePath}.sync.json`;
+  }
+
+  private async readProgress(): Promise<SyncProgress | undefined> {
+    try {
+      const parsed: unknown = JSON.parse(
+        await readFile(this.progressPath(), "utf8"),
+      );
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        typeof (parsed as SyncProgress).nextTask !== "number" ||
+        typeof (parsed as SyncProgress).checkpoint?.revision !== "string" ||
+        typeof (parsed as SyncProgress).checkpoint?.observedAt !== "string"
+      )
+        return undefined;
+      return parsed as SyncProgress;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async writeProgress(progress: SyncProgress): Promise<void> {
+    await mkdir(dirname(this.databasePath), { recursive: true });
+    const temporary = `${this.progressPath()}.${crypto.randomUUID()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(progress)}\n`, "utf8");
+    await rename(temporary, this.progressPath());
+  }
+
+  /**
+   * Inspects cache state without creating, repairing, or refreshing files.
+   * The caller receives recovery guidance rather than an implicit mutation.
+   */
+  async status(
+    source: AuthoritativeProjectionSource,
+  ): Promise<ProjectionStatus> {
+    const snapshot = await source.enumerate();
+    validate(snapshot);
+    const progress = await this.readProgress();
+    if (progress?.checkpoint.revision === snapshot.checkpoint.revision)
+      return {
+        schemaVersion: undefined,
+        checkpoint: progress.checkpoint,
+        authoritativeCheckpoint: snapshot.checkpoint,
+        freshness: "recovering",
+        corruption: false,
+        recovery: "sync",
+      };
+    try {
+      await stat(this.databasePath);
+    } catch {
+      return {
+        schemaVersion: undefined,
+        checkpoint: undefined,
+        authoritativeCheckpoint: snapshot.checkpoint,
+        freshness: "missing",
+        corruption: false,
+        recovery: "rebuild",
+      };
+    }
+    try {
+      const db = new Database(this.databasePath, {
+        readonly: true,
+        strict: true,
+      });
+      try {
+        const version = db
+          .query("SELECT value FROM metadata WHERE key = 'schema_version'")
+          .get() as { value?: string } | null;
+        const checkpoint = db
+          .query(
+            "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
+          )
+          .get() as { revision?: string; observed_at?: string } | null;
+        const current =
+          checkpoint?.revision && checkpoint.observed_at
+            ? {
+                revision: checkpoint.revision,
+                observedAt: checkpoint.observed_at,
+              }
+            : undefined;
+        const fresh =
+          version?.value === String(projectionSchemaVersion) &&
+          current?.revision === snapshot.checkpoint.revision &&
+          matchesAuthoritativeSnapshot(db, snapshot);
+        return {
+          schemaVersion: Number(version?.value),
+          checkpoint: current,
+          authoritativeCheckpoint: snapshot.checkpoint,
+          freshness: fresh ? "fresh" : "stale",
+          corruption: false,
+          recovery: fresh ? "none" : "sync",
+        };
+      } finally {
+        db.close();
+      }
+    } catch {
+      return {
+        schemaVersion: undefined,
+        checkpoint: undefined,
+        authoritativeCheckpoint: snapshot.checkpoint,
+        freshness: "corrupt",
+        corruption: true,
+        recovery: "rebuild",
+      };
+    }
+  }
+
+  /**
+   * A projection-only refresh records every completed task cursor durably.
+   * A caller may use interruptAfter to model process loss in integration tests;
+   * the next call resumes from that cursor and still rebuilds from Git alone.
+   */
+  async synchronize(
+    source: AuthoritativeProjectionSource,
+    options: { readonly interruptAfter?: number } = {},
+  ): Promise<ProjectionSyncResult> {
+    const snapshot = await source.enumerate();
+    validate(snapshot);
+    const previous = await this.readProgress();
+    const resumedFrom =
+      previous?.checkpoint.revision === snapshot.checkpoint.revision
+        ? Math.min(previous.nextTask, snapshot.tasks.length)
+        : 0;
+    if (resumedFrom === snapshot.tasks.length) {
+      await this.rebuildSnapshot(snapshot);
+      await rm(this.progressPath(), { force: true });
+      return {
+        kind: resumedFrom ? "resumed" : "caught_up",
+        checkpoint: snapshot.checkpoint,
+        resumedFrom,
+        processed: 0,
+      };
+    }
+    for (let index = resumedFrom; index < snapshot.tasks.length; index += 1) {
+      // Validate each authoritative record before advancing the durable cursor.
+      const task = snapshot.tasks[index];
+      if (!task) throw new Error("projection_sync_task_missing");
+      taskState(task);
+      const nextTask = index + 1;
+      await this.writeProgress({ checkpoint: snapshot.checkpoint, nextTask });
+      if (options.interruptAfter === nextTask)
+        return {
+          kind: "interrupted",
+          checkpoint: snapshot.checkpoint,
+          resumedFrom,
+          processed: nextTask - resumedFrom,
+        };
+    }
+    await this.rebuildSnapshot(snapshot);
+    await rm(this.progressPath(), { force: true });
+    return {
+      kind: resumedFrom ? "resumed" : "caught_up",
+      checkpoint: snapshot.checkpoint,
+      resumedFrom,
+      processed: snapshot.tasks.length - resumedFrom,
+    };
+  }
+
   private async healthy(
     snapshot: AuthoritativeProjectionSnapshot,
   ): Promise<GitCheckpoint | undefined> {
@@ -530,7 +718,7 @@ export class SqliteProjectionStore {
           .get() as { value?: string } | null;
         const checkpoint = db
           .query(
-            "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal DESC LIMIT 1",
+            "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
           )
           .get() as { revision?: string; observed_at?: string } | null;
         if (

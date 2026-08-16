@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-15 23:50'
+updated_date: '2026-08-16 00:53'
 labels:
   - quest-0.1
   - 'wave:projection'
@@ -42,8 +42,19 @@ Add resumable incremental projection updates and query routing without violating
 - [ ] #5 The accepted approximately 10k-task, 100k-to-150k-event per-workspace and 25-workspace rebuild/query budgets pass
 <!-- AC:END -->
 
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Map the current projection and authoritative-replay boundaries, then define read-only status/query contracts that cannot create or repair cache files.
+2. Extend the SQLite projection adapter with durable, resumable sync checkpoints plus freshness/corruption status.
+3. Add explicitly enrolled cross-workspace list/search routing with missing-workspace reporting and authoritative-scan fallback.
+4. Add focused integration and scale tests, then run projection, workspace, type, layer, formatting, and cumulative checks.
+<!-- SECTION:PLAN:END -->
+
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 Activated after QCLI-84 completed and its six-platform Bun SQLite qualification passed on GitHub Actions run 31915704673. Beginning repository and authoritative-query research from dev at ace8210.
+
+Restore reconciliation: QCLI-84 is Done and pushed at 9e5c1cd. QCLI-85 remains the sole dependency-ready implementation task; its tracked file budget does not overlap any other ready task.
 <!-- SECTION:NOTES:END -->
