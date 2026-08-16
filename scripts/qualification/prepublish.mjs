@@ -197,6 +197,15 @@ async function runCandidateSmoke() {
         env: { ...env, QUEST_CANDIDATE_QUEST: quest },
       });
     }
+  } catch (error) {
+    record("candidate_smoke_validation", "failed", {
+      publicationBlocking: true,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Candidate smoke validation failed.",
+    });
+    throw error;
   } finally {
     await Promise.all(tarballs.map((file) => rm(file, { force: true })));
     await rm(work, { recursive: true, force: true });
