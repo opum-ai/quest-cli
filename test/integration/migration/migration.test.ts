@@ -20,7 +20,6 @@ class Source implements MigrationSource {
   fingerprint = "source-a";
   reads = 0;
   reverseTraversal = false;
-  beforeApply: (() => Promise<void>) | undefined;
   async readSnapshot() {
     this.reads += 1;
     const records = [
@@ -43,20 +42,10 @@ class Source implements MigrationSource {
       records: this.reverseTraversal ? records.reverse() : records,
     };
   }
-  async runIfFingerprint<T>(
-    expectedFingerprint: string,
-    operation: () => Promise<T>,
-  ) {
-    await this.beforeApply?.();
-    if (this.fingerprint !== expectedFingerprint)
-      return { kind: "conflict" as const };
-    return { kind: "success" as const, value: await operation() };
-  }
 }
 
 class Target implements MigrationTarget {
   fingerprint = "target-a";
-  sourceFingerprint = "source-a";
   readonly records = new Map<string, string>();
   readonly applied = new Map<
     string,
@@ -65,7 +54,7 @@ class Target implements MigrationTarget {
   proposals = 0;
   applyCalls = 0;
   changeTargetBeforeApply = false;
-  changeSourceBeforeApply = false;
+  afterApply: (() => void) | undefined;
   proposedFor: readonly string[] = [];
   ordinaryWrites = 0;
   stateRevision: (() => string) | undefined;
@@ -98,11 +87,7 @@ class Target implements MigrationTarget {
     const existing = this.applied.get(request.digest);
     if (existing) return { kind: "success" as const, mappings: existing };
     if (this.changeTargetBeforeApply) this.fingerprint = "target-raced";
-    if (this.changeSourceBeforeApply) this.sourceFingerprint = "source-raced";
-    if (
-      request.expectedSourceFingerprint !== this.sourceFingerprint ||
-      request.expectedTargetFingerprint !== this.fingerprint
-    )
+    if (request.expectedTargetFingerprint !== this.fingerprint)
       return { kind: "conflict" as const };
     const mappings = request.plan.entries.map((entry) => {
       const fingerprint = `created-${entry.targetIdentifier}`;
@@ -111,6 +96,7 @@ class Target implements MigrationTarget {
     });
     this.applied.set(request.digest, mappings);
     this.fingerprint = `target-after-${request.digest}`;
+    this.afterApply?.();
     return { kind: "success" as const, mappings };
   }
   async readFingerprintFor(identifier: string) {
@@ -252,25 +238,36 @@ test("apply requires the exact review digest and current source and target bases
     targetRace.service.apply(racePreview, racePreview.digest),
   ).resolves.toMatchObject({ kind: "conflict" });
   expect(targetRace.target.records).toHaveLength(0);
-  const sourceRace = fixture();
-  const sourceRacePreview = await sourceRace.service.preview();
-  sourceRace.target.changeSourceBeforeApply = true;
-  await expect(
-    sourceRace.service.apply(sourceRacePreview, sourceRacePreview.digest),
-  ).resolves.toMatchObject({ kind: "conflict" });
-  expect(sourceRace.target.records).toHaveLength(0);
-  const sourceLeaseRace = fixture();
-  const sourceLeasePreview = await sourceLeaseRace.service.preview();
-  sourceLeaseRace.source.beforeApply = async () => {
-    sourceLeaseRace.source.fingerprint = "source-mutated-under-lease";
+});
+
+test("source drift after apply compensates unchanged migration targets without loss", async () => {
+  const { service, source, target, store } = fixture();
+  const preview = await service.preview();
+  target.afterApply = () => {
+    source.fingerprint = "source-changed-after-target-apply";
   };
-  await expect(
-    sourceLeaseRace.service.apply(
-      sourceLeasePreview,
-      sourceLeasePreview.digest,
-    ),
-  ).resolves.toMatchObject({ kind: "conflict" });
-  expect(sourceLeaseRace.target.records).toHaveLength(0);
+  await expect(service.apply(preview, preview.digest)).resolves.toEqual({
+    kind: "conflict",
+    manualReconciliation: [],
+  });
+  expect(target.records).toHaveLength(0);
+  expect(store.state?.phase).toBe("rolled-back");
+});
+
+test("source drift compensation preserves edited targets for manual reconciliation", async () => {
+  const { service, source, target, store } = fixture();
+  const preview = await service.preview();
+  target.afterApply = () => {
+    target.records.set("T-2", "edited-after-migration");
+    source.fingerprint = "source-changed-after-target-apply";
+  };
+  await expect(service.apply(preview, preview.digest)).resolves.toEqual({
+    kind: "conflict",
+    manualReconciliation: ["T-2"],
+  });
+  expect(target.records.get("T-2")).toBe("edited-after-migration");
+  expect(target.records.has("T-1")).toBeFalse();
+  expect(store.state?.phase).toBe("rolled-back");
 });
 
 test("shadow has a UTC deadline, guards ordinary writes, and requires explicit cutover", async () => {

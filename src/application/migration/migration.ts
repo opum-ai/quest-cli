@@ -23,14 +23,6 @@ export interface MigrationSourceSnapshot {
 /** Read-only by contract: source adapters expose no mutation method to this engine. */
 export interface MigrationSource {
   readSnapshot(): Promise<MigrationSourceSnapshot>;
-  /** Holds a source-side fingerprint/CAS lease for the complete target mutation. */
-  runIfFingerprint<T>(
-    expectedFingerprint: string,
-    operation: () => Promise<T>,
-  ): Promise<
-    | { readonly kind: "success"; readonly value: T }
-    | { readonly kind: "conflict" }
-  >;
 }
 
 export interface MigrationTarget {
@@ -40,8 +32,8 @@ export interface MigrationTarget {
     records: readonly MigrationSourceRecord[],
   ): Promise<readonly string[]>;
   /**
-   * Atomically verifies the approved source and target bases, then creates (or
-   * idempotently resumes) the whole migration operation identified by digest.
+   * Atomically verifies the approved target basis and applying-state guard, then
+   * creates (or idempotently resumes) the operation identified by digest.
    */
   applyIfApproved(
     request: MigrationApplyRequest,
@@ -66,7 +58,6 @@ export interface MigrationTarget {
 export interface MigrationApplyRequest {
   readonly digest: string;
   readonly plan: MigrationState["plan"];
-  readonly expectedSourceFingerprint: string;
   readonly expectedTargetFingerprint: string;
   /** Must match the authoritative persisted applying state at target mutation time. */
   readonly guard: MigrationStateGuard;
@@ -123,6 +114,8 @@ export interface MigrationApplyResult {
   readonly kind: "success" | "conflict";
   readonly state?: MigrationState;
   readonly actualRevision?: string;
+  /** Protected target edits discovered during source-drift compensation. */
+  readonly manualReconciliation?: readonly string[];
 }
 
 /** Coordinates immutable preview evidence with target-side creation and persisted rollback state. */
@@ -195,7 +188,11 @@ export class MigrationService {
     const completed = await this.completeApply(state, begun.revision);
     // The target operation is idempotently keyed by the digest. One CAS loss
     // after its side effect therefore safely resumes from the durable map.
-    if (completed.kind !== "conflict") return completed;
+    if (
+      completed.kind !== "conflict" ||
+      completed.manualReconciliation !== undefined
+    )
+      return completed;
     const current = await this.store.read();
     return current.state?.phase === "applying"
       ? await this.resume()
@@ -206,19 +203,12 @@ export class MigrationService {
     applying: MigrationState,
     revision: string,
   ): Promise<MigrationApplyResult> {
-    const source = await this.source.runIfFingerprint(
-      applying.plan.sourceFingerprint,
-      () =>
-        this.target.applyIfApproved({
-          digest: applying.digest,
-          plan: applying.plan,
-          expectedSourceFingerprint: applying.plan.sourceFingerprint,
-          expectedTargetFingerprint: applying.plan.targetFingerprint,
-          guard: { revision, phase: applying.phase },
-        }),
-    );
-    if (source.kind === "conflict") return { kind: "conflict" };
-    const target = source.value;
+    const target = await this.target.applyIfApproved({
+      digest: applying.digest,
+      plan: applying.plan,
+      expectedTargetFingerprint: applying.plan.targetFingerprint,
+      guard: { revision, phase: applying.phase },
+    });
     if (target.kind === "conflict") return { kind: "conflict" };
     const fingerprints = new Map(
       target.mappings.map((mapping) => [
@@ -245,9 +235,18 @@ export class MigrationService {
       expectedRevision: revision,
       state,
     });
-    return result.kind === "success"
-      ? { kind: "success", state }
-      : { kind: "conflict", actualRevision: result.actualRevision };
+    if (result.kind === "conflict")
+      return { kind: "conflict", actualRevision: result.actualRevision };
+    // Backlog-like sources have no honest write lease. Detect drift after the
+    // target transaction and compensate from the persisted mapping instead.
+    const postflight = await this.source.readSnapshot();
+    if (postflight.fingerprint === applying.plan.sourceFingerprint)
+      return { kind: "success", state };
+    const compensation = await this.rollback();
+    return {
+      kind: "conflict",
+      manualReconciliation: compensation.manualReconciliation,
+    };
   }
 
   /** Continue a durable partial apply; the target must resume the same digest idempotently. */
