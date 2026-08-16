@@ -241,7 +241,11 @@ export class JiraImporter {
         return object(payload.data, "jira_cli_data_invalid");
       throw new RecordValidationError("jira_cli_envelope_invalid");
     } catch (error) {
-      if (error instanceof RecordValidationError) throw error;
+      if (
+        error instanceof RecordValidationError ||
+        error instanceof JiraImportError
+      )
+        throw error;
       throw new JiraImportError("transport", "jira_cli_json_invalid", issueKey);
     }
   }

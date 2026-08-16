@@ -154,6 +154,28 @@ test("classifies inaccessible sources and refuses an unnormalized ADF payload", 
   ).rejects.toMatchObject({
     kind: "denied",
   } satisfies Partial<JiraImportError>);
+  const zeroExitError: JiraCliRunner = {
+    async run() {
+      return {
+        exitCode: 0,
+        stderr: "",
+        stdout: JSON.stringify({
+          success: false,
+          error:
+            "Issue does not exist or you do not have permission to see it.",
+          status_code: 404,
+        }),
+      };
+    },
+  };
+  await expect(
+    new JiraImporter(
+      { project: "Q", statusMappings: {} },
+      zeroExitError,
+    ).readSnapshot(),
+  ).rejects.toMatchObject({
+    kind: "not_found",
+  } satisfies Partial<JiraImportError>);
   const runner: JiraCliRunner = {
     async run(argv) {
       if (argv.includes("search"))
