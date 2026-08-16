@@ -145,6 +145,7 @@
 - 2026-08-15T16:17:50-05:00 fa8ec73496da64749439532eedb05508baa79982 chore: settle QCLI-82 gate delivery
 - 2026-08-15T18:16:17-05:00 4f4df2af03f09559cee83de289b03ca0c9817b18 chore: sync projection campaign documentation
 - 2026-08-15T18:28:26-05:00 003412a48b838787ce851156e012cb22ac58ed25 chore: sync platform validation log
+- 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
 
 ## docs/adr
 
@@ -352,3 +353,4 @@
 - 2026-08-15T16:07:25-05:00 3042708d27a389beae1d21c4d6dd0bbeb63a2975 chore: settle QCLI-83 tracker delivery
 - 2026-08-15T16:17:50-05:00 fa8ec73496da64749439532eedb05508baa79982 chore: settle QCLI-82 gate delivery
 - 2026-08-15T18:16:17-05:00 4f4df2af03f09559cee83de289b03ca0c9817b18 chore: sync projection campaign documentation
+- 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
