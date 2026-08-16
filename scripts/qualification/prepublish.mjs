@@ -17,17 +17,19 @@ function record(name, status, detail) {
 }
 
 async function command(name, file, args, options = {}) {
+  const executable =
+    process.platform === "win32" && file === "npm" ? "npm.cmd" : file;
   try {
-    const result = await execFile(file, args, {
+    const result = await execFile(executable, args, {
       cwd: root,
       maxBuffer: 10 * 1024 * 1024,
       ...options,
     });
-    record(name, "passed", { command: [file, ...args].join(" ") });
+    record(name, "passed", { command: [executable, ...args].join(" ") });
     return result.stdout;
   } catch (error) {
     record(name, "failed", {
-      command: [file, ...args].join(" "),
+      command: [executable, ...args].join(" "),
       exitCode: error.code ?? null,
       stderr: String(error.stderr ?? "").trim(),
       stdout: String(error.stdout ?? "").trim(),
