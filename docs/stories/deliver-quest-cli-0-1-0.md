@@ -85,7 +85,7 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-85](../../backlog/tasks/qcli-85%20-%20Implement-incremental-projection-sync-freshness-queries-and-scale.md) | Implement incremental projection sync, freshness, queries, and scale | Done |
 | [QCLI-86](../../backlog/tasks/qcli-86%20-%20Implement-the-generic-Quest-migration-transaction-engine.md) | Implement the generic Quest migration transaction engine | Done |
 | [QCLI-87](../../backlog/tasks/qcli-87%20-%20Implement-the-Backlog.md-issue-importer.md) | Implement the Backlog.md issue importer | Done |
-| [QCLI-88](../../backlog/tasks/qcli-88%20-%20Implement-Backlog-knowledge-partitioning-and-the-Quest-Lore-migration-saga.md) | Implement Backlog knowledge partitioning and the Quest-Lore migration saga | To Do |
+| [QCLI-88](../../backlog/tasks/qcli-88%20-%20Implement-Backlog-knowledge-partitioning-and-the-Quest-Lore-migration-saga.md) | Implement Backlog knowledge partitioning and the Quest-Lore migration saga | Done |
 | [QCLI-89](../../backlog/tasks/qcli-89%20-%20Implement-the-Jira-Cloud-importer-through-jira-cli.md) | Implement the Jira Cloud importer through jira-cli | Done |
 | [QCLI-90](../../backlog/tasks/qcli-90%20-%20Implement-optional-Lore-concept-linking.md) | Implement optional Lore concept linking | Done |
 | [QCLI-91](../../backlog/tasks/qcli-91%20-%20Qualify-Quest-migrations-and-Lore-interoperation-end-to-end.md) | Qualify Quest migrations and Lore interoperation end to end | To Do |

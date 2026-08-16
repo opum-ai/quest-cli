@@ -150,6 +150,7 @@
 - 2026-08-15T22:23:52-05:00 b687c236389adcbe6be7645bf5909c7cdcd850f8 chore: settle qcli-86 migration engine
 - 2026-08-16T07:31:44-05:00 9ea0e0837d2cc08c56aa4388dbc92d8cce3d3b97 chore: settle qcli-87 Backlog importer
 - 2026-08-16T08:09:49-05:00 b07d91a84ec87ea99f54f8ec63f6d0412062cec5 docs(QCLI-89): sync Jira importer status
+- 2026-08-16T08:10:17-05:00 a7a3d3443823428773325c73a2f959b7359851a2 docs: sync campaign tracker
 
 ## docs/adr
 
