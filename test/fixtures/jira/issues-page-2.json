@@ -1,0 +1,16 @@
+{
+  "issues": [
+    {
+      "id": "10002",
+      "key": "Q-2",
+      "fields": {
+        "summary": "Child issue",
+        "parent": { "id": "10001", "key": "Q-1" },
+        "status": { "name": "In Progress" },
+        "issuetype": { "name": "Task" },
+        "labels": [],
+        "description": "Second normalized description"
+      }
+    }
+  ]
+}
