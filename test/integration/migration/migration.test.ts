@@ -396,6 +396,17 @@ test("rollback only removes unchanged migration records and names post-cutover e
   expect(target.records.get("T-2")).toBe("edited-after-cutover");
 });
 
+test("a completed rollback never deletes a later recreated matching-fingerprint target", async () => {
+  const { service, target, store } = fixture();
+  const preview = await service.preview();
+  await service.apply(preview, preview.digest);
+  await service.rollback();
+  target.records.set("T-2", "created-T-2");
+  await expect(service.rollback()).rejects.toBeInstanceOf(RecordConflictError);
+  expect(target.records.get("T-2")).toBe("created-T-2");
+  expect(store.state?.phase).toBe("rolled-back");
+});
+
 test("rollback deletion is rejected when shadow advances between state read and target removal", async () => {
   const { service, target, store } = fixture();
   const preview = await service.preview();

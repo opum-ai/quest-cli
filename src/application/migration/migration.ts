@@ -346,6 +346,8 @@ export class MigrationService {
   }> {
     const stored = await this.store.read();
     if (!stored.state) throw new RecordConflictError("migration_not_found");
+    if (stored.state.phase === "rolled-back")
+      throw new RecordConflictError("migration_rollback_already_complete");
     let state = stored.state;
     let revision = stored.revision;
     if (state.phase !== "rolling-back") {
