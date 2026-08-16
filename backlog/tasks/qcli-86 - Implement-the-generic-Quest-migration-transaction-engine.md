@@ -1,11 +1,11 @@
 ---
 id: QCLI-86
 title: Implement the generic Quest migration transaction engine
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-16 01:18'
+updated_date: '2026-08-16 03:23'
 labels:
   - quest-0.1
   - 'wave:migration'
@@ -35,11 +35,11 @@ Implement source-neutral migration planning and transaction behavior before eith
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Preview is fully read-only, deterministic for an unchanged source, exits 0, and returns requiresApproval with an immutable digest
-- [ ] #2 Apply requires the exact approved digest and unchanged source and target bases, distinguishing validation from conflict
-- [ ] #3 Mappings are persisted by source instance, source folder, and source identifier without rescanning for rollback
-- [ ] #4 Shadow mode requires an explicit UTC deadline, rejects ordinary target writes, supports idempotent refresh, and requires explicit cutover or rollback
-- [ ] #5 Automatic rollback removes only unchanged migration-owned records and reports post-cutover edits for manual reconciliation without data loss
+- [x] #1 Preview is fully read-only, deterministic for an unchanged source, exits 0, and returns requiresApproval with an immutable digest
+- [x] #2 Apply requires the exact approved digest and unchanged source and target bases, distinguishing validation from conflict
+- [x] #3 Mappings are persisted by source instance, source folder, and source identifier without rescanning for rollback
+- [x] #4 Shadow mode requires an explicit UTC deadline, rejects ordinary target writes, supports idempotent refresh, and requires explicit cutover or rollback
+- [x] #5 Automatic rollback removes only unchanged migration-owned records and reports post-cutover edits for manual reconciliation without data loss
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -52,4 +52,12 @@ Implement source-neutral migration planning and transaction behavior before eith
 
 <!-- SECTION:NOTES:BEGIN -->
 Activated after QCLI-85 delivery at 839e64f; QCLI-86 is now the sole dependency-ready task.
+
+Implemented and independently reviewed deterministic source-neutral migration contracts. Validation at 27c8ba004eaa5e6e5a32836fe9f55c37ca50324e: 97 Bun tests passed; tsc, source-scoped Biome, layer check, and git diff --check passed. Repository-wide Biome is environment-blocked by the nested available Treehouse worktree configuration.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented the migration transaction engine with deterministic read-only previews, digest/base guards, source-qualified persisted mappings, bounded shadow coexistence, conditional recovery, and non-destructive rollback. Independently reviewed; 97 tests and relevant checks passed.
+<!-- SECTION:FINAL_SUMMARY:END -->
