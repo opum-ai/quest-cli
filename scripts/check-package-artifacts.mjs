@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const npmCache = join(tmpdir(), "quest-npm-cache");
+
+function packedEntry(result) {
+  return Array.isArray(result) ? result[0] : Object.values(result)[0];
+}
+
 const rootPackage = JSON.parse(
   await readFile(join(root, "package.json"), "utf8"),
 );
@@ -56,7 +61,9 @@ for (const directory of packages.sort()) {
   const packed = await Bun.$`npm pack --dry-run --json --cache ${npmCache}`
     .cwd(join(root, "npm", directory))
     .json();
-  const files = packed[0]?.files?.map((file) => file.path).sort();
+  const files = packedEntry(packed)
+    ?.files?.map((file) => file.path)
+    .sort();
   if (
     files?.join(",") !==
     ["LICENSE", `bin/${executable}`, "package.json"].join(",")
@@ -68,7 +75,9 @@ for (const directory of packages.sort()) {
 const rootPacked = await Bun.$`npm pack --dry-run --json --cache ${npmCache}`
   .cwd(root)
   .json();
-const rootFiles = rootPacked[0]?.files?.map((file) => file.path).sort();
+const rootFiles = packedEntry(rootPacked)
+  ?.files?.map((file) => file.path)
+  .sort();
 if (
   rootFiles?.join(",") !==
   ["LICENSE", "bin/quest.cjs", "package.json"].join(",")

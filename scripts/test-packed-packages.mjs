@@ -7,11 +7,16 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const work = await mkdtemp(join(tmpdir(), "quest-packed-"));
 const npmCache = join(work, "npm-cache");
 const tarballs = [];
+
+function packedEntry(result) {
+  return Array.isArray(result) ? result[0] : Object.values(result)[0];
+}
+
 try {
   const packed = await Bun.$`npm pack --json --cache ${npmCache}`
     .cwd(root)
     .json();
-  const rootTarball = join(root, packed[0].filename);
+  const rootTarball = join(root, packedEntry(packed).filename);
   tarballs.push(rootTarball);
   await Bun.$`tar -xzf ${rootTarball} -C ${work}`;
   const quest = join(work, "package", "bin", "quest.cjs");
@@ -33,7 +38,10 @@ try {
   const platformPacked = await Bun.$`npm pack --json --cache ${npmCache}`
     .cwd(platformDirectory)
     .json();
-  const platformTarball = join(platformDirectory, platformPacked[0].filename);
+  const platformTarball = join(
+    platformDirectory,
+    packedEntry(platformPacked).filename,
+  );
   tarballs.push(platformTarball);
   const platformWork = join(work, "platform");
   await mkdir(platformWork, { recursive: true });
