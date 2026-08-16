@@ -39,11 +39,16 @@ export interface MigrationTarget {
     request: MigrationApplyRequest,
   ): Promise<MigrationTargetApplyResult>;
   readFingerprintFor(identifier: string): Promise<string | undefined>;
-  /** Target adapter must compare the creation fingerprint before removing. */
-  removeUnchanged(
+  /** Target adapter atomically compares creation fingerprint and migration state. */
+  removeUnchangedIfState(
     identifier: string,
     expectedFingerprint: string,
-  ): Promise<boolean>;
+    guard: MigrationStateGuard,
+  ): Promise<
+    | { readonly kind: "removed" }
+    | { readonly kind: "not-unchanged" }
+    | { readonly kind: "state-conflict" }
+  >;
   /** The sole target mutation permitted during shadow; must be idempotent. */
   refreshIfCurrent?(
     request: MigrationRefreshRequest,
@@ -363,8 +368,14 @@ export class MigrationService {
         manual.push(mapping.targetIdentifier);
         continue;
       }
-      if (await this.target.removeUnchanged(mapping.targetIdentifier, expected))
-        removed.push(mapping.targetIdentifier);
+      const result = await this.target.removeUnchangedIfState(
+        mapping.targetIdentifier,
+        expected,
+        { revision: stored.revision, phase: stored.state.phase },
+      );
+      if (result.kind === "state-conflict")
+        throw new RecordConflictError("migration_rollback_state_conflict");
+      if (result.kind === "removed") removed.push(mapping.targetIdentifier);
       else manual.push(mapping.targetIdentifier);
     }
     const state: MigrationState = { ...stored.state, phase: "rolled-back" };

@@ -61,6 +61,7 @@ class Target implements MigrationTarget {
   beforeOrdinary: (() => Promise<void>) | undefined;
   beforeApply: (() => Promise<void>) | undefined;
   beforeRefresh: (() => void) | undefined;
+  beforeRemove: (() => Promise<void>) | undefined;
   now: (() => Date) | undefined;
   async readFingerprint() {
     return this.fingerprint;
@@ -102,10 +103,21 @@ class Target implements MigrationTarget {
   async readFingerprintFor(identifier: string) {
     return this.records.get(identifier);
   }
-  async removeUnchanged(identifier: string, expected: string) {
-    if (this.records.get(identifier) !== expected) return false;
+  async removeUnchangedIfState(
+    identifier: string,
+    expected: string,
+    guard: Parameters<MigrationTarget["removeUnchangedIfState"]>[2],
+  ) {
+    await this.beforeRemove?.();
+    if (
+      this.stateRevision?.() !== guard.revision ||
+      guard.phase === "rolled-back"
+    )
+      return { kind: "state-conflict" as const };
+    if (this.records.get(identifier) !== expected)
+      return { kind: "not-unchanged" as const };
     this.records.delete(identifier);
-    return true;
+    return { kind: "removed" as const };
   }
   async refreshIfCurrent(
     request: Parameters<NonNullable<MigrationTarget["refreshIfCurrent"]>>[0],
@@ -376,6 +388,19 @@ test("rollback only removes unchanged migration records and names post-cutover e
   const rollback = await service.rollback();
   expect(rollback).toEqual({ removed: ["T-1"], manualReconciliation: ["T-2"] });
   expect(target.records.get("T-2")).toBe("edited-after-cutover");
+});
+
+test("rollback deletion is rejected when shadow advances between state read and target removal", async () => {
+  const { service, target, store } = fixture();
+  const preview = await service.preview();
+  await service.apply(preview, preview.digest);
+  target.beforeRemove = async () => {
+    await service.shadow("2026-01-02T00:00:00Z");
+  };
+  await expect(service.rollback()).rejects.toBeInstanceOf(RecordConflictError);
+  expect(store.state?.phase).toBe("shadow");
+  expect(target.records.get("T-2")).toBe("created-T-2");
+  expect(target.records.get("T-1")).toBe("created-T-1");
 });
 
 test("duplicate source identity or target identity cannot receive an ambiguous approval", () => {
