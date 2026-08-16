@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -129,8 +129,10 @@ async function runCandidateSmoke() {
     const quest = join(
       install,
       "node_modules",
-      ".bin",
-      process.platform === "win32" ? "quest.cmd" : "quest",
+      "@opum-ai",
+      `quest-${target}`,
+      "bin",
+      process.platform === "win32" ? "quest.exe" : "quest",
     );
     const env = { ...process.env, QUEST_TASK_STORE: install };
     const version = (
@@ -184,19 +186,19 @@ async function runCandidateSmoke() {
     );
     if (sqlite.kind !== "sqlite.smoke" || sqlite.data?.value !== 1)
       throw new Error("candidate projection smoke failed");
-    const migration = process.env.QUEST_QUALIFICATION_MIGRATION_SMOKE;
-    if (!migration) {
-      record("candidate_migration", "environment_skipped", {
-        publicationBlocking: true,
-        reason:
-          "Set QUEST_QUALIFICATION_MIGRATION_SMOKE to a native migration smoke executable.",
-      });
-    } else {
-      await command("candidate_migration", migration, [], {
-        cwd: install,
-        env: { ...env, QUEST_CANDIDATE_QUEST: quest },
-      });
-    }
+    const migration = JSON.parse(
+      await command(
+        "candidate_migration",
+        quest,
+        ["migration-smoke", "--json"],
+        {
+          cwd: install,
+          env,
+        },
+      ),
+    );
+    if (migration.kind !== "migration.smoke" || migration.data?.removed !== 1)
+      throw new Error("candidate migration smoke failed");
   } catch (error) {
     record("candidate_smoke_validation", "failed", {
       publicationBlocking: true,

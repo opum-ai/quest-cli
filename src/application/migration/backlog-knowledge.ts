@@ -1,16 +1,15 @@
 import { createHash } from "node:crypto";
-
-import type {
-  LoreAdoptionLedger,
-  LoreAdoptionPreview,
-  LoreBacklogCli,
-  LoreKnowledgeType,
-} from "../../adapters/lore/backlog-cli.ts";
 import type { MigrationPreview } from "../../domain/migration/migration.ts";
 import {
   RecordConflictError,
   RecordValidationError,
 } from "../../domain/records.ts";
+import type {
+  LoreAdoptionLedger,
+  LoreAdoptionPreview,
+  LoreBacklogAdoption,
+  LoreKnowledgeType,
+} from "../../ports/lore.ts";
 
 import type { MigrationApplyResult, MigrationService } from "./migration.ts";
 
@@ -165,7 +164,7 @@ function completeLoreRollback(ledger: LoreAdoptionLedger | undefined): boolean {
 export class BacklogLoreMigrationSaga {
   constructor(
     private readonly quest: MigrationService,
-    private readonly lore: LoreBacklogCli,
+    private readonly lore: LoreBacklogAdoption,
   ) {}
 
   /** Issue-only callers use this path and do not need Lore installed. */

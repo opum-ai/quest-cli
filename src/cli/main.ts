@@ -1,18 +1,19 @@
 #!/usr/bin/env bun
-import { join } from "node:path";
 import { Database } from "bun:sqlite";
+import { join } from "node:path";
 import { Command } from "commander";
 
 import {
   diagnostic,
   exitCodeFor,
   manifestResult,
-  selectOutputMode,
   type OutputMode,
+  selectOutputMode,
 } from "../application/command-contract.ts";
-import { TaskService } from "../application/tasks/tasks.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
+import { TaskService } from "../application/tasks/tasks.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
+import { migrationSmokeResult } from "./migration-smoke.ts";
 
 const VERSION = "0.1.0";
 
@@ -162,6 +163,18 @@ export async function runQuest(
       } finally {
         database.close();
       }
+    }
+    if (arguments_[0] === "migration-smoke") {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, []))
+        return failure(
+          "usage",
+          "migration-smoke accepts only --json and --plain.",
+        );
+      return output(
+        await migrationSmokeResult(),
+        selectOutputMode({ ...parsed, stdoutIsTty }),
+      );
     }
     if (arguments_[0] === "manifest") {
       const parsed = flags(arguments_.slice(1));
