@@ -8,7 +8,6 @@ import {
   type MigrationSourceRecord,
   type MigrationState,
   migrationPlan,
-  planSafeRollback,
   previewMigration,
   startShadowMigration,
 } from "../../domain/migration/migration.ts";
@@ -46,6 +45,7 @@ export interface MigrationTarget {
     guard: MigrationStateGuard,
   ): Promise<
     | { readonly kind: "removed" }
+    | { readonly kind: "already-removed" }
     | { readonly kind: "not-unchanged" }
     | { readonly kind: "state-conflict" }
   >;
@@ -346,23 +346,30 @@ export class MigrationService {
   }> {
     const stored = await this.store.read();
     if (!stored.state) throw new RecordConflictError("migration_not_found");
-    const fingerprints = new Map(
-      await Promise.all(
-        stored.state.mappings.map(
-          async (mapping) =>
-            [
-              mapping.targetIdentifier,
-              await this.target.readFingerprintFor(mapping.targetIdentifier),
-            ] as const,
-        ),
-      ),
-    );
-    const decision = planSafeRollback(stored.state, fingerprints);
+    let state = stored.state;
+    let revision = stored.revision;
+    if (state.phase !== "rolling-back") {
+      const reserved: MigrationState = {
+        ...state,
+        phase: "rolling-back",
+        rollbackRemoved: state.rollbackRemoved ?? [],
+      };
+      const reservation = await this.store.write({
+        expectedRevision: revision,
+        state: reserved,
+      });
+      if (reservation.kind === "conflict")
+        throw new RecordConflictError(
+          "migration_rollback_reservation_conflict",
+        );
+      state = reserved;
+      revision = reservation.revision;
+    }
+    const completed = new Set(state.rollbackRemoved ?? []);
     const removed: string[] = [];
-    const manual = decision.manualReconciliation.map(
-      (mapping) => mapping.targetIdentifier,
-    );
-    for (const mapping of decision.delete) {
+    const manual: string[] = [];
+    for (const mapping of state.mappings) {
+      if (completed.has(mapping.targetIdentifier)) continue;
       const expected = mapping.createdTargetFingerprint;
       if (expected === undefined) {
         manual.push(mapping.targetIdentifier);
@@ -371,16 +378,26 @@ export class MigrationService {
       const result = await this.target.removeUnchangedIfState(
         mapping.targetIdentifier,
         expected,
-        { revision: stored.revision, phase: stored.state.phase },
+        { revision, phase: state.phase },
       );
       if (result.kind === "state-conflict")
         throw new RecordConflictError("migration_rollback_state_conflict");
-      if (result.kind === "removed") removed.push(mapping.targetIdentifier);
-      else manual.push(mapping.targetIdentifier);
+      if (result.kind === "removed" || result.kind === "already-removed") {
+        removed.push(mapping.targetIdentifier);
+        completed.add(mapping.targetIdentifier);
+        state = { ...state, rollbackRemoved: [...completed].sort() };
+        const progress = await this.store.write({
+          expectedRevision: revision,
+          state,
+        });
+        if (progress.kind === "conflict")
+          throw new RecordConflictError("migration_rollback_progress_conflict");
+        revision = progress.revision;
+      } else manual.push(mapping.targetIdentifier);
     }
-    const state: MigrationState = { ...stored.state, phase: "rolled-back" };
+    state = { ...state, phase: "rolled-back" };
     const result = await this.store.write({
-      expectedRevision: stored.revision,
+      expectedRevision: revision,
       state,
     });
     if (result.kind === "conflict")

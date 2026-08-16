@@ -62,6 +62,8 @@ class Target implements MigrationTarget {
   beforeApply: (() => Promise<void>) | undefined;
   beforeRefresh: (() => void) | undefined;
   beforeRemove: (() => Promise<void>) | undefined;
+  onRemove: ((count: number) => Promise<void>) | undefined;
+  removeCalls = 0;
   now: (() => Date) | undefined;
   async readFingerprint() {
     return this.fingerprint;
@@ -108,12 +110,16 @@ class Target implements MigrationTarget {
     expected: string,
     guard: Parameters<MigrationTarget["removeUnchangedIfState"]>[2],
   ) {
+    this.removeCalls += 1;
     await this.beforeRemove?.();
+    await this.onRemove?.(this.removeCalls);
     if (
       this.stateRevision?.() !== guard.revision ||
       guard.phase === "rolled-back"
     )
       return { kind: "state-conflict" as const };
+    if (!this.records.has(identifier))
+      return { kind: "already-removed" as const };
     if (this.records.get(identifier) !== expected)
       return { kind: "not-unchanged" as const };
     this.records.delete(identifier);
@@ -398,9 +404,37 @@ test("rollback deletion is rejected when shadow advances between state read and 
     await service.shadow("2026-01-02T00:00:00Z");
   };
   await expect(service.rollback()).rejects.toBeInstanceOf(RecordConflictError);
-  expect(store.state?.phase).toBe("shadow");
+  expect(store.state?.phase).toBe("rolling-back");
   expect(target.records.get("T-2")).toBe("created-T-2");
   expect(target.records.get("T-1")).toBe("created-T-1");
+  target.beforeRemove = undefined;
+  await expect(service.rollback()).resolves.toEqual({
+    removed: ["T-2", "T-1"],
+    manualReconciliation: [],
+  });
+  expect(store.state?.phase).toBe("rolled-back");
+});
+
+test("rolling-back reservation rejects shadow after an earlier deletion and completes coherently", async () => {
+  const { service, target, store } = fixture();
+  const preview = await service.preview();
+  await service.apply(preview, preview.digest);
+  let shadowRejected = false;
+  target.onRemove = async (count) => {
+    if (count !== 2) return;
+    try {
+      await service.shadow("2026-01-02T00:00:00Z");
+    } catch (error) {
+      shadowRejected = error instanceof RecordConflictError;
+    }
+  };
+  await expect(service.rollback()).resolves.toEqual({
+    removed: ["T-2", "T-1"],
+    manualReconciliation: [],
+  });
+  expect(shadowRejected).toBeTrue();
+  expect(store.state?.phase).toBe("rolled-back");
+  expect(target.records).toHaveLength(0);
 });
 
 test("duplicate source identity or target identity cannot receive an ambiguous approval", () => {

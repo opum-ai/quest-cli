@@ -46,6 +46,7 @@ export type MigrationPhase =
   | "applied"
   | "shadow"
   | "cutover"
+  | "rolling-back"
   | "rolled-back";
 
 export interface MigrationState {
@@ -54,6 +55,8 @@ export interface MigrationState {
   readonly phase: MigrationPhase;
   readonly mappings: readonly MigrationMapping[];
   readonly shadowDeadline?: string;
+  /** Durably records each deletion so interrupted compensation can resume safely. */
+  readonly rollbackRemoved?: readonly string[];
 }
 
 function text(value: string, name: string): void {
@@ -184,7 +187,7 @@ export function startShadowMigration(
 
 /** During shadow, only the migration's idempotent refresh path may change target records. */
 export function assertOrdinaryTargetWriteAllowed(state: MigrationState): void {
-  if (state.phase === "shadow")
+  if (state.phase === "shadow" || state.phase === "rolling-back")
     throw new RecordConflictError(
       "migration_shadow_ordinary_target_write_rejected",
     );
@@ -229,7 +232,8 @@ export function planSafeRollback(
     state.phase !== "applying" &&
     state.phase !== "applied" &&
     state.phase !== "shadow" &&
-    state.phase !== "cutover"
+    state.phase !== "cutover" &&
+    state.phase !== "rolling-back"
   )
     throw new RecordConflictError("migration_rollback_not_available");
   const deleteEntries: MigrationMapping[] = [];
