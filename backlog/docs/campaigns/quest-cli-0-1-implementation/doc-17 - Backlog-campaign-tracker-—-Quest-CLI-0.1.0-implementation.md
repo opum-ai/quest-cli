@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-16 01:19'
+updated_date: '2026-08-16 03:03'
 tags:
   - quest
   - quest-0.1
@@ -26,7 +26,7 @@ tags:
 | Task | State | Delivery/evidence | Next action |
 | --- | --- | --- | --- |
 | QCLI-85 | Done | Status, durable resumable sync, read-only matching-cache fallback, enrolled cross-workspace queries, and representative scale evidence delivered. A 10k-task/100k-event rebuild passed below five seconds; 25 independently projected workspaces rebuilt and queried in 19 seconds. | Settled |
-| QCLI-86 | In Progress | Activated at `839e64f`; plan recorded and Lore task surface synced. | Map the existing Git CAS, authored record, and lifecycle boundaries before defining the migration contracts. |
+| QCLI-86 | In Progress | Activated at `839e64f`; plan recorded and Lore task surface synced. Writer dispatched from pinned `04ac42c` in Treehouse lease `3eb056c53f51dbf5d3ac11478c602ada` on branch `qcli-86-migration`. | Implement source-neutral migration contracts and focused integration coverage; then review, integrate, and qualify. |
 
 ## Queue
 
@@ -39,3 +39,4 @@ tags:
 - 2026-08-16 — Restored at `9e5c1cd`, reconciled stale QCLI-84 state, and implemented QCLI-85 through `7131711`. Query and adapter review findings on cache tampering and corrupt durable cursors were remediated.
 - 2026-08-16 — Added representative QCLI-85 scale evidence and settled it Done. The full Biome script remains environment-blocked by Treehouse nested available-worktree configuration; source-scoped Biome, type/layer checks, focused projection tests, and the full Bun suite pass.
 - 2026-08-16 — Delivered `839e64f` to `origin/dev`, activated QCLI-86, and synced its Backlog task status into Lore.
+- 2026-08-16 — Restored QCLI-86 at `04ac42c`; dispatched one isolated Treehouse writer from the same pinned base.
