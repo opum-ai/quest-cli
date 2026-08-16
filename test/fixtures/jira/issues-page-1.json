@@ -1,5 +1,6 @@
 {
-  "issues": [
+  "success": true,
+  "data": { "issues": [
     {
       "id": "10001",
       "key": "Q-1",
@@ -22,5 +23,5 @@
       }
     }
   ],
-  "nextPageToken": "page-2"
+  "nextPageToken": "page-2" }
 }

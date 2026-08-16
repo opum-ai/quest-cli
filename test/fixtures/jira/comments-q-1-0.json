@@ -1,6 +1,7 @@
 {
-  "comments": [
+  "success": true,
+  "data": { "comments": [
     { "id": "20001", "author": { "accountId": "acct-commenter", "displayName": "Commenter" }, "body": "First normalized comment", "created": "2026-01-01T01:00:00.000+0000" }
   ],
-  "total": 2
+  "total": 2 }
 }

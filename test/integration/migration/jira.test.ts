@@ -9,6 +9,13 @@ import { RecordValidationError } from "../../../src/domain/records.ts";
 
 const fixture = `${import.meta.dir}/../../fixtures/jira`;
 
+async function help(argv: readonly string[]): Promise<string> {
+  const process = Bun.spawn([...argv, "--help"], { stdout: "pipe" });
+  await process.exited;
+  expect(process.exitCode).toBe(0);
+  return new Response(process.stdout).text();
+}
+
 class GoldenRunner implements JiraCliRunner {
   readonly calls: string[][] = [];
   constructor(private readonly failure?: { readonly stderr: string }) {}
@@ -32,6 +39,22 @@ class GoldenRunner implements JiraCliRunner {
     };
   }
 }
+
+test("installed jira-cli 1.0.2 exposes the qualified search and comment argv", async () => {
+  expect((await Bun.$`jira --version`.text()).trim()).toBe("1.0.2");
+  await expect(help(["jira", "issue", "search"])).resolves.toContain(
+    "--next-page-token",
+  );
+  await expect(help(["jira", "issue", "search"])).resolves.toContain(
+    "--max-results",
+  );
+  await expect(help(["jira", "comment", "list"])).resolves.toContain(
+    "jira comment list <issueKey>",
+  );
+  await expect(help(["jira", "comment", "list"])).resolves.toContain(
+    "--start-at",
+  );
+});
 
 test("imports the paged public JSON surface, retaining provenance and every explicit gap", async () => {
   const runner = new GoldenRunner();
@@ -79,9 +102,32 @@ test("imports the paged public JSON surface, retaining provenance and every expl
   expect(snapshot.records[1]).toMatchObject({
     parent: { id: "10001", key: "Q-1" },
   });
-  expect(
-    runner.calls.every((argv) => argv[0] === "jira" && argv.includes("--json")),
-  ).toBe(true);
+  expect(runner.calls[0]).toEqual([
+    "jira",
+    "issue",
+    "search",
+    "--jql",
+    "project = Q",
+    "--fields",
+    expect.any(String),
+    "--max-results",
+    "1",
+    "--profile",
+    "adoption",
+  ]);
+  expect(runner.calls.find((argv) => argv.includes("Q-1"))).toEqual([
+    "jira",
+    "comment",
+    "list",
+    "Q-1",
+    "--max-results",
+    "1",
+    "--start-at",
+    "0",
+    "--profile",
+    "adoption",
+  ]);
+  expect(runner.calls.every((argv) => !argv.includes("--json"))).toBe(true);
   expect(
     runner.calls.some(
       (argv) => argv.includes("--next-page-token") && argv.includes("page-2"),
@@ -115,23 +161,29 @@ test("classifies inaccessible sources and refuses an unnormalized ADF payload", 
           exitCode: 0,
           stderr: "",
           stdout: JSON.stringify({
-            issues: [
-              {
-                id: "1",
-                key: "Q-1",
-                fields: {
-                  summary: "ADF",
-                  status: { name: "To Do" },
-                  description: { type: "doc" },
+            success: true,
+            data: {
+              issues: [
+                {
+                  id: "1",
+                  key: "Q-1",
+                  fields: {
+                    summary: "ADF",
+                    status: { name: "To Do" },
+                    description: { type: "doc" },
+                  },
                 },
-              },
-            ],
+              ],
+            },
           }),
         };
       return {
         exitCode: 0,
         stderr: "",
-        stdout: JSON.stringify({ comments: [], total: 0 }),
+        stdout: JSON.stringify({
+          success: true,
+          data: { comments: [], total: 0 },
+        }),
       };
     },
   };

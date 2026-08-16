@@ -1,5 +1,6 @@
 {
-  "issues": [
+  "success": true,
+  "data": { "issues": [
     {
       "id": "10002",
       "key": "Q-2",
@@ -12,5 +13,5 @@
         "description": "Second normalized description"
       }
     }
-  ]
+  ] }
 }

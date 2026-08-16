@@ -219,9 +219,8 @@ export class JiraImporter {
   private argv(args: readonly string[]): readonly string[] {
     return [
       "jira",
-      ...(this.options.profile ? ["--profile", this.options.profile] : []),
       ...args,
-      "--json",
+      ...(this.options.profile ? ["--profile", this.options.profile] : []),
     ];
   }
 
@@ -232,7 +231,15 @@ export class JiraImporter {
     const result = await this.runner.run(this.argv(argv));
     if (result.exitCode !== 0) throw classify(result, issueKey);
     try {
-      return object(JSON.parse(result.stdout), "jira_cli_json_invalid");
+      const payload = object(
+        JSON.parse(result.stdout),
+        "jira_cli_json_invalid",
+      );
+      if (payload.success === false)
+        throw classify({ ...result, exitCode: result.exitCode || 1 }, issueKey);
+      if (payload.success === true)
+        return object(payload.data, "jira_cli_data_invalid");
+      throw new RecordValidationError("jira_cli_envelope_invalid");
     } catch (error) {
       if (error instanceof RecordValidationError) throw error;
       throw new JiraImportError("transport", "jira_cli_json_invalid", issueKey);
@@ -249,7 +256,6 @@ export class JiraImporter {
       starts.add(startAt);
       const page = await this.json(
         [
-          "issue",
           "comment",
           "list",
           issueKey,
