@@ -8,6 +8,7 @@ import {
   previewMigration,
   startShadowMigration,
   type MigrationMapping,
+  type MigrationPhase,
   type MigrationSourceRecord,
   type MigrationState,
 } from "../../domain/migration/migration.ts";
@@ -30,9 +31,13 @@ export interface MigrationTarget {
   proposeIdentifiers(
     records: readonly MigrationSourceRecord[],
   ): Promise<readonly string[]>;
-  create(
-    mapping: Omit<MigrationMapping, "createdTargetFingerprint" | "createdAt">,
-  ): Promise<{ readonly fingerprint: string }>;
+  /**
+   * Atomically verifies the approved source and target bases, then creates (or
+   * idempotently resumes) the whole migration operation identified by digest.
+   */
+  applyIfApproved(
+    request: MigrationApplyRequest,
+  ): Promise<MigrationTargetApplyResult>;
   readFingerprintFor(identifier: string): Promise<string | undefined>;
   /** Target adapter must compare the creation fingerprint before removing. */
   removeUnchanged(
@@ -40,11 +45,40 @@ export interface MigrationTarget {
     expectedFingerprint: string,
   ): Promise<boolean>;
   /** The sole target mutation permitted during shadow; must be idempotent. */
-  refresh?(
-    mapping: MigrationMapping,
-  ): Promise<{ readonly fingerprint: string }>;
+  refreshIfCurrent?(
+    request: MigrationRefreshRequest,
+  ): Promise<readonly MigrationTargetFingerprint[]>;
   /** All non-migration target writes must enter through this guarded seam. */
-  writeOrdinary(command: MigrationTargetWrite): Promise<void>;
+  writeOrdinaryIfState(
+    command: MigrationTargetWrite,
+    guard: MigrationStateGuard,
+  ): Promise<{ readonly kind: "success" } | { readonly kind: "conflict" }>;
+}
+
+export interface MigrationApplyRequest {
+  readonly digest: string;
+  readonly plan: MigrationState["plan"];
+  readonly expectedSourceFingerprint: string;
+  readonly expectedTargetFingerprint: string;
+}
+export interface MigrationTargetFingerprint {
+  readonly targetIdentifier: string;
+  readonly fingerprint: string;
+}
+export type MigrationTargetApplyResult =
+  | {
+      readonly kind: "success";
+      readonly mappings: readonly MigrationTargetFingerprint[];
+    }
+  | { readonly kind: "conflict" };
+export interface MigrationStateGuard {
+  readonly revision: string;
+  readonly phase: MigrationPhase | undefined;
+}
+export interface MigrationRefreshRequest {
+  readonly digest: string;
+  readonly mappings: readonly MigrationMapping[];
+  readonly guard: MigrationStateGuard;
 }
 
 export interface MigrationTargetWrite {
@@ -127,43 +161,55 @@ export class MigrationService {
     const createdAt = this.now().toISOString();
     // Store all identities before the first target mutation. A target or CAS
     // failure can therefore leave an incomplete migration, never an orphan.
-    let state: MigrationState = {
+    const state: MigrationState = {
       digest: preview.digest,
       plan: preview.plan,
       phase: "applying",
       mappings: preview.plan.entries.map((entry) => ({ ...entry, createdAt })),
     };
-    let revision = stored.revision;
-    const begun = await this.store.write({ expectedRevision: revision, state });
+    const begun = await this.store.write({
+      expectedRevision: stored.revision,
+      state,
+    });
     if (begun.kind === "conflict")
       return { kind: "conflict", actualRevision: begun.actualRevision };
-    revision = begun.revision;
-    for (const entry of preview.plan.entries) {
-      const created = await this.target.create({ ...entry });
-      const mapping: MigrationMapping = {
-        ...entry,
-        createdTargetFingerprint: created.fingerprint,
-        createdAt,
-      };
-      state = {
-        ...state,
-        mappings: state.mappings.map((candidate) =>
-          candidate.targetIdentifier === mapping.targetIdentifier
-            ? mapping
-            : candidate,
-        ),
-      };
-      const recorded = await this.store.write({
-        expectedRevision: revision,
-        state,
-      });
-      if (recorded.kind === "conflict")
-        return { kind: "conflict", actualRevision: recorded.actualRevision };
-      revision = recorded.revision;
-    }
-    state = {
-      ...state,
+    const completed = await this.completeApply(state, begun.revision);
+    // The target operation is idempotently keyed by the digest. One CAS loss
+    // after its side effect therefore safely resumes from the durable map.
+    return completed.kind === "conflict" ? await this.resume() : completed;
+  }
+
+  private async completeApply(
+    applying: MigrationState,
+    revision: string,
+  ): Promise<MigrationApplyResult> {
+    const target = await this.target.applyIfApproved({
+      digest: applying.digest,
+      plan: applying.plan,
+      expectedSourceFingerprint: applying.plan.sourceFingerprint,
+      expectedTargetFingerprint: applying.plan.targetFingerprint,
+    });
+    if (target.kind === "conflict") return { kind: "conflict" };
+    const fingerprints = new Map(
+      target.mappings.map((mapping) => [
+        mapping.targetIdentifier,
+        mapping.fingerprint,
+      ]),
+    );
+    if (
+      fingerprints.size !== applying.mappings.length ||
+      applying.mappings.some(
+        (mapping) => !fingerprints.has(mapping.targetIdentifier),
+      )
+    )
+      throw new RecordConflictError("migration_target_apply_mapping_mismatch");
+    const state: MigrationState = {
+      ...applying,
       phase: "applied",
+      mappings: applying.mappings.map((mapping) => ({
+        ...mapping,
+        createdTargetFingerprint: fingerprints.get(mapping.targetIdentifier),
+      })),
     };
     const result = await this.store.write({
       expectedRevision: revision,
@@ -172,6 +218,15 @@ export class MigrationService {
     return result.kind === "success"
       ? { kind: "success", state }
       : { kind: "conflict", actualRevision: result.actualRevision };
+  }
+
+  /** Continue a durable partial apply; the target must resume the same digest idempotently. */
+  async resume(): Promise<MigrationApplyResult> {
+    const stored = await this.store.read();
+    if (!stored.state) throw new RecordConflictError("migration_not_found");
+    if (stored.state.phase !== "applying")
+      throw new RecordConflictError("migration_resume_not_available");
+    return this.completeApply(stored.state, stored.revision);
   }
 
   async shadow(deadline: string): Promise<MigrationState> {
@@ -187,28 +242,50 @@ export class MigrationService {
     return state;
   }
 
-  async refresh(): Promise<MigrationState> {
+  async refresh(retried = false): Promise<MigrationState> {
     const stored = await this.store.read();
     const state = stored.state;
     if (!state) throw new RecordConflictError("migration_not_found");
     assertShadowRefreshAllowed(state, this.now());
-    if (!this.target.refresh)
+    if (!this.target.refreshIfCurrent)
       throw new RecordConflictError("migration_shadow_refresh_unsupported");
-    const mappings = await Promise.all(
-      state.mappings.map(async (mapping) => ({
-        ...mapping,
-        createdTargetFingerprint:
-          (await this.target.refresh?.(mapping))?.fingerprint ??
-          mapping.createdTargetFingerprint,
-      })),
+    const refreshed = await this.target.refreshIfCurrent({
+      digest: state.digest,
+      mappings: state.mappings,
+      guard: { revision: stored.revision, phase: state.phase },
+    });
+    const fingerprints = new Map(
+      refreshed.map((mapping) => [
+        mapping.targetIdentifier,
+        mapping.fingerprint,
+      ]),
     );
-    const next = { ...state, mappings };
+    if (
+      fingerprints.size !== state.mappings.length ||
+      state.mappings.some(
+        (mapping) => !fingerprints.has(mapping.targetIdentifier),
+      )
+    )
+      throw new RecordConflictError(
+        "migration_shadow_refresh_mapping_mismatch",
+      );
+    const next = {
+      ...state,
+      mappings: state.mappings.map((mapping) => ({
+        ...mapping,
+        createdTargetFingerprint: fingerprints.get(mapping.targetIdentifier),
+      })),
+    };
     const result = await this.store.write({
       expectedRevision: stored.revision,
       state: next,
     });
-    if (result.kind === "conflict")
+    if (result.kind === "conflict") {
+      // `refreshIfCurrent` is explicitly idempotent. One bounded replay persists
+      // the already-applied target refresh or observes a transitioned state.
+      if (!retried) return this.refresh(true);
       throw new RecordConflictError("migration_state_conflict");
+    }
     return next;
   }
 
@@ -269,8 +346,13 @@ export class MigrationService {
 
   /** The application-owned writer seam enforces the shadow one-writer rule. */
   async writeOrdinary(command: MigrationTargetWrite): Promise<void> {
-    const state = (await this.store.read()).state;
-    if (state) assertOrdinaryTargetWriteAllowed(state);
-    await this.target.writeOrdinary(command);
+    const stored = await this.store.read();
+    if (stored.state) assertOrdinaryTargetWriteAllowed(stored.state);
+    const result = await this.target.writeOrdinaryIfState(command, {
+      revision: stored.revision,
+      phase: stored.state?.phase,
+    });
+    if (result.kind === "conflict")
+      throw new RecordConflictError("migration_ordinary_write_state_conflict");
   }
 }

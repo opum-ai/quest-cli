@@ -46,12 +46,20 @@ class Source implements MigrationSource {
 
 class Target implements MigrationTarget {
   fingerprint = "target-a";
+  sourceFingerprint = "source-a";
   readonly records = new Map<string, string>();
+  readonly applied = new Map<
+    string,
+    readonly { targetIdentifier: string; fingerprint: string }[]
+  >();
   proposals = 0;
-  creates = 0;
-  failOnCreate: number | undefined;
+  applyCalls = 0;
+  changeTargetBeforeApply = false;
+  changeSourceBeforeApply = false;
   proposedFor: readonly string[] = [];
   ordinaryWrites = 0;
+  stateRevision: (() => string) | undefined;
+  beforeOrdinary: (() => Promise<void>) | undefined;
   async readFingerprint() {
     return this.fingerprint;
   }
@@ -64,13 +72,27 @@ class Target implements MigrationTarget {
     );
     return ["T-2", "T-1"];
   }
-  async create(mapping: { readonly targetIdentifier: string }) {
-    this.creates += 1;
-    if (this.creates === this.failOnCreate)
-      throw new Error("target_create_failed");
-    const fingerprint = `created-${mapping.targetIdentifier}`;
-    this.records.set(mapping.targetIdentifier, fingerprint);
-    return { fingerprint };
+  async applyIfApproved(
+    request: Parameters<MigrationTarget["applyIfApproved"]>[0],
+  ) {
+    this.applyCalls += 1;
+    const existing = this.applied.get(request.digest);
+    if (existing) return { kind: "success" as const, mappings: existing };
+    if (this.changeTargetBeforeApply) this.fingerprint = "target-raced";
+    if (this.changeSourceBeforeApply) this.sourceFingerprint = "source-raced";
+    if (
+      request.expectedSourceFingerprint !== this.sourceFingerprint ||
+      request.expectedTargetFingerprint !== this.fingerprint
+    )
+      return { kind: "conflict" as const };
+    const mappings = request.plan.entries.map((entry) => {
+      const fingerprint = `created-${entry.targetIdentifier}`;
+      this.records.set(entry.targetIdentifier, fingerprint);
+      return { targetIdentifier: entry.targetIdentifier, fingerprint };
+    });
+    this.applied.set(request.digest, mappings);
+    this.fingerprint = `target-after-${request.digest}`;
+    return { kind: "success" as const, mappings };
   }
   async readFingerprintFor(identifier: string) {
     return this.records.get(identifier);
@@ -80,17 +102,30 @@ class Target implements MigrationTarget {
     this.records.delete(identifier);
     return true;
   }
-  async refresh(mapping: { readonly targetIdentifier: string }) {
-    const fingerprint = this.records.get(mapping.targetIdentifier);
-    if (!fingerprint) throw new Error("missing target");
-    return { fingerprint };
+  async refreshIfCurrent(
+    request: Parameters<NonNullable<MigrationTarget["refreshIfCurrent"]>>[0],
+  ) {
+    if (this.stateRevision?.() !== request.guard.revision)
+      throw new RecordConflictError("target_state_guard_conflict");
+    return request.mappings.map((mapping) => {
+      const fingerprint = this.records.get(mapping.targetIdentifier);
+      if (!fingerprint) throw new Error("missing target");
+      return { targetIdentifier: mapping.targetIdentifier, fingerprint };
+    });
   }
-  async writeOrdinary(command: {
-    readonly identifier: string;
-    readonly contentFingerprint: string;
-  }) {
+  async writeOrdinaryIfState(
+    command: {
+      readonly identifier: string;
+      readonly contentFingerprint: string;
+    },
+    guard: { readonly revision: string },
+  ) {
+    await this.beforeOrdinary?.();
+    if (this.stateRevision?.() !== guard.revision)
+      return { kind: "conflict" as const };
     this.ordinaryWrites += 1;
     this.records.set(command.identifier, command.contentFingerprint);
+    return { kind: "success" as const };
   }
 }
 
@@ -109,8 +144,10 @@ class Store implements MigrationStateStore {
     if (
       this.conflictAfterWrites !== undefined &&
       this.writes >= this.conflictAfterWrites
-    )
+    ) {
+      this.conflictAfterWrites = undefined;
       return { kind: "conflict" as const, actualRevision: this.revision };
+    }
     if (request.expectedRevision !== this.revision)
       return { kind: "conflict" as const, actualRevision: this.revision };
     this.state = request.state;
@@ -124,6 +161,7 @@ function fixture() {
   const source = new Source();
   const target = new Target();
   const store = new Store();
+  target.stateRevision = () => store.revision;
   const clock = { now: new Date("2026-01-01T00:00:00Z") };
   return {
     source,
@@ -153,7 +191,7 @@ test("preview is deterministic, read-only, and uses folder-qualified source mapp
   expect(first.digest).toBe(migrationDigest(first.plan));
   expect(target.proposedFor).toEqual(["active/TASK-2", "archive/TASK-2"]);
   expect(source.reads).toBe(2);
-  expect(target.creates).toBe(0);
+  expect(target.applyCalls).toBe(0);
   expect(store.writes).toBe(0);
 });
 
@@ -180,6 +218,20 @@ test("apply requires the exact review digest and current source and target bases
   await expect(service.apply(tampered, tampered.digest)).rejects.toBeInstanceOf(
     RecordValidationError,
   );
+  const targetRace = fixture();
+  const racePreview = await targetRace.service.preview();
+  targetRace.target.changeTargetBeforeApply = true;
+  await expect(
+    targetRace.service.apply(racePreview, racePreview.digest),
+  ).resolves.toMatchObject({ kind: "conflict" });
+  expect(targetRace.target.records).toHaveLength(0);
+  const sourceRace = fixture();
+  const sourceRacePreview = await sourceRace.service.preview();
+  sourceRace.target.changeSourceBeforeApply = true;
+  await expect(
+    sourceRace.service.apply(sourceRacePreview, sourceRacePreview.digest),
+  ).resolves.toMatchObject({ kind: "conflict" });
+  expect(sourceRace.target.records).toHaveLength(0);
 });
 
 test("shadow has a UTC deadline, guards ordinary writes, and requires explicit cutover", async () => {
@@ -217,35 +269,41 @@ test("refresh rejects once the explicit shadow deadline expires", async () => {
   await expect(service.refresh()).rejects.toBeInstanceOf(RecordConflictError);
 });
 
-test("a target failure retains the complete durable recovery map before target writes", async () => {
-  const { service, target, store } = fixture();
-  const preview = await service.preview();
-  target.failOnCreate = 2;
-  await expect(service.apply(preview, preview.digest)).rejects.toThrow(
-    "target_create_failed",
-  );
-  expect(store.state).toMatchObject({
-    phase: "applying",
-    digest: preview.digest,
-  });
-  expect(store.state?.mappings).toHaveLength(2);
-  expect(store.state?.mappings[0]?.targetIdentifier).toBe("T-2");
-  expect(target.records.get("T-2")).toBe("created-T-2");
-});
-
-test("a state CAS conflict after creation still leaves the target identity discoverable", async () => {
+test("apply automatically resumes an idempotent target side effect after state CAS loss", async () => {
   const { service, target, store } = fixture();
   const preview = await service.preview();
   store.conflictAfterWrites = 1;
-  await expect(service.apply(preview, preview.digest)).resolves.toEqual({
-    kind: "conflict",
-    actualRevision: "r-2",
+  await expect(service.apply(preview, preview.digest)).resolves.toMatchObject({
+    kind: "success",
+    state: { phase: "applied" },
   });
+  expect(target.applyCalls).toBe(2);
   expect(target.records.get("T-2")).toBe("created-T-2");
-  expect(store.state?.phase).toBe("applying");
-  expect(
-    store.state?.mappings.map((mapping) => mapping.targetIdentifier),
-  ).toEqual(["T-2", "T-1"]);
+});
+
+test("refresh automatically replays its idempotent target side effect after state CAS loss", async () => {
+  const { service, store } = fixture();
+  const preview = await service.preview();
+  await service.apply(preview, preview.digest);
+  await service.shadow("2026-01-02T00:00:00Z");
+  store.conflictAfterWrites = store.writes;
+  await expect(service.refresh()).resolves.toMatchObject({ phase: "shadow" });
+});
+
+test("ordinary write rejects when shadow commits between its check and target mutation", async () => {
+  const { service, target } = fixture();
+  const preview = await service.preview();
+  await service.apply(preview, preview.digest);
+  target.beforeOrdinary = async () => {
+    await service.shadow("2026-01-02T00:00:00Z");
+  };
+  await expect(
+    service.writeOrdinary({
+      identifier: "T-race",
+      contentFingerprint: "ordinary",
+    }),
+  ).rejects.toBeInstanceOf(RecordConflictError);
+  expect(target.ordinaryWrites).toBe(0);
 });
 
 test("rollback only removes unchanged migration records and names post-cutover edits", async () => {
