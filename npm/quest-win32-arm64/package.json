@@ -1,0 +1,20 @@
+{
+  "name": "@opum-ai/quest-win32-arm64",
+  "version": "0.1.0",
+  "description": "Quest CLI binary for win32-arm64.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opum-ai/quest-cli.git"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin/quest.exe"
+  ],
+  "questBinarySha256": "da6a8dc10057be2bf74d7e4e5ead9bfbe7f14a7f93db37315ebdc3f5f960a739"
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { join } from "node:path";
+import { Database } from "bun:sqlite";
 import { Command } from "commander";
 
 import {
@@ -138,6 +139,30 @@ export async function runQuest(
   try {
     if (arguments_.length === 1 && arguments_[0] === "--version")
       return { stdout: `${VERSION}\n`, stderr: "", exitCode: 0 };
+    if (arguments_[0] === "sqlite-smoke") {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, []))
+        return failure(
+          "usage",
+          "sqlite-smoke accepts only --json and --plain.",
+        );
+      const database = new Database(":memory:");
+      try {
+        const row = database.query("SELECT 1 AS value").get() as {
+          readonly value: number;
+        };
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "sqlite.smoke",
+            data: { value: row.value },
+          },
+          selectOutputMode({ ...parsed, stdoutIsTty }),
+        );
+      } finally {
+        database.close();
+      }
+    }
     if (arguments_[0] === "manifest") {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
