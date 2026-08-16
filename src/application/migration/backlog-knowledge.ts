@@ -74,6 +74,8 @@ export interface BacklogLoreFullApply {
   }[];
   /** Exact surviving artifacts, never a guessed clean state. */
   readonly survivors: readonly string[];
+  /** Durable public receipts and explicit unknown boundaries from compensation. */
+  readonly compensationEvidence: readonly string[];
   readonly cause?: string;
 }
 
@@ -102,6 +104,10 @@ function planDigest(
     .digest("hex");
 }
 
+function contentDigest(content: string): string {
+  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
+}
+
 function assertCompatibleLorePreview(
   preview: LoreAdoptionPreview,
   knowledge: readonly BacklogKnowledgeRecord[],
@@ -111,7 +117,12 @@ function assertCompatibleLorePreview(
   const expected = new Map(knowledge.map((record) => [record.id, record]));
   for (const record of preview.records) {
     const source = expected.get(record.source.id);
-    if (!source || source.path !== record.source.path)
+    if (
+      !source ||
+      source.path !== record.source.path ||
+      source.kind !== record.source.type ||
+      contentDigest(source.content) !== record.source.digest
+    )
       throw new RecordConflictError("lore_knowledge_preview_source_mismatch");
     if (
       record.collision ||
@@ -137,6 +148,13 @@ function survivors(
       .map((created) => `lore:${created.id}`) ?? []),
   ];
   return [...new Set(result)].sort();
+}
+
+function completeLoreRollback(ledger: LoreAdoptionLedger | undefined): boolean {
+  return (
+    ledger?.state === "rolled-back" &&
+    ledger.created.every((created) => created.removed)
+  );
 }
 
 /**
@@ -184,8 +202,11 @@ export class BacklogLoreMigrationSaga {
       throw new RecordValidationError("backlog_lore_approval_digest_mismatch");
     let lore: LoreAdoptionLedger | undefined;
     let quest: MigrationApplyResult | undefined;
+    let loreApplyBegun = false;
+    let questApplyBegun = false;
     try {
       // The order is intentional: Lore's receipt provides stable concept IDs before Quest applies.
+      loreApplyBegun = true;
       lore = await this.lore.apply(
         manifestPath,
         preview.lore.approval.digest,
@@ -196,11 +217,22 @@ export class BacklogLoreMigrationSaga {
       const expectedIds = new Set(
         preview.lore.records.map((record) => record.id),
       );
+      const expectedConcepts = new Map(
+        preview.lore.records.map((record) => [record.id, record]),
+      );
       if (
         lore.created.length !== expectedIds.size ||
-        lore.created.some((created) => !expectedIds.has(created.id))
+        lore.created.some((created) => {
+          const expected = expectedConcepts.get(created.id);
+          return (
+            !expected ||
+            expected.path !== created.path ||
+            expected.contentDigest !== created.contentDigest
+          );
+        })
       )
         throw new RecordConflictError("lore_knowledge_apply_mapping_mismatch");
+      questApplyBegun = true;
       quest = await this.quest.apply(preview.quest, preview.quest.digest);
       if (quest.kind !== "success")
         throw new RecordConflictError("quest_issue_apply_not_complete");
@@ -216,37 +248,63 @@ export class BacklogLoreMigrationSaga {
           return { sourceId: record.source.id, conceptId: record.id };
         }),
         survivors: [],
+        compensationEvidence: [],
       };
     } catch (error) {
       // Reverse product order. Both products retain their own durable rollback evidence.
       let questRollback: MigrationApplyResult | undefined;
       let loreRollback = lore;
-      try {
-        const result = await this.quest.rollback();
-        questRollback = {
-          kind: "conflict",
-          manualReconciliation: result.manualReconciliation,
-        };
-      } catch {
-        // A pre-Quest failure has no Quest state to compensate; continue with Lore.
-      }
-      try {
-        loreRollback = await this.lore.rollback(preview.lore.migration);
-      } catch {
-        // Read the last public ledger when rollback itself cannot complete.
+      const evidence: string[] = [];
+      let questRollbackKnown = !questApplyBegun;
+      if (quest?.kind === "success") {
         try {
-          loreRollback = await this.lore.status(preview.lore.migration);
+          const result = await this.quest.rollback();
+          questRollback = {
+            kind: "conflict",
+            manualReconciliation: result.manualReconciliation,
+          };
+          questRollbackKnown = true;
+          evidence.push("quest:rollback-receipt");
         } catch {
-          // The original error is still reported with all evidence available to us.
+          evidence.push("quest:rollback-unknown");
+        }
+      } else if (questApplyBegun) {
+        // A conflict/throw has no operation identity from MigrationService. Never
+        // risk rolling back a different, pre-existing Quest migration.
+        evidence.push("quest:rollback-not-owned");
+      }
+      let loreRollbackKnown = !loreApplyBegun;
+      if (loreApplyBegun) {
+        try {
+          loreRollback = await this.lore.rollback(preview.lore.migration);
+          loreRollbackKnown = completeLoreRollback(loreRollback);
+          evidence.push("lore:rollback-receipt");
+        } catch {
+          // Status is still only the public CLI ledger; never inspect Lore paths.
+          try {
+            loreRollback = await this.lore.status(preview.lore.migration);
+            loreRollbackKnown = completeLoreRollback(loreRollback);
+            evidence.push("lore:status-receipt");
+          } catch {
+            evidence.push("lore:rollback-unknown");
+          }
         }
       }
-      const remaining = survivors(questRollback, loreRollback);
+      const remaining = [
+        ...survivors(questRollback, loreRollback),
+        ...(questRollbackKnown ? [] : ["quest:rollback-unknown"]),
+        ...(loreRollbackKnown ? [] : ["lore:rollback-unknown"]),
+      ].sort();
       return {
-        kind: remaining.length ? "blocked-incomplete" : "compensated",
+        kind:
+          remaining.length || !questRollbackKnown || !loreRollbackKnown
+            ? "blocked-incomplete"
+            : "compensated",
         ...(quest ? { quest } : {}),
         ...(loreRollback ? { lore: loreRollback } : {}),
         conceptLinks: [],
         survivors: remaining,
+        compensationEvidence: evidence,
         cause:
           error instanceof Error
             ? error.message
