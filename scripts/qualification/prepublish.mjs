@@ -189,10 +189,10 @@ async function runCandidateSmoke() {
       record("candidate_migration", "environment_skipped", {
         publicationBlocking: true,
         reason:
-          "Set QUEST_QUALIFICATION_MIGRATION_SMOKE to the native candidate migration smoke command.",
+          "Set QUEST_QUALIFICATION_MIGRATION_SMOKE to a native migration smoke executable.",
       });
     } else {
-      await command("candidate_migration", "sh", ["-c", migration], {
+      await command("candidate_migration", migration, [], {
         cwd: install,
         env: { ...env, QUEST_CANDIDATE_QUEST: quest },
       });
