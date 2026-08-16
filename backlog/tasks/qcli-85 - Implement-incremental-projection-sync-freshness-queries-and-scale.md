@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-16 00:53'
+updated_date: '2026-08-16 00:59'
 labels:
   - quest-0.1
   - 'wave:projection'
@@ -57,4 +57,6 @@ Add resumable incremental projection updates and query routing without violating
 Activated after QCLI-84 completed and its six-platform Bun SQLite qualification passed on GitHub Actions run 31915704673. Beginning repository and authoritative-query research from dev at ace8210.
 
 Restore reconciliation: QCLI-84 is Done and pushed at 9e5c1cd. QCLI-85 remains the sole dependency-ready implementation task; its tracked file budget does not overlap any other ready task.
+
+Integrated projection status, durable resumable sync cursor, read-only SQLite reader, matching-cache query fallback, and enrolled-workspace routing on dev through 7131711. Independent review found cache-content trust and invalid-cursor gaps; both remediated and focused tests now pass. Remaining acceptance work: representative 10k-task / 100k-150k-event / 25-workspace scale-budget evidence, then final review and delivery.
 <!-- SECTION:NOTES:END -->
