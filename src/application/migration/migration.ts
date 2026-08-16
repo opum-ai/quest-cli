@@ -1,5 +1,7 @@
 import {
+  assertOrdinaryTargetWriteAllowed,
   assertApprovedMigration,
+  assertShadowRefreshAllowed,
   cutoverMigration,
   migrationPlan,
   planSafeRollback,
@@ -41,6 +43,13 @@ export interface MigrationTarget {
   refresh?(
     mapping: MigrationMapping,
   ): Promise<{ readonly fingerprint: string }>;
+  /** All non-migration target writes must enter through this guarded seam. */
+  writeOrdinary(command: MigrationTargetWrite): Promise<void>;
+}
+
+export interface MigrationTargetWrite {
+  readonly identifier: string;
+  readonly contentFingerprint: string;
 }
 
 export interface MigrationStateStore {
@@ -75,8 +84,16 @@ export class MigrationService {
   async preview() {
     const source = await this.source.readSnapshot();
     const targetFingerprint = await this.target.readFingerprint();
-    const ids = await this.target.proposeIdentifiers(source.records);
-    if (ids.length !== source.records.length)
+    const records = [...source.records].sort(
+      (left, right) =>
+        [
+          left.sourceInstance.localeCompare(right.sourceInstance),
+          left.sourceFolder.localeCompare(right.sourceFolder),
+          left.sourceIdentifier.localeCompare(right.sourceIdentifier),
+        ].find((result) => result !== 0) ?? 0,
+    );
+    const ids = await this.target.proposeIdentifiers(records);
+    if (ids.length !== records.length)
       throw new RecordConflictError(
         "migration_target_identifier_count_mismatch",
       );
@@ -85,7 +102,7 @@ export class MigrationService {
         sourceInstance: source.sourceInstance,
         sourceFingerprint: source.fingerprint,
         targetFingerprint,
-        entries: source.records.map((record, index) => ({
+        entries: records.map((record, index) => ({
           ...record,
           targetIdentifier: ids[index] ?? "",
         })),
@@ -108,23 +125,48 @@ export class MigrationService {
     const stored = await this.store.read();
     if (stored.state) throw new RecordConflictError("migration_already_exists");
     const createdAt = this.now().toISOString();
-    const mappings: MigrationMapping[] = [];
+    // Store all identities before the first target mutation. A target or CAS
+    // failure can therefore leave an incomplete migration, never an orphan.
+    let state: MigrationState = {
+      digest: preview.digest,
+      plan: preview.plan,
+      phase: "applying",
+      mappings: preview.plan.entries.map((entry) => ({ ...entry, createdAt })),
+    };
+    let revision = stored.revision;
+    const begun = await this.store.write({ expectedRevision: revision, state });
+    if (begun.kind === "conflict")
+      return { kind: "conflict", actualRevision: begun.actualRevision };
+    revision = begun.revision;
     for (const entry of preview.plan.entries) {
       const created = await this.target.create({ ...entry });
-      mappings.push({
+      const mapping: MigrationMapping = {
         ...entry,
         createdTargetFingerprint: created.fingerprint,
         createdAt,
+      };
+      state = {
+        ...state,
+        mappings: state.mappings.map((candidate) =>
+          candidate.targetIdentifier === mapping.targetIdentifier
+            ? mapping
+            : candidate,
+        ),
+      };
+      const recorded = await this.store.write({
+        expectedRevision: revision,
+        state,
       });
+      if (recorded.kind === "conflict")
+        return { kind: "conflict", actualRevision: recorded.actualRevision };
+      revision = recorded.revision;
     }
-    const state: MigrationState = {
-      digest: preview.digest,
-      plan: preview.plan,
+    state = {
+      ...state,
       phase: "applied",
-      mappings,
     };
     const result = await this.store.write({
-      expectedRevision: stored.revision,
+      expectedRevision: revision,
       state,
     });
     return result.kind === "success"
@@ -148,8 +190,8 @@ export class MigrationService {
   async refresh(): Promise<MigrationState> {
     const stored = await this.store.read();
     const state = stored.state;
-    if (state?.phase !== "shadow")
-      throw new RecordConflictError("migration_refresh_requires_shadow");
+    if (!state) throw new RecordConflictError("migration_not_found");
+    assertShadowRefreshAllowed(state, this.now());
     if (!this.target.refresh)
       throw new RecordConflictError("migration_shadow_refresh_unsupported");
     const mappings = await Promise.all(
@@ -206,12 +248,12 @@ export class MigrationService {
       (mapping) => mapping.targetIdentifier,
     );
     for (const mapping of decision.delete) {
-      if (
-        await this.target.removeUnchanged(
-          mapping.targetIdentifier,
-          mapping.createdTargetFingerprint,
-        )
-      )
+      const expected = mapping.createdTargetFingerprint;
+      if (expected === undefined) {
+        manual.push(mapping.targetIdentifier);
+        continue;
+      }
+      if (await this.target.removeUnchanged(mapping.targetIdentifier, expected))
         removed.push(mapping.targetIdentifier);
       else manual.push(mapping.targetIdentifier);
     }
@@ -223,5 +265,12 @@ export class MigrationService {
     if (result.kind === "conflict")
       throw new RecordConflictError("migration_state_conflict");
     return { removed, manualReconciliation: manual.sort() };
+  }
+
+  /** The application-owned writer seam enforces the shadow one-writer rule. */
+  async writeOrdinary(command: MigrationTargetWrite): Promise<void> {
+    const state = (await this.store.read()).state;
+    if (state) assertOrdinaryTargetWriteAllowed(state);
+    await this.target.writeOrdinary(command);
   }
 }

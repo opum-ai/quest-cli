@@ -37,11 +37,16 @@ export interface MigrationPreview {
 
 export interface MigrationMapping extends MigrationPlanEntry {
   /** Fingerprint immediately after Quest created the record, used for safe rollback. */
-  readonly createdTargetFingerprint: string;
+  readonly createdTargetFingerprint?: string;
   readonly createdAt: string;
 }
 
-export type MigrationPhase = "applied" | "shadow" | "cutover" | "rolled-back";
+export type MigrationPhase =
+  | "applying"
+  | "applied"
+  | "shadow"
+  | "cutover"
+  | "rolled-back";
 
 export interface MigrationState {
   readonly digest: string;
@@ -151,7 +156,10 @@ export function assertApprovedMigration(
   currentTargetFingerprint: string,
 ): void {
   text(approvedDigest, "approved_digest");
-  if (approvedDigest !== preview.digest)
+  // `readonly` is a TypeScript promise, not runtime immutability. Rebuild the
+  // digest at the authorization boundary so nested plan mutation cannot bypass review.
+  const reviewedDigest = migrationDigest(preview.plan);
+  if (preview.digest !== reviewedDigest || approvedDigest !== reviewedDigest)
     throw new RecordValidationError("migration_approval_digest_mismatch");
   if (currentSourceFingerprint !== preview.plan.sourceFingerprint)
     throw new RecordConflictError("migration_source_fingerprint_conflict");
@@ -193,6 +201,20 @@ export function cutoverMigration(
   return { ...state, phase: "cutover" };
 }
 
+/** A shadow deadline also bounds refresh: no target write may extend its window. */
+export function assertShadowRefreshAllowed(
+  state: MigrationState,
+  now: Date,
+): void {
+  if (state.phase !== "shadow")
+    throw new RecordConflictError("migration_refresh_requires_shadow");
+  if (
+    !state.shadowDeadline ||
+    now.getTime() >= Date.parse(state.shadowDeadline)
+  )
+    throw new RecordConflictError("migration_shadow_deadline_elapsed");
+}
+
 export interface RollbackDecision {
   readonly delete: readonly MigrationMapping[];
   readonly manualReconciliation: readonly MigrationMapping[];
@@ -204,6 +226,7 @@ export function planSafeRollback(
   currentTargetFingerprints: ReadonlyMap<string, string | undefined>,
 ): RollbackDecision {
   if (
+    state.phase !== "applying" &&
     state.phase !== "applied" &&
     state.phase !== "shadow" &&
     state.phase !== "cutover"
@@ -213,8 +236,9 @@ export function planSafeRollback(
   const manualReconciliation: MigrationMapping[] = [];
   for (const mapping of state.mappings) {
     if (
+      mapping.createdTargetFingerprint !== undefined &&
       currentTargetFingerprints.get(mapping.targetIdentifier) ===
-      mapping.createdTargetFingerprint
+        mapping.createdTargetFingerprint
     )
       deleteEntries.push(mapping);
     else manualReconciliation.push(mapping);
