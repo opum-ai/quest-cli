@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-16 18:25'
+updated_date: '2026-08-16 18:39'
 tags:
   - quest
   - quest-0.1
@@ -16,24 +16,26 @@ tags:
 
 ## State
 
-- Resolved: QCLI-72 through QCLI-92.
-- In flight: none.
-- Blocked: QCLI-95 requires explicit owner authorization immediately before publication.
-- Ready: QCLI-93 release qualification and QCLI-94 operator runbooks; both depend only on settled QCLI-92.
+- Resolved: QCLI-72 through QCLI-92 and QCLI-94.
+- In flight: QCLI-93 release qualification at `57a5f02`.
+- Blocked: QCLI-95 requires QCLI-93 technical gates plus explicit owner authorization immediately before publication.
+- Ready: none.
 
 ## Frontier
 
 | Task | State | Delivery/evidence | Next action |
 | --- | --- | --- | --- |
-| QCLI-91 | Done | Integrated through `ed9a7a2`; 40 migration qualification tests, typecheck, scoped Biome, diff check, and independent approval. | Settled. |
-| QCLI-92 | Done | Integrated through `93db330`; artifact/package and packed-tarball checks, focused CLI tests, typecheck, scoped Biome, and diff check passed after independent review. | Return the merged Treehouse lease; activate QCLI-93 and QCLI-94. |
+| QCLI-92 | Done | Integrated through `93db330`; artifact/package and packed-tarball checks, focused CLI tests, typecheck, scoped Biome, and diff check passed after independent review. | Settled. |
+| QCLI-94 | Done | Integrated through `d93c946`; Lore-managed operations, migration/recovery, and package/release runbooks passed strict Lore gates and independent review. | Settled. |
+| QCLI-93 | In progress / blocked | Integrated through `57a5f02`; native immutable candidate passes with a supplied migration executable; workflow covers six native targets and reports every failed/skipped gate as publication-blocking. | Define/provide the native per-target migration smoke executable and authorize resolution of the existing layer-boundary violation. |
 
 ## Queue
 
-- QCLI-93 and QCLI-94 are ready and non-overlapping: qualification owns workflows/scripts/test; runbooks owns docs/runbooks, docs/index.md, and README.md.
-- QCLI-95 waits on QCLI-93, QCLI-94, and explicit owner authorization.
+- QCLI-95 waits on QCLI-93 technical qualification and explicit owner authorization.
+- No other task is ready.
 
 ## Wave log
 
-- 2026-08-16 — QCLI-91 settled through `ed9a7a2`: independent review approved real mid-scan Backlog drift, Jira denial/missing-field and precise paging qualification; focused migration evidence passed.
-- 2026-08-16 — QCLI-92 settled through `93db330`: six platform candidate packages and Node launcher integrated. A portability repair normalized valid object-keyed versus array `npm pack --json` output. Bun automatic cross-target extraction failed twice at darwin-x64; `QUEST_BUN_TARGETS_DIR` completed all six builds without entering artifacts.
+- 2026-08-16 — QCLI-92 settled through `93db330`: six platform candidate packages and Node launcher integrated. A portability repair normalized valid object-keyed versus array `npm pack --json` output.
+- 2026-08-16 — QCLI-94 settled through `d93c946`: strict Lore validation/check and public command examples passed; docs preserve unpublished-package truth.
+- 2026-08-16 — QCLI-93 qualification integrated through `57a5f02`: Windows-safe six-runner matrix, immutable package clean-install smokes, and structured blocking evidence. A missing native migration smoke executable and existing layer violation block completion/publication.
