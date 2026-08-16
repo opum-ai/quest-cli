@@ -30,6 +30,7 @@ async function command(name, file, args, options = {}) {
       command: [file, ...args].join(" "),
       exitCode: error.code ?? null,
       stderr: String(error.stderr ?? "").trim(),
+      stdout: String(error.stdout ?? "").trim(),
     });
     throw error;
   }
