@@ -11,8 +11,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
-  BacklogImporter,
   assertNoBacklogCrossFolderCollisions,
+  BacklogImporter,
 } from "../../../src/adapters/migration/backlog/importer.ts";
 import {
   MigrationService,
