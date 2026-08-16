@@ -65,6 +65,7 @@ class Runner implements LoreCliRunner {
   previewSourceType: string | undefined;
   previewSourceDigest: string | undefined;
   createdPath: string | undefined;
+  createdContentDigest: string | undefined;
   async run(argv: readonly string[]) {
     this.calls.push([...argv]);
     const operation = argv[3];
@@ -101,7 +102,7 @@ class Runner implements LoreCliRunner {
             {
               id: "adr/adopted-decision",
               path: this.createdPath ?? "docs/adr/adopted-decision.md",
-              contentDigest: "sha256:concept",
+              contentDigest: this.createdContentDigest ?? "sha256:concept",
               removed: false,
             },
           ],
@@ -231,6 +232,16 @@ test("a stale preview source or receipt mapping cannot be applied", async () => 
     digestSaga.previewFull(".quest/adoption.json", knowledge),
   ).rejects.toThrow("lore_knowledge_preview_source_mismatch");
 
+  const validTypeRunner = new Runner();
+  validTypeRunner.previewSourceType = "guide";
+  const validTypeSaga = new BacklogLoreMigrationSaga(
+    quest().service as never,
+    new LoreBacklogCli(validTypeRunner),
+  );
+  await expect(
+    validTypeSaga.previewFull(".quest/adoption.json", knowledge),
+  ).rejects.toThrow("lore_knowledge_preview_source_mismatch");
+
   const receiptRunner = new Runner();
   receiptRunner.createdPath = "docs/adr/tampered.md";
   const target = quest();
@@ -246,6 +257,26 @@ test("a stale preview source or receipt mapping cannot be applied", async () => 
     receiptSaga.applyFull(preview, preview.digest, ".quest/adoption.json"),
   ).resolves.toMatchObject({ kind: "compensated", survivors: [] });
   expect(target.calls).toEqual(["preview"]);
+
+  const digestReceiptRunner = new Runner();
+  digestReceiptRunner.createdContentDigest = "sha256:tampered";
+  const digestReceiptTarget = quest();
+  const digestReceiptSaga = new BacklogLoreMigrationSaga(
+    digestReceiptTarget.service as never,
+    new LoreBacklogCli(digestReceiptRunner),
+  );
+  const digestReceiptPreview = await digestReceiptSaga.previewFull(
+    ".quest/adoption.json",
+    knowledge,
+  );
+  await expect(
+    digestReceiptSaga.applyFull(
+      digestReceiptPreview,
+      digestReceiptPreview.digest,
+      ".quest/adoption.json",
+    ),
+  ).resolves.toMatchObject({ kind: "compensated", survivors: [] });
+  expect(digestReceiptTarget.calls).toEqual(["preview"]);
 });
 
 test("unknown rollback and status boundaries remain blocked with explicit evidence", async () => {
