@@ -4,7 +4,6 @@ import { join, relative } from "node:path";
 
 import * as yaml from "js-yaml";
 
-import type { MigrationSourceSnapshot } from "../../../application/migration/migration.ts";
 import type { MigrationSourceRecord } from "../../../domain/migration/migration.ts";
 import {
   RecordConflictError,
@@ -72,7 +71,10 @@ export interface BacklogImportRecord extends MigrationSourceRecord {
   readonly updatedAt?: string;
 }
 
-export interface BacklogImportSnapshot extends MigrationSourceSnapshot {
+/** Structurally satisfies the application migration source snapshot port. */
+export interface BacklogImportSnapshot {
+  readonly sourceInstance: string;
+  readonly fingerprint: string;
   readonly records: readonly BacklogImportRecord[];
   /** IDs duplicated across lifecycle folders; they are reported, never resolved. */
   readonly crossFolderDuplicateIds: readonly string[];

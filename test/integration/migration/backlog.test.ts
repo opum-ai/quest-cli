@@ -7,6 +7,12 @@ import {
   BacklogImporter,
   assertNoBacklogCrossFolderCollisions,
 } from "../../../src/adapters/migration/backlog/importer.ts";
+import {
+  MigrationService,
+  type MigrationStateStore,
+  type MigrationTarget,
+} from "../../../src/application/migration/migration.ts";
+import type { MigrationState } from "../../../src/domain/migration/migration.ts";
 import { RecordConflictError } from "../../../src/domain/records.ts";
 
 const fixture = join(import.meta.dir, "../../fixtures/backlog/source");
@@ -22,6 +28,130 @@ async function git(
   await process.exited;
   if (process.exitCode !== 0)
     throw new Error(await new Response(process.stderr).text());
+}
+
+class Store implements MigrationStateStore {
+  revision = "r-1";
+  state: MigrationState | undefined;
+
+  async read() {
+    return { revision: this.revision, state: this.state };
+  }
+
+  async write(request: {
+    readonly expectedRevision: string;
+    readonly state: MigrationState;
+  }) {
+    if (request.expectedRevision !== this.revision)
+      return { kind: "conflict" as const, actualRevision: this.revision };
+    this.state = request.state;
+    this.revision = `r-${Number(this.revision.slice(2)) + 1}`;
+    return { kind: "success" as const, revision: this.revision };
+  }
+}
+
+class Target implements MigrationTarget {
+  fingerprint = "target-before";
+  readonly records = new Map<string, string>();
+  readonly applied = new Map<
+    string,
+    readonly { targetIdentifier: string; fingerprint: string }[]
+  >();
+  afterApply: (() => Promise<void>) | undefined;
+
+  constructor(private readonly store: Store) {}
+
+  async readFingerprint() {
+    return this.fingerprint;
+  }
+
+  async proposeIdentifiers(
+    records: Parameters<MigrationTarget["proposeIdentifiers"]>[0],
+  ) {
+    return records.map((_, index) => `T-${index + 1}`);
+  }
+
+  async applyIfApproved(
+    request: Parameters<MigrationTarget["applyIfApproved"]>[0],
+  ) {
+    if (
+      request.guard.revision !== this.store.revision ||
+      request.guard.phase !== "applying" ||
+      request.expectedTargetFingerprint !== this.fingerprint
+    )
+      return { kind: "conflict" as const };
+    const existing = this.applied.get(request.digest);
+    if (existing) return { kind: "success" as const, mappings: existing };
+    const mappings = request.plan.entries.map((entry) => {
+      const fingerprint = `created-${entry.targetIdentifier}`;
+      this.records.set(entry.targetIdentifier, fingerprint);
+      return { targetIdentifier: entry.targetIdentifier, fingerprint };
+    });
+    this.applied.set(request.digest, mappings);
+    this.fingerprint = `target-after-${request.digest}`;
+    await this.afterApply?.();
+    return { kind: "success" as const, mappings };
+  }
+
+  async readFingerprintFor(identifier: string) {
+    return this.records.get(identifier);
+  }
+
+  async removeUnchangedIfState(
+    identifier: string,
+    expectedFingerprint: string,
+    guard: {
+      readonly revision: string;
+      readonly phase: MigrationState["phase"];
+    },
+  ) {
+    if (
+      guard.revision !== this.store.revision ||
+      guard.phase !== "rolling-back"
+    )
+      return { kind: "state-conflict" as const };
+    if (!this.records.has(identifier))
+      return { kind: "already-removed" as const };
+    if (this.records.get(identifier) !== expectedFingerprint)
+      return { kind: "not-unchanged" as const };
+    this.records.delete(identifier);
+    return { kind: "removed" as const };
+  }
+
+  async refreshIfCurrent(
+    request: Parameters<NonNullable<MigrationTarget["refreshIfCurrent"]>>[0],
+  ) {
+    if (
+      request.guard.revision !== this.store.revision ||
+      request.guard.phase !== "shadow"
+    )
+      return { kind: "conflict" as const };
+    return {
+      kind: "success" as const,
+      mappings: request.mappings.map((mapping) => ({
+        targetIdentifier: mapping.targetIdentifier,
+        fingerprint: this.records.get(mapping.targetIdentifier) ?? "",
+      })),
+    };
+  }
+
+  async writeOrdinaryIfState() {
+    return { kind: "success" as const };
+  }
+}
+
+async function isolatedSource(): Promise<{
+  readonly directory: string;
+  readonly path: string;
+}> {
+  const directory = await mkdtemp(join(tmpdir(), "qcli-backlog-engine-"));
+  const path = join(directory, "backlog", "tasks", "task.md");
+  await mkdir(join(directory, "backlog", "tasks"), { recursive: true });
+  await Bun.write(
+    path,
+    await Bun.file(join(fixture, "backlog/tasks/task-1.md")).arrayBuffer(),
+  );
+  return { directory, path };
 }
 
 test("inventories every lifecycle folder, preserves the public task fields, and reports cross-folder collisions", async () => {
@@ -138,5 +268,94 @@ test("preserves the Git commit and tracked blob without replaying source history
     expect(record?.rawMarkdown).toContain("Active parent");
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("uses the Backlog snapshot for preview, direct apply, shadow refresh, cutover, and rollback", async () => {
+  const source = await isolatedSource();
+  try {
+    const store = new Store();
+    const target = new Target(store);
+    const service = new MigrationService(
+      new BacklogImporter(source.directory),
+      target,
+      store,
+      () => new Date("2026-01-01T00:00:00Z"),
+    );
+    const preview = await service.preview();
+    expect(preview.plan.entries).toHaveLength(1);
+    expect(preview.plan.entries[0]).toMatchObject({
+      sourceFolder: "active",
+      sourceIdentifier: "TASK-1",
+      targetIdentifier: "T-1",
+    });
+    await expect(service.apply(preview, preview.digest)).resolves.toMatchObject(
+      {
+        kind: "success",
+        state: { phase: "applied" },
+      },
+    );
+    expect((await service.shadow("2026-01-02T00:00:00Z")).phase).toBe("shadow");
+    expect((await service.refresh()).phase).toBe("shadow");
+    expect((await service.cutover()).phase).toBe("cutover");
+    await expect(service.rollback()).resolves.toEqual({
+      removed: ["T-1"],
+      manualReconciliation: [],
+    });
+    expect(target.records).toHaveLength(0);
+    expect(store.state?.phase).toBe("rolled-back");
+  } finally {
+    await rm(source.directory, { recursive: true, force: true });
+  }
+});
+
+test("detects post-apply Backlog drift and compensates unchanged migration-owned targets", async () => {
+  const source = await isolatedSource();
+  try {
+    const store = new Store();
+    const target = new Target(store);
+    target.afterApply = async () => {
+      await writeFile(source.path, `${await Bun.file(source.path).text()}\n`);
+    };
+    const service = new MigrationService(
+      new BacklogImporter(source.directory),
+      target,
+      store,
+    );
+    const preview = await service.preview();
+    await expect(service.apply(preview, preview.digest)).resolves.toEqual({
+      kind: "conflict",
+      manualReconciliation: [],
+    });
+    expect(target.records).toHaveLength(0);
+    expect(store.state?.phase).toBe("rolled-back");
+  } finally {
+    await rm(source.directory, { recursive: true, force: true });
+  }
+});
+
+test("reports a changed target for manual reconciliation during Backlog drift compensation", async () => {
+  const source = await isolatedSource();
+  try {
+    const store = new Store();
+    const target = new Target(store);
+    target.afterApply = async () => {
+      target.records.set("T-1", "edited-after-migration");
+      await writeFile(source.path, `${await Bun.file(source.path).text()}\n`);
+    };
+    const service = new MigrationService(
+      new BacklogImporter(source.directory),
+      target,
+      store,
+    );
+    const preview = await service.preview();
+    await expect(service.apply(preview, preview.digest)).resolves.toEqual({
+      kind: "conflict",
+      manualReconciliation: ["T-1"],
+    });
+    expect(target.records.get("T-1")).toBe("edited-after-migration");
+    expect(store.state?.phase).toBe("rolled-back");
+  } finally {
+    await rm(source.directory, { recursive: true, force: true });
   }
 });
