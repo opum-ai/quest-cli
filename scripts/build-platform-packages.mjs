@@ -14,8 +14,9 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const rootPackagePath = join(root, "package.json");
 const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
 const version = rootPackage.version;
-const checksums = {};
+const checksums = { ...(rootPackage.questPlatformPackages ?? {}) };
 const targetDirectory = process.env.QUEST_BUN_TARGETS_DIR;
+const requestedTarget = process.env.QUEST_BUN_TARGET;
 const platforms = [
   ["darwin", "arm64"],
   ["darwin", "x64"],
@@ -25,7 +26,13 @@ const platforms = [
   ["win32", "x64"],
 ];
 
-for (const [os, cpu] of platforms) {
+const selectedPlatforms = requestedTarget
+  ? platforms.filter(([os, cpu]) => `${os}-${cpu}` === requestedTarget)
+  : platforms;
+if (selectedPlatforms.length === 0)
+  throw new Error(`Unsupported Quest platform target: ${requestedTarget}.`);
+
+for (const [os, cpu] of selectedPlatforms) {
   const directory = join(root, "npm", `quest-${os}-${cpu}`);
   const executable = os === "win32" ? "quest.exe" : "quest";
   const binary = join(directory, "bin", executable);

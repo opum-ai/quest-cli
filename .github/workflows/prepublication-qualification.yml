@@ -63,6 +63,8 @@ jobs:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile --linker=isolated
       - run: bun run build:packages
+        env:
+          QUEST_BUN_TARGET: ${{ matrix.target }}
       - run: bun scripts/qualification/prepublish.mjs
         env:
           QUEST_QUALIFICATION_TARGET: ${{ matrix.target }}
