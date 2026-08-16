@@ -147,6 +147,7 @@
 - 2026-08-15T18:28:26-05:00 003412a48b838787ce851156e012cb22ac58ed25 chore: sync platform validation log
 - 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
 - 2026-08-15T20:19:18-05:00 04ac42c37049a65945b0322223caad7f7a8a12f2 chore: activate migration engine task
+- 2026-08-15T22:23:52-05:00 b687c236389adcbe6be7645bf5909c7cdcd850f8 chore: settle qcli-86 migration engine
 
 ## docs/adr
 
@@ -356,3 +357,4 @@
 - 2026-08-15T18:16:17-05:00 4f4df2af03f09559cee83de289b03ca0c9817b18 chore: sync projection campaign documentation
 - 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
 - 2026-08-15T20:19:18-05:00 04ac42c37049a65945b0322223caad7f7a8a12f2 chore: activate migration engine task
+- 2026-08-15T22:23:52-05:00 b687c236389adcbe6be7645bf5909c7cdcd850f8 chore: settle qcli-86 migration engine
