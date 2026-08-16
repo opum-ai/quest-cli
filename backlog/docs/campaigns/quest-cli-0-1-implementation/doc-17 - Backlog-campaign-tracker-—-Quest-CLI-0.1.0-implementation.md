@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-16 03:30'
+updated_date: '2026-08-16 12:31'
 tags:
   - quest
   - quest-0.1
@@ -16,17 +16,18 @@ tags:
 
 ## State
 
-- Resolved: QCLI-72, QCLI-73, QCLI-74, QCLI-75, QCLI-76, QCLI-77, QCLI-78, QCLI-79, QCLI-80, QCLI-81, QCLI-82, QCLI-83, QCLI-84, QCLI-85, QCLI-86, QCLI-90.
-- In flight: QCLI-87 safe extractor at `1eb17ea7a1e8295cf39706d45e23466e8e8410af`.
-- Human-decision blocked: completing QCLI-87 cutover wiring.
+- Resolved: QCLI-72 through QCLI-87, plus QCLI-90.
+- In flight: none.
+- Blocked: QCLI-88 requires LCLI-332.
 - Ready: QCLI-89 Jira Cloud importer.
 
 ## Frontier
 
 | Task | State | Delivery/evidence | Next action |
 | --- | --- | --- | --- |
-| QCLI-87 | Human-decision blocked | Snapshot-only Backlog extractor committed on `qcli-87-backlog-importer`, with fixture fidelity and provenance tests. Backlog has no lock and source must remain untouched, but QCLI-86 requires a source-side atomic `runIfFingerprint` lease across target mutations. | Decide whether cutover requires an external operational freeze/lease capability, or revise the engine contract to model detectable-but-non-atomic drift. |
-| QCLI-89 | Ready | Independent Jira importer. | May proceed after a worktree is available; current QCLI-87 artifact must remain retained. |
+| QCLI-86 | Done | Generic engine now detects post-apply source drift and safely compensates unchanged migration-owned target records. | Settled. |
+| QCLI-87 | Done | Read-only Backlog importer delivered with lifecycle/fidelity/provenance mapping, configurable directory and full symlink containment, and compensation integration. 112 tests passed before settlement. | Settled. |
+| QCLI-89 | Ready | Depends on delivered QCLI-74 and QCLI-86. | Activate, plan, and implement Jira CLI importer in an isolated worktree. |
 
 ## Queue
 
@@ -34,5 +35,6 @@ tags:
 
 ## Wave log
 
-- 2026-08-16 — QCLI-86 delivered through `27c8ba0`, independently reviewed, and settled Done.
-- 2026-08-16 — QCLI-87 safe extractor committed at `1eb17ea7a1e8295cf39706d45e23466e8e8410af`; cutover wiring is blocked on the source-guard decision.
+- 2026-08-16 — QCLI-86 drift compensation delivered through `40dbd8a`, independently reviewed, and validated.
+- 2026-08-16 — QCLI-87 delivered through `9ea0e08`: source inventory and provenance, bounded path containment, approved drift compensation, Backlog/Lore settlement, and Treehouse cleanup completed.
+- 2026-08-16 — Session renewal requested after housekeeping; QCLI-89 is the next automatic action.
