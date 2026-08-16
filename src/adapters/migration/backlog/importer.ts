@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readdir, realpath } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { isAbsolute, join, normalize, relative } from "node:path";
 
 import * as yaml from "js-yaml";
 
@@ -78,6 +78,15 @@ export interface BacklogImportSnapshot {
   readonly records: readonly BacklogImportRecord[];
   /** IDs duplicated across lifecycle folders; they are reported, never resolved. */
   readonly crossFolderDuplicateIds: readonly string[];
+}
+
+export interface BacklogImporterOptions {
+  /**
+   * The publicly configured Backlog directory relative to `sourceRoot`.
+   * Defaults to Backlog.md's conventional `backlog`; callers whose project
+   * used `backlog init --backlog-dir .backlog` must pass `.backlog`.
+   */
+  readonly backlogDirectory?: string;
 }
 
 const folders: readonly [BacklogLifecycleFolder, string][] = [
@@ -205,18 +214,39 @@ async function git(
 
 /** A read-only Backlog.md current-state adapter; it never invokes the Backlog CLI. */
 export class BacklogImporter {
-  constructor(private readonly sourceRoot: string) {}
+  constructor(
+    private readonly sourceRoot: string,
+    private readonly options: BacklogImporterOptions = {},
+  ) {}
 
   async readSnapshot(): Promise<BacklogImportSnapshot> {
     const root = await realpath(this.sourceRoot);
     const sourceInstance = `backlog:${root}`;
+    const backlogDirectory = this.options.backlogDirectory ?? "backlog";
+    const normalizedDirectory = normalize(backlogDirectory);
+    if (
+      !backlogDirectory ||
+      isAbsolute(backlogDirectory) ||
+      normalizedDirectory === ".." ||
+      normalizedDirectory.startsWith(`..${"/"}`) ||
+      normalizedDirectory.startsWith(`..${"\\"}`)
+    )
+      throw new RecordValidationError("backlog_directory_invalid");
+    const backlogRoot = join(root, normalizedDirectory);
+    try {
+      await readdir(backlogRoot);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT")
+        throw new RecordValidationError("backlog_directory_not_found");
+      throw error;
+    }
     const rows: {
       lifecycleFolder: BacklogLifecycleFolder;
       sourcePath: string;
       bytes: Uint8Array;
     }[] = [];
     for (const [lifecycleFolder, directory] of folders) {
-      const absolute = join(root, "backlog", directory);
+      const absolute = join(backlogRoot, directory);
       let entries: readonly string[];
       try {
         entries = (await readdir(absolute))

@@ -13,7 +13,10 @@ import {
   type MigrationTarget,
 } from "../../../src/application/migration/migration.ts";
 import type { MigrationState } from "../../../src/domain/migration/migration.ts";
-import { RecordConflictError } from "../../../src/domain/records.ts";
+import {
+  RecordConflictError,
+  RecordValidationError,
+} from "../../../src/domain/records.ts";
 
 const fixture = join(import.meta.dir, "../../fixtures/backlog/source");
 
@@ -140,13 +143,13 @@ class Target implements MigrationTarget {
   }
 }
 
-async function isolatedSource(): Promise<{
+async function isolatedSource(backlogDirectory = "backlog"): Promise<{
   readonly directory: string;
   readonly path: string;
 }> {
   const directory = await mkdtemp(join(tmpdir(), "qcli-backlog-engine-"));
-  const path = join(directory, "backlog", "tasks", "task.md");
-  await mkdir(join(directory, "backlog", "tasks"), { recursive: true });
+  const path = join(directory, backlogDirectory, "tasks", "task.md");
+  await mkdir(join(directory, backlogDirectory, "tasks"), { recursive: true });
   await Bun.write(
     path,
     await Bun.file(join(fixture, "backlog/tasks/task-1.md")).arrayBuffer(),
@@ -268,6 +271,35 @@ test("preserves the Git commit and tracked blob without replaying source history
     expect(record?.rawMarkdown).toContain("Active parent");
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("requires explicit public configuration for a non-default Backlog directory", async () => {
+  const source = await isolatedSource(".backlog");
+  try {
+    await expect(
+      new BacklogImporter(source.directory).readSnapshot(),
+    ).rejects.toBeInstanceOf(RecordValidationError);
+    const importer = new BacklogImporter(source.directory, {
+      backlogDirectory: ".backlog",
+    });
+    const first = await importer.readSnapshot();
+    const second = await importer.readSnapshot();
+    expect(second.fingerprint).toBe(first.fingerprint);
+    expect(first.records[0]).toMatchObject({
+      sourcePath: ".backlog/tasks/task.md",
+      sourceIdentifier: "TASK-1",
+    });
+    const store = new Store();
+    const service = new MigrationService(importer, new Target(store), store);
+    const preview = await service.preview();
+    expect(preview.plan.entries).toHaveLength(1);
+    await writeFile(source.path, `${await Bun.file(source.path).text()}\n`);
+    expect((await importer.readSnapshot()).fingerprint).not.toBe(
+      first.fingerprint,
+    );
+  } finally {
+    await rm(source.directory, { recursive: true, force: true });
   }
 });
 
