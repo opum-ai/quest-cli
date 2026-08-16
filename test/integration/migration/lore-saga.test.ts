@@ -234,13 +234,15 @@ test("a stale preview source or receipt mapping cannot be applied", async () => 
 
   const validTypeRunner = new Runner();
   validTypeRunner.previewSourceType = "guide";
+  const validTypeTarget = quest();
   const validTypeSaga = new BacklogLoreMigrationSaga(
-    quest().service as never,
+    validTypeTarget.service as never,
     new LoreBacklogCli(validTypeRunner),
   );
   await expect(
     validTypeSaga.previewFull(".quest/adoption.json", knowledge),
   ).rejects.toThrow("lore_knowledge_preview_source_mismatch");
+  expect(validTypeTarget.calls).toEqual(["preview"]);
 
   const receiptRunner = new Runner();
   receiptRunner.createdPath = "docs/adr/tampered.md";
