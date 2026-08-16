@@ -1,11 +1,11 @@
 ---
 id: QCLI-87
 title: Implement the Backlog.md issue importer
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-16 11:56'
+updated_date: '2026-08-16 12:31'
 labels:
   - quest-0.1
   - 'wave:migration'
@@ -35,11 +35,11 @@ Implement full current-state adoption of Backlog task records through the requal
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Active, completed, archived, and draft records are completely inventoried, including cross-folder duplicate IDs
-- [ ] #2 Hierarchy, dependencies, milestones, status, priority, type, assignees, labels, criteria, plans, notes, summaries, comments, references, documentation, modified files, and timestamps follow the approved fidelity matrix
-- [ ] #3 Every imported task receives a namespaced source alias and receives the raw familiar ID only when globally unambiguous
-- [ ] #4 Source commit and blob hashes are preserved while no lifecycle events are fabricated from Git history
-- [ ] #5 Preview, direct cutover, shadow refresh, source drift, rollback, and byte-identical source fingerprint tests pass
+- [x] #1 Active, completed, archived, and draft records are completely inventoried, including cross-folder duplicate IDs
+- [x] #2 Hierarchy, dependencies, milestones, status, priority, type, assignees, labels, criteria, plans, notes, summaries, comments, references, documentation, modified files, and timestamps follow the approved fidelity matrix
+- [x] #3 Every imported task receives a namespaced source alias and receives the raw familiar ID only when globally unambiguous
+- [x] #4 Source commit and blob hashes are preserved while no lifecycle events are fabricated from Git history
+- [x] #5 Preview, direct cutover, shadow refresh, source drift, rollback, and byte-identical source fingerprint tests pass
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -52,4 +52,12 @@ Implement full current-state adoption of Backlog task records through the requal
 
 <!-- SECTION:NOTES:BEGIN -->
 Owner approved detectable source drift with mandatory compensation; do not model Backlog as supplying an atomic lock or CAS lease.
+
+Integrated approved pre/post fingerprint drift-compensation model and independently reviewed importer containment. Validation at 7eddeed7a219564782858e6af0a36b31849a1ed9: 112 Bun tests, typecheck, source-scoped Biome, layer, and diff checks passed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented the read-only Backlog importer with complete lifecycle inventory, fidelity/provenance mapping, source-qualified aliases, configured-directory and symlink containment, and migration integration including compensating source-drift rollback.
+<!-- SECTION:FINAL_SUMMARY:END -->
