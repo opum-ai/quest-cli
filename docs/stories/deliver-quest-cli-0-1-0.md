@@ -10,7 +10,7 @@ tags:
   - release
 summary: Implement and qualify the standalone Quest CLI, its Lore tracker contract, migration paths, packaging, and release gates.
 timestamp: 2026-08-14T18:26:29.020Z
-status: todo
+status: in-progress
 tasks:
   - qcli-72
   - qcli-73
@@ -88,10 +88,10 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-88](../../backlog/tasks/qcli-88%20-%20Implement-Backlog-knowledge-partitioning-and-the-Quest-Lore-migration-saga.md) | Implement Backlog knowledge partitioning and the Quest-Lore migration saga | Done |
 | [QCLI-89](../../backlog/tasks/qcli-89%20-%20Implement-the-Jira-Cloud-importer-through-jira-cli.md) | Implement the Jira Cloud importer through jira-cli | Done |
 | [QCLI-90](../../backlog/tasks/qcli-90%20-%20Implement-optional-Lore-concept-linking.md) | Implement optional Lore concept linking | Done |
-| [QCLI-91](../../backlog/tasks/qcli-91%20-%20Qualify-Quest-migrations-and-Lore-interoperation-end-to-end.md) | Qualify Quest migrations and Lore interoperation end to end | To Do |
-| [QCLI-92](../../backlog/tasks/qcli-92%20-%20Build-six-compiled-Quest-platform-packages-and-the-npm-launcher.md) | Build six compiled Quest platform packages and the npm launcher | To Do |
-| [QCLI-93](../../backlog/tasks/qcli-93%20-%20Complete-Quest-release-fault-clone-scale-and-supply-chain-qualification.md) | Complete Quest release, fault, clone, scale, and supply-chain qualification | To Do |
-| [QCLI-94](../../backlog/tasks/qcli-94%20-%20Publish-Quest-operator-migration-recovery-and-release-runbooks.md) | Publish Quest operator, migration, recovery, and release runbooks | To Do |
+| [QCLI-91](../../backlog/tasks/qcli-91%20-%20Qualify-Quest-migrations-and-Lore-interoperation-end-to-end.md) | Qualify Quest migrations and Lore interoperation end to end | Done |
+| [QCLI-92](../../backlog/tasks/qcli-92%20-%20Build-six-compiled-Quest-platform-packages-and-the-npm-launcher.md) | Build six compiled Quest platform packages and the npm launcher | Done |
+| [QCLI-93](../../backlog/tasks/qcli-93%20-%20Complete-Quest-release-fault-clone-scale-and-supply-chain-qualification.md) | Complete Quest release, fault, clone, scale, and supply-chain qualification | In Progress |
+| [QCLI-94](../../backlog/tasks/qcli-94%20-%20Publish-Quest-operator-migration-recovery-and-release-runbooks.md) | Publish Quest operator, migration, recovery, and release runbooks | Done |
 | [QCLI-95](../../backlog/tasks/qcli-95%20-%20Publish-opum-ai-quest-0.1.0.md) | Publish @opum-ai/quest 0.1.0 | To Do |
 <!-- lore:tasks:end -->
 
