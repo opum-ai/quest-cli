@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 
 import {
   type JiraCliRunner,
+  type JiraImportError,
   JiraImporter,
 } from "../../../src/adapters/migration/jira/importer.ts";
 
@@ -55,6 +56,14 @@ test("recorded Jira paging produces a reproducible complete preview and detects 
   expect(first.records[1]?.parent).toEqual({ id: "10001", key: "Q-1" });
   expect(first.records[0]?.comments).toHaveLength(2);
   expect(first.records[0]?.assignee?.accountId).toBe("acct-assignee");
+  expect(first.records[1]).toMatchObject({
+    issueKey: "Q-2",
+    priority: undefined,
+    reporter: undefined,
+    assignee: undefined,
+    creator: undefined,
+    resolved: undefined,
+  });
   expect(first.records[0]?.unsupportedFields).toEqual([
     "attachments",
     "worklogs",
@@ -63,10 +72,31 @@ test("recorded Jira paging produces a reproducible complete preview and detects 
     "sprints",
   ]);
   expect(project.calls.some((call) => call.includes("page-2"))).toBeTrue();
-  expect(project.calls.some((call) => call.includes("1"))).toBeTrue();
+  expect(
+    project.calls.some(
+      (call) =>
+        call[call.indexOf("--start-at") + 1] === "1" && call.includes("Q-1"),
+    ),
+  ).toBeTrue();
 
   project.drift = true;
   expect((await importer.readSnapshot()).fingerprint).not.toBe(
     first.fingerprint,
   );
+});
+
+test("recorded permission denial remains a classified Jira source failure", async () => {
+  const denied: JiraCliRunner = {
+    async run() {
+      return { exitCode: 1, stdout: "", stderr: "Permission denied" };
+    },
+  };
+  await expect(
+    new JiraImporter(
+      { project: "Q", statusMappings: {} },
+      denied,
+    ).readSnapshot(),
+  ).rejects.toMatchObject({
+    kind: "denied",
+  } satisfies Partial<JiraImportError>);
 });

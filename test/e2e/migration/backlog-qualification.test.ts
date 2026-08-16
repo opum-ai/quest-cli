@@ -3,8 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { BacklogImporter } from "../../../src/adapters/migration/backlog/importer.ts";
-import { assertNoBacklogCrossFolderCollisions } from "../../../src/adapters/migration/backlog/importer.ts";
+import {
+  assertNoBacklogCrossFolderCollisions,
+  BacklogImporter,
+} from "../../../src/adapters/migration/backlog/importer.ts";
 import { RecordConflictError } from "../../../src/domain/records.ts";
 
 const folders = [
@@ -101,25 +103,49 @@ test("custom Backlog roots preserve lifecycle, padded IDs, Unicode, comments, do
   }
 });
 
-test("a repeatable preview source fingerprint changes only after a mid-scan source edit", async () => {
+test("a source change during scanning produces an immutable captured snapshot and a new later fingerprint", async () => {
   const root = await mkdtemp(join(tmpdir(), "qcli-backlog-fingerprint-"));
+  const originalBunFile = Bun.file;
   try {
-    const source = join(root, "backlog", "tasks", "OPS-0007.md");
+    const source = join(root, "backlog", "tasks", "A-OPS-0007.md");
+    const laterSource = join(root, "backlog", "tasks", "Z-OPS-0008.md");
+    const initial = markdown("OPS-0007", "Initial decision");
+    const changed = markdown("OPS-0007", "Changed during scan");
     await mkdir(join(root, "backlog", "tasks"), { recursive: true });
-    await writeFile(source, markdown("OPS-0007", "Initial decision"));
+    await writeFile(source, initial);
+    await writeFile(laterSource, markdown("OPS-0008", "Later decision"));
     const importer = new BacklogImporter(root);
     const first = await importer.readSnapshot();
     const repeat = await importer.readSnapshot();
     expect(repeat).toEqual(first);
+    expect(await Bun.file(source).text()).toBe(initial);
 
-    await writeFile(
-      source,
-      markdown("OPS-0007", "Changed during qualification"),
-    );
-    const changed = await importer.readSnapshot();
-    expect(changed.fingerprint).not.toBe(first.fingerprint);
-    expect(changed.records[0]?.title).toBe("Changed during qualification");
+    let mutatedDuringScan = false;
+    Bun.file = ((path: string | URL) => {
+      const file = originalBunFile(path);
+      if (!String(path).endsWith("A-OPS-0007.md") || mutatedDuringScan)
+        return file;
+      return {
+        ...file,
+        async arrayBuffer() {
+          const bytes = await file.arrayBuffer();
+          await writeFile(source, changed);
+          mutatedDuringScan = true;
+          return bytes;
+        },
+      };
+    }) as typeof Bun.file;
+
+    const captured = await importer.readSnapshot();
+    expect(mutatedDuringScan).toBeTrue();
+    expect(captured).toEqual(first);
+    expect(await Bun.file(source).text()).toBe(changed);
+
+    const after = await importer.readSnapshot();
+    expect(after.fingerprint).not.toBe(first.fingerprint);
+    expect(after.records[0]?.title).toBe("Changed during scan");
   } finally {
+    Bun.file = originalBunFile;
     await rm(root, { recursive: true, force: true });
   }
 });
