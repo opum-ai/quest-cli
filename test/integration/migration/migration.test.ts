@@ -7,9 +7,9 @@ import {
   type MigrationTarget,
 } from "../../../src/application/migration/migration.ts";
 import {
+  type MigrationState,
   migrationDigest,
   previewMigration,
-  type MigrationState,
 } from "../../../src/domain/migration/migration.ts";
 import {
   RecordConflictError,
