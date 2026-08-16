@@ -7,6 +7,7 @@ on:
       - ".github/workflows/prepublication-qualification.yml"
       - "package.json"
       - "bun.lock"
+      - "tsconfig.json"
       - "scripts/qualification/**"
       - "scripts/check-package-artifacts.mjs"
       - "scripts/test-packed-packages.mjs"
