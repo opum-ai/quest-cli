@@ -232,14 +232,22 @@ export class BacklogImporter {
       normalizedDirectory.startsWith(`..${"\\"}`)
     )
       throw new RecordValidationError("backlog_directory_invalid");
-    const backlogRoot = join(root, normalizedDirectory);
+    let backlogRoot: string;
     try {
-      await readdir(backlogRoot);
+      backlogRoot = await realpath(join(root, normalizedDirectory));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT")
         throw new RecordValidationError("backlog_directory_not_found");
       throw error;
     }
+    const relativeBacklogRoot = relative(root, backlogRoot);
+    if (
+      relativeBacklogRoot === ".." ||
+      relativeBacklogRoot.startsWith(`..${"/"}`) ||
+      relativeBacklogRoot.startsWith(`..${"\\"}`) ||
+      isAbsolute(relativeBacklogRoot)
+    )
+      throw new RecordValidationError("backlog_directory_outside_source");
     const rows: {
       lifecycleFolder: BacklogLifecycleFolder;
       sourcePath: string;

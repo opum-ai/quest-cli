@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -300,6 +307,23 @@ test("requires explicit public configuration for a non-default Backlog directory
     );
   } finally {
     await rm(source.directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects a configured Backlog directory symlink that escapes the source project", async () => {
+  const external = await isolatedSource();
+  const project = await mkdtemp(join(tmpdir(), "qcli-backlog-project-"));
+  try {
+    await symlink(
+      join(external.directory, "backlog"),
+      join(project, "backlog"),
+    );
+    await expect(
+      new BacklogImporter(project).readSnapshot(),
+    ).rejects.toBeInstanceOf(RecordValidationError);
+  } finally {
+    await rm(project, { recursive: true, force: true });
+    await rm(external.directory, { recursive: true, force: true });
   }
 });
 
