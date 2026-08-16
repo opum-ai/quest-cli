@@ -148,6 +148,7 @@
 - 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
 - 2026-08-15T20:19:18-05:00 04ac42c37049a65945b0322223caad7f7a8a12f2 chore: activate migration engine task
 - 2026-08-15T22:23:52-05:00 b687c236389adcbe6be7645bf5909c7cdcd850f8 chore: settle qcli-86 migration engine
+- 2026-08-16T07:31:44-05:00 9ea0e0837d2cc08c56aa4388dbc92d8cce3d3b97 chore: settle qcli-87 Backlog importer
 
 ## docs/adr
 
@@ -358,3 +359,4 @@
 - 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
 - 2026-08-15T20:19:18-05:00 04ac42c37049a65945b0322223caad7f7a8a12f2 chore: activate migration engine task
 - 2026-08-15T22:23:52-05:00 b687c236389adcbe6be7645bf5909c7cdcd850f8 chore: settle qcli-86 migration engine
+- 2026-08-16T07:31:44-05:00 9ea0e0837d2cc08c56aa4388dbc92d8cce3d3b97 chore: settle qcli-87 Backlog importer
