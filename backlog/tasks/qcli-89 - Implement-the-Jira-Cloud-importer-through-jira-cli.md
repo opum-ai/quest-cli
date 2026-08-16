@@ -1,10 +1,11 @@
 ---
 id: QCLI-89
 title: Implement the Jira Cloud importer through jira-cli
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-16 12:59'
 labels:
   - quest-0.1
   - 'wave:migration'
@@ -40,3 +41,13 @@ Implement one-way Jira Cloud issue adoption solely through the qualified install
 - [ ] #4 Imported Jira people remain source identities and gain no Quest role or gate eligibility without explicit actor adoption
 - [ ] #5 Paging, source changes, missing permissions, shadow refresh, cutover, and rollback pass recorded-golden and disposable-project tests
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inspect the existing migration ports, Backlog importer, and frozen Jira fidelity contract to define the adapter boundary and test seam.
+2. Implement a jira-cli argv/JSON-only reader with paged inventory, explicit diagnostics, status-mapping validation, source fingerprints, and provenance-preserving conversion.
+3. Wire preview, approval, shadow refresh, cutover, rollback, and drift compensation through the existing migration engine without reading credentials or using Jira HTTP.
+4. Add recorded golden and disposable-project-style integration coverage for hierarchy, links, people, comments, paging, permissions, missing fields, and source changes.
+5. Run focused checks, record evidence, obtain independent review, then complete task settlement.
+<!-- SECTION:PLAN:END -->

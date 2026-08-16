@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-16 12:31'
+updated_date: '2026-08-16 13:00'
 tags:
   - quest
   - quest-0.1
@@ -17,24 +17,23 @@ tags:
 ## State
 
 - Resolved: QCLI-72 through QCLI-87, plus QCLI-90.
-- In flight: none.
-- Blocked: QCLI-88 requires LCLI-332.
-- Ready: QCLI-89 Jira Cloud importer.
+- In flight: QCLI-89 in isolated Treehouse worktree on a pinned `dev` base.
+- Blocked: QCLI-88 waits for external prerequisite LCLI-332; QCLI-95 requires explicit owner authorization immediately before publication.
+- Ready: none; QCLI-91..94 remain dependency-blocked.
 
 ## Frontier
 
 | Task | State | Delivery/evidence | Next action |
 | --- | --- | --- | --- |
-| QCLI-86 | Done | Generic engine now detects post-apply source drift and safely compensates unchanged migration-owned target records. | Settled. |
-| QCLI-87 | Done | Read-only Backlog importer delivered with lifecycle/fidelity/provenance mapping, configurable directory and full symlink containment, and compensation integration. 112 tests passed before settlement. | Settled. |
-| QCLI-89 | Ready | Depends on delivered QCLI-74 and QCLI-86. | Activate, plan, and implement Jira CLI importer in an isolated worktree. |
+| QCLI-89 | In progress | Pinned base `c0d6d18528776f7c3f081b5a300fa593682c0678`; leased Treehouse worktree `1`, branch `campaign/qcli-89-jira`. | Implement and validate jira-cli argv/JSON-only importer, then independently review and integrate. |
+| QCLI-88 | External prerequisite | QCLI-87 is delivered; LCLI-332 has not been evidenced in this repository. | Leave inactive until the compatible released Lore contract is independently verifiable. |
 
 ## Queue
 
-- QCLI-88 waits on QCLI-87 and LCLI-332; QCLI-91 waits on QCLI-87..90.
+- QCLI-91 waits on QCLI-88 and QCLI-89; QCLI-92 and QCLI-94 wait on QCLI-91; QCLI-93 waits on QCLI-92; QCLI-95 waits on QCLI-93, QCLI-94, and explicit owner authorization.
 
 ## Wave log
 
+- 2026-08-16 — Restored against live `dev` at `c0d6d18528776f7c3f081b5a300fa593682c0678` (clean, ahead 25 of `origin/dev`). Reconciled stale prior cursor, activated QCLI-89, recorded its plan, leased Treehouse worktree `1` at the same base, and dispatched the isolated Jira implementation.
 - 2026-08-16 — QCLI-86 drift compensation delivered through `40dbd8a`, independently reviewed, and validated.
 - 2026-08-16 — QCLI-87 delivered through `9ea0e08`: source inventory and provenance, bounded path containment, approved drift compensation, Backlog/Lore settlement, and Treehouse cleanup completed.
-- 2026-08-16 — Session renewal requested after housekeeping; QCLI-89 is the next automatic action.
