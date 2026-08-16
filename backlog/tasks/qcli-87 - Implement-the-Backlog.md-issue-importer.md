@@ -1,10 +1,11 @@
 ---
 id: QCLI-87
 title: Implement the Backlog.md issue importer
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-16 03:24'
 labels:
   - quest-0.1
   - 'wave:migration'
@@ -40,3 +41,9 @@ Implement full current-state adoption of Backlog task records through the requal
 - [ ] #4 Source commit and blob hashes are preserved while no lifecycle events are fabricated from Git history
 - [ ] #5 Preview, direct cutover, shadow refresh, source drift, rollback, and byte-identical source fingerprint tests pass
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Revalidate the current public Backlog record layout and map it to QCLI-86 source-neutral migration contracts. 2. Implement a read-only Backlog source adapter with complete lifecycle inventory, source-qualified identity, provenance, fidelity mapping, and aliases. 3. Add fixture-based integration coverage for preview, cutover, shadow refresh, drift, rollback, and source immutability. 4. Run adapter, migration, type, layer, formatting, and cumulative qualification.
+<!-- SECTION:PLAN:END -->
