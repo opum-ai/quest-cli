@@ -345,6 +345,21 @@ test("rejects a lifecycle directory symlink that escapes the source project", as
   }
 });
 
+test("rejects a task-file symlink that escapes the source project", async () => {
+  const external = await isolatedSource();
+  const project = await mkdtemp(join(tmpdir(), "qcli-backlog-project-"));
+  try {
+    await mkdir(join(project, "backlog", "tasks"), { recursive: true });
+    await symlink(external.path, join(project, "backlog", "tasks", "task.md"));
+    await expect(
+      new BacklogImporter(project).readSnapshot(),
+    ).rejects.toBeInstanceOf(RecordValidationError);
+  } finally {
+    await rm(project, { recursive: true, force: true });
+    await rm(external.directory, { recursive: true, force: true });
+  }
+});
+
 test("uses the Backlog snapshot for preview, direct apply, shadow refresh, cutover, and rollback", async () => {
   const source = await isolatedSource();
   try {

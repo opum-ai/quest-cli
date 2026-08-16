@@ -274,13 +274,14 @@ export class BacklogImporter {
         throw error;
       }
       for (const entry of entries) {
-        const sourcePath = relative(root, join(absolute, entry));
+        const file = await realpath(join(absolute, entry));
+        if (outside(root, file))
+          throw new RecordValidationError("backlog_record_outside_source");
+        const sourcePath = relative(root, file);
         rows.push({
           lifecycleFolder,
           sourcePath,
-          bytes: new Uint8Array(
-            await Bun.file(join(absolute, entry)).arrayBuffer(),
-          ),
+          bytes: new Uint8Array(await Bun.file(file).arrayBuffer()),
         });
       }
     }
