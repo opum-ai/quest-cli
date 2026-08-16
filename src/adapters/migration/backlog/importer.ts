@@ -117,6 +117,16 @@ function number(value: unknown): number | undefined {
     : undefined;
 }
 
+function outside(root: string, candidate: string): boolean {
+  const path = relative(root, candidate);
+  return (
+    path === ".." ||
+    path.startsWith(`..${"/"}`) ||
+    path.startsWith(`..${"\\"}`) ||
+    isAbsolute(path)
+  );
+}
+
 function section(markdown: string, name: string): string | undefined {
   const match = markdown.match(
     new RegExp(
@@ -240,13 +250,7 @@ export class BacklogImporter {
         throw new RecordValidationError("backlog_directory_not_found");
       throw error;
     }
-    const relativeBacklogRoot = relative(root, backlogRoot);
-    if (
-      relativeBacklogRoot === ".." ||
-      relativeBacklogRoot.startsWith(`..${"/"}`) ||
-      relativeBacklogRoot.startsWith(`..${"\\"}`) ||
-      isAbsolute(relativeBacklogRoot)
-    )
+    if (outside(root, backlogRoot))
       throw new RecordValidationError("backlog_directory_outside_source");
     const rows: {
       lifecycleFolder: BacklogLifecycleFolder;
@@ -254,9 +258,14 @@ export class BacklogImporter {
       bytes: Uint8Array;
     }[] = [];
     for (const [lifecycleFolder, directory] of folders) {
-      const absolute = join(backlogRoot, directory);
+      let absolute: string;
       let entries: readonly string[];
       try {
+        absolute = await realpath(join(backlogRoot, directory));
+        if (outside(root, absolute))
+          throw new RecordValidationError(
+            "backlog_lifecycle_directory_outside_source",
+          );
         entries = (await readdir(absolute))
           .filter((entry) => entry.endsWith(".md"))
           .sort();
