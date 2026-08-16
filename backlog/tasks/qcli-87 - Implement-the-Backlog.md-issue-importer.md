@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-16 03:24'
+updated_date: '2026-08-16 11:56'
 labels:
   - quest-0.1
   - 'wave:migration'
@@ -45,5 +45,11 @@ Implement full current-state adoption of Backlog task records through the requal
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Revalidate the current public Backlog record layout and map it to QCLI-86 source-neutral migration contracts. 2. Implement a read-only Backlog source adapter with complete lifecycle inventory, source-qualified identity, provenance, fidelity mapping, and aliases. 3. Add fixture-based integration coverage for preview, cutover, shadow refresh, drift, rollback, and source immutability. 4. Run adapter, migration, type, layer, formatting, and cumulative qualification.
+1. Revalidate the current public Backlog record layout and map it to QCLI-86 source-neutral migration contracts. 2. Implement a read-only Backlog source adapter with complete lifecycle inventory, source-qualified identity, provenance, fidelity mapping, and aliases. 3. Use preflight and post-apply source fingerprints plus automatic compensation of unchanged migration-owned target records to detect and remediate source drift; an operational freeze remains a documented precondition, not a technical lease. 4. Add fixture-based integration coverage for preview, cutover, shadow refresh, source drift, rollback, and source immutability. 5. Run adapter, migration, type, layer, formatting, and cumulative qualification.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Owner approved detectable source drift with mandatory compensation; do not model Backlog as supplying an atomic lock or CAS lease.
+<!-- SECTION:NOTES:END -->
