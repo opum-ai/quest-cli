@@ -155,6 +155,7 @@
 - 2026-08-16T12:47:55-05:00 44c136d252567bf42d5d9c213fd7ac1938fe5afc docs: sync QCLI-88 campaign tracker
 - 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
+- 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
 
 ## docs/adr
 
@@ -251,6 +252,7 @@
 - 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
 - 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
+- 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
 
 ## docs/runbooks
 
@@ -372,3 +374,4 @@
 - 2026-08-16T12:47:44-05:00 16f6d5bfd4fb3296e5826966e5e9631cb369452e docs(QCLI-88): sync Lore saga status
 - 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
+- 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
