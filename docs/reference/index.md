@@ -7,6 +7,7 @@
 - [Quest CLI activation-gate evidence record](quest-cli-activation-gate-evidence-record.md)
 - [Quest CLI Backlog adoption and migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md)
 - [Quest CLI Backlog migration fidelity contract](quest-cli-backlog-migration-fidelity-contract.md)
+- [Quest CLI Backlog parity and Lore integration audit](quest-cli-backlog-parity-and-lore-integration-audit.md)
 - [Quest CLI black-box acceptance scenarios](quest-cli-black-box-acceptance-scenarios.md)
 - [Quest CLI canonical identifier grammar and authored-record layout proposal](quest-cli-canonical-identifier-grammar-and-authored-record-layout-proposal.md)
 - [Quest CLI component charter](quest-cli-component-charter.md)
