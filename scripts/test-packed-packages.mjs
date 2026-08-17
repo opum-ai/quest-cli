@@ -61,7 +61,7 @@ try {
     { recursive: true },
   );
   const version = await Bun.$`node ${quest} --version`.text();
-  if (version.trim() !== "0.2.2")
+  if (version.trim() !== "0.2.3")
     throw new Error("Packed launcher did not report its version.");
   const manifest = JSON.parse(
     await Bun.$`node ${quest} manifest --json`.text(),

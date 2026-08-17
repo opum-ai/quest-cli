@@ -15,12 +15,14 @@ import {
 } from "../../src/adapters/toml-configuration.ts";
 
 test("success envelopes have the frozen Opum wire shape", () => {
-  expect(success("query.results", { tasks: [] })).toEqual({
+  const envelope = success("query.results", { tasks: [] });
+  expect(envelope).toEqual({
     schemaVersion: 1,
     kind: "query.results",
     data: { tasks: [] },
     principal: null,
   });
+  expect(Object.keys(envelope).at(-1)).toBe("principal");
 });
 
 test("diagnostics classify every non-success exit and retain principal", () => {
@@ -35,11 +37,13 @@ test("diagnostics classify every non-success exit and retain principal", () => {
   } as const;
   for (const [errorType, exitCode] of Object.entries(expectedExits)) {
     const typedError = errorType as keyof typeof expectedExits;
-    expect(diagnostic(typedError, "Failure.")).toEqual({
+    const envelope = diagnostic(typedError, "Failure.");
+    expect(envelope).toEqual({
       error_type: typedError,
       message: "Failure.",
       principal: null,
     });
+    expect(Object.keys(envelope).at(-1), typedError).toBe("principal");
     expect(exitCodeFor(typedError)).toBe(exitCode);
   }
 });
