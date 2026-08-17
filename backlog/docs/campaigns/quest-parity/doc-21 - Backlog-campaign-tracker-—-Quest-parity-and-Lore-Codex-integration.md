@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 23:36'
+updated_date: '2026-08-17 23:44'
 ---
 ## Contract
 
@@ -16,23 +16,24 @@ updated_date: '2026-08-17 23:36'
 
 | Repository | Integration base | Required gates |
 | --- | --- | --- |
-| quest-cli | merged dev at 70a62838a5aebb50d68f2c66f667c7d8acd3f7fb | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
+| quest-cli | merged dev at 6f247cce6237e7d1197610e7e86fba9be8dfe327 | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
 
 ## Frontier
 
 - Resolved on dev: QCLI-97.1 through QCLI-97.4, QCLI-97.7, QCLI-97.8, QCLI-98 through QCLI-101, QCLI-103 through QCLI-108.
 - Resolved on dev: QCLI-111 merged through PR 113 at 70a6283 after all acceptance criteria and three fresh six-lane runs passed.
-- In flight: QCLI-112 is finalized on leased branch campaign/qcli-112-artifact-delivery from merged dev 70a6283; all local, package, Lore, and independent-review gates pass, and delivery to dev is next.
+- Resolved on dev: QCLI-112 merged through PR 114 at 6f247cc after source, six immutable-package, and six projection lanes passed; the merge tree matched the exact candidate.
+- In flight: QCLI-102 on leased branch campaign/qcli-102-manifest-help from merged dev 6f247cc; dispatcher and manifest-wide invocation implementation is next.
 - Blocked or held: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract. QCLI-97.9 records the stale installed Quest migration surface and requires separate authority before registry publication or global package mutation. QCLI-97.6 depends on both.
-- Ready after the active task: QCLI-102, QCLI-109, and QCLI-110.
+- Ready after the active task: QCLI-109 and QCLI-110.
 
 ## Queue
 
 | Order | Task | State | Next action |
 | --- | --- | --- | --- |
 | Done | QCLI-111 | Delivered | PR 113 merged to dev at 70a6283; the exact source candidate passed three six-lane runs. |
-| 1 | QCLI-112 | Delivery pending | Finalized and independently accepted; commit, push, open the dev PR, verify required checks, merge, and settle the lease. |
-| 3 | QCLI-102 | Ready | Version and short-help manifest invocability. |
+| Done | QCLI-112 | Delivered | PR 114 merged to dev at 6f247cc; exact head passed source, six package, and six projection checks. |
+| 1 | QCLI-102 | In Progress | Implement version/-h dispatch parity and manifest-wide invocability coverage. |
 | 4 | QCLI-109 | Ready | Flag values beginning with two dashes. |
 | 5 | QCLI-110 | Ready | Output-mode flags before the command. |
 | Held | QCLI-97.9 | Authority boundary | Qualify the installed migration artifact; publication/global install mutation needs separate authority. |
@@ -41,10 +42,10 @@ updated_date: '2026-08-17 23:36'
 
 ## Current worktree
 
-- Lease 91574eeb256a6f0ab89017c343321ffb is held by qcli-112-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
-- Branch: campaign/qcli-112-artifact-delivery from merged dev 70a62838a5aebb50d68f2c66f667c7d8acd3f7fb.
-- Last completed stage: the hook-bound rerun exposed Bun cached SQLite statements surviving close_v2; all projection statements now finalize explicitly, close(true) proves release, and focused/full/scale gates plus independent review pass.
-- Next automatic action: commit and push the reviewed hook-timeout remediation, require a fresh green Windows ARM64 step plus remaining PR checks, then merge PR 114, settle the lease, and activate QCLI-102.
+- Lease 82e23e2355bfc0691a390547851ec91a is held by qcli-102-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
+- Branch: campaign/qcli-102-manifest-help from merged dev 6f247cce6237e7d1197610e7e86fba9be8dfe327.
+- Last completed stage: PR 114 merged with an exact candidate tree, branches and lease settled, QCLI-102 audited and activated on a fresh merged-dev lease.
+- Next automatic action: implement QCLI-102 dispatcher aliases and manifest-wide invocation coverage, then run focused/full/package/Lore/review gates.
 
 ## QCLI-106/QCLI-107 settlement
 
@@ -90,3 +91,4 @@ updated_date: '2026-08-17 23:36'
 - 2026-08-17 — QCLI-112 added the ordinary-porcelain six-target delivery command, portable constrained-failure fixture, package mapping checks, and source-qualification coverage; independent re-review accepted the finalized candidate after all local gates passed.
 - 2026-08-17 — PR 114 run 32080175938 exposed QCLI-111's 5s afterEach hook timeout during EBUSY fixture cleanup; the narrow hook-bound remediation passed 160 tests and independent review before rerun.
 - 2026-08-17 — PR 114 rerun 32080577863 exhausted the full teardown retry window and isolated cached SQLite statement zombies; explicit finalize plus close(true) passed 160 tests, scale budgets, and independent review before a fresh rerun.
+- 2026-08-17 — Exact candidate 52e4cc2 passed run 32081140380 across all six projection lanes and run 32081140427 across source plus six immutable packages; PR 114 merged to dev at 6f247cc with an identical tree, then branch and lease cleanup completed.
