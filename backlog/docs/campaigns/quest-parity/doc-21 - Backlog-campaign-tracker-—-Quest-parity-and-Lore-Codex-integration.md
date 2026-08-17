@@ -3,50 +3,64 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 14:11'
+updated_date: '2026-08-17 16:54'
 ---
 ## Contract
 
-- Mode: autonomous-docs with explicit owner authorization for QCLI-97 product-code implementation in `quest-cli`.
+- Mode: autonomous-docs with explicit owner authorization completed for QCLI-105 and the merge-blocking QCLI-97.7 remediation.
 - Scope: quest-cli only; any Lore CLI repository change remains outside scope.
 - Queue rule: dependencies, then priority and ordinal.
+- Release line: continue the existing 0.2.x line under `docs/stories/harden-and-qualify-quest-cli-0-2-x.md`; no additional Story is needed.
 
 ## Repository
 
-| Repository | Task ids | AGENTS authority | Integration base | Required gates |
-| --- | --- | --- | --- | --- |
-| `quest-cli` | QCLI-97, QCLI-97.2 through QCLI-97.6 | Explicit owner authorization covers product code in quest-cli; no sibling repository writes. | `dev` `38b77db5cd7717edf89d76f2bdba232fad5b93d1` | Task-specific tests, all-platform package qualification, Lore strict checks for docs, diff check, review. |
+| Repository | Story and task scope | Integration base | Required gates |
+| --- | --- | --- | --- |
+| `quest-cli` | QCLI-97, QCLI-97.1 through QCLI-97.7, QCLI-98 through QCLI-108 | `dev` `2dc6dcb6b50b3fea9db34eae5a476ae884e0ec3c` via PR #105 | Task tests, full suite, layer gate, all-platform package qualification, Lore strict checks, diff check, CI review. |
 
 ## Frontier
 
-- Resolved: QCLI-97.1, QCLI-97.2, QCLI-97.3, QCLI-97.4; in flight: none; blocked: QCLI-97.5 cross-repository adapter coordination; ready: none.
+- Resolved: QCLI-97.1, QCLI-97.2, QCLI-97.3, QCLI-97.4, QCLI-97.7, QCLI-105.
+- In flight: none.
+- Blocked: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract.
+- Ready: QCLI-98, QCLI-99, QCLI-101, QCLI-100, QCLI-103, QCLI-104, QCLI-106, QCLI-107, QCLI-108, QCLI-102.
+- Held: QCLI-97.6 depends on QCLI-97.5 and QCLI-108; parent QCLI-97 remains open until its children settle.
 
 ## Queue
 
-| Order | Task | Dependencies | State | Wave | Likely paths |
-| --- | --- | --- | --- | --- | --- |
-| 1 | QCLI-97.5 | QCLI-97.2 | Blocked | Held | Quest adapter and cross-product conformance; no Lore repo authority |
-| 2 | QCLI-97.6 | QCLI-97.2, QCLI-97.3, QCLI-97.4, QCLI-97.5 | To Do | Held | qualification and release evidence |
+| Order | Task | State | Dependency or next scope |
+| --- | --- | --- | --- |
+| 1 | QCLI-98 | Ready | High-priority human output parity |
+| 2 | QCLI-99 | Ready | High-priority success-envelope principal contract |
+| 3 | QCLI-101 | Ready | High-priority flag parser correctness |
+| 4 | QCLI-100 | Ready | Help target flag handling |
+| 5 | QCLI-103 | Ready | Planning mutation response contracts |
+| 6 | QCLI-104 | Ready | Milestone task-reference preservation |
+| 7 | QCLI-106 | Ready | Agent check exit semantics |
+| 8 | QCLI-107 | Ready | Error classification |
+| 9 | QCLI-108 | Ready | Exclude pooled Treehouse worktrees from repository checks; blocks QCLI-97.6 |
+| 10 | QCLI-102 | Ready | Version/help aliases |
+| Held | QCLI-97.5 | Blocked | Separate Lore CLI repository authority or published contract |
+| Held | QCLI-97.6 | Held | QCLI-97.5 and QCLI-108 |
 
 ## Resolved
 
-| Task | Wave | Disposition | Evidence pointer |
-| --- | --- | --- | --- |
-| QCLI-97.1 | Pre-campaign audit | Done | `docs/reference/quest-cli-backlog-parity-and-lore-integration-audit.md` at `d2d047e`. |
-| QCLI-97.2 | 1 | Done | Packed init/agent onboarding/help plus all-platform package checks passed. |
-| QCLI-97.3 | 1 | Done | Subprocess planning/operator and loopback browser coverage plus all-platform package checks passed. |
-| QCLI-97.4 | 2 | Done | Lifecycle/draft recovery tests and documented Backlog compatibility map passed. |
+| Task | Disposition | Evidence pointer |
+| --- | --- | --- |
+| QCLI-97.1 through QCLI-97.4 | Done | Parity audit, bootstrap, planning, lifecycle, and draft surfaces integrated before this wave. |
+| QCLI-105 | Done | Nested compiled reads and writes use one initialized root; 146-test final suite and PR #105 CI passed. |
+| QCLI-97.7 | Done | Layer gate passes for 64 files; path-specific composition root and forbidden-import regression are in PR #105. |
 
 ## Human decisions and blockers
 
-- The owner authorized QCLI-97 product-code work on 2026-08-17, including Backlog-compatible archival/retention behavior.
-- QCLI-97.5 requires a public Quest-to-Lore adapter contract and real cross-product conformance. It cannot proceed without explicit authority to change the separate Lore CLI repository or a published Lore-side adapter contract.
-- The all-platform build now uses five verified Bun 1.3.14 target executables through `QUEST_BUN_TARGETS_DIR`; all package artifact and packed-install checks pass.
-- Repository-wide lint is blocked by pre-existing nested Treehouse `biome.json` files. The layer gate reports pre-existing adapter-to-application and CLI-to-adapter imports; focused checks for changed paths pass.
+- QCLI-97.5 cannot proceed without explicit authority to change the separate Lore CLI repository or an owner-approved published adapter contract.
+- The remaining ready product defects are tracked but were not activated by the QCLI-105 and housekeeping request.
+- QCLI-108 captures local Biome traversal of reusable pooled Treehouse worktrees. Clean CI checkout lint and format gates pass.
+- The local npm global EPERM is a managed sandbox write restriction, not a repository or user configuration defect.
 
 ## Wave log
 
-- 2026-08-17 — Initialized after grounding `dev` at `d2d047e`; parity audit QCLI-97.1 was already complete.
-- 2026-08-17 — Integrated lifecycle, planning, bootstrap, agent, discovery, and browser surfaces through `38b77db`.
-- 2026-08-17 — Rebuilt all six platform packages through verified Bun targets; package artifacts, packed clean-install onboarding, full 142-test suite, typecheck, focused Biome, Lore strict validation/check, and diff check passed.
-- 2026-08-17 — Settled QCLI-97.2, QCLI-97.3, and QCLI-97.4; refreshed the parity matrix, compatibility map, and Lore-managed Story state. The campaign now pauses only at QCLI-97.5’s separate-repository boundary.
+- 2026-08-17 — Integrated parity bootstrap, lifecycle, planning, agent, discovery, and browser surfaces through `d2aeacc`.
+- 2026-08-17 — Fixed QCLI-105, bumped the local release candidate to 0.2.1, rebuilt all six native packages, and created the 0.2.x hardening Story.
+- 2026-08-17 — Restored the architecture layer gate as QCLI-97.7 after it blocked required CI.
+- 2026-08-17 — Merged PR #105 to `dev` at `2dc6dcb6b50b3fea9db34eae5a476ae884e0ec3c`; 13 CI checks, 146 local tests, typecheck, layer, package, Lore strict, and diff gates passed.
