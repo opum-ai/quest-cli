@@ -5,16 +5,16 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 14:09'
+updated_date: '2026-08-17 16:26'
 labels:
   - quest-0.1
   - parity
   - operations
-  - 'doc:stories/deliver-quest-cli-0-1-0'
+  - 'doc:stories/harden-and-qualify-quest-cli-0-2-x'
 dependencies: []
 documentation:
   - docs/reference/quest-cli-backlog-parity-and-lore-integration-audit.md
-  - docs/stories/deliver-quest-cli-0-1-0.md
+  - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
 parent_task_id: QCLI-97
 priority: high
 type: feature

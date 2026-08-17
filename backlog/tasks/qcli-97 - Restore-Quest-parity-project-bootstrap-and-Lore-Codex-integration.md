@@ -4,18 +4,18 @@ title: 'Restore Quest parity, project bootstrap, and Lore/Codex integration'
 status: To Do
 assignee: []
 created_date: '2026-08-17 06:03'
-updated_date: '2026-08-17 06:05'
+updated_date: '2026-08-17 16:26'
 labels:
   - quest-0.1
   - parity
   - lore-integration
   - codex
-  - 'doc:stories/deliver-quest-cli-0-1-0'
+  - 'doc:stories/harden-and-qualify-quest-cli-0-2-x'
 dependencies: []
 documentation:
-  - docs/stories/deliver-quest-cli-0-1-0.md
   - docs/runbooks/quest-cli-operations.md
   - docs/reference/quest-cli-backlog-parity-and-lore-integration-audit.md
+  - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
 priority: high
 type: feature
 ordinal: 114000
