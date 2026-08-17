@@ -3,7 +3,7 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-16 18:39'
+updated_date: '2026-08-17 05:32'
 tags:
   - quest
   - quest-0.1
@@ -16,9 +16,9 @@ tags:
 
 ## State
 
-- Resolved: QCLI-72 through QCLI-92 and QCLI-94.
-- In flight: QCLI-93 release qualification at `57a5f02`.
-- Blocked: QCLI-95 requires QCLI-93 technical gates plus explicit owner authorization immediately before publication.
+- Resolved: QCLI-72 through QCLI-94.
+- In flight: none.
+- Blocked: QCLI-95 requires explicit owner authorization immediately before publication.
 - Ready: none.
 
 ## Frontier
@@ -27,15 +27,16 @@ tags:
 | --- | --- | --- | --- |
 | QCLI-92 | Done | Integrated through `93db330`; artifact/package and packed-tarball checks, focused CLI tests, typecheck, scoped Biome, and diff check passed after independent review. | Settled. |
 | QCLI-94 | Done | Integrated through `d93c946`; Lore-managed operations, migration/recovery, and package/release runbooks passed strict Lore gates and independent review. | Settled. |
-| QCLI-93 | In progress / blocked | Integrated through `57a5f02`; native immutable candidate passes with a supplied migration executable; workflow covers six native targets and reports every failed/skipped gate as publication-blocking. | Define/provide the native per-target migration smoke executable and authorize resolution of the existing layer-boundary violation. |
+| QCLI-93 | Done | Integrated through `f89ad16` via PR #104; GitHub Actions source gates and all six immutable platform candidates passed. Local package integrity, TypeScript, layer, fault-clone, and diff checks passed. | Settled; publication was not performed. |
+| QCLI-95 | To Do / blocked | QCLI-93 and QCLI-94 are complete. Its acceptance criteria require a fresh live registry check and explicit owner authorization before immutable npm publication. | Obtain explicit owner authorization to publish `@opum-ai/quest` 0.1.0. |
 
 ## Queue
 
-- QCLI-95 waits on QCLI-93 technical qualification and explicit owner authorization.
+- QCLI-95 is the only remaining task and is blocked pending explicit owner authorization for npm publication.
 - No other task is ready.
 
 ## Wave log
 
 - 2026-08-16 — QCLI-92 settled through `93db330`: six platform candidate packages and Node launcher integrated. A portability repair normalized valid object-keyed versus array `npm pack --json` output.
 - 2026-08-16 — QCLI-94 settled through `d93c946`: strict Lore validation/check and public command examples passed; docs preserve unpublished-package truth.
-- 2026-08-16 — QCLI-93 qualification integrated through `57a5f02`: Windows-safe six-runner matrix, immutable package clean-install smokes, and structured blocking evidence. A missing native migration smoke executable and existing layer violation block completion/publication.
+- 2026-08-17 — QCLI-93 settled through `f89ad16` via PR #104: compiled native migration smoke and application/adapter port inversion repaired the remaining qualification blockers. Source gates and all six platform package candidates passed in GitHub Actions; no publication was performed.
