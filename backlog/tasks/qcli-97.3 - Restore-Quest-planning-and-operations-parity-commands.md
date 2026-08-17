@@ -1,10 +1,11 @@
 ---
 id: QCLI-97.3
 title: Restore Quest planning and operations parity commands
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 06:07'
+updated_date: '2026-08-17 06:44'
 labels:
   - quest-0.1
   - parity
@@ -33,3 +34,17 @@ Restore the missing Backlog.md planning, diagnostics, and operator command group
 - [ ] #3 Search includes the non-document records promised by the accepted parity boundary and distinguishes unsupported queries explicitly
 - [ ] #4 Operational commands preserve unrelated worktree state and provide dry-run or confirmation behavior where mutations are material
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Introduce typed local storage boundaries for milestones and decisions without modifying task lifecycle storage. 2. Add read-only overview, board, and complete non-document search using existing task/query foundations. 3. Add milestone and decision CRUD/list, then deterministic doctor, cleanup, and localhost browser surfaces. 4. Add command conformance and safety tests; integrate shared CLI/manifest wiring serially after QCLI-97.2 and QCLI-97.4 changes.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Owner approved product-code implementation on 2026-08-17. Implement accepted Backlog parity except separate document management; initial design exploration is underway.
+
+Exploration found no existing public planning/operations implementation; QCLI-97.3 must not modify task lifecycle storage owned by QCLI-97.4. Shared routing hotspots will be serialized.
+<!-- SECTION:NOTES:END -->

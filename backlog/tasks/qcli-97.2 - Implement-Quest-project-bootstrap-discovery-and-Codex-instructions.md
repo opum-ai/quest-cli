@@ -1,10 +1,11 @@
 ---
 id: QCLI-97.2
 title: 'Implement Quest project bootstrap, discovery, and Codex instructions'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 06:07'
+updated_date: '2026-08-17 06:44'
 labels:
   - quest-0.1
   - parity
@@ -34,3 +35,17 @@ Deliver the missing public project-bootstrap and agent-discovery path identified
 - [ ] #3 Opt-in agent integration writes a managed Quest block to supported instruction files while preserving user-authored content and supports drift checking
 - [ ] #4 Clean-workspace and upgrade tests cover initialization, reinitialization, discovery, and Codex agent guidance
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Reuse the existing QCLI-78 workspace initializer behind a public init command with structured diagnostics. 2. Add versioned help, instructions, completion, and manifest registration from a shared command specification. 3. Add an opt-in managed agent-instruction writer/checker that preserves non-managed content. 4. Add clean-workspace, reinitialization, drift, subprocess, and packed-artifact coverage.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Owner approved product-code implementation on 2026-08-17. QCLI-97 requires Backlog-compatible parity except separate document management; initial design exploration is underway.
+
+Exploration found QCLI-78 workspace initialization already implemented but unexposed in src/application/workspaces/workspaces.ts and src/adapters/workspaces/local-workspaces.ts. Shared routing hotspots src/cli/main.ts and src/application/command-contract.ts will be integrated serially.
+<!-- SECTION:NOTES:END -->
