@@ -1,24 +1,24 @@
+import { RecordValidationError } from "../../domain/records.ts";
 import {
-  createTask,
   canonicalizeTaskLinks,
+  createDraft,
+  createTask,
+  type DraftInput,
+  type DraftLocation,
+  type DraftState,
   defaultLifecyclePolicy,
   evaluateReadySet,
   findTask,
-  searchTasks,
-  taskState,
-  transitionTask,
-  type ReadySet,
   type LifecyclePolicy,
+  type ReadySet,
+  searchTasks,
   type TaskInput,
+  type TaskLocation,
   type TaskState,
   type TaskStatus,
-  type TaskLocation,
-  type DraftLocation,
-  type DraftState,
-  type DraftInput,
-  createDraft,
+  taskState,
+  transitionTask,
 } from "../../domain/tasks/tasks.ts";
-import { RecordValidationError } from "../../domain/records.ts";
 
 /** The authoritative store is Git-backed in production; query methods deliberately have no write capability. */
 export interface TaskReader {
@@ -133,6 +133,13 @@ export class TaskService {
     return [...(await this.repository.readAll()).tasks].sort((a, b) =>
       a.id.localeCompare(b.id),
     );
+  }
+  /** Lists every canonical task, including retained lifecycle records. */
+  async listIncludingRetained(): Promise<readonly TaskState[]> {
+    const snapshot = await this.repository.readAll();
+    return this.taskRecords(snapshot)
+      .map((record) => record.task)
+      .sort((a, b) => a.id.localeCompare(b.id));
   }
   private lifecycleRepository(): LifecycleTaskRepository {
     if (!("writeLifecycle" in this.repository))

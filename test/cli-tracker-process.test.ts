@@ -1,8 +1,7 @@
+import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
-import { expect, test } from "bun:test";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
 const conformance = join(
@@ -160,6 +159,90 @@ test("a live storage lock produces a bounded conflict diagnostic", async () => {
     expect(performance.now() - started).toBeLessThan(1_000);
     expect(result.exitCode).toBe(5);
     expect(JSON.parse(result.stderr)).toMatchObject({ error_type: "conflict" });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("public lifecycle, draft, and planning routes preserve their declared envelopes", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-parity-routes-"));
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    const task = JSON.parse(
+      (await quest(store, ["task", "create", "Lifecycle task", ...human]))
+        .stdout,
+    ).data;
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "task",
+            "edit",
+            task.id,
+            "--status",
+            "In Progress",
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({ kind: "task.updated", data: { id: task.id } });
+    expect(
+      JSON.parse(
+        (await quest(store, ["task", "complete", task.id, ...human])).stdout,
+      ),
+    ).toMatchObject({
+      kind: "task.completed",
+      data: { task: { id: task.id, status: "Done" } },
+    });
+    expect(
+      JSON.parse(
+        (await quest(store, ["task", "archive", task.id, ...human])).stdout,
+      ),
+    ).toMatchObject({
+      kind: "task.archived",
+      data: { task: { id: task.id } },
+    });
+
+    const draft = JSON.parse(
+      (await quest(store, ["draft", "create", "Draft", ...human])).stdout,
+    ).data;
+    expect(
+      JSON.parse(
+        (await quest(store, ["draft", "view", draft.draft.id, "--json"]))
+          .stdout,
+      ),
+    ).toMatchObject({
+      kind: "draft.view",
+      data: { draft: { id: draft.draft.id } },
+    });
+    expect(
+      JSON.parse(
+        (await quest(store, ["draft", "promote", draft.draft.id, ...human]))
+          .stdout,
+      ),
+    ).toMatchObject({
+      kind: "draft.promoted",
+      data: { task: { id: "T-2" } },
+    });
+
+    await quest(store, ["milestone", "create", "M1", ...human]);
+    await quest(store, ["decision", "create", "D1", ...human]);
+    for (const [argv, kind] of [
+      [["milestone", "view", "M-1", "--json"], "milestone.records"],
+      [["decision", "view", "DEC-1", "--json"], "decision.records"],
+      [["overview", "--json"], "project.overview"],
+      [["board", "--json"], "project.board"],
+      [["doctor", "--json"], "project.doctor"],
+      [["search", "M1", "--all", "--json"], "search.results"],
+    ] as const) {
+      const result = await quest(store, argv);
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({ kind });
+    }
+    const cleanup = await quest(store, ["cleanup", "--dry-run", ...human]);
+    expect(JSON.parse(cleanup.stdout)).toMatchObject({
+      kind: "project.cleanup",
+    });
   } finally {
     await rm(store, { recursive: true, force: true });
   }

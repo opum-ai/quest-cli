@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 13:27'
+updated_date: '2026-08-17 13:50'
 labels:
   - quest-0.1
   - parity
@@ -56,4 +56,10 @@ Serialized public discovery/bootstrap wiring committed at bea587e5412c108ed1af61
 Integrated executable clean-workspace coverage at dev 0dccaf6: init/reinit, managed AGENTS preservation, drift detection, and repair. Shared public discovery routing remains under final wave integration.
 
 Independent review confirmed subcommand discovery gaps; dev 6ceed83 now derives targeted help and completion from the manifest. Final packed-artifact clean-install qualification remains.
+
+2026-08-17 restore: public route qualification exposed and fixed browser --port parsing plus automatic task-ID reuse after archival. Subprocess conformance, typecheck, focused Biome, and diff check passed. Final packed clean-install qualification is blocked: Bun 1.3.14 twice failed extracting its downloaded darwin-x64 compiler; its build script deleted the existing darwin-x64 package and partially rebuilt darwin-arm64. Retain this dirty generated-artifact state pending an explicit safe recovery decision.
+
+Recovery authorized 2026-08-17: restored failed-build artifacts from HEAD, then rebuilt darwin-arm64 only. Host  and  clean-install qualification passed; the full 142-test suite, typecheck, focused Biome, and diff check passed. Full all-platform rebuild remains blocked because Bun 1.3.14 cannot extract its darwin-x64 compiler after two attempts. Repository-wide lint is separately blocked by nested Treehouse configs, and layer check reports pre-existing adapter/application and CLI/adapters imports.
+
+Correction: the prior note omitted command names because shell quoting evaluated them. The passing host gates were bun run check:packages and bun run test:packages.
 <!-- SECTION:NOTES:END -->

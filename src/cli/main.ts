@@ -2,27 +2,26 @@
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import { Command } from "commander";
-
-import {
-  diagnostic,
-  exitCodeFor,
-  commandManifest,
-  manifestResult,
-  type OutputMode,
-  selectOutputMode,
-} from "../application/command-contract.ts";
-import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
-import { TaskService } from "../application/tasks/tasks.ts";
-import { PlanningService } from "../application/planning/planning.ts";
-import { startBrowserServer } from "../application/browser/browser.ts";
+import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
+import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
+import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
 import {
   inspectQuestAgentInstructions,
   questAgentInstructions,
   updateQuestAgentInstructions,
 } from "../application/agents/agent-instructions.ts";
-import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
-import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
-import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
+import { startBrowserServer } from "../application/browser/browser.ts";
+import {
+  commandManifest,
+  diagnostic,
+  exitCodeFor,
+  manifestResult,
+  type OutputMode,
+  selectOutputMode,
+} from "../application/command-contract.ts";
+import { PlanningService } from "../application/planning/planning.ts";
+import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
+import { TaskService } from "../application/tasks/tasks.ts";
 import { initializeWorkspace } from "../application/workspaces/workspaces.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
@@ -87,7 +86,6 @@ function flags(argv: readonly string[]):
     "--dry-run",
     "--include-archived",
     "--all",
-    "--port",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
@@ -164,7 +162,7 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
 }
 
 async function nextTaskId(tasks: TaskService): Promise<string> {
-  const ids = await tasks.list();
+  const ids = await tasks.listIncludingRetained();
   const highest = ids.reduce((maximum, task) => {
     const numeric = Number(task.id.slice(2));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
