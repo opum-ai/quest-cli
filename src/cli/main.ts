@@ -33,7 +33,7 @@ import {
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.4";
+const VERSION = "0.2.5";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -783,10 +783,10 @@ export async function runQuest(
         const existingMilestone = isMilestone
           ? await planning.viewMilestone(rest[0])
           : undefined;
-        const data = isMilestone
+        const data = existingMilestone
           ? await planning.updateMilestone(
               {
-                ...existingMilestone!,
+                ...existingMilestone,
                 ...(one(parsed, "--title")
                   ? { title: one(parsed, "--title") }
                   : {}),
@@ -799,7 +799,7 @@ export async function runQuest(
                     }
                   : {}),
                 taskIds: updatedMilestoneTaskIds(
-                  existingMilestone!.taskIds,
+                  existingMilestone.taskIds,
                   parsed,
                 ),
               },

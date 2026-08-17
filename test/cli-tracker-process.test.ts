@@ -88,7 +88,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.4\n",
+      stdout: "0.2.5\n",
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);
@@ -513,6 +513,78 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
         (await quest(store, ["decision", "view", decision, "--json"])).stdout,
       ),
     ).toMatchObject({ kind: "decision.view", data: { id: decision } });
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "milestone",
+            "edit",
+            milestone,
+            "--title",
+            "M1 edited",
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({
+      kind: "milestone.updated",
+      data: { record: { id: milestone, title: "M1 edited" } },
+    });
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "decision",
+            "edit",
+            decision,
+            "--outcome",
+            "Decided",
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({
+      kind: "decision.updated",
+      data: { record: { id: decision, outcome: "Decided" } },
+    });
+    const deletedMilestone = JSON.parse(
+      (
+        await quest(store, [
+          "milestone",
+          "create",
+          "Delete milestone",
+          ...human,
+        ])
+      ).stdout,
+    ).data.record.id as string;
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "milestone",
+            "delete",
+            deletedMilestone,
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({
+      kind: "milestone.deleted",
+      data: { record: { id: deletedMilestone } },
+    });
+    const deletedDecision = JSON.parse(
+      (await quest(store, ["decision", "create", "Delete decision", ...human]))
+        .stdout,
+    ).data.record.id as string;
+    expect(
+      JSON.parse(
+        (await quest(store, ["decision", "delete", deletedDecision, ...human]))
+          .stdout,
+      ),
+    ).toMatchObject({
+      kind: "decision.deleted",
+      data: { record: { id: deletedDecision } },
+    });
     for (const [argv, kind] of [
       [["overview", "--json"], "project.overview"],
       [["board", "--json"], "project.board"],
