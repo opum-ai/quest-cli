@@ -73,6 +73,26 @@ try {
   );
   if (sqlite.kind !== "sqlite.smoke" || sqlite.data.value !== 1)
     throw new Error("Packed launcher SQLite smoke failed.");
+  const workspace = join(work, "workspace");
+  await mkdir(workspace);
+  await Bun.$`git init -q`.cwd(workspace);
+  const initialized = JSON.parse(
+    await Bun.$`node ${quest} init --agent-instructions --json`
+      .cwd(workspace)
+      .text(),
+  );
+  if (initialized.kind !== "workspace.initialized")
+    throw new Error("Packed launcher workspace initialization failed.");
+  const agentCheck = JSON.parse(
+    await Bun.$`node ${quest} agents --check --json`.cwd(workspace).text(),
+  );
+  if (agentCheck.data?.state !== "current")
+    throw new Error("Packed launcher agent onboarding check failed.");
+  const help = JSON.parse(
+    await Bun.$`node ${quest} help task --json`.cwd(workspace).text(),
+  );
+  if (!help.data?.commands?.some((command) => command.name === "task create"))
+    throw new Error("Packed launcher targeted help failed.");
 } finally {
   await Promise.all(tarballs.map((tarball) => rm(tarball, { force: true })));
   await rm(work, { recursive: true, force: true });

@@ -156,6 +156,7 @@
 - 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
 - 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
+- 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
 
 ## docs/adr
 
@@ -375,3 +376,4 @@
 - 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
 - 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
+- 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
