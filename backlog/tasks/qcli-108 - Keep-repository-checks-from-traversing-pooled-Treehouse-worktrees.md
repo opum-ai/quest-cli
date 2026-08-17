@@ -1,10 +1,11 @@
 ---
 id: QCLI-108
 title: Keep repository checks from traversing pooled Treehouse worktrees
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-17 16:22'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 19:46'
 labels:
   - tooling
   - ci
@@ -17,6 +18,9 @@ references:
   - package.json
 documentation:
   - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
+modified_files:
+  - package.json
+  - scripts/test-repository-check-scope.mjs
 priority: medium
 type: bug
 ordinal: 132000
@@ -36,3 +40,11 @@ With reusable Treehouse leases present under the ignored `.treehouse/` directory
 - [ ] #4 The checks behave identically when `.treehouse/` is absent
 - [ ] #5 Automated regression coverage reproduces the nested-root configuration layout and prevents traversal from returning
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Replace repository-root Biome traversal in package scripts with an explicit owned-path target set that covers source, tests, scripts, and configured root JSON without entering .treehouse.
+2. Add a regression harness that creates the nested Treehouse/biome.json layout, runs the lint and format-check entry points with and without the pool, and verifies representative owned files remain checked.
+3. Run focused regression checks, lint, format:check, the full repository gate, Lore sync/strict validation, and diff checks before independent review.
+<!-- SECTION:PLAN:END -->

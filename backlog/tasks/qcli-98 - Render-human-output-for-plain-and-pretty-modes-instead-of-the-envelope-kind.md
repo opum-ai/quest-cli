@@ -1,10 +1,11 @@
 ---
 id: QCLI-98
 title: Render human output for plain and pretty modes instead of the envelope kind
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-17 15:19'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 19:46'
 labels:
   - cli
   - output-contract
@@ -14,6 +15,11 @@ dependencies: []
 documentation:
   - docs/reference/quest-cli-backlog-parity-and-lore-integration-audit.md
   - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
+modified_files:
+  - src/cli/main.ts
+  - src/cli/render.ts
+  - test/contract/cli-process.test.ts
+  - test/cli-tracker-process.test.ts
 priority: high
 type: bug
 ordinal: 121000
@@ -55,3 +61,13 @@ This breaks the Opum command contract's output-mode requirement (opum-doc `docs/
 - [ ] #3 A bare 'quest' invocation and 'quest help' both list the real commands in human-readable form
 - [ ] #4 A black-box test asserts, for every command in the manifest, that plain-mode stdout is not equal to that command's declared kind
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add a pure CLI-local human renderer that derives deterministic plain and pretty text from every successful structured envelope while preserving JSON output byte-for-byte.
+2. Route the shared output choke point through the renderer, with a command-discovery presentation for help and a generic recursive fallback for every existing and future payload shape; keep diagnostics and argv parsing out of scope.
+3. Add renderer and runQuest coverage for nested values, plain/non-TTY behavior, pretty/TTY and NO_COLOR safety, plus bare quest and quest help command discovery.
+4. Add a manifest-driven black-box matrix that invokes every payload-bearing command with valid fixtures and proves plain stdout is nonempty and never its declared kind.
+5. Run focused tests, the full repository gates, package-impact checks as needed, Lore sync/strict validation, and diff checks before independent review.
+<!-- SECTION:PLAN:END -->

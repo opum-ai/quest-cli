@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-17 15:46'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 18:48'
 labels:
   - cli
   - exit-codes
@@ -73,3 +73,15 @@ lore-cli hit and fixed the same class of issue under LCLI-108 ('readConfigText m
 - [ ] #4 The agent instructions state whether callers are expected to implement their own retry on conflict
 - [ ] #5 A concurrency test asserts that every non-zero exit from N concurrent writers is exactly 5, and a permissions test asserts exit 4
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+External verification against candidate 0.2.2 (native darwin-arm64 sha256 8ae73c74536b28870532e94d97686ee1c65ac094f69a357ec1139bcba6fffb9e), 2026-08-17.
+
+Part A still reproduces. 12 concurrent `task create` calls, repeated over 6 independent workspaces: dependency_target_ambiguous (error_type validation, exit 6) appeared in 5 of 6 rounds, 2-4 writers per affected round. The remaining losers correctly report conflict/exit 5. Records stayed unique and no writer crashed in any round, so this is classification only, not corruption.
+
+Warning for whoever implements this: a single-round concurrency test is flaky against this defect. One round in six came back clean and would have shown a false pass. The external harness row (opum-cli-e2e, suite 27-quest-fault) was changed to repeat 5 rounds and aggregate for exactly this reason; a fix should be verified the same way rather than on one sample.
+
+Part B still reproduces unchanged: with .quest made read-only, a write returns error_type validation / exit 6 carrying the raw EACCES text, where the taxonomy reserves denied / exit 4.
+<!-- SECTION:NOTES:END -->
