@@ -1,8 +1,10 @@
 import { lstat, readFile, realpath, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { AgentInstructionError } from "../../application/agents/agent-instructions.ts";
-import type { AgentInstructionPort } from "../../ports/agent-instructions.ts";
+import {
+  AgentInstructionError,
+  type AgentInstructionPort,
+} from "../../ports/agent-instructions.ts";
 
 function isContained(root: string, target: string): boolean {
   const path = relative(root, target);

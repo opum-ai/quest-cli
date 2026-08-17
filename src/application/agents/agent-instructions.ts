@@ -1,4 +1,9 @@
-import type { AgentInstructionPort } from "../../ports/agent-instructions.ts";
+import {
+  AgentInstructionError,
+  type AgentInstructionPort,
+} from "../../ports/agent-instructions.ts";
+
+export { AgentInstructionError } from "../../ports/agent-instructions.ts";
 
 export const codexInstructionPath = "AGENTS.md";
 
@@ -16,13 +21,6 @@ export type AgentInstructionCheck =
   | { readonly state: "missing" }
   | { readonly state: "current" }
   | { readonly state: "drift"; readonly message: string };
-
-export class AgentInstructionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AgentInstructionError";
-  }
-}
 
 function managedBlocks(content: string): readonly string[] {
   const blocks = content.match(

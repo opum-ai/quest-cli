@@ -67,7 +67,7 @@ candidate needed to close them.
 | [QCLI-97.4](../../backlog/tasks/qcli-97.4%20-%20Restore-Quest-task-lifecycle-and-draft-parity.md) | Restore Quest task lifecycle and draft parity | Done |
 | [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | To Do |
 | [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | To Do |
-| [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | To Do |
+| [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | Done |
 | [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | To Do |
 | [QCLI-99](../../backlog/tasks/qcli-99%20-%20Declare-the-reserved-principal-field-on-success-envelopes.md) | Declare the reserved principal field on success envelopes | To Do |
 | [QCLI-100](../../backlog/tasks/qcli-100%20-%20Stop-consuming-json-and-plain-as-help-targets-in-the-help-spelling.md) | Stop consuming --json and --plain as help targets in the 'help' spelling | To Do |

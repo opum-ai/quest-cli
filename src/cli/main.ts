@@ -2,9 +2,6 @@
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import { Command } from "commander";
-import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
-import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
-import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
 import {
   inspectQuestAgentInstructions,
   questAgentInstructions,
@@ -19,7 +16,7 @@ import {
   type OutputMode,
   selectOutputMode,
 } from "../application/command-contract.ts";
-import { PlanningService } from "../application/planning/planning.ts";
+import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { TaskService } from "../application/tasks/tasks.ts";
 import {
@@ -27,6 +24,11 @@ import {
   resolveInitializedWorkspace,
 } from "../application/workspaces/workspaces.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
+import {
+  createAgentInstructionPort,
+  createPlanningService,
+  createWorkspacePort,
+} from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
 
 const VERSION = "0.2.1";
@@ -141,15 +143,11 @@ function createTaskReader(root: string): LocalTaskRepository {
   return new LocalTaskRepository(join(root, ".quest", "tasks"));
 }
 
-function createPlanningService(root: string): PlanningService {
-  return new PlanningService(new LocalPlanningRepository(root));
-}
-
 async function taskStoreRoot(): Promise<string> {
   if (process.env.QUEST_TASK_STORE !== undefined)
     return process.env.QUEST_TASK_STORE;
   return (
-    await resolveInitializedWorkspace(new LocalWorkspacePort(), process.cwd())
+    await resolveInitializedWorkspace(createWorkspacePort(), process.cwd())
   ).worktreePath;
 }
 
@@ -270,12 +268,12 @@ export async function runQuest(
           "init accepts only --agent-instructions, --json, and --plain.",
         );
       const workspace = await initializeWorkspace(
-        new LocalWorkspacePort(),
+        createWorkspacePort(),
         process.cwd(),
       );
       const instructions = parsed.values.has("--agent-instructions")
         ? await updateQuestAgentInstructions(
-            new LocalAgentInstructionPort(process.cwd()),
+            createAgentInstructionPort(process.cwd()),
           )
         : undefined;
       return output(
@@ -316,10 +314,10 @@ export async function runQuest(
         return failure("usage", "agents requires exactly one action.");
       const result = check
         ? await inspectQuestAgentInstructions(
-            new LocalAgentInstructionPort(process.cwd()),
+            createAgentInstructionPort(process.cwd()),
           )
         : await updateQuestAgentInstructions(
-            new LocalAgentInstructionPort(process.cwd()),
+            createAgentInstructionPort(process.cwd()),
           );
       if (check && result.state === "drift")
         return failure("drift", result.message);

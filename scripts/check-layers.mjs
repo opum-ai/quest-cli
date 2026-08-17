@@ -2,11 +2,12 @@ import { readdir, readFile } from "node:fs/promises";
 import { extname, join, normalize, relative } from "node:path";
 
 const sourceRoot = "src";
+const compositionRoot = normalize("cli/composition.ts");
 const allowedDependencies = new Map([
   ["cli", new Set(["application"])],
   ["application", new Set(["domain", "ports"])],
   ["domain", new Set()],
-  ["ports", new Set()],
+  ["ports", new Set(["domain"])],
   ["adapters", new Set(["domain", "ports"])],
 ]);
 
@@ -23,7 +24,7 @@ async function collectTypeScriptFiles(directory) {
 }
 
 function layerFor(path) {
-  return normalize(path).split("/")[0];
+  return normalize(path).split(/[\\/]/u)[0];
 }
 
 function relativeImportTargets(source) {
@@ -36,7 +37,8 @@ const files = await collectTypeScriptFiles(sourceRoot);
 const violations = [];
 
 for (const file of files) {
-  const sourceLayer = layerFor(relative(sourceRoot, file));
+  const sourcePath = normalize(relative(sourceRoot, file));
+  const sourceLayer = layerFor(sourcePath);
   const source = await readFile(file, "utf8");
   for (const target of relativeImportTargets(source)) {
     const targetLayer = layerFor(
@@ -44,7 +46,8 @@ for (const file of files) {
     );
     if (
       targetLayer !== sourceLayer &&
-      !allowedDependencies.get(sourceLayer)?.has(targetLayer)
+      !allowedDependencies.get(sourceLayer)?.has(targetLayer) &&
+      !(sourcePath === compositionRoot && targetLayer === "adapters")
     ) {
       violations.push(
         `${file} (${sourceLayer}) must not import ${target} (${targetLayer})`,
