@@ -167,6 +167,7 @@
 - 2026-08-17T16:06:58-05:00 cbe8fce5d4c41917e1f674cbe12b16e975f39549 docs: record qcli-100 CI stabilization
 - 2026-08-17T16:11:42-05:00 7313237d486906e2d90290ea35efc6d117c796f0 docs: record projection matrix stabilization
 - 2026-08-17T16:16:02-05:00 ee01a9e18f38109308bcfda2d277f2649f4465a8 docs: checkpoint qcli-100 delivery blocker
+- 2026-08-17T16:28:31-05:00 78ef69403bcd7418886175468aa684597dcfa972 docs: record quarantine follow-ups
 
 ## docs/adr
 

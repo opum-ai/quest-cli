@@ -9,7 +9,7 @@ tags:
   - release
 summary: Complete Quest parity, resolve 0.2.x qualification defects, and establish release-ready evidence without rewriting the 0.1.0 delivery record.
 timestamp: 2026-08-17T16:25:23.594Z
-status: todo
+status: in-progress
 tasks:
   - qcli-97
   - qcli-97.1
@@ -73,7 +73,7 @@ candidate needed to close them.
 | [QCLI-100](../../backlog/tasks/qcli-100%20-%20Stop-consuming-json-and-plain-as-help-targets-in-the-help-spelling.md) | Stop consuming --json and --plain as help targets in the 'help' spelling | Done |
 | [QCLI-101](../../backlog/tasks/qcli-101%20-%20Flag-parser-silently-swallows-mode-flags-and-silently-drops-duplicated-filters.md) | Flag parser silently swallows mode flags and silently drops duplicated filters | Done |
 | [QCLI-102](../../backlog/tasks/qcli-102%20-%20Manifest-advertises-a-version-command-that-is-not-invocable-and-h-is-unsupported.md) | Manifest advertises a 'version' command that is not invocable, and -h is unsupported | To Do |
-| [QCLI-103](../../backlog/tasks/qcli-103%20-%20Milestone-and-decision-mutations-return-no-record-and-one-kind-covers-both-lists-and-acks.md) | Milestone and decision mutations return no record, and one kind covers both lists and acks | To Do |
+| [QCLI-103](../../backlog/tasks/qcli-103%20-%20Milestone-and-decision-mutations-return-no-record-and-one-kind-covers-both-lists-and-acks.md) | Milestone and decision mutations return no record, and one kind covers both lists and acks | In Progress |
 | [QCLI-104](../../backlog/tasks/qcli-104%20-%20milestone-edit-task-silently-replaces-the-whole-task-reference-set.md) | milestone edit --task silently replaces the whole task reference set | To Do |
 | [QCLI-105](../../backlog/tasks/qcli-105%20-%20Record-commands-resolve-the-store-from-cwd-so-a-subdirectory-silently-forks-the-tracker.md) | Record commands resolve the store from cwd, so a subdirectory silently forks the tracker | Done |
 | [QCLI-106](../../backlog/tasks/qcli-106%20-%20agents-check-exits-0-when-the-managed-block-is-missing-so-CI-cannot-gate-on-it.md) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | To Do |
