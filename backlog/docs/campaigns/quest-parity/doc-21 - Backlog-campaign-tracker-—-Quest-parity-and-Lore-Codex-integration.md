@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 23:28'
+updated_date: '2026-08-17 23:36'
 ---
 ## Contract
 
@@ -43,7 +43,7 @@ updated_date: '2026-08-17 23:28'
 
 - Lease 91574eeb256a6f0ab89017c343321ffb is held by qcli-112-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
 - Branch: campaign/qcli-112-artifact-delivery from merged dev 70a62838a5aebb50d68f2c66f667c7d8acd3f7fb.
-- Last completed stage: PR 114 opened; its first Windows ARM64 run exposed Bun's independent 5s afterEach timeout during legitimate EBUSY fixture cleanup. A hook-local 16.9s bound and aligned 120-attempt teardown passed focused/full local gates and independent review.
+- Last completed stage: the hook-bound rerun exposed Bun cached SQLite statements surviving close_v2; all projection statements now finalize explicitly, close(true) proves release, and focused/full/scale gates plus independent review pass.
 - Next automatic action: commit and push the reviewed hook-timeout remediation, require a fresh green Windows ARM64 step plus remaining PR checks, then merge PR 114, settle the lease, and activate QCLI-102.
 
 ## QCLI-106/QCLI-107 settlement
@@ -89,3 +89,4 @@ updated_date: '2026-08-17 23:28'
 - 2026-08-17 — PR 113 merged QCLI-111 to dev at 70a6283 with a tree identical to the finalized candidate; branch cleanup and lease return completed before QCLI-112 activation.
 - 2026-08-17 — QCLI-112 added the ordinary-porcelain six-target delivery command, portable constrained-failure fixture, package mapping checks, and source-qualification coverage; independent re-review accepted the finalized candidate after all local gates passed.
 - 2026-08-17 — PR 114 run 32080175938 exposed QCLI-111's 5s afterEach hook timeout during EBUSY fixture cleanup; the narrow hook-bound remediation passed 160 tests and independent review before rerun.
+- 2026-08-17 — PR 114 rerun 32080577863 exhausted the full teardown retry window and isolated cached SQLite statement zombies; explicit finalize plus close(true) passed 160 tests, scale budgets, and independent review before a fresh rerun.
