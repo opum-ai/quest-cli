@@ -113,9 +113,9 @@ function snapshot(): AuthoritativeProjectionSnapshot {
 
 let fixtureDirectory: string | undefined;
 
-// The adapter retries 99 times after the first attempt at 100ms intervals.
-// Bounds include that 9.9s window for fixture teardown plus 5s test overhead.
-const releaseRetryWindowMs = 99 * 100;
+// The adapter retries 119 times after the first attempt at 100ms intervals.
+// Bounds include that 11.9s window for fixture teardown plus 5s test overhead.
+const releaseRetryWindowMs = 119 * 100;
 const fixtureTeardownBudgetMs = releaseRetryWindowMs;
 const recoveryTestOverheadMs = 5_000;
 const rebuildFailureAndCleanupBudgetMs = releaseRetryWindowMs * 2;

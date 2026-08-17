@@ -353,7 +353,7 @@ function sameRows(
   return encoded(actual) === encoded(expected);
 }
 
-const releaseRetryAttempts = 100;
+const releaseRetryAttempts = 120;
 const releaseRetryDelayMs = 100;
 type FileReleaseOperation =
   | "database_rebuild"

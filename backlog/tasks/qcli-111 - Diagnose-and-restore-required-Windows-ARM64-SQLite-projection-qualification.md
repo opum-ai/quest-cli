@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 21:25'
-updated_date: '2026-08-17 22:51'
+updated_date: '2026-08-17 22:56'
 labels:
   - quest-0.2
   - bun
@@ -55,4 +55,6 @@ Windows ARM64 is quarantined after three isolated projection-matrix failures whi
 Restore audit corrected prior evidence: runs 32071578797 and 32075311643 are genuine Windows ARM64 passes, but 32073732956 contains a failed test step masked by continue-on-error. AC3 therefore still requires three fresh independent passing runs. The failure path is synchronize/rebuild replacement; retry plus swallowed cleanup can exceed the 15-second outer timeout and leave temp residue. Production handles normally close, while test fixtures currently leak their temp directories and several mutation handles lack finally blocks.
 
 Implemented the reviewed candidate in the three declared paths. The adapter emits env-gated attempting/succeeded/failed file-release events before and after database rebuild, sync-progress, sync-progress-removal, and fixture teardown operations; rebuild handles close in finally; progress and rebuild cleanup failures are surfaced with both errors retained. Recovery fixtures close mutation handles, assert only the projection remains, and remove their owned directory with the same bounded observable release policy. The workflow removes quarantine and continue-on-error while preserving all six runners and Bun 1.3.14. Independent rereview approved the calculated targeted timeout budgets. Local exact-tree gates passed: focused projection 10 tests/41 expectations; full repository check 160 tests/1406 expectations; typecheck, lint, format, layer, and diff checks passed.
+
+Fresh exact-candidate qualification at 8086ad0 produced two clean six-lane runs (32077939935 and 32077941910) and one required Windows ARM64 failure (32077943944, job 95534972695). The new diagnostics isolated a database_rebuild replacement EBUSY in the valid-SQLite recovery case: attempt 100 ended at 10,980ms, then rebuild-temp and fixture cleanup both succeeded immediately, proving bounded destination-handle release rather than a leaked temp handle. The first safe remediation extends the retry policy from 100 to 120 attempts and recalculates the targeted test bounds from 99 to 119 delay intervals; focused tests, typecheck, lint, format, and diff checks pass. Because the source tree changed, three new exact-candidate runs are required and prior successes will not be counted toward AC3.
 <!-- SECTION:NOTES:END -->

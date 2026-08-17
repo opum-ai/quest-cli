@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 22:51'
+updated_date: '2026-08-17 22:56'
 ---
 ## Contract
 
@@ -42,8 +42,8 @@ updated_date: '2026-08-17 22:51'
 
 - Lease 09a66ac0996d6ca33bd3d96e569eb5a9 is held by qcli-111-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
 - Branch: campaign/qcli-111-windows-arm64 from pinned 04cc4f6d2c58aab71c11f4fdca368d791400ca22.
-- Last completed stage: reviewed implementation complete; focused projection and full 160-test repository gates pass, including typecheck, lint, format, layer, and diff checks.
-- Next automatic action: commit and push the exact reviewed candidate, then dispatch and inspect three fresh required six-lane workflow runs.
+- Last completed stage: first exact candidate produced two clean matrices and one diagnosed ARM64 EBUSY at 10.98s; the bounded 120-attempt remediation and recalculated focused checks pass.
+- Next automatic action: commit and push the remediated exact candidate, then dispatch three replacement six-lane runs; none of the prior candidate runs count toward AC3.
 
 ## QCLI-106/QCLI-107 settlement
 
@@ -83,3 +83,4 @@ updated_date: '2026-08-17 22:51'
 - 2026-08-17 — PR 110 merged QCLI-103 and QCLI-104 at 764775a.
 - 2026-08-17 — PR 111 merged QCLI-106 and QCLI-107 at 1fdd138 after one diagnosed test-timeout remediation and a clean rerun.
 - 2026-08-17 — Restored QCLI-111 from the renewal cursor, corrected one masked ARM64 run, implemented phase diagnostics and cleanup proof, and obtained independent local approval with 160 tests passing.
+- 2026-08-17 — Candidate 8086ad0 passed two full matrices; run 32077943944 isolated destination replacement EBUSY through 10.98s with immediate cleanup, prompting one measured retry-window remediation.
