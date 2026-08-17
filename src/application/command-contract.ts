@@ -58,6 +58,11 @@ export interface CommandManifestEntry {
   readonly name:
     | "manifest"
     | "version"
+    | "help"
+    | "init"
+    | "instructions"
+    | "agents"
+    | "completion"
     | "task status-flow"
     | "task list"
     | "task view"
@@ -81,6 +86,31 @@ export const commandManifest = {
       name: "version",
       schemaVersion: 1,
       kind: null,
+      mutates: false,
+    },
+    { name: "help", schemaVersion: 1, kind: "help.commands", mutates: false },
+    {
+      name: "init",
+      schemaVersion: 1,
+      kind: "workspace.initialized",
+      mutates: true,
+    },
+    {
+      name: "instructions",
+      schemaVersion: 1,
+      kind: "agent.instructions",
+      mutates: false,
+    },
+    {
+      name: "agents",
+      schemaVersion: 1,
+      kind: "agent.instructions-status",
+      mutates: true,
+    },
+    {
+      name: "completion",
+      schemaVersion: 1,
+      kind: "completion.script",
       mutates: false,
     },
     {

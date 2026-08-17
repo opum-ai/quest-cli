@@ -113,6 +113,31 @@ test("the live manifest is non-empty and matches its result golden", () => {
       kind: null,
       mutates: false,
     },
+    { name: "help", schemaVersion: 1, kind: "help.commands", mutates: false },
+    {
+      name: "init",
+      schemaVersion: 1,
+      kind: "workspace.initialized",
+      mutates: true,
+    },
+    {
+      name: "instructions",
+      schemaVersion: 1,
+      kind: "agent.instructions",
+      mutates: false,
+    },
+    {
+      name: "agents",
+      schemaVersion: 1,
+      kind: "agent.instructions-status",
+      mutates: true,
+    },
+    {
+      name: "completion",
+      schemaVersion: 1,
+      kind: "completion.script",
+      mutates: false,
+    },
     {
       name: "task status-flow",
       schemaVersion: 1,

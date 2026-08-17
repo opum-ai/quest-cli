@@ -33,6 +33,24 @@ test("version is bare semver and JSON takes precedence over plain", async () => 
   ).toContain('"schemaVersion":1');
 });
 
+test("help, instructions, and completion expose the versioned public discovery surface", async () => {
+  for (const command of [
+    ["--help", "--json"],
+    ["instructions", "--json"],
+    ["completion", "bash", "--json"],
+  ]) {
+    const result = await runQuest(command, false);
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ schemaVersion: 1 });
+  }
+  expect(
+    JSON.parse((await runQuest(["instructions", "--json"], false)).stdout),
+  ).toMatchObject({
+    kind: "agent.instructions",
+    data: { version: "0.1.0" },
+  });
+});
+
 test("migration smoke exercises the compiled migration path and rejects flags", async () => {
   const success = await runQuest(["migration-smoke", "--json"], false);
   expect(success.exitCode).toBe(0);

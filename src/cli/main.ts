@@ -6,12 +6,21 @@ import { Command } from "commander";
 import {
   diagnostic,
   exitCodeFor,
+  commandManifest,
   manifestResult,
   type OutputMode,
   selectOutputMode,
 } from "../application/command-contract.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { TaskService } from "../application/tasks/tasks.ts";
+import {
+  inspectQuestAgentInstructions,
+  questAgentInstructions,
+  updateQuestAgentInstructions,
+} from "../application/agents/agent-instructions.ts";
+import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
+import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
+import { initializeWorkspace } from "../application/workspaces/workspaces.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
 
@@ -67,6 +76,11 @@ function flags(argv: readonly string[]):
   const values = new Map<string, string[]>();
   let json = false;
   let plain = false;
+  const booleanFlags = new Set([
+    "--agent-instructions",
+    "--check",
+    "--update-instructions",
+  ]);
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === "--json") {
@@ -78,6 +92,11 @@ function flags(argv: readonly string[]):
       continue;
     }
     if (!flag?.startsWith("--")) return undefined;
+    if (booleanFlags.has(flag)) {
+      if (values.has(flag)) return undefined;
+      values.set(flag, []);
+      continue;
+    }
     const value = argv[index + 1];
     if (value === undefined) return undefined;
     const entries = values.get(flag) ?? [];
@@ -140,6 +159,117 @@ export async function runQuest(
   try {
     if (arguments_.length === 1 && arguments_[0] === "--version")
       return { stdout: `${VERSION}\n`, stderr: "", exitCode: 0 };
+    const modeFor = (parsed: NonNullable<ReturnType<typeof flags>>) =>
+      selectOutputMode({ ...parsed, stdoutIsTty });
+    if (arguments_.length === 0) {
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "help.commands",
+          data: { commands: commandManifest.commands },
+        },
+        stdoutIsTty ? "pretty" : "plain",
+      );
+    }
+    if (["--help", "help"].includes(arguments_[0] ?? "")) {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, []))
+        return failure("usage", "help accepts only --json and --plain.");
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "help.commands",
+          data: { commands: commandManifest.commands },
+        },
+        modeFor(parsed),
+      );
+    }
+    if (arguments_[0] === "init") {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, ["--agent-instructions"]))
+        return failure(
+          "usage",
+          "init accepts only --agent-instructions, --json, and --plain.",
+        );
+      const workspace = await initializeWorkspace(
+        new LocalWorkspacePort(),
+        process.cwd(),
+      );
+      const instructions = parsed.values.has("--agent-instructions")
+        ? await updateQuestAgentInstructions(
+            new LocalAgentInstructionPort(process.cwd()),
+          )
+        : undefined;
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "workspace.initialized",
+          data: { workspace, instructions },
+        },
+        modeFor(parsed),
+      );
+    }
+    if (arguments_[0] === "instructions") {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, []))
+        return failure(
+          "usage",
+          "instructions accepts only --json and --plain.",
+        );
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "agent.instructions",
+          data: { version: VERSION, content: questAgentInstructions },
+        },
+        modeFor(parsed),
+      );
+    }
+    if (arguments_[0] === "agents") {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, ["--check", "--update-instructions"]))
+        return failure(
+          "usage",
+          "agents requires --check or --update-instructions.",
+        );
+      const check = parsed.values.has("--check");
+      const update = parsed.values.has("--update-instructions");
+      if (check === update)
+        return failure("usage", "agents requires exactly one action.");
+      const result = check
+        ? await inspectQuestAgentInstructions(
+            new LocalAgentInstructionPort(process.cwd()),
+          )
+        : await updateQuestAgentInstructions(
+            new LocalAgentInstructionPort(process.cwd()),
+          );
+      if (check && result.state === "drift")
+        return failure("drift", result.message);
+      return output(
+        { schemaVersion: 1, kind: "agent.instructions-status", data: result },
+        modeFor(parsed),
+      );
+    }
+    if (arguments_[0] === "completion" && arguments_[1] === "bash") {
+      const parsed = flags(arguments_.slice(2));
+      if (!parsed || !only(parsed, []))
+        return failure(
+          "usage",
+          "completion bash accepts only --json and --plain.",
+        );
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "completion.script",
+          data: {
+            shell: "bash",
+            script:
+              "complete -W 'init instructions agents completion manifest task search' quest",
+          },
+        },
+        modeFor(parsed),
+      );
+    }
     if (arguments_[0] === "sqlite-smoke") {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
@@ -185,8 +315,6 @@ export async function runQuest(
         selectOutputMode({ ...parsed, stdoutIsTty }),
       );
     }
-    const modeFor = (parsed: NonNullable<ReturnType<typeof flags>>) =>
-      selectOutputMode({ ...parsed, stdoutIsTty });
     if (arguments_[0] === "search" && arguments_[1]) {
       const parsed = flags(arguments_.slice(2));
       if (!parsed || !only(parsed, []))
