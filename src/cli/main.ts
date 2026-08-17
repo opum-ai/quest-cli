@@ -105,6 +105,7 @@ function flags(
   const booleanFlags = new Set([
     "--agent-instructions",
     "--check",
+    "--require-installed",
     "--update-instructions",
     "--confirm",
     "--dry-run",
@@ -306,11 +307,21 @@ export async function runQuest(
         : commandManifest.commands;
       if (helpTarget && commands.length === 0)
         return failure("not_found", `No help is available for ${helpTarget}.`);
+      const details =
+        helpTarget === "agents"
+          ? {
+              usage:
+                "quest agents --check [--require-installed] | --update-instructions",
+              check:
+                "--check reports missing without failing unless --require-installed is present; strict missing exits 6.",
+              drift: "Drift or malformed managed markers exit 6.",
+            }
+          : undefined;
       return output(
         {
           schemaVersion: 1,
           kind: "help.commands",
-          data: { commands },
+          data: { commands, ...(details ? { details } : {}) },
         },
         modeFor(parsed),
       );
@@ -358,15 +369,25 @@ export async function runQuest(
     }
     if (arguments_[0] === "agents") {
       const parsed = flags(arguments_.slice(1));
-      if (!parsed || !only(parsed, ["--check", "--update-instructions"]))
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--check",
+          "--require-installed",
+          "--update-instructions",
+        ])
+      )
         return failure(
           "usage",
           "agents requires --check or --update-instructions.",
         );
       const check = parsed.values.has("--check");
+      const requireInstalled = parsed.values.has("--require-installed");
       const update = parsed.values.has("--update-instructions");
       if (check === update)
         return failure("usage", "agents requires exactly one action.");
+      if (requireInstalled && !check)
+        return failure("usage", "--require-installed requires --check.");
       const result = check
         ? await inspectQuestAgentInstructions(
             createAgentInstructionPort(process.cwd()),
@@ -376,6 +397,11 @@ export async function runQuest(
           );
       if (check && result.state === "drift")
         return failure("drift", result.message);
+      if (check && requireInstalled && result.state === "missing")
+        return failure(
+          "validation",
+          "Quest agent instruction block is missing. Run quest agents --update-instructions.",
+        );
       return output(
         { schemaVersion: 1, kind: "agent.instructions-status", data: result },
         modeFor(parsed),

@@ -80,6 +80,22 @@ test("every help spelling resolves output modes before its optional topic", asyn
     message: "No help is available for unknown-topic.",
     principal: null,
   });
+
+  const agentsJson = await runQuest(["help", "agents", "--json"], false);
+  expect(agentsJson.exitCode).toBe(0);
+  expect(JSON.parse(agentsJson.stdout)).toMatchObject({
+    data: {
+      details: {
+        usage:
+          "quest agents --check [--require-installed] | --update-instructions",
+        check: expect.stringContaining("strict missing exits 6"),
+        drift: expect.stringContaining("exit 6"),
+      },
+    },
+  });
+  const agentsPlain = await runQuest(["agents", "--help", "--plain"], false);
+  expect(agentsPlain).toMatchObject({ exitCode: 0, stderr: "" });
+  expect(agentsPlain.stdout).toContain("--require-installed");
 });
 
 test("human output renders payload fields while JSON remains byte-identical", async () => {
