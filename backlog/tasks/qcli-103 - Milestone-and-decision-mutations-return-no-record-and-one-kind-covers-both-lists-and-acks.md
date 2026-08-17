@@ -3,10 +3,11 @@ id: QCLI-103
 title: >-
   Milestone and decision mutations return no record, and one kind covers both
   lists and acks
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-17 15:26'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 21:35'
 labels:
   - cli
   - output-contract
@@ -69,3 +70,9 @@ Note this interacts with QCLI-102: the manifest lists `milestone` and `decision`
 - [ ] #4 The manifest declares every kind the milestone and decision groups can emit
 - [ ] #5 A test creates a planning record without --id and uses only the create response to view it, with no intervening list
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Trace planning service mutation return values, record codecs, CLI dispatch, and command-manifest declarations on the merged QCLI-100 base. 2. Return created and updated planning records plus stable deletion identity from the service boundary without weakening Git/CAS acknowledgement data. 3. Split milestone and decision list/view/create/edit/delete result kinds and declare every invocable action in the manifest. 4. Add service, command-contract, and black-box tests that use an allocated create id directly and extend the QCLI-98/QCLI-99/QCLI-101 manifest matrices. 5. Run focused and full gates, independently review the exact tree, then rebuild and qualify native packages at the combined planning-wave delivery boundary.
+<!-- SECTION:PLAN:END -->
