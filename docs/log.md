@@ -160,6 +160,7 @@
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 - 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
 - 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
+- 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status
 
 ## docs/adr
 
@@ -385,3 +386,4 @@
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 - 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
 - 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
+- 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status

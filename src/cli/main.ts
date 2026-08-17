@@ -26,13 +26,14 @@ import {
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
 import {
   createAgentInstructionPort,
+  createBacklogImportService,
   createPlanningService,
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -74,7 +75,12 @@ function output(
   };
 }
 
-function flags(argv: readonly string[]):
+class FlagUsageError extends Error {}
+
+function flags(
+  argv: readonly string[],
+  repeatableValueFlags: readonly string[] = [],
+):
   | {
       readonly values: Map<string, string[]>;
       readonly json: boolean;
@@ -82,8 +88,9 @@ function flags(argv: readonly string[]):
     }
   | undefined {
   const values = new Map<string, string[]>();
-  let json = false;
-  let plain = false;
+  const json = argv.includes("--json");
+  const plain = argv.includes("--plain");
+  const repeatable = new Set(repeatableValueFlags);
   const booleanFlags = new Set([
     "--agent-instructions",
     "--check",
@@ -96,22 +103,24 @@ function flags(argv: readonly string[]):
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === "--json") {
-      json = true;
       continue;
     }
     if (flag === "--plain") {
-      plain = true;
       continue;
     }
     if (!flag?.startsWith("--")) return undefined;
     if (booleanFlags.has(flag)) {
-      if (values.has(flag)) return undefined;
+      if (values.has(flag))
+        throw new FlagUsageError(`${flag} may only be provided once.`);
       values.set(flag, []);
       continue;
     }
     const value = argv[index + 1];
-    if (value === undefined) return undefined;
+    if (value === undefined || value.startsWith("--"))
+      throw new FlagUsageError(`${flag} requires a value.`);
     const entries = values.get(flag) ?? [];
+    if (entries.length > 0 && !repeatable.has(flag))
+      throw new FlagUsageError(`${flag} may only be provided once.`);
     entries.push(value);
     values.set(flag, entries);
     index += 1;
@@ -124,7 +133,10 @@ function one(
   name: string,
 ): string | undefined {
   const values = parsed.values.get(name);
-  return values?.length === 1 ? values[0] : undefined;
+  if (!values) return undefined;
+  if (values.length !== 1)
+    throw new FlagUsageError(`${name} may only be provided once.`);
+  return values[0];
 }
 
 function only(
@@ -382,6 +394,101 @@ export async function runQuest(
         selectOutputMode({ ...parsed, stdoutIsTty }),
       );
     }
+    if (arguments_[0] === "migration" && arguments_[1] === "backlog") {
+      const action = arguments_[2];
+      const parsed = flags(arguments_.slice(3));
+      if (!action || !parsed)
+        return failure("usage", "migration backlog requires a valid action.");
+      const source = one(parsed, "--source");
+      const digest = one(parsed, "--digest");
+      const backlogDirectory = one(parsed, "--backlog-dir");
+      const root = await resolvedRoot();
+      if (
+        action === "preview" &&
+        source &&
+        only(parsed, ["--source", "--backlog-dir"])
+      )
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-preview",
+            data: await createBacklogImportService(
+              root,
+              source,
+              backlogDirectory,
+            ).preview(),
+          },
+          modeFor(parsed),
+        );
+      if (
+        action === "apply" &&
+        source &&
+        digest &&
+        only(parsed, [
+          "--source",
+          "--digest",
+          "--backlog-dir",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        if (!actor(parsed))
+          return failure(
+            "denied",
+            "Backlog migration writes require an explicit actor declaration.",
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-applied",
+            data: await createBacklogImportService(
+              root,
+              source,
+              backlogDirectory,
+            ).apply(digest),
+          },
+          modeFor(parsed),
+        );
+      }
+      if (action === "status" && digest && only(parsed, ["--digest"]))
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-status",
+            data: await createBacklogImportService(root, "").status(digest),
+          },
+          modeFor(parsed),
+        );
+      if (
+        action === "rollback" &&
+        digest &&
+        only(parsed, [
+          "--digest",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        if (!actor(parsed))
+          return failure(
+            "denied",
+            "Backlog migration writes require an explicit actor declaration.",
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-rolled-back",
+            data: await createBacklogImportService(root, "").rollback(digest),
+          },
+          modeFor(parsed),
+        );
+      }
+      return failure(
+        "usage",
+        "migration backlog requires preview --source, apply --source --digest, status --digest, or rollback --digest.",
+      );
+    }
     if (arguments_[0] === "manifest") {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
@@ -490,6 +597,7 @@ export async function runQuest(
             ? 1
             : 0,
         ),
+        ["--task"],
       );
       if (!action || !parsed)
         return failure("usage", `${group} requires a valid action.`);
@@ -722,6 +830,7 @@ export async function runQuest(
             ? 1
             : 0,
         ),
+        action === "create" ? ["--label", "--doc"] : [],
       );
       if (!action || !parsed)
         return failure("usage", "draft requires a valid action.");
@@ -873,7 +982,7 @@ export async function runQuest(
       );
     }
     if (command === "list") {
-      const parsed = flags(rest);
+      const parsed = flags(rest, ["--label"]);
       if (!parsed || !only(parsed, ["--status", "--label"]))
         return failure("usage", "task list received invalid arguments.");
       return output(
@@ -899,7 +1008,7 @@ export async function runQuest(
     }
     if (command === "create" && rest[0]) {
       const title = rest[0];
-      const parsed = flags(rest.slice(1));
+      const parsed = flags(rest.slice(1), ["--label", "--doc"]);
       if (
         !parsed ||
         !only(parsed, [
@@ -938,7 +1047,11 @@ export async function runQuest(
     }
     if (command === "edit" && rest[0]) {
       const reference = rest[0];
-      const parsed = flags(rest.slice(1));
+      const parsed = flags(rest.slice(1), [
+        "--add-label",
+        "--remove-label",
+        "--doc",
+      ]);
       if (
         !parsed ||
         !only(parsed, [
@@ -978,6 +1091,7 @@ export async function runQuest(
     }
     return failure("usage", "Unknown or missing Quest command.");
   } catch (error) {
+    if (error instanceof FlagUsageError) return failure("usage", error.message);
     const message =
       error instanceof Error
         ? error.message

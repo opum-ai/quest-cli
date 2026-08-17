@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 15:24'
-updated_date: '2026-08-17 18:19'
+updated_date: '2026-08-17 20:20'
 labels:
   - cli
   - argument-parsing
@@ -84,10 +84,14 @@ Acceptance evidence: exact compiled candidate commands quest task list --status 
 Validation: Bun 1.3.14 (matching packageManager) built all six 0.2.2 natives using retained 1.3.14 cross-target compilers. typecheck, 150-test full suite, check:packages, test:packages, layer:check, targeted Biome lint/format, git diff --check, Lore strict validate, and Lore strict check passed. Repository-wide lint and format:check retain only the documented three nested Treehouse root-configuration failures. The handoff claim of five layer violations and Bun 1.2.23 was stale: current dev already contains QCLI-97.7 and the active Bun is 1.3.14.
 Public boundary: focused discovery is 26P/7F with exactly the two QCLI-101 FAIL-to-PASS changes. Full harness is 302 rows, 235P/57F/10B versus 233P/59F/10B, again exactly those two flips and no regressions; mode precedence and quest/records filter verdicts are unchanged. QCLI-100 and QCLI-102 remain reproducible (help --json exits 3; version exits 2), so adjacent tasks were not folded in. QCLI-105 nested-resolution process guards pass in the 150-test suite.
 Candidate identity: root launcher sha256 4c4a801394100767f483ef6ab55c944527fb9933060a5fe004e95f4dda860ab2; darwin-arm64 native sha256 8ae73c74536b28870532e94d97686ee1c65ac094f69a357ec1139bcba6fffb9e. Exact staged candidate: /private/tmp/quest-v0.2.2-qcli101.1NYgC7/candidate. Global npm replacement failed EPERM while npm attempted its atomic symlink in the NVM global @opum-ai directory, even with approved elevation and a writable isolated cache; the existing global launcher remains 4c4a8013... but native remains f89ad3fa..., so the installed command does not match this candidate.
+
+Wave-2 reconciliation on origin/dev 8606e54 preserved QCLI-98 human rendering and QCLI-108 repository-check scope, extended the value matrix to all 19 current manifest value flags (including migration --source, --backlog-dir, and --digest), and added explicit accumulation coverage for --label, --doc, --add-label, --remove-label, and --task. All six 0.2.2 platform binaries were rebuilt from the combined source and rechecksummed. Two independent reviewers approved; focused 15/15, full check, check:packages, and packed-package gates passed.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 Fixed QCLI-101 by making flag-shaped missing values and duplicate single-value/boolean flags precise usage errors before command execution; intentional collection flags still accumulate. Added all-value-flag source coverage plus compiled-native regressions, bumped the local candidate to 0.2.2, rebuilt and checksummed all six platform packages, and proved exactly two FAIL-to-PASS changes across the 302-row external baseline with no regressions. All repository/package/Lore gates pass except the documented Treehouse-wide Biome root-config invocation. Global replacement remains host-blocked by npm EPERM; the exact staged candidate and owner-run recovery action are retained.
+
+Wave-2 reconciliation closed the residual AC5 evidence gap and regenerated every native artifact from the combined migration/parser/renderer source without regressing QCLI-98 or QCLI-108.
 <!-- SECTION:FINAL_SUMMARY:END -->

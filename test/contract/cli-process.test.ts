@@ -24,7 +24,7 @@ test("the executable keeps successful JSON on stdout and diagnostics on stderr",
 
 test("version is bare semver and JSON takes precedence over plain", async () => {
   expect(await runQuest(["--version"], false)).toEqual({
-    stdout: "0.2.1\n",
+    stdout: "0.2.2\n",
     stderr: "",
     exitCode: 0,
   });
@@ -47,7 +47,7 @@ test("help, instructions, and completion expose the versioned public discovery s
     JSON.parse((await runQuest(["instructions", "--json"], false)).stdout),
   ).toMatchObject({
     kind: "agent.instructions",
-    data: { version: "0.2.1" },
+    data: { version: "0.2.2" },
   });
 });
 
@@ -83,4 +83,98 @@ test("migration smoke exercises the compiled migration path and rejects flags", 
   const failure = await runQuest(["migration-smoke", "--unexpected"], false);
   expect(failure.exitCode).toBe(2);
   expect(JSON.parse(failure.stderr)).toMatchObject({ error_type: "usage" });
+});
+
+const valueFlagCases = [
+  { flag: "--status", argv: ["task", "list"] },
+  { flag: "--label", argv: ["task", "list"] },
+  { flag: "--description", argv: ["task", "create", "Title"] },
+  { flag: "--id", argv: ["task", "create", "Title"] },
+  { flag: "--port", argv: ["browser"] },
+  { flag: "--task-id", argv: ["draft", "promote", "D-1"] },
+  { flag: "--actor", argv: ["cleanup"] },
+  { flag: "--actor-kind", argv: ["cleanup"] },
+  { flag: "--accountable-human", argv: ["cleanup"] },
+  { flag: "--title", argv: ["milestone", "edit", "M-1"] },
+  { flag: "--context", argv: ["decision", "edit", "DEC-1"] },
+  { flag: "--outcome", argv: ["decision", "edit", "DEC-1"] },
+  { flag: "--task", argv: ["milestone", "create", "Milestone"] },
+  { flag: "--doc", argv: ["task", "create", "Title"] },
+  { flag: "--add-label", argv: ["task", "edit", "T-1"] },
+  { flag: "--remove-label", argv: ["task", "edit", "T-1"] },
+  {
+    flag: "--source",
+    argv: ["migration", "backlog", "preview"],
+  },
+  {
+    flag: "--backlog-dir",
+    argv: ["migration", "backlog", "preview"],
+  },
+  {
+    flag: "--digest",
+    argv: ["migration", "backlog", "status"],
+  },
+] as const;
+
+test("every value-taking flag rejects a following mode flag as a missing value", async () => {
+  for (const { flag, argv } of valueFlagCases) {
+    for (const mode of ["--json", "--plain"]) {
+      const result = await runQuest([...argv, flag, mode], false);
+      expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        error_type: "usage",
+        message: `${flag} requires a value.`,
+      });
+    }
+  }
+});
+
+test("every single-value flag rejects repeats with a precise usage diagnostic", async () => {
+  for (const { flag, argv } of valueFlagCases.filter(
+    ({ flag }) =>
+      !["--label", "--task", "--doc", "--add-label", "--remove-label"].includes(
+        flag,
+      ),
+  )) {
+    const result = await runQuest(
+      [...argv, flag, "first", flag, "second", "--json"],
+      false,
+    );
+    expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "usage",
+      message: `${flag} may only be provided once.`,
+    });
+  }
+});
+
+test("duplicate actor and boolean flags report the offending flag as usage", async () => {
+  for (const [argv, flag] of [
+    [
+      [
+        "task",
+        "create",
+        "Title",
+        "--actor",
+        "one",
+        "--actor",
+        "two",
+        "--actor-kind",
+        "human",
+        "--json",
+      ],
+      "--actor",
+    ],
+    [
+      ["draft", "list", "--include-archived", "--include-archived", "--json"],
+      "--include-archived",
+    ],
+  ] as const) {
+    const result = await runQuest(argv, false);
+    expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "usage",
+      message: `${flag} may only be provided once.`,
+    });
+  }
 });

@@ -139,6 +139,30 @@ test("the live manifest is non-empty and matches its result golden", () => {
       mutates: false,
     },
     {
+      name: "migration backlog preview",
+      schemaVersion: 1,
+      kind: "migration.backlog-preview",
+      mutates: false,
+    },
+    {
+      name: "migration backlog apply",
+      schemaVersion: 1,
+      kind: "migration.backlog-applied",
+      mutates: true,
+    },
+    {
+      name: "migration backlog status",
+      schemaVersion: 1,
+      kind: "migration.backlog-status",
+      mutates: false,
+    },
+    {
+      name: "migration backlog rollback",
+      schemaVersion: 1,
+      kind: "migration.backlog-rolled-back",
+      mutates: true,
+    },
+    {
       name: "task status-flow",
       schemaVersion: 1,
       kind: "task.status-flow",

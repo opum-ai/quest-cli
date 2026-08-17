@@ -1,0 +1,309 @@
+import { createHash } from "node:crypto";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import {
+  assertAliasesAvailable,
+  type Alias,
+  alias,
+} from "../../domain/records.ts";
+import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
+import type {
+  BacklogImportRecord,
+  BacklogImportSource,
+  PublicTaskRepository,
+} from "../../ports/backlog-import.ts";
+
+export interface BacklogImportMapping {
+  readonly sourceIdentifier: string;
+  readonly sourceFolder: string;
+  readonly targetIdentifier: string;
+  readonly aliases: readonly string[];
+}
+
+interface Receipt {
+  readonly schemaVersion: 1;
+  readonly kind: "migration.backlog.receipt";
+  readonly digest: string;
+  readonly sourceFingerprint: string;
+  readonly mappings: readonly BacklogImportMapping[];
+  readonly state: "applying" | "applied" | "failed" | "rolled-back";
+  readonly survivors: readonly string[];
+  readonly taskFingerprints: Readonly<Record<string, string>>;
+}
+
+export interface BacklogPreview {
+  readonly sourceFingerprint: string;
+  readonly digest: string;
+  readonly mappings: readonly BacklogImportMapping[];
+  readonly requiresApproval: true;
+}
+
+function fingerprint(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function receiptPath(root: string, digest: string): string {
+  return join(root, ".quest", "migrations", "backlog", `${digest}.json`);
+}
+
+async function save(path: string, receipt: Receipt): Promise<void> {
+  await mkdir(join(path, ".."), { recursive: true });
+  const temporary = `${path}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(receipt)}\n`, "utf8");
+  await rename(temporary, path);
+}
+
+async function load(path: string): Promise<Receipt | undefined> {
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as Receipt;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function importedTask(record: BacklogImportRecord, id: string): TaskState {
+  return taskState({
+    id: id as `T-${number}`,
+    aliases: record.aliases,
+    title: record.title,
+    status: record.status ?? "To Do",
+    // The raw source is intentional: it prevents a partial Quest task schema
+    // from silently dropping Backlog fields while the public model evolves.
+    description: record.rawMarkdown,
+    summary: JSON.stringify({
+      backlog: {
+        sourcePath: record.sourcePath,
+        sourceFolder: record.sourceFolder,
+        git: record.git,
+        assignees: record.assignees,
+        references: record.references,
+        modifiedFiles: record.modifiedFiles,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      },
+    }),
+    priority: record.priority,
+    type: record.type,
+    ordinal: record.ordinal,
+    acceptanceCriteria: record.acceptanceCriteria.map((item) => item.text),
+    definitionOfDone: record.definitionOfDone.map((item) => item.text),
+    plan: record.implementationPlan ? [record.implementationPlan] : [],
+    implementationNotes: [
+      ...(record.implementationNotes ? [record.implementationNotes] : []),
+      ...(record.finalSummary ? [record.finalSummary] : []),
+    ],
+    comments: record.comments.map((comment) => ({
+      id: `backlog-${comment.index}`,
+      authorId: comment.author ?? "backlog-import",
+      body: comment.body,
+      createdAt: comment.createdAt ?? "1970-01-01T00:00:00.000Z",
+    })),
+    labels: record.labels,
+    documentation: record.documentation,
+    parentId: record.parentTaskId,
+    dependencies: record.dependencies,
+    blockers: [],
+    gates: [],
+    gateEvents: [],
+    source: { system: "backlog", reference: record.sourceIdentifier },
+  });
+}
+
+async function previewInternal(
+  source: BacklogImportSource,
+  repository: PublicTaskRepository,
+): Promise<{
+  preview: BacklogPreview;
+  records: readonly BacklogImportRecord[];
+}> {
+  const snapshot = await source.readSnapshot();
+  if (snapshot.crossFolderDuplicateIds.length)
+    throw new Error("backlog_cross_folder_duplicate_id");
+  const existing = await repository.readAll();
+  const occupied: Alias[] = existing.taskRecords.flatMap((entry) => [
+    alias(entry.task.id),
+    ...entry.task.aliases.map(alias),
+  ]);
+  const highest = existing.taskRecords.reduce((maximum, entry) => {
+    const numeric = Number(entry.task.id.slice(2));
+    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
+  }, 0);
+  const mappings = snapshot.records.map((record, index) => ({
+    sourceIdentifier: record.sourceIdentifier,
+    sourceFolder: record.sourceFolder,
+    targetIdentifier: `T-${highest + index + 1}`,
+    aliases: record.aliases,
+  }));
+  const candidates = mappings.flatMap((mapping) => [
+    mapping.targetIdentifier,
+    ...mapping.aliases,
+  ]);
+  assertAliasesAvailable(candidates, occupied);
+  const digest = fingerprint({
+    sourceFingerprint: snapshot.fingerprint,
+    mappings,
+  });
+  return {
+    preview: {
+      sourceFingerprint: snapshot.fingerprint,
+      digest,
+      mappings,
+      requiresApproval: true,
+    },
+    records: snapshot.records,
+  };
+}
+
+export class BacklogImportService {
+  constructor(
+    private readonly root: string,
+    private readonly source: BacklogImportSource,
+    private readonly repository: PublicTaskRepository,
+  ) {}
+
+  async preview(): Promise<BacklogPreview> {
+    return (await previewInternal(this.source, this.repository)).preview;
+  }
+
+  async apply(digest: string): Promise<Receipt> {
+    const { root, source, repository } = this;
+    const path = receiptPath(root, digest);
+    const previous = await load(path);
+    if (previous?.state === "applied") {
+      const snapshot = await source.readSnapshot();
+      if (snapshot.fingerprint !== previous.sourceFingerprint)
+        throw new Error("migration_source_fingerprint_conflict");
+      return previous;
+    }
+    const { preview, records } = await previewInternal(source, repository);
+    if (preview.digest !== digest)
+      throw new Error("migration_approval_digest_mismatch");
+    const receipt: Receipt = previous ?? {
+      schemaVersion: 1,
+      kind: "migration.backlog.receipt",
+      digest,
+      sourceFingerprint: preview.sourceFingerprint,
+      mappings: preview.mappings,
+      state: "applying",
+      survivors: [],
+      taskFingerprints: {},
+    };
+    await save(path, receipt);
+    const survivors = new Set(receipt.survivors);
+    const fingerprints = { ...receipt.taskFingerprints };
+    for (const [index, mapping] of preview.mappings.entries()) {
+      const record = records[index];
+      if (!record) throw new Error("migration_source_record_missing");
+      const task = importedTask(record, mapping.targetIdentifier);
+      const current = await repository.readAll();
+      const existing = current.taskRecords.find(
+        (entry) => entry.task.id === task.id,
+      );
+      if (existing && fingerprint(existing.task) === fingerprints[task.id]) {
+        survivors.add(task.id);
+        continue;
+      }
+      survivors.add(task.id);
+      fingerprints[task.id] = fingerprint(task);
+      await save(path, {
+        ...receipt,
+        survivors: [...survivors].sort(),
+        taskFingerprints: fingerprints,
+      });
+      const result = await repository.write({
+        task,
+        expectedRevision: current.revision,
+        operationId: `backlog-import-${digest}`,
+        ownedPaths: [`.quest/tasks/${task.id}.json`],
+      });
+      if (result.kind === "conflict") {
+        const failed = {
+          ...receipt,
+          state: "failed" as const,
+          survivors: [...survivors].sort(),
+          taskFingerprints: fingerprints,
+        };
+        await save(path, failed);
+        return failed;
+      }
+      await save(path, {
+        ...receipt,
+        survivors: [...survivors].sort(),
+        taskFingerprints: fingerprints,
+      });
+    }
+    const after = await source.readSnapshot();
+    if (after.fingerprint !== preview.sourceFingerprint) {
+      const failed = {
+        ...receipt,
+        state: "failed" as const,
+        survivors: [...survivors].sort(),
+        taskFingerprints: fingerprints,
+      };
+      await save(path, failed);
+      return failed;
+    }
+    const applied = {
+      ...receipt,
+      state: "applied" as const,
+      survivors: [...survivors].sort(),
+      taskFingerprints: fingerprints,
+    };
+    await save(path, applied);
+    return applied;
+  }
+
+  async status(digest: string): Promise<Receipt> {
+    const receipt = await load(receiptPath(this.root, digest));
+    if (!receipt) throw new Error("migration_not_found");
+    return receipt;
+  }
+
+  async rollback(digest: string): Promise<Receipt> {
+    const { root, repository } = this;
+    const path = receiptPath(root, digest);
+    const receipt = await this.status(digest);
+    if (receipt.state === "rolled-back") return receipt;
+    const survivors: string[] = [];
+    for (const mapping of receipt.mappings) {
+      const snapshot = await repository.readAll();
+      const located = snapshot.taskRecords.find(
+        (entry) => entry.task.id === mapping.targetIdentifier,
+      );
+      if (!located) continue;
+      if (
+        fingerprint(located.task) !==
+        receipt.taskFingerprints[mapping.targetIdentifier]
+      ) {
+        survivors.push(mapping.targetIdentifier);
+        continue;
+      }
+      const result = await repository.writeLifecycle({
+        expectedRevision: snapshot.revision,
+        operationId: `backlog-rollback-${digest}`,
+        ownedPaths: [`.quest/${located.location}/${located.task.id}.json`],
+        taskChanges: [
+          { taskId: located.task.id, location: located.location, remove: true },
+        ],
+        draftChanges: [],
+      });
+      if (result.kind === "conflict") survivors.push(mapping.targetIdentifier);
+    }
+    const rolled = {
+      ...receipt,
+      state: "rolled-back" as const,
+      survivors: survivors.sort(),
+    };
+    await save(path, rolled);
+    return rolled;
+  }
+}
+
+export async function removeBacklogReceiptForTest(
+  root: string,
+  digest: string,
+): Promise<void> {
+  await rm(receiptPath(root, digest), { force: true });
+}
