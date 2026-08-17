@@ -1,9 +1,13 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import {
   PlanningService,
   type PlanningRepository,
 } from "../../../src/application/planning/planning.ts";
+import { LocalPlanningRepository } from "../../../src/adapters/planning/local-planning-repository.ts";
 import type {
   Decision,
   Milestone,
@@ -79,4 +83,110 @@ test("overview is read-only and groups task, milestone, and decision states dete
     milestones: { open: 0, closed: 1 },
     decisions: { proposed: 1 },
   });
+});
+
+test("planning CRUD, board, doctor, and cleanup preserve explicit safety boundaries", async () => {
+  const service = new PlanningService(new MemoryPlanning());
+  await service.createMilestone(
+    { id: "M-10", title: "Later", status: "closed", taskIds: [] },
+    "create-m10",
+  );
+  await service.createMilestone(
+    { id: "M-2", title: "Current", status: "open", taskIds: ["T-9"] },
+    "create-m2",
+  );
+  await service.createDecision(
+    {
+      id: "DEC-1",
+      title: "Old protocol",
+      outcome: "Replaced",
+      status: "superseded",
+    },
+    "create-dec",
+  );
+  expect((await service.listMilestones()).map((item) => item.id)).toEqual([
+    "M-2",
+    "M-10",
+  ]);
+  await service.updateMilestone(
+    { id: "M-2", title: "Current release", status: "open", taskIds: ["T-9"] },
+    "update-m2",
+  );
+  expect((await service.viewMilestone("M-2")).title).toBe("Current release");
+  await expect(service.deleteMilestone("M-2", "delete-m2")).rejects.toThrow(
+    "milestone_has_task_references",
+  );
+  expect(
+    await service.doctor({
+      readAll: async () => ({ revision: "t", tasks: [] }),
+    }),
+  ).toEqual({
+    healthy: false,
+    issues: [
+      { code: "milestone_task_not_found", milestoneId: "M-2", taskId: "T-9" },
+    ],
+  });
+  expect(await service.cleanup({}, "preview")).toEqual({
+    milestoneIds: ["M-10"],
+    decisionIds: ["DEC-1"],
+    dryRun: true,
+  });
+  await expect(service.cleanup({ dryRun: false }, "unsafe")).rejects.toThrow(
+    "cleanup_confirmation_required",
+  );
+  expect(
+    await service.cleanup({ dryRun: false, confirmed: true }, "cleanup"),
+  ).toEqual({
+    kind: "success",
+    revision: "2",
+  });
+  expect(
+    await service.board({
+      readAll: async () => ({
+        revision: "t",
+        tasks: [createTask("T-9", { title: "one" })],
+      }),
+    }),
+  ).toEqual({
+    columns: [{ status: "To Do", taskIds: ["T-9"] }],
+    milestones: [
+      { id: "M-2", title: "Current release", status: "open", taskIds: ["T-9"] },
+    ],
+  });
+});
+
+test("local planning repository persists validated snapshots and reports stale writers as conflicts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-planning-"));
+  try {
+    const repository = new LocalPlanningRepository(root);
+    const first = await repository.read();
+    expect(
+      await repository.write({
+        expectedRevision: first.revision,
+        milestones: [
+          { id: "M-1", title: "Release", status: "open", taskIds: [] },
+        ],
+        decisions: [],
+        operationId: "write-1",
+      }),
+    ).toMatchObject({ kind: "success" });
+    expect(
+      await repository.write({
+        expectedRevision: first.revision,
+        milestones: [],
+        decisions: [],
+        operationId: "stale-write",
+      }),
+    ).toEqual({ kind: "conflict" });
+    expect(
+      JSON.parse(await readFile(join(root, ".quest", "planning.json"), "utf8")),
+    ).toEqual({
+      milestones: [
+        { id: "M-1", title: "Release", status: "open", taskIds: [] },
+      ],
+      decisions: [],
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
