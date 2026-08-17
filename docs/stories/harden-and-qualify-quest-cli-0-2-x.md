@@ -68,17 +68,17 @@ candidate needed to close them.
 | [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | To Do |
 | [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | To Do |
 | [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | Done |
-| [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | To Do |
+| [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | Done |
 | [QCLI-99](../../backlog/tasks/qcli-99%20-%20Declare-the-reserved-principal-field-on-success-envelopes.md) | Declare the reserved principal field on success envelopes | To Do |
 | [QCLI-100](../../backlog/tasks/qcli-100%20-%20Stop-consuming-json-and-plain-as-help-targets-in-the-help-spelling.md) | Stop consuming --json and --plain as help targets in the 'help' spelling | To Do |
-| [QCLI-101](../../backlog/tasks/qcli-101%20-%20Flag-parser-silently-swallows-mode-flags-and-silently-drops-duplicated-filters.md) | Flag parser silently swallows mode flags and silently drops duplicated filters | To Do |
+| [QCLI-101](../../backlog/tasks/qcli-101%20-%20Flag-parser-silently-swallows-mode-flags-and-silently-drops-duplicated-filters.md) | Flag parser silently swallows mode flags and silently drops duplicated filters | Done |
 | [QCLI-102](../../backlog/tasks/qcli-102%20-%20Manifest-advertises-a-version-command-that-is-not-invocable-and-h-is-unsupported.md) | Manifest advertises a 'version' command that is not invocable, and -h is unsupported | To Do |
 | [QCLI-103](../../backlog/tasks/qcli-103%20-%20Milestone-and-decision-mutations-return-no-record-and-one-kind-covers-both-lists-and-acks.md) | Milestone and decision mutations return no record, and one kind covers both lists and acks | To Do |
 | [QCLI-104](../../backlog/tasks/qcli-104%20-%20milestone-edit-task-silently-replaces-the-whole-task-reference-set.md) | milestone edit --task silently replaces the whole task reference set | To Do |
 | [QCLI-105](../../backlog/tasks/qcli-105%20-%20Record-commands-resolve-the-store-from-cwd-so-a-subdirectory-silently-forks-the-tracker.md) | Record commands resolve the store from cwd, so a subdirectory silently forks the tracker | Done |
 | [QCLI-106](../../backlog/tasks/qcli-106%20-%20agents-check-exits-0-when-the-managed-block-is-missing-so-CI-cannot-gate-on-it.md) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | To Do |
 | [QCLI-107](../../backlog/tasks/qcli-107%20-%20Error-classification-contention-leaks-dependency_target_ambiguous-and-EACCES-maps-to-validation-not-denied.md) | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | To Do |
-| [QCLI-108](../../backlog/tasks/qcli-108%20-%20Keep-repository-checks-from-traversing-pooled-Treehouse-worktrees.md) | Keep repository checks from traversing pooled Treehouse worktrees | To Do |
+| [QCLI-108](../../backlog/tasks/qcli-108%20-%20Keep-repository-checks-from-traversing-pooled-Treehouse-worktrees.md) | Keep repository checks from traversing pooled Treehouse worktrees | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

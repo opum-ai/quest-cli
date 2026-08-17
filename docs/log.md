@@ -159,6 +159,7 @@
 - 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 - 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
+- 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
 
 ## docs/adr
 
@@ -292,6 +293,7 @@
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
+- 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
 
 ## docs/stories
 
@@ -382,3 +384,4 @@
 - 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 - 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
+- 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
