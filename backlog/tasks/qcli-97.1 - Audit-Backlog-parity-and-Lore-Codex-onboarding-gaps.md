@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:03'
-updated_date: '2026-08-17 06:04'
+updated_date: '2026-08-17 06:05'
 labels:
   - quest-0.1
   - parity
@@ -16,7 +16,7 @@ labels:
 dependencies: []
 documentation:
   - docs/runbooks/quest-cli-operations.md
-  - docs/stories/deliver-quest-cli-0-1-0.md
+  - docs/reference/quest-cli-backlog-parity-and-lore-integration-audit.md
 parent_task_id: QCLI-97
 priority: high
 type: spike
@@ -42,3 +42,9 @@ Establish the evidence and delivery decomposition needed to restore the promised
 <!-- SECTION:PLAN:BEGIN -->
 1. Enumerate Backlog.md 1.50.1 public command groups and setup behavior from its CLI contract. 2. Enumerate Quest 0.1.0 public manifest and test observable behavior in a clean workspace. 3. Recheck published Lore CLI tracker-facing surfaces and agent/project setup mechanisms. 4. Record a versioned parity matrix with evidence, explicit divergence classification, and independently deliverable follow-up tasks.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Public-contract audit completed against Backlog.md 1.50.1, Quest 0.1.0, and Lore CLI 0.3.2. The matrix records 9 advertised Quest commands against Backlog's 13 public groups (excluding doc), confirms missing init/help/agents/config and Lore backend selection, and proposes five independent delivery slices without selecting exclusions.
+<!-- SECTION:NOTES:END -->
