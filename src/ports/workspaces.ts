@@ -7,6 +7,7 @@ export interface WorkspaceIdentity {
 
 export type WorkspaceFailure =
   | "not_git_worktree"
+  | "not_initialized"
   | "bare_repository"
   | "unsafe_path"
   | "already_initialized"

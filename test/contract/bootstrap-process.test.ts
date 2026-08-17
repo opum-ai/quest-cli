@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -15,10 +22,31 @@ async function run(
   cwd: string,
   ...arguments_: readonly string[]
 ): Promise<ProcessResult> {
+  const env = { ...Bun.env };
+  delete env.QUEST_TASK_STORE;
   const child = Bun.spawn([process.execPath, source, ...arguments_], {
     cwd,
     stdout: "pipe",
     stderr: "pipe",
+    env,
+  });
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
+async function runWithTaskStore(
+  cwd: string,
+  store: string,
+  ...arguments_: readonly string[]
+): Promise<ProcessResult> {
+  const child = Bun.spawn([process.execPath, source, ...arguments_], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...Bun.env, QUEST_TASK_STORE: store },
   });
   return {
     exitCode: await child.exited,
@@ -86,7 +114,7 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
 
     await writeFile(
       join(root, "AGENTS.md"),
-      currentInstructions.replace("0.1.0", "0.0.0"),
+      currentInstructions.replace("0.2.1", "0.0.0"),
     );
     const drift = await run(root, "agents", "--check", "--json");
     expect(drift).toMatchObject({ exitCode: 6, stdout: "" });
@@ -105,5 +133,114 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("record and planning commands share the initialized root from a nested directory", async () => {
+  const root = await repository();
+  const nested = join(root, "packages", "example", "deep");
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    await mkdir(nested, { recursive: true });
+    const beforeInitialization = await run(root, "task", "list", "--json");
+    expect(beforeInitialization).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(beforeInitialization.stderr)).toMatchObject({
+      error_type: "validation",
+      message:
+        "Workspace is not initialized. Run quest init from a Git worktree.",
+    });
+    await expect(stat(join(root, ".quest"))).rejects.toThrow();
+
+    expect(await run(root, "init", "--json")).toMatchObject({ exitCode: 0 });
+    const created = await run(root, "task", "create", "Root task", ...human);
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      kind: "task.created",
+      data: { id: "T-1", title: "Root task" },
+    });
+    expect(
+      await run(
+        root,
+        "milestone",
+        "create",
+        "Root milestone",
+        "--task",
+        "T-1",
+        "--task",
+        "T-999",
+        ...human,
+      ),
+    ).toMatchObject({ exitCode: 0 });
+
+    for (const arguments_ of [
+      ["task", "list", "--json"],
+      ["task", "view", "T-1", "--json"],
+      ["overview", "--json"],
+      ["board", "--json"],
+      ["doctor", "--json"],
+      ["search", "Root task", "--json"],
+    ]) {
+      const fromRoot = await run(root, ...arguments_);
+      const fromNested = await run(nested, ...arguments_);
+      expect(fromNested).toEqual(fromRoot);
+      expect(fromNested.exitCode).toBe(0);
+    }
+
+    const nestedWrite = await run(
+      nested,
+      "task",
+      "create",
+      "Nested task",
+      ...human,
+    );
+    expect(JSON.parse(nestedWrite.stdout)).toMatchObject({
+      kind: "task.created",
+      data: { id: "T-2", title: "Nested task" },
+    });
+    expect(
+      JSON.parse((await run(root, "task", "list", "--json")).stdout).data.map(
+        (task: { readonly id: string }) => task.id,
+      ),
+    ).toEqual(["T-1", "T-2"]);
+    await expect(stat(join(nested, ".quest"))).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("implicit storage fails closed while QUEST_TASK_STORE remains an explicit override", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-uninitialized-"));
+  const store = await mkdtemp(join(tmpdir(), "quest-explicit-store-"));
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    const implicit = await run(cwd, "task", "list", "--json");
+    expect(implicit).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(implicit.stderr)).toMatchObject({
+      error_type: "validation",
+      message: "Path is not a Git worktree.",
+    });
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+
+    const explicit = await runWithTaskStore(
+      cwd,
+      store,
+      "task",
+      "create",
+      "Explicit task",
+      ...human,
+    );
+    expect(JSON.parse(explicit.stdout)).toMatchObject({
+      kind: "task.created",
+      data: { id: "T-1", title: "Explicit task" },
+    });
+    expect(
+      JSON.parse(
+        (await runWithTaskStore(cwd, store, "task", "list", "--json")).stdout,
+      ).data,
+    ).toEqual([expect.objectContaining({ id: "T-1" })]);
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+    expect(await stat(join(store, ".quest", "tasks", "T-1.json"))).toBeTruthy();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+    await rm(store, { recursive: true, force: true });
   }
 });

@@ -1,3 +1,5 @@
+import { join } from "node:path";
+
 import {
   WorkspaceError,
   type WorkspaceIdentity,
@@ -50,6 +52,25 @@ export async function initializeWorkspace(
   assertSafeWorkspaceRelativePath(workspaceConfigurationPath);
   const identity = await port.inspect(path);
   await port.writeInitialization(identity.worktreePath, configuration);
+  return identity;
+}
+
+/** Resolves a command's initialized worktree without creating tracker state. */
+export async function resolveInitializedWorkspace(
+  port: WorkspacePort,
+  path: string,
+): Promise<WorkspaceIdentity> {
+  const identity = await port.inspect(path);
+  if (
+    !(await port.exists(
+      join(identity.worktreePath, workspaceConfigurationPath),
+    ))
+  ) {
+    throw new WorkspaceError(
+      "not_initialized",
+      "Workspace is not initialized. Run quest init from a Git worktree.",
+    );
+  }
   return identity;
 }
 
