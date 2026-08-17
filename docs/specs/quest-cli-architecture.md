@@ -47,9 +47,11 @@ Architectural obligations, as distinct from the functional requirements in the
 
 ### Layering
 
-- **Dependencies point inward only.** The CLI layer may depend on application; application
-  on domain; domain on nothing. Ports are declared by the layers that need them and
-  implemented outside.
+- **Dependencies are mechanically constrained.** `scripts/check-layers.mjs` enforces the
+  graph: domain imports no other Quest layer; ports import domain vocabulary; application imports domain and
+  ports; adapters import domain and ports; ordinary CLI modules import application only.
+  `src/cli/composition.ts` is the sole adapter-import exception, limited to constructing
+  concrete implementations for application use cases.
 - **The domain layer has no knowledge of Git, the filesystem, the clock, the process
   environment, or output formatting.** If domain code can observe any of them, the
   invariants that depend on substitutability cannot be tested.
@@ -260,9 +262,10 @@ Two things this Spec touches that it does not own. Both are proposals, not decis
   contract](../adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly.md)
   (`QCLI-24`, amended by `QCLI-69`) keeps it distinguishable as a domain condition and
   maps evaluator disagreement to a structured `drift` diagnostic on exit `6`.
-- **What enforces the layering?** The ADR calls the boundary *enforced*, which requires a
-  mechanism — an import-graph check, a build constraint, a review gate. No mechanism is
-  chosen, and one that depends on the runtime cannot be chosen until D2 is settled.
+- **Layer enforcement is resolved.** `scripts/check-layers.mjs` validates every TypeScript
+  source import against the declared graph and runs as a strict prepublication gate. The
+  one composition-root exception is path-specific and regression-tested; it does not grant
+  ordinary CLI modules access to concrete adapters.
 - **How is the owned path set expressed?** `INV-4` requires it computed before any write,
   but whether it is a declared manifest, a builder the operation accumulates into, or a
   capability the port grants is undecided and shapes the application layer's interface.

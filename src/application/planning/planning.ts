@@ -1,30 +1,17 @@
-import type { TaskReader } from "../tasks/tasks.ts";
 import {
-  decision,
-  milestone,
   type Decision,
+  decision,
   type Milestone,
+  milestone,
 } from "../../domain/planning/planning.ts";
 import { RecordValidationError } from "../../domain/records.ts";
+import type { PlanningRepository } from "../../ports/planning.ts";
+import type { TaskReader } from "../tasks/tasks.ts";
 
-export interface PlanningSnapshot {
-  readonly revision: string;
-  readonly milestones: readonly Milestone[];
-  readonly decisions: readonly Decision[];
-}
-
-export interface PlanningRepository {
-  read(): Promise<PlanningSnapshot>;
-  write(request: {
-    readonly expectedRevision: string;
-    readonly milestones: readonly Milestone[];
-    readonly decisions: readonly Decision[];
-    readonly operationId: string;
-  }): Promise<
-    | { readonly kind: "success"; readonly revision: string }
-    | { readonly kind: "conflict" }
-  >;
-}
+export type {
+  PlanningRepository,
+  PlanningSnapshot,
+} from "../../ports/planning.ts";
 
 export type PlanningMutationResult = Awaited<
   ReturnType<PlanningRepository["write"]>

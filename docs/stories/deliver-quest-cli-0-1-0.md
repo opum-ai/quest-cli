@@ -10,7 +10,7 @@ tags:
   - release
 summary: Implement and qualify the standalone Quest CLI, its Lore tracker contract, migration paths, packaging, and release gates.
 timestamp: 2026-08-14T18:26:29.020Z
-status: todo
+status: done
 tasks:
   - qcli-72
   - qcli-73
@@ -36,13 +36,6 @@ tasks:
   - qcli-93
   - qcli-94
   - qcli-95
-  - qcli-97
-  - qcli-97.1
-  - qcli-97.2
-  - qcli-97.3
-  - qcli-97.4
-  - qcli-97.5
-  - qcli-97.6
 ---
 
 # Deliver Quest CLI 0.1.0
@@ -100,13 +93,6 @@ subprocess contract Lore needs to use it as the default issue adapter.
 | [QCLI-93](../../backlog/tasks/qcli-93%20-%20Complete-Quest-release-fault-clone-scale-and-supply-chain-qualification.md) | Complete Quest release, fault, clone, scale, and supply-chain qualification | Done |
 | [QCLI-94](../../backlog/tasks/qcli-94%20-%20Publish-Quest-operator-migration-recovery-and-release-runbooks.md) | Publish Quest operator, migration, recovery, and release runbooks | Done |
 | [QCLI-95](../../backlog/tasks/qcli-95%20-%20Publish-opum-ai-quest-0.1.0.md) | Publish @opum-ai/quest 0.1.0 | Done |
-| [QCLI-97](../../backlog/tasks/qcli-97%20-%20Restore-Quest-parity-project-bootstrap-and-Lore-Codex-integration.md) | Restore Quest parity, project bootstrap, and Lore/Codex integration | To Do |
-| [QCLI-97.1](../../backlog/tasks/qcli-97.1%20-%20Audit-Backlog-parity-and-Lore-Codex-onboarding-gaps.md) | Audit Backlog parity and Lore/Codex onboarding gaps | Done |
-| [QCLI-97.2](../../backlog/tasks/qcli-97.2%20-%20Implement-Quest-project-bootstrap-discovery-and-Codex-instructions.md) | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
-| [QCLI-97.3](../../backlog/tasks/qcli-97.3%20-%20Restore-Quest-planning-and-operations-parity-commands.md) | Restore Quest planning and operations parity commands | Done |
-| [QCLI-97.4](../../backlog/tasks/qcli-97.4%20-%20Restore-Quest-task-lifecycle-and-draft-parity.md) | Restore Quest task lifecycle and draft parity | Done |
-| [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | To Do |
-| [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | To Do |
 <!-- lore:tasks:end -->
 
 ## Notes

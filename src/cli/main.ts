@@ -2,9 +2,6 @@
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import { Command } from "commander";
-import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
-import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
-import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
 import {
   inspectQuestAgentInstructions,
   questAgentInstructions,
@@ -19,14 +16,22 @@ import {
   type OutputMode,
   selectOutputMode,
 } from "../application/command-contract.ts";
-import { PlanningService } from "../application/planning/planning.ts";
+import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { TaskService } from "../application/tasks/tasks.ts";
-import { initializeWorkspace } from "../application/workspaces/workspaces.ts";
+import {
+  initializeWorkspace,
+  resolveInitializedWorkspace,
+} from "../application/workspaces/workspaces.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
+import {
+  createAgentInstructionPort,
+  createPlanningService,
+  createWorkspacePort,
+} from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.1";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -128,24 +133,22 @@ function only(
   return [...parsed.values.keys()].every((flag) => allowed.includes(flag));
 }
 
-function taskService(): TaskService {
+function createTaskService(root: string): TaskService {
   return new TaskService(
-    new LocalTaskRepository(
-      join(process.env.QUEST_TASK_STORE ?? process.cwd(), ".quest", "tasks"),
-    ),
+    new LocalTaskRepository(join(root, ".quest", "tasks")),
   );
 }
 
-function taskReader(): LocalTaskRepository {
-  return new LocalTaskRepository(
-    join(process.env.QUEST_TASK_STORE ?? process.cwd(), ".quest", "tasks"),
-  );
+function createTaskReader(root: string): LocalTaskRepository {
+  return new LocalTaskRepository(join(root, ".quest", "tasks"));
 }
 
-function planningService(): PlanningService {
-  return new PlanningService(
-    new LocalPlanningRepository(process.env.QUEST_TASK_STORE ?? process.cwd()),
-  );
+async function taskStoreRoot(): Promise<string> {
+  if (process.env.QUEST_TASK_STORE !== undefined)
+    return process.env.QUEST_TASK_STORE;
+  return (
+    await resolveInitializedWorkspace(createWorkspacePort(), process.cwd())
+  ).worktreePath;
 }
 
 function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
@@ -179,11 +182,14 @@ async function nextDraftId(tasks: TaskService): Promise<string> {
   return `D-${highest + 1}`;
 }
 
-async function nextPlanningId(prefix: "M" | "DEC"): Promise<string> {
+async function nextPlanningId(
+  planning: PlanningService,
+  prefix: "M" | "DEC",
+): Promise<string> {
   const records =
     prefix === "M"
-      ? await planningService().listMilestones()
-      : await planningService().listDecisions();
+      ? await planning.listMilestones()
+      : await planning.listDecisions();
   const highest = records.reduce((maximum, record) => {
     const numeric = Number(record.id.slice(prefix.length + 1));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
@@ -201,6 +207,12 @@ export async function runQuest(
       return { stdout: `${VERSION}\n`, stderr: "", exitCode: 0 };
     const modeFor = (parsed: NonNullable<ReturnType<typeof flags>>) =>
       selectOutputMode({ ...parsed, stdoutIsTty });
+    let root: Promise<string> | undefined;
+    const resolvedRoot = () => (root ??= taskStoreRoot());
+    const taskService = async () => createTaskService(await resolvedRoot());
+    const taskReader = async () => createTaskReader(await resolvedRoot());
+    const planningService = async () =>
+      createPlanningService(await resolvedRoot());
     if (arguments_.length === 0) {
       return output(
         {
@@ -256,12 +268,12 @@ export async function runQuest(
           "init accepts only --agent-instructions, --json, and --plain.",
         );
       const workspace = await initializeWorkspace(
-        new LocalWorkspacePort(),
+        createWorkspacePort(),
         process.cwd(),
       );
       const instructions = parsed.values.has("--agent-instructions")
         ? await updateQuestAgentInstructions(
-            new LocalAgentInstructionPort(process.cwd()),
+            createAgentInstructionPort(process.cwd()),
           )
         : undefined;
       return output(
@@ -302,10 +314,10 @@ export async function runQuest(
         return failure("usage", "agents requires exactly one action.");
       const result = check
         ? await inspectQuestAgentInstructions(
-            new LocalAgentInstructionPort(process.cwd()),
+            createAgentInstructionPort(process.cwd()),
           )
         : await updateQuestAgentInstructions(
-            new LocalAgentInstructionPort(process.cwd()),
+            createAgentInstructionPort(process.cwd()),
           );
       if (check && result.state === "drift")
         return failure("drift", result.message);
@@ -385,13 +397,13 @@ export async function runQuest(
           "usage",
           `${arguments_[0]} accepts only --json and --plain.`,
         );
-      const planning = planningService();
+      const planning = await planningService();
       const data =
         arguments_[0] === "overview"
-          ? await planning.overview(taskReader())
+          ? await planning.overview(await taskReader())
           : arguments_[0] === "board"
-            ? await planning.board(taskReader())
-            : await planning.doctor(taskReader());
+            ? await planning.board(await taskReader())
+            : await planning.doctor(await taskReader());
       const kind =
         arguments_[0] === "overview"
           ? "project.overview"
@@ -423,7 +435,7 @@ export async function runQuest(
           "Cleanup requires an explicit actor declaration.",
         );
       const confirmed = parsed.values.has("--confirm");
-      const data = await planningService().cleanup(
+      const data = await (await planningService()).cleanup(
         { dryRun: parsed.values.has("--dry-run") || !confirmed, confirmed },
         crypto.randomUUID(),
       );
@@ -444,7 +456,10 @@ export async function runQuest(
           "browser --port must be an integer from 0 through 65535.",
         );
       const started = await startBrowserServer(
-        { tasks: taskReader(), planning: planningService() },
+        {
+          tasks: await taskReader(),
+          planning: await planningService(),
+        },
         { port },
       );
       return output(
@@ -477,7 +492,7 @@ export async function runQuest(
       );
       if (!action || !parsed)
         return failure("usage", `${group} requires a valid action.`);
-      const planning = planningService();
+      const planning = await planningService();
       const isMilestone = group === "milestone";
       if (action === "list" && only(parsed, [])) {
         const data = isMilestone
@@ -528,7 +543,7 @@ export async function runQuest(
           );
         const id =
           one(parsed, "--id") ??
-          (await nextPlanningId(isMilestone ? "M" : "DEC"));
+          (await nextPlanningId(planning, isMilestone ? "M" : "DEC"));
         const result = isMilestone
           ? await planning.createMilestone(
               {
@@ -672,18 +687,18 @@ export async function runQuest(
         return failure("usage", "search accepts --all, --json, and --plain.");
       if (!parsed.values.has("--all"))
         return output(
-          await dispatchTrackerTaskCommand(taskService(), {
+          await dispatchTrackerTaskCommand(await taskService(), {
             command: "search",
             query: arguments_[1],
           }),
           modeFor(parsed),
         );
       const [tasks, planning] = await Promise.all([
-        dispatchTrackerTaskCommand(taskService(), {
+        dispatchTrackerTaskCommand(await taskService(), {
           command: "search",
           query: arguments_[1],
         }),
-        planningService().search(arguments_[1]),
+        (await planningService()).search(arguments_[1]),
       ]);
       return output(
         {
@@ -709,7 +724,7 @@ export async function runQuest(
       );
       if (!action || !parsed)
         return failure("usage", "draft requires a valid action.");
-      const tasks = taskService();
+      const tasks = await taskService();
       if (action === "list" && only(parsed, ["--include-archived"]))
         return output(
           {
@@ -832,7 +847,7 @@ export async function runQuest(
           "denied",
           "Tracker writes require an explicit actor declaration.",
         );
-      const tasks = taskService();
+      const tasks = await taskService();
       const data =
         command === "complete"
           ? await tasks.complete(rest[0], crypto.randomUUID())
@@ -852,7 +867,7 @@ export async function runQuest(
           "task status-flow accepts only --json and --plain.",
         );
       return output(
-        await dispatchTrackerTaskCommand(taskService(), { command }),
+        await dispatchTrackerTaskCommand(await taskService(), { command }),
         modeFor(parsed),
       );
     }
@@ -861,7 +876,7 @@ export async function runQuest(
       if (!parsed || !only(parsed, ["--status", "--label"]))
         return failure("usage", "task list received invalid arguments.");
       return output(
-        await dispatchTrackerTaskCommand(taskService(), {
+        await dispatchTrackerTaskCommand(await taskService(), {
           command,
           status: one(parsed, "--status"),
           labels: parsed.values.get("--label"),
@@ -874,7 +889,7 @@ export async function runQuest(
       if (!parsed || !only(parsed, []))
         return failure("usage", "task view received invalid arguments.");
       return output(
-        await dispatchTrackerTaskCommand(taskService(), {
+        await dispatchTrackerTaskCommand(await taskService(), {
           command,
           reference: rest[0],
         }),
@@ -903,7 +918,7 @@ export async function runQuest(
           "denied",
           "Tracker writes require an explicit actor declaration.",
         );
-      const tasks = taskService();
+      const tasks = await taskService();
       return output(
         await dispatchTrackerTaskCommand(tasks, {
           command,
@@ -944,7 +959,7 @@ export async function runQuest(
           "Tracker writes require an explicit actor declaration.",
         );
       return output(
-        await dispatchTrackerTaskCommand(taskService(), {
+        await dispatchTrackerTaskCommand(await taskService(), {
           command,
           reference,
           operationId: crypto.randomUUID(),

@@ -1,10 +1,5 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-
-import type {
-  PlanningRepository,
-  PlanningSnapshot,
-} from "../../application/planning/planning.ts";
 import {
   type Decision,
   decision,
@@ -12,6 +7,10 @@ import {
   milestone,
 } from "../../domain/planning/planning.ts";
 import { RecordValidationError } from "../../domain/records.ts";
+import type {
+  PlanningRepository,
+  PlanningSnapshot,
+} from "../../ports/planning.ts";
 
 interface StoredPlanning {
   readonly milestones: readonly Milestone[];

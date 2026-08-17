@@ -15,6 +15,7 @@ import {
   discoverWorkspaces,
   enrollWorkspace,
   initializeWorkspace,
+  resolveInitializedWorkspace,
   WorkspaceError,
 } from "../../../src/application/workspaces/workspaces.ts";
 
@@ -80,11 +81,28 @@ test("current-worktree identity is deterministic from a nested directory", async
       (await port.inspect(root)).worktreePath,
     );
     await initializeWorkspace(port, nested);
+    expect((await resolveInitializedWorkspace(port, nested)).worktreePath).toBe(
+      (await port.inspect(root)).worktreePath,
+    );
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
       "schemaVersion = 1\n",
     );
     await expect(
       readFile(join(nested, ".quest/workspace.toml"), "utf8"),
+    ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("workspace resolution rejects an uninitialized Git worktree without writing", async () => {
+  const root = await repository();
+  try {
+    await expect(
+      resolveInitializedWorkspace(new LocalWorkspacePort(), root),
+    ).rejects.toMatchObject({ code: "not_initialized" });
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
     ).rejects.toThrow();
   } finally {
     await rm(root, { recursive: true, force: true });

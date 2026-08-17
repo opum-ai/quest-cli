@@ -1,4 +1,9 @@
-import type { AgentInstructionPort } from "../../ports/agent-instructions.ts";
+import {
+  AgentInstructionError,
+  type AgentInstructionPort,
+} from "../../ports/agent-instructions.ts";
+
+export { AgentInstructionError } from "../../ports/agent-instructions.ts";
 
 export const codexInstructionPath = "AGENTS.md";
 
@@ -9,20 +14,13 @@ const end = "<!-- quest:agent-instructions:end -->";
 export const questAgentInstructions = `${begin}
 # Quest agent instructions
 
-This project uses Quest CLI 0.1.0 for tracker operations. Run \`quest manifest --json\` to discover the supported command contract. Use \`quest instructions --json\` for the current versioned protocol. Quest writes require an explicit actor declaration; do not edit Quest-authored records directly.
+This project uses Quest CLI 0.2.1 for tracker operations. Run \`quest manifest --json\` to discover the supported command contract. Use \`quest instructions --json\` for the current versioned protocol. Quest writes require an explicit actor declaration; do not edit Quest-authored records directly.
 ${end}\n`;
 
 export type AgentInstructionCheck =
   | { readonly state: "missing" }
   | { readonly state: "current" }
   | { readonly state: "drift"; readonly message: string };
-
-export class AgentInstructionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AgentInstructionError";
-  }
-}
 
 function managedBlocks(content: string): readonly string[] {
   const blocks = content.match(
@@ -49,7 +47,7 @@ export function checkQuestAgentInstructions(
   if (`${blocks[0]}\n` !== questAgentInstructions) {
     return {
       state: "drift",
-      message: "Quest agent instruction block differs from version 0.1.0.",
+      message: "Quest agent instruction block differs from version 0.2.1.",
     };
   }
   return { state: "current" };

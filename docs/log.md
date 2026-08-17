@@ -157,6 +157,8 @@
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
 - 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
 - 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
+- 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
+- 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
 
 ## docs/adr
 
@@ -254,6 +256,7 @@
 - 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
 - 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
+- 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 
 ## docs/runbooks
 
@@ -377,3 +380,5 @@
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
 - 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
 - 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
+- 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
+- 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
