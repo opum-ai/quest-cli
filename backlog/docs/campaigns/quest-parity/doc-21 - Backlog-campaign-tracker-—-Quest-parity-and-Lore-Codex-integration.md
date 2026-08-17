@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 20:44'
+updated_date: '2026-08-17 20:58'
 ---
 ## Contract
 
@@ -17,27 +17,28 @@ updated_date: '2026-08-17 20:44'
 
 | Repository | Story and task scope | Integration base | Required gates |
 | --- | --- | --- | --- |
-| quest-cli | QCLI-97 campaign and QCLI-98 through QCLI-108 qualification findings | origin/dev 47e1ddf08f2e9cbae2e1fb576855c2eb6ec7dda1; QCLI-99 branch campaign/qcli-99-success-principal | Focused tests, full suite, typecheck, lint, format, layer, package and packed-CLI qualification, Lore strict gates, diff check, CI review. |
+| quest-cli | QCLI-97 campaign and QCLI-98 through newly discovered qualification findings | origin/dev a0898da60d3453ea29860cc23009ea28b06f112f; QCLI-100 branch campaign/qcli-100-help-modes | Focused tests, full suite, typecheck, lint, format, layer, package and packed-CLI qualification, Lore strict gates, diff check, CI review. |
 
 ## Frontier
 
-- Resolved on dev: QCLI-97.1 through QCLI-97.4, QCLI-97.7, QCLI-97.8, QCLI-98, QCLI-101, QCLI-105, and QCLI-108.
-- Delivery pending: reviewed QCLI-99 candidate f00ff93 with complete 0.2.3 native artifacts.
+- Resolved on dev: QCLI-97.1 through QCLI-97.4, QCLI-97.7, QCLI-97.8, QCLI-98, QCLI-99, QCLI-101, QCLI-105, and QCLI-108.
+- Delivery pending: reviewed QCLI-100 candidate 4076fbe with complete 0.2.4 native artifacts.
 - Blocked: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract.
-- Ready after QCLI-99: QCLI-100, QCLI-103, QCLI-104, QCLI-106, QCLI-107, and QCLI-102.
+- Ready after QCLI-100: QCLI-103, QCLI-104, QCLI-106, QCLI-107, QCLI-102, QCLI-109, and QCLI-110.
 - Held: QCLI-97.6 now depends only on blocked QCLI-97.5; parent QCLI-97 remains open until its children settle.
 
 ## Queue
 
 | Order | Task | State | Wave | Dependency or likely paths |
 | --- | --- | --- | --- | --- |
-| 1 | QCLI-99 | Reviewed candidate; delivery pending | 3 | Success-envelope principal contract and manifest-wide conformance. |
-| 2 | QCLI-100 | Ready | next | Help target mode handling; pair sequentially with QCLI-102. |
-| 3 | QCLI-103 | Ready | next | Planning mutation response contracts; precedes QCLI-104. |
-| 4 | QCLI-104 | Ready | next | Milestone task-reference preservation after QCLI-103. |
-| 5 | QCLI-106 | Ready | next | Agent check exit semantics. |
-| 6 | QCLI-107 | Ready | next | Error classification. |
-| 7 | QCLI-102 | Ready | next | Version and help aliases; pair sequentially with QCLI-100. |
+| 1 | QCLI-100 | Reviewed candidate; delivery pending | 4 | Help target mode handling and 0.2.4 artifacts. |
+| 2 | QCLI-103 | Ready | next | Planning mutation response contracts; precedes QCLI-104. |
+| 3 | QCLI-104 | Ready | next | Milestone task-reference preservation after QCLI-103. |
+| 4 | QCLI-106 | Ready | next | Agent check exit semantics. |
+| 5 | QCLI-107 | Ready | next | Error classification. |
+| 6 | QCLI-102 | Ready | next | Version and help aliases. |
+| 7 | QCLI-109 | Ready | next | Escaped flag-shaped values. |
+| 8 | QCLI-110 | Ready | next | Output modes before commands. |
 | Held | QCLI-97.5 | Blocked | none | Separate Lore CLI authority or published contract. |
 | Held | QCLI-97.6 | Held | none | QCLI-97.5. |
 
@@ -46,12 +47,10 @@ updated_date: '2026-08-17 20:44'
 | Task | Wave | Disposition | Evidence pointer |
 | --- | --- | --- | --- |
 | QCLI-97.1 through QCLI-97.4 | prior | Done | Parity audit, bootstrap, planning, lifecycle, and draft surfaces integrated before this wave. |
-| QCLI-105 | prior | Done | Nested compiled reads and writes share one initialized root; PR 105 passed CI. |
-| QCLI-97.7 | prior | Done | Layer gate restored on dev through PR 105. |
-| QCLI-98 | 1 | Done and merged | PR 106 merged at 8606e54; candidate tree was byte-identical to validated d96f44b, with 149 local tests and 13 CI checks passing. |
-| QCLI-108 | 1 | Done and merged | PR 106 merged at 8606e54; Treehouse regression, focused/cumulative reviews, and all local/CI gates passed. |
-| QCLI-97.8 | 2 | Done and merged | PR 107 merged at 47e1ddf; public migration lifecycle, packed alias flow, all-six artifacts, and cumulative review passed. |
-| QCLI-101 | 2 | Done and merged | PR 107 merged at 47e1ddf; all 19 value flags, collection semantics, combined artifacts, and independent review passed. |
+| QCLI-105 and QCLI-97.7 | prior | Done and merged | Nested workspace resolution and layer gate restored through PR 105. |
+| QCLI-98 and QCLI-108 | 1 | Done and merged | PR 106 merged at 8606e54 with human rendering, Treehouse-safe checks, independent review, and 13 CI checks. |
+| QCLI-97.8 and QCLI-101 | 2 | Done and merged | PR 107 merged at 47e1ddf with migration lifecycle, parser hardening, packed flow, rebuilt artifacts, and full CI. |
+| QCLI-99 | 3 | Done and merged | PR 108 merged at a0898da; 0.2.3 principal conformance, two reviews, 155 local tests, and 13 CI checks passed. |
 
 ## Human decisions and blockers
 
@@ -62,9 +61,9 @@ updated_date: '2026-08-17 20:44'
 
 ## Wave log
 
-- 2026-08-17 — Integrated parity bootstrap, lifecycle, planning, agent, discovery, and browser surfaces through d2aeacc.
-- 2026-08-17 — Merged QCLI-105 and QCLI-97.7 through PR 105.
-- 2026-08-17 — Reinitialized with QCLI-98 first and merged QCLI-98/QCLI-108 through PR 106 at 8606e54 after local, independent, Lore, and 13 CI checks.
-- 2026-08-17 — Reconciled QCLI-97.8/QCLI-101 on PR 107, rebuilt all six 0.2.2 natives, added packed lifecycle and complete parser evidence, and received two independent approvals.
-- 2026-08-17 — Raised only the expanded manifest matrix timeout after CI crossed Bun's default by 2 ms; micro-review approved. Final-SHA source, six immutable-candidate, and six projection jobs passed. PR 107 merged at 47e1ddf with byte-identical tree proof; its branches and lease were cleaned.
-- 2026-08-17 — QCLI-99 normalized every success envelope, added manifest-wide JSON principal/key-order conformance, rebuilt all six 0.2.3 binaries, passed 155 full tests plus package gates, received two independent approvals, and committed the candidate as f00ff93.
+- 2026-08-17 — Integrated parity bootstrap, lifecycle, planning, agent, discovery, and browser surfaces through d2aeacc; merged QCLI-105/QCLI-97.7 through PR 105.
+- 2026-08-17 — Reinitialized with QCLI-98 first and merged QCLI-98/QCLI-108 through PR 106 at 8606e54 after local, independent, Lore, and CI checks.
+- 2026-08-17 — Reconciled QCLI-97.8/QCLI-101 through PR 107 at 47e1ddf with all-six 0.2.2 artifacts and final-SHA source/immutable/projection gates.
+- 2026-08-17 — Merged QCLI-99 through PR 108 at a0898da with byte-identical tree proof after two reviews, 155 local tests, and all 13 CI checks; cleaned its branches and lease.
+- 2026-08-17 — QCLI-100 normalized help modes before topic resolution, covered all eight spelling/mode combinations, rebuilt all six 0.2.4 binaries, passed 156 full tests plus package gates, received two independent approvals, and committed candidate 4076fbe.
+- 2026-08-17 — Recomputed the ready queue and added newly present QCLI-109/QCLI-110 after existing medium-priority tasks and QCLI-102.
