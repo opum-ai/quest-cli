@@ -257,7 +257,10 @@ export async function runQuest(
   stdoutIsTty: boolean,
 ): Promise<InvocationResult> {
   try {
-    if (arguments_.length === 1 && arguments_[0] === "--version")
+    if (
+      arguments_.length === 1 &&
+      ["--version", "version"].includes(arguments_[0] ?? "")
+    )
       return { stdout: `${VERSION}\n`, stderr: "", exitCode: 0 };
     const modeFor = (parsed: NonNullable<ReturnType<typeof flags>>) =>
       selectOutputMode({ ...parsed, stdoutIsTty });
@@ -278,20 +281,21 @@ export async function runQuest(
       );
     }
     if (
-      ["--help", "help"].includes(arguments_[0] ?? "") ||
-      arguments_[1] === "--help"
+      ["--help", "-h", "help"].includes(arguments_[0] ?? "") ||
+      ["--help", "-h"].includes(arguments_[1] ?? "")
     ) {
       const helpArguments = arguments_.filter(
         (argument) => argument !== "--json" && argument !== "--plain",
       );
       if (helpArguments.length > 2)
         return failure("usage", "help accepts at most one topic.");
-      const helpTarget =
-        helpArguments[0] === "help" || helpArguments[0] === "--help"
-          ? helpArguments[1]
-          : helpArguments[1] === "--help"
-            ? helpArguments[0]
-            : undefined;
+      const helpTarget = ["help", "--help", "-h"].includes(
+        helpArguments[0] ?? "",
+      )
+        ? helpArguments[1]
+        : ["--help", "-h"].includes(helpArguments[1] ?? "")
+          ? helpArguments[0]
+          : undefined;
       const parsed = flags(
         arguments_.filter(
           (argument) => argument === "--json" || argument === "--plain",

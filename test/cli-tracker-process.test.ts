@@ -61,7 +61,10 @@ async function questUntilOutput(store: string, argv: readonly string[]) {
   await reader.cancel();
   child.kill();
   await child.exited;
-  return new TextDecoder().decode(value);
+  return {
+    stdout: new TextDecoder().decode(value),
+    stderr: await new Response(child.stderr).text(),
+  };
 }
 
 async function initializeGitWorktree(path: string): Promise<void> {
@@ -774,6 +777,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
 
     const invocations: Record<string, readonly string[]> = {
       manifest: ["manifest", "--plain"],
+      version: ["version"],
       help: ["--help", "--plain"],
       init: ["init", "--plain"],
       instructions: ["instructions", "--plain"],
@@ -902,25 +906,31 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
     };
 
     const outputs = new Map<string, string>();
-    for (const entry of manifest.filter(
-      (command): command is { readonly name: string; readonly kind: string } =>
-        command.kind !== null,
-    )) {
-      const argv = invocations[entry.name]?.map((argument) =>
+    for (const entry of manifest) {
+      const recipe = invocations[entry.name];
+      expect(
+        recipe,
+        `missing invocation recipe for ${entry.name}`,
+      ).toBeDefined();
+      const argv = recipe?.map((argument) =>
         argument === "--plain" ? mode : argument,
       );
       expect(argv).toBeDefined();
-      const stdout =
+      const result =
         entry.name === "browser"
           ? await questUntilOutput(store, argv ?? [])
           : await (async () => {
-              const result = await quest(store, argv ?? []);
-              if (result.exitCode !== 0)
-                throw new Error(`${entry.name}: ${result.stderr}`);
-              expect(result.exitCode, entry.name).toBe(0);
-              return result.stdout;
+              const invocation = await quest(store, argv ?? []);
+              if (invocation.exitCode !== 0)
+                throw new Error(`${entry.name}: ${invocation.stderr}`);
+              expect(invocation.exitCode, entry.name).toBe(0);
+              return invocation;
             })();
-      outputs.set(entry.name, stdout);
+      const diagnostic = result.stderr
+        ? (JSON.parse(result.stderr) as { readonly error_type?: string })
+        : undefined;
+      expect(diagnostic?.error_type, entry.name).not.toBe("usage");
+      outputs.set(entry.name, result.stdout);
     }
     return { manifest, outputs };
   } finally {
