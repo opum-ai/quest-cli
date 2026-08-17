@@ -68,7 +68,21 @@ export interface CommandManifestEntry {
     | "task view"
     | "search"
     | "task create"
-    | "task edit";
+    | "task edit"
+    | "task complete"
+    | "task archive"
+    | "task demote"
+    | "draft create"
+    | "draft list"
+    | "draft view"
+    | "draft promote"
+    | "draft archive"
+    | "milestone"
+    | "decision"
+    | "overview"
+    | "board"
+    | "doctor"
+    | "cleanup";
   readonly schemaVersion: 1;
   readonly kind: `${string}.${string}` | null;
   readonly mutates: boolean;
@@ -132,6 +146,85 @@ export const commandManifest = {
       name: "task edit",
       schemaVersion: 1,
       kind: "task.updated",
+      mutates: true,
+    },
+    {
+      name: "task complete",
+      schemaVersion: 1,
+      kind: "task.completed",
+      mutates: true,
+    },
+    {
+      name: "task archive",
+      schemaVersion: 1,
+      kind: "task.archived",
+      mutates: true,
+    },
+    {
+      name: "task demote",
+      schemaVersion: 1,
+      kind: "task.demoted",
+      mutates: true,
+    },
+    {
+      name: "draft create",
+      schemaVersion: 1,
+      kind: "draft.created",
+      mutates: true,
+    },
+    {
+      name: "draft list",
+      schemaVersion: 1,
+      kind: "draft.list",
+      mutates: false,
+    },
+    {
+      name: "draft view",
+      schemaVersion: 1,
+      kind: "draft.view",
+      mutates: false,
+    },
+    {
+      name: "draft promote",
+      schemaVersion: 1,
+      kind: "draft.promoted",
+      mutates: true,
+    },
+    {
+      name: "draft archive",
+      schemaVersion: 1,
+      kind: "draft.archived",
+      mutates: true,
+    },
+    {
+      name: "milestone",
+      schemaVersion: 1,
+      kind: "milestone.records",
+      mutates: true,
+    },
+    {
+      name: "decision",
+      schemaVersion: 1,
+      kind: "decision.records",
+      mutates: true,
+    },
+    {
+      name: "overview",
+      schemaVersion: 1,
+      kind: "project.overview",
+      mutates: false,
+    },
+    { name: "board", schemaVersion: 1, kind: "project.board", mutates: false },
+    {
+      name: "doctor",
+      schemaVersion: 1,
+      kind: "project.doctor",
+      mutates: false,
+    },
+    {
+      name: "cleanup",
+      schemaVersion: 1,
+      kind: "project.cleanup",
       mutates: true,
     },
   ] satisfies readonly CommandManifestEntry[],

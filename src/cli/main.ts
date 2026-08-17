@@ -13,6 +13,7 @@ import {
 } from "../application/command-contract.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { TaskService } from "../application/tasks/tasks.ts";
+import { PlanningService } from "../application/planning/planning.ts";
 import {
   inspectQuestAgentInstructions,
   questAgentInstructions,
@@ -20,6 +21,7 @@ import {
 } from "../application/agents/agent-instructions.ts";
 import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
 import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
+import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
 import { initializeWorkspace } from "../application/workspaces/workspaces.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
@@ -80,6 +82,10 @@ function flags(argv: readonly string[]):
     "--agent-instructions",
     "--check",
     "--update-instructions",
+    "--confirm",
+    "--dry-run",
+    "--include-archived",
+    "--all",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
@@ -130,6 +136,16 @@ function taskService(): TaskService {
   );
 }
 
+function taskReader(): LocalTaskRepository {
+  return new LocalTaskRepository(
+    join(process.env.QUEST_TASK_STORE ?? process.cwd(), ".quest", "tasks"),
+  );
+}
+
+function planningService(): PlanningService {
+  return new PlanningService(new LocalPlanningRepository(process.cwd()));
+}
+
 function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   const id = one(parsed, "--actor");
   const kind = one(parsed, "--actor-kind");
@@ -149,6 +165,27 @@ async function nextTaskId(tasks: TaskService): Promise<string> {
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
   return `T-${highest + 1}`;
+}
+
+async function nextDraftId(tasks: TaskService): Promise<string> {
+  const drafts = await tasks.listDrafts(true);
+  const highest = drafts.reduce((maximum, record) => {
+    const numeric = Number(record.draft.id.slice(2));
+    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
+  }, 0);
+  return `D-${highest + 1}`;
+}
+
+async function nextPlanningId(prefix: "M" | "DEC"): Promise<string> {
+  const records =
+    prefix === "M"
+      ? await planningService().listMilestones()
+      : await planningService().listDecisions();
+  const highest = records.reduce((maximum, record) => {
+    const numeric = Number(record.id.slice(prefix.length + 1));
+    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
+  }, 0);
+  return `${prefix}-${highest + 1}`;
 }
 
 /** Executes the stable public tracker CLI against repository-local task storage. */
@@ -264,7 +301,7 @@ export async function runQuest(
           data: {
             shell: "bash",
             script:
-              "complete -W 'init instructions agents completion manifest task search' quest",
+              "complete -W 'init instructions agents completion manifest task draft milestone decision overview board doctor cleanup search' quest",
           },
         },
         modeFor(parsed),
@@ -315,22 +352,366 @@ export async function runQuest(
         selectOutputMode({ ...parsed, stdoutIsTty }),
       );
     }
+    if (["overview", "board", "doctor"].includes(arguments_[0] ?? "")) {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, []))
+        return failure(
+          "usage",
+          `${arguments_[0]} accepts only --json and --plain.`,
+        );
+      const planning = planningService();
+      const data =
+        arguments_[0] === "overview"
+          ? await planning.overview(taskReader())
+          : arguments_[0] === "board"
+            ? await planning.board(taskReader())
+            : await planning.doctor(taskReader());
+      const kind =
+        arguments_[0] === "overview"
+          ? "project.overview"
+          : arguments_[0] === "board"
+            ? "project.board"
+            : "project.doctor";
+      return output({ schemaVersion: 1, kind, data }, modeFor(parsed));
+    }
+    if (arguments_[0] === "cleanup") {
+      const parsed = flags(arguments_.slice(1));
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--dry-run",
+          "--confirm",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      )
+        return failure(
+          "usage",
+          "cleanup accepts --dry-run or --confirm with an actor.",
+        );
+      const writeActor = actor(parsed);
+      if (!writeActor)
+        return failure(
+          "denied",
+          "Cleanup requires an explicit actor declaration.",
+        );
+      const confirmed = parsed.values.has("--confirm");
+      const data = await planningService().cleanup(
+        { dryRun: parsed.values.has("--dry-run") || !confirmed, confirmed },
+        crypto.randomUUID(),
+      );
+      return output(
+        { schemaVersion: 1, kind: "project.cleanup", data },
+        modeFor(parsed),
+      );
+    }
+    if (arguments_[0] === "milestone" || arguments_[0] === "decision") {
+      const group = arguments_[0];
+      const action = arguments_[1];
+      const rest = arguments_.slice(2);
+      const parsed = flags(
+        rest.slice(
+          action === "create" || action === "view" || action === "delete"
+            ? 1
+            : 0,
+        ),
+      );
+      if (!action || !parsed)
+        return failure("usage", `${group} requires a valid action.`);
+      const planning = planningService();
+      const isMilestone = group === "milestone";
+      if (action === "list" && only(parsed, [])) {
+        const data = isMilestone
+          ? await planning.listMilestones()
+          : await planning.listDecisions();
+        return output(
+          {
+            schemaVersion: 1,
+            kind: isMilestone ? "milestone.records" : "decision.records",
+            data,
+          },
+          modeFor(parsed),
+        );
+      }
+      if (action === "view" && rest[0] && only(parsed, [])) {
+        const data = isMilestone
+          ? await planning.viewMilestone(rest[0])
+          : await planning.viewDecision(rest[0]);
+        return output(
+          {
+            schemaVersion: 1,
+            kind: isMilestone ? "milestone.records" : "decision.records",
+            data,
+          },
+          modeFor(parsed),
+        );
+      }
+      if (
+        action === "create" &&
+        rest[0] &&
+        only(parsed, [
+          "--id",
+          "--status",
+          "--description",
+          "--context",
+          "--outcome",
+          "--task",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            `${group} writes require an explicit actor declaration.`,
+          );
+        const id =
+          one(parsed, "--id") ??
+          (await nextPlanningId(isMilestone ? "M" : "DEC"));
+        const result = isMilestone
+          ? await planning.createMilestone(
+              {
+                id: id as `M-${number}`,
+                title: rest[0],
+                description: one(parsed, "--description"),
+                status: (one(parsed, "--status") ?? "open") as
+                  | "open"
+                  | "closed",
+                taskIds: parsed.values.get("--task") ?? [],
+              },
+              crypto.randomUUID(),
+            )
+          : await planning.createDecision(
+              {
+                id: id as `DEC-${number}`,
+                title: rest[0],
+                context: one(parsed, "--context"),
+                outcome: one(parsed, "--outcome") ?? "Undecided",
+                status: (one(parsed, "--status") ?? "proposed") as
+                  | "proposed"
+                  | "accepted"
+                  | "superseded",
+              },
+              crypto.randomUUID(),
+            );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: isMilestone ? "milestone.records" : "decision.records",
+            data: result,
+          },
+          modeFor(parsed),
+        );
+      }
+      if (
+        action === "delete" &&
+        rest[0] &&
+        only(parsed, ["--actor", "--actor-kind", "--accountable-human"])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            `${group} writes require an explicit actor declaration.`,
+          );
+        const data = isMilestone
+          ? await planning.deleteMilestone(rest[0], crypto.randomUUID())
+          : await planning.deleteDecision(rest[0], crypto.randomUUID());
+        return output(
+          {
+            schemaVersion: 1,
+            kind: isMilestone ? "milestone.records" : "decision.records",
+            data,
+          },
+          modeFor(parsed),
+        );
+      }
+      return failure(
+        "usage",
+        `${group} action is invalid or missing required arguments.`,
+      );
+    }
     if (arguments_[0] === "search" && arguments_[1]) {
       const parsed = flags(arguments_.slice(2));
-      if (!parsed || !only(parsed, []))
+      if (!parsed || !only(parsed, ["--all"]))
         return failure("usage", "search accepts only --json and --plain.");
-      return output(
-        await dispatchTrackerTaskCommand(taskService(), {
+      if (!parsed.values.has("--all"))
+        return output(
+          await dispatchTrackerTaskCommand(taskService(), {
+            command: "search",
+            query: arguments_[1],
+          }),
+          modeFor(parsed),
+        );
+      const [tasks, planning] = await Promise.all([
+        dispatchTrackerTaskCommand(taskService(), {
           command: "search",
           query: arguments_[1],
         }),
+        planningService().search(arguments_[1]),
+      ]);
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "search.results",
+          data: { tasks: tasks.data, ...planning },
+        },
         modeFor(parsed),
+      );
+    }
+    if (arguments_[0] === "draft") {
+      const action = arguments_[1];
+      const rest = arguments_.slice(2);
+      const parsed = flags(
+        rest.slice(
+          action === "create" ||
+            action === "view" ||
+            action === "promote" ||
+            action === "archive"
+            ? 1
+            : 0,
+        ),
+      );
+      if (!action || !parsed)
+        return failure("usage", "draft requires a valid action.");
+      const tasks = taskService();
+      if (action === "list" && only(parsed, ["--include-archived"]))
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "draft.list",
+            data: await tasks.listDrafts(
+              parsed.values.has("--include-archived"),
+            ),
+          },
+          modeFor(parsed),
+        );
+      if (action === "view" && rest[0] && only(parsed, []))
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "draft.view",
+            data: await tasks.viewDraft(rest[0]),
+          },
+          modeFor(parsed),
+        );
+      if (
+        action === "create" &&
+        rest[0] &&
+        only(parsed, [
+          "--id",
+          "--description",
+          "--label",
+          "--doc",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            "Draft writes require an explicit actor declaration.",
+          );
+        const data = await tasks.createDraft(
+          one(parsed, "--id") ?? (await nextDraftId(tasks)),
+          {
+            title: rest[0],
+            description: one(parsed, "--description"),
+            labels: parsed.values.get("--label"),
+            documentation: parsed.values.get("--doc"),
+          },
+          crypto.randomUUID(),
+        );
+        return output(
+          { schemaVersion: 1, kind: "draft.created", data },
+          modeFor(parsed),
+        );
+      }
+      if (
+        action === "promote" &&
+        rest[0] &&
+        only(parsed, [
+          "--task-id",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            "Draft writes require an explicit actor declaration.",
+          );
+        const data = await tasks.promoteDraft(
+          rest[0],
+          one(parsed, "--task-id") ?? (await nextTaskId(tasks)),
+          crypto.randomUUID(),
+        );
+        return output(
+          { schemaVersion: 1, kind: "draft.promoted", data },
+          modeFor(parsed),
+        );
+      }
+      if (
+        action === "archive" &&
+        rest[0] &&
+        only(parsed, ["--actor", "--actor-kind", "--accountable-human"])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            "Draft writes require an explicit actor declaration.",
+          );
+        const data = await tasks.archiveDraft(rest[0], crypto.randomUUID());
+        return output(
+          { schemaVersion: 1, kind: "draft.archived", data },
+          modeFor(parsed),
+        );
+      }
+      return failure(
+        "usage",
+        "draft action is invalid or missing required arguments.",
       );
     }
     if (arguments_[0] !== "task")
       return failure("usage", "Unknown or missing Quest command.");
     const command = arguments_[1];
     const rest = arguments_.slice(2);
+    if (["complete", "archive", "demote"].includes(command ?? "") && rest[0]) {
+      const parsed = flags(rest.slice(1));
+      if (
+        !parsed ||
+        !only(parsed, ["--actor", "--actor-kind", "--accountable-human"])
+      )
+        return failure(
+          "usage",
+          `task ${command} requires a reference and an explicit actor.`,
+        );
+      const writeActor = actor(parsed);
+      if (!writeActor)
+        return failure(
+          "denied",
+          "Tracker writes require an explicit actor declaration.",
+        );
+      const tasks = taskService();
+      const data =
+        command === "complete"
+          ? await tasks.complete(rest[0], crypto.randomUUID())
+          : command === "archive"
+            ? await tasks.archive(rest[0], crypto.randomUUID())
+            : await tasks.demote(rest[0], crypto.randomUUID());
+      return output(
+        { schemaVersion: 1, kind: `task.${command}d`, data },
+        modeFor(parsed),
+      );
+    }
     if (command === "status-flow") {
       const parsed = flags(rest);
       if (!parsed || !only(parsed, []))

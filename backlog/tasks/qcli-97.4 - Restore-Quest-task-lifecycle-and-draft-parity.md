@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 12:49'
+updated_date: '2026-08-17 13:18'
 labels:
   - quest-0.1
   - parity
@@ -52,4 +52,6 @@ Owner approved Backlog-compatible archival and retention. Exploration recommends
 Lifecycle/draft core committed at fd73ade8ec85f58000d76e6b7a7bd6ad251ca516. Full npm test suite passed: 128 tests, 0 failures. Public CLI and manifest routing remain pending serialized integration.
 
 Independent review found lifecycle source-delete/destination-write Promise.all was not crash-safe. The journaled recovery fix committed at d1c2d6254908f8cf65b3ae520ac5e0bd5dccce1b writes destinations first and resumes a valid interrupted operation; focused recovery tests, typecheck, and formatting checks passed. Public lifecycle commands and broader fault coverage remain required.
+
+Integrated lifecycle recovery hardening at dev 7765f15: corrupt journals are validated before replay, retained without deletion, and excluded from record scans. Public lifecycle/draft CLI routing remains serialized.
 <!-- SECTION:NOTES:END -->
