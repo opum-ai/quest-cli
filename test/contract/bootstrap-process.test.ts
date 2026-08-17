@@ -114,7 +114,7 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
 
     await writeFile(
       join(root, "AGENTS.md"),
-      currentInstructions.replace("0.2.5", "0.0.0"),
+      currentInstructions.replace("0.2.6", "0.0.0"),
     );
     const drift = await run(root, "agents", "--check", "--json");
     expect(drift).toMatchObject({ exitCode: 6, stdout: "" });
@@ -131,6 +131,95 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
     expect(await readFile(join(root, "AGENTS.md"), "utf8")).toBe(
       currentInstructions,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("agents strict checks pin missing, current, drift, and malformed exit semantics", async () => {
+  const root = await repository();
+  const file = join(root, "AGENTS.md");
+  try {
+    const missing = await run(root, "agents", "--check", "--json");
+    expect(missing).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(missing.stdout)).toMatchObject({
+      kind: "agent.instructions-status",
+      data: { state: "missing" },
+    });
+
+    const strictMissing = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(strictMissing).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(strictMissing.stderr)).toMatchObject({
+      error_type: "validation",
+      message:
+        "Quest agent instruction block is missing. Run quest agents --update-instructions.",
+    });
+    await expect(stat(file)).rejects.toThrow();
+
+    const invalidUpdate = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--require-installed",
+      "--json",
+    );
+    expect(invalidUpdate).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(invalidUpdate.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--require-installed requires --check.",
+    });
+    await expect(stat(file)).rejects.toThrow();
+
+    expect(
+      await run(root, "agents", "--update-instructions", "--json"),
+    ).toMatchObject({ exitCode: 0, stderr: "" });
+    const currentContent = await readFile(file, "utf8");
+    const current = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(current).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(current.stdout)).toMatchObject({
+      data: { state: "current" },
+    });
+
+    const drifted = currentContent.replace("0.2.6", "0.0.0");
+    await writeFile(file, drifted);
+    const drift = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(drift).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(drift.stderr)).toMatchObject({ error_type: "drift" });
+    expect(await readFile(file, "utf8")).toBe(drifted);
+
+    const malformed = "<!-- quest:agent-instructions:begin -->\n";
+    await writeFile(file, malformed);
+    const malformedResult = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(malformedResult).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(malformedResult.stderr)).toMatchObject({
+      error_type: "drift",
+      message: "Quest agent instruction markers are malformed or duplicated.",
+    });
+    expect(await readFile(file, "utf8")).toBe(malformed);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

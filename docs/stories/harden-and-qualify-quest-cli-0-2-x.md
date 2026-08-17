@@ -76,8 +76,8 @@ candidate needed to close them.
 | [QCLI-103](../../backlog/tasks/qcli-103%20-%20Milestone-and-decision-mutations-return-no-record-and-one-kind-covers-both-lists-and-acks.md) | Milestone and decision mutations return no record, and one kind covers both lists and acks | Done |
 | [QCLI-104](../../backlog/tasks/qcli-104%20-%20milestone-edit-task-silently-replaces-the-whole-task-reference-set.md) | milestone edit --task silently replaces the whole task reference set | Done |
 | [QCLI-105](../../backlog/tasks/qcli-105%20-%20Record-commands-resolve-the-store-from-cwd-so-a-subdirectory-silently-forks-the-tracker.md) | Record commands resolve the store from cwd, so a subdirectory silently forks the tracker | Done |
-| [QCLI-106](../../backlog/tasks/qcli-106%20-%20agents-check-exits-0-when-the-managed-block-is-missing-so-CI-cannot-gate-on-it.md) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | To Do |
-| [QCLI-107](../../backlog/tasks/qcli-107%20-%20Error-classification-contention-leaks-dependency_target_ambiguous-and-EACCES-maps-to-validation-not-denied.md) | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | To Do |
+| [QCLI-106](../../backlog/tasks/qcli-106%20-%20agents-check-exits-0-when-the-managed-block-is-missing-so-CI-cannot-gate-on-it.md) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | Done |
+| [QCLI-107](../../backlog/tasks/qcli-107%20-%20Error-classification-contention-leaks-dependency_target_ambiguous-and-EACCES-maps-to-validation-not-denied.md) | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | Done |
 | [QCLI-108](../../backlog/tasks/qcli-108%20-%20Keep-repository-checks-from-traversing-pooled-Treehouse-worktrees.md) | Keep repository checks from traversing pooled Treehouse worktrees | Done |
 <!-- lore:tasks:end -->
 

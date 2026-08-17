@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Quest CLI tracker subprocess contract.",
   "license": "MIT",
   "type": "module",
@@ -33,20 +33,20 @@
     "check": "bun run typecheck && bun run lint && bun run format:check && bun run layer:check && bun run test"
   },
   "optionalDependencies": {
-    "@opum-ai/quest-darwin-arm64": "0.2.5",
-    "@opum-ai/quest-darwin-x64": "0.2.5",
-    "@opum-ai/quest-linux-arm64": "0.2.5",
-    "@opum-ai/quest-linux-x64": "0.2.5",
-    "@opum-ai/quest-win32-arm64": "0.2.5",
-    "@opum-ai/quest-win32-x64": "0.2.5"
+    "@opum-ai/quest-darwin-arm64": "0.2.6",
+    "@opum-ai/quest-darwin-x64": "0.2.6",
+    "@opum-ai/quest-linux-arm64": "0.2.6",
+    "@opum-ai/quest-linux-x64": "0.2.6",
+    "@opum-ai/quest-win32-arm64": "0.2.6",
+    "@opum-ai/quest-win32-x64": "0.2.6"
   },
   "questPlatformPackages": {
-    "@opum-ai/quest-darwin-arm64": "a7534f94341934b9ef82f6679b98068236ef397610701cc047c4afeffefd2282",
-    "@opum-ai/quest-darwin-x64": "35768cc224d4fdef4d86eec126cb8b1821d4281b896571feff3acf0e02b72880",
-    "@opum-ai/quest-linux-arm64": "f27d4f037b42da2b252b5c7766d7e90ab59bbb354dd069376e75684d2a9d0292",
-    "@opum-ai/quest-linux-x64": "9239fad60254a77b0a1d6a6e569f901adf190879c80ba7aa2e808c0f930bad0d",
-    "@opum-ai/quest-win32-arm64": "7630edc85cfb3618f1eb6d2a1925965b8b70a28490a8a716214f345d14d335cd",
-    "@opum-ai/quest-win32-x64": "b1264951887bc3ae6f5ee0ed96c66fd7798b899c72f4d2c3b43975fde7e517a6"
+    "@opum-ai/quest-darwin-arm64": "a47f44e3333877204ed0dd9ad5e995aa9b49594badb19b50f2eeb7b2ef0714d5",
+    "@opum-ai/quest-darwin-x64": "3b79c0b8bce99ea34f056cddc21f0d3d9e34bed5c250e551bd7214bdc61139cd",
+    "@opum-ai/quest-linux-arm64": "527a3e41bd5b8f2cc6cdf324fbbfed35bdc7af321e8adb4231b55694585a92bd",
+    "@opum-ai/quest-linux-x64": "57ce64244fbfa971cf7060f6e1a1395de20ac9612604249fff84771a957b31a8",
+    "@opum-ai/quest-win32-arm64": "98a63a012620166cd655f3f91df9cb96e7ae23c776cad1776647c80b6611c1a3",
+    "@opum-ai/quest-win32-x64": "7dafd97889e90f5c610a75edf103b6d6a07e511020e615cb87ae0b975f1e91ca"
   },
   "dependencies": {
     "commander": "15.0.0",

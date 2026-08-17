@@ -33,7 +33,7 @@ import {
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.5";
+const VERSION = "0.2.6";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -52,8 +52,9 @@ export interface InvocationResult {
 function failure(
   errorType: Parameters<typeof diagnostic>[0],
   message: string,
+  options: Parameters<typeof diagnostic>[2] = {},
 ): InvocationResult {
-  const error = diagnostic(errorType, message);
+  const error = diagnostic(errorType, message, options);
   return {
     stdout: "",
     stderr: `${JSON.stringify(error)}\n`,
@@ -105,6 +106,7 @@ function flags(
   const booleanFlags = new Set([
     "--agent-instructions",
     "--check",
+    "--require-installed",
     "--update-instructions",
     "--confirm",
     "--dry-run",
@@ -306,11 +308,21 @@ export async function runQuest(
         : commandManifest.commands;
       if (helpTarget && commands.length === 0)
         return failure("not_found", `No help is available for ${helpTarget}.`);
+      const details =
+        helpTarget === "agents"
+          ? {
+              usage:
+                "quest agents --check [--require-installed] | --update-instructions",
+              check:
+                "--check reports missing without failing unless --require-installed is present; strict missing exits 6.",
+              drift: "Drift or malformed managed markers exit 6.",
+            }
+          : undefined;
       return output(
         {
           schemaVersion: 1,
           kind: "help.commands",
-          data: { commands },
+          data: { commands, ...(details ? { details } : {}) },
         },
         modeFor(parsed),
       );
@@ -358,15 +370,25 @@ export async function runQuest(
     }
     if (arguments_[0] === "agents") {
       const parsed = flags(arguments_.slice(1));
-      if (!parsed || !only(parsed, ["--check", "--update-instructions"]))
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--check",
+          "--require-installed",
+          "--update-instructions",
+        ])
+      )
         return failure(
           "usage",
           "agents requires --check or --update-instructions.",
         );
       const check = parsed.values.has("--check");
+      const requireInstalled = parsed.values.has("--require-installed");
       const update = parsed.values.has("--update-instructions");
       if (check === update)
         return failure("usage", "agents requires exactly one action.");
+      if (requireInstalled && !check)
+        return failure("usage", "--require-installed requires --check.");
       const result = check
         ? await inspectQuestAgentInstructions(
             createAgentInstructionPort(process.cwd()),
@@ -376,6 +398,11 @@ export async function runQuest(
           );
       if (check && result.state === "drift")
         return failure("drift", result.message);
+      if (check && requireInstalled && result.state === "missing")
+        return failure(
+          "validation",
+          "Quest agent instruction block is missing. Run quest agents --update-instructions.",
+        );
       return output(
         { schemaVersion: 1, kind: "agent.instructions-status", data: result },
         modeFor(parsed),
@@ -1148,14 +1175,32 @@ export async function runQuest(
       error instanceof Error
         ? error.message
         : "Quest encountered an unexpected error.";
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? (error as { code?: unknown }).code
+        : undefined;
     const kind =
       error && typeof error === "object" && "kind" in error
         ? (error as { kind?: unknown }).kind
         : undefined;
-    if (message === "tracker_write_conflict")
+    if (code === "EACCES" || code === "EPERM")
+      return failure(
+        "denied",
+        `Quest cannot access required storage: ${message}`,
+        {
+          hint: "Check the task-store filesystem permissions and retry.",
+        },
+      );
+    if (
+      message === "tracker_write_conflict" ||
+      message === "dependency_target_ambiguous"
+    )
       return failure(
         "conflict",
-        "Task write conflicted with a newer revision.",
+        "Task state changed concurrently; the operation was not applied.",
+        {
+          hint: "Read the latest task state and retry the operation.",
+        },
       );
     if (kind === "conflict") return failure("conflict", message);
     if (message === "task_not_found") return failure("not_found", message);
