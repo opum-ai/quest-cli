@@ -1,10 +1,11 @@
 ---
 id: QCLI-97.7
 title: Restore the architecture layer gate after parity composition wiring
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-17 16:22'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 16:43'
 labels:
   - architecture
   - tooling
@@ -37,3 +38,12 @@ QCLI-105 verification found that `bun run layer:check` fails on the current pari
 - [ ] #4 Adapter contracts no longer require forbidden imports from the application layer
 - [ ] #5 Automated coverage proves a representative forbidden reverse dependency still fails the layer gate
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Move adapter-facing error and planning repository contracts into the ports layer.
+2. Isolate concrete adapter construction in one explicit CLI composition root and teach the layer gate only that file may import adapters.
+3. Add layer-check regression coverage for an ordinary CLI-to-adapter import and document the enforced graph.
+4. Run focused and full gates, then finalize the task through Backlog and Lore.
+<!-- SECTION:PLAN:END -->
