@@ -88,7 +88,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.5\n",
+      stdout: "0.2.6\n",
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);
