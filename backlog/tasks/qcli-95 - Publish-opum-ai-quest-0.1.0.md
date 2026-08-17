@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-17 05:36'
+updated_date: '2026-08-17 05:39'
 labels:
   - quest-0.1
   - 'wave:release'
@@ -54,4 +54,6 @@ Perform the separately authorized first public Quest release after every impleme
 QCLI-94 reconciled the release runbook reference to docs/runbooks/quest-cli-package-and-release.md; publication remains blocked pending QCLI-93, QCLI-94, and explicit owner authorization.
 
 Owner explicitly authorized the separately gated QCLI-95 npm publication on 2026-08-17. Beginning required immediate live rechecks; publication will stop if any identity, registry, metadata, or artifact fact diverges.
+
+Immediate prepublication rechecks passed: @opum-ai/quest and all six platform names returned E404/unclaimed; package metadata, repository opum-ai/quest-cli (default dev), current @opum-ai/lore 0.3.2, and all reviewed package checksums matched. Immutable tarballs were prepared under /private/tmp/quest-release.TAdld0. npm publish attempted each platform tarball but npm required interactive EOTP/web authentication; every attempt failed before publication, the root launcher was not attempted, and no registry mutation occurred. Resume only after the owner completes npm CLI authentication.
 <!-- SECTION:NOTES:END -->
