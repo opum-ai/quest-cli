@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 06:44'
+updated_date: '2026-08-17 12:45'
 labels:
   - quest-0.1
   - parity
@@ -48,4 +48,10 @@ Restore the missing task lifecycle and draft command groups required for Backlog
 Owner approved product-code implementation on 2026-08-17, including Backlog-compatible archival and retention behavior; initial design exploration is underway.
 
 Owner approved Backlog-compatible archival and retention. Exploration recommends stronger global T-N identity with distinct D-N drafts and lifecycle-qualified directories, never Backlog's unsafe cross-folder ID reuse.
+
+Lifecycle/draft core committed at fd73ade8ec85f58000d76e6b7a7bd6ad251ca516. Full npm test suite passed: 128 tests, 0 failures. Public CLI and manifest routing remain pending serialized integration.
+
+Lifecycle/draft core committed at fd73ade8ec85f58000d76e6b7a7bd6ad251ca516. Full bun test v1.3.14 (0d9b296a) passed: 128 tests, 0 failures. Public CLI/manifest routing remains pending serialized integration.
+
+Independent review found lifecycle source-delete/destination-write Promise.all is not crash-safe. Implement journaled or compensating atomic moves plus fault coverage before finalization; complete semantics also need explicit parity decision for direct terminal completion.
 <!-- SECTION:NOTES:END -->

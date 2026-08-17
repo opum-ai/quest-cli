@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 06:44'
+updated_date: '2026-08-17 12:45'
 labels:
   - quest-0.1
   - parity
@@ -48,4 +48,8 @@ Deliver the missing public project-bootstrap and agent-discovery path identified
 Owner approved product-code implementation on 2026-08-17. QCLI-97 requires Backlog-compatible parity except separate document management; initial design exploration is underway.
 
 Exploration found QCLI-78 workspace initialization already implemented but unexposed in src/application/workspaces/workspaces.ts and src/adapters/workspaces/local-workspaces.ts. Shared routing hotspots src/cli/main.ts and src/application/command-contract.ts will be integrated serially.
+
+Managed AGENTS.md instruction core committed and integrated at 2c835ea43e9eb8641a068cfe4ae8d62e4e5ca166. Nine focused agent/workspace tests plus typecheck, Biome, and diff checks passed. Public init, agents, instructions, completion, help, and manifest routing remains serialized.
+
+Serialized public discovery/bootstrap wiring committed at bea587e5412c108ed1af61c3ef659a259e59877e with manifest entries and contract coverage for help, instructions, completion, init, and agents. End-to-end init/agents filesystem tests and full packaging verification remain required before finalization.
 <!-- SECTION:NOTES:END -->

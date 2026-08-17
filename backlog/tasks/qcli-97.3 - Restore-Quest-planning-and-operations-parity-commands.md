@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 06:44'
+updated_date: '2026-08-17 12:45'
 labels:
   - quest-0.1
   - parity
@@ -47,4 +47,8 @@ Restore the missing Backlog.md planning, diagnostics, and operator command group
 Owner approved product-code implementation on 2026-08-17. Implement accepted Backlog parity except separate document management; initial design exploration is underway.
 
 Exploration found no existing public planning/operations implementation; QCLI-97.3 must not modify task lifecycle storage owned by QCLI-97.4. Shared routing hotspots will be serialized.
+
+Typed milestone/decision planning core committed at a416b2c5686135e7f632c908a6762761a015aab3. Focused planning tests, typecheck, and targeted Biome lint/format checks passed; CLI/manifest wiring remains serialized.
+
+Independent review found the planning core is not yet a complete parity surface: durable repository, CRUD transitions, board, doctor, cleanup, browser, and public routing remain required. Keep task in progress.
 <!-- SECTION:NOTES:END -->
