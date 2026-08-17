@@ -7,10 +7,15 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { RecordConflictError } from "../../domain/records.ts";
+import {
+  canonicalId,
+  RecordConflictError,
+  RecordValidationError,
+} from "../../domain/records.ts";
 import {
   type DraftLocation,
   type DraftState,
+  draftId,
   draftState,
   type TaskLocation,
   type TaskState,
@@ -47,6 +52,78 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
   private lifecycleJournalPath(): string {
     return join(this.directory, ".lifecycle.journal.json");
   }
+  /**
+   * A lifecycle journal is durable input after a process crash. Validate its
+   * complete shape before replaying any change so a corrupt journal cannot
+   * partially apply a deletion or escape the repository's lifecycle folders.
+   */
+  private validateLifecycleRequest(value: unknown): LifecycleWriteRequest {
+    if (!value || typeof value !== "object")
+      throw new RecordValidationError("invalid_lifecycle_journal");
+    const request = value as Partial<LifecycleWriteRequest>;
+    if (
+      typeof request.expectedRevision !== "string" ||
+      typeof request.operationId !== "string" ||
+      !Array.isArray(request.ownedPaths) ||
+      !request.ownedPaths.every((path) => typeof path === "string") ||
+      !Array.isArray(request.taskChanges) ||
+      !Array.isArray(request.draftChanges)
+    )
+      throw new RecordValidationError("invalid_lifecycle_journal");
+
+    const taskLocations: readonly TaskLocation[] = [
+      "tasks",
+      "completed",
+      "archive/tasks",
+    ];
+    const draftLocations: readonly DraftLocation[] = [
+      "drafts",
+      "archive/drafts",
+    ];
+    const paths = new Set<string>();
+    const uniquePath = (path: string): void => {
+      if (paths.has(path))
+        throw new RecordValidationError("invalid_lifecycle_journal");
+      paths.add(path);
+    };
+    for (const change of request.taskChanges) {
+      if (
+        !change ||
+        typeof change !== "object" ||
+        !taskLocations.includes(change.location)
+      )
+        throw new RecordValidationError("invalid_lifecycle_journal");
+      if ("remove" in change) {
+        if (change.remove !== true || typeof change.taskId !== "string")
+          throw new RecordValidationError("invalid_lifecycle_journal");
+        if (canonicalId(change.taskId) !== change.taskId)
+          throw new RecordValidationError("invalid_lifecycle_journal");
+        uniquePath(this.taskPath(change.taskId, change.location));
+      } else {
+        const task = taskState(change.task);
+        uniquePath(this.taskPath(task.id, change.location));
+      }
+    }
+    for (const change of request.draftChanges) {
+      if (
+        !change ||
+        typeof change !== "object" ||
+        !draftLocations.includes(change.location)
+      )
+        throw new RecordValidationError("invalid_lifecycle_journal");
+      if ("remove" in change) {
+        if (change.remove !== true || typeof change.draftId !== "string")
+          throw new RecordValidationError("invalid_lifecycle_journal");
+        if (draftId(change.draftId) !== change.draftId)
+          throw new RecordValidationError("invalid_lifecycle_journal");
+        uniquePath(this.draftPath(change.draftId, change.location));
+      } else {
+        const draft = draftState(change.draft);
+        uniquePath(this.draftPath(draft.id, change.location));
+      }
+    }
+    return request as LifecycleWriteRequest;
+  }
   private async writeLifecycleRecord(
     path: string,
     value: unknown,
@@ -79,9 +156,9 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
   }
   private async recoverLifecycle(): Promise<void> {
     try {
-      const request = JSON.parse(
-        await readFile(this.lifecycleJournalPath(), "utf8"),
-      ) as LifecycleWriteRequest;
+      const request = this.validateLifecycleRequest(
+        JSON.parse(await readFile(this.lifecycleJournalPath(), "utf8")),
+      );
       await this.applyLifecycle(request);
       await rm(this.lifecycleJournalPath(), { force: true });
     } catch (error) {
@@ -98,7 +175,9 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
       const names = await readdir(directory);
       return await Promise.all(
         names
-          .filter((name) => name.endsWith(".json"))
+          // Journals live beside task records so recovery can acquire the same
+          // lock. They are operational metadata, never authored records.
+          .filter((name) => !name.startsWith(".") && name.endsWith(".json"))
           .sort()
           .map(async (name) =>
             decode(JSON.parse(await readFile(join(directory, name), "utf8"))),
@@ -248,6 +327,7 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
       };
     }
     try {
+      request = this.validateLifecycleRequest(request);
       await this.recoverLifecycle();
       const current = await this.readAll();
       if (current.revision !== request.expectedRevision)

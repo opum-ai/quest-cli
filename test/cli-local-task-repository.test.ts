@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, stat, utimes, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -134,6 +142,51 @@ test("a durable lifecycle journal resumes a destination-first task move after in
     expect((await repository.readAll()).taskRecords).toEqual([
       { task, location: "archive/tasks" },
     ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a corrupt recovery journal preserves existing records without applying any deletion", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "quest-lifecycle-corrupt-journal-"),
+  );
+  try {
+    const repository = new LocalTaskRepository(join(root, ".quest", "tasks"));
+    const service = new TaskService(repository);
+    await service.create("T-1", { title: "retain me" }, "create");
+    const snapshot = await repository.readAll();
+    const task = await service.view("T-1");
+    const journal = join(root, ".quest", "tasks", ".lifecycle.journal.json");
+    await writeFile(
+      journal,
+      JSON.stringify({
+        expectedRevision: snapshot.revision,
+        operationId: "corrupt",
+        ownedPaths: [],
+        taskChanges: [
+          { taskId: "../../outside", location: "tasks", remove: true },
+          { task, location: "archive/tasks" },
+        ],
+        draftChanges: [],
+      }),
+      "utf8",
+    );
+    await expect(
+      repository.writeLifecycle({
+        expectedRevision: snapshot.revision,
+        operationId: "next-write",
+        ownedPaths: [],
+        taskChanges: [],
+        draftChanges: [],
+      }),
+    ).rejects.toThrow("Invalid canonical id");
+    expect(await service.view("T-1")).toEqual(task);
+    expect(await readFile(journal, "utf8")).toContain("../../outside");
+    await expect(stat(join(root, "outside.json"))).rejects.toHaveProperty(
+      "code",
+      "ENOENT",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
