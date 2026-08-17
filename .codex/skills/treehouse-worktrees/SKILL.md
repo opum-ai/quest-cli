@@ -52,6 +52,31 @@ Release a verified lease with identity fencing so stale cleanup cannot release a
 treehouse return --if-lease-id <lease-id> --if-lease-holder <holder> <path>
 ```
 
+## Deliver native package artifacts
+
+From an isolated, clean-index worktree with Bun, npm, Git identity, and the target Bun executables
+available, run:
+
+```sh
+bun run deliver:packages -- --message "chore: refresh platform packages"
+```
+
+It builds each of the six `QUEST_BUN_TARGET` values serially, emits JSON-line evidence, stages only
+the root manifest plus native package artifacts, rechecks the package gates, and makes one ordinary
+Git commit. Unrelated unstaged work is preserved. It refuses a pre-staged index, conflicts, and
+assume-unchanged/skip-worktree tags in scope. Exit 137 or SIGKILL is reported as
+`memory_or_staging_failure`, with staged and missing path lists reported and any partial ordinary
+staging left visible for diagnosis.
+
+Before returning a lease, prove the exact lease identity and normal visible state:
+
+```sh
+git status --short
+git diff --cached --name-only
+git ls-files -v -- package.json npm/quest-*
+treehouse return --if-lease-id <lease-id> --if-lease-holder <holder> <path>
+```
+
 Treehouse return resets the worktree. Do not use `--force` merely because it is dirty, and never
 return a dirty or unlanded worktree until its unique state is preserved or an exact destructive
 decision is explicitly authorized.

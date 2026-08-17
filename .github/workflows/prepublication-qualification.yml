@@ -10,6 +10,8 @@ on:
       - "tsconfig.json"
       - "scripts/qualification/**"
       - "scripts/check-package-artifacts.mjs"
+      - "scripts/deliver-package-artifacts.mjs"
+      - "scripts/test-package-artifact-delivery.mjs"
       - "scripts/test-packed-packages.mjs"
       - "scripts/build-platform-packages.mjs"
       - "bin/**"
