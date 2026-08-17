@@ -14,6 +14,7 @@ import {
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { TaskService } from "../application/tasks/tasks.ts";
 import { PlanningService } from "../application/planning/planning.ts";
+import { startBrowserServer } from "../application/browser/browser.ts";
 import {
   inspectQuestAgentInstructions,
   questAgentInstructions,
@@ -86,6 +87,7 @@ function flags(argv: readonly string[]):
     "--dry-run",
     "--include-archived",
     "--all",
+    "--port",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
@@ -429,6 +431,35 @@ export async function runQuest(
       );
       return output(
         { schemaVersion: 1, kind: "project.cleanup", data },
+        modeFor(parsed),
+      );
+    }
+    if (arguments_[0] === "browser") {
+      const parsed = flags(arguments_.slice(1));
+      if (!parsed || !only(parsed, ["--port"]))
+        return failure("usage", "browser accepts --port, --json, and --plain.");
+      const requestedPort = one(parsed, "--port");
+      const port = requestedPort === undefined ? 0 : Number(requestedPort);
+      if (!Number.isInteger(port) || port < 0 || port > 65535)
+        return failure(
+          "usage",
+          "browser --port must be an integer from 0 through 65535.",
+        );
+      const started = await startBrowserServer(
+        { tasks: taskReader(), planning: planningService() },
+        { port },
+      );
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "browser.started",
+          data: {
+            host: started.host,
+            port: started.port,
+            overview: `http://${started.host}:${started.port}/overview`,
+            board: `http://${started.host}:${started.port}/board`,
+          },
+        },
         modeFor(parsed),
       );
     }

@@ -244,6 +244,12 @@ test("the live manifest is non-empty and matches its result golden", () => {
       kind: "project.cleanup",
       mutates: true,
     },
+    {
+      name: "browser",
+      schemaVersion: 1,
+      kind: "browser.started",
+      mutates: false,
+    },
   ]);
   expect(manifestResult()).toMatchObject({
     schemaVersion: 1,

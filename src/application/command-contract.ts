@@ -83,7 +83,8 @@ export interface CommandManifestEntry {
     | "overview"
     | "board"
     | "doctor"
-    | "cleanup";
+    | "cleanup"
+    | "browser";
   readonly schemaVersion: 1;
   readonly kind: `${string}.${string}` | null;
   readonly mutates: boolean;
@@ -233,6 +234,12 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "project.cleanup",
       mutates: true,
+    },
+    {
+      name: "browser",
+      schemaVersion: 1,
+      kind: "browser.started",
+      mutates: false,
     },
   ] satisfies readonly CommandManifestEntry[],
   exitCodes,
