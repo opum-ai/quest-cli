@@ -1,11 +1,11 @@
 ---
 id: QCLI-97.3
 title: Restore Quest planning and operations parity commands
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 13:27'
+updated_date: '2026-08-17 14:09'
 labels:
   - quest-0.1
   - parity
@@ -29,10 +29,10 @@ Restore the missing Backlog.md planning, diagnostics, and operator command group
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Quest implements or owner-explicitly excludes milestones, decisions, board, overview, doctor, cleanup, browser, and complete search coverage excluding separate document CRUD
-- [ ] #2 Each delivered command has deterministic JSON/plain behavior, safe mutation boundaries, and CLI conformance tests
-- [ ] #3 Search includes the non-document records promised by the accepted parity boundary and distinguishes unsupported queries explicitly
-- [ ] #4 Operational commands preserve unrelated worktree state and provide dry-run or confirmation behavior where mutations are material
+- [x] #1 Quest implements or owner-explicitly excludes milestones, decisions, board, overview, doctor, cleanup, browser, and complete search coverage excluding separate document CRUD
+- [x] #2 Each delivered command has deterministic JSON/plain behavior, safe mutation boundaries, and CLI conformance tests
+- [x] #3 Search includes the non-document records promised by the accepted parity boundary and distinguishes unsupported queries explicitly
+- [x] #4 Operational commands preserve unrelated worktree state and provide dry-run or confirmation behavior where mutations are material
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -55,4 +55,12 @@ Independent review found the planning core is not yet a complete parity surface:
 Integrated durable planning operations core at dev 3afb75d: CRUD/list/search, overview, board, doctor, confirmation-gated cleanup, and locked persistence. Public CLI/manifest routing remains serialized.
 
 Independent review corrected actor accountability, configured-store routing, manifest precision, and stable search behavior at dev 6ceed83. Browser surface and public command conformance remain before finalization.
+
+Final validation: all-platform package build, artifact checks, packed install, full 142-test suite, typecheck, focused Biome, Lore strict validation/check, and diff check passed. Public subprocess conformance covers planning/operator routes; browser integration covers loopback read-only endpoints and mutation rejection.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented and qualified planning and operator parity: milestones, decisions, overview, board, extended search, doctor, confirmation-gated cleanup, and read-only browser service. Verified by subprocess, browser integration, packed-install, and full-suite evidence.
+<!-- SECTION:FINAL_SUMMARY:END -->

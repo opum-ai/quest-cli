@@ -1,11 +1,11 @@
 ---
 id: QCLI-97.2
 title: 'Implement Quest project bootstrap, discovery, and Codex instructions'
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 13:50'
+updated_date: '2026-08-17 14:09'
 labels:
   - quest-0.1
   - parity
@@ -30,10 +30,10 @@ Deliver the missing public project-bootstrap and agent-discovery path identified
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 quest init safely creates or discovers an explicit workspace configuration and rejects ambiguous or unmanaged pre-existing state without overwriting it
-- [ ] #2 quest provides versioned help, instructions, and shell completion for every public command, and the manifest advertises the same surface
-- [ ] #3 Opt-in agent integration writes a managed Quest block to supported instruction files while preserving user-authored content and supports drift checking
-- [ ] #4 Clean-workspace and upgrade tests cover initialization, reinitialization, discovery, and Codex agent guidance
+- [x] #1 quest init safely creates or discovers an explicit workspace configuration and rejects ambiguous or unmanaged pre-existing state without overwriting it
+- [x] #2 quest provides versioned help, instructions, and shell completion for every public command, and the manifest advertises the same surface
+- [x] #3 Opt-in agent integration writes a managed Quest block to supported instruction files while preserving user-authored content and supports drift checking
+- [x] #4 Clean-workspace and upgrade tests cover initialization, reinitialization, discovery, and Codex agent guidance
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -62,4 +62,12 @@ Independent review confirmed subcommand discovery gaps; dev 6ceed83 now derives 
 Recovery authorized 2026-08-17: restored failed-build artifacts from HEAD, then rebuilt darwin-arm64 only. Host  and  clean-install qualification passed; the full 142-test suite, typecheck, focused Biome, and diff check passed. Full all-platform rebuild remains blocked because Bun 1.3.14 cannot extract its darwin-x64 compiler after two attempts. Repository-wide lint is separately blocked by nested Treehouse configs, and layer check reports pre-existing adapter/application and CLI/adapters imports.
 
 Correction: the prior note omitted command names because shell quoting evaluated them. The passing host gates were bun run check:packages and bun run test:packages.
+
+Final validation: all-platform package build, artifact checks, and packed CLI onboarding (init, managed agents check, targeted help) passed. The full 142-test suite, typecheck, focused Biome, Lore strict validation/check, and diff check passed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented and qualified Quest bootstrap, discovery, help, completion, and safe managed Codex instructions. Verified with packed clean-install init/onboarding, all-platform packages, and the full test suite.
+<!-- SECTION:FINAL_SUMMARY:END -->
