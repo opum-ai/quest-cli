@@ -51,6 +51,27 @@ test("help, instructions, and completion expose the versioned public discovery s
   });
 });
 
+test("human output renders payload fields while JSON remains byte-identical", async () => {
+  const json = await runQuest(["manifest", "--json"], false);
+  expect(json.stdout).toBe(`${JSON.stringify(JSON.parse(json.stdout))}\n`);
+
+  const plain = await runQuest(["manifest", "--plain"], false);
+  expect(plain.stdout).toContain("commands:");
+  expect(plain.stdout).not.toBe("manifest.registry\n");
+
+  for (const invocation of [[], ["help"]] as const) {
+    const result = await runQuest(invocation, false);
+    expect(result.stdout).toContain("commands:");
+    expect(result.stdout).toContain("name: help");
+  }
+});
+
+test("pretty output is readable without ANSI escapes when color is disabled", async () => {
+  const result = await runQuest(["manifest"], true);
+  expect(result.stdout).toContain("commands:");
+  expect(result.stdout.includes(String.fromCharCode(27))).toBe(false);
+});
+
 test("migration smoke exercises the compiled migration path and rejects flags", async () => {
   const success = await runQuest(["migration-smoke", "--json"], false);
   expect(success.exitCode).toBe(0);

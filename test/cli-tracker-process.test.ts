@@ -27,6 +27,29 @@ async function quest(store: string, argv: readonly string[]) {
   };
 }
 
+async function questUntilOutput(store: string, argv: readonly string[]) {
+  const child = Bun.spawn(["bun", source, ...argv], {
+    cwd: store,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...Bun.env, QUEST_TASK_STORE: store },
+  });
+  const reader = child.stdout.getReader();
+  const { value } = await reader.read();
+  await reader.cancel();
+  child.kill();
+  await child.exited;
+  return new TextDecoder().decode(value);
+}
+
+async function initializeGitWorktree(path: string): Promise<void> {
+  const child = Bun.spawn(["git", "init", "--quiet", path], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  expect(await child.exited).toBe(0);
+}
+
 test("the installed executable routes persistent tracker reads and writes as JSON subprocess records", async () => {
   const store = await mkdtemp(join(tmpdir(), "quest-tracker-"));
   try {
@@ -243,6 +266,127 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
     expect(JSON.parse(cleanup.stdout)).toMatchObject({
       kind: "project.cleanup",
     });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("every manifest payload command renders more than its kind in plain mode", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-human-output-"));
+  const actor = ["--actor", "person-1", "--actor-kind", "human"];
+  try {
+    await initializeGitWorktree(store);
+    const manifest = JSON.parse(
+      (await quest(store, ["manifest", "--json"])).stdout,
+    ).data.commands as readonly {
+      readonly name: string;
+      readonly kind: string | null;
+    }[];
+    const created = JSON.parse(
+      (await quest(store, ["task", "create", "Existing", ...actor, "--json"]))
+        .stdout,
+    ).data.id as string;
+    const draft = JSON.parse(
+      (
+        await quest(store, [
+          "draft",
+          "create",
+          "Existing draft",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.draft.id as string;
+    const archivableDraft = JSON.parse(
+      (
+        await quest(store, [
+          "draft",
+          "create",
+          "Archivable draft",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.draft.id as string;
+    await quest(store, [
+      "milestone",
+      "create",
+      "Existing milestone",
+      ...actor,
+      "--json",
+    ]);
+    await quest(store, [
+      "decision",
+      "create",
+      "Existing decision",
+      ...actor,
+      "--json",
+    ]);
+
+    const invocations: Record<string, readonly string[]> = {
+      manifest: ["manifest", "--plain"],
+      help: ["--help", "--plain"],
+      init: ["init", "--plain"],
+      instructions: ["instructions", "--plain"],
+      agents: ["agents", "--update-instructions", "--plain"],
+      completion: ["completion", "bash", "--plain"],
+      "task status-flow": ["task", "status-flow", "--plain"],
+      "task list": ["task", "list", "--plain"],
+      "task view": ["task", "view", created, "--plain"],
+      search: ["search", "Existing", "--plain"],
+      "search --all": ["search", "Existing", "--all", "--plain"],
+      "task create": ["task", "create", "Plain create", ...actor, "--plain"],
+      "task edit": [
+        "task",
+        "edit",
+        created,
+        "--status",
+        "In Progress",
+        ...actor,
+        "--plain",
+      ],
+      "task complete": ["task", "complete", created, ...actor, "--plain"],
+      "task archive": ["task", "archive", created, ...actor, "--plain"],
+      "task demote": ["task", "demote", created, ...actor, "--plain"],
+      "draft create": ["draft", "create", "Plain draft", ...actor, "--plain"],
+      "draft list": ["draft", "list", "--plain"],
+      "draft view": ["draft", "view", draft, "--plain"],
+      "draft promote": ["draft", "promote", draft, ...actor, "--plain"],
+      "draft archive": [
+        "draft",
+        "archive",
+        archivableDraft,
+        ...actor,
+        "--plain",
+      ],
+      milestone: ["milestone", "list", "--plain"],
+      decision: ["decision", "list", "--plain"],
+      overview: ["overview", "--plain"],
+      board: ["board", "--plain"],
+      doctor: ["doctor", "--plain"],
+      cleanup: ["cleanup", "--dry-run", ...actor, "--plain"],
+      browser: ["browser", "--plain"],
+    };
+
+    for (const entry of manifest.filter(
+      (command): command is { readonly name: string; readonly kind: string } =>
+        command.kind !== null,
+    )) {
+      const argv = invocations[entry.name];
+      expect(argv).toBeDefined();
+      const stdout =
+        entry.name === "browser"
+          ? await questUntilOutput(store, argv ?? [])
+          : await (async () => {
+              const result = await quest(store, argv ?? []);
+              if (result.exitCode !== 0)
+                throw new Error(`${entry.name}: ${result.stderr}`);
+              expect(result.exitCode, entry.name).toBe(0);
+              return result.stdout;
+            })();
+      expect(stdout, entry.name).not.toBe(`${entry.kind}\n`);
+      expect(stdout.trim(), entry.name).not.toBe("");
+    }
   } finally {
     await rm(store, { recursive: true, force: true });
   }

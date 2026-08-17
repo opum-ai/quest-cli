@@ -30,6 +30,7 @@ import {
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
+import { renderHumanPayload } from "./render.ts";
 
 const VERSION = "0.2.1";
 
@@ -67,7 +68,7 @@ function output(
     stdout:
       mode === "json"
         ? `${JSON.stringify(data)}\n`
-        : `${(data as { kind: string }).kind}\n`,
+        : renderHumanPayload((data as { readonly data?: unknown }).data),
     stderr: "",
     exitCode: 0,
   };
