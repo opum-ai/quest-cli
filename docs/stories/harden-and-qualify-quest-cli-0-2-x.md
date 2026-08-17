@@ -69,7 +69,7 @@ candidate needed to close them.
 | [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | To Do |
 | [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | Done |
 | [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | Done |
-| [QCLI-99](../../backlog/tasks/qcli-99%20-%20Declare-the-reserved-principal-field-on-success-envelopes.md) | Declare the reserved principal field on success envelopes | To Do |
+| [QCLI-99](../../backlog/tasks/qcli-99%20-%20Declare-the-reserved-principal-field-on-success-envelopes.md) | Declare the reserved principal field on success envelopes | Done |
 | [QCLI-100](../../backlog/tasks/qcli-100%20-%20Stop-consuming-json-and-plain-as-help-targets-in-the-help-spelling.md) | Stop consuming --json and --plain as help targets in the 'help' spelling | To Do |
 | [QCLI-101](../../backlog/tasks/qcli-101%20-%20Flag-parser-silently-swallows-mode-flags-and-silently-drops-duplicated-filters.md) | Flag parser silently swallows mode flags and silently drops duplicated filters | Done |
 | [QCLI-102](../../backlog/tasks/qcli-102%20-%20Manifest-advertises-a-version-command-that-is-not-invocable-and-h-is-unsupported.md) | Manifest advertises a 'version' command that is not invocable, and -h is unsupported | To Do |

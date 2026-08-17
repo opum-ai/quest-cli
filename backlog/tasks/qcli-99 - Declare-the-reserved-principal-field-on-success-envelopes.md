@@ -1,10 +1,11 @@
 ---
 id: QCLI-99
 title: Declare the reserved principal field on success envelopes
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-08-17 15:20'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 20:42'
 labels:
   - cli
   - output-contract
@@ -46,8 +47,30 @@ Related: QCLI-68 recorded quest-cli's local obligation to this contract; QCLI-69
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every success envelope emits a principal key as its last top-level key, with the value null
-- [ ] #2 The error and uncaught envelopes keep their existing principal slot in the same last-key position
-- [ ] #3 A conformance test invokes each manifest command and asserts the principal key is present on the emitted envelope, and fails if the key is removed
-- [ ] #4 No component populates principal with a non-null value without a prior ratifying amendment to the opum-doc contract
+- [x] #1 Every success envelope emits a principal key as its last top-level key, with the value null
+- [x] #2 The error and uncaught envelopes keep their existing principal slot in the same last-key position
+- [x] #3 A conformance test invokes each manifest command and asserts the principal key is present on the emitted envelope, and fails if the key is removed
+- [x] #4 No component populates principal with a non-null value without a prior ratifying amendment to the opum-doc contract
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Normalize every CLI success envelope at the output boundary so principal: null is appended last without changing JSON mode precedence or human rendering. 2. Add manifest-driven JSON conformance coverage for every payload command, including stateful migration and bounded browser handling, plus exact success/error/uncaught key-order assertions. 3. Rebuild and checksum all six platform artifacts from the final source, run focused/full/package/Lore gates, obtain independent review, and deliver through dev.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented output-boundary normalization that reconstructs every CLI success envelope in frozen key order and appends principal: null while preserving human rendering from data. Refactored the existing manifest matrix into reusable plain/JSON execution; the new JSON conformance pass invokes every non-null-kind manifest command, including migration and browser, and asserts null plus last-key position. Direct contract tests now freeze success, every diagnostic class including uncaught, and principal key order. Focused 22-test run passed with 540 expectations.
+
+Candidate identity advanced to 0.2.3 so the changed wire contract does not reuse the 0.2.2 artifact identity. Bun 1.3.14 rebuilt all six target binaries and refreshed root/platform checksums. After one formatter-only remediation, bun run check passed 155 tests/1086 expectations; check:packages and test:packages passed; explicit text-path diff check passed and no stale 0.2.2 runtime/test/package surfaces remain outside historical docs.
+
+Independent acceptance and cumulative release reviews approved after clearing inherited Treehouse assume-unchanged hints on all six generated binary paths. Reviewers verified stage visibility, exact key order, no non-null principal population, host packaged output, all target versions/checksums, and preservation of QCLI-97.8/98/101/108.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Standardized every CLI success envelope as schemaVersion, kind, data, principal: null at the output boundary while preserving human rendering. Added a manifest-driven JSON subprocess conformance pass for every payload command and exact last-key tests for success and all diagnostic classes, including uncaught. Released the 0.2.3 candidate with all six native artifacts rebuilt and checksummed. Verified by 22 focused tests/540 assertions, the 155-test full gate/1086 assertions, package and packed-package gates, host packaged JSON inspection, and two independent approvals.
+<!-- SECTION:FINAL_SUMMARY:END -->

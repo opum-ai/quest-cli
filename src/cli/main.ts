@@ -33,7 +33,7 @@ import {
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.2";
+const VERSION = "0.2.3";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -65,11 +65,22 @@ function output(
   data: object | readonly unknown[],
   mode: OutputMode,
 ): InvocationResult {
+  const success = data as {
+    readonly schemaVersion: unknown;
+    readonly kind: unknown;
+    readonly data: unknown;
+  };
+  const envelope = {
+    schemaVersion: success.schemaVersion,
+    kind: success.kind,
+    data: success.data,
+    principal: null,
+  };
   return {
     stdout:
       mode === "json"
-        ? `${JSON.stringify(data)}\n`
-        : renderHumanPayload((data as { readonly data?: unknown }).data),
+        ? `${JSON.stringify(envelope)}\n`
+        : renderHumanPayload(envelope.data),
     stderr: "",
     exitCode: 0,
   };

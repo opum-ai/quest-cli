@@ -88,7 +88,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.2\n",
+      stdout: "0.2.3\n",
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);
@@ -386,7 +386,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
   }
 });
 
-test("every manifest payload command renders more than its kind in plain mode", async () => {
+async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
   const store = await mkdtemp(join(tmpdir(), "quest-human-output-"));
   const backlogSource = await backlogSourceFixture();
   const actor = ["--actor", "person-1", "--actor-kind", "human"];
@@ -532,11 +532,14 @@ test("every manifest payload command renders more than its kind in plain mode", 
       browser: ["browser", "--plain"],
     };
 
+    const outputs = new Map<string, string>();
     for (const entry of manifest.filter(
       (command): command is { readonly name: string; readonly kind: string } =>
         command.kind !== null,
     )) {
-      const argv = invocations[entry.name];
+      const argv = invocations[entry.name]?.map((argument) =>
+        argument === "--plain" ? mode : argument,
+      );
       expect(argv).toBeDefined();
       const stdout =
         entry.name === "browser"
@@ -548,11 +551,40 @@ test("every manifest payload command renders more than its kind in plain mode", 
               expect(result.exitCode, entry.name).toBe(0);
               return result.stdout;
             })();
-      expect(stdout, entry.name).not.toBe(`${entry.kind}\n`);
-      expect(stdout.trim(), entry.name).not.toBe("");
+      outputs.set(entry.name, stdout);
     }
+    return { manifest, outputs };
   } finally {
     await rm(store, { recursive: true, force: true });
     await rm(backlogSource, { recursive: true, force: true });
+  }
+}
+
+test("every manifest payload command renders more than its kind in plain mode", async () => {
+  const { manifest, outputs } =
+    await invokeEveryManifestPayloadCommand("--plain");
+  for (const entry of manifest.filter(
+    (command): command is { readonly name: string; readonly kind: string } =>
+      command.kind !== null,
+  )) {
+    const stdout = outputs.get(entry.name);
+    expect(stdout, entry.name).toBeDefined();
+    expect(stdout, entry.name).not.toBe(`${entry.kind}\n`);
+    expect(stdout?.trim(), entry.name).not.toBe("");
+  }
+}, 15_000);
+
+test("every manifest payload command declares principal null as its last JSON key", async () => {
+  const { manifest, outputs } =
+    await invokeEveryManifestPayloadCommand("--json");
+  for (const entry of manifest.filter(
+    (command): command is { readonly name: string; readonly kind: string } =>
+      command.kind !== null,
+  )) {
+    const stdout = outputs.get(entry.name);
+    expect(stdout, entry.name).toBeDefined();
+    const envelope = JSON.parse(stdout ?? "") as Record<string, unknown>;
+    expect(envelope.principal, entry.name).toBeNull();
+    expect(Object.keys(envelope).at(-1), entry.name).toBe("principal");
   }
 }, 15_000);
