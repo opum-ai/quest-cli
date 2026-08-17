@@ -162,6 +162,11 @@
 - 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
 - 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status
 - 2026-08-17T15:26:36-05:00 9cfcd682372dcec8186e25235247d81392226692 docs: sync wave-2 campaign log
+- 2026-08-17T15:44:36-05:00 16f5ab254388995698a0effc98f2b51cebb481bf docs: record qcli-99 qualification
+- 2026-08-17T15:58:42-05:00 0d10ed1746a041ad598fab1aeaeb8ca481e8b0a2 docs: record qcli-100 qualification
+- 2026-08-17T16:06:58-05:00 cbe8fce5d4c41917e1f674cbe12b16e975f39549 docs: record qcli-100 CI stabilization
+- 2026-08-17T16:11:42-05:00 7313237d486906e2d90290ea35efc6d117c796f0 docs: record projection matrix stabilization
+- 2026-08-17T16:16:02-05:00 ee01a9e18f38109308bcfda2d277f2649f4465a8 docs: checkpoint qcli-100 delivery blocker
 
 ## docs/adr
 
@@ -388,3 +393,5 @@
 - 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
 - 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
 - 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status
+- 2026-08-17T15:44:36-05:00 16f5ab254388995698a0effc98f2b51cebb481bf docs: record qcli-99 qualification
+- 2026-08-17T15:58:42-05:00 0d10ed1746a041ad598fab1aeaeb8ca481e8b0a2 docs: record qcli-100 qualification

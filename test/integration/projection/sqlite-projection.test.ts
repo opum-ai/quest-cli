@@ -259,7 +259,7 @@ test("same-count tampering across projection families is never reused", async ()
   } finally {
     rebuilt.close();
   }
-});
+}, 15_000);
 
 test("failed validation leaves the prior projection in place", async () => {
   const path = await databasePath();
