@@ -165,6 +165,7 @@
 - 2026-08-17T15:44:36-05:00 16f5ab254388995698a0effc98f2b51cebb481bf docs: record qcli-99 qualification
 - 2026-08-17T15:58:42-05:00 0d10ed1746a041ad598fab1aeaeb8ca481e8b0a2 docs: record qcli-100 qualification
 - 2026-08-17T16:06:58-05:00 cbe8fce5d4c41917e1f674cbe12b16e975f39549 docs: record qcli-100 CI stabilization
+- 2026-08-17T16:11:42-05:00 7313237d486906e2d90290ea35efc6d117c796f0 docs: record projection matrix stabilization
 
 ## docs/adr
 
