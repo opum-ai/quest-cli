@@ -1,0 +1,44 @@
+---
+id: QCLI-97.1
+title: Audit Backlog parity and Lore/Codex onboarding gaps
+status: In Progress
+assignee:
+  - '@codex'
+created_date: '2026-08-17 06:03'
+updated_date: '2026-08-17 06:04'
+labels:
+  - quest-0.1
+  - parity
+  - audit
+  - lore-integration
+  - codex
+  - 'doc:stories/deliver-quest-cli-0-1-0'
+dependencies: []
+documentation:
+  - docs/runbooks/quest-cli-operations.md
+  - docs/stories/deliver-quest-cli-0-1-0.md
+parent_task_id: QCLI-97
+priority: high
+type: spike
+ordinal: 115000
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Establish the evidence and delivery decomposition needed to restore the promised Backlog.md parity (except separate document management) and first-class Lore/Codex project onboarding. This audit must treat the public Quest manifest as authoritative, not internal code or unreleased runbooks.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 The audit inventories Backlog.md 1.50.1 public commands and observable setup behaviors, excluding only the separate document-management group
+- [ ] #2 The audit compares that inventory with the Quest 0.1.0 published manifest and records reproducible evidence for every missing or divergent surface
+- [ ] #3 The audit verifies the current published Lore CLI tracker contract and identifies every Quest-to-Lore compatibility requirement, including the missing project and agent discovery path
+- [ ] #4 The audit proposes independently reviewable follow-up tasks, dependencies, and acceptance criteria without silently choosing product-policy exclusions
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Enumerate Backlog.md 1.50.1 public command groups and setup behavior from its CLI contract. 2. Enumerate Quest 0.1.0 public manifest and test observable behavior in a clean workspace. 3. Recheck published Lore CLI tracker-facing surfaces and agent/project setup mechanisms. 4. Record a versioned parity matrix with evidence, explicit divergence classification, and independently deliverable follow-up tasks.
+<!-- SECTION:PLAN:END -->
