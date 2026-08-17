@@ -153,6 +153,7 @@
 - 2026-08-16T08:10:17-05:00 a7a3d3443823428773325c73a2f959b7359851a2 docs: sync campaign tracker
 - 2026-08-16T12:47:44-05:00 16f6d5bfd4fb3296e5826966e5e9631cb369452e docs(QCLI-88): sync Lore saga status
 - 2026-08-16T12:47:55-05:00 44c136d252567bf42d5d9c213fd7ac1938fe5afc docs: sync QCLI-88 campaign tracker
+- 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
 
 ## docs/adr
 
@@ -257,6 +258,7 @@
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
 
 ## docs/specs
 
@@ -366,3 +368,4 @@
 - 2026-08-16T07:31:44-05:00 9ea0e0837d2cc08c56aa4388dbc92d8cce3d3b97 chore: settle qcli-87 Backlog importer
 - 2026-08-16T08:09:49-05:00 b07d91a84ec87ea99f54f8ec63f6d0412062cec5 docs(QCLI-89): sync Jira importer status
 - 2026-08-16T12:47:44-05:00 16f6d5bfd4fb3296e5826966e5e9631cb369452e docs(QCLI-88): sync Lore saga status
+- 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
