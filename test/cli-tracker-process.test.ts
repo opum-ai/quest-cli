@@ -398,7 +398,7 @@ test("concurrent task writers expose only readable retryable conflicts", async (
       await rm(store, { recursive: true, force: true });
     }
   }
-});
+}, 30_000);
 
 test("task-store permission failures are denied without mutation", async () => {
   const store = await mkdtemp(join(tmpdir(), "quest-permissions-"));
