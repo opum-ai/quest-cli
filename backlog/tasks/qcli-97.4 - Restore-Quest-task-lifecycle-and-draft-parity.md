@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 13:18'
+updated_date: '2026-08-17 13:27'
 labels:
   - quest-0.1
   - parity
@@ -54,4 +54,6 @@ Lifecycle/draft core committed at fd73ade8ec85f58000d76e6b7a7bd6ad251ca516. Full
 Independent review found lifecycle source-delete/destination-write Promise.all was not crash-safe. The journaled recovery fix committed at d1c2d6254908f8cf65b3ae520ac5e0bd5dccce1b writes destinations first and resumes a valid interrupted operation; focused recovery tests, typecheck, and formatting checks passed. Public lifecycle commands and broader fault coverage remain required.
 
 Integrated lifecycle recovery hardening at dev 7765f15: corrupt journals are validated before replay, retained without deletion, and excluded from record scans. Public lifecycle/draft CLI routing remains serialized.
+
+Independent review corrected public lifecycle and draft actor enforcement at dev 6ceed83: delegated agents now require accountable-human declarations. Route-level conformance coverage remains before finalization.
 <!-- SECTION:NOTES:END -->

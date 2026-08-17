@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 13:18'
+updated_date: '2026-08-17 13:27'
 labels:
   - quest-0.1
   - parity
@@ -53,4 +53,6 @@ Typed milestone/decision planning core committed at a416b2c5686135e7f632c908a676
 Independent review found the planning core is not yet a complete parity surface: durable repository, CRUD transitions, board, doctor, cleanup, browser, and public routing remain required. Keep task in progress.
 
 Integrated durable planning operations core at dev 3afb75d: CRUD/list/search, overview, board, doctor, confirmation-gated cleanup, and locked persistence. Public CLI/manifest routing remains serialized.
+
+Independent review corrected actor accountability, configured-store routing, manifest precision, and stable search behavior at dev 6ceed83. Browser surface and public command conformance remain before finalization.
 <!-- SECTION:NOTES:END -->

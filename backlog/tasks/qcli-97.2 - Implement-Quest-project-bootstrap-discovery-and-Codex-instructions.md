@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 13:18'
+updated_date: '2026-08-17 13:27'
 labels:
   - quest-0.1
   - parity
@@ -54,4 +54,6 @@ Managed AGENTS.md instruction core committed and integrated at 2c835ea43e9eb8641
 Serialized public discovery/bootstrap wiring committed at bea587e5412c108ed1af61c3ef659a259e59877e with manifest entries and contract coverage for help, instructions, completion, init, and agents. End-to-end init/agents filesystem tests and full packaging verification remain required before finalization.
 
 Integrated executable clean-workspace coverage at dev 0dccaf6: init/reinit, managed AGENTS preservation, drift detection, and repair. Shared public discovery routing remains under final wave integration.
+
+Independent review confirmed subcommand discovery gaps; dev 6ceed83 now derives targeted help and completion from the manifest. Final packed-artifact clean-install qualification remains.
 <!-- SECTION:NOTES:END -->
