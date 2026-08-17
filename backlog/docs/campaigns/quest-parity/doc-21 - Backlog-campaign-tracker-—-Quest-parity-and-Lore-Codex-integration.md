@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 23:22'
+updated_date: '2026-08-17 23:28'
 ---
 ## Contract
 
@@ -43,8 +43,8 @@ updated_date: '2026-08-17 23:22'
 
 - Lease 91574eeb256a6f0ab89017c343321ffb is held by qcli-112-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
 - Branch: campaign/qcli-112-artifact-delivery from merged dev 70a62838a5aebb50d68f2c66f667c7d8acd3f7fb.
-- Last completed stage: QCLI-112 implementation and remediation are finalized; full repository, package, strict Lore, diff, source-qualification, and independent-review gates passed.
-- Next automatic action: commit the finalized QCLI-112 candidate, deliver it through a dev pull request, verify the merge tree, settle the lease, and activate QCLI-102.
+- Last completed stage: PR 114 opened; its first Windows ARM64 run exposed Bun's independent 5s afterEach timeout during legitimate EBUSY fixture cleanup. A hook-local 16.9s bound and aligned 120-attempt teardown passed focused/full local gates and independent review.
+- Next automatic action: commit and push the reviewed hook-timeout remediation, require a fresh green Windows ARM64 step plus remaining PR checks, then merge PR 114, settle the lease, and activate QCLI-102.
 
 ## QCLI-106/QCLI-107 settlement
 
@@ -88,3 +88,4 @@ updated_date: '2026-08-17 23:22'
 - 2026-08-17 — Remediated candidate d665b62 passed three fresh full six-lane runs (32078281649, 32078283394, 32078284926); every ARM64 test step passed 10 tests with terminal teardown success.
 - 2026-08-17 — PR 113 merged QCLI-111 to dev at 70a6283 with a tree identical to the finalized candidate; branch cleanup and lease return completed before QCLI-112 activation.
 - 2026-08-17 — QCLI-112 added the ordinary-porcelain six-target delivery command, portable constrained-failure fixture, package mapping checks, and source-qualification coverage; independent re-review accepted the finalized candidate after all local gates passed.
+- 2026-08-17 — PR 114 run 32080175938 exposed QCLI-111's 5s afterEach hook timeout during EBUSY fixture cleanup; the narrow hook-bound remediation passed 160 tests and independent review before rerun.

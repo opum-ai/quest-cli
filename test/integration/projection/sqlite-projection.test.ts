@@ -115,9 +115,12 @@ let fixtureDirectory: string | undefined;
 
 // The adapter retries 119 times after the first attempt at 100ms intervals.
 // Bounds include that 11.9s window for fixture teardown plus 5s test overhead.
+const fixtureReleaseAttempts = 120;
 const releaseRetryWindowMs = 119 * 100;
 const fixtureTeardownBudgetMs = releaseRetryWindowMs;
 const recoveryTestOverheadMs = 5_000;
+const fixtureTeardownTimeoutMs =
+  fixtureTeardownBudgetMs + recoveryTestOverheadMs;
 const rebuildFailureAndCleanupBudgetMs = releaseRetryWindowMs * 2;
 const oneRebuildRecoveryTimeoutMs =
   rebuildFailureAndCleanupBudgetMs +
@@ -178,7 +181,11 @@ function fixtureReleaseDiagnostic(
 
 async function removeFixtureDirectory(directory: string): Promise<void> {
   const startedAt = Date.now();
-  for (let retryCount = 0; retryCount <= 99; retryCount += 1) {
+  for (
+    let retryCount = 0;
+    retryCount < fixtureReleaseAttempts;
+    retryCount += 1
+  ) {
     fixtureReleaseDiagnostic(
       "attempting",
       false,
@@ -199,7 +206,8 @@ async function removeFixtureDirectory(directory: string): Promise<void> {
     } catch (error) {
       const code = (error as { code?: unknown }).code;
       const terminal =
-        (code !== "EBUSY" && code !== "EPERM") || retryCount === 99;
+        (code !== "EBUSY" && code !== "EPERM") ||
+        retryCount === fixtureReleaseAttempts - 1;
       fixtureReleaseDiagnostic(
         "failed",
         terminal,
@@ -221,7 +229,7 @@ beforeEach(async () => {
 afterEach(async () => {
   if (fixtureDirectory) await removeFixtureDirectory(fixtureDirectory);
   fixtureDirectory = undefined;
-});
+}, fixtureTeardownTimeoutMs);
 
 function databasePath(): string {
   if (!fixtureDirectory)

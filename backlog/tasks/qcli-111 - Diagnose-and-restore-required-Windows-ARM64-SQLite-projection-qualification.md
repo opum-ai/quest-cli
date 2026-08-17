@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 21:25'
-updated_date: '2026-08-17 22:59'
+updated_date: '2026-08-17 23:28'
 labels:
   - quest-0.2
   - bun
@@ -20,6 +20,8 @@ references:
   - 'https://github.com/opum-ai/quest-cli/actions/runs/32078281649'
   - 'https://github.com/opum-ai/quest-cli/actions/runs/32078283394'
   - 'https://github.com/opum-ai/quest-cli/actions/runs/32078284926'
+  - >-
+    https://github.com/opum-ai/quest-cli/actions/runs/32080175938/job/95541501256
 modified_files:
   - .github/workflows/projection-platform.yml
   - test/integration/projection/sqlite-projection.test.ts
@@ -63,6 +65,8 @@ Implemented the reviewed candidate in the three declared paths. The adapter emit
 Fresh exact-candidate qualification at 8086ad0 produced two clean six-lane runs (32077939935 and 32077941910) and one required Windows ARM64 failure (32077943944, job 95534972695). The new diagnostics isolated a database_rebuild replacement EBUSY in the valid-SQLite recovery case: attempt 100 ended at 10,980ms, then rebuild-temp and fixture cleanup both succeeded immediately, proving bounded destination-handle release rather than a leaked temp handle. The first safe remediation extends the retry policy from 100 to 120 attempts and recalculates the targeted test bounds from 99 to 119 delay intervals; focused tests, typecheck, lint, format, and diff checks pass. Because the source tree changed, three new exact-candidate runs are required and prior successes will not be counted toward AC3.
 
 Final exact-candidate tree 39132a4c316147f58f9576e8cf142e37d8199103 at commit d665b623ccb466f2bb28d1645ba25537d96fedc7 passed three independently dispatched six-lane runs: 32078281649, 32078283394, and 32078284926. Each Windows ARM64 job used Bun 1.3.14, its projection test step passed 10 tests/41 expectations with zero failures, every fixture teardown reported terminal success, and all six matrix jobs concluded success. The earlier failed run 32077943944 supplied objective database-replacement EBUSY timing and immediate-cleanup evidence for AC1; it is retained as diagnostic evidence but not counted for AC3.
+
+Follow-up qualification on QCLI-112 PR 114 exposed a distinct test-hook bound in projection run 32080175938, Windows ARM64 job 95541501256: the same-count test body was within its calculated recovery timeout, but Bun independently timed out `afterEach` at its default 5s while fixture teardown was still retrying EBUSY. The timed-out hook continued concurrently with later tests. The fixture cleanup was aligned to the adapter's 120 attempts (119 waits / 11.9s) and given an explicit 16.9s hook timeout including 5s overhead. Focused 10/10, full `bun run check` (160 tests / 1,406 expectations), formatting, diff check, and independent review passed; a fresh Windows ARM64 CI result is required before merge.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
