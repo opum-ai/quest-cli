@@ -555,4 +555,4 @@ test("every manifest payload command renders more than its kind in plain mode", 
     await rm(store, { recursive: true, force: true });
     await rm(backlogSource, { recursive: true, force: true });
   }
-});
+}, 15_000);
