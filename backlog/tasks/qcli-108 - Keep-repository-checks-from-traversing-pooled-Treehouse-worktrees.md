@@ -1,11 +1,11 @@
 ---
 id: QCLI-108
 title: Keep repository checks from traversing pooled Treehouse worktrees
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 16:22'
-updated_date: '2026-08-17 19:46'
+updated_date: '2026-08-17 19:58'
 labels:
   - tooling
   - ci
@@ -34,11 +34,11 @@ With reusable Treehouse leases present under the ignored `.treehouse/` directory
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `bun run lint` succeeds when one or more Quest worktrees with their own `biome.json` exist beneath `.treehouse/`
-- [ ] #2 `bun run format:check` succeeds in the same pooled-worktree state
-- [ ] #3 Lint and formatting checks still cover the repository-owned source, tests, scripts, and configured root JSON files
-- [ ] #4 The checks behave identically when `.treehouse/` is absent
-- [ ] #5 Automated regression coverage reproduces the nested-root configuration layout and prevents traversal from returning
+- [x] #1 `bun run lint` succeeds when one or more Quest worktrees with their own `biome.json` exist beneath `.treehouse/`
+- [x] #2 `bun run format:check` succeeds in the same pooled-worktree state
+- [x] #3 Lint and formatting checks still cover the repository-owned source, tests, scripts, and configured root JSON files
+- [x] #4 The checks behave identically when `.treehouse/` is absent
+- [x] #5 Automated regression coverage reproduces the nested-root configuration layout and prevents traversal from returning
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -48,3 +48,16 @@ With reusable Treehouse leases present under the ignored `.treehouse/` directory
 2. Add a regression harness that creates the nested Treehouse/biome.json layout, runs the lint and format-check entry points with and without the pool, and verifies representative owned files remain checked.
 3. Run focused regression checks, lint, format:check, the full repository gate, Lore sync/strict validation, and diff checks before independent review.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Replaced repository-root Biome traversal with explicit owned targets for src, test, scripts, biome.json, package.json, and tsconfig.json. Added a temporary-fixture regression that runs lint and format checks before and after introducing a nested .treehouse worktree biome.json.
+Validation on integrated tree 207c2f4484b1aa3a25f8f3e0b09d4a8059d75eb0: the regression passed both pool states; bun run check passed typecheck, lint, format, layer, regression, and 149 tests; check:packages and diff checks passed. Independent task and cumulative reviews approved the behavior and path scope.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Scoped Biome checks to repository-owned paths and added regression coverage for pooled Treehouse nested configurations. Lint and format behave identically with or without the pool while retaining source/test/script/root-JSON coverage; the integrated 149-test gate and independent reviews passed.
+<!-- SECTION:FINAL_SUMMARY:END -->
