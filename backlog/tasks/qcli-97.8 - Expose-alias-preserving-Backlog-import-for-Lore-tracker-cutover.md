@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 17:08'
-updated_date: '2026-08-17 17:19'
+updated_date: '2026-08-17 20:20'
 labels: []
 dependencies:
   - QCLI-87
@@ -40,10 +40,14 @@ Expose the existing read-only Backlog importer as a public, versioned migration 
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented public migration backlog preview/apply/status/rollback envelopes with receipt persistence, explicit write actors, imported alias resolution, pre-write durable intent, and safe rollback survivors. Independent review findings on actor enforcement and crash recovery were fixed. Validation passed: bun test (147), typecheck, Biome lint/format, layer, check:packages, test:packages, and git diff --check.
+
+Wave-2 reconciliation added valid fixture-and-digest invocations for all four migration commands to QCLI-98's manifest-driven human-output matrix. Packed-package qualification now exercises preview, apply, TASK-1/LCLI-315.4/TASK-2.1 alias views, status, and rollback through the packed launcher. All six platform binaries embed 0.2.2 and their package/root checksums match. Independent cumulative review approved; focused 16/16, full check, check:packages, and test:packages passed.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 Released the v0.2.2 candidate contract for public Backlog-to-Quest cutover. Preview and apply expose canonical mappings and durable receipts; aliases including TASK-1, LCLI-315.4, and dotted IDs resolve to canonical T-N tasks. Verified with the end-to-end source-only fixture, complete suite, package, packed-CLI, and layer gates.
+
+Wave-2 reconciliation delivered packed native lifecycle and alias evidence across the combined 0.2.2 source and rebuilt every platform artifact, closing the preserved-commit packaging gap.
 <!-- SECTION:FINAL_SUMMARY:END -->
