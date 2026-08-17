@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 15:20'
-updated_date: '2026-08-17 21:11'
+updated_date: '2026-08-17 21:25'
 labels:
   - cli
   - output-contract
@@ -71,6 +71,8 @@ Independent acceptance and cumulative release reviews approved. Reviewers also v
 PR 109 projection CI exposed the pre-existing Windows ARM64 tampering test at 5003-5004ms twice. Delivery remediation set only that test's explicit timeout to 15 seconds, matching the adjacent expensive projection test. Focused projection suite passed 10/10, formatting/diff checks passed, and independent micro-review approved the exact one-line scope.
 
 CI follow-up (2026-08-17): Windows ARM64 confirmed the original tampering test passes with its 15s bound, then exposed the same 5s runner variance in another projection recovery test (5.01s). Scoped the 15s allowance to the isolated projection-platform workflow command so all projection cases share the ARM64 budget; focused 10/10 and independent review passed.
+
+Owner decision (2026-08-17): quarantine the repeatedly failing Windows ARM64 projection lane while retaining its signal as an allowed-failure matrix job. QCLI-111 owns diagnosis and restoration as a required lane; QCLI-112 owns the separate Bun artifact/Git delivery failures; QCLI-97.9 owns the stale installed Quest migration surface blocking Lore.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

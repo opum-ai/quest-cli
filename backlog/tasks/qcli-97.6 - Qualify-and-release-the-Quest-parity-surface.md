@@ -4,7 +4,7 @@ title: Qualify and release the Quest parity surface
 status: To Do
 assignee: []
 created_date: '2026-08-17 06:07'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 21:26'
 labels:
   - quest-0.1
   - parity
@@ -17,6 +17,7 @@ dependencies:
   - QCLI-97.5
   - QCLI-97.7
   - QCLI-108
+  - QCLI-97.9
 documentation:
   - docs/reference/quest-cli-backlog-parity-and-lore-integration-audit.md
   - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
@@ -39,3 +40,9 @@ Perform final clean-room and cross-product qualification for the restored Quest 
 - [ ] #3 Release truth records the supported Backlog and Lore versions, accepted exclusions, source commit, platform artifacts, and verification results
 - [ ] #4 Publication, if a version change is required, occurs only under separate explicit owner authorization
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Live Lore verification on 2026-08-17 found the installed quest is a retained pre-reconciliation 0.2.2 candidate whose schema-1 manifest lacks the four public migration commands. QCLI-97.9 now owns installed-artifact provenance and migration-lifecycle qualification before this release task can complete.
+<!-- SECTION:NOTES:END -->
