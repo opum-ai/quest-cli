@@ -35,13 +35,26 @@ class MemoryPlanning implements PlanningRepository {
   }
 }
 
+class ConflictPlanning implements PlanningRepository {
+  async read() {
+    return { revision: "1", milestones: [], decisions: [] };
+  }
+  async write() {
+    return { kind: "conflict" as const };
+  }
+}
+
 test("planning records validate identity, retain decisions, and support non-document search", async () => {
   const service = new PlanningService(new MemoryPlanning());
-  await service.createMilestone(
+  const createdMilestone = await service.createMilestone(
     { id: "M-1", title: "Release", status: "open", taskIds: ["T-1"] },
     "m1",
   );
-  await service.createDecision(
+  expect(createdMilestone).toEqual({
+    record: { id: "M-1", title: "Release", status: "open", taskIds: ["T-1"] },
+    result: { kind: "success", revision: "2" },
+  });
+  const createdDecision = await service.createDecision(
     {
       id: "DEC-1",
       title: "Retention",
@@ -50,6 +63,7 @@ test("planning records validate identity, retain decisions, and support non-docu
     },
     "d1",
   );
+  expect(createdDecision.record).toMatchObject({ id: "DEC-1" });
   expect((await service.search("preserve")).decisions).toHaveLength(1);
   await expect(
     service.createMilestone(
@@ -57,6 +71,16 @@ test("planning records validate identity, retain decisions, and support non-docu
       "m2",
     ),
   ).rejects.toThrow("milestone_already_exists");
+});
+
+test("planning mutations surface stale writes as conflicts instead of record results", async () => {
+  const service = new PlanningService(new ConflictPlanning());
+  await expect(
+    service.createMilestone(
+      { id: "M-1", title: "Release", status: "open", taskIds: [] },
+      "conflict",
+    ),
+  ).rejects.toThrow("planning_snapshot_conflict");
 });
 
 test("overview is read-only and groups task, milestone, and decision states deterministically", async () => {
@@ -116,6 +140,10 @@ test("planning CRUD, board, doctor, and cleanup preserve explicit safety boundar
   await expect(service.deleteMilestone("M-2", "delete-m2")).rejects.toThrow(
     "milestone_has_task_references",
   );
+  expect(await service.deleteDecision("DEC-1", "delete-dec")).toMatchObject({
+    record: { id: "DEC-1", title: "Old protocol" },
+    result: { kind: "success" },
+  });
   expect(
     await service.doctor({
       readAll: async () => ({ revision: "t", tasks: [] }),
@@ -128,7 +156,7 @@ test("planning CRUD, board, doctor, and cleanup preserve explicit safety boundar
   });
   expect(await service.cleanup({}, "preview")).toEqual({
     milestoneIds: ["M-10"],
-    decisionIds: ["DEC-1"],
+    decisionIds: [],
     dryRun: true,
   });
   await expect(service.cleanup({ dryRun: false }, "unsafe")).rejects.toThrow(

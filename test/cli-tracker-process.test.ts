@@ -88,7 +88,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.4\n",
+      stdout: "0.2.5\n",
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);
@@ -214,14 +214,148 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "--json",
     ]);
     expect(milestone.exitCode).toBe(0);
+    const milestoneId = JSON.parse(milestone.stdout).data.record.id as string;
     const viewedMilestone = await quest(store, [
       "milestone",
       "view",
-      "M-1",
+      milestoneId,
       "--json",
     ]);
     expect(JSON.parse(viewedMilestone.stdout)).toMatchObject({
       data: { taskIds: [createdTask.id, secondTask.id] },
+    });
+    const thirdTask = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "create",
+          "third",
+          "--actor",
+          "person-1",
+          "--actor-kind",
+          "human",
+          "--json",
+        ])
+      ).stdout,
+    ).data;
+    const added = await quest(store, [
+      "milestone",
+      "edit",
+      milestoneId,
+      "--add-task",
+      thirdTask.id,
+      "--add-task",
+      thirdTask.id,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(added.stdout)).toMatchObject({
+      kind: "milestone.updated",
+      data: {
+        record: { taskIds: [createdTask.id, secondTask.id, thirdTask.id] },
+      },
+    });
+    const removed = await quest(store, [
+      "milestone",
+      "edit",
+      milestoneId,
+      "--remove-task",
+      createdTask.id,
+      "--remove-task",
+      createdTask.id,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(removed.stdout)).toMatchObject({
+      kind: "milestone.updated",
+      data: { record: { taskIds: [secondTask.id, thirdTask.id] } },
+    });
+    const replaced = await quest(store, [
+      "milestone",
+      "edit",
+      milestoneId,
+      "--replace-task",
+      createdTask.id,
+      "--replace-task",
+      thirdTask.id,
+      "--replace-task",
+      createdTask.id,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(replaced.stdout)).toMatchObject({
+      kind: "milestone.updated",
+      data: { record: { taskIds: [createdTask.id, thirdTask.id] } },
+    });
+    for (const argv of [
+      ["--task", thirdTask.id],
+      ["--replace-task", thirdTask.id, "--add-task", secondTask.id],
+      ["--add-task", thirdTask.id, "--remove-task", thirdTask.id],
+    ]) {
+      const invalid = await quest(store, [
+        "milestone",
+        "edit",
+        milestoneId,
+        ...argv,
+        "--actor",
+        "person-1",
+        "--actor-kind",
+        "human",
+        "--json",
+      ]);
+      expect(invalid.exitCode).toBe(2);
+      expect(JSON.parse(invalid.stderr)).toMatchObject({ error_type: "usage" });
+    }
+    const decision = JSON.parse(
+      (
+        await quest(store, [
+          "decision",
+          "create",
+          "unchanged decision",
+          "--outcome",
+          "original outcome",
+          "--actor",
+          "person-1",
+          "--actor-kind",
+          "human",
+          "--json",
+        ])
+      ).stdout,
+    ).data.record;
+    for (const flag of [
+      "--add-task",
+      "--remove-task",
+      "--replace-task",
+    ] as const) {
+      const invalid = await quest(store, [
+        "decision",
+        "edit",
+        decision.id,
+        flag,
+        thirdTask.id,
+        "--actor",
+        "person-1",
+        "--actor-kind",
+        "human",
+        "--json",
+      ]);
+      expect(invalid.exitCode).toBe(2);
+      expect(JSON.parse(invalid.stderr)).toMatchObject({ error_type: "usage" });
+    }
+    const viewedDecision = JSON.parse(
+      (await quest(store, ["decision", "view", decision.id, "--json"])).stdout,
+    );
+    expect(viewedDecision).toMatchObject({
+      data: { id: decision.id, outcome: "original outcome" },
     });
     const denied = await quest(store, ["task", "create", "no actor", "--json"]);
     expect(denied.exitCode).toBe(4);
@@ -363,11 +497,95 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
       data: { task: { id: "T-2" } },
     });
 
-    await quest(store, ["milestone", "create", "M1", ...human]);
-    await quest(store, ["decision", "create", "D1", ...human]);
+    const milestone = JSON.parse(
+      (await quest(store, ["milestone", "create", "M1", ...human])).stdout,
+    ).data.record.id as string;
+    expect(
+      JSON.parse(
+        (await quest(store, ["milestone", "view", milestone, "--json"])).stdout,
+      ),
+    ).toMatchObject({ kind: "milestone.view", data: { id: milestone } });
+    const decision = JSON.parse(
+      (await quest(store, ["decision", "create", "D1", ...human])).stdout,
+    ).data.record.id as string;
+    expect(
+      JSON.parse(
+        (await quest(store, ["decision", "view", decision, "--json"])).stdout,
+      ),
+    ).toMatchObject({ kind: "decision.view", data: { id: decision } });
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "milestone",
+            "edit",
+            milestone,
+            "--title",
+            "M1 edited",
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({
+      kind: "milestone.updated",
+      data: { record: { id: milestone, title: "M1 edited" } },
+    });
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "decision",
+            "edit",
+            decision,
+            "--outcome",
+            "Decided",
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({
+      kind: "decision.updated",
+      data: { record: { id: decision, outcome: "Decided" } },
+    });
+    const deletedMilestone = JSON.parse(
+      (
+        await quest(store, [
+          "milestone",
+          "create",
+          "Delete milestone",
+          ...human,
+        ])
+      ).stdout,
+    ).data.record.id as string;
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "milestone",
+            "delete",
+            deletedMilestone,
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({
+      kind: "milestone.deleted",
+      data: { record: { id: deletedMilestone } },
+    });
+    const deletedDecision = JSON.parse(
+      (await quest(store, ["decision", "create", "Delete decision", ...human]))
+        .stdout,
+    ).data.record.id as string;
+    expect(
+      JSON.parse(
+        (await quest(store, ["decision", "delete", deletedDecision, ...human]))
+          .stdout,
+      ),
+    ).toMatchObject({
+      kind: "decision.deleted",
+      data: { record: { id: deletedDecision } },
+    });
     for (const [argv, kind] of [
-      [["milestone", "view", "M-1", "--json"], "milestone.records"],
-      [["decision", "view", "DEC-1", "--json"], "decision.records"],
       [["overview", "--json"], "project.overview"],
       [["board", "--json"], "project.board"],
       [["doctor", "--json"], "project.doctor"],
@@ -424,20 +642,50 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ])
       ).stdout,
     ).data.draft.id as string;
-    await quest(store, [
-      "milestone",
-      "create",
-      "Existing milestone",
-      ...actor,
-      "--json",
-    ]);
-    await quest(store, [
-      "decision",
-      "create",
-      "Existing decision",
-      ...actor,
-      "--json",
-    ]);
+    const milestone = JSON.parse(
+      (
+        await quest(store, [
+          "milestone",
+          "create",
+          "Existing milestone",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.record.id as string;
+    const milestoneToDelete = JSON.parse(
+      (
+        await quest(store, [
+          "milestone",
+          "create",
+          "Deleted milestone",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.record.id as string;
+    const decision = JSON.parse(
+      (
+        await quest(store, [
+          "decision",
+          "create",
+          "Existing decision",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.record.id as string;
+    const decisionToDelete = JSON.parse(
+      (
+        await quest(store, [
+          "decision",
+          "create",
+          "Deleted decision",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.record.id as string;
     const migrationDigest = JSON.parse(
       (
         await quest(store, [
@@ -523,8 +771,56 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ...actor,
         "--plain",
       ],
-      milestone: ["milestone", "list", "--plain"],
-      decision: ["decision", "list", "--plain"],
+      "milestone list": ["milestone", "list", "--plain"],
+      "milestone view": ["milestone", "view", milestone, "--plain"],
+      "milestone create": [
+        "milestone",
+        "create",
+        "Plain milestone",
+        ...actor,
+        "--plain",
+      ],
+      "milestone edit": [
+        "milestone",
+        "edit",
+        milestone,
+        "--title",
+        "Edited milestone",
+        ...actor,
+        "--plain",
+      ],
+      "milestone delete": [
+        "milestone",
+        "delete",
+        milestoneToDelete,
+        ...actor,
+        "--plain",
+      ],
+      "decision list": ["decision", "list", "--plain"],
+      "decision view": ["decision", "view", decision, "--plain"],
+      "decision create": [
+        "decision",
+        "create",
+        "Plain decision",
+        ...actor,
+        "--plain",
+      ],
+      "decision edit": [
+        "decision",
+        "edit",
+        decision,
+        "--outcome",
+        "Edited decision",
+        ...actor,
+        "--plain",
+      ],
+      "decision delete": [
+        "decision",
+        "delete",
+        decisionToDelete,
+        ...actor,
+        "--plain",
+      ],
       overview: ["overview", "--plain"],
       board: ["board", "--plain"],
       doctor: ["doctor", "--plain"],

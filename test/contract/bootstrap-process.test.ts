@@ -114,7 +114,7 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
 
     await writeFile(
       join(root, "AGENTS.md"),
-      currentInstructions.replace("0.2.4", "0.0.0"),
+      currentInstructions.replace("0.2.5", "0.0.0"),
     );
     const drift = await run(root, "agents", "--check", "--json");
     expect(drift).toMatchObject({ exitCode: 6, stdout: "" });

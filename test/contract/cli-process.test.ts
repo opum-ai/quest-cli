@@ -24,7 +24,7 @@ test("the executable keeps successful JSON on stdout and diagnostics on stderr",
 
 test("version is bare semver and JSON takes precedence over plain", async () => {
   expect(await runQuest(["--version"], false)).toEqual({
-    stdout: "0.2.4\n",
+    stdout: "0.2.5\n",
     stderr: "",
     exitCode: 0,
   });
@@ -47,7 +47,7 @@ test("help, instructions, and completion expose the versioned public discovery s
     JSON.parse((await runQuest(["instructions", "--json"], false)).stdout),
   ).toMatchObject({
     kind: "agent.instructions",
-    data: { version: "0.2.4" },
+    data: { version: "0.2.5" },
   });
 });
 
@@ -130,6 +130,9 @@ const valueFlagCases = [
   { flag: "--context", argv: ["decision", "edit", "DEC-1"] },
   { flag: "--outcome", argv: ["decision", "edit", "DEC-1"] },
   { flag: "--task", argv: ["milestone", "create", "Milestone"] },
+  { flag: "--add-task", argv: ["milestone", "edit", "M-1"] },
+  { flag: "--remove-task", argv: ["milestone", "edit", "M-1"] },
+  { flag: "--replace-task", argv: ["milestone", "edit", "M-1"] },
   { flag: "--doc", argv: ["task", "create", "Title"] },
   { flag: "--add-label", argv: ["task", "edit", "T-1"] },
   { flag: "--remove-label", argv: ["task", "edit", "T-1"] },
@@ -163,9 +166,16 @@ test("every value-taking flag rejects a following mode flag as a missing value",
 test("every single-value flag rejects repeats with a precise usage diagnostic", async () => {
   for (const { flag, argv } of valueFlagCases.filter(
     ({ flag }) =>
-      !["--label", "--task", "--doc", "--add-label", "--remove-label"].includes(
-        flag,
-      ),
+      ![
+        "--label",
+        "--task",
+        "--doc",
+        "--add-label",
+        "--remove-label",
+        "--add-task",
+        "--remove-task",
+        "--replace-task",
+      ].includes(flag),
   )) {
     const result = await runQuest(
       [...argv, flag, "first", flag, "second", "--json"],

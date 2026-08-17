@@ -3,10 +3,11 @@ id: QCLI-103
 title: >-
   Milestone and decision mutations return no record, and one kind covers both
   lists and acks
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-08-17 15:26'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 21:52'
 labels:
   - cli
   - output-contract
@@ -63,9 +64,29 @@ Note this interacts with QCLI-102: the manifest lists `milestone` and `decision`
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 milestone create and decision create return the created record including its allocated id
-- [ ] #2 milestone edit and decision edit return the updated record; delete returns enough to identify what was removed
-- [ ] #3 Distinct kinds identify distinct payload shapes for the planning groups, so no single kind covers both an array and an ack
-- [ ] #4 The manifest declares every kind the milestone and decision groups can emit
-- [ ] #5 A test creates a planning record without --id and uses only the create response to view it, with no intervening list
+- [x] #1 milestone create and decision create return the created record including its allocated id
+- [x] #2 milestone edit and decision edit return the updated record; delete returns enough to identify what was removed
+- [x] #3 Distinct kinds identify distinct payload shapes for the planning groups, so no single kind covers both an array and an ack
+- [x] #4 The manifest declares every kind the milestone and decision groups can emit
+- [x] #5 A test creates a planning record without --id and uses only the create response to view it, with no intervening list
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Trace planning service mutation return values, record codecs, CLI dispatch, and command-manifest declarations on the merged QCLI-100 base. 2. Return created and updated planning records plus stable deletion identity from the service boundary without weakening Git/CAS acknowledgement data. 3. Split milestone and decision list/view/create/edit/delete result kinds and declare every invocable action in the manifest. 4. Add service, command-contract, and black-box tests that use an allocated create id directly and extend the QCLI-98/QCLI-99/QCLI-101 manifest matrices. 5. Run focused and full gates, independently review the exact tree, then rebuild and qualify native packages at the combined planning-wave delivery boundary.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented planning mutation record results with persistence-conflict classification; added 10 action-specific milestone/decision kinds and manifest entries; expanded service, contract, human-output, and principal-order matrices. Independent review approved. Focused evidence: 28 tests / 658 expectations, typecheck, formatting, and diff check pass. Native artifact rebuild and final full gates are deferred to the combined QCLI-103/QCLI-104 planning-wave delivery boundary.
+
+Final cumulative evidence: formatted full bun run check passes; focused planning/contract suite passes 28 tests / 690 expectations; check:packages and test:packages pass; all six 0.2.5 binary hashes and package manifests match; compiled manifest exposes all ten action-specific planning contracts; independent cumulative review approved.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Planning create, edit, and delete now return persisted records with stable identity and convert persistence conflicts into conflict diagnostics. Milestone and decision list/view/create/edit/delete each expose a distinct manifest kind. Verified direct generated-ID-to-view behavior, mutation record payloads, full tests, packed launcher, and all six 0.2.5 native artifacts.
+<!-- SECTION:FINAL_SUMMARY:END -->

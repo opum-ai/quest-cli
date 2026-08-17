@@ -33,7 +33,7 @@ import {
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.4";
+const VERSION = "0.2.5";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -155,6 +155,34 @@ function only(
   allowed: readonly string[],
 ): boolean {
   return [...parsed.values.keys()].every((flag) => allowed.includes(flag));
+}
+
+function updatedMilestoneTaskIds(
+  current: readonly string[],
+  parsed: NonNullable<ReturnType<typeof flags>>,
+): readonly string[] {
+  const replacement = parsed.values.get("--replace-task");
+  const additions = parsed.values.get("--add-task") ?? [];
+  const removals = parsed.values.get("--remove-task") ?? [];
+  if (replacement && (additions.length > 0 || removals.length > 0))
+    throw new FlagUsageError(
+      "--replace-task cannot be combined with --add-task or --remove-task.",
+    );
+  const removed = new Set(removals);
+  if (additions.some((taskId) => removed.has(taskId)))
+    throw new FlagUsageError(
+      "--add-task and --remove-task cannot name the same task.",
+    );
+  const result: string[] = [];
+  const add = (taskId: string) => {
+    if (!result.includes(taskId)) result.push(taskId);
+  };
+  for (const taskId of replacement ?? current) add(taskId);
+  if (!replacement) {
+    for (const taskId of additions) add(taskId);
+    return result.filter((taskId) => !removed.has(taskId));
+  }
+  return result;
 }
 
 function createTaskService(root: string): TaskService {
@@ -602,6 +630,7 @@ export async function runQuest(
       const group = arguments_[0];
       const action = arguments_[1];
       const rest = arguments_.slice(2);
+      const isMilestone = group === "milestone";
       const parsed = flags(
         rest.slice(
           action === "create" ||
@@ -611,12 +640,15 @@ export async function runQuest(
             ? 1
             : 0,
         ),
-        ["--task"],
+        action === "create"
+          ? ["--task"]
+          : action === "edit" && isMilestone
+            ? ["--add-task", "--remove-task", "--replace-task"]
+            : [],
       );
       if (!action || !parsed)
         return failure("usage", `${group} requires a valid action.`);
       const planning = await planningService();
-      const isMilestone = group === "milestone";
       if (action === "list" && only(parsed, [])) {
         const data = isMilestone
           ? await planning.listMilestones()
@@ -624,7 +656,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.list" : "decision.list",
             data,
           },
           modeFor(parsed),
@@ -637,7 +669,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.view" : "decision.view",
             data,
           },
           modeFor(parsed),
@@ -696,7 +728,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.created" : "decision.created",
             data: result,
           },
           modeFor(parsed),
@@ -719,7 +751,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.deleted" : "decision.deleted",
             data,
           },
           modeFor(parsed),
@@ -734,7 +766,9 @@ export async function runQuest(
           "--description",
           "--context",
           "--outcome",
-          "--task",
+          ...(isMilestone
+            ? ["--add-task", "--remove-task", "--replace-task"]
+            : []),
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -746,10 +780,13 @@ export async function runQuest(
             "denied",
             `${group} writes require an explicit actor declaration.`,
           );
-        const data = isMilestone
+        const existingMilestone = isMilestone
+          ? await planning.viewMilestone(rest[0])
+          : undefined;
+        const data = existingMilestone
           ? await planning.updateMilestone(
               {
-                ...(await planning.viewMilestone(rest[0])),
+                ...existingMilestone,
                 ...(one(parsed, "--title")
                   ? { title: one(parsed, "--title") }
                   : {}),
@@ -761,9 +798,10 @@ export async function runQuest(
                       status: one(parsed, "--status") as "open" | "closed",
                     }
                   : {}),
-                ...(parsed.values.has("--task")
-                  ? { taskIds: parsed.values.get("--task") ?? [] }
-                  : {}),
+                taskIds: updatedMilestoneTaskIds(
+                  existingMilestone.taskIds,
+                  parsed,
+                ),
               },
               crypto.randomUUID(),
             )
@@ -793,7 +831,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.updated" : "decision.updated",
             data,
           },
           modeFor(parsed),
