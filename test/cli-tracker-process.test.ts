@@ -1,9 +1,17 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
+const compiled = join(
+  import.meta.dir,
+  "..",
+  "npm",
+  `quest-${process.platform}-${process.arch}`,
+  "bin",
+  process.platform === "win32" ? "quest.exe" : "quest",
+);
 const conformance = join(
   import.meta.dir,
   "..",
@@ -15,6 +23,20 @@ const conformance = join(
 
 async function quest(store: string, argv: readonly string[]) {
   const child = Bun.spawn(["bun", source, ...argv], {
+    cwd: store,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...Bun.env, QUEST_TASK_STORE: store },
+  });
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
+async function compiledQuest(store: string, argv: readonly string[]) {
+  const child = Bun.spawn([compiled, ...argv], {
     cwd: store,
     stdout: "pipe",
     stderr: "pipe",
@@ -50,6 +72,17 @@ async function initializeGitWorktree(path: string): Promise<void> {
   expect(await child.exited).toBe(0);
 }
 
+async function backlogSourceFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "quest-human-backlog-source-"));
+  const tasks = join(root, "backlog", "tasks");
+  await mkdir(tasks, { recursive: true });
+  await writeFile(
+    join(tasks, "TASK-1.md"),
+    "---\nid: TASK-1\ntitle: Human output migration\nstatus: To Do\n---\n",
+  );
+  return root;
+}
+
 test("the installed executable routes persistent tracker reads and writes as JSON subprocess records", async () => {
   const store = await mkdtemp(join(tmpdir(), "quest-tracker-"));
   try {
@@ -70,8 +103,12 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "argv; safe",
       "--label",
       "one",
+      "--label",
+      "alpha",
       "--doc",
       "docs/example.md",
+      "--doc",
+      "docs/other.md",
       "--actor",
       "person-1",
       "--actor-kind",
@@ -82,7 +119,8 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     const createdTask = JSON.parse(created.stdout).data;
     expect(createdTask).toMatchObject({
       title: "argv; safe",
-      labels: ["one"],
+      labels: ["one", "alpha"],
+      documentation: ["docs/example.md", "docs/other.md"],
     });
     expect(createdTask.id).toMatch(/^T-[1-9][0-9]*$/);
     const listed = await quest(store, [
@@ -90,6 +128,8 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "list",
       "--label",
       "one",
+      "--label",
+      "alpha",
       "--json",
     ]);
     expect(JSON.parse(listed.stdout)).toMatchObject({
@@ -102,6 +142,16 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       createdTask.id,
       "--add-label",
       "two",
+      "--add-label",
+      "three",
+      "--remove-label",
+      "one",
+      "--remove-label",
+      "alpha",
+      "--doc",
+      "docs/edited-a.md",
+      "--doc",
+      "docs/edited-b.md",
       "--actor",
       "agent-1",
       "--actor-kind",
@@ -112,7 +162,10 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     ]);
     expect(JSON.parse(edited.stdout)).toMatchObject({
       kind: "task.updated",
-      data: { labels: ["one", "two"] },
+      data: {
+        labels: ["two", "three"],
+        documentation: ["docs/edited-a.md", "docs/edited-b.md"],
+      },
     });
     const dashValue = await quest(store, [
       "task",
@@ -126,13 +179,75 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "human",
       "--json",
     ]);
-    expect(JSON.parse(dashValue.stdout)).toMatchObject({
-      kind: "task.created",
-      data: { description: "--starts-with-dashes" },
+    expect(dashValue).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(dashValue.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--description requires a value.",
+    });
+
+    const secondTask = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "create",
+          "second",
+          "--actor",
+          "person-1",
+          "--actor-kind",
+          "human",
+          "--json",
+        ])
+      ).stdout,
+    ).data;
+    const milestone = await quest(store, [
+      "milestone",
+      "create",
+      "repeated task refs",
+      "--task",
+      createdTask.id,
+      "--task",
+      secondTask.id,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(milestone.exitCode).toBe(0);
+    const viewedMilestone = await quest(store, [
+      "milestone",
+      "view",
+      "M-1",
+      "--json",
+    ]);
+    expect(JSON.parse(viewedMilestone.stdout)).toMatchObject({
+      data: { taskIds: [createdTask.id, secondTask.id] },
     });
     const denied = await quest(store, ["task", "create", "no actor", "--json"]);
     expect(denied.exitCode).toBe(4);
     expect(JSON.parse(denied.stderr)).toMatchObject({ error_type: "denied" });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("the compiled binary rejects missing and duplicate status values", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-compiled-flags-"));
+  try {
+    for (const [argv, message] of [
+      [["task", "list", "--status", "--json"], "--status requires a value."],
+      [
+        ["task", "list", "--status", "To Do", "--status", "Done", "--json"],
+        "--status may only be provided once.",
+      ],
+    ] as const) {
+      const result = await compiledQuest(store, argv);
+      expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        error_type: "usage",
+        message,
+      });
+    }
   } finally {
     await rm(store, { recursive: true, force: true });
   }
@@ -273,6 +388,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
 
 test("every manifest payload command renders more than its kind in plain mode", async () => {
   const store = await mkdtemp(join(tmpdir(), "quest-human-output-"));
+  const backlogSource = await backlogSourceFixture();
   const actor = ["--actor", "person-1", "--actor-kind", "human"];
   try {
     await initializeGitWorktree(store);
@@ -322,6 +438,18 @@ test("every manifest payload command renders more than its kind in plain mode", 
       ...actor,
       "--json",
     ]);
+    const migrationDigest = JSON.parse(
+      (
+        await quest(store, [
+          "migration",
+          "backlog",
+          "preview",
+          "--source",
+          backlogSource,
+          "--json",
+        ])
+      ).stdout,
+    ).data.digest as string;
 
     const invocations: Record<string, readonly string[]> = {
       manifest: ["manifest", "--plain"],
@@ -330,6 +458,42 @@ test("every manifest payload command renders more than its kind in plain mode", 
       instructions: ["instructions", "--plain"],
       agents: ["agents", "--update-instructions", "--plain"],
       completion: ["completion", "bash", "--plain"],
+      "migration backlog preview": [
+        "migration",
+        "backlog",
+        "preview",
+        "--source",
+        backlogSource,
+        "--plain",
+      ],
+      "migration backlog apply": [
+        "migration",
+        "backlog",
+        "apply",
+        "--source",
+        backlogSource,
+        "--digest",
+        migrationDigest,
+        ...actor,
+        "--plain",
+      ],
+      "migration backlog status": [
+        "migration",
+        "backlog",
+        "status",
+        "--digest",
+        migrationDigest,
+        "--plain",
+      ],
+      "migration backlog rollback": [
+        "migration",
+        "backlog",
+        "rollback",
+        "--digest",
+        migrationDigest,
+        ...actor,
+        "--plain",
+      ],
       "task status-flow": ["task", "status-flow", "--plain"],
       "task list": ["task", "list", "--plain"],
       "task view": ["task", "view", created, "--plain"],
@@ -389,5 +553,6 @@ test("every manifest payload command renders more than its kind in plain mode", 
     }
   } finally {
     await rm(store, { recursive: true, force: true });
+    await rm(backlogSource, { recursive: true, force: true });
   }
 });

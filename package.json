@@ -41,12 +41,12 @@
     "@opum-ai/quest-win32-x64": "0.2.2"
   },
   "questPlatformPackages": {
-    "@opum-ai/quest-darwin-arm64": "f89ad3faff24d42f8c0737738361aa8e55163c3551e73d76728a3fb7a2f6611e",
-    "@opum-ai/quest-darwin-x64": "3c53b1fa06aa724ac6685ec6bab008424b5c8db6e5c7037224ceebedc38f9e98",
-    "@opum-ai/quest-linux-arm64": "6c7535f556050831c440d3574d71337a82bed4ef6ec9e926d1c9335637069c6a",
-    "@opum-ai/quest-linux-x64": "7c96de9b5fbad21e1c769e7d08e9297cc1790b3ae7f4328faeb1526fde5d210a",
-    "@opum-ai/quest-win32-arm64": "f881e45c9ca92b180b126f8c1d621e253f7dbdf152bb2a25326717742765c354",
-    "@opum-ai/quest-win32-x64": "25bc8914194f1950ace50ffa6fbed44403937ec64190ec3aae8b7c16943e7cd3"
+    "@opum-ai/quest-darwin-arm64": "2402456e1847eff063990062fbd679198dde536f889c888c24f264db9511b249",
+    "@opum-ai/quest-darwin-x64": "b00b75434f22bd7fdea8eeaded5a90e4c74509c1fd47f072b4b9fb47e51e3666",
+    "@opum-ai/quest-linux-arm64": "59f69cd4af4881aabfc130030772d66508ae78b420612ff122b1ee16adb4769b",
+    "@opum-ai/quest-linux-x64": "cb3a05cc5d39a73cda5af185b7e4bff5ab009136582a522c10a5554fe65a4b1d",
+    "@opum-ai/quest-win32-arm64": "36e4a3a49d12403954d35f5805537286b5abf88db1d1759c3cc4cad8fb1be163",
+    "@opum-ai/quest-win32-x64": "46732028ef286a0bbe9a37f145bd69f33c91b01329ffe1cf72eb1f64da155672"
   },
   "dependencies": {
     "commander": "15.0.0",

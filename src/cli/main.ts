@@ -75,7 +75,12 @@ function output(
   };
 }
 
-function flags(argv: readonly string[]):
+class FlagUsageError extends Error {}
+
+function flags(
+  argv: readonly string[],
+  repeatableValueFlags: readonly string[] = [],
+):
   | {
       readonly values: Map<string, string[]>;
       readonly json: boolean;
@@ -83,8 +88,9 @@ function flags(argv: readonly string[]):
     }
   | undefined {
   const values = new Map<string, string[]>();
-  let json = false;
-  let plain = false;
+  const json = argv.includes("--json");
+  const plain = argv.includes("--plain");
+  const repeatable = new Set(repeatableValueFlags);
   const booleanFlags = new Set([
     "--agent-instructions",
     "--check",
@@ -97,22 +103,24 @@ function flags(argv: readonly string[]):
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === "--json") {
-      json = true;
       continue;
     }
     if (flag === "--plain") {
-      plain = true;
       continue;
     }
     if (!flag?.startsWith("--")) return undefined;
     if (booleanFlags.has(flag)) {
-      if (values.has(flag)) return undefined;
+      if (values.has(flag))
+        throw new FlagUsageError(`${flag} may only be provided once.`);
       values.set(flag, []);
       continue;
     }
     const value = argv[index + 1];
-    if (value === undefined) return undefined;
+    if (value === undefined || value.startsWith("--"))
+      throw new FlagUsageError(`${flag} requires a value.`);
     const entries = values.get(flag) ?? [];
+    if (entries.length > 0 && !repeatable.has(flag))
+      throw new FlagUsageError(`${flag} may only be provided once.`);
     entries.push(value);
     values.set(flag, entries);
     index += 1;
@@ -125,7 +133,10 @@ function one(
   name: string,
 ): string | undefined {
   const values = parsed.values.get(name);
-  return values?.length === 1 ? values[0] : undefined;
+  if (!values) return undefined;
+  if (values.length !== 1)
+    throw new FlagUsageError(`${name} may only be provided once.`);
+  return values[0];
 }
 
 function only(
@@ -586,6 +597,7 @@ export async function runQuest(
             ? 1
             : 0,
         ),
+        ["--task"],
       );
       if (!action || !parsed)
         return failure("usage", `${group} requires a valid action.`);
@@ -818,6 +830,7 @@ export async function runQuest(
             ? 1
             : 0,
         ),
+        action === "create" ? ["--label", "--doc"] : [],
       );
       if (!action || !parsed)
         return failure("usage", "draft requires a valid action.");
@@ -969,7 +982,7 @@ export async function runQuest(
       );
     }
     if (command === "list") {
-      const parsed = flags(rest);
+      const parsed = flags(rest, ["--label"]);
       if (!parsed || !only(parsed, ["--status", "--label"]))
         return failure("usage", "task list received invalid arguments.");
       return output(
@@ -995,7 +1008,7 @@ export async function runQuest(
     }
     if (command === "create" && rest[0]) {
       const title = rest[0];
-      const parsed = flags(rest.slice(1));
+      const parsed = flags(rest.slice(1), ["--label", "--doc"]);
       if (
         !parsed ||
         !only(parsed, [
@@ -1034,7 +1047,11 @@ export async function runQuest(
     }
     if (command === "edit" && rest[0]) {
       const reference = rest[0];
-      const parsed = flags(rest.slice(1));
+      const parsed = flags(rest.slice(1), [
+        "--add-label",
+        "--remove-label",
+        "--doc",
+      ]);
       if (
         !parsed ||
         !only(parsed, [
@@ -1074,6 +1091,7 @@ export async function runQuest(
     }
     return failure("usage", "Unknown or missing Quest command.");
   } catch (error) {
+    if (error instanceof FlagUsageError) return failure("usage", error.message);
     const message =
       error instanceof Error
         ? error.message
