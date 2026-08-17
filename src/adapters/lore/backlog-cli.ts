@@ -1,17 +1,25 @@
 import { createHash } from "node:crypto";
 
+import type {
+  LoreAdoptionLedger,
+  LoreAdoptionPreview,
+  LoreAdoptionRecord,
+  LoreBacklogAdoption,
+  LoreKnowledgeType,
+} from "../../ports/lore.ts";
+
+export type {
+  LoreAdoptionLedger,
+  LoreAdoptionPreview,
+  LoreAdoptionRecord,
+  LoreBacklogAdoption,
+  LoreKnowledgeType,
+} from "../../ports/lore.ts";
+
 export const loreBacklogAdoptionSourceSchema =
   "lore-backlog-adoption-source/1" as const;
 export const loreBacklogAdoptionPlanSchema =
   "lore-backlog-adoption-plan/1" as const;
-
-export type LoreKnowledgeType =
-  | "decision"
-  | "specification"
-  | "guide"
-  | "runbook"
-  | "other"
-  | "readme";
 
 export interface LoreAdoptionSourceRecord {
   readonly id: string;
@@ -27,51 +35,6 @@ export interface LoreAdoptionSourceManifest {
   readonly repository: { readonly id: string; readonly revision: string };
   readonly records: readonly LoreAdoptionSourceRecord[];
   readonly migration?: string;
-}
-
-export interface LoreAdoptionRecord {
-  readonly source: Pick<
-    LoreAdoptionSourceRecord,
-    "id" | "path" | "type" | "digest"
-  >;
-  readonly type: "ADR" | "Spec" | "Runbook" | "Reference" | null;
-  readonly id: string | null;
-  readonly path: string | null;
-  readonly contentDigest: string | null;
-  readonly collision: { readonly path: string; readonly reason: string } | null;
-  readonly fidelityGap: {
-    readonly recordId: string;
-    readonly sourceType: string;
-    readonly reason: string;
-  } | null;
-}
-
-export interface LoreAdoptionPreview {
-  readonly migration: string;
-  readonly source: { readonly id: string; readonly revision: string };
-  readonly records: readonly LoreAdoptionRecord[];
-  readonly approval: {
-    readonly schema: typeof loreBacklogAdoptionPlanSchema;
-    readonly migration: string;
-    readonly manifestDigest: string;
-    readonly proposedArtifactDigest: string;
-    readonly digest: string;
-  };
-}
-
-export interface LoreAdoptionLedger {
-  readonly migration: string;
-  readonly state:
-    | "previewed"
-    | "applied"
-    | "rolled-back"
-    | "blocked-incomplete";
-  readonly created: readonly {
-    readonly id: string;
-    readonly path: string;
-    readonly contentDigest: string;
-    readonly removed: boolean;
-  }[];
 }
 
 export interface LoreCliRunner {
@@ -269,7 +232,7 @@ function ledger(value: unknown): LoreAdoptionLedger {
 }
 
 /** A narrow adapter for Lore 0.3's published adoption commands only. */
-export class LoreBacklogCli {
+export class LoreBacklogCli implements LoreBacklogAdoption {
   constructor(
     private readonly runner: LoreCliRunner = new BunLoreCliRunner(),
     private readonly executable = "lore",

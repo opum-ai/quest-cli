@@ -152,6 +152,7 @@
 - 2026-08-16T08:09:49-05:00 b07d91a84ec87ea99f54f8ec63f6d0412062cec5 docs(QCLI-89): sync Jira importer status
 - 2026-08-16T08:10:17-05:00 a7a3d3443823428773325c73a2f959b7359851a2 docs: sync campaign tracker
 - 2026-08-16T12:47:44-05:00 16f6d5bfd4fb3296e5826966e5e9631cb369452e docs(QCLI-88): sync Lore saga status
+- 2026-08-16T12:47:55-05:00 44c136d252567bf42d5d9c213fd7ac1938fe5afc docs: sync QCLI-88 campaign tracker
 
 ## docs/adr
 

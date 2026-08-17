@@ -6,7 +6,7 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "strict": true,
-    "types": ["bun-types"],
+    "types": ["bun"],
     "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]

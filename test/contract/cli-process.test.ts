@@ -32,3 +32,16 @@ test("version is bare semver and JSON takes precedence over plain", async () => 
     (await runQuest(["manifest", "--json", "--plain"], true)).stdout,
   ).toContain('"schemaVersion":1');
 });
+
+test("migration smoke exercises the compiled migration path and rejects flags", async () => {
+  const success = await runQuest(["migration-smoke", "--json"], false);
+  expect(success.exitCode).toBe(0);
+  expect(JSON.parse(success.stdout)).toMatchObject({
+    schemaVersion: 1,
+    kind: "migration.smoke",
+    data: { removed: 1 },
+  });
+  const failure = await runQuest(["migration-smoke", "--unexpected"], false);
+  expect(failure.exitCode).toBe(2);
+  expect(JSON.parse(failure.stderr)).toMatchObject({ error_type: "usage" });
+});

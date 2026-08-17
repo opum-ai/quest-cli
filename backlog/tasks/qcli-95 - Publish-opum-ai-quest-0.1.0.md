@@ -4,7 +4,7 @@ title: Publish @opum-ai/quest 0.1.0
 status: To Do
 assignee: []
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-16 18:31'
 labels:
   - quest-0.1
   - 'wave:release'
@@ -15,7 +15,7 @@ dependencies:
   - QCLI-94
 documentation:
   - docs/reference/quest-cli-packaging-contract.md
-  - docs/runbooks/quest-cli-release.md
+  - docs/runbooks/quest-cli-package-and-release.md
   - docs/stories/deliver-quest-cli-0-1-0.md
 modified_files:
   - package.json
@@ -40,3 +40,9 @@ Perform the separately authorized first public Quest release after every impleme
 - [ ] #4 Immutable release evidence records versions, integrity, provenance, source commit, platform artifacts, and verification results
 - [ ] #5 Availability and install documentation changes only after successful publication and verification; failure leaves no false availability claim
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+QCLI-94 reconciled the release runbook reference to docs/runbooks/quest-cli-package-and-release.md; publication remains blocked pending QCLI-93, QCLI-94, and explicit owner authorization.
+<!-- SECTION:NOTES:END -->
