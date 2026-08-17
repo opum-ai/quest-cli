@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 21:36'
+updated_date: '2026-08-17 21:56'
 ---
 ## Contract
 
@@ -16,28 +16,27 @@ updated_date: '2026-08-17 21:36'
 
 | Repository | Integration base | Required gates |
 | --- | --- | --- |
-| quest-cli | remote dev at e5e80ddb4daac4f666510d4343f861bc867a8629; QCLI-103 branch pinned to that tree | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
+| quest-cli | remote dev at e5e80ddb4daac4f666510d4343f861bc867a8629; QCLI-103/QCLI-104 candidate at 80ec9546657dab921e70e086155c11445679f57a | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
 
 ## Frontier
 
 - Resolved on dev: QCLI-97.1 through QCLI-97.4, QCLI-97.7, QCLI-97.8, QCLI-98, QCLI-99, QCLI-100, QCLI-101, QCLI-105, and QCLI-108.
-- In flight: QCLI-103 on campaign/qcli-103-planning-results in Treehouse slot 1.
+- Delivery in flight: QCLI-103 and QCLI-104 are Done in Backlog and independently approved on campaign/qcli-103-planning-results; the reviewed 0.2.5 candidate is ready for metadata sync and PR delivery.
 - Blocked or held: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract. QCLI-97.9 records the stale installed Quest migration surface and requires separate authority before registry publication or global package mutation. QCLI-97.6 depends on both.
-- Ready after QCLI-103: QCLI-104, QCLI-106, QCLI-107, QCLI-111, QCLI-112, QCLI-102, QCLI-109, and QCLI-110.
+- Ready after delivery: QCLI-106, QCLI-107, QCLI-111, QCLI-112, QCLI-102, QCLI-109, and QCLI-110.
 
 ## Queue
 
 | Order | Task | State | Next action |
 | --- | --- | --- | --- |
-| 1 | QCLI-103 | In Progress | Return planning records, split per-action result kinds, extend manifest and black-box matrices, then review. |
-| 2 | QCLI-104 | Ready | Follow QCLI-103 in the same planning surface; explicit add, remove, and replace task flags. |
-| 3 | QCLI-106 | Ready | Strict installed-agent check semantics. |
-| 4 | QCLI-107 | Ready | Concurrency and permission error classification. |
-| 5 | QCLI-111 | Ready | Diagnose Windows ARM64 projection hangs and restore it as a required lane. |
-| 6 | QCLI-112 | Ready | Replace manual Git/index surgery for six large Bun artifacts with a supported workflow. |
-| 7 | QCLI-102 | Ready | Version and short-help manifest invocability. |
-| 8 | QCLI-109 | Ready | Flag values beginning with two dashes. |
-| 9 | QCLI-110 | Ready | Output-mode flags before the command. |
+| Delivery | QCLI-103 + QCLI-104 | Done; PR pending | Sync final task metadata, open the reviewed 0.2.5 PR, pass CI, merge to dev, and settle the lease. |
+| 1 | QCLI-106 | Ready | Strict installed-agent check semantics. |
+| 2 | QCLI-107 | Ready | Concurrency and permission error classification. |
+| 3 | QCLI-111 | Ready | Diagnose Windows ARM64 projection hangs and restore it as a required lane. |
+| 4 | QCLI-112 | Ready | Replace manual Git/index surgery for six large Bun artifacts with a supported workflow. |
+| 5 | QCLI-102 | Ready | Version and short-help manifest invocability. |
+| 6 | QCLI-109 | Ready | Flag values beginning with two dashes. |
+| 7 | QCLI-110 | Ready | Output-mode flags before the command. |
 | Held | QCLI-97.9 | Authority boundary | Qualify the installed migration artifact; publication/global install mutation needs separate authority. |
 | Held | QCLI-97.5 | Authority boundary | Separate Lore CLI authority or published adapter contract. |
 | Held | QCLI-97.6 | Dependencies | Depends on QCLI-97.5 and QCLI-97.9. |
@@ -48,7 +47,8 @@ updated_date: '2026-08-17 21:36'
 - Branch: campaign/qcli-103-planning-results.
 - Lease: 12e81cf5ce0e6cba03e16a1ed4ef8dd6 held by qcli-103-writer.
 - Base: e5e80ddb4daac4f666510d4343f861bc867a8629.
-- QCLI-103 plan: service records and deletion identity; per-action kinds; manifest action entries; service/contract/process matrices; focused/full review; combine QCLI-104 before one native artifact rebuild.
+- Candidate: 80ec9546657dab921e70e086155c11445679f57a.
+- Qualification: focused 28 tests / 690 expectations; full bun run check; package checks and packed tests; six 0.2.5 artifacts and checksums; strict Lore gates; diff check; cumulative independent approval.
 
 ## QCLI-100 settlement
 
@@ -67,7 +67,7 @@ updated_date: '2026-08-17 21:36'
 
 | Artifact | Owner | Reason | Cleanup condition |
 | --- | --- | --- | --- |
-| QCLI-103 Treehouse lease and branch | campaign coordinator | Active planning contract implementation. | Return only after reviewed work is merged or deliberately preserved. |
+| QCLI-103/QCLI-104 Treehouse lease and branch | campaign coordinator | Reviewed delivery candidate awaiting PR settlement. | Return only after reviewed work is merged or deliberately preserved. |
 | /private/tmp/quest-v0.2.2-qcli101.1NYgC7 | campaign coordinator | Recovery copy and current stale global Quest link target. | Do not remove while the global launcher points to it; replace only under explicit install authority. |
 | Coordinator checkout changes, including bin/quest.cjs executable-bit change | user | Pre-existing user work. | Never discard or overwrite. |
 | /private/tmp/quest-cli-index.lock.stale-* | campaign coordinator | Quarantined zero-byte stale locks. | Remove only after campaign Git operations settle and no recovery need remains. |
@@ -83,4 +83,5 @@ updated_date: '2026-08-17 21:36'
 - 2026-08-17 — PR 107 merged reconciled QCLI-97.8 and QCLI-101 at 47e1ddf.
 - 2026-08-17 — PR 108 merged QCLI-99 at a0898da.
 - 2026-08-17 — PR 109 merged QCLI-100 and the Windows ARM64 quarantine at e5e80dd.
-- 2026-08-17 — QCLI-111, QCLI-112, and QCLI-97.9 were filed from live CI, Bun artifact, and Lore installation evidence; QCLI-103 began from merged dev.
+- 2026-08-17 — QCLI-111, QCLI-112, and QCLI-97.9 were filed from live CI, Bun artifact, and Lore installation evidence.
+- 2026-08-17 — QCLI-103 and QCLI-104 reached Done with cumulative review approval; 0.2.5 candidate 80ec954 prepared for delivery.
