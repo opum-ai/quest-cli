@@ -23,11 +23,13 @@ test("the executable keeps successful JSON on stdout and diagnostics on stderr",
 });
 
 test("version is bare semver and JSON takes precedence over plain", async () => {
-  expect(await runQuest(["--version"], false)).toEqual({
+  const expected = {
     stdout: "0.2.6\n",
     stderr: "",
     exitCode: 0,
-  });
+  };
+  expect(await runQuest(["--version"], false)).toEqual(expected);
+  expect(await runQuest(["version"], false)).toEqual(expected);
   expect(
     (await runQuest(["manifest", "--json", "--plain"], true)).stdout,
   ).toContain('"schemaVersion":1');
@@ -56,8 +58,10 @@ test("every help spelling resolves output modes before its optional topic", asyn
     for (const invocation of [
       ["help"],
       ["--help"],
+      ["-h"],
       ["help", "task"],
       ["task", "--help"],
+      ["task", "-h"],
     ] as const) {
       const result = await runQuest([...invocation, mode], false);
       expect(result.exitCode, `${invocation.join(" ")} ${mode}`).toBe(0);

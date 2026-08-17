@@ -3,10 +3,11 @@ id: QCLI-102
 title: >-
   Manifest advertises a 'version' command that is not invocable, and -h is
   unsupported
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-08-17 15:24'
-updated_date: '2026-08-17 16:26'
+updated_date: '2026-08-17 23:50'
 labels:
   - cli
   - manifest
@@ -16,6 +17,10 @@ labels:
 dependencies: []
 documentation:
   - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
+modified_files:
+  - src/cli/main.ts
+  - test/contract/cli-process.test.ts
+  - test/cli-tracker-process.test.ts
 priority: low
 type: bug
 ordinal: 125000
@@ -48,8 +53,30 @@ Either fix is acceptable per command: make the advertised spelling work, or stop
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every command name in the manifest is invocable, or is removed from the manifest
-- [ ] #2 quest version exits 0 and reports the version, matching quest --version
-- [ ] #3 quest -h behaves as quest --help
-- [ ] #4 A test enumerates manifest command names and invokes each one, failing if an advertised name returns a usage error
+- [x] #1 Every command name in the manifest is invocable, or is removed from the manifest
+- [x] #2 quest version exits 0 and reports the version, matching quest --version
+- [x] #3 quest -h behaves as quest --help
+- [x] #4 A test enumerates manifest command names and invokes each one, failing if an advertised name returns a usage error
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Accept the manifest-advertised `version` spelling in the early dispatcher and return the same bare version output as `--version`.
+2. Accept `-h` as a conventional alias of `--help`, preserving central output-mode stripping and targeted-help behavior.
+3. Add focused contract assertions proving `version` equals `--version` and `-h` equals `--help`.
+4. Extend the isolated manifest-command process matrix to include every manifest entry, including the kind-null `version` command, require an invocation recipe for each, and reject usage diagnostics while keeping mutators inside the temporary store.
+5. Run focused and full repository gates, package gates, strict Lore checks, diff check, and independent review; then deliver through a dev pull request and settle the lease.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Preflight at merged dev 6f247cc found the manifest correctly declares version, while runQuest only recognizes sole --version. The help branch likewise recognizes help and --help but not -h. The existing isolated manifest payload matrix already provides safe argument recipes for all 39 payload commands and special-cases browser shutdown. QCLI-102 should land before QCLI-110 because both touch early runQuest routing. QCLI-109 is independent in the value parser. Implementation complete: the early dispatcher accepts sole version with byte-identical output to --version, and accepts -h in leading and targeted-help positions while preserving JSON and plain mode resolution. The isolated process matrix now requires and invokes a recipe for every live manifest entry, including kind-null version, and rejects usage diagnostics. All mutations remain inside its temporary task store and browser execution is bounded. Verification passed: focused 19 tests and 968 expectations, full repository check with 160 tests and 1582 expectations, package check, packed package tests, strict Lore validation and check, and git diff check. Independent review accepted all four acceptance criteria.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Aligned the dispatcher with the public manifest by making quest version match quest --version and adding conventional -h help routing. Added direct parity assertions and a manifest-wide isolated process test that invokes every advertised command and rejects usage failures. Focused, full, package, Lore, and diff gates passed. Independent review accepted the result.
+<!-- SECTION:FINAL_SUMMARY:END -->
