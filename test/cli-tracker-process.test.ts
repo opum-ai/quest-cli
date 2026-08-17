@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -361,6 +361,79 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     expect(denied.exitCode).toBe(4);
     expect(JSON.parse(denied.stderr)).toMatchObject({ error_type: "denied" });
   } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("concurrent task writers expose only readable retryable conflicts", async () => {
+  const actor = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  for (let round = 0; round < 5; round += 1) {
+    const store = await mkdtemp(join(tmpdir(), "quest-contention-"));
+    try {
+      const results = await Promise.all(
+        Array.from({ length: 12 }, (_, writer) =>
+          quest(store, [
+            "task",
+            "create",
+            `Concurrent ${round}-${writer}`,
+            ...actor,
+          ]),
+        ),
+      );
+      const failures = results.filter((result) => result.exitCode !== 0);
+      expect(failures.length).toBeGreaterThan(0);
+      for (const result of failures) {
+        expect(result).toMatchObject({ exitCode: 5, stdout: "" });
+        expect(result.stderr).not.toContain("dependency_target_ambiguous");
+        expect(JSON.parse(result.stderr)).toMatchObject({
+          error_type: "conflict",
+          message:
+            "Task state changed concurrently; the operation was not applied.",
+          hint: "Read the latest task state and retry the operation.",
+        });
+      }
+      const doctor = await quest(store, ["doctor", "--json"]);
+      expect(doctor).toMatchObject({ exitCode: 0, stderr: "" });
+    } finally {
+      await rm(store, { recursive: true, force: true });
+    }
+  }
+});
+
+test("task-store permission failures are denied without mutation", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-permissions-"));
+  const taskDirectory = join(store, ".quest", "tasks");
+  const actor = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    const created = await quest(store, [
+      "task",
+      "create",
+      "Before permissions",
+      ...actor,
+    ]);
+    expect(created).toMatchObject({ exitCode: 0, stderr: "" });
+    await chmod(taskDirectory, 0o555);
+
+    const denied = await quest(store, [
+      "task",
+      "create",
+      "Must not persist",
+      ...actor,
+    ]);
+    expect(denied).toMatchObject({ exitCode: 4, stdout: "" });
+    expect(JSON.parse(denied.stderr)).toMatchObject({
+      error_type: "denied",
+      message: expect.stringContaining("Quest cannot access required storage"),
+      hint: "Check the task-store filesystem permissions and retry.",
+    });
+
+    const listed = await quest(store, ["task", "list", "--json"]);
+    expect(listed).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(listed.stdout).data).toEqual([
+      expect.objectContaining({ title: "Before permissions" }),
+    ]);
+  } finally {
+    await chmod(taskDirectory, 0o755).catch(() => undefined);
     await rm(store, { recursive: true, force: true });
   }
 });

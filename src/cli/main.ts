@@ -52,8 +52,9 @@ export interface InvocationResult {
 function failure(
   errorType: Parameters<typeof diagnostic>[0],
   message: string,
+  options: Parameters<typeof diagnostic>[2] = {},
 ): InvocationResult {
-  const error = diagnostic(errorType, message);
+  const error = diagnostic(errorType, message, options);
   return {
     stdout: "",
     stderr: `${JSON.stringify(error)}\n`,
@@ -1174,14 +1175,32 @@ export async function runQuest(
       error instanceof Error
         ? error.message
         : "Quest encountered an unexpected error.";
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? (error as { code?: unknown }).code
+        : undefined;
     const kind =
       error && typeof error === "object" && "kind" in error
         ? (error as { kind?: unknown }).kind
         : undefined;
-    if (message === "tracker_write_conflict")
+    if (code === "EACCES" || code === "EPERM")
+      return failure(
+        "denied",
+        `Quest cannot access required storage: ${message}`,
+        {
+          hint: "Check the task-store filesystem permissions and retry.",
+        },
+      );
+    if (
+      message === "tracker_write_conflict" ||
+      message === "dependency_target_ambiguous"
+    )
       return failure(
         "conflict",
-        "Task write conflicted with a newer revision.",
+        "Task state changed concurrently; the operation was not applied.",
+        {
+          hint: "Read the latest task state and retry the operation.",
+        },
       );
     if (kind === "conflict") return failure("conflict", message);
     if (message === "task_not_found") return failure("not_found", message);
