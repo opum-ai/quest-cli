@@ -67,6 +67,7 @@ export interface CommandManifestEntry {
     | "task list"
     | "task view"
     | "search"
+    | "search --all"
     | "task create"
     | "task edit"
     | "task complete"
@@ -136,6 +137,12 @@ export const commandManifest = {
     { name: "task list", schemaVersion: 1, kind: "task.list", mutates: false },
     { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
     { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
+    {
+      name: "search --all",
+      schemaVersion: 1,
+      kind: "search.results",
+      mutates: false,
+    },
     {
       name: "task create",
       schemaVersion: 1,

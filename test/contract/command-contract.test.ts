@@ -148,6 +148,12 @@ test("the live manifest is non-empty and matches its result golden", () => {
     { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
     { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
     {
+      name: "search --all",
+      schemaVersion: 1,
+      kind: "search.results",
+      mutates: false,
+    },
+    {
       name: "task create",
       schemaVersion: 1,
       kind: "task.created",

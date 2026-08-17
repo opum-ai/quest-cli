@@ -143,7 +143,9 @@ function taskReader(): LocalTaskRepository {
 }
 
 function planningService(): PlanningService {
-  return new PlanningService(new LocalPlanningRepository(process.cwd()));
+  return new PlanningService(
+    new LocalPlanningRepository(process.env.QUEST_TASK_STORE ?? process.cwd()),
+  );
 }
 
 function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
@@ -151,6 +153,7 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   const kind = one(parsed, "--actor-kind");
   if (!id || (kind !== "human" && kind !== "delegated-agent")) return undefined;
   const accountableHumanId = one(parsed, "--accountable-human");
+  if (kind === "delegated-agent" && !accountableHumanId) return undefined;
   return {
     id,
     kind,
@@ -208,15 +211,39 @@ export async function runQuest(
         stdoutIsTty ? "pretty" : "plain",
       );
     }
-    if (["--help", "help"].includes(arguments_[0] ?? "")) {
-      const parsed = flags(arguments_.slice(1));
+    if (
+      ["--help", "help"].includes(arguments_[0] ?? "") ||
+      arguments_[1] === "--help"
+    ) {
+      const helpTarget =
+        arguments_[0] === "help"
+          ? arguments_[1]
+          : arguments_[1] === "--help"
+            ? arguments_[0]
+            : undefined;
+      const parsed = flags(
+        arguments_[0] === "help"
+          ? arguments_.slice(helpTarget ? 2 : 1)
+          : arguments_[1] === "--help"
+            ? arguments_.slice(2)
+            : arguments_.slice(1),
+      );
       if (!parsed || !only(parsed, []))
         return failure("usage", "help accepts only --json and --plain.");
+      const commands = helpTarget
+        ? commandManifest.commands.filter(
+            (entry) =>
+              entry.name === helpTarget ||
+              entry.name.startsWith(`${helpTarget} `),
+          )
+        : commandManifest.commands;
+      if (helpTarget && commands.length === 0)
+        return failure("not_found", `No help is available for ${helpTarget}.`);
       return output(
         {
           schemaVersion: 1,
           kind: "help.commands",
-          data: { commands: commandManifest.commands },
+          data: { commands },
         },
         modeFor(parsed),
       );
@@ -300,8 +327,7 @@ export async function runQuest(
           kind: "completion.script",
           data: {
             shell: "bash",
-            script:
-              "complete -W 'init instructions agents completion manifest task draft milestone decision overview board doctor cleanup search' quest",
+            script: `complete -W '${[...new Set(commandManifest.commands.flatMap((entry) => entry.name.split(" ")))].join(" ")}' quest`,
           },
         },
         modeFor(parsed),
@@ -412,7 +438,10 @@ export async function runQuest(
       const rest = arguments_.slice(2);
       const parsed = flags(
         rest.slice(
-          action === "create" || action === "view" || action === "delete"
+          action === "create" ||
+            action === "view" ||
+            action === "edit" ||
+            action === "delete"
             ? 1
             : 0,
         ),
@@ -529,6 +558,80 @@ export async function runQuest(
           modeFor(parsed),
         );
       }
+      if (
+        action === "edit" &&
+        rest[0] &&
+        only(parsed, [
+          "--title",
+          "--status",
+          "--description",
+          "--context",
+          "--outcome",
+          "--task",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            `${group} writes require an explicit actor declaration.`,
+          );
+        const data = isMilestone
+          ? await planning.updateMilestone(
+              {
+                ...(await planning.viewMilestone(rest[0])),
+                ...(one(parsed, "--title")
+                  ? { title: one(parsed, "--title") }
+                  : {}),
+                ...(one(parsed, "--description") !== undefined
+                  ? { description: one(parsed, "--description") }
+                  : {}),
+                ...(one(parsed, "--status")
+                  ? {
+                      status: one(parsed, "--status") as "open" | "closed",
+                    }
+                  : {}),
+                ...(parsed.values.has("--task")
+                  ? { taskIds: parsed.values.get("--task") ?? [] }
+                  : {}),
+              },
+              crypto.randomUUID(),
+            )
+          : await planning.updateDecision(
+              {
+                ...(await planning.viewDecision(rest[0])),
+                ...(one(parsed, "--title")
+                  ? { title: one(parsed, "--title") }
+                  : {}),
+                ...(one(parsed, "--context") !== undefined
+                  ? { context: one(parsed, "--context") }
+                  : {}),
+                ...(one(parsed, "--outcome")
+                  ? { outcome: one(parsed, "--outcome") }
+                  : {}),
+                ...(one(parsed, "--status")
+                  ? {
+                      status: one(parsed, "--status") as
+                        | "proposed"
+                        | "accepted"
+                        | "superseded",
+                    }
+                  : {}),
+              },
+              crypto.randomUUID(),
+            );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: isMilestone ? "milestone.records" : "decision.records",
+            data,
+          },
+          modeFor(parsed),
+        );
+      }
       return failure(
         "usage",
         `${group} action is invalid or missing required arguments.`,
@@ -537,7 +640,7 @@ export async function runQuest(
     if (arguments_[0] === "search" && arguments_[1]) {
       const parsed = flags(arguments_.slice(2));
       if (!parsed || !only(parsed, ["--all"]))
-        return failure("usage", "search accepts only --json and --plain.");
+        return failure("usage", "search accepts --all, --json, and --plain.");
       if (!parsed.values.has("--all"))
         return output(
           await dispatchTrackerTaskCommand(taskService(), {
@@ -845,6 +948,15 @@ export async function runQuest(
       );
     if (kind === "conflict") return failure("conflict", message);
     if (message === "task_not_found") return failure("not_found", message);
+    if (
+      [
+        "task_not_found",
+        "draft_not_found",
+        "milestone_not_found",
+        "decision_not_found",
+      ].includes(message)
+    )
+      return failure("not_found", message);
     return failure("validation", message);
   }
 }
