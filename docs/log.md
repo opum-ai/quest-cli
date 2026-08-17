@@ -163,6 +163,7 @@
 - 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status
 - 2026-08-17T15:26:36-05:00 9cfcd682372dcec8186e25235247d81392226692 docs: sync wave-2 campaign log
 - 2026-08-17T15:44:36-05:00 16f5ab254388995698a0effc98f2b51cebb481bf docs: record qcli-99 qualification
+- 2026-08-17T15:58:42-05:00 0d10ed1746a041ad598fab1aeaeb8ca481e8b0a2 docs: record qcli-100 qualification
 
 ## docs/adr
 
@@ -390,3 +391,4 @@
 - 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
 - 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status
 - 2026-08-17T15:44:36-05:00 16f5ab254388995698a0effc98f2b51cebb481bf docs: record qcli-99 qualification
+- 2026-08-17T15:58:42-05:00 0d10ed1746a041ad598fab1aeaeb8ca481e8b0a2 docs: record qcli-100 qualification
