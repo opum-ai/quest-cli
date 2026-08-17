@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 22:56'
+updated_date: '2026-08-17 22:59'
 ---
 ## Contract
 
@@ -21,15 +21,15 @@ updated_date: '2026-08-17 22:56'
 ## Frontier
 
 - Resolved on dev: QCLI-97.1 through QCLI-97.4, QCLI-97.7, QCLI-97.8, QCLI-98 through QCLI-101, QCLI-103 through QCLI-108.
-- In flight: QCLI-111 on leased branch campaign/qcli-111-windows-arm64 from pinned 04cc4f6; diagnostics and cleanup remediation planned before required-lane restoration.
+- Qualified for dev delivery: QCLI-111 is Done on branch campaign/qcli-111-windows-arm64; all acceptance criteria and three fresh six-lane runs pass.
 - Blocked or held: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract. QCLI-97.9 records the stale installed Quest migration surface and requires separate authority before registry publication or global package mutation. QCLI-97.6 depends on both.
-- Ready after the active task: QCLI-112, QCLI-102, QCLI-109, and QCLI-110.
+- Ready after delivery: QCLI-112, QCLI-102, QCLI-109, and QCLI-110.
 
 ## Queue
 
 | Order | Task | State | Next action |
 | --- | --- | --- | --- |
-| 1 | QCLI-111 | In Progress | Correct the masked-run evidence, add phase and cleanup proof, restore the required lane, and obtain three fresh clean runs. |
+| 1 | QCLI-111 | Done; delivery pending | Candidate d665b62 passed runs 32078281649, 32078283394, and 32078284926 across all six required lanes. |
 | 2 | QCLI-112 | Ready | Replace manual Git/index surgery for six large Bun artifacts with a supported workflow. |
 | 3 | QCLI-102 | Ready | Version and short-help manifest invocability. |
 | 4 | QCLI-109 | Ready | Flag values beginning with two dashes. |
@@ -42,8 +42,8 @@ updated_date: '2026-08-17 22:56'
 
 - Lease 09a66ac0996d6ca33bd3d96e569eb5a9 is held by qcli-111-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
 - Branch: campaign/qcli-111-windows-arm64 from pinned 04cc4f6d2c58aab71c11f4fdca368d791400ca22.
-- Last completed stage: first exact candidate produced two clean matrices and one diagnosed ARM64 EBUSY at 10.98s; the bounded 120-attempt remediation and recalculated focused checks pass.
-- Next automatic action: commit and push the remediated exact candidate, then dispatch three replacement six-lane runs; none of the prior candidate runs count toward AC3.
+- Last completed stage: QCLI-111 finalized after independent review, local 160-test qualification, one diagnosed remediation, and three clean exact-candidate matrices at d665b62.
+- Next automatic action: commit task/tracker finalization, update the remote branch, open one PR to dev, verify required checks and merge, then settle the lease and activate QCLI-112.
 
 ## QCLI-106/QCLI-107 settlement
 
@@ -84,3 +84,4 @@ updated_date: '2026-08-17 22:56'
 - 2026-08-17 — PR 111 merged QCLI-106 and QCLI-107 at 1fdd138 after one diagnosed test-timeout remediation and a clean rerun.
 - 2026-08-17 — Restored QCLI-111 from the renewal cursor, corrected one masked ARM64 run, implemented phase diagnostics and cleanup proof, and obtained independent local approval with 160 tests passing.
 - 2026-08-17 — Candidate 8086ad0 passed two full matrices; run 32077943944 isolated destination replacement EBUSY through 10.98s with immediate cleanup, prompting one measured retry-window remediation.
+- 2026-08-17 — Remediated candidate d665b62 passed three fresh full six-lane runs (32078281649, 32078283394, 32078284926); every ARM64 test step passed 10 tests with terminal teardown success.
