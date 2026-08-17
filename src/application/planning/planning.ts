@@ -4,7 +4,10 @@ import {
   type Milestone,
   milestone,
 } from "../../domain/planning/planning.ts";
-import { RecordValidationError } from "../../domain/records.ts";
+import {
+  RecordConflictError,
+  RecordValidationError,
+} from "../../domain/records.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
 import type { TaskReader } from "../tasks/tasks.ts";
 
@@ -16,6 +19,22 @@ export type {
 export type PlanningMutationResult = Awaited<
   ReturnType<PlanningRepository["write"]>
 >;
+
+async function persistedPlanningRecord<T>(
+  record: T,
+  write: Promise<PlanningMutationResult>,
+): Promise<{
+  readonly record: T;
+  readonly result: Extract<
+    PlanningMutationResult,
+    { readonly kind: "success" }
+  >;
+}> {
+  const result = await write;
+  if (result.kind === "conflict")
+    throw new RecordConflictError("planning_snapshot_conflict");
+  return { record, result };
+}
 
 export interface ProjectOverview {
   readonly tasks: {
@@ -103,52 +122,64 @@ export class PlanningService {
     const record = milestone(value);
     if (snapshot.milestones.some((item) => item.id === record.id))
       throw new RecordValidationError("milestone_already_exists");
-    return this.repository.write({
-      expectedRevision: snapshot.revision,
-      milestones: [...snapshot.milestones, record],
-      decisions: snapshot.decisions,
-      operationId,
-    });
+    return persistedPlanningRecord(
+      record,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: [...snapshot.milestones, record],
+        decisions: snapshot.decisions,
+        operationId,
+      }),
+    );
   }
   async createDecision(value: Decision, operationId: string) {
     const snapshot = await this.repository.read();
     const record = decision(value);
     if (snapshot.decisions.some((item) => item.id === record.id))
       throw new RecordValidationError("decision_already_exists");
-    return this.repository.write({
-      expectedRevision: snapshot.revision,
-      milestones: snapshot.milestones,
-      decisions: [...snapshot.decisions, record],
-      operationId,
-    });
+    return persistedPlanningRecord(
+      record,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: snapshot.milestones,
+        decisions: [...snapshot.decisions, record],
+        operationId,
+      }),
+    );
   }
   async updateMilestone(value: Milestone, operationId: string) {
     const snapshot = await this.repository.read();
     const record = milestone(value);
     if (!snapshot.milestones.some((item) => item.id === record.id))
       throw new RecordValidationError("milestone_not_found");
-    return this.repository.write({
-      expectedRevision: snapshot.revision,
-      milestones: snapshot.milestones.map((item) =>
-        item.id === record.id ? record : item,
-      ),
-      decisions: snapshot.decisions,
-      operationId,
-    });
+    return persistedPlanningRecord(
+      record,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: snapshot.milestones.map((item) =>
+          item.id === record.id ? record : item,
+        ),
+        decisions: snapshot.decisions,
+        operationId,
+      }),
+    );
   }
   async updateDecision(value: Decision, operationId: string) {
     const snapshot = await this.repository.read();
     const record = decision(value);
     if (!snapshot.decisions.some((item) => item.id === record.id))
       throw new RecordValidationError("decision_not_found");
-    return this.repository.write({
-      expectedRevision: snapshot.revision,
-      milestones: snapshot.milestones,
-      decisions: snapshot.decisions.map((item) =>
-        item.id === record.id ? record : item,
-      ),
-      operationId,
-    });
+    return persistedPlanningRecord(
+      record,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: snapshot.milestones,
+        decisions: snapshot.decisions.map((item) =>
+          item.id === record.id ? record : item,
+        ),
+        operationId,
+      }),
+    );
   }
   async deleteMilestone(id: string, operationId: string) {
     const snapshot = await this.repository.read();
@@ -156,23 +187,29 @@ export class PlanningService {
     if (!existing) throw new RecordValidationError("milestone_not_found");
     if (existing.taskIds.length > 0)
       throw new RecordValidationError("milestone_has_task_references");
-    return this.repository.write({
-      expectedRevision: snapshot.revision,
-      milestones: snapshot.milestones.filter((item) => item.id !== id),
-      decisions: snapshot.decisions,
-      operationId,
-    });
+    return persistedPlanningRecord(
+      existing,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: snapshot.milestones.filter((item) => item.id !== id),
+        decisions: snapshot.decisions,
+        operationId,
+      }),
+    );
   }
   async deleteDecision(id: string, operationId: string) {
     const snapshot = await this.repository.read();
-    if (!snapshot.decisions.some((item) => item.id === id))
-      throw new RecordValidationError("decision_not_found");
-    return this.repository.write({
-      expectedRevision: snapshot.revision,
-      milestones: snapshot.milestones,
-      decisions: snapshot.decisions.filter((item) => item.id !== id),
-      operationId,
-    });
+    const existing = snapshot.decisions.find((item) => item.id === id);
+    if (!existing) throw new RecordValidationError("decision_not_found");
+    return persistedPlanningRecord(
+      existing,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: snapshot.milestones,
+        decisions: snapshot.decisions.filter((item) => item.id !== id),
+        operationId,
+      }),
+    );
   }
   async overview(tasks: TaskReader): Promise<ProjectOverview> {
     const [planning, taskSnapshot] = await Promise.all([

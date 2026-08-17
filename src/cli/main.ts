@@ -624,7 +624,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.list" : "decision.list",
             data,
           },
           modeFor(parsed),
@@ -637,7 +637,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.view" : "decision.view",
             data,
           },
           modeFor(parsed),
@@ -696,7 +696,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.created" : "decision.created",
             data: result,
           },
           modeFor(parsed),
@@ -719,7 +719,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.deleted" : "decision.deleted",
             data,
           },
           modeFor(parsed),
@@ -793,7 +793,7 @@ export async function runQuest(
         return output(
           {
             schemaVersion: 1,
-            kind: isMilestone ? "milestone.records" : "decision.records",
+            kind: isMilestone ? "milestone.updated" : "decision.updated",
             data,
           },
           modeFor(parsed),
