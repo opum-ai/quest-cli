@@ -1,9 +1,12 @@
-import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const rootPackage = JSON.parse(
+  await readFile(join(root, "package.json"), "utf8"),
+);
 const work = await mkdtemp(join(tmpdir(), "quest-packed-"));
 const npmCache = join(work, "npm-cache");
 const tarballs = [];
@@ -61,7 +64,7 @@ try {
     { recursive: true },
   );
   const version = await Bun.$`node ${quest} --version`.text();
-  if (version.trim() !== "0.2.6")
+  if (version.trim() !== rootPackage.version)
     throw new Error("Packed launcher did not report its version.");
   const manifest = JSON.parse(
     await Bun.$`node ${quest} manifest --json`.text(),

@@ -46,6 +46,11 @@ for (const directory of packages.sort()) {
     manifest.cpu.length !== 1
   )
     throw new Error(`Platform constraints are incomplete for ${directory}.`);
+  const suffix = directory.replace(/^quest-/, "");
+  if (`${manifest.os[0]}-${manifest.cpu[0]}` !== suffix)
+    throw new Error(
+      `Platform constraints do not match package suffix for ${directory}.`,
+    );
   const executable = manifest.os[0] === "win32" ? "quest.exe" : "quest";
   const binary = join(root, "npm", directory, "bin", executable);
   if (!(await stat(binary)).isFile())

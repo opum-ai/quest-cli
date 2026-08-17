@@ -115,9 +115,12 @@ let fixtureDirectory: string | undefined;
 
 // The adapter retries 119 times after the first attempt at 100ms intervals.
 // Bounds include that 11.9s window for fixture teardown plus 5s test overhead.
+const fixtureReleaseAttempts = 120;
 const releaseRetryWindowMs = 119 * 100;
 const fixtureTeardownBudgetMs = releaseRetryWindowMs;
 const recoveryTestOverheadMs = 5_000;
+const fixtureTeardownTimeoutMs =
+  fixtureTeardownBudgetMs + recoveryTestOverheadMs;
 const rebuildFailureAndCleanupBudgetMs = releaseRetryWindowMs * 2;
 const oneRebuildRecoveryTimeoutMs =
   rebuildFailureAndCleanupBudgetMs +
@@ -178,7 +181,11 @@ function fixtureReleaseDiagnostic(
 
 async function removeFixtureDirectory(directory: string): Promise<void> {
   const startedAt = Date.now();
-  for (let retryCount = 0; retryCount <= 99; retryCount += 1) {
+  for (
+    let retryCount = 0;
+    retryCount < fixtureReleaseAttempts;
+    retryCount += 1
+  ) {
     fixtureReleaseDiagnostic(
       "attempting",
       false,
@@ -199,7 +206,8 @@ async function removeFixtureDirectory(directory: string): Promise<void> {
     } catch (error) {
       const code = (error as { code?: unknown }).code;
       const terminal =
-        (code !== "EBUSY" && code !== "EPERM") || retryCount === 99;
+        (code !== "EBUSY" && code !== "EPERM") ||
+        retryCount === fixtureReleaseAttempts - 1;
       fixtureReleaseDiagnostic(
         "failed",
         terminal,
@@ -221,7 +229,7 @@ beforeEach(async () => {
 afterEach(async () => {
   if (fixtureDirectory) await removeFixtureDirectory(fixtureDirectory);
   fixtureDirectory = undefined;
-});
+}, fixtureTeardownTimeoutMs);
 
 function databasePath(): string {
   if (!fixtureDirectory)
@@ -238,7 +246,16 @@ function mutateDatabase(path: string, mutation: (db: Database) => void): void {
   try {
     mutation(db);
   } finally {
-    db.close();
+    db.close(true);
+  }
+}
+
+function readDatabaseRow<Row>(db: Database, sql: string): Row {
+  const statement = db.prepare(sql);
+  try {
+    return statement.get() as Row;
+  } finally {
+    statement.finalize();
   }
 }
 
@@ -265,15 +282,14 @@ test("atomic rebuild projects every indexed record family from authoritative enu
       git_checkpoints: 2,
     })) {
       expect(
-        (
-          db.query(`SELECT COUNT(*) AS count FROM ${table}`).get() as {
-            count: number;
-          }
+        readDatabaseRow<{ count: number }>(
+          db,
+          `SELECT COUNT(*) AS count FROM ${table}`,
         ).count,
       ).toBe(expected);
     }
   } finally {
-    db.close();
+    db.close(true);
   }
 });
 
@@ -318,21 +334,19 @@ test(
     const rebuilt = new Database(path, { readonly: true });
     try {
       expect(
-        (
-          rebuilt.query("SELECT COUNT(*) AS count FROM tasks").get() as {
-            count: number;
-          }
+        readDatabaseRow<{ count: number }>(
+          rebuilt,
+          "SELECT COUNT(*) AS count FROM tasks",
         ).count,
       ).toBe(2);
       expect(
-        (
-          rebuilt.query("SELECT COUNT(*) AS count FROM aliases").get() as {
-            count: number;
-          }
+        readDatabaseRow<{ count: number }>(
+          rebuilt,
+          "SELECT COUNT(*) AS count FROM aliases",
         ).count,
       ).toBe(2);
     } finally {
-      rebuilt.close();
+      rebuilt.close(true);
     }
     await expectRecoveryResidue(path);
   },
@@ -368,28 +382,25 @@ test(
     const rebuilt = new Database(path, { readonly: true });
     try {
       expect(
-        (
-          rebuilt.query("SELECT title FROM tasks WHERE id = 'T-1'").get() as {
-            title: string;
-          }
+        readDatabaseRow<{ title: string }>(
+          rebuilt,
+          "SELECT title FROM tasks WHERE id = 'T-1'",
         ).title,
       ).toBe("One");
       expect(
-        (
-          rebuilt
-            .query("SELECT value FROM metadata WHERE key = 'workspace_id'")
-            .get() as { value: string }
+        readDatabaseRow<{ value: string }>(
+          rebuilt,
+          "SELECT value FROM metadata WHERE key = 'workspace_id'",
         ).value,
       ).toBe("workspace-1");
       expect(
-        (
-          rebuilt.query("SELECT reference FROM evidence").get() as {
-            reference: string;
-          }
+        readDatabaseRow<{ reference: string }>(
+          rebuilt,
+          "SELECT reference FROM evidence",
         ).reference,
       ).toBe("https://example.test/proof");
     } finally {
-      rebuilt.close();
+      rebuilt.close(true);
     }
     await expectRecoveryResidue(path);
   },
@@ -414,14 +425,13 @@ test("failed validation leaves the prior projection in place", async () => {
   const db = new Database(path, { readonly: true });
   try {
     expect(
-      (
-        db.query("SELECT title FROM tasks WHERE id = 'T-1'").get() as {
-          title: string;
-        }
+      readDatabaseRow<{ title: string }>(
+        db,
+        "SELECT title FROM tasks WHERE id = 'T-1'",
       ).title,
     ).toBe("One");
   } finally {
-    db.close();
+    db.close(true);
   }
 });
 

@@ -123,11 +123,28 @@ CREATE TABLE git_checkpoints (
 `;
 
 function count(db: Database, table: string): number {
-  return (
-    db.query(`SELECT COUNT(*) AS value FROM ${table}`).get() as {
-      value: number;
-    }
+  return readOne<{ value: number }>(
+    db,
+    `SELECT COUNT(*) AS value FROM ${table}`,
   ).value;
+}
+
+function readOne<Row>(db: Database, sql: string): Row {
+  const statement = db.prepare(sql);
+  try {
+    return statement.get() as Row;
+  } finally {
+    statement.finalize();
+  }
+}
+
+function readAll<Row>(db: Database, sql: string): Row[] {
+  const statement = db.prepare(sql);
+  try {
+    return statement.all() as Row[];
+  } finally {
+    statement.finalize();
+  }
 }
 
 function insert(
@@ -135,7 +152,12 @@ function insert(
   sql: string,
   values: readonly (string | number | null)[],
 ): void {
-  db.query(sql).run(...values);
+  const statement = db.prepare(sql);
+  try {
+    statement.run(...values);
+  } finally {
+    statement.finalize();
+  }
 }
 
 function allSourceMappings(
@@ -468,7 +490,7 @@ function rowsMatch(
   query: string,
   expected: readonly ProjectionRow[],
 ): boolean {
-  return sameRows(db.query(query).all() as ProjectionRow[], expected);
+  return sameRows(readAll<ProjectionRow>(db, query), expected);
 }
 
 /** Compare every disposable row with the just-enumerated Git snapshot. */
@@ -611,18 +633,20 @@ function validateReplacement(
   db: Database,
   snapshot: AuthoritativeProjectionSnapshot,
 ): void {
-  const integrity = db.query("PRAGMA integrity_check").get() as {
-    integrity_check: string;
-  };
+  const integrity = readOne<{ integrity_check: string }>(
+    db,
+    "PRAGMA integrity_check",
+  );
   if (integrity.integrity_check !== "ok")
     throw new Error("projection_integrity_failed");
   for (const [table, expected] of Object.entries(expectedCounts(snapshot))) {
     if (count(db, table) !== expected)
       throw new Error(`projection_count_mismatch:${table}`);
   }
-  const replayed = db.query("SELECT payload FROM tasks ORDER BY id").all() as {
-    payload: string;
-  }[];
+  const replayed = readAll<{ payload: string }>(
+    db,
+    "SELECT payload FROM tasks ORDER BY id",
+  );
   for (const row of replayed) taskState(JSON.parse(row.payload));
   if (!matchesAuthoritativeSnapshot(db, snapshot))
     throw new Error("projection_content_mismatch");
@@ -719,14 +743,17 @@ export class SqliteProjectionStore {
         strict: true,
       });
       try {
-        const version = db
-          .query("SELECT value FROM metadata WHERE key = 'schema_version'")
-          .get() as { value?: string } | null;
-        const checkpoint = db
-          .query(
-            "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
-          )
-          .get() as { revision?: string; observed_at?: string } | null;
+        const version = readOne<{ value?: string } | null>(
+          db,
+          "SELECT value FROM metadata WHERE key = 'schema_version'",
+        );
+        const checkpoint = readOne<{
+          revision?: string;
+          observed_at?: string;
+        } | null>(
+          db,
+          "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
+        );
         const current =
           checkpoint?.revision && checkpoint.observed_at
             ? {
@@ -750,7 +777,7 @@ export class SqliteProjectionStore {
           recovery: fresh ? "none" : "sync",
         };
       } finally {
-        db.close();
+        db.close(true);
       }
     } catch {
       return {
@@ -825,17 +852,21 @@ export class SqliteProjectionStore {
         strict: true,
       });
       try {
-        const integrity = db.query("PRAGMA integrity_check").get() as {
-          integrity_check: string;
-        };
-        const version = db
-          .query("SELECT value FROM metadata WHERE key = 'schema_version'")
-          .get() as { value?: string } | null;
-        const checkpoint = db
-          .query(
-            "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
-          )
-          .get() as { revision?: string; observed_at?: string } | null;
+        const integrity = readOne<{ integrity_check: string }>(
+          db,
+          "PRAGMA integrity_check",
+        );
+        const version = readOne<{ value?: string } | null>(
+          db,
+          "SELECT value FROM metadata WHERE key = 'schema_version'",
+        );
+        const checkpoint = readOne<{
+          revision?: string;
+          observed_at?: string;
+        } | null>(
+          db,
+          "SELECT revision, observed_at FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
+        );
         if (
           integrity.integrity_check !== "ok" ||
           version?.value !== String(projectionSchemaVersion) ||
@@ -847,16 +878,17 @@ export class SqliteProjectionStore {
         // Integrity_check only covers SQLite page consistency. Compare every
         // projected row, including metadata and checkpoints, with Git input.
         if (!matchesAuthoritativeSnapshot(db, snapshot)) return undefined;
-        const replayed = db
-          .query("SELECT payload FROM tasks ORDER BY id")
-          .all() as { payload: string }[];
+        const replayed = readAll<{ payload: string }>(
+          db,
+          "SELECT payload FROM tasks ORDER BY id",
+        );
         for (const row of replayed) taskState(JSON.parse(row.payload));
         return {
           revision: checkpoint.revision,
           observedAt: checkpoint.observed_at,
         };
       } finally {
-        db.close();
+        db.close(true);
       }
     } catch {
       return undefined;
@@ -894,7 +926,7 @@ export class SqliteProjectionStore {
         }
         throw error;
       } finally {
-        db?.close();
+        db?.close(true);
         db = undefined;
       }
       await retryWindowsFileRelease("database_rebuild", "replacement", () =>
@@ -941,26 +973,27 @@ export class SqliteProjectionTaskReader {
       strict: true,
     });
     try {
-      const workspace = db
-        .query("SELECT value FROM metadata WHERE key = 'workspace_id'")
-        .get() as { value?: string } | null;
-      const checkpoint = db
-        .query(
-          "SELECT revision FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
-        )
-        .get() as { revision?: string } | null;
+      const workspace = readOne<{ value?: string } | null>(
+        db,
+        "SELECT value FROM metadata WHERE key = 'workspace_id'",
+      );
+      const checkpoint = readOne<{ revision?: string } | null>(
+        db,
+        "SELECT revision FROM git_checkpoints ORDER BY ordinal ASC LIMIT 1",
+      );
       if (!workspace?.value || !checkpoint?.revision)
         throw new Error("projection_query_metadata_missing");
-      const rows = db.query("SELECT payload FROM tasks ORDER BY id").all() as {
-        payload: string;
-      }[];
+      const rows = readAll<{ payload: string }>(
+        db,
+        "SELECT payload FROM tasks ORDER BY id",
+      );
       return {
         workspaceId: workspace.value,
         revision: checkpoint.revision,
         tasks: rows.map((row) => taskState(JSON.parse(row.payload))),
       };
     } finally {
-      db.close();
+      db.close(true);
     }
   }
 }

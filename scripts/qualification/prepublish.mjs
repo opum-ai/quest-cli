@@ -59,6 +59,12 @@ async function runSourceGates() {
   await attempt(() => command("biome", "bun", ["run", "lint"]));
   await attempt(() => command("format", "bun", ["run", "format:check"]));
   await attempt(() => command("layers", "bun", ["run", "layer:check"]));
+  await attempt(() =>
+    command("package_artifact_delivery", "bun", [
+      "run",
+      "test:package-artifact-delivery",
+    ]),
+  );
   for (const [name, path] of [
     ["unit", "test/domain"],
     ["contract", "test/contract"],
