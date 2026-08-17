@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-17 22:30'
+updated_date: '2026-08-17 22:59'
 ---
 ## Contract
 
@@ -16,20 +16,20 @@ updated_date: '2026-08-17 22:30'
 
 | Repository | Integration base | Required gates |
 | --- | --- | --- |
-| quest-cli | remote dev at 1fdd1382b71cc6237c2e9dd023e27b76365a3409 | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
+| quest-cli | pinned dev settlement at 04cc4f6d2c58aab71c11f4fdca368d791400ca22 | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
 
 ## Frontier
 
 - Resolved on dev: QCLI-97.1 through QCLI-97.4, QCLI-97.7, QCLI-97.8, QCLI-98 through QCLI-101, QCLI-103 through QCLI-108.
-- In flight: none. QCLI-106 and QCLI-107 are Done and merged in PR 111.
+- Qualified for dev delivery: QCLI-111 is Done on branch campaign/qcli-111-windows-arm64; all acceptance criteria and three fresh six-lane runs pass.
 - Blocked or held: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract. QCLI-97.9 records the stale installed Quest migration surface and requires separate authority before registry publication or global package mutation. QCLI-97.6 depends on both.
-- Ready: QCLI-111, QCLI-112, QCLI-102, QCLI-109, and QCLI-110.
+- Ready after delivery: QCLI-112, QCLI-102, QCLI-109, and QCLI-110.
 
 ## Queue
 
 | Order | Task | State | Next action |
 | --- | --- | --- | --- |
-| 1 | QCLI-111 | Ready | Use the three clean Windows ARM64 runs plus phase diagnostics to restore the lane as required and remove the quarantine. |
+| 1 | QCLI-111 | Done; delivery pending | Candidate d665b62 passed runs 32078281649, 32078283394, and 32078284926 across all six required lanes. |
 | 2 | QCLI-112 | Ready | Replace manual Git/index surgery for six large Bun artifacts with a supported workflow. |
 | 3 | QCLI-102 | Ready | Version and short-help manifest invocability. |
 | 4 | QCLI-109 | Ready | Flag values beginning with two dashes. |
@@ -40,10 +40,10 @@ updated_date: '2026-08-17 22:30'
 
 ## Current worktree
 
-- No task branch or Treehouse lease is retained for the renewal.
-- Last merged dev: 1fdd1382b71cc6237c2e9dd023e27b76365a3409.
-- Next automatic action: lease a clean Treehouse worktree at that exact dev SHA and begin QCLI-111.
-- The disposable campaign/handover-settlement lease used to publish this tracker will be returned before the renewal cursor is written.
+- Lease 09a66ac0996d6ca33bd3d96e569eb5a9 is held by qcli-111-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
+- Branch: campaign/qcli-111-windows-arm64 from pinned 04cc4f6d2c58aab71c11f4fdca368d791400ca22.
+- Last completed stage: QCLI-111 finalized after independent review, local 160-test qualification, one diagnosed remediation, and three clean exact-candidate matrices at d665b62.
+- Next automatic action: commit task/tracker finalization, update the remote branch, open one PR to dev, verify required checks and merge, then settle the lease and activate QCLI-112.
 
 ## QCLI-106/QCLI-107 settlement
 
@@ -55,7 +55,7 @@ updated_date: '2026-08-17 22:30'
 
 ## Follow-up evidence
 
-- QCLI-111 owns the repeated Windows ARM64 projection hang. Runs 32068726985, 32069419875, and 32069839094 failed only that lane. Runs 32071578797, 32073732956, and 32075311643 are three consecutive independently dispatched clean six-lane runs at pinned Bun 1.3.14; restoration still requires the task's phase diagnostics, cleanup evidence, and quarantine removal.
+- QCLI-111 owns the repeated Windows ARM64 projection hang. Runs 32068726985, 32069419875, and 32069839094 failed only that lane. Runs 32071578797 and 32075311643 are genuine clean ARM64 passes at pinned Bun 1.3.14; run 32073732956 contains a failed ARM64 test step masked by continue-on-error, so three fresh clean runs are still required.
 - QCLI-112 owns Bun artifact delivery failures: six roughly 64–99 MB binaries have caused Git refresh/add/commit exit 137 in constrained Treehouse worktrees, requiring manual object/index operations and assume-unchanged hints.
 - QCLI-97.9 owns Lore's installed-surface blocker. Live quest is a symlink into /private/tmp/quest-v0.2.2-qcli101.1NYgC7/candidate, reports 0.2.2, and omits all four migration backlog commands even though dev contains them.
 
@@ -82,3 +82,6 @@ updated_date: '2026-08-17 22:30'
 - 2026-08-17 — QCLI-111, QCLI-112, and QCLI-97.9 were filed from live CI, Bun artifact, and Lore installation evidence.
 - 2026-08-17 — PR 110 merged QCLI-103 and QCLI-104 at 764775a.
 - 2026-08-17 — PR 111 merged QCLI-106 and QCLI-107 at 1fdd138 after one diagnosed test-timeout remediation and a clean rerun.
+- 2026-08-17 — Restored QCLI-111 from the renewal cursor, corrected one masked ARM64 run, implemented phase diagnostics and cleanup proof, and obtained independent local approval with 160 tests passing.
+- 2026-08-17 — Candidate 8086ad0 passed two full matrices; run 32077943944 isolated destination replacement EBUSY through 10.98s with immediate cleanup, prompting one measured retry-window remediation.
+- 2026-08-17 — Remediated candidate d665b62 passed three fresh full six-lane runs (32078281649, 32078283394, 32078284926); every ARM64 test step passed 10 tests with terminal teardown success.

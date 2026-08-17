@@ -353,20 +353,112 @@ function sameRows(
   return encoded(actual) === encoded(expected);
 }
 
+const releaseRetryAttempts = 120;
+const releaseRetryDelayMs = 100;
+type FileReleaseOperation =
+  | "database_rebuild"
+  | "sync_progress"
+  | "sync_progress_removal";
+type FileReleasePhase = "replacement" | "cleanup";
+type FileReleaseState = "attempting" | "succeeded" | "failed";
+
+function releaseDiagnostic(
+  operation: FileReleaseOperation,
+  phase: FileReleasePhase,
+  state: FileReleaseState,
+  terminal: boolean,
+  attempt: number,
+  retryCount: number,
+  startedAt: number,
+  error?: unknown,
+): void {
+  if (process.env.QUEST_PROJECTION_RELEASE_DIAGNOSTICS !== "1") return;
+  const filesystemError = error as
+    | { code?: unknown; message?: unknown }
+    | undefined;
+  console.error(
+    JSON.stringify({
+      event: "quest_projection_file_release",
+      operation,
+      phase,
+      state,
+      terminal,
+      attempt,
+      retryCount,
+      elapsedMs: Date.now() - startedAt,
+      ...(filesystemError
+        ? {
+            filesystemError: {
+              code: filesystemError.code ?? "unknown",
+              message: filesystemError.message ?? String(error),
+            },
+          }
+        : {}),
+    }),
+  );
+}
+
+function cleanupFailure(
+  operation: string,
+  failure: unknown,
+  cleanup: unknown,
+): Error {
+  const cleanupError = cleanup as { code?: unknown; message?: unknown };
+  return new AggregateError(
+    [failure, cleanup],
+    `projection_${operation}_cleanup_failed: cleanup_code=${String(cleanupError.code ?? "unknown")}; cleanup_error=${String(cleanupError.message ?? cleanup)}`,
+    { cause: failure },
+  );
+}
+
 async function retryWindowsFileRelease(
+  operationName: FileReleaseOperation,
+  phase: FileReleasePhase,
   operation: () => Promise<void>,
 ): Promise<void> {
   // Windows ARM runners can retain Bun's SQLite handle for several seconds
   // after close(). Preserve atomic replacement by waiting for that release,
   // rather than replacing the database in place.
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  const startedAt = Date.now();
+  for (let attempt = 0; attempt < releaseRetryAttempts; attempt += 1) {
+    releaseDiagnostic(
+      operationName,
+      phase,
+      "attempting",
+      false,
+      attempt + 1,
+      attempt,
+      startedAt,
+    );
     try {
       await operation();
+      releaseDiagnostic(
+        operationName,
+        phase,
+        "succeeded",
+        true,
+        attempt + 1,
+        attempt,
+        startedAt,
+      );
       return;
     } catch (error) {
       const code = (error as { code?: unknown }).code;
-      if ((code !== "EBUSY" && code !== "EPERM") || attempt === 99) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const terminal =
+        (code !== "EBUSY" && code !== "EPERM") ||
+        attempt === releaseRetryAttempts - 1;
+      releaseDiagnostic(
+        operationName,
+        phase,
+        "failed",
+        terminal,
+        attempt + 1,
+        attempt,
+        startedAt,
+        error,
+      );
+      if (terminal) throw error;
+      await new Promise((resolve) => setTimeout(resolve, releaseRetryDelayMs));
     }
   }
 }
@@ -567,8 +659,27 @@ export class SqliteProjectionStore {
   private async writeProgress(progress: SyncProgress): Promise<void> {
     await mkdir(dirname(this.databasePath), { recursive: true });
     const temporary = `${this.progressPath()}.${crypto.randomUUID()}.tmp`;
-    await writeFile(temporary, `${JSON.stringify(progress)}\n`, "utf8");
-    await rename(temporary, this.progressPath());
+    try {
+      await writeFile(temporary, `${JSON.stringify(progress)}\n`, "utf8");
+      await retryWindowsFileRelease("sync_progress", "replacement", () =>
+        rename(temporary, this.progressPath()),
+      );
+    } catch (error) {
+      try {
+        await retryWindowsFileRelease("sync_progress", "cleanup", () =>
+          rm(temporary, { force: true }),
+        );
+      } catch (cleanup) {
+        throw cleanupFailure("sync_progress", error, cleanup);
+      }
+      throw error;
+    }
+  }
+
+  private async removeProgress(): Promise<void> {
+    await retryWindowsFileRelease("sync_progress_removal", "cleanup", () =>
+      rm(this.progressPath(), { force: true }),
+    );
   }
 
   /**
@@ -671,7 +782,7 @@ export class SqliteProjectionStore {
         : 0;
     if (resumedFrom === snapshot.tasks.length) {
       await this.rebuildSnapshot(snapshot);
-      await rm(this.progressPath(), { force: true });
+      await this.removeProgress();
       return {
         kind: resumedFrom ? "resumed" : "caught_up",
         checkpoint: snapshot.checkpoint,
@@ -695,7 +806,7 @@ export class SqliteProjectionStore {
         };
     }
     await this.rebuildSnapshot(snapshot);
-    await rm(this.progressPath(), { force: true });
+    await this.removeProgress();
     return {
       kind: resumedFrom ? "resumed" : "caught_up",
       checkpoint: snapshot.checkpoint,
@@ -767,28 +878,36 @@ export class SqliteProjectionStore {
     const temporary = `${this.databasePath}.${crypto.randomUUID()}.rebuild`;
     let db: Database | undefined;
     try {
-      db = new Database(temporary, { create: true, strict: true });
-      db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = DELETE;");
-      db.exec(schema);
-      db.exec("BEGIN IMMEDIATE");
-      populate(db, snapshot);
-      db.exec("COMMIT");
-      validateReplacement(db, snapshot);
-      db.close();
-      db = undefined;
-      await retryWindowsFileRelease(() => rename(temporary, this.databasePath));
+      try {
+        db = new Database(temporary, { create: true, strict: true });
+        db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = DELETE;");
+        db.exec(schema);
+        db.exec("BEGIN IMMEDIATE");
+        populate(db, snapshot);
+        db.exec("COMMIT");
+        validateReplacement(db, snapshot);
+      } catch (error) {
+        try {
+          db?.exec("ROLLBACK");
+        } catch {
+          // The replacement is discarded below; the prior projection remains intact.
+        }
+        throw error;
+      } finally {
+        db?.close();
+        db = undefined;
+      }
+      await retryWindowsFileRelease("database_rebuild", "replacement", () =>
+        rename(temporary, this.databasePath),
+      );
       return { kind: "rebuilt", checkpoint: snapshot.checkpoint };
     } catch (error) {
       try {
-        db?.exec("ROLLBACK");
-      } catch {
-        // The replacement is discarded below; the prior projection remains intact.
-      }
-      db?.close();
-      try {
-        await retryWindowsFileRelease(() => rm(temporary, { force: true }));
-      } catch {
-        // Preserve the original rebuild failure; a later rebuild can discard the temp file.
+        await retryWindowsFileRelease("database_rebuild", "cleanup", () =>
+          rm(temporary, { force: true }),
+        );
+      } catch (cleanup) {
+        throw cleanupFailure("rebuild", error, cleanup);
       }
       throw error;
     }
