@@ -24,7 +24,7 @@ test("the executable keeps successful JSON on stdout and diagnostics on stderr",
 
 test("version is bare semver and JSON takes precedence over plain", async () => {
   expect(await runQuest(["--version"], false)).toEqual({
-    stdout: "0.2.3\n",
+    stdout: "0.2.4\n",
     stderr: "",
     exitCode: 0,
   });
@@ -47,7 +47,38 @@ test("help, instructions, and completion expose the versioned public discovery s
     JSON.parse((await runQuest(["instructions", "--json"], false)).stdout),
   ).toMatchObject({
     kind: "agent.instructions",
-    data: { version: "0.2.3" },
+    data: { version: "0.2.4" },
+  });
+});
+
+test("every help spelling resolves output modes before its optional topic", async () => {
+  for (const mode of ["--json", "--plain"] as const) {
+    for (const invocation of [
+      ["help"],
+      ["--help"],
+      ["help", "task"],
+      ["task", "--help"],
+    ] as const) {
+      const result = await runQuest([...invocation, mode], false);
+      expect(result.exitCode, `${invocation.join(" ")} ${mode}`).toBe(0);
+      if (mode === "--json") {
+        expect(JSON.parse(result.stdout)).toMatchObject({
+          kind: "help.commands",
+          principal: null,
+        });
+      } else {
+        expect(result.stdout).toContain("commands:");
+        expect(result.stdout).not.toBe("help.commands\n");
+      }
+    }
+  }
+
+  const unknown = await runQuest(["help", "unknown-topic", "--json"], false);
+  expect(unknown.exitCode).toBe(3);
+  expect(JSON.parse(unknown.stderr)).toMatchObject({
+    error_type: "not_found",
+    message: "No help is available for unknown-topic.",
+    principal: null,
   });
 });
 

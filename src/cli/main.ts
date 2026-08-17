@@ -33,7 +33,7 @@ import {
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.3";
+const VERSION = "0.2.4";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -251,18 +251,21 @@ export async function runQuest(
       ["--help", "help"].includes(arguments_[0] ?? "") ||
       arguments_[1] === "--help"
     ) {
+      const helpArguments = arguments_.filter(
+        (argument) => argument !== "--json" && argument !== "--plain",
+      );
+      if (helpArguments.length > 2)
+        return failure("usage", "help accepts at most one topic.");
       const helpTarget =
-        arguments_[0] === "help"
-          ? arguments_[1]
-          : arguments_[1] === "--help"
-            ? arguments_[0]
+        helpArguments[0] === "help" || helpArguments[0] === "--help"
+          ? helpArguments[1]
+          : helpArguments[1] === "--help"
+            ? helpArguments[0]
             : undefined;
       const parsed = flags(
-        arguments_[0] === "help"
-          ? arguments_.slice(helpTarget ? 2 : 1)
-          : arguments_[1] === "--help"
-            ? arguments_.slice(2)
-            : arguments_.slice(1),
+        arguments_.filter(
+          (argument) => argument === "--json" || argument === "--plain",
+        ),
       );
       if (!parsed || !only(parsed, []))
         return failure("usage", "help accepts only --json and --plain.");

@@ -14,7 +14,7 @@ const end = "<!-- quest:agent-instructions:end -->";
 export const questAgentInstructions = `${begin}
 # Quest agent instructions
 
-This project uses Quest CLI 0.2.3 for tracker operations. Run \`quest manifest --json\` to discover the supported command contract. Use \`quest instructions --json\` for the current versioned protocol. For Backlog tracker cutover, run \`quest migration backlog preview --source <project> --json\`, review its digest and mappings, then apply it with \`quest migration backlog apply --source <project> --digest <digest> --actor <id> --actor-kind human --json\`. Quest writes require an explicit actor declaration; do not edit Quest-authored records directly.
+This project uses Quest CLI 0.2.4 for tracker operations. Run \`quest manifest --json\` to discover the supported command contract. Use \`quest instructions --json\` for the current versioned protocol. For Backlog tracker cutover, run \`quest migration backlog preview --source <project> --json\`, review its digest and mappings, then apply it with \`quest migration backlog apply --source <project> --digest <digest> --actor <id> --actor-kind human --json\`. Quest writes require an explicit actor declaration; do not edit Quest-authored records directly.
 ${end}\n`;
 
 export type AgentInstructionCheck =
@@ -47,7 +47,7 @@ export function checkQuestAgentInstructions(
   if (`${blocks[0]}\n` !== questAgentInstructions) {
     return {
       state: "drift",
-      message: "Quest agent instruction block differs from version 0.2.3.",
+      message: "Quest agent instruction block differs from version 0.2.4.",
     };
   }
   return { state: "current" };
