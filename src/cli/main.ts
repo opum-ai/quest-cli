@@ -26,13 +26,14 @@ import {
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
 import {
   createAgentInstructionPort,
+  createBacklogImportService,
   createPlanningService,
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -380,6 +381,101 @@ export async function runQuest(
       return output(
         await migrationSmokeResult(),
         selectOutputMode({ ...parsed, stdoutIsTty }),
+      );
+    }
+    if (arguments_[0] === "migration" && arguments_[1] === "backlog") {
+      const action = arguments_[2];
+      const parsed = flags(arguments_.slice(3));
+      if (!action || !parsed)
+        return failure("usage", "migration backlog requires a valid action.");
+      const source = one(parsed, "--source");
+      const digest = one(parsed, "--digest");
+      const backlogDirectory = one(parsed, "--backlog-dir");
+      const root = await resolvedRoot();
+      if (
+        action === "preview" &&
+        source &&
+        only(parsed, ["--source", "--backlog-dir"])
+      )
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-preview",
+            data: await createBacklogImportService(
+              root,
+              source,
+              backlogDirectory,
+            ).preview(),
+          },
+          modeFor(parsed),
+        );
+      if (
+        action === "apply" &&
+        source &&
+        digest &&
+        only(parsed, [
+          "--source",
+          "--digest",
+          "--backlog-dir",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        if (!actor(parsed))
+          return failure(
+            "denied",
+            "Backlog migration writes require an explicit actor declaration.",
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-applied",
+            data: await createBacklogImportService(
+              root,
+              source,
+              backlogDirectory,
+            ).apply(digest),
+          },
+          modeFor(parsed),
+        );
+      }
+      if (action === "status" && digest && only(parsed, ["--digest"]))
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-status",
+            data: await createBacklogImportService(root, "").status(digest),
+          },
+          modeFor(parsed),
+        );
+      if (
+        action === "rollback" &&
+        digest &&
+        only(parsed, [
+          "--digest",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      ) {
+        if (!actor(parsed))
+          return failure(
+            "denied",
+            "Backlog migration writes require an explicit actor declaration.",
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "migration.backlog-rolled-back",
+            data: await createBacklogImportService(root, "").rollback(digest),
+          },
+          modeFor(parsed),
+        );
+      }
+      return failure(
+        "usage",
+        "migration backlog requires preview --source, apply --source --digest, status --digest, or rollback --digest.",
       );
     }
     if (arguments_[0] === "manifest") {

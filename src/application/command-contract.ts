@@ -63,6 +63,10 @@ export interface CommandManifestEntry {
     | "instructions"
     | "agents"
     | "completion"
+    | "migration backlog preview"
+    | "migration backlog apply"
+    | "migration backlog status"
+    | "migration backlog rollback"
     | "task status-flow"
     | "task list"
     | "task view"
@@ -128,6 +132,30 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "completion.script",
       mutates: false,
+    },
+    {
+      name: "migration backlog preview",
+      schemaVersion: 1,
+      kind: "migration.backlog-preview",
+      mutates: false,
+    },
+    {
+      name: "migration backlog apply",
+      schemaVersion: 1,
+      kind: "migration.backlog-applied",
+      mutates: true,
+    },
+    {
+      name: "migration backlog status",
+      schemaVersion: 1,
+      kind: "migration.backlog-status",
+      mutates: false,
+    },
+    {
+      name: "migration backlog rollback",
+      schemaVersion: 1,
+      kind: "migration.backlog-rolled-back",
+      mutates: true,
     },
     {
       name: "task status-flow",
