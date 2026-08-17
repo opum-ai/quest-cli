@@ -1,11 +1,11 @@
 ---
 id: QCLI-97.1
 title: Audit Backlog parity and Lore/Codex onboarding gaps
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:03'
-updated_date: '2026-08-17 06:05'
+updated_date: '2026-08-17 06:06'
 labels:
   - quest-0.1
   - parity
@@ -31,10 +31,10 @@ Establish the evidence and delivery decomposition needed to restore the promised
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The audit inventories Backlog.md 1.50.1 public commands and observable setup behaviors, excluding only the separate document-management group
-- [ ] #2 The audit compares that inventory with the Quest 0.1.0 published manifest and records reproducible evidence for every missing or divergent surface
-- [ ] #3 The audit verifies the current published Lore CLI tracker contract and identifies every Quest-to-Lore compatibility requirement, including the missing project and agent discovery path
-- [ ] #4 The audit proposes independently reviewable follow-up tasks, dependencies, and acceptance criteria without silently choosing product-policy exclusions
+- [x] #1 The audit inventories Backlog.md 1.50.1 public commands and observable setup behaviors, excluding only the separate document-management group
+- [x] #2 The audit compares that inventory with the Quest 0.1.0 published manifest and records reproducible evidence for every missing or divergent surface
+- [x] #3 The audit verifies the current published Lore CLI tracker contract and identifies every Quest-to-Lore compatibility requirement, including the missing project and agent discovery path
+- [x] #4 The audit proposes independently reviewable follow-up tasks, dependencies, and acceptance criteria without silently choosing product-policy exclusions
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -47,4 +47,12 @@ Establish the evidence and delivery decomposition needed to restore the promised
 
 <!-- SECTION:NOTES:BEGIN -->
 Public-contract audit completed against Backlog.md 1.50.1, Quest 0.1.0, and Lore CLI 0.3.2. The matrix records 9 advertised Quest commands against Backlog's 13 public groups (excluding doc), confirms missing init/help/agents/config and Lore backend selection, and proposes five independent delivery slices without selecting exclusions.
+
+Published-Lore recheck: npm view @opum-ai/lore version returned 0.3.2, matching the locally exercised Lore CLI 0.3.2 public command surface.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Completed the versioned public-contract audit. The Lore reference maps Backlog.md 1.50.1 against Quest 0.1.0, identifies the bootstrap/help/agent/Lore-adapter gaps, and decomposes the remedial work into independently reviewable slices.
+<!-- SECTION:FINAL_SUMMARY:END -->
