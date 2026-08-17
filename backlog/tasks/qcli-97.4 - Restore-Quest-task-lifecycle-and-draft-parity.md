@@ -1,11 +1,11 @@
 ---
 id: QCLI-97.4
 title: Restore Quest task lifecycle and draft parity
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 06:06'
-updated_date: '2026-08-17 13:27'
+updated_date: '2026-08-17 14:11'
 labels:
   - quest-0.1
   - parity
@@ -30,10 +30,10 @@ Restore the missing task lifecycle and draft command groups required for Backlog
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Quest supports the promised task lifecycle surface, including archive, terminal completion handling, and draft create/list/view/promote/archive behavior
-- [ ] #2 Task read/write fields, filters, status transitions, and diagnostics have a documented compatibility map against Backlog.md, with actor requirements preserved where intentionally stronger
-- [ ] #3 Archival and retention behavior is decided by the owner or explicitly scoped as a documented compatibility exclusion before implementation
-- [ ] #4 Contract, integration, fault, and migration tests prove record preservation and safe recovery
+- [x] #1 Quest supports the promised task lifecycle surface, including archive, terminal completion handling, and draft create/list/view/promote/archive behavior
+- [x] #2 Task read/write fields, filters, status transitions, and diagnostics have a documented compatibility map against Backlog.md, with actor requirements preserved where intentionally stronger
+- [x] #3 Archival and retention behavior is decided by the owner or explicitly scoped as a documented compatibility exclusion before implementation
+- [x] #4 Contract, integration, fault, and migration tests prove record preservation and safe recovery
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -56,4 +56,12 @@ Independent review found lifecycle source-delete/destination-write Promise.all w
 Integrated lifecycle recovery hardening at dev 7765f15: corrupt journals are validated before replay, retained without deletion, and excluded from record scans. Public lifecycle/draft CLI routing remains serialized.
 
 Independent review corrected public lifecycle and draft actor enforcement at dev 6ceed83: delegated agents now require accountable-human declarations. Route-level conformance coverage remains before finalization.
+
+Final validation: the lifecycle compatibility map now documents implemented routes, deliberately stronger actor and identity rules, and remaining parent-level metadata parity debt. Lifecycle/draft subprocess and repository recovery tests passed; prior full-suite, all-platform package, Lore strict, and diff checks remain valid for unchanged source.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented and qualified canonical task lifecycle and draft parity, including archive, completion, demotion, promotion, retention, actor enforcement, and journaled recovery. The published compatibility map records intentional safety differences and remaining parent-level field gaps.
+<!-- SECTION:FINAL_SUMMARY:END -->
