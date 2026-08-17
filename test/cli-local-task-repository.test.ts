@@ -1,8 +1,7 @@
-import { mkdir, mkdtemp, rm, stat, utimes } from "node:fs/promises";
+import { expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
-import { expect, test } from "bun:test";
 
 import { LocalTaskRepository } from "../src/application/tasks/local-task-repository.ts";
 import { TaskService } from "../src/application/tasks/tasks.ts";
@@ -98,6 +97,43 @@ test("lifecycle moves retain one canonical task identity and drafts promote atom
     expect(
       (await service.listDrafts(true)).map((record) => record.location),
     ).toEqual(["archive/drafts"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a durable lifecycle journal resumes a destination-first task move after interruption", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-lifecycle-recovery-"));
+  try {
+    const repository = new LocalTaskRepository(join(root, ".quest", "tasks"));
+    const service = new TaskService(repository);
+    await service.create("T-1", { title: "recover me" }, "create");
+    const snapshot = await repository.readAll();
+    const task = await service.view("T-1");
+    await writeFile(
+      join(root, ".quest", "tasks", ".lifecycle.journal.json"),
+      JSON.stringify({
+        expectedRevision: snapshot.revision,
+        operationId: "archive",
+        ownedPaths: [".quest/tasks/T-1.json", ".quest/archive/tasks/T-1.json"],
+        taskChanges: [
+          { taskId: "T-1", location: "tasks", remove: true },
+          { task, location: "archive/tasks" },
+        ],
+        draftChanges: [],
+      }),
+      "utf8",
+    );
+    await repository.writeLifecycle({
+      expectedRevision: snapshot.revision,
+      operationId: "next-write",
+      ownedPaths: [],
+      taskChanges: [],
+      draftChanges: [],
+    });
+    expect((await repository.readAll()).taskRecords).toEqual([
+      { task, location: "archive/tasks" },
+    ]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

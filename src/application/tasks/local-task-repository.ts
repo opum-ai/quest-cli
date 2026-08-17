@@ -1,27 +1,26 @@
 import {
   mkdir,
-  readFile,
   readdir,
+  readFile,
   rename,
   rm,
   writeFile,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
-
+import { RecordConflictError } from "../../domain/records.ts";
+import {
+  type DraftLocation,
+  type DraftState,
+  draftState,
+  type TaskLocation,
+  type TaskState,
+  taskState,
+} from "../../domain/tasks/tasks.ts";
 import type {
   LifecycleTaskRepository,
   LifecycleWriteRequest,
   TaskWriteRequest,
 } from "./tasks.ts";
-import {
-  draftState,
-  taskState,
-  type DraftLocation,
-  type DraftState,
-  type TaskLocation,
-  type TaskState,
-} from "../../domain/tasks/tasks.ts";
-import { RecordConflictError } from "../../domain/records.ts";
 
 const LOCK_WAIT_MS = 500;
 
@@ -44,6 +43,51 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
   }
   private draftPath(id: string, location: DraftLocation): string {
     return join(this.root(), location, `${id}.json`);
+  }
+  private lifecycleJournalPath(): string {
+    return join(this.directory, ".lifecycle.journal.json");
+  }
+  private async writeLifecycleRecord(
+    path: string,
+    value: unknown,
+  ): Promise<void> {
+    await mkdir(dirname(path), { recursive: true });
+    const temporary = `${path}.${crypto.randomUUID()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(value)}\n`, "utf8");
+    await rename(temporary, path);
+  }
+  /** Replays a durable operation with destinations first, so a fault cannot lose the source record. */
+  private async applyLifecycle(request: LifecycleWriteRequest): Promise<void> {
+    const removals: string[] = [];
+    for (const change of request.taskChanges) {
+      const path = this.taskPath(
+        "remove" in change ? change.taskId : change.task.id,
+        change.location,
+      );
+      if ("remove" in change) removals.push(path);
+      else await this.writeLifecycleRecord(path, change.task);
+    }
+    for (const change of request.draftChanges) {
+      const path = this.draftPath(
+        "remove" in change ? change.draftId : change.draft.id,
+        change.location,
+      );
+      if ("remove" in change) removals.push(path);
+      else await this.writeLifecycleRecord(path, change.draft);
+    }
+    for (const path of removals) await rm(path, { force: true });
+  }
+  private async recoverLifecycle(): Promise<void> {
+    try {
+      const request = JSON.parse(
+        await readFile(this.lifecycleJournalPath(), "utf8"),
+      ) as LifecycleWriteRequest;
+      await this.applyLifecycle(request);
+      await rm(this.lifecycleJournalPath(), { force: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
   }
 
   private async recordsAt<T>(
@@ -204,6 +248,7 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
       };
     }
     try {
+      await this.recoverLifecycle();
       const current = await this.readAll();
       if (current.revision !== request.expectedRevision)
         return {
@@ -213,48 +258,9 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
           operationId: request.operationId,
           ownedPaths: request.ownedPaths,
         };
-      const writes: Promise<void>[] = [];
-      for (const change of request.taskChanges) {
-        const path = this.taskPath(
-          "remove" in change ? change.taskId : change.task.id,
-          change.location,
-        );
-        if ("remove" in change) writes.push(rm(path, { force: true }));
-        else
-          writes.push(
-            (async () => {
-              await mkdir(dirname(path), { recursive: true });
-              const temporary = `${path}.${crypto.randomUUID()}.tmp`;
-              await writeFile(
-                temporary,
-                `${JSON.stringify(change.task)}\n`,
-                "utf8",
-              );
-              await rename(temporary, path);
-            })(),
-          );
-      }
-      for (const change of request.draftChanges) {
-        const path = this.draftPath(
-          "remove" in change ? change.draftId : change.draft.id,
-          change.location,
-        );
-        if ("remove" in change) writes.push(rm(path, { force: true }));
-        else
-          writes.push(
-            (async () => {
-              await mkdir(dirname(path), { recursive: true });
-              const temporary = `${path}.${crypto.randomUUID()}.tmp`;
-              await writeFile(
-                temporary,
-                `${JSON.stringify(change.draft)}\n`,
-                "utf8",
-              );
-              await rename(temporary, path);
-            })(),
-          );
-      }
-      await Promise.all(writes);
+      await this.writeLifecycleRecord(this.lifecycleJournalPath(), request);
+      await this.applyLifecycle(request);
+      await rm(this.lifecycleJournalPath(), { force: true });
       return {
         kind: "success" as const,
         revision: (await this.readAll()).revision,
