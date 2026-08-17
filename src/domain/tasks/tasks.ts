@@ -16,6 +16,10 @@ import {
 
 export const taskStatuses = ["To Do", "In Progress", "Done"] as const;
 export type TaskStatus = string;
+/** Storage location is lifecycle metadata, never part of the task identifier. */
+export type TaskLocation = "tasks" | "completed" | "archive/tasks";
+export type DraftLocation = "drafts" | "archive/drafts";
+export type DraftId = `D-${number}`;
 export interface LifecyclePolicy {
   readonly statuses: readonly TaskStatus[];
   readonly terminalStatuses: readonly TaskStatus[];
@@ -137,7 +141,39 @@ export interface TaskInput
   readonly blockers?: readonly BlockerEvent[];
 }
 
+export interface DraftState {
+  readonly id: DraftId;
+  readonly title: string;
+  readonly description?: string;
+  readonly labels: readonly string[];
+  readonly documentation: readonly string[];
+  readonly createdAt?: string;
+  readonly source?: SourceProvenance;
+}
+
+export interface DraftInput
+  extends Omit<DraftState, "id" | "labels" | "documentation"> {
+  readonly labels?: readonly string[];
+  readonly documentation?: readonly string[];
+}
+
 const statusSchema = z.string().min(1);
+const draftIdSchema = z.string().regex(/^D-[1-9][0-9]*$/) as z.ZodType<DraftId>;
+const draftSchema = z.object({
+  id: draftIdSchema,
+  title: z.string().min(1),
+  description: z.string().optional(),
+  labels: z.array(z.string()),
+  documentation: z.array(z.string()),
+  createdAt: z.string().optional(),
+  source: z
+    .object({
+      system: z.string().min(1),
+      reference: z.string().min(1),
+      importedAt: z.string().optional(),
+    })
+    .optional(),
+});
 const taskSchema = z.object({
   id: canonicalIdSchema,
   aliases: z.array(z.string().min(1)),
@@ -270,6 +306,30 @@ export function createTask(
     blockers: input.blockers ?? [],
     gates: [],
     gateEvents: [],
+  });
+}
+
+export function draftId(value: string): DraftId {
+  if (!/^D-[1-9][0-9]*$/.test(value))
+    throw new RecordValidationError(`Invalid draft id: ${value}`);
+  return value as DraftId;
+}
+
+export function draftState(value: DraftState): DraftState {
+  const parsed = draftSchema.safeParse(value);
+  if (!parsed.success) throw new RecordValidationError("Invalid draft state.");
+  const state = parsed.data as DraftState;
+  unique(state.labels, "Draft labels");
+  unique(state.documentation, "Draft documentation links");
+  return state;
+}
+
+export function createDraft(id: string, input: DraftInput): DraftState {
+  return draftState({
+    ...input,
+    id: draftId(id),
+    labels: input.labels ?? [],
+    documentation: input.documentation ?? [],
   });
 }
 

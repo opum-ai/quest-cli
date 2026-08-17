@@ -12,6 +12,11 @@ import {
   type TaskInput,
   type TaskState,
   type TaskStatus,
+  type TaskLocation,
+  type DraftLocation,
+  type DraftState,
+  type DraftInput,
+  createDraft,
 } from "../../domain/tasks/tasks.ts";
 import { RecordValidationError } from "../../domain/records.ts";
 
@@ -22,6 +27,17 @@ export interface TaskReader {
 export interface TaskReadSnapshot {
   readonly revision: string;
   readonly tasks: readonly TaskState[];
+  /** All task records, including retention locations. Omitted by legacy readers. */
+  readonly taskRecords?: readonly LocatedTask[];
+  readonly drafts?: readonly LocatedDraft[];
+}
+export interface LocatedTask {
+  readonly task: TaskState;
+  readonly location: TaskLocation;
+}
+export interface LocatedDraft {
+  readonly draft: DraftState;
+  readonly location: DraftLocation;
 }
 export interface TaskWriteRequest {
   readonly task: TaskState;
@@ -46,6 +62,30 @@ export interface TaskWriter {
   write(request: TaskWriteRequest): Promise<TaskWriteResult>;
 }
 export interface TaskRepository extends TaskReader, TaskWriter {}
+export interface LifecycleWriteRequest {
+  readonly expectedRevision: string;
+  readonly operationId: string;
+  readonly ownedPaths: readonly string[];
+  readonly taskChanges: readonly (
+    | { readonly task: TaskState; readonly location: TaskLocation }
+    | {
+        readonly taskId: string;
+        readonly location: TaskLocation;
+        readonly remove: true;
+      }
+  )[];
+  readonly draftChanges: readonly (
+    | { readonly draft: DraftState; readonly location: DraftLocation }
+    | {
+        readonly draftId: string;
+        readonly location: DraftLocation;
+        readonly remove: true;
+      }
+  )[];
+}
+export interface LifecycleTaskRepository extends TaskRepository {
+  writeLifecycle(request: LifecycleWriteRequest): Promise<TaskWriteResult>;
+}
 export type TaskMutationResult =
   | {
       readonly kind: "success";
@@ -73,7 +113,11 @@ export class TaskService {
     const canonical = canonicalizeTaskLinks([...tasks, task]);
     const persisted = canonical.at(-1);
     if (!persisted) throw new Error("task_canonicalization_failed");
-    if (tasks.some((existing) => existing.id === task.id))
+    if (
+      this.taskRecords(snapshot).some(
+        (existing) => existing.task.id === task.id,
+      )
+    )
       throw new Error("task_already_exists");
     const result = await this.repository.write({
       task: persisted,
@@ -90,11 +134,209 @@ export class TaskService {
       a.id.localeCompare(b.id),
     );
   }
+  private lifecycleRepository(): LifecycleTaskRepository {
+    if (!("writeLifecycle" in this.repository))
+      throw new Error("task_lifecycle_repository_required");
+    return this.repository as LifecycleTaskRepository;
+  }
+  private taskRecords(snapshot: TaskReadSnapshot): readonly LocatedTask[] {
+    return (
+      snapshot.taskRecords ??
+      snapshot.tasks.map((task) => ({ task, location: "tasks" as const }))
+    );
+  }
+  private async moveTask(
+    reference: string,
+    destination: TaskLocation,
+    operationId: string,
+    transform: (task: TaskState) => TaskState = (task) => task,
+  ): Promise<TaskMutationResult> {
+    const snapshot = await this.repository.readAll();
+    const records = this.taskRecords(snapshot);
+    const selected = findTask(
+      records.map((record) => record.task),
+      reference,
+    );
+    const current = records.find((record) => record.task.id === selected.id);
+    if (!current) throw new RecordValidationError("task_not_found");
+    const task = transform(current.task);
+    if (current.location === destination)
+      throw new RecordValidationError("task_lifecycle_already_at_destination");
+    const result = await this.lifecycleRepository().writeLifecycle({
+      expectedRevision: snapshot.revision,
+      operationId,
+      ownedPaths: [
+        this.ownedPathForLocation(current.task.id, current.location),
+        this.ownedPathForLocation(task.id, destination),
+      ],
+      taskChanges: [
+        { taskId: current.task.id, location: current.location, remove: true },
+        { task, location: destination },
+      ],
+      draftChanges: [],
+    });
+    return result.kind === "success"
+      ? { kind: "success", task, revision: result.revision }
+      : result;
+  }
+  private ownedPathForLocation(id: string, location: TaskLocation): string {
+    return `.quest/${location}/${id}.json`;
+  }
+  /** Completes the next legal terminal transition and retains the record separately. */
+  async complete(
+    reference: string,
+    operationId: string,
+  ): Promise<TaskMutationResult> {
+    return this.moveTask(reference, "completed", operationId, (task) => {
+      const terminal = this.lifecycle.terminalStatuses[0];
+      if (!terminal)
+        throw new RecordValidationError(
+          "Lifecycle terminal status is not configured.",
+        );
+      return transitionTask(task, terminal, this.lifecycle);
+    });
+  }
+  async archive(
+    reference: string,
+    operationId: string,
+  ): Promise<TaskMutationResult> {
+    return this.moveTask(reference, "archive/tasks", operationId);
+  }
+  async demote(
+    reference: string,
+    operationId: string,
+  ): Promise<TaskMutationResult> {
+    return this.moveTask(reference, "tasks", operationId, (task) =>
+      taskState({
+        ...task,
+        status: this.lifecycle.statuses[0] ?? task.status,
+        claim: undefined,
+      }),
+    );
+  }
+  async createDraft(
+    id: string,
+    input: DraftInput,
+    operationId: string,
+  ): Promise<
+    | {
+        readonly kind: "success";
+        readonly draft: DraftState;
+        readonly revision: string;
+      }
+    | TaskWriteConflict
+  > {
+    const snapshot = await this.repository.readAll();
+    const draft = createDraft(id, input);
+    if ((snapshot.drafts ?? []).some((record) => record.draft.id === draft.id))
+      throw new RecordValidationError("draft_already_exists");
+    const result = await this.lifecycleRepository().writeLifecycle({
+      expectedRevision: snapshot.revision,
+      operationId,
+      ownedPaths: [`.quest/drafts/${draft.id}.json`],
+      taskChanges: [],
+      draftChanges: [{ draft, location: "drafts" }],
+    });
+    return result.kind === "success"
+      ? { kind: "success", draft, revision: result.revision }
+      : result;
+  }
+  async listDrafts(includeArchived = false): Promise<readonly LocatedDraft[]> {
+    return (
+      (await this.repository.readAll()).drafts
+        ?.filter((record) => includeArchived || record.location === "drafts")
+        .sort((a, b) => a.draft.id.localeCompare(b.draft.id)) ?? []
+    );
+  }
+  async viewDraft(id: string): Promise<LocatedDraft> {
+    const record = (await this.repository.readAll()).drafts?.find(
+      (entry) => entry.draft.id === id,
+    );
+    if (!record) throw new RecordValidationError("draft_not_found");
+    return record;
+  }
+  async archiveDraft(
+    id: string,
+    operationId: string,
+  ): Promise<
+    | {
+        readonly kind: "success";
+        readonly draft: DraftState;
+        readonly revision: string;
+      }
+    | TaskWriteConflict
+  > {
+    const snapshot = await this.repository.readAll();
+    const current = snapshot.drafts?.find((record) => record.draft.id === id);
+    if (!current) throw new RecordValidationError("draft_not_found");
+    if (current.location === "archive/drafts")
+      throw new RecordValidationError("draft_lifecycle_already_at_destination");
+    const result = await this.lifecycleRepository().writeLifecycle({
+      expectedRevision: snapshot.revision,
+      operationId,
+      ownedPaths: [
+        `.quest/drafts/${id}.json`,
+        `.quest/archive/drafts/${id}.json`,
+      ],
+      taskChanges: [],
+      draftChanges: [
+        { draftId: id, location: current.location, remove: true },
+        { draft: current.draft, location: "archive/drafts" },
+      ],
+    });
+    return result.kind === "success"
+      ? { kind: "success", draft: current.draft, revision: result.revision }
+      : result;
+  }
+  async promoteDraft(
+    id: string,
+    taskId: string,
+    operationId: string,
+  ): Promise<TaskMutationResult> {
+    const snapshot = await this.repository.readAll();
+    const current = snapshot.drafts?.find((record) => record.draft.id === id);
+    if (!current) throw new RecordValidationError("draft_not_found");
+    const allTasks = this.taskRecords(snapshot);
+    if (allTasks.some((record) => record.task.id === taskId))
+      throw new RecordValidationError("task_already_exists");
+    const task = createTask(
+      taskId,
+      {
+        title: current.draft.title,
+        description: current.draft.description,
+        labels: current.draft.labels,
+        documentation: current.draft.documentation,
+        source: current.draft.source,
+      },
+      this.lifecycle,
+    );
+    const result = await this.lifecycleRepository().writeLifecycle({
+      expectedRevision: snapshot.revision,
+      operationId,
+      ownedPaths: [
+        `.quest/${current.location}/${id}.json`,
+        `.quest/tasks/${task.id}.json`,
+      ],
+      taskChanges: [{ task, location: "tasks" }],
+      draftChanges: [{ draftId: id, location: current.location, remove: true }],
+    });
+    return result.kind === "success"
+      ? { kind: "success", task, revision: result.revision }
+      : result;
+  }
   async view(reference: string): Promise<TaskState> {
-    return findTask((await this.repository.readAll()).tasks, reference);
+    const snapshot = await this.repository.readAll();
+    return findTask(
+      this.taskRecords(snapshot).map((record) => record.task),
+      reference,
+    );
   }
   async search(query: string): Promise<readonly TaskState[]> {
-    return searchTasks((await this.repository.readAll()).tasks, query);
+    const snapshot = await this.repository.readAll();
+    return searchTasks(
+      this.taskRecords(snapshot).map((record) => record.task),
+      query,
+    );
   }
   async edit(
     reference: string,
