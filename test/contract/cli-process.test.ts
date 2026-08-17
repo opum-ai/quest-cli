@@ -130,6 +130,9 @@ const valueFlagCases = [
   { flag: "--context", argv: ["decision", "edit", "DEC-1"] },
   { flag: "--outcome", argv: ["decision", "edit", "DEC-1"] },
   { flag: "--task", argv: ["milestone", "create", "Milestone"] },
+  { flag: "--add-task", argv: ["milestone", "edit", "M-1"] },
+  { flag: "--remove-task", argv: ["milestone", "edit", "M-1"] },
+  { flag: "--replace-task", argv: ["milestone", "edit", "M-1"] },
   { flag: "--doc", argv: ["task", "create", "Title"] },
   { flag: "--add-label", argv: ["task", "edit", "T-1"] },
   { flag: "--remove-label", argv: ["task", "edit", "T-1"] },
@@ -163,9 +166,16 @@ test("every value-taking flag rejects a following mode flag as a missing value",
 test("every single-value flag rejects repeats with a precise usage diagnostic", async () => {
   for (const { flag, argv } of valueFlagCases.filter(
     ({ flag }) =>
-      !["--label", "--task", "--doc", "--add-label", "--remove-label"].includes(
-        flag,
-      ),
+      ![
+        "--label",
+        "--task",
+        "--doc",
+        "--add-label",
+        "--remove-label",
+        "--add-task",
+        "--remove-task",
+        "--replace-task",
+      ].includes(flag),
   )) {
     const result = await runQuest(
       [...argv, flag, "first", flag, "second", "--json"],

@@ -214,14 +214,148 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "--json",
     ]);
     expect(milestone.exitCode).toBe(0);
+    const milestoneId = JSON.parse(milestone.stdout).data.record.id as string;
     const viewedMilestone = await quest(store, [
       "milestone",
       "view",
-      "M-1",
+      milestoneId,
       "--json",
     ]);
     expect(JSON.parse(viewedMilestone.stdout)).toMatchObject({
       data: { taskIds: [createdTask.id, secondTask.id] },
+    });
+    const thirdTask = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "create",
+          "third",
+          "--actor",
+          "person-1",
+          "--actor-kind",
+          "human",
+          "--json",
+        ])
+      ).stdout,
+    ).data;
+    const added = await quest(store, [
+      "milestone",
+      "edit",
+      milestoneId,
+      "--add-task",
+      thirdTask.id,
+      "--add-task",
+      thirdTask.id,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(added.stdout)).toMatchObject({
+      kind: "milestone.updated",
+      data: {
+        record: { taskIds: [createdTask.id, secondTask.id, thirdTask.id] },
+      },
+    });
+    const removed = await quest(store, [
+      "milestone",
+      "edit",
+      milestoneId,
+      "--remove-task",
+      createdTask.id,
+      "--remove-task",
+      createdTask.id,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(removed.stdout)).toMatchObject({
+      kind: "milestone.updated",
+      data: { record: { taskIds: [secondTask.id, thirdTask.id] } },
+    });
+    const replaced = await quest(store, [
+      "milestone",
+      "edit",
+      milestoneId,
+      "--replace-task",
+      createdTask.id,
+      "--replace-task",
+      thirdTask.id,
+      "--replace-task",
+      createdTask.id,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(replaced.stdout)).toMatchObject({
+      kind: "milestone.updated",
+      data: { record: { taskIds: [createdTask.id, thirdTask.id] } },
+    });
+    for (const argv of [
+      ["--task", thirdTask.id],
+      ["--replace-task", thirdTask.id, "--add-task", secondTask.id],
+      ["--add-task", thirdTask.id, "--remove-task", thirdTask.id],
+    ]) {
+      const invalid = await quest(store, [
+        "milestone",
+        "edit",
+        milestoneId,
+        ...argv,
+        "--actor",
+        "person-1",
+        "--actor-kind",
+        "human",
+        "--json",
+      ]);
+      expect(invalid.exitCode).toBe(2);
+      expect(JSON.parse(invalid.stderr)).toMatchObject({ error_type: "usage" });
+    }
+    const decision = JSON.parse(
+      (
+        await quest(store, [
+          "decision",
+          "create",
+          "unchanged decision",
+          "--outcome",
+          "original outcome",
+          "--actor",
+          "person-1",
+          "--actor-kind",
+          "human",
+          "--json",
+        ])
+      ).stdout,
+    ).data.record;
+    for (const flag of [
+      "--add-task",
+      "--remove-task",
+      "--replace-task",
+    ] as const) {
+      const invalid = await quest(store, [
+        "decision",
+        "edit",
+        decision.id,
+        flag,
+        thirdTask.id,
+        "--actor",
+        "person-1",
+        "--actor-kind",
+        "human",
+        "--json",
+      ]);
+      expect(invalid.exitCode).toBe(2);
+      expect(JSON.parse(invalid.stderr)).toMatchObject({ error_type: "usage" });
+    }
+    const viewedDecision = JSON.parse(
+      (await quest(store, ["decision", "view", decision.id, "--json"])).stdout,
+    );
+    expect(viewedDecision).toMatchObject({
+      data: { id: decision.id, outcome: "original outcome" },
     });
     const denied = await quest(store, ["task", "create", "no actor", "--json"]);
     expect(denied.exitCode).toBe(4);
