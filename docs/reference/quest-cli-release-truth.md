@@ -76,3 +76,45 @@ quest --version
 If a platform package cannot be selected for the current OS/CPU, Quest reports
 the missing optional package rather than substituting a different native
 artifact.
+
+## Unpublished 0.2.7 qualification candidate
+
+Quest 0.2.7 is a local qualification candidate, not an npm release. Registry
+publication remains unauthorized. Source and lifecycle qualification are in
+commit `5f94475`, and commit `436f4f6` contains the checksum-coupled root
+manifest plus all six rebuilt Bun 1.3.14 platform artifacts.
+
+The seven locally packed tarballs have these SHA-256 values:
+
+| Package | Local tarball SHA-256 |
+| --- | --- |
+| `@opum-ai/quest@0.2.7` | `f189a51af13a9ee2f45fc01b2f9de312c6aa36fdb3d6820889a51abbabffb50d` |
+| `@opum-ai/quest-darwin-arm64@0.2.7` | `4d95674989908f4248811544b1c8f53d45ee2053bbfc2c550d7f876b6b9d20ce` |
+| `@opum-ai/quest-darwin-x64@0.2.7` | `3fd1e830af495da569d7b5eb59af2dcea6ea245e7ca03123821a39a50ec4b666` |
+| `@opum-ai/quest-linux-arm64@0.2.7` | `f61d0ddbdf51934e55d4dea2b20e3aec988ecd60e3a75c05aab16fd669742bf3` |
+| `@opum-ai/quest-linux-x64@0.2.7` | `782f355a53bc0ccecd7615689466da272d53c44848e50a869ac7cd16fe436def` |
+| `@opum-ai/quest-win32-arm64@0.2.7` | `29f820e83fa070132117841d09ab86045a7600cca6329686b86a2d5908d95097` |
+| `@opum-ai/quest-win32-x64@0.2.7` | `12670156d3c20793c3e0292d93c1d7290e24e9d9e97a7ab937cca35fde496ed7` |
+
+The corresponding native binary SHA-256 values pinned by the root launcher
+are darwin-arm64 `76e86cf02c6aa19ac1da9df4452f24f47bc78c1f397bf68e8e9a9722273e697c`,
+darwin-x64 `63d7300f36bd019008cd4cb9ab0fbf672a24f7cb8266745ea29dd4cc2aeab563`,
+linux-arm64 `358e025526db1752d602e55d48a91ee4657b13eea4784ddfb048f536af9bc298`,
+linux-x64 `8e19e4d805c1d6361d94254c3e35b2a8400d913e1da73b1d3545af469a7d9c18`,
+win32-arm64 `852686918ff213a83ff998c1ca878b093ac724e765bcbcea92fc868552ea39ff`,
+and win32-x64 `00d3af956e1a54154d85fb680e06ad2ba7c8ebb52c51686ffc5e7295dc9578b1`.
+
+A clean install from the root and darwin-arm64 tarballs passed the shared
+black-box migration qualification. It proved `quest --version` reports 0.2.7;
+the schema-1 manifest exposes preview, apply, status, and rollback with their
+exact kinds and mutability; actor-free apply and rollback both return denied
+exit 4; and preview, apply, dotted legacy aliases including `LCLI-315.4`,
+status, and rollback complete successfully. The tarballs remain at
+`/private/tmp/quest-v0.2.7-qcli97.9.XdMfmc/tarballs/` for the Lore handoff.
+
+The active global launcher is not yet qualified: this sandbox could not write
+either home-directory npm prefix, so it still resolves to the stale 0.2.2
+campaign symlink. Installing the two retained local tarballs into the global
+prefix and rerunning `qualify:migration-artifact` is the remaining external
+step. This limitation does not change the isolated artifact result and must not
+be represented as npm publication.
