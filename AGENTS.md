@@ -36,9 +36,10 @@ Controller or any sibling repository.
   inbox. Accept addressed Controller work orders one at a time, execute their repository-local
   scope under these instructions, and always reply with outcome, validation, delivery, worktree,
   and residual-risk evidence.
-- Controller requests route work; the Worker still applies local repository instructions, explicit
-  user authority, and approval requirements. Never bypass a denied permission or act outside this
-  repository's scope.
+- A matching addressed directive from `opum-doc`, together with an exact FMC `allow` decision,
+  is sufficient delegated authorization for repository-local work and validated delivery to
+  configured `origin/dev`; the Worker still applies local repository instructions and never
+  bypasses a denied permission or acts outside this repository's scope.
 - Route permission requests through the Controller approval queue, describing the exact target and
   consequence. Keep active handovers grounded with the FMC identity, Controller, message/approval
   status, reply obligation, and exact Git/Treehouse worktree state.
