@@ -7,7 +7,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 15:24'
-updated_date: '2026-08-17 23:50'
+updated_date: '2026-08-17 23:58'
 labels:
   - cli
   - manifest
@@ -15,6 +15,9 @@ labels:
   - parity
   - 'doc:stories/harden-and-qualify-quest-cli-0-2-x'
 dependencies: []
+references:
+  - 'https://github.com/opum-ai/quest-cli/pull/115'
+  - 'https://github.com/opum-ai/quest-cli/actions/runs/32082195825'
 documentation:
   - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
 modified_files:
@@ -73,10 +76,14 @@ Either fix is acceptable per command: make the advertised spelling work, or stop
 
 <!-- SECTION:NOTES:BEGIN -->
 Preflight at merged dev 6f247cc found the manifest correctly declares version, while runQuest only recognizes sole --version. The help branch likewise recognizes help and --help but not -h. The existing isolated manifest payload matrix already provides safe argument recipes for all 39 payload commands and special-cases browser shutdown. QCLI-102 should land before QCLI-110 because both touch early runQuest routing. QCLI-109 is independent in the value parser. Implementation complete: the early dispatcher accepts sole version with byte-identical output to --version, and accepts -h in leading and targeted-help positions while preserving JSON and plain mode resolution. The isolated process matrix now requires and invokes a recipe for every live manifest entry, including kind-null version, and rejects usage diagnostics. All mutations remain inside its temporary task store and browser execution is bounded. Verification passed: focused 19 tests and 968 expectations, full repository check with 160 tests and 1582 expectations, package check, packed package tests, strict Lore validation and check, and git diff check. Independent review accepted all four acceptance criteria.
+
+Delivery complete: exact candidate f3d1ea5 passed source qualification and all six immutable package jobs in run 32082195825. PR 115 merged to dev at b048d2c, and the merge tree 9e30b67 exactly matched the reviewed candidate tree. The campaign remote branch was deleted and lease 82e23e2355bfc0691a390547851ec91a was returned after clean and merged-state verification.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 Aligned the dispatcher with the public manifest by making quest version match quest --version and adding conventional -h help routing. Added direct parity assertions and a manifest-wide isolated process test that invokes every advertised command and rejects usage failures. Focused, full, package, Lore, and diff gates passed. Independent review accepted the result.
+
+Delivered through PR 115 after all seven required CI jobs passed, with exact candidate-tree verification.
 <!-- SECTION:FINAL_SUMMARY:END -->

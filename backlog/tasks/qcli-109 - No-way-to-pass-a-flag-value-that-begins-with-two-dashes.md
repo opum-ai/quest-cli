@@ -1,14 +1,20 @@
 ---
 id: QCLI-109
 title: No way to pass a flag value that begins with two dashes
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-08-17 18:44'
+updated_date: '2026-08-18 00:01'
 labels:
   - cli
   - argument-parsing
   - usability
 dependencies: []
+modified_files:
+  - src/cli/main.ts
+  - test/contract/cli-process.test.ts
+  - test/cli-tracker-process.test.ts
 priority: low
 type: bug
 ordinal: 134000
@@ -63,3 +69,15 @@ This is a follow-up to QCLI-101, not a regression report against it: the rejecti
 - [ ] #4 A genuinely missing value is still a usage error (exit 2), and QCLI-101's duplicate and flag-shaped-value rejections are unchanged
 - [ ] #5 Tests cover the escape form and the still-invalid missing-value form for every free-text single-value flag
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Extend the central flag parser to support --flag=<value>, splitting only the first equals sign and preserving the remainder byte-for-byte while leaving exact mode and boolean flags distinct. 2. Keep ordinary flag-shaped following tokens invalid and revise the genuinely missing-value diagnostic to name the equals escape mechanism. 3. Publish the mechanism in structured and plain CLI help without claiming support for a POSIX end-of-options separator. 4. Add contract matrices for inline free-text values, missing values, flag-shaped rejections, duplicates, mode behavior, and first-equals preservation. 5. Add an isolated process test that writes and reads description, title, context, and outcome values beginning with two dashes to prove stored bytes. 6. Run focused and full repository gates, package gates, strict Lore checks, diff check, independent review, and dev pull-request delivery.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Preflight at merged dev b048d2c found one central flags parser. The smallest compatible escape is --flag=<value>: split once at the first equals sign, preserve the suffix exactly, and do not consume a following argument. Ordinary --flag --other remains a usage error. The free-text single-value flags are description, title, context, and outcome; structural single-value and repeatable flags remain covered by the existing generic rejection matrices. User-facing help and the missing diagnostic will document only the supported equals form.
+<!-- SECTION:NOTES:END -->
