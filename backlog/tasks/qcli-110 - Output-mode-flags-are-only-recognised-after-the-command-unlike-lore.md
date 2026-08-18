@@ -5,12 +5,15 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 18:44'
-updated_date: '2026-08-18 01:03'
+updated_date: '2026-08-18 01:10'
 labels:
   - cli
   - argument-parsing
   - output-contract
 dependencies: []
+references:
+  - 'https://github.com/opum-ai/quest-cli/pull/118'
+  - 'https://github.com/opum-ai/quest-cli/actions/runs/32086897923'
 modified_files:
   - src/cli/main.ts
   - test/contract/cli-process.test.ts
@@ -63,13 +66,17 @@ Also related: QCLI-100, where the `help` spelling consumes a mode flag as a help
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Pre-implementation review corrected the initial plan: the existing public contract test explicitly requires JSON to take precedence when both output modes are present. QCLI-110 will preserve that behavior and existing duplicate-mode tolerance; its scope is position-independent resolution, not a new conflict policy.
+Pre-implementation review corrected the initial plan: the existing public contract test explicitly requires JSON to take precedence when both output modes are present. QCLI-110 preserves that behavior and existing duplicate-mode tolerance; its scope is position-independent resolution, not a new conflict policy.
 
 Implementation complete: exact `--json` and `--plain` tokens are resolved and removed once at the `runQuest` entrypoint before any positional dispatch. Every output path uses the centrally resolved mode; JSON-over-plain precedence and duplicate-mode tolerance remain unchanged. Attached mode forms remain usage errors, and existing missing, flag-shaped, and duplicate value tests remain green. New contract cases prove both modes in leading, group/action-middle, and trailing positions for `completion bash`, leading/trailing positions for single-word `manifest`, and separated mixed-mode precedence. Verification passed: focused contract/process suite 25 tests with 1009 expectations; fresh full suite 166 tests with 1638 expectations; typecheck, lint, format check, layer check, and diff check. Independent review accepted all four criteria and found no regression.
+
+Exact candidate 9c8d90a passed public workflow run 32086897923: source-gates plus all six immutable package jobs on Linux, macOS, and Windows x64/arm64. PR 118 merged to `dev` as d35e794; merge tree 6b486ad exactly matches the qualified candidate.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 Resolved output mode flags globally before positional dispatch, so `--json` and `--plain` now work before, within, or after grouped commands and around single-word commands. Preserved JSON precedence, duplicate-mode tolerance, attached-value rejection, and QCLI-101 value diagnostics. Verified with 166 passing tests / 1638 expectations, static gates, and independent review.
+
+Public qualification run 32086897923 passed all seven jobs on exact SHA 9c8d90a; PR 118 merged to `dev` at d35e794 with an identical tree.
 <!-- SECTION:FINAL_SUMMARY:END -->
