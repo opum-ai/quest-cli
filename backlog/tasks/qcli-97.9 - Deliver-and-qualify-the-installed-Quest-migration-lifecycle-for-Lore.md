@@ -1,11 +1,11 @@
 ---
 id: QCLI-97.9
 title: Deliver and qualify the installed Quest migration lifecycle for Lore
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 21:25'
-updated_date: '2026-08-18 01:41'
+updated_date: '2026-08-18 05:43'
 labels:
   - quest-0.2
   - parity
@@ -40,12 +40,12 @@ Live Lore verification is blocked because the installed quest reports 0.2.2 but 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The qualifying Quest package uses a version newer than the stale 0.2.2 candidate and the root plus all six native package versions and checksums agree with the source tree
-- [ ] #2 A clean installed quest resolves to an attributable package artifact rather than a retained /private/tmp campaign symlink, and quest --version matches that artifact
-- [ ] #3 The installed schema-1 manifest lists migration backlog preview, apply, status, and rollback with their exact kinds and mutability
-- [ ] #4 Black-box installed-binary tests exercise preview and status plus actor/write validation and a complete apply/rollback fixture needed by Lore's LCLI-315.4
-- [ ] #5 Packed-artifact qualification asserts the same migration manifest and lifecycle as the live installed path and records source commit, artifact checksums, and reinstall verification
-- [ ] #6 Registry publication or mutation occurs only under separate explicit owner authorization
+- [x] #1 The qualifying Quest package uses a version newer than the stale 0.2.2 candidate and the root plus all six native package versions and checksums agree with the source tree
+- [x] #2 A clean installed quest resolves to an attributable package artifact rather than a retained /private/tmp campaign symlink, and quest --version matches that artifact
+- [x] #3 The installed schema-1 manifest lists migration backlog preview, apply, status, and rollback with their exact kinds and mutability
+- [x] #4 Black-box installed-binary tests exercise preview and status plus actor/write validation and a complete apply/rollback fixture needed by Lore's LCLI-315.4
+- [x] #5 Packed-artifact qualification asserts the same migration manifest and lifecycle as the live installed path and records source commit, artifact checksums, and reinstall verification
+- [x] #6 Registry publication or mutation occurs only under separate explicit owner authorization
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -60,4 +60,12 @@ Live Lore verification is blocked because the installed quest reports 0.2.2 but 
 Owner authorization received: QCLI-97.9 may bump and rebuild all six packages, create local packed artifacts, and replace the global Quest installation for qualification. npm publication remains explicitly unauthorized. Preflight selected 0.2.7; current source/packages are 0.2.6, while the installed launcher is the stale 0.2.2 candidate under /private/tmp and lacks all four migration backlog manifest commands.
 
 Source/lifecycle commit 5f94475 and artifact commit 436f4f6 establish unpublished 0.2.7. All six Bun 1.3.14 packages rebuilt; constrained check:packages and test:packages passed. Seven retained tarballs are under /private/tmp/quest-v0.2.7-qcli97.9.XdMfmc/tarballs. A clean isolated install passed exact manifest, actor-free exit-4 denials, LCLI-315.4 alias, preview/apply/status/rollback, with root tarball SHA-256 f189a51af13a9ee2f45fc01b2f9de312c6aa36fdb3d6820889a51abbabffb50d and darwin-arm64 SHA-256 4d95674989908f4248811544b1c8f53d45ee2053bbfc2c550d7f876b6b9d20ce. External blocker: this session's sandbox returned EPERM for both NVM and ~/.local global-prefix writes, including explicit escalations, so active quest still resolves to stale 0.2.2. No npm publication or registry mutation occurred.
+
+Final active installation proof: command -v quest resolves /Users/jdnewhouse/.local/bin/quest; launcher realpath is /Users/jdnewhouse/.local/lib/node_modules/@opum-ai/quest/bin/quest.cjs; native realpath is /Users/jdnewhouse/.local/lib/node_modules/@opum-ai/quest-darwin-arm64/bin/quest; quest --version reports 0.2.7. The active-path qualifier passed exact schema-1 migration tuples, actor-free apply/rollback denied at exit 4, preview/apply/LCLI-315.4 alias/status/rollback, and source/artifact/tarball/install provenance. Independent closure review accepted AC1-AC6. Fresh npm registry lookup for 0.2.7 returned E404; no publication or registry mutation occurred.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Delivered and qualified unpublished Quest 0.2.7 from source through all six checksum-coupled native artifacts, packed and active global local-tarball installs, exact Lore migration manifest and lifecycle behavior, full local gates, and all public CI lanes. The active launcher now resolves under ~/.local rather than the stale campaign symlink, and no npm publication occurred.
+<!-- SECTION:FINAL_SUMMARY:END -->
