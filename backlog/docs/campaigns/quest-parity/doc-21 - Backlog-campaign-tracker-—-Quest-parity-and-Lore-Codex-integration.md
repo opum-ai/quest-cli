@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-18 00:09'
+updated_date: '2026-08-18 00:10'
 ---
 ## Contract
 
@@ -35,7 +35,7 @@ updated_date: '2026-08-18 00:09'
 | Done | QCLI-111 | Delivered | PR 113 merged to dev at 70a6283; the exact source candidate passed three six-lane runs. |
 | Done | QCLI-112 | Delivered | PR 114 merged to dev at 6f247cc; exact head passed source, six package, and six projection checks. |
 | Done | QCLI-102 | Delivered | PR 115 merged to dev at b048d2c; exact head passed source plus six immutable-package checks. |
-| Blocked | QCLI-109 | PR open | Restore GitHub Actions billing capacity, then rerun all required checks on PR 116 without changing the candidate. |
+| Blocked | QCLI-109 | PR open | Restore GitHub Actions billing capacity, then dispatch a fresh prepublication run on the current PR 116 branch head. |
 | 2 | QCLI-110 | Ready | Output-mode flags before the command. |
 | Held | QCLI-97.9 | Authority boundary | Qualify the installed migration artifact; publication/global install mutation needs separate authority. |
 | Held | QCLI-97.5 | Authority boundary | Separate Lore CLI authority or published adapter contract. |
@@ -46,7 +46,7 @@ updated_date: '2026-08-18 00:09'
 - Lease 9d253e527e89c6046c76d7d70c6edc30 is held by qcli-109-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
 - Branch: campaign/qcli-109-dash-values from merged dev b048d2cfaaa872654f586ba906cea80113580cf5.
 - Last completed stage: QCLI-109 implementation, 164-test local qualification, package and Lore gates, independent review, commit da7e8c2, push, and PR 116 creation all completed.
-- Next action after human unblock: restore GitHub Actions billing or spending-limit capacity, rerun PR 116 checks on the unchanged candidate, merge after source plus six package jobs pass, then settle the branch and lease before QCLI-110.
+- Next action after human unblock: restore GitHub Actions billing or spending-limit capacity, dispatch a fresh Prepublication qualification run on the current PR 116 branch head, merge after source plus six package jobs pass, then settle the branch and lease before QCLI-110.
 
 ## QCLI-106/QCLI-107 settlement
 
