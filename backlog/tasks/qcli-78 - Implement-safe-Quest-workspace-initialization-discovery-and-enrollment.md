@@ -1,10 +1,11 @@
 ---
 id: QCLI-78
 title: 'Implement safe Quest workspace initialization, discovery, and enrollment'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-08-14 18:08'
-updated_date: '2026-08-14 18:27'
+updated_date: '2026-08-15 17:56'
 labels:
   - quest-0.1
   - 'wave:foundation'
@@ -33,9 +34,31 @@ Implement explicit initialization and local enrollment for Git workspaces. Curre
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 quest init creates only the declared authored paths in a non-bare Git worktree and fails safely for unsupported repository states
-- [ ] #2 Workspace enrollment is explicit, local-only, and distinguishes Git common-directory identity from worktree path
-- [ ] #3 Current-workspace commands and read-only all-workspace enumeration behave deterministically for moved, missing, nested, and removed repositories
-- [ ] #4 Symlink escapes, path traversal, case collisions, and hostile path components are rejected before writes
-- [ ] #5 Every read-only workspace command leaves filesystem, Git, registry, and projection state unchanged on success and failure
+- [x] #1 quest init creates only the declared authored paths in a non-bare Git worktree and fails safely for unsupported repository states
+- [x] #2 Workspace enrollment is explicit, local-only, and distinguishes Git common-directory identity from worktree path
+- [x] #3 Current-workspace commands and read-only all-workspace enumeration behave deterministically for moved, missing, nested, and removed repositories
+- [x] #4 Symlink escapes, path traversal, case collisions, and hostile path components are rejected before writes
+- [x] #5 Every read-only workspace command leaves filesystem, Git, registry, and projection state unchanged on success and failure
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Reconcile workspace initialization/enrollment requirements with the Git/filesystem threat model and existing command/domain conventions.
+2. Define pure workspace identities and path-validation rules, plus a Git subprocess port that discovers a non-bare worktree and its common-directory identity without shell interpolation.
+3. Implement explicit local-only enrollment, declared-path initialization, current-workspace resolution, and deterministic read-only enumeration under the task-owned application/adapter boundaries.
+4. Add integration tests using temporary Git repositories, linked worktrees, moved/missing/nested paths, hostile components, symlink escapes, and read-only state snapshots.
+5. Run focused and cumulative checks, obtain independent review, synchronize Lore, and finalize.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-15 validation at `f055b3e` plus nested-root correction: typecheck, source-only Biome lint/format checks, layer check, and Bun suite passed (21 tests / 115 assertions). Repository-wide Biome scripts remain blocked only by Treehouse's nested root configuration. Independent review caught nested-path initialization; the corrective test proves `quest init` invoked below the root writes only the canonical worktree-root `.quest/workspace.toml`. Final spot review passed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented safe Git-worktree initialization, explicit local enrollment keyed by common-directory/worktree identity, deterministic read-only discovery, and hostile-path/symlink defenses. Verified with 21 Bun tests (115 assertions), type/layer/lint/format/diff checks, and independent review.
+<!-- SECTION:FINAL_SUMMARY:END -->

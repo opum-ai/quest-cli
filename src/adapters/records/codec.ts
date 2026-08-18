@@ -1,18 +1,12 @@
-import { z } from "zod";
+import type { z } from "zod";
 
-import {
-  RECORD_SCHEMA_VERSION,
-  RecordValidationError,
-} from "../../domain/records.ts";
-
-const envelopeSchema = z
-  .object({ schemaVersion: z.literal(RECORD_SCHEMA_VERSION) })
-  .passthrough();
+import { RecordValidationError } from "../../domain/records.ts";
 
 /** Decode authored bytes strictly: malformed UTF-8 and unsupported schemas never normalize input. */
-export function decodeAuthoredRecord(
+export function decodeAuthoredRecord<T>(
   bytes: Uint8Array,
-): Readonly<Record<string, unknown>> {
+  schema: z.ZodType<T>,
+): T {
   let text: string;
   try {
     text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -25,7 +19,7 @@ export function decodeAuthoredRecord(
   } catch {
     throw new RecordValidationError("Authored record is not valid JSON.");
   }
-  const parsed = envelopeSchema.safeParse(value);
+  const parsed = schema.safeParse(value);
   if (!parsed.success) {
     throw new RecordValidationError(
       "Unsupported or malformed authored record schema.",
@@ -35,9 +29,10 @@ export function decodeAuthoredRecord(
 }
 
 export function encodeAuthoredRecord(
-  record: Readonly<Record<string, unknown>>,
+  record: unknown,
+  schema: z.ZodType,
 ): Uint8Array {
-  const parsed = envelopeSchema.safeParse(record);
+  const parsed = schema.safeParse(record);
   if (!parsed.success)
     throw new RecordValidationError(
       "Unsupported or malformed authored record schema.",

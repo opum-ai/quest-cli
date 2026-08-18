@@ -1,0 +1,132 @@
+import { expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const executable = join(import.meta.dir, "../../../src/cli/main.ts");
+
+async function quest(store: string, argv: readonly string[]) {
+  const child = Bun.spawn(["bun", executable, ...argv], {
+    cwd: store,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...Bun.env, QUEST_TASK_STORE: store },
+  });
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
+async function sourceFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "quest-lore-backlog-source-"));
+  const tasks = join(root, "backlog", "tasks");
+  await mkdir(tasks, { recursive: true });
+  for (const [id, title] of [
+    ["TASK-1", "Legacy task"],
+    ["LCLI-315.4", "Lore dotted subtask"],
+    ["TASK-2.1", "Backlog dotted subtask"],
+  ]) {
+    await writeFile(
+      join(tasks, `${id}.md`),
+      `---\nid: ${id}\ntitle: ${title}\nstatus: To Do\nlabels: [lore-cutover]\n---\n\nSource-only fixture.\n`,
+    );
+  }
+  return root;
+}
+
+test("the public Backlog migration contract preserves Lore-facing aliases and durable receipts", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-public-"));
+  const source = await sourceFixture();
+  try {
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    const previewEnvelope = JSON.parse(preview.stdout);
+    expect(previewEnvelope).toMatchObject({
+      schemaVersion: 1,
+      kind: "migration.backlog-preview",
+      data: {
+        requiresApproval: true,
+        mappings: [
+          { sourceIdentifier: "LCLI-315.4", targetIdentifier: "T-1" },
+          { sourceIdentifier: "TASK-1", targetIdentifier: "T-2" },
+          { sourceIdentifier: "TASK-2.1", targetIdentifier: "T-3" },
+        ],
+      },
+    });
+    const apply = await quest(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      previewEnvelope.data.digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(apply.exitCode).toBe(0);
+    expect(JSON.parse(apply.stdout)).toMatchObject({
+      kind: "migration.backlog-applied",
+      data: { state: "applied", survivors: ["T-1", "T-2", "T-3"] },
+    });
+    for (const [reference, id] of [
+      ["TASK-1", "T-2"],
+      ["LCLI-315.4", "T-1"],
+      ["TASK-2.1", "T-3"],
+    ]) {
+      const viewed = await quest(store, ["task", "view", reference, "--json"]);
+      expect(JSON.parse(viewed.stdout)).toMatchObject({
+        kind: "task.view",
+        data: { id, source: { system: "backlog", reference } },
+      });
+    }
+    const repeated = await quest(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      previewEnvelope.data.digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(repeated.stdout).data).toEqual(
+      JSON.parse(apply.stdout).data,
+    );
+    const rollback = await quest(store, [
+      "migration",
+      "backlog",
+      "rollback",
+      "--digest",
+      previewEnvelope.data.digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(rollback.stdout)).toMatchObject({
+      kind: "migration.backlog-rolled-back",
+      data: { state: "rolled-back", survivors: [] },
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});

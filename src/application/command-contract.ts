@@ -55,10 +55,51 @@ export function exitCodeFor(
 }
 
 export interface CommandManifestEntry {
-  readonly name: "manifest" | "version";
+  readonly name:
+    | "manifest"
+    | "version"
+    | "help"
+    | "init"
+    | "instructions"
+    | "agents"
+    | "completion"
+    | "migration backlog preview"
+    | "migration backlog apply"
+    | "migration backlog status"
+    | "migration backlog rollback"
+    | "task status-flow"
+    | "task list"
+    | "task view"
+    | "search"
+    | "search --all"
+    | "task create"
+    | "task edit"
+    | "task complete"
+    | "task archive"
+    | "task demote"
+    | "draft create"
+    | "draft list"
+    | "draft view"
+    | "draft promote"
+    | "draft archive"
+    | "milestone list"
+    | "milestone view"
+    | "milestone create"
+    | "milestone edit"
+    | "milestone delete"
+    | "decision list"
+    | "decision view"
+    | "decision create"
+    | "decision edit"
+    | "decision delete"
+    | "overview"
+    | "board"
+    | "doctor"
+    | "cleanup"
+    | "browser";
   readonly schemaVersion: 1;
   readonly kind: `${string}.${string}` | null;
-  readonly mutates: false;
+  readonly mutates: boolean;
 }
 
 export const commandManifest = {
@@ -73,6 +114,215 @@ export const commandManifest = {
       name: "version",
       schemaVersion: 1,
       kind: null,
+      mutates: false,
+    },
+    { name: "help", schemaVersion: 1, kind: "help.commands", mutates: false },
+    {
+      name: "init",
+      schemaVersion: 1,
+      kind: "workspace.initialized",
+      mutates: true,
+    },
+    {
+      name: "instructions",
+      schemaVersion: 1,
+      kind: "agent.instructions",
+      mutates: false,
+    },
+    {
+      name: "agents",
+      schemaVersion: 1,
+      kind: "agent.instructions-status",
+      mutates: true,
+    },
+    {
+      name: "completion",
+      schemaVersion: 1,
+      kind: "completion.script",
+      mutates: false,
+    },
+    {
+      name: "migration backlog preview",
+      schemaVersion: 1,
+      kind: "migration.backlog-preview",
+      mutates: false,
+    },
+    {
+      name: "migration backlog apply",
+      schemaVersion: 1,
+      kind: "migration.backlog-applied",
+      mutates: true,
+    },
+    {
+      name: "migration backlog status",
+      schemaVersion: 1,
+      kind: "migration.backlog-status",
+      mutates: false,
+    },
+    {
+      name: "migration backlog rollback",
+      schemaVersion: 1,
+      kind: "migration.backlog-rolled-back",
+      mutates: true,
+    },
+    {
+      name: "task status-flow",
+      schemaVersion: 1,
+      kind: "task.status-flow",
+      mutates: false,
+    },
+    { name: "task list", schemaVersion: 1, kind: "task.list", mutates: false },
+    { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
+    { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
+    {
+      name: "search --all",
+      schemaVersion: 1,
+      kind: "search.results",
+      mutates: false,
+    },
+    {
+      name: "task create",
+      schemaVersion: 1,
+      kind: "task.created",
+      mutates: true,
+    },
+    {
+      name: "task edit",
+      schemaVersion: 1,
+      kind: "task.updated",
+      mutates: true,
+    },
+    {
+      name: "task complete",
+      schemaVersion: 1,
+      kind: "task.completed",
+      mutates: true,
+    },
+    {
+      name: "task archive",
+      schemaVersion: 1,
+      kind: "task.archived",
+      mutates: true,
+    },
+    {
+      name: "task demote",
+      schemaVersion: 1,
+      kind: "task.demoted",
+      mutates: true,
+    },
+    {
+      name: "draft create",
+      schemaVersion: 1,
+      kind: "draft.created",
+      mutates: true,
+    },
+    {
+      name: "draft list",
+      schemaVersion: 1,
+      kind: "draft.list",
+      mutates: false,
+    },
+    {
+      name: "draft view",
+      schemaVersion: 1,
+      kind: "draft.view",
+      mutates: false,
+    },
+    {
+      name: "draft promote",
+      schemaVersion: 1,
+      kind: "draft.promoted",
+      mutates: true,
+    },
+    {
+      name: "draft archive",
+      schemaVersion: 1,
+      kind: "draft.archived",
+      mutates: true,
+    },
+    {
+      name: "milestone list",
+      schemaVersion: 1,
+      kind: "milestone.list",
+      mutates: false,
+    },
+    {
+      name: "milestone view",
+      schemaVersion: 1,
+      kind: "milestone.view",
+      mutates: false,
+    },
+    {
+      name: "milestone create",
+      schemaVersion: 1,
+      kind: "milestone.created",
+      mutates: true,
+    },
+    {
+      name: "milestone edit",
+      schemaVersion: 1,
+      kind: "milestone.updated",
+      mutates: true,
+    },
+    {
+      name: "milestone delete",
+      schemaVersion: 1,
+      kind: "milestone.deleted",
+      mutates: true,
+    },
+    {
+      name: "decision list",
+      schemaVersion: 1,
+      kind: "decision.list",
+      mutates: false,
+    },
+    {
+      name: "decision view",
+      schemaVersion: 1,
+      kind: "decision.view",
+      mutates: false,
+    },
+    {
+      name: "decision create",
+      schemaVersion: 1,
+      kind: "decision.created",
+      mutates: true,
+    },
+    {
+      name: "decision edit",
+      schemaVersion: 1,
+      kind: "decision.updated",
+      mutates: true,
+    },
+    {
+      name: "decision delete",
+      schemaVersion: 1,
+      kind: "decision.deleted",
+      mutates: true,
+    },
+    {
+      name: "overview",
+      schemaVersion: 1,
+      kind: "project.overview",
+      mutates: false,
+    },
+    { name: "board", schemaVersion: 1, kind: "project.board", mutates: false },
+    {
+      name: "doctor",
+      schemaVersion: 1,
+      kind: "project.doctor",
+      mutates: false,
+    },
+    {
+      name: "cleanup",
+      schemaVersion: 1,
+      kind: "project.cleanup",
+      mutates: true,
+    },
+    {
+      name: "browser",
+      schemaVersion: 1,
+      kind: "browser.started",
       mutates: false,
     },
   ] satisfies readonly CommandManifestEntry[],

@@ -130,6 +130,59 @@
 - 2026-08-14T21:14:39-05:00 f4103db127596d20643be220b009d526f0ab2b8e docs: sync Quest log
 - 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
 - 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
+- 2026-08-15T12:21:44-05:00 1f2fc44802709e6d3469970067b8129574464f5d chore(backlog): activate QCLI-77
+- 2026-08-15T12:49:03-05:00 e9aebb08a231a230160e8bf5e4b0dd761abebecd feat(QCLI-77): harden authored record primitives
+- 2026-08-15T12:57:04-05:00 a7d40e8c43cdbaba9be29e292e1555ce518f3783 fix(QCLI-78): initialize at worktree root
+- 2026-08-15T13:37:55-05:00 487d60c6613c64174788b76a72ae392a885d0048 chore(backlog): dispatch QCLI-79
+- 2026-08-15T13:56:39-05:00 90dfe7837aafb4c7b31ab10ac4600645d21fceba chore(backlog): settle QCLI-79
+- 2026-08-15T13:58:01-05:00 f2356c30b695291d072b5a0147b3f6a5d44168cb chore(backlog): dispatch QCLI-80
+- 2026-08-15T14:49:40-05:00 f993e6b3b0e44623bceb3d23cf5937b2e80f5b31 chore(docs): sync QCLI-80 completion
+- 2026-08-15T14:50:11-05:00 05e41a8aa7d6655b03441876ac0231e32d5bd695 chore(docs): record QCLI-80 settlement
+- 2026-08-15T14:51:55-05:00 d4be0795ac63bf82f964c68f90ebf4fa19d21313 chore(docs): dispatch QCLI-81 QCLI-83 QCLI-90
+- 2026-08-15T15:01:28-05:00 5463658b2fe8d2c36ddea5a2cfdd47a1fad15c22 chore(docs): settle QCLI-81 and QCLI-90
+- 2026-08-15T15:02:03-05:00 4507095b6c429dc8dd4d32aeef55a03d761a44cd chore(docs): record QCLI-81 and QCLI-90 delivery
+- 2026-08-15T16:07:25-05:00 3042708d27a389beae1d21c4d6dd0bbeb63a2975 chore: settle QCLI-83 tracker delivery
+- 2026-08-15T16:17:50-05:00 fa8ec73496da64749439532eedb05508baa79982 chore: settle QCLI-82 gate delivery
+- 2026-08-15T18:16:17-05:00 4f4df2af03f09559cee83de289b03ca0c9817b18 chore: sync projection campaign documentation
+- 2026-08-15T18:28:26-05:00 003412a48b838787ce851156e012cb22ac58ed25 chore: sync platform validation log
+- 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
+- 2026-08-15T20:19:18-05:00 04ac42c37049a65945b0322223caad7f7a8a12f2 chore: activate migration engine task
+- 2026-08-15T22:23:52-05:00 b687c236389adcbe6be7645bf5909c7cdcd850f8 chore: settle qcli-86 migration engine
+- 2026-08-16T07:31:44-05:00 9ea0e0837d2cc08c56aa4388dbc92d8cce3d3b97 chore: settle qcli-87 Backlog importer
+- 2026-08-16T08:09:49-05:00 b07d91a84ec87ea99f54f8ec63f6d0412062cec5 docs(QCLI-89): sync Jira importer status
+- 2026-08-16T08:10:17-05:00 a7a3d3443823428773325c73a2f959b7359851a2 docs: sync campaign tracker
+- 2026-08-16T12:47:44-05:00 16f6d5bfd4fb3296e5826966e5e9631cb369452e docs(QCLI-88): sync Lore saga status
+- 2026-08-16T12:47:55-05:00 44c136d252567bf42d5d9c213fd7ac1938fe5afc docs: sync QCLI-88 campaign tracker
+- 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
+- 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
+- 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
+- 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
+- 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
+- 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
+- 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
+- 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status
+- 2026-08-17T15:26:36-05:00 9cfcd682372dcec8186e25235247d81392226692 docs: sync wave-2 campaign log
+- 2026-08-17T15:44:36-05:00 16f5ab254388995698a0effc98f2b51cebb481bf docs: record qcli-99 qualification
+- 2026-08-17T15:58:42-05:00 0d10ed1746a041ad598fab1aeaeb8ca481e8b0a2 docs: record qcli-100 qualification
+- 2026-08-17T16:06:58-05:00 cbe8fce5d4c41917e1f674cbe12b16e975f39549 docs: record qcli-100 CI stabilization
+- 2026-08-17T16:11:42-05:00 7313237d486906e2d90290ea35efc6d117c796f0 docs: record projection matrix stabilization
+- 2026-08-17T16:16:02-05:00 ee01a9e18f38109308bcfda2d277f2649f4465a8 docs: checkpoint qcli-100 delivery blocker
+- 2026-08-17T16:28:31-05:00 78ef69403bcd7418886175468aa684597dcfa972 docs: record quarantine follow-ups
+- 2026-08-17T16:36:54-05:00 27e4a208dd708bb97b95e3d63e3c9cbe35430930 docs: begin qcli-103 planning contract work
+- 2026-08-17T16:56:59-05:00 10cc3761c757e791a26e7375f06a926ebf27f4df docs: sync planning contract completion
+- 2026-08-17T17:16:08-05:00 72336111fb328e743104f89cbd6c3a82a2262714 docs: sync agent gate completion
+- 2026-08-17T17:30:24-05:00 e2932d204f7e760ed291da0ee775c3ae02f21352 docs: settle agent gate campaign wave
+- 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher
+- 2026-08-17T19:07:21-05:00 da7e8c2dd505e99fab4867390558c25b732341d6 fix: accept literal dash-prefixed flag values
+- 2026-08-17T19:09:27-05:00 a73a964f9208c74ec64008cb4c104e1ec96dc85f docs: record blocked qualification
+- 2026-08-17T19:10:57-05:00 65e3ea841058014dd59f7f7dda90c838d241ba35 docs: clarify blocked qualification recovery
+- 2026-08-17T19:56:53-05:00 e58e585fc23c15453b812120e3731e195b617b15 docs: settle QCLI-109 delivery
+- 2026-08-17T20:04:19-05:00 9c8d90a7d3b1ac73814b0ec66e3aae67579d3699 fix: resolve output modes before dispatch
+- 2026-08-17T20:11:33-05:00 0fbac22a0f650480e956f375fddfa009f73cfeaa docs: settle QCLI-110 delivery
+- 2026-08-17T20:13:24-05:00 6e4f21ea6bcaf1a07df978e6c78b84c41b224687 docs: record campaign authority frontier
+- 2026-08-17T20:37:03-05:00 5f944755615206daa220e2bc3810e1ad1bbad264 feat: qualify Quest 0.2.7 migration artifacts
+- 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
+- 2026-08-17T20:54:55-05:00 a45e2483957f1cfa4c44a1ba4bdd1afc2d524520 docs: record QCLI-97.9 external handoff
 
 ## docs/adr
 
@@ -225,6 +278,10 @@
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
 - 2026-08-14T20:24:39-05:00 a7264628fafda28008ad4f5ba03ed13a07aa2373 docs(QCLI-73): requalify Backlog migration contract
 - 2026-08-14T20:26:11-05:00 31595548af5409a59b98f46cf60966614de5c655 docs(QCLI-74): qualify Jira migration fidelity
+- 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
+- 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
+- 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
+- 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
 
 ## docs/runbooks
 
@@ -234,6 +291,7 @@
 - 2026-08-09T10:57:14-05:00 05abeaf420a7593cff3c75231bf7fb0dd80cc9f6 chore: retarget cross-repository pointer links at the opum-ai organization
 - 2026-08-13T20:33:24-05:00 80a615f4bf30854ce4afea939afbdb730b417dc4 docs: align Quest and Lore authority routes
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
+- 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
 
 ## docs/specs
 
@@ -259,6 +317,7 @@
 - 2026-08-13T23:09:35-05:00 ebef16b20262f42286af88690069b4332499b163 docs: consolidate Quest authority routes
 - 2026-08-14T20:15:13-05:00 c7b1418dbf02065a9ad64d9970063e09441b5ba7 docs(QCLI-72): reconcile implementation baseline
 - 2026-08-14T20:21:07-05:00 70e416c02a7f0e115b65028f97190a11a75ed051 docs(QCLI-72): complete implementation baseline reconciliation
+- 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
 
 ## docs/stories
 
@@ -325,3 +384,35 @@
 - 2026-08-14T21:13:30-05:00 4e3336e3805656f584d34a503fe33a224eddfa88 feat(QCLI-75): scaffold Quest Bun architecture
 - 2026-08-14T21:21:07-05:00 ad12f2d4c82be702bd229398c0aaa4fa907d5c10 feat(QCLI-76): add command contract shell
 - 2026-08-15T12:21:02-05:00 906b6119e894798b6d2cde54c5edba853a056c74 docs: sync QCLI-76 completion
+- 2026-08-15T12:21:44-05:00 1f2fc44802709e6d3469970067b8129574464f5d chore(backlog): activate QCLI-77
+- 2026-08-15T12:49:03-05:00 e9aebb08a231a230160e8bf5e4b0dd761abebecd feat(QCLI-77): harden authored record primitives
+- 2026-08-15T12:57:04-05:00 a7d40e8c43cdbaba9be29e292e1555ce518f3783 fix(QCLI-78): initialize at worktree root
+- 2026-08-15T13:37:55-05:00 487d60c6613c64174788b76a72ae392a885d0048 chore(backlog): dispatch QCLI-79
+- 2026-08-15T13:56:39-05:00 90dfe7837aafb4c7b31ab10ac4600645d21fceba chore(backlog): settle QCLI-79
+- 2026-08-15T13:58:01-05:00 f2356c30b695291d072b5a0147b3f6a5d44168cb chore(backlog): dispatch QCLI-80
+- 2026-08-15T14:49:40-05:00 f993e6b3b0e44623bceb3d23cf5937b2e80f5b31 chore(docs): sync QCLI-80 completion
+- 2026-08-15T14:51:55-05:00 d4be0795ac63bf82f964c68f90ebf4fa19d21313 chore(docs): dispatch QCLI-81 QCLI-83 QCLI-90
+- 2026-08-15T15:01:28-05:00 5463658b2fe8d2c36ddea5a2cfdd47a1fad15c22 chore(docs): settle QCLI-81 and QCLI-90
+- 2026-08-15T16:07:25-05:00 3042708d27a389beae1d21c4d6dd0bbeb63a2975 chore: settle QCLI-83 tracker delivery
+- 2026-08-15T16:17:50-05:00 fa8ec73496da64749439532eedb05508baa79982 chore: settle QCLI-82 gate delivery
+- 2026-08-15T18:16:17-05:00 4f4df2af03f09559cee83de289b03ca0c9817b18 chore: sync projection campaign documentation
+- 2026-08-15T20:18:34-05:00 839e64ff35ae1dbaf545dfd88e282543304d5d7e test: qualify projection scale budgets
+- 2026-08-15T20:19:18-05:00 04ac42c37049a65945b0322223caad7f7a8a12f2 chore: activate migration engine task
+- 2026-08-15T22:23:52-05:00 b687c236389adcbe6be7645bf5909c7cdcd850f8 chore: settle qcli-86 migration engine
+- 2026-08-16T07:31:44-05:00 9ea0e0837d2cc08c56aa4388dbc92d8cce3d3b97 chore: settle qcli-87 Backlog importer
+- 2026-08-16T08:09:49-05:00 b07d91a84ec87ea99f54f8ec63f6d0412062cec5 docs(QCLI-89): sync Jira importer status
+- 2026-08-16T12:47:44-05:00 16f6d5bfd4fb3296e5826966e5e9631cb369452e docs(QCLI-88): sync Lore saga status
+- 2026-08-16T13:33:10-05:00 d93c946703c728caa4794d476734cde824d1076e docs(QCLI-94): add Quest operational runbooks
+- 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
+- 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
+- 2026-08-17T01:45:34-05:00 8494d51a84bcbbd183cc7822a6aa7ef98dc4a3bc docs: activate Quest parity wave
+- 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
+- 2026-08-17T11:39:27-05:00 46197f20d7c08c0d4ffdc3559722fda4ee02fe2f fix: resolve Quest workspace from nested directories
+- 2026-08-17T11:48:18-05:00 6b8085dd9f12fd1ce9839404c03fea949b2f3b34 fix: restore architecture layer gate
+- 2026-08-17T14:59:45-05:00 d96f44bcae9d94ba2b07c9ded892e1c1fabd873c docs: settle qcli-98 wave status
+- 2026-08-17T15:44:36-05:00 16f5ab254388995698a0effc98f2b51cebb481bf docs: record qcli-99 qualification
+- 2026-08-17T15:58:42-05:00 0d10ed1746a041ad598fab1aeaeb8ca481e8b0a2 docs: record qcli-100 qualification
+- 2026-08-17T16:36:54-05:00 27e4a208dd708bb97b95e3d63e3c9cbe35430930 docs: begin qcli-103 planning contract work
+- 2026-08-17T16:56:59-05:00 10cc3761c757e791a26e7375f06a926ebf27f4df docs: sync planning contract completion
+- 2026-08-17T17:16:08-05:00 72336111fb328e743104f89cbd6c3a82a2262714 docs: sync agent gate completion
+- 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher

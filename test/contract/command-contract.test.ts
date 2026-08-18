@@ -15,12 +15,14 @@ import {
 } from "../../src/adapters/toml-configuration.ts";
 
 test("success envelopes have the frozen Opum wire shape", () => {
-  expect(success("query.results", { tasks: [] })).toEqual({
+  const envelope = success("query.results", { tasks: [] });
+  expect(envelope).toEqual({
     schemaVersion: 1,
     kind: "query.results",
     data: { tasks: [] },
     principal: null,
   });
+  expect(Object.keys(envelope).at(-1)).toBe("principal");
 });
 
 test("diagnostics classify every non-success exit and retain principal", () => {
@@ -35,11 +37,13 @@ test("diagnostics classify every non-success exit and retain principal", () => {
   } as const;
   for (const [errorType, exitCode] of Object.entries(expectedExits)) {
     const typedError = errorType as keyof typeof expectedExits;
-    expect(diagnostic(typedError, "Failure.")).toEqual({
+    const envelope = diagnostic(typedError, "Failure.");
+    expect(envelope).toEqual({
       error_type: typedError,
       message: "Failure.",
       principal: null,
     });
+    expect(Object.keys(envelope).at(-1), typedError).toBe("principal");
     expect(exitCodeFor(typedError)).toBe(exitCode);
   }
 });
@@ -111,6 +115,215 @@ test("the live manifest is non-empty and matches its result golden", () => {
       name: "version",
       schemaVersion: 1,
       kind: null,
+      mutates: false,
+    },
+    { name: "help", schemaVersion: 1, kind: "help.commands", mutates: false },
+    {
+      name: "init",
+      schemaVersion: 1,
+      kind: "workspace.initialized",
+      mutates: true,
+    },
+    {
+      name: "instructions",
+      schemaVersion: 1,
+      kind: "agent.instructions",
+      mutates: false,
+    },
+    {
+      name: "agents",
+      schemaVersion: 1,
+      kind: "agent.instructions-status",
+      mutates: true,
+    },
+    {
+      name: "completion",
+      schemaVersion: 1,
+      kind: "completion.script",
+      mutates: false,
+    },
+    {
+      name: "migration backlog preview",
+      schemaVersion: 1,
+      kind: "migration.backlog-preview",
+      mutates: false,
+    },
+    {
+      name: "migration backlog apply",
+      schemaVersion: 1,
+      kind: "migration.backlog-applied",
+      mutates: true,
+    },
+    {
+      name: "migration backlog status",
+      schemaVersion: 1,
+      kind: "migration.backlog-status",
+      mutates: false,
+    },
+    {
+      name: "migration backlog rollback",
+      schemaVersion: 1,
+      kind: "migration.backlog-rolled-back",
+      mutates: true,
+    },
+    {
+      name: "task status-flow",
+      schemaVersion: 1,
+      kind: "task.status-flow",
+      mutates: false,
+    },
+    { name: "task list", schemaVersion: 1, kind: "task.list", mutates: false },
+    { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
+    { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
+    {
+      name: "search --all",
+      schemaVersion: 1,
+      kind: "search.results",
+      mutates: false,
+    },
+    {
+      name: "task create",
+      schemaVersion: 1,
+      kind: "task.created",
+      mutates: true,
+    },
+    {
+      name: "task edit",
+      schemaVersion: 1,
+      kind: "task.updated",
+      mutates: true,
+    },
+    {
+      name: "task complete",
+      schemaVersion: 1,
+      kind: "task.completed",
+      mutates: true,
+    },
+    {
+      name: "task archive",
+      schemaVersion: 1,
+      kind: "task.archived",
+      mutates: true,
+    },
+    {
+      name: "task demote",
+      schemaVersion: 1,
+      kind: "task.demoted",
+      mutates: true,
+    },
+    {
+      name: "draft create",
+      schemaVersion: 1,
+      kind: "draft.created",
+      mutates: true,
+    },
+    {
+      name: "draft list",
+      schemaVersion: 1,
+      kind: "draft.list",
+      mutates: false,
+    },
+    {
+      name: "draft view",
+      schemaVersion: 1,
+      kind: "draft.view",
+      mutates: false,
+    },
+    {
+      name: "draft promote",
+      schemaVersion: 1,
+      kind: "draft.promoted",
+      mutates: true,
+    },
+    {
+      name: "draft archive",
+      schemaVersion: 1,
+      kind: "draft.archived",
+      mutates: true,
+    },
+    {
+      name: "milestone list",
+      schemaVersion: 1,
+      kind: "milestone.list",
+      mutates: false,
+    },
+    {
+      name: "milestone view",
+      schemaVersion: 1,
+      kind: "milestone.view",
+      mutates: false,
+    },
+    {
+      name: "milestone create",
+      schemaVersion: 1,
+      kind: "milestone.created",
+      mutates: true,
+    },
+    {
+      name: "milestone edit",
+      schemaVersion: 1,
+      kind: "milestone.updated",
+      mutates: true,
+    },
+    {
+      name: "milestone delete",
+      schemaVersion: 1,
+      kind: "milestone.deleted",
+      mutates: true,
+    },
+    {
+      name: "decision list",
+      schemaVersion: 1,
+      kind: "decision.list",
+      mutates: false,
+    },
+    {
+      name: "decision view",
+      schemaVersion: 1,
+      kind: "decision.view",
+      mutates: false,
+    },
+    {
+      name: "decision create",
+      schemaVersion: 1,
+      kind: "decision.created",
+      mutates: true,
+    },
+    {
+      name: "decision edit",
+      schemaVersion: 1,
+      kind: "decision.updated",
+      mutates: true,
+    },
+    {
+      name: "decision delete",
+      schemaVersion: 1,
+      kind: "decision.deleted",
+      mutates: true,
+    },
+    {
+      name: "overview",
+      schemaVersion: 1,
+      kind: "project.overview",
+      mutates: false,
+    },
+    { name: "board", schemaVersion: 1, kind: "project.board", mutates: false },
+    {
+      name: "doctor",
+      schemaVersion: 1,
+      kind: "project.doctor",
+      mutates: false,
+    },
+    {
+      name: "cleanup",
+      schemaVersion: 1,
+      kind: "project.cleanup",
+      mutates: true,
+    },
+    {
+      name: "browser",
+      schemaVersion: 1,
+      kind: "browser.started",
       mutates: false,
     },
   ]);

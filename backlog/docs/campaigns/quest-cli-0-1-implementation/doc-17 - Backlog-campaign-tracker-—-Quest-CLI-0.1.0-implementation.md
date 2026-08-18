@@ -3,39 +3,40 @@ id: doc-17
 title: Backlog campaign tracker — Quest CLI 0.1.0 implementation
 type: other
 created_date: '2026-08-14 18:10'
-updated_date: '2026-08-15 17:29'
+updated_date: '2026-08-17 05:50'
 tags:
   - quest
   - quest-0.1
   - campaign
   - implementation
 ---
-# Backlog campaign tracker — Quest CLI 0.1.0 implementation
-
 ## Scope and authority
 
-- Confirmed scope: deliver Quest CLI 0.1.0 foundation-up. Readiness is live; sequential one-task waves are the confirmed execution model.
+- Confirmed scope: deliver Quest CLI 0.1.0 foundation-up.
 
 ## State
 
-- Resolved: QCLI-72, QCLI-73, QCLI-74, QCLI-75, QCLI-76.
-- In flight: QCLI-77.
+- Resolved: QCLI-72 through QCLI-95.
+- In flight: none.
+- Blocked: none.
 - Ready: none.
-- External/owner gated: QCLI-88 requires LCLI-332; QCLI-95 and Lore publication tasks require explicit authorization.
 
 ## Frontier
 
 | Task | State | Delivery/evidence | Next action |
 | --- | --- | --- | --- |
-| QCLI-76 | Done | Delivered to `origin/dev` at `1f2fc44`; code/Lore gates passed | Delivered |
-| QCLI-77 | In progress | Record primitives at `22d3809` and complete Unicode folding at `0592592`; isolated writer check passed (14 tests/63 assertions) | Resolve primary-checkout Bun temp/install and Treehouse nested-Biome verification, then review and finalize |
+| QCLI-92 | Done | Integrated through `93db330`; artifact/package and packed-tarball checks, focused CLI tests, typecheck, scoped Biome, and diff check passed after independent review. | Settled. |
+| QCLI-94 | Done | Integrated through `d93c946`; Lore-managed operations, migration/recovery, and package/release runbooks passed strict Lore gates and independent review. | Settled. |
+| QCLI-93 | Done | Integrated through `f89ad16` via PR #104; GitHub Actions source gates and all six immutable platform candidates passed. Local package integrity, TypeScript, layer, fault-clone, and diff checks passed. | Settled. |
+| QCLI-95 | Done | `@opum-ai/quest@0.1.0` plus all six platform packages published to npm under explicit authorization. Registry metadata/integrities, fresh install smokes, all-platform candidate qualification, and Lore release truth passed. | Settled. |
 
 ## Queue
 
-- QCLI-78 awaits QCLI-77; all later tasks follow formal Backlog dependencies and must be recomputed after QCLI-77 settlement.
+- Campaign complete; no ready, in-flight, or blocked tasks remain.
 
 ## Wave log
 
-- 2026-08-15 — QCLI-72..75 delivered as prior foundation slices.
-- 2026-08-15 — QCLI-76 delivered to `origin/dev` at `1f2fc44`: command-contract shell, independent review, and cumulative checks.
-- 2026-08-15 — QCLI-77 implementation integrated locally at `0592592`; full Unicode-folding dependency added, pending final primary-checkout gate.
+- 2026-08-16 — QCLI-92 settled through `93db330`: six platform candidate packages and Node launcher integrated. A portability repair normalized valid object-keyed versus array `npm pack --json` output.
+- 2026-08-16 — QCLI-94 settled through `d93c946`: strict Lore validation/check and public command examples passed; docs preserve unpublished-package truth.
+- 2026-08-17 — QCLI-93 settled through `f89ad16` via PR #104: compiled native migration smoke and application/adapter port inversion repaired the remaining qualification blockers. Source gates and all six platform package candidates passed in GitHub Actions.
+- 2026-08-17 — QCLI-95 settled: the owner completed npm authentication, then published `@opum-ai/quest@0.1.0` and six immutable native artifacts. npm metadata/integrity values, fresh public-install smokes, release evidence, and strict Lore gates passed.
