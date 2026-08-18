@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-18 05:44'
+updated_date: '2026-08-18 21:28'
 ---
 ## Contract
 
@@ -52,9 +52,9 @@ updated_date: '2026-08-18 05:44'
 
 | Artifact | Reason | Cleanup condition |
 | --- | --- | --- |
-| Treehouse lease e2267d974a0ae1932a343381fa2225d7 | Coordinator worktree for final evidence delivery. | Return after settlement PR merges. |
-| /private/tmp/quest-bun-targets | Pinned Bun 1.3.14 cross-target compilers. | Retain until the owner decides no further unpublished package rebuild is needed. |
-| Coordinator checkout changes | User-owned dirty state. | Never discard or overwrite. |
+| Historical Treehouse lease `e2267d974a0ae1932a343381fa2225d7` | Former coordinator worktree for final-evidence delivery; live Treehouse status is `[]`, so it is no longer retained state. | No cleanup action: no live lease or corresponding worktree exists. |
+| `/private/tmp/quest-bun-targets` | Pinned Bun 1.3.14 cross-target compilers. | Retain until the owner decides no further unpublished package rebuild is needed. |
+| Coordinator checkout changes | Historical record reconciled against the primary checkout, now clean at `bb117004544967880ba8489ea43e005f4af1c1fc`. | Preserve any future user-owned dirty state; do not discard or overwrite it. |
 
 ## Human decision
 
