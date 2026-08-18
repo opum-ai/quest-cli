@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-08-17 21:25'
-updated_date: '2026-08-18 01:27'
+updated_date: '2026-08-18 01:41'
 labels:
   - quest-0.2
   - parity
@@ -20,7 +20,12 @@ modified_files:
   - package.json
   - npm/
   - scripts/test-packed-packages.mjs
-  - docs/reference/
+  - scripts/qualification/migration-lifecycle.mjs
+  - src/cli/main.ts
+  - src/application/agents/agent-instructions.ts
+  - fixtures/tracker/v1/conformance.json
+  - test/
+  - docs/reference/quest-cli-release-truth.md
 parent_task_id: QCLI-97
 priority: high
 type: bug
@@ -53,4 +58,6 @@ Live Lore verification is blocked because the installed quest reports 0.2.2 but 
 
 <!-- SECTION:NOTES:BEGIN -->
 Owner authorization received: QCLI-97.9 may bump and rebuild all six packages, create local packed artifacts, and replace the global Quest installation for qualification. npm publication remains explicitly unauthorized. Preflight selected 0.2.7; current source/packages are 0.2.6, while the installed launcher is the stale 0.2.2 candidate under /private/tmp and lacks all four migration backlog manifest commands.
+
+Source/lifecycle commit 5f94475 and artifact commit 436f4f6 establish unpublished 0.2.7. All six Bun 1.3.14 packages rebuilt; constrained check:packages and test:packages passed. Seven retained tarballs are under /private/tmp/quest-v0.2.7-qcli97.9.XdMfmc/tarballs. A clean isolated install passed exact manifest, actor-free exit-4 denials, LCLI-315.4 alias, preview/apply/status/rollback, with root tarball SHA-256 f189a51af13a9ee2f45fc01b2f9de312c6aa36fdb3d6820889a51abbabffb50d and darwin-arm64 SHA-256 4d95674989908f4248811544b1c8f53d45ee2053bbfc2c550d7f876b6b9d20ce. External blocker: this session's sandbox returned EPERM for both NVM and ~/.local global-prefix writes, including explicit escalations, so active quest still resolves to stale 0.2.2. No npm publication or registry mutation occurred.
 <!-- SECTION:NOTES:END -->
