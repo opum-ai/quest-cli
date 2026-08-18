@@ -109,12 +109,15 @@ black-box migration qualification. It proved `quest --version` reports 0.2.7;
 the schema-1 manifest exposes preview, apply, status, and rollback with their
 exact kinds and mutability; actor-free apply and rollback both return denied
 exit 4; and preview, apply, dotted legacy aliases including `LCLI-315.4`,
-status, and rollback complete successfully. The tarballs remain at
-`/private/tmp/quest-v0.2.7-qcli97.9.XdMfmc/tarballs/` for the Lore handoff.
+status, and rollback complete successfully.
 
-The active global launcher is not yet qualified: this sandbox could not write
-either home-directory npm prefix, so it still resolves to the stale 0.2.2
-campaign symlink. Installing the two retained local tarballs into the global
-prefix and rerunning `qualify:migration-artifact` is the remaining external
-step. This limitation does not change the isolated artifact result and must not
-be represented as npm publication.
+The same root and darwin-arm64 tarballs were then installed under the user npm
+prefix. After removal of the two stale NVM Quest symlinks,
+`command -v quest` resolved `/Users/jdnewhouse/.local/bin/quest`; its launcher
+and native binary realpaths both remained under
+`/Users/jdnewhouse/.local/lib/node_modules/@opum-ai/`, and `quest --version`
+reported 0.2.7. The active-path shared qualification repeated the exact
+manifest, actor-denial, alias, preview, apply, status, and rollback proof with
+the source commit, artifact commit, tarball hashes, and installed realpaths in
+its evidence. This is installed local-artifact qualification only and does not
+represent npm publication.

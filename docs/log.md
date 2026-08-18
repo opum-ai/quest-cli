@@ -182,6 +182,7 @@
 - 2026-08-17T20:13:24-05:00 6e4f21ea6bcaf1a07df978e6c78b84c41b224687 docs: record campaign authority frontier
 - 2026-08-17T20:37:03-05:00 5f944755615206daa220e2bc3810e1ad1bbad264 feat: qualify Quest 0.2.7 migration artifacts
 - 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
+- 2026-08-17T20:54:55-05:00 a45e2483957f1cfa4c44a1ba4bdd1afc2d524520 docs: record QCLI-97.9 external handoff
 
 ## docs/adr
 
