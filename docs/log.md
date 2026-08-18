@@ -181,6 +181,7 @@
 - 2026-08-17T20:11:33-05:00 0fbac22a0f650480e956f375fddfa009f73cfeaa docs: settle QCLI-110 delivery
 - 2026-08-17T20:13:24-05:00 6e4f21ea6bcaf1a07df978e6c78b84c41b224687 docs: record campaign authority frontier
 - 2026-08-17T20:37:03-05:00 5f944755615206daa220e2bc3810e1ad1bbad264 feat: qualify Quest 0.2.7 migration artifacts
+- 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
 
 ## docs/adr
 
@@ -279,6 +280,7 @@
 - 2026-08-17T00:51:31-05:00 59f60f223e367bd8033862e78e32d868ec449173 docs: record Quest 0.1.0 release truth
 - 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
+- 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
 
 ## docs/runbooks
 
