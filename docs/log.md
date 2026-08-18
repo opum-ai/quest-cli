@@ -172,6 +172,9 @@
 - 2026-08-17T16:56:59-05:00 10cc3761c757e791a26e7375f06a926ebf27f4df docs: sync planning contract completion
 - 2026-08-17T17:16:08-05:00 72336111fb328e743104f89cbd6c3a82a2262714 docs: sync agent gate completion
 - 2026-08-17T17:30:24-05:00 e2932d204f7e760ed291da0ee775c3ae02f21352 docs: settle agent gate campaign wave
+- 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher
+- 2026-08-17T19:07:21-05:00 da7e8c2dd505e99fab4867390558c25b732341d6 fix: accept literal dash-prefixed flag values
+- 2026-08-17T19:09:27-05:00 a73a964f9208c74ec64008cb4c104e1ec96dc85f docs: record blocked qualification
 
 ## docs/adr
 
@@ -403,3 +406,4 @@
 - 2026-08-17T16:36:54-05:00 27e4a208dd708bb97b95e3d63e3c9cbe35430930 docs: begin qcli-103 planning contract work
 - 2026-08-17T16:56:59-05:00 10cc3761c757e791a26e7375f06a926ebf27f4df docs: sync planning contract completion
 - 2026-08-17T17:16:08-05:00 72336111fb328e743104f89cbd6c3a82a2262714 docs: sync agent gate completion
+- 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher
