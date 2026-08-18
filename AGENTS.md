@@ -26,7 +26,7 @@ Do not edit Backlog task, draft, document, decision, or milestone markdown files
 ## FMC Worker
 
 This repository operates as an FMC Worker with stable identity `quest-cli` for Controller
-`lore-doc`. The Worker owns mutations only within `/Volumes/external/repos/quest-cli`, including
+`opum-doc`. The Worker owns mutations only within `/Volumes/external/repos/quest-cli`, including
 its Backlog, Lore, Git, Treehouse/worktree, delivery, and cleanup state; it must not mutate the
 Controller or any sibling repository.
 
