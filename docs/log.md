@@ -175,6 +175,7 @@
 - 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher
 - 2026-08-17T19:07:21-05:00 da7e8c2dd505e99fab4867390558c25b732341d6 fix: accept literal dash-prefixed flag values
 - 2026-08-17T19:09:27-05:00 a73a964f9208c74ec64008cb4c104e1ec96dc85f docs: record blocked qualification
+- 2026-08-17T19:10:57-05:00 65e3ea841058014dd59f7f7dda90c838d241ba35 docs: clarify blocked qualification recovery
 
 ## docs/adr
 
