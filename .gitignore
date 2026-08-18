@@ -3,3 +3,4 @@
 .treehouse/
 /.treehouse/.treehouse
 node_modules/
+npm/quest-*/bin/quest*
