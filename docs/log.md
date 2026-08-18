@@ -178,6 +178,7 @@
 - 2026-08-17T19:10:57-05:00 65e3ea841058014dd59f7f7dda90c838d241ba35 docs: clarify blocked qualification recovery
 - 2026-08-17T19:56:53-05:00 e58e585fc23c15453b812120e3731e195b617b15 docs: settle QCLI-109 delivery
 - 2026-08-17T20:04:19-05:00 9c8d90a7d3b1ac73814b0ec66e3aae67579d3699 fix: resolve output modes before dispatch
+- 2026-08-17T20:11:33-05:00 0fbac22a0f650480e956f375fddfa009f73cfeaa docs: settle QCLI-110 delivery
 
 ## docs/adr
 
