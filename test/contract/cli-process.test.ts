@@ -90,6 +90,7 @@ test("every help spelling resolves output modes before its optional topic", asyn
   expect(JSON.parse(agentsJson.stdout)).toMatchObject({
     data: {
       details: {
+        valueSyntax: expect.stringContaining("--flag=<value>"),
         usage:
           "quest agents --check [--require-installed] | --update-instructions",
         check: expect.stringContaining("strict missing exits 6"),
@@ -100,6 +101,7 @@ test("every help spelling resolves output modes before its optional topic", asyn
   const agentsPlain = await runQuest(["agents", "--help", "--plain"], false);
   expect(agentsPlain).toMatchObject({ exitCode: 0, stderr: "" });
   expect(agentsPlain.stdout).toContain("--require-installed");
+  expect(agentsPlain.stdout).toContain("--flag=<value>");
 });
 
 test("human output renders payload fields while JSON remains byte-identical", async () => {
@@ -170,6 +172,17 @@ const valueFlagCases = [
   },
 ] as const;
 
+const freeTextSingleValueFlags = [
+  { flag: "--description", argv: ["task", "create", "Title"] },
+  { flag: "--title", argv: ["milestone", "edit", "M-1"] },
+  { flag: "--context", argv: ["decision", "edit", "DEC-1"] },
+  { flag: "--outcome", argv: ["decision", "edit", "DEC-1"] },
+] as const;
+
+function missingValueMessage(flag: string): string {
+  return `${flag} requires a value; use ${flag}=<value> if the value begins with --.`;
+}
+
 test("every value-taking flag rejects a following mode flag as a missing value", async () => {
   for (const { flag, argv } of valueFlagCases) {
     for (const mode of ["--json", "--plain"]) {
@@ -177,9 +190,54 @@ test("every value-taking flag rejects a following mode flag as a missing value",
       expect(result).toMatchObject({ exitCode: 2, stdout: "" });
       expect(JSON.parse(result.stderr)).toMatchObject({
         error_type: "usage",
-        message: `${flag} requires a value.`,
+        message: missingValueMessage(flag),
       });
     }
+  }
+});
+
+test("free-text flags retain the first-equals inline value form before duplicate validation", async () => {
+  for (const { flag, argv } of freeTextSingleValueFlags) {
+    const result = await runQuest(
+      [...argv, `${flag}=--literal=preserved`, flag, "second"],
+      false,
+    );
+    expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "usage",
+      message: `${flag} may only be provided once.`,
+    });
+  }
+});
+
+test("free-text flags keep raw missing and flag-shaped values invalid", async () => {
+  for (const { flag, argv } of freeTextSingleValueFlags) {
+    for (const value of [undefined, "--not-a-value"]) {
+      const result = await runQuest(
+        value === undefined ? [...argv, flag] : [...argv, flag, value],
+        false,
+      );
+      expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        error_type: "usage",
+        message: missingValueMessage(flag),
+      });
+    }
+  }
+});
+
+test("output modes and boolean flags reject attached values", async () => {
+  for (const [argv, flag] of [
+    [["manifest", "--json=unexpected"], "--json"],
+    [["manifest", "--plain=unexpected"], "--plain"],
+    [["cleanup", "--dry-run=unexpected"], "--dry-run"],
+  ] as const) {
+    const result = await runQuest(argv, false);
+    expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "usage",
+      message: `${flag} does not take a value.`,
+    });
   }
 });
 

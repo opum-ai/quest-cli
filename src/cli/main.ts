@@ -114,29 +114,43 @@ function flags(
     "--all",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
-    const flag = argv[index];
+    const argument = argv[index];
+    const equals = argument?.indexOf("=") ?? -1;
+    const flag = equals === -1 ? argument : argument?.slice(0, equals);
+    const inlineValue = equals === -1 ? undefined : argument?.slice(equals + 1);
     if (flag === "--json") {
+      if (inlineValue !== undefined)
+        throw new FlagUsageError("--json does not take a value.");
       continue;
     }
     if (flag === "--plain") {
+      if (inlineValue !== undefined)
+        throw new FlagUsageError("--plain does not take a value.");
       continue;
     }
     if (!flag?.startsWith("--")) return undefined;
     if (booleanFlags.has(flag)) {
+      if (inlineValue !== undefined)
+        throw new FlagUsageError(`${flag} does not take a value.`);
       if (values.has(flag))
         throw new FlagUsageError(`${flag} may only be provided once.`);
       values.set(flag, []);
       continue;
     }
-    const value = argv[index + 1];
-    if (value === undefined || value.startsWith("--"))
-      throw new FlagUsageError(`${flag} requires a value.`);
+    const value = inlineValue ?? argv[index + 1];
+    if (
+      value === undefined ||
+      (inlineValue === undefined && value.startsWith("--"))
+    )
+      throw new FlagUsageError(
+        `${flag} requires a value; use ${flag}=<value> if the value begins with --.`,
+      );
     const entries = values.get(flag) ?? [];
     if (entries.length > 0 && !repeatable.has(flag))
       throw new FlagUsageError(`${flag} may only be provided once.`);
     entries.push(value);
     values.set(flag, entries);
-    index += 1;
+    if (inlineValue === undefined) index += 1;
   }
   return { values, json, plain };
 }
@@ -312,8 +326,10 @@ export async function runQuest(
         : commandManifest.commands;
       if (helpTarget && commands.length === 0)
         return failure("not_found", `No help is available for ${helpTarget}.`);
-      const details =
-        helpTarget === "agents"
+      const details = {
+        valueSyntax:
+          "Use --flag=<value> to pass a value that begins with --; the value is preserved exactly after the first =.",
+        ...(helpTarget === "agents"
           ? {
               usage:
                 "quest agents --check [--require-installed] | --update-instructions",
@@ -321,12 +337,13 @@ export async function runQuest(
                 "--check reports missing without failing unless --require-installed is present; strict missing exits 6.",
               drift: "Drift or malformed managed markers exit 6.",
             }
-          : undefined;
+          : {}),
+      };
       return output(
         {
           schemaVersion: 1,
           kind: "help.commands",
-          data: { commands, ...(details ? { details } : {}) },
+          data: { commands, details },
         },
         modeFor(parsed),
       );

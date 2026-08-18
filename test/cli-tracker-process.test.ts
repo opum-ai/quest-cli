@@ -185,7 +185,8 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     expect(dashValue).toMatchObject({ exitCode: 2, stdout: "" });
     expect(JSON.parse(dashValue.stderr)).toMatchObject({
       error_type: "usage",
-      message: "--description requires a value.",
+      message:
+        "--description requires a value; use --description=<value> if the value begins with --.",
     });
 
     const secondTask = JSON.parse(
@@ -363,6 +364,82 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     const denied = await quest(store, ["task", "create", "no actor", "--json"]);
     expect(denied.exitCode).toBe(4);
     expect(JSON.parse(denied.stderr)).toMatchObject({ error_type: "denied" });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("inline free-text flag values preserve literal dash-prefixed bytes in storage", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-inline-values-"));
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    const description = "--description=first=equals";
+    const task = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "create",
+          "Inline task",
+          `--description=${description}`,
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(
+      JSON.parse(
+        (await quest(store, ["task", "view", task.id, "--json"])).stdout,
+      ),
+    ).toMatchObject({ data: { description } });
+
+    const milestone = JSON.parse(
+      (
+        await quest(store, [
+          "milestone",
+          "create",
+          "Inline milestone",
+          ...human,
+        ])
+      ).stdout,
+    ).data.record.id as string;
+    const title = "--title=first=equals";
+    expect(
+      JSON.parse(
+        (
+          await quest(store, [
+            "milestone",
+            "edit",
+            milestone,
+            `--title=${title}`,
+            ...human,
+          ])
+        ).stdout,
+      ),
+    ).toMatchObject({ data: { record: { title } } });
+    expect(
+      JSON.parse(
+        (await quest(store, ["milestone", "view", milestone, "--json"])).stdout,
+      ),
+    ).toMatchObject({ data: { title } });
+
+    const context = "--context=first=equals";
+    const outcome = "--outcome=first=equals";
+    const decision = JSON.parse(
+      (
+        await quest(store, [
+          "decision",
+          "create",
+          "Inline decision",
+          `--context=${context}`,
+          `--outcome=${outcome}`,
+          ...human,
+        ])
+      ).stdout,
+    ).data.record.id as string;
+    expect(
+      JSON.parse(
+        (await quest(store, ["decision", "view", decision, "--json"])).stdout,
+      ),
+    ).toMatchObject({ data: { context, outcome } });
   } finally {
     await rm(store, { recursive: true, force: true });
   }

@@ -172,6 +172,7 @@
 - 2026-08-17T16:56:59-05:00 10cc3761c757e791a26e7375f06a926ebf27f4df docs: sync planning contract completion
 - 2026-08-17T17:16:08-05:00 72336111fb328e743104f89cbd6c3a82a2262714 docs: sync agent gate completion
 - 2026-08-17T17:30:24-05:00 e2932d204f7e760ed291da0ee775c3ae02f21352 docs: settle agent gate campaign wave
+- 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher
 
 ## docs/adr
 
@@ -403,3 +404,4 @@
 - 2026-08-17T16:36:54-05:00 27e4a208dd708bb97b95e3d63e3c9cbe35430930 docs: begin qcli-103 planning contract work
 - 2026-08-17T16:56:59-05:00 10cc3761c757e791a26e7375f06a926ebf27f4df docs: sync planning contract completion
 - 2026-08-17T17:16:08-05:00 72336111fb328e743104f89cbd6c3a82a2262714 docs: sync agent gate completion
+- 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher
