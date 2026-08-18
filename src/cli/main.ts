@@ -89,6 +89,28 @@ function output(
 
 class FlagUsageError extends Error {}
 
+function resolveOutputModes(argv: readonly string[]): {
+  readonly arguments: readonly string[];
+  readonly json: boolean;
+  readonly plain: boolean;
+} {
+  let json = false;
+  let plain = false;
+  const arguments_: string[] = [];
+  for (const argument of argv) {
+    if (argument === "--json") {
+      json = true;
+      continue;
+    }
+    if (argument === "--plain") {
+      plain = true;
+      continue;
+    }
+    arguments_.push(argument);
+  }
+  return { arguments: arguments_, json, plain };
+}
+
 function flags(
   argv: readonly string[],
   repeatableValueFlags: readonly string[] = [],
@@ -267,17 +289,23 @@ async function nextPlanningId(
 
 /** Executes the stable public tracker CLI against repository-local task storage. */
 export async function runQuest(
-  arguments_: readonly string[],
+  input: readonly string[],
   stdoutIsTty: boolean,
 ): Promise<InvocationResult> {
   try {
+    const resolvedModes = resolveOutputModes(input);
+    const arguments_ = resolvedModes.arguments;
     if (
       arguments_.length === 1 &&
       ["--version", "version"].includes(arguments_[0] ?? "")
     )
       return { stdout: `${VERSION}\n`, stderr: "", exitCode: 0 };
-    const modeFor = (parsed: NonNullable<ReturnType<typeof flags>>) =>
-      selectOutputMode({ ...parsed, stdoutIsTty });
+    const modeFor = (parsed?: NonNullable<ReturnType<typeof flags>>) =>
+      selectOutputMode({
+        json: resolvedModes.json || parsed?.json,
+        plain: resolvedModes.plain || parsed?.plain,
+        stdoutIsTty,
+      });
     let root: Promise<string> | undefined;
     const resolvedRoot = () => (root ??= taskStoreRoot());
     const taskService = async () => createTaskService(await resolvedRoot());
@@ -291,16 +319,14 @@ export async function runQuest(
           kind: "help.commands",
           data: { commands: commandManifest.commands },
         },
-        stdoutIsTty ? "pretty" : "plain",
+        modeFor(),
       );
     }
     if (
       ["--help", "-h", "help"].includes(arguments_[0] ?? "") ||
       ["--help", "-h"].includes(arguments_[1] ?? "")
     ) {
-      const helpArguments = arguments_.filter(
-        (argument) => argument !== "--json" && argument !== "--plain",
-      );
+      const helpArguments = arguments_;
       if (helpArguments.length > 2)
         return failure("usage", "help accepts at most one topic.");
       const helpTarget = ["help", "--help", "-h"].includes(
@@ -310,11 +336,7 @@ export async function runQuest(
         : ["--help", "-h"].includes(helpArguments[1] ?? "")
           ? helpArguments[0]
           : undefined;
-      const parsed = flags(
-        arguments_.filter(
-          (argument) => argument === "--json" || argument === "--plain",
-        ),
-      );
+      const parsed = flags([]);
       if (!parsed || !only(parsed, []))
         return failure("usage", "help accepts only --json and --plain.");
       const commands = helpTarget
@@ -466,7 +488,7 @@ export async function runQuest(
             kind: "sqlite.smoke",
             data: { value: row.value },
           },
-          selectOutputMode({ ...parsed, stdoutIsTty }),
+          modeFor(parsed),
         );
       } finally {
         database.close();
@@ -479,10 +501,7 @@ export async function runQuest(
           "usage",
           "migration-smoke accepts only --json and --plain.",
         );
-      return output(
-        await migrationSmokeResult(),
-        selectOutputMode({ ...parsed, stdoutIsTty }),
-      );
+      return output(await migrationSmokeResult(), modeFor(parsed));
     }
     if (arguments_[0] === "migration" && arguments_[1] === "backlog") {
       const action = arguments_[2];
@@ -583,10 +602,7 @@ export async function runQuest(
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
         return failure("usage", "manifest accepts only --json and --plain.");
-      return output(
-        manifestResult(),
-        selectOutputMode({ ...parsed, stdoutIsTty }),
-      );
+      return output(manifestResult(), modeFor(parsed));
     }
     if (["overview", "board", "doctor"].includes(arguments_[0] ?? "")) {
       const parsed = flags(arguments_.slice(1));

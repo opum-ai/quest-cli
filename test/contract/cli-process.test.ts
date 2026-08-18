@@ -35,6 +35,40 @@ test("version is bare semver and JSON takes precedence over plain", async () => 
   ).toContain('"schemaVersion":1');
 });
 
+test("output modes are resolved before grouped and single-word command dispatch", async () => {
+  for (const mode of ["--json", "--plain"] as const) {
+    const grouped = await runQuest(["completion", "bash", mode], false);
+    for (const invocation of [
+      [mode, "completion", "bash"],
+      ["completion", mode, "bash"],
+      ["completion", "bash", mode],
+    ]) {
+      expect(await runQuest(invocation, false)).toEqual(grouped);
+    }
+
+    const singleWord = await runQuest(["manifest", mode], false);
+    for (const invocation of [
+      [mode, "manifest"],
+      ["manifest", mode],
+    ]) {
+      expect(await runQuest(invocation, false)).toEqual(singleWord);
+    }
+  }
+});
+
+test("globally separated mixed output modes retain JSON precedence", async () => {
+  const expected = await runQuest(
+    ["completion", "bash", "--plain", "--json"],
+    true,
+  );
+  expect(
+    await runQuest(["--plain", "completion", "--json", "bash"], true),
+  ).toEqual(expected);
+  expect(JSON.parse(expected.stdout)).toMatchObject({
+    kind: "completion.script",
+  });
+});
+
 test("help, instructions, and completion expose the versioned public discovery surface", async () => {
   for (const command of [
     ["--help", "--json"],

@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-18 00:56'
+updated_date: '2026-08-18 01:03'
 ---
 ## Contract
 
@@ -16,7 +16,7 @@ updated_date: '2026-08-18 00:56'
 
 | Repository | Integration base | Required gates |
 | --- | --- | --- |
-| quest-cli | public; merged dev at 7286e23b8b8241fae0f06bf885d4f18c2901aaba | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
+| quest-cli | public; merged dev at e3da176e15bbc5b777b3a0a544728feef6099805 | Focused and full tests, package checks when impacted, Lore strict gates, diff check, independent review, required CI. |
 
 ## Frontier
 
@@ -26,7 +26,7 @@ updated_date: '2026-08-18 00:56'
 - Resolved on dev: QCLI-102 merged through PR 115 at b048d2c after source and all six immutable package jobs passed.
 - Resolved on dev: QCLI-109 merged through PR 116 at 7286e23 after exact candidate 93ca3b0 passed source and all six public package lanes; the repository is now public.
 - Blocked or held: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract. QCLI-97.9 records the stale installed Quest migration surface and requires separate authority before registry publication or global package mutation. QCLI-97.6 depends on both.
-- Ready after the active task: QCLI-110.
+- Delivery in progress: QCLI-110 is locally finalized after 166 tests and independent acceptance; commit, public qualification, and dev PR remain.
 
 ## Queue
 
@@ -36,17 +36,17 @@ updated_date: '2026-08-18 00:56'
 | Done | QCLI-112 | Delivered | PR 114 merged to dev at 6f247cc; exact head passed source, six package, and six projection checks. |
 | Done | QCLI-102 | Delivered | PR 115 merged to dev at b048d2c; exact head passed source plus six immutable-package checks. |
 | Done | QCLI-109 | Delivered | PR 116 merged to dev at 7286e23; exact head passed source plus six public package jobs. |
-| 2 | QCLI-110 | Ready | Output-mode flags before the command. |
+| Delivery | QCLI-110 | Locally finalized | Commit exact candidate, run public prepublication qualification, and merge to dev after success. |
 | Held | QCLI-97.9 | Authority boundary | Qualify the installed migration artifact; publication/global install mutation needs separate authority. |
 | Held | QCLI-97.5 | Authority boundary | Separate Lore CLI authority or published adapter contract. |
 | Held | QCLI-97.6 | Dependencies | Depends on QCLI-97.5 and QCLI-97.9. |
 
 ## Current worktree
 
-- Lease 9d253e527e89c6046c76d7d70c6edc30 is held by qcli-109-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
-- Branch: campaign/qcli-109-dash-values from merged dev b048d2cfaaa872654f586ba906cea80113580cf5.
-- Last completed stage: QCLI-109 exact head 93ca3b0 passed public run 32085979050 across source plus six package jobs and merged through PR 116 to dev at 7286e23 with identical tree.
-- Next action: commit the QCLI-109 settlement metadata, return the lease with identity fencing, then activate QCLI-110 from merged dev.
+- Lease 0e52be9639f8f63820c1f150ba7bde0e is held by qcli-110-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
+- Branch: campaign/qcli-110-output-modes from merged dev e3da176e15bbc5b777b3a0a544728feef6099805.
+- Last completed stage: QCLI-110 implementation passed 166 tests / 1638 expectations, static gates, and independent review; all four acceptance criteria are checked and the task is Done.
+- Next action: Lore-sync and commit the exact candidate, push and open a dev PR, run public qualification, then merge and settle the lease.
 
 ## QCLI-106/QCLI-107 settlement
 
