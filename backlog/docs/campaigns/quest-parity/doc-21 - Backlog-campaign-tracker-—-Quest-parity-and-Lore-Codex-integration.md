@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-18 00:02'
+updated_date: '2026-08-18 00:09'
 ---
 ## Contract
 
@@ -24,7 +24,7 @@ updated_date: '2026-08-18 00:02'
 - Resolved on dev: QCLI-111 merged through PR 113 at 70a6283 after all acceptance criteria and three fresh six-lane runs passed.
 - Resolved on dev: QCLI-112 merged through PR 114 at 6f247cc after source, six immutable-package, and six projection lanes passed; the merge tree matched the exact candidate.
 - Resolved on dev: QCLI-102 merged through PR 115 at b048d2c after source and all six immutable package jobs passed.
-- In flight: QCLI-109 on leased branch campaign/qcli-109-dash-values from merged dev b048d2c; equals-form flag-value implementation is next.
+- Delivery blocked: QCLI-109 is finalized on PR 116 at reviewed candidate da7e8c2, but GitHub Actions cannot allocate a runner because account payments failed or the spending limit must be increased.
 - Blocked or held: QCLI-97.5 requires separate Lore CLI authority or a published adapter contract. QCLI-97.9 records the stale installed Quest migration surface and requires separate authority before registry publication or global package mutation. QCLI-97.6 depends on both.
 - Ready after the active task: QCLI-110.
 
@@ -35,7 +35,7 @@ updated_date: '2026-08-18 00:02'
 | Done | QCLI-111 | Delivered | PR 113 merged to dev at 70a6283; the exact source candidate passed three six-lane runs. |
 | Done | QCLI-112 | Delivered | PR 114 merged to dev at 6f247cc; exact head passed source, six package, and six projection checks. |
 | Done | QCLI-102 | Delivered | PR 115 merged to dev at b048d2c; exact head passed source plus six immutable-package checks. |
-| 1 | QCLI-109 | In Progress | Implement and document byte-exact equals-form flag values with complete free-text coverage. |
+| Blocked | QCLI-109 | PR open | Restore GitHub Actions billing capacity, then rerun all required checks on PR 116 without changing the candidate. |
 | 2 | QCLI-110 | Ready | Output-mode flags before the command. |
 | Held | QCLI-97.9 | Authority boundary | Qualify the installed migration artifact; publication/global install mutation needs separate authority. |
 | Held | QCLI-97.5 | Authority boundary | Separate Lore CLI authority or published adapter contract. |
@@ -45,8 +45,8 @@ updated_date: '2026-08-18 00:02'
 
 - Lease 9d253e527e89c6046c76d7d70c6edc30 is held by qcli-109-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
 - Branch: campaign/qcli-109-dash-values from merged dev b048d2cfaaa872654f586ba906cea80113580cf5.
-- Last completed stage: PR 115 merged with an exact candidate tree, branch and lease settled, QCLI-109 audited and activated on a fresh merged-dev lease.
-- Next automatic action: implement QCLI-109 equals-form literal flag values and full free-text coverage, then run focused/full/package/Lore/review gates.
+- Last completed stage: QCLI-109 implementation, 164-test local qualification, package and Lore gates, independent review, commit da7e8c2, push, and PR 116 creation all completed.
+- Next action after human unblock: restore GitHub Actions billing or spending-limit capacity, rerun PR 116 checks on the unchanged candidate, merge after source plus six package jobs pass, then settle the branch and lease before QCLI-110.
 
 ## QCLI-106/QCLI-107 settlement
 
@@ -73,6 +73,7 @@ updated_date: '2026-08-18 00:02'
 
 ## Human decisions and blockers
 
+- PR 116 cannot run required CI because GitHub reports failed recent account payments or an insufficient spending limit. A repository billing administrator must restore Actions capacity; no job step started and no code failure exists.
 - QCLI-97.9 cannot mutate the registry or global installed package without separate explicit authority. The issue is filed and does not block other repository-local ready work.
 - QCLI-97.5 remains outside current authority because it needs changes in the separate Lore CLI repository or an owner-approved published contract.
 
@@ -94,3 +95,4 @@ updated_date: '2026-08-18 00:02'
 - 2026-08-17 — PR 114 rerun 32080577863 exhausted the full teardown retry window and isolated cached SQLite statement zombies; explicit finalize plus close(true) passed 160 tests, scale budgets, and independent review before a fresh rerun.
 - 2026-08-17 — Exact candidate 52e4cc2 passed run 32081140380 across all six projection lanes and run 32081140427 across source plus six immutable packages; PR 114 merged to dev at 6f247cc with an identical tree, then branch and lease cleanup completed.
 - 2026-08-17 — QCLI-102 candidate f3d1ea5 passed source plus all six immutable package jobs in run 32082195825; PR 115 merged to dev at b048d2c with an identical tree, then campaign branch and lease cleanup completed.
+- 2026-08-17 — QCLI-109 candidate da7e8c2 passed 164 local tests, package and Lore gates, and independent review; PR 116 run 32083278133 failed before any step because GitHub Actions billing capacity is unavailable, so the exact branch and lease are retained.

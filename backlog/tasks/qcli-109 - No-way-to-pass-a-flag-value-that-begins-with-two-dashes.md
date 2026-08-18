@@ -5,12 +5,15 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 18:44'
-updated_date: '2026-08-18 00:07'
+updated_date: '2026-08-18 00:08'
 labels:
   - cli
   - argument-parsing
   - usability
 dependencies: []
+references:
+  - 'https://github.com/opum-ai/quest-cli/pull/116'
+  - 'https://github.com/opum-ai/quest-cli/actions/runs/32083278133'
 modified_files:
   - src/cli/main.ts
   - test/contract/cli-process.test.ts
@@ -82,10 +85,14 @@ This is a follow-up to QCLI-101, not a regression report against it: the rejecti
 Preflight at merged dev b048d2c found one central flags parser. The smallest compatible escape is --flag=<value>: split once at the first equals sign, preserve the suffix exactly, and do not consume a following argument. Ordinary --flag --other remains a usage error. The free-text single-value flags are description, title, context, and outcome; structural single-value and repeatable flags remain covered by the existing generic rejection matrices. User-facing help and the missing diagnostic will document only the supported equals form.
 
 Implementation complete: the central parser accepts --flag=<value>, splits only the first equals sign, and preserves the remainder exactly. Raw flag-shaped next tokens remain invalid, attached values on output modes and booleans are rejected, and missing-value diagnostics name the equals escape. Structured and plain help publish the supported syntax. An isolated process test round-trips dash-prefixed multi-equals description, title, context, and outcome values through storage. Verification passed: focused 23 tests and 1006 expectations, full repository check with 164 tests and 1620 expectations, package check, packed package tests, strict Lore validation and check, and git diff check. Independent review accepted all five acceptance criteria and parser edge cases.
+
+Delivery is externally blocked. PR 116 was opened on exact reviewed candidate da7e8c2 with tree 36c0a6d. Run 32083278133 failed before any step started: job 95550344883 had runner_id 0 and its GitHub annotation states that recent account payments failed or the spending limit must be increased. The package matrix was skipped. No code or test failure occurred. Required next action is for a repository billing administrator to restore Actions capacity, then rerun the unchanged PR checks.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 Added a documented equals-form escape for literal flag values beginning with two dashes while preserving existing missing, duplicate, flag-shaped, mode, and boolean rejection behavior. Contract matrices cover every free-text single-value flag, and isolated process tests prove byte-identical persisted description, title, context, and outcome values. Focused, full, package, Lore, and diff gates passed; independent review accepted the result.
+
+PR 116 is open, but required CI cannot start until repository Actions billing or spending-limit capacity is restored.
 <!-- SECTION:FINAL_SUMMARY:END -->
