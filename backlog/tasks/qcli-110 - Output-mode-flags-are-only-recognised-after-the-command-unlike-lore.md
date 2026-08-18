@@ -1,14 +1,19 @@
 ---
 id: QCLI-110
 title: 'Output mode flags are only recognised after the command, unlike lore'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-08-17 18:44'
+updated_date: '2026-08-18 01:03'
 labels:
   - cli
   - argument-parsing
   - output-contract
 dependencies: []
+modified_files:
+  - src/cli/main.ts
+  - test/contract/cli-process.test.ts
 priority: low
 type: bug
 ordinal: 135000
@@ -43,8 +48,28 @@ Also related: QCLI-100, where the `help` spelling consumes a mode flag as a help
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 --json and --plain are honoured in any argv position, including before the command and between a group and its action
-- [ ] #2 Mode resolution happens before positional dispatch, per the Opum command contract section 1
-- [ ] #3 QCLI-101's guarantees are unchanged: a mode flag is never consumed as another flag's value, and missing or duplicated values remain usage errors
-- [ ] #4 Tests cover each mode flag in leading, mid-argv and trailing positions for a group command and a single-word command
+- [x] #1 --json and --plain are honoured in any argv position, including before the command and between a group and its action
+- [x] #2 Mode resolution happens before positional dispatch, per the Opum command contract section 1
+- [x] #3 QCLI-101's guarantees are unchanged: a mode flag is never consumed as another flag's value, and missing or duplicated values remain usage errors
+- [x] #4 Tests cover each mode flag in leading, mid-argv and trailing positions for a group command and a single-word command
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Resolve exact `--json`/`--plain` once at argv entry, preserve the established JSON-over-plain precedence and duplicate-mode tolerance, and pass only mode-free positional arguments into command dispatch. 2. Preserve central value parsing and all QCLI-101 missing, flag-shaped, and duplicate-value diagnostics. 3. Add contract coverage for leading, group/action-middle, and trailing placements of both modes across grouped and single-word commands, plus mixed-mode precedence. 4. Run focused/full checks, strict Lore gates, independent review, then deliver through a qualified pull request to `dev`.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Pre-implementation review corrected the initial plan: the existing public contract test explicitly requires JSON to take precedence when both output modes are present. QCLI-110 will preserve that behavior and existing duplicate-mode tolerance; its scope is position-independent resolution, not a new conflict policy.
+
+Implementation complete: exact `--json` and `--plain` tokens are resolved and removed once at the `runQuest` entrypoint before any positional dispatch. Every output path uses the centrally resolved mode; JSON-over-plain precedence and duplicate-mode tolerance remain unchanged. Attached mode forms remain usage errors, and existing missing, flag-shaped, and duplicate value tests remain green. New contract cases prove both modes in leading, group/action-middle, and trailing positions for `completion bash`, leading/trailing positions for single-word `manifest`, and separated mixed-mode precedence. Verification passed: focused contract/process suite 25 tests with 1009 expectations; fresh full suite 166 tests with 1638 expectations; typecheck, lint, format check, layer check, and diff check. Independent review accepted all four criteria and found no regression.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Resolved output mode flags globally before positional dispatch, so `--json` and `--plain` now work before, within, or after grouped commands and around single-word commands. Preserved JSON precedence, duplicate-mode tolerance, attached-value rejection, and QCLI-101 value diagnostics. Verified with 166 passing tests / 1638 expectations, static gates, and independent review.
+<!-- SECTION:FINAL_SUMMARY:END -->
