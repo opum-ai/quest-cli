@@ -183,6 +183,7 @@
 - 2026-08-17T20:37:03-05:00 5f944755615206daa220e2bc3810e1ad1bbad264 feat: qualify Quest 0.2.7 migration artifacts
 - 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
 - 2026-08-17T20:54:55-05:00 a45e2483957f1cfa4c44a1ba4bdd1afc2d524520 docs: record QCLI-97.9 external handoff
+- 2026-08-18T00:45:14-05:00 2b934d5db324419ebeaeb1760d9789525e51d715 docs: finalize Quest 0.2.7 installed evidence
 
 ## docs/adr
 
@@ -282,6 +283,7 @@
 - 2026-08-17T01:07:38-05:00 d2d047e658b016abc92d1bd800c6e011a06aa6a8 docs: audit Quest parity and Lore integration
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 - 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
+- 2026-08-18T00:45:14-05:00 2b934d5db324419ebeaeb1760d9789525e51d715 docs: finalize Quest 0.2.7 installed evidence
 
 ## docs/runbooks
 
