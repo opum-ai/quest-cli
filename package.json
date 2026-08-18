@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Quest CLI tracker subprocess contract.",
   "license": "MIT",
   "type": "module",
@@ -28,6 +28,7 @@
     "build:packages": "bun run scripts/build-platform-packages.mjs",
     "check:packages": "bun run scripts/check-package-artifacts.mjs",
     "test:packages": "bun run scripts/test-packed-packages.mjs",
+    "qualify:migration-artifact": "bun run scripts/qualification/migration-lifecycle.mjs",
     "deliver:packages": "bun run scripts/deliver-package-artifacts.mjs",
     "test:package-artifact-delivery": "bun run scripts/test-package-artifact-delivery.mjs",
     "test:repository-check-scope": "node scripts/test-repository-check-scope.mjs",
@@ -35,12 +36,12 @@
     "check": "bun run typecheck && bun run lint && bun run format:check && bun run layer:check && bun run test"
   },
   "optionalDependencies": {
-    "@opum-ai/quest-darwin-arm64": "0.2.6",
-    "@opum-ai/quest-darwin-x64": "0.2.6",
-    "@opum-ai/quest-linux-arm64": "0.2.6",
-    "@opum-ai/quest-linux-x64": "0.2.6",
-    "@opum-ai/quest-win32-arm64": "0.2.6",
-    "@opum-ai/quest-win32-x64": "0.2.6"
+    "@opum-ai/quest-darwin-arm64": "0.2.7",
+    "@opum-ai/quest-darwin-x64": "0.2.7",
+    "@opum-ai/quest-linux-arm64": "0.2.7",
+    "@opum-ai/quest-linux-x64": "0.2.7",
+    "@opum-ai/quest-win32-arm64": "0.2.7",
+    "@opum-ai/quest-win32-x64": "0.2.7"
   },
   "questPlatformPackages": {
     "@opum-ai/quest-darwin-arm64": "a47f44e3333877204ed0dd9ad5e995aa9b49594badb19b50f2eeb7b2ef0714d5",
