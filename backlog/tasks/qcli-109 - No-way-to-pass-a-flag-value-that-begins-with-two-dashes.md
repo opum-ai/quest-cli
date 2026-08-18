@@ -1,11 +1,11 @@
 ---
 id: QCLI-109
 title: No way to pass a flag value that begins with two dashes
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 18:44'
-updated_date: '2026-08-18 00:01'
+updated_date: '2026-08-18 00:07'
 labels:
   - cli
   - argument-parsing
@@ -63,11 +63,11 @@ This is a follow-up to QCLI-101, not a regression report against it: the rejecti
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A value beginning with -- can be supplied verbatim through at least one documented mechanism
-- [ ] #2 The stored value is byte-identical to what the caller intended, with no added escaping, whitespace or substitution
-- [ ] #3 The missing-value diagnostic names the escape mechanism
-- [ ] #4 A genuinely missing value is still a usage error (exit 2), and QCLI-101's duplicate and flag-shaped-value rejections are unchanged
-- [ ] #5 Tests cover the escape form and the still-invalid missing-value form for every free-text single-value flag
+- [x] #1 A value beginning with -- can be supplied verbatim through at least one documented mechanism
+- [x] #2 The stored value is byte-identical to what the caller intended, with no added escaping, whitespace or substitution
+- [x] #3 The missing-value diagnostic names the escape mechanism
+- [x] #4 A genuinely missing value is still a usage error (exit 2), and QCLI-101's duplicate and flag-shaped-value rejections are unchanged
+- [x] #5 Tests cover the escape form and the still-invalid missing-value form for every free-text single-value flag
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -80,4 +80,12 @@ This is a follow-up to QCLI-101, not a regression report against it: the rejecti
 
 <!-- SECTION:NOTES:BEGIN -->
 Preflight at merged dev b048d2c found one central flags parser. The smallest compatible escape is --flag=<value>: split once at the first equals sign, preserve the suffix exactly, and do not consume a following argument. Ordinary --flag --other remains a usage error. The free-text single-value flags are description, title, context, and outcome; structural single-value and repeatable flags remain covered by the existing generic rejection matrices. User-facing help and the missing diagnostic will document only the supported equals form.
+
+Implementation complete: the central parser accepts --flag=<value>, splits only the first equals sign, and preserves the remainder exactly. Raw flag-shaped next tokens remain invalid, attached values on output modes and booleans are rejected, and missing-value diagnostics name the equals escape. Structured and plain help publish the supported syntax. An isolated process test round-trips dash-prefixed multi-equals description, title, context, and outcome values through storage. Verification passed: focused 23 tests and 1006 expectations, full repository check with 164 tests and 1620 expectations, package check, packed package tests, strict Lore validation and check, and git diff check. Independent review accepted all five acceptance criteria and parser edge cases.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added a documented equals-form escape for literal flag values beginning with two dashes while preserving existing missing, duplicate, flag-shaped, mode, and boolean rejection behavior. Contract matrices cover every free-text single-value flag, and isolated process tests prove byte-identical persisted description, title, context, and outcome values. Focused, full, package, Lore, and diff gates passed; independent review accepted the result.
+<!-- SECTION:FINAL_SUMMARY:END -->
