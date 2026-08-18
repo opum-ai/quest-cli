@@ -1,7 +1,9 @@
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { qualifyMigrationLifecycle } from "./qualification/migration-lifecycle.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const rootPackage = JSON.parse(
@@ -97,76 +99,13 @@ try {
   if (!help.data?.commands?.some((command) => command.name === "task create"))
     throw new Error("Packed launcher targeted help failed.");
 
-  const backlogSource = join(work, "backlog-source");
-  const backlogTasks = join(backlogSource, "backlog", "tasks");
-  await mkdir(backlogTasks, { recursive: true });
-  for (const [id, title] of [
-    ["TASK-1", "Legacy task"],
-    ["LCLI-315.4", "Lore dotted subtask"],
-    ["TASK-2.1", "Backlog dotted subtask"],
-  ]) {
-    await writeFile(
-      join(backlogTasks, `${id}.md`),
-      `---\nid: ${id}\ntitle: ${title}\nstatus: To Do\n---\n`,
-    );
-  }
-  const preview = JSON.parse(
-    await Bun.$`node ${quest} migration backlog preview --source ${backlogSource} --json`
-      .cwd(workspace)
-      .text(),
-  );
-  if (
-    preview.kind !== "migration.backlog-preview" ||
-    preview.data?.mappings?.length !== 3
-  )
-    throw new Error("Packed launcher Backlog preview failed.");
-  const migrationActor = [
-    "--actor",
-    "migration-owner",
-    "--actor-kind",
-    "human",
-    "--json",
-  ];
-  const applied = JSON.parse(
-    await Bun.$`node ${quest} migration backlog apply --source ${backlogSource} --digest ${preview.data.digest} ${migrationActor}`
-      .cwd(workspace)
-      .text(),
-  );
-  if (
-    applied.kind !== "migration.backlog-applied" ||
-    applied.data?.state !== "applied"
-  )
-    throw new Error("Packed launcher Backlog apply failed.");
-  for (const reference of ["TASK-1", "LCLI-315.4", "TASK-2.1"]) {
-    const viewed = JSON.parse(
-      await Bun.$`node ${quest} task view ${reference} --json`
-        .cwd(workspace)
-        .text(),
-    );
-    if (
-      viewed.kind !== "task.view" ||
-      viewed.data?.source?.reference !== reference
-    )
-      throw new Error(`Packed launcher alias lookup failed for ${reference}.`);
-  }
-  const migrationStatus = JSON.parse(
-    await Bun.$`node ${quest} migration backlog status --digest ${preview.data.digest} --json`
-      .cwd(workspace)
-      .text(),
-  );
-  if (migrationStatus.data?.state !== "applied")
-    throw new Error("Packed launcher Backlog status failed.");
-  const rolledBack = JSON.parse(
-    await Bun.$`node ${quest} migration backlog rollback --digest ${preview.data.digest} ${migrationActor}`
-      .cwd(workspace)
-      .text(),
-  );
-  if (
-    rolledBack.kind !== "migration.backlog-rolled-back" ||
-    rolledBack.data?.state !== "rolled-back" ||
-    rolledBack.data?.survivors?.length !== 0
-  )
-    throw new Error("Packed launcher Backlog rollback failed.");
+  const migration = await qualifyMigrationLifecycle({
+    command: ["node", quest],
+    executablePath: quest,
+    provenance: { candidate: "packed-local" },
+  });
+  if (migration.version !== rootPackage.version)
+    throw new Error("Packed launcher migration qualification version failed.");
 } finally {
   await Promise.all(tarballs.map((tarball) => rm(tarball, { force: true })));
   await rm(work, { recursive: true, force: true });

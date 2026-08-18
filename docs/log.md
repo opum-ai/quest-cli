@@ -179,6 +179,8 @@
 - 2026-08-17T19:56:53-05:00 e58e585fc23c15453b812120e3731e195b617b15 docs: settle QCLI-109 delivery
 - 2026-08-17T20:04:19-05:00 9c8d90a7d3b1ac73814b0ec66e3aae67579d3699 fix: resolve output modes before dispatch
 - 2026-08-17T20:11:33-05:00 0fbac22a0f650480e956f375fddfa009f73cfeaa docs: settle QCLI-110 delivery
+- 2026-08-17T20:13:24-05:00 6e4f21ea6bcaf1a07df978e6c78b84c41b224687 docs: record campaign authority frontier
+- 2026-08-17T20:37:03-05:00 5f944755615206daa220e2bc3810e1ad1bbad264 feat: qualify Quest 0.2.7 migration artifacts
 
 ## docs/adr
 

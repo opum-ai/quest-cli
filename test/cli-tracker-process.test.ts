@@ -91,7 +91,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.6\n",
+      stdout: "0.2.7\n",
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);
@@ -522,7 +522,10 @@ test("the compiled binary rejects missing and duplicate status values", async ()
   const store = await mkdtemp(join(tmpdir(), "quest-compiled-flags-"));
   try {
     for (const [argv, message] of [
-      [["task", "list", "--status", "--json"], "--status requires a value."],
+      [
+        ["task", "list", "--status", "--json"],
+        "--status requires a value; use --status=<value> if the value begins with --.",
+      ],
       [
         ["task", "list", "--status", "To Do", "--status", "Done", "--json"],
         "--status may only be provided once.",

@@ -24,7 +24,7 @@ test("the executable keeps successful JSON on stdout and diagnostics on stderr",
 
 test("version is bare semver and JSON takes precedence over plain", async () => {
   const expected = {
-    stdout: "0.2.6\n",
+    stdout: "0.2.7\n",
     stderr: "",
     exitCode: 0,
   };
@@ -83,7 +83,7 @@ test("help, instructions, and completion expose the versioned public discovery s
     JSON.parse((await runQuest(["instructions", "--json"], false)).stdout),
   ).toMatchObject({
     kind: "agent.instructions",
-    data: { version: "0.2.6" },
+    data: { version: "0.2.7" },
   });
 });
 

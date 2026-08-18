@@ -3,7 +3,7 @@ id: doc-21
 title: Backlog campaign tracker — Quest parity and Lore/Codex integration
 type: other
 created_date: '2026-08-17 06:38'
-updated_date: '2026-08-18 01:13'
+updated_date: '2026-08-18 01:27'
 ---
 ## Contract
 
@@ -25,7 +25,7 @@ updated_date: '2026-08-18 01:13'
 - Resolved on dev: QCLI-112 merged through PR 114 at 6f247cc after source, six immutable-package, and six projection lanes passed; the merge tree matched the exact candidate.
 - Resolved on dev: QCLI-102 merged through PR 115 at b048d2c after source and all six immutable package jobs passed.
 - Resolved on dev: QCLI-109 merged through PR 116 at 7286e23 after exact candidate 93ca3b0 passed source and all six public package lanes; the repository is now public.
-- No ready repository-local task remains. QCLI-97.5 requires separate Lore CLI authority or an owner-approved published adapter contract. QCLI-97.9 requires separate registry/publication or global-install authority. QCLI-97.6 depends on both, and parent QCLI-97 cannot close until those owner decisions are resolved.
+- Active: QCLI-97.9 is authorized for an unpublished 0.2.7 candidate, six-platform rebuild, local packed artifacts, and global local-install replacement. npm publication remains unauthorized. QCLI-97.5 still requires separate Lore CLI authority; QCLI-97.6 and parent QCLI-97 depend on both.
 - Resolved on dev: QCLI-110 merged through PR 118 at d35e794 after exact candidate 9c8d90a passed source and all six public package lanes.
 
 ## Queue
@@ -37,16 +37,17 @@ updated_date: '2026-08-18 01:13'
 | Done | QCLI-102 | Delivered | PR 115 merged to dev at b048d2c; exact head passed source plus six immutable-package checks. |
 | Done | QCLI-109 | Delivered | PR 116 merged to dev at 7286e23; exact head passed source plus six public package jobs. |
 | Done | QCLI-110 | Delivered | PR 118 merged to dev at d35e794; exact head passed source plus six public package jobs. |
-| Held | QCLI-97.9 | Authority boundary | Qualify the installed migration artifact; publication/global install mutation needs separate authority. |
+| Active | QCLI-97.9 | In progress | Build, pack, locally install, and qualify Quest 0.2.7 without npm publication. |
 | Held | QCLI-97.5 | Authority boundary | Separate Lore CLI authority or published adapter contract. |
 | Held | QCLI-97.6 | Dependencies | Depends on QCLI-97.5 and QCLI-97.9. |
 | Held | QCLI-97 | Parent frontier | Cannot complete until QCLI-97.5, QCLI-97.6, and QCLI-97.9 resolve. |
 
 ## Current worktree
 
-- No implementation worktree is retained. Temporary audit lease b74a57bcd13f35537f62d5f53ccfd0cf on campaign/final-frontier-settlement exists only to deliver this final tracker update and will be identity-fenced and returned after merge.
-- Last completed stage: QCLI-110 settlement merged through PR 119 at 7044c86; a merged-dev queue audit found only QCLI-97, QCLI-97.5, QCLI-97.6, and QCLI-97.9 open, all held by explicit authority or dependency boundaries.
-- Exact next action: an owner must separately authorize Lore CLI repository work for QCLI-97.5 and registry/publication or global-install mutation for QCLI-97.9; QCLI-97.6 and parent QCLI-97 then become actionable.
+- Lease e2267d974a0ae1932a343381fa2225d7 is held by qcli-97-9-writer at /Volumes/external/repos/quest-cli/.treehouse/.treehouse/quest-cli-40ae4d/1/quest-cli.
+- Branch: campaign/qcli-97-9-installed-artifact from merged dev 2457ac2e36103ed73b70f41e4f476cbefeac0159.
+- Last completed stage: owner authorized the local candidate/global-install path; QCLI-97.9 was activated with a 0.2.7 build, pack, installed qualification, and Lore handback plan.
+- Next action: implement version and packed migration assertions, review and commit source, rebuild six packages, then perform isolated and authorized global local-install qualification.
 
 ## QCLI-106/QCLI-107 settlement
 
