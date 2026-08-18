@@ -185,6 +185,7 @@
 - 2026-08-17T20:54:55-05:00 a45e2483957f1cfa4c44a1ba4bdd1afc2d524520 docs: record QCLI-97.9 external handoff
 - 2026-08-18T00:45:14-05:00 2b934d5db324419ebeaeb1760d9789525e51d715 docs: finalize Quest 0.2.7 installed evidence
 - 2026-08-18T08:26:48-05:00 04ef2bdd7cf04a80d43033cc4a0a9e96d75bc54f docs: synchronize Lore history log
+- 2026-08-18T12:06:42-05:00 3699c2e87e2ea0e128fd5b801221a1125bb13f08 chore: settle FMC worker authority
 
 ## docs/adr
 
