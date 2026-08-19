@@ -30,6 +30,12 @@ tasks:
   - qcli-106
   - qcli-107
   - qcli-108
+  - qcli-109
+  - qcli-110
+  - qcli-111
+  - qcli-112
+  - qcli-113
+  - qcli-114
 ---
 
 # Harden and qualify Quest CLI 0.2.x
@@ -79,6 +85,12 @@ candidate needed to close them.
 | [QCLI-106](../../backlog/tasks/qcli-106%20-%20agents-check-exits-0-when-the-managed-block-is-missing-so-CI-cannot-gate-on-it.md) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | Done |
 | [QCLI-107](../../backlog/tasks/qcli-107%20-%20Error-classification-contention-leaks-dependency_target_ambiguous-and-EACCES-maps-to-validation-not-denied.md) | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | Done |
 | [QCLI-108](../../backlog/tasks/qcli-108%20-%20Keep-repository-checks-from-traversing-pooled-Treehouse-worktrees.md) | Keep repository checks from traversing pooled Treehouse worktrees | Done |
+| [QCLI-109](../../backlog/tasks/qcli-109%20-%20No-way-to-pass-a-flag-value-that-begins-with-two-dashes.md) | No way to pass a flag value that begins with two dashes | Done |
+| [QCLI-110](../../backlog/tasks/qcli-110%20-%20Output-mode-flags-are-only-recognised-after-the-command-unlike-lore.md) | Output mode flags are only recognised after the command, unlike lore | Done |
+| [QCLI-111](../../backlog/tasks/qcli-111%20-%20Diagnose-and-restore-required-Windows-ARM64-SQLite-projection-qualification.md) | Diagnose and restore required Windows ARM64 SQLite projection qualification | Done |
+| [QCLI-112](../../backlog/tasks/qcli-112%20-%20Make-six-target-Bun-artifact-delivery-safe-in-Treehouse-worktrees.md) | Make six-target Bun artifact delivery safe in Treehouse worktrees | Done |
+| [QCLI-113](../../backlog/tasks/qcli-113%20-%20Settle-FMC-worker-ledger-and-delivery.md) | Settle FMC worker ledger and delivery | Done |
+| [QCLI-114](../../backlog/tasks/qcli-114%20-%20Reconcile-completed-0.2.x-delivery-records-into-Lore-ownership.md) | Reconcile completed 0.2.x delivery records into Lore ownership | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
