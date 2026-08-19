@@ -5,12 +5,13 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 21:25'
-updated_date: '2026-08-17 23:43'
+updated_date: '2026-08-19 00:25'
 labels:
   - quest-0.2
   - bun
   - packaging
   - treehouse
+  - 'doc:stories/harden-and-qualify-quest-cli-0-2-x'
 dependencies: []
 references:
   - scripts/build-platform-packages.mjs
@@ -23,6 +24,8 @@ references:
   - 'https://github.com/opum-ai/quest-cli/pull/114'
   - 'https://github.com/opum-ai/quest-cli/actions/runs/32081140427'
   - 'https://github.com/opum-ai/quest-cli/actions/runs/32081140380'
+documentation:
+  - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
 modified_files:
   - scripts/deliver-package-artifacts.mjs
   - scripts/test-package-artifact-delivery.mjs
