@@ -5,9 +5,12 @@ status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-18 17:05'
-updated_date: '2026-08-18 17:07'
-labels: []
+updated_date: '2026-08-19 00:25'
+labels:
+  - 'doc:stories/harden-and-qualify-quest-cli-0-2-x'
 dependencies: []
+documentation:
+  - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
 type: chore
 ordinal: 139000
 ---

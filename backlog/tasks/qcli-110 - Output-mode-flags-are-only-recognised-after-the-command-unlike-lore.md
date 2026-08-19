@@ -5,15 +5,18 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 18:44'
-updated_date: '2026-08-18 01:10'
+updated_date: '2026-08-19 00:25'
 labels:
   - cli
   - argument-parsing
   - output-contract
+  - 'doc:stories/harden-and-qualify-quest-cli-0-2-x'
 dependencies: []
 references:
   - 'https://github.com/opum-ai/quest-cli/pull/118'
   - 'https://github.com/opum-ai/quest-cli/actions/runs/32086897923'
+documentation:
+  - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
 modified_files:
   - src/cli/main.ts
   - test/contract/cli-process.test.ts

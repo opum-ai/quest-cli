@@ -5,12 +5,13 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-08-17 21:25'
-updated_date: '2026-08-17 23:43'
+updated_date: '2026-08-19 00:25'
 labels:
   - quest-0.2
   - bun
   - ci
   - windows-arm64
+  - 'doc:stories/harden-and-qualify-quest-cli-0-2-x'
 dependencies: []
 references:
   - 'https://github.com/opum-ai/quest-cli/actions/runs/32069839094'
@@ -26,6 +27,8 @@ references:
     https://github.com/opum-ai/quest-cli/actions/runs/32080577863/job/95542640472
   - >-
     https://github.com/opum-ai/quest-cli/actions/runs/32081140380/job/95544209958
+documentation:
+  - docs/stories/harden-and-qualify-quest-cli-0-2-x.md
 modified_files:
   - .github/workflows/projection-platform.yml
   - test/integration/projection/sqlite-projection.test.ts
