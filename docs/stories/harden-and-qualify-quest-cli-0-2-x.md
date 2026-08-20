@@ -9,7 +9,7 @@ tags:
   - release
 summary: Complete Quest parity, resolve 0.2.x qualification defects, and establish release-ready evidence without rewriting the 0.1.0 delivery record.
 timestamp: 2026-08-17T16:25:23.594Z
-status: todo
+status: in-progress
 tasks:
   - qcli-97
   - qcli-97.1
@@ -71,7 +71,7 @@ candidate needed to close them.
 | [QCLI-97.2](../../backlog/tasks/qcli-97.2%20-%20Implement-Quest-project-bootstrap-discovery-and-Codex-instructions.md) | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
 | [QCLI-97.3](../../backlog/tasks/qcli-97.3%20-%20Restore-Quest-planning-and-operations-parity-commands.md) | Restore Quest planning and operations parity commands | Done |
 | [QCLI-97.4](../../backlog/tasks/qcli-97.4%20-%20Restore-Quest-task-lifecycle-and-draft-parity.md) | Restore Quest task lifecycle and draft parity | Done |
-| [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | To Do |
+| [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | In Progress |
 | [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | To Do |
 | [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | Done |
 | [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | Done |

@@ -17,3 +17,8 @@
 # space          = "ENG"
 # parent_page_id = "98765"
 # format         = "storage"   # or "adf"
+
+# This repository still owns live Backlog.md records. Keep the tracker explicit
+# until the separately governed Quest migration is activated.
+[tracker]
+backend = "backlog"
