@@ -5,7 +5,7 @@ status: To Do
 assignee:
   - '@quest-cli'
 created_date: '2026-08-21 19:45'
-updated_date: '2026-08-21 21:04'
+updated_date: '2026-08-21 21:16'
 labels:
   - odoc-63.2
 dependencies:
@@ -50,4 +50,6 @@ Ownership (feature-wayfinding gate feature-wayfinding-v2, correlation 1cdd200728
 Ownership corrected per Controller JIT payload a19bf67e0c5f41f7801c13af10459a4e: .3 now owns src/cli/main.ts and src/cli/commands/task/index.ts (added) in addition to existing src/application/tasks, src/application/mutations, test/cli-local-task-repository.test.ts, test/integration/tasks/cli-semantics.test.ts, test/contract/cli-process.test.ts. New dependency QCLI-97.11.6 (corrective contract closure) added; .3 blocked until .6 settles.
 
 Pre-correction .3 implementation bytes (tasks.ts lifecycle accessor, commands/task dispatch patch builder, main.ts flag wiring, cli-process flag tables, cli-semantics.test.ts) preserved in git stash 'QCLI-97.11.3 pre-correction work' (stash@{0}) on branch feat/qcli-97.10-odoc-63.2-parity-migration; untracked test/integration/tasks/cli-semantics.test.ts retained in worktree. To be reconciled against the corrected contract after QCLI-97.11.6 settles.
+
+QCLI-97.11.6 settled Done at commit cdfe2d5 (settlement 39712bb, feature map delivery 48b0139). .3 is now unblocked: reconcile preserved bytes (stash@{0} + untracked test/integration/tasks/cli-semantics.test.ts) against the corrected contract, then implement the now-complete contract in src/cli/main.ts + src/cli/commands/task/index.ts.
 <!-- SECTION:NOTES:END -->
