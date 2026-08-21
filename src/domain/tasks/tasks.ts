@@ -279,9 +279,9 @@ function unique(values: readonly string[], name: string): void {
     throw new RecordValidationError(`${name} cannot contain duplicates.`);
 }
 
-/** Casefold used only for configured-status matching; storage keeps the canonical spelling. */
+/** Locale-invariant casefold for configured-status matching; storage keeps the canonical spelling. */
 export function statusKey(status: string): string {
-  return status.trim().toLocaleLowerCase();
+  return status.trim().toLowerCase();
 }
 
 export function resolveConfiguredStatus(
@@ -590,6 +590,8 @@ export function closeMilestoneReference(
   if (link) {
     if (task.milestoneId !== undefined && task.milestoneId !== milestone.id)
       throw new RecordValidationError("milestone_reference_conflict");
+    if (!linked && task.milestoneId === milestone.id)
+      throw new RecordValidationError("milestone_reference_drift");
     if (linked && task.milestoneId === milestone.id) return { task, milestone };
     return {
       task: taskState({ ...task, milestoneId: milestone.id }),
@@ -597,9 +599,7 @@ export function closeMilestoneReference(
         ? milestone
         : {
             ...milestone,
-            taskIds: [...milestone.taskIds, task.id].sort((a, b) =>
-              a.localeCompare(b),
-            ),
+            taskIds: [...milestone.taskIds, task.id].sort(),
           },
     };
   }

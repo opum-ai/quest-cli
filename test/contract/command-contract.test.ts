@@ -353,6 +353,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "draft.view",
       mutates: false,
+      fields: ["description", "documentation", "labels", "title"],
     },
     {
       name: "draft promote",
@@ -371,6 +372,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "milestone.list",
       mutates: false,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone view",
@@ -404,6 +406,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "decision.list",
       mutates: false,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision view",

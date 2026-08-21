@@ -237,7 +237,8 @@ test("edits emit the full replace add remove clear argv in a fixed order", async
     { id: "person-1", kind: "human" },
   );
   const editCall = calls.find((argv) => argv[1] === "edit");
-  expect(editCall?.slice(8)).toEqual([
+  if (!editCall) throw new Error("edit_call_missing");
+  expect(editCall.slice(editCall.indexOf("--plan"))).toEqual([
     "--plan",
     '["p1"]',
     "--add-plan",
@@ -283,7 +284,8 @@ test("create emits structured field argv", async () => {
     { id: "person-1", kind: "human" },
   );
   const createCall = calls.find((argv) => argv[1] === "create");
-  expect(createCall?.slice(8)).toEqual([
+  if (!createCall) throw new Error("create_call_missing");
+  expect(createCall.slice(createCall.indexOf("--priority"))).toEqual([
     "--priority",
     "high",
     "--type",

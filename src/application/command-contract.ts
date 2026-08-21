@@ -354,6 +354,7 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "draft.view",
       mutates: false,
+      fields: ["description", "documentation", "labels", "title"],
     },
     {
       name: "draft promote",
@@ -372,6 +373,7 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "milestone.list",
       mutates: false,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone view",
@@ -405,6 +407,7 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "decision.list",
       mutates: false,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision view",
@@ -482,6 +485,9 @@ export function validateCommandManifest(manifest: unknown): boolean {
     canonical.set(entry.name, entry);
   const names = new Set<string>();
   const kinds = new Set<string>();
+  // Non-empty unique string lists; the live manifest never advertises an
+  // empty list, and order is part of the closed-set contract (exact
+  // JSON.stringify equality below is deliberately order-sensitive).
   const isStringList = (value: unknown): boolean =>
     value === undefined ||
     (Array.isArray(value) &&

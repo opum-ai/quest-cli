@@ -637,22 +637,32 @@ test("legacy string checklists in the payload normalize to checked items on read
   await new SqliteProjectionStore(path).rebuild({
     enumerate: async () => ({ ...source, tasks: [legacy, second] }),
   });
-  const db = new Database(path, { readonly: true });
+  const raw = new Database(path);
   try {
-    const row = readDatabaseRow<{ payload: string }>(
-      db,
-      "SELECT payload FROM tasks WHERE id = 'T-1'",
+    // Insert a genuinely legacy payload (bare strings) directly, bypassing
+    // taskState(), to prove the read path normalizes pre-change artifacts.
+    raw.exec(
+      "INSERT INTO tasks (id, title, status, payload) VALUES ('T-9', 'Legacy', 'To Do', ?)",
+      [
+        JSON.stringify({
+          ...legacy,
+          id: "T-9",
+          title: "Legacy",
+          acceptanceCriteria: ["legacy"],
+          gates: [],
+          gateEvents: [],
+        }),
+      ],
     );
-    // taskState() normalizes on every read path, so the persisted payload is
-    // already canonical; the reader assertion below proves the round-trip.
-    expect(JSON.parse(row.payload)).toMatchObject({
-      acceptanceCriteria: [{ index: 0, text: "legacy", checked: false }],
-    });
   } finally {
-    db.close(true);
+    raw.close(true);
   }
   const read = await new SqliteProjectionTaskReader(path).readAll();
   expect(read.tasks[0]?.acceptanceCriteria).toEqual([
+    { index: 0, text: "legacy", checked: false },
+  ]);
+  const legacyRow = read.tasks.find((task) => task.id === "T-9");
+  expect(legacyRow?.acceptanceCriteria).toEqual([
     { index: 0, text: "legacy", checked: false },
   ]);
 });
