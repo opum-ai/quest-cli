@@ -41,11 +41,18 @@ export interface TrackerManifestEntry {
   readonly schemaVersion: number;
   readonly kind: string | null;
   readonly mutates: boolean;
+  readonly fields?: readonly string[];
+  readonly filters?: readonly string[];
 }
 export interface TrackerManifest {
   readonly commands: readonly TrackerManifestEntry[];
 }
 
+export interface TrackerCheckItem {
+  readonly index: number;
+  readonly text: string;
+  readonly checked: boolean;
+}
 export interface TrackerSummary {
   readonly id: string;
   readonly title: string;
@@ -54,17 +61,25 @@ export interface TrackerSummary {
   readonly summary?: string;
   readonly priority?: string;
   readonly type?: string;
+  readonly assignees?: readonly string[];
+  readonly ordinal?: number;
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
 }
 export interface TrackerTask extends TrackerSummary {
   readonly description?: string;
-  readonly acceptanceCriteria: readonly string[];
-  readonly definitionOfDone: readonly string[];
+  readonly acceptanceCriteria: readonly (string | TrackerCheckItem)[];
+  readonly definitionOfDone: readonly (string | TrackerCheckItem)[];
   readonly plan: readonly string[];
   readonly implementationNotes: readonly string[];
   readonly comments: readonly unknown[];
   readonly documentation: readonly string[];
   readonly dependencies: readonly string[];
   readonly parentId?: string;
+  readonly milestoneId?: string;
+  readonly finalSummary?: string;
+  readonly references?: readonly string[];
+  readonly modifiedFiles?: readonly string[];
 }
 export interface TrackerStatusFlow {
   readonly statuses: readonly string[];
@@ -75,6 +90,21 @@ export interface TrackerCreateInput {
   readonly description?: string;
   readonly labels?: readonly string[];
   readonly documentation?: readonly string[];
+  readonly priority?: string;
+  readonly type?: string;
+  readonly ordinal?: number;
+  readonly aliases?: readonly string[];
+  readonly acceptanceCriteria?: readonly (string | TrackerCheckItem)[];
+  readonly definitionOfDone?: readonly (string | TrackerCheckItem)[];
+  readonly plan?: readonly string[];
+  readonly implementationNotes?: readonly string[];
+  readonly assignees?: readonly string[];
+  readonly references?: readonly string[];
+  readonly modifiedFiles?: readonly string[];
+  readonly dependencies?: readonly string[];
+  readonly parentId?: string;
+  readonly milestoneId?: string;
+  readonly finalSummary?: string;
 }
 /** Undefined preserves a field; arrays replace their corresponding full field. */
 export interface TrackerEditPatch {
@@ -83,6 +113,27 @@ export interface TrackerEditPatch {
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
   readonly documentation?: readonly string[];
+  readonly plan?: readonly string[];
+  readonly addPlan?: readonly string[];
+  readonly removePlan?: readonly string[];
+  readonly implementationNotes?: readonly string[];
+  readonly addNotes?: readonly string[];
+  readonly removeNotes?: readonly string[];
+  readonly comments?: readonly unknown[];
+  readonly acceptanceCriteria?: readonly (string | TrackerCheckItem)[];
+  readonly definitionOfDone?: readonly (string | TrackerCheckItem)[];
+  readonly addDependencies?: readonly string[];
+  readonly removeDependencies?: readonly string[];
+  readonly parentId?: string;
+  readonly clearParent?: boolean;
+  readonly milestoneId?: string;
+  readonly clearMilestone?: boolean;
+  readonly addAssignees?: readonly string[];
+  readonly removeAssignees?: readonly string[];
+  readonly addReferences?: readonly string[];
+  readonly removeReferences?: readonly string[];
+  readonly addModifiedFiles?: readonly string[];
+  readonly removeModifiedFiles?: readonly string[];
 }
 export interface TrackerWriteActor {
   readonly id: string;
@@ -102,6 +153,24 @@ function isStringArray(value: unknown): value is readonly string[] {
   );
 }
 
+function isCheckList(
+  value: unknown,
+): value is readonly (string | TrackerCheckItem)[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        typeof item === "string" ||
+        (!!item &&
+          typeof item === "object" &&
+          Number.isInteger((item as TrackerCheckItem).index) &&
+          (item as TrackerCheckItem).index >= 0 &&
+          typeof (item as TrackerCheckItem).text === "string" &&
+          typeof (item as TrackerCheckItem).checked === "boolean"),
+    )
+  );
+}
+
 function isSummary(value: unknown): value is TrackerSummary {
   if (!value || typeof value !== "object") return false;
   const task = value as Partial<TrackerSummary>;
@@ -112,7 +181,11 @@ function isSummary(value: unknown): value is TrackerSummary {
     isStringArray(task.labels) &&
     (task.summary === undefined || typeof task.summary === "string") &&
     (task.priority === undefined || typeof task.priority === "string") &&
-    (task.type === undefined || typeof task.type === "string")
+    (task.type === undefined || typeof task.type === "string") &&
+    (task.assignees === undefined || isStringArray(task.assignees)) &&
+    (task.ordinal === undefined || Number.isFinite(task.ordinal)) &&
+    (task.createdAt === undefined || typeof task.createdAt === "string") &&
+    (task.updatedAt === undefined || typeof task.updatedAt === "string")
   );
 }
 
@@ -121,14 +194,19 @@ function isTask(value: unknown): value is TrackerTask {
   const task = value as Partial<TrackerTask>;
   return (
     (task.description === undefined || typeof task.description === "string") &&
-    isStringArray(task.acceptanceCriteria) &&
-    isStringArray(task.definitionOfDone) &&
+    isCheckList(task.acceptanceCriteria) &&
+    isCheckList(task.definitionOfDone) &&
     isStringArray(task.plan) &&
     isStringArray(task.implementationNotes) &&
     Array.isArray(task.comments) &&
     isStringArray(task.documentation) &&
     isStringArray(task.dependencies) &&
-    (task.parentId === undefined || typeof task.parentId === "string")
+    (task.parentId === undefined || typeof task.parentId === "string") &&
+    (task.milestoneId === undefined || typeof task.milestoneId === "string") &&
+    (task.finalSummary === undefined ||
+      typeof task.finalSummary === "string") &&
+    (task.references === undefined || isStringArray(task.references)) &&
+    (task.modifiedFiles === undefined || isStringArray(task.modifiedFiles))
   );
 }
 
@@ -392,6 +470,34 @@ export class QuestTrackerClient {
       argv.push("--description", input.description);
     appendRepeated(argv, "--label", input.labels);
     appendRepeated(argv, "--doc", input.documentation);
+    if (input.priority !== undefined) argv.push("--priority", input.priority);
+    if (input.type !== undefined) argv.push("--type", input.type);
+    if (input.ordinal !== undefined)
+      argv.push("--ordinal", String(input.ordinal));
+    appendRepeated(argv, "--alias", input.aliases);
+    if (input.acceptanceCriteria !== undefined)
+      argv.push(
+        "--acceptance-criteria",
+        JSON.stringify(input.acceptanceCriteria),
+      );
+    if (input.definitionOfDone !== undefined)
+      argv.push("--definition-of-done", JSON.stringify(input.definitionOfDone));
+    if (input.plan !== undefined)
+      argv.push("--plan", JSON.stringify(input.plan));
+    if (input.implementationNotes !== undefined)
+      argv.push(
+        "--implementation-notes",
+        JSON.stringify(input.implementationNotes),
+      );
+    appendRepeated(argv, "--assignee", input.assignees);
+    appendRepeated(argv, "--reference", input.references);
+    appendRepeated(argv, "--modified-file", input.modifiedFiles);
+    appendRepeated(argv, "--dependency", input.dependencies);
+    if (input.parentId !== undefined) argv.push("--parent", input.parentId);
+    if (input.milestoneId !== undefined)
+      argv.push("--milestone", input.milestoneId);
+    if (input.finalSummary !== undefined)
+      argv.push("--final-summary", input.finalSummary);
     return parseEnvelope(await this.run(argv), "task.created")
       .data as TrackerTask;
   }
@@ -408,6 +514,36 @@ export class QuestTrackerClient {
     appendRepeated(argv, "--add-label", patch.addLabels);
     appendRepeated(argv, "--remove-label", patch.removeLabels);
     appendRepeated(argv, "--doc", patch.documentation);
+    if (patch.plan !== undefined)
+      argv.push("--plan", JSON.stringify(patch.plan));
+    appendRepeated(argv, "--add-plan", patch.addPlan);
+    appendRepeated(argv, "--remove-plan", patch.removePlan);
+    if (patch.implementationNotes !== undefined)
+      argv.push("--notes", JSON.stringify(patch.implementationNotes));
+    appendRepeated(argv, "--add-note", patch.addNotes);
+    appendRepeated(argv, "--remove-note", patch.removeNotes);
+    if (patch.comments !== undefined)
+      argv.push("--comments", JSON.stringify(patch.comments));
+    if (patch.acceptanceCriteria !== undefined)
+      argv.push(
+        "--acceptance-criteria",
+        JSON.stringify(patch.acceptanceCriteria),
+      );
+    if (patch.definitionOfDone !== undefined)
+      argv.push("--definition-of-done", JSON.stringify(patch.definitionOfDone));
+    appendRepeated(argv, "--add-dependency", patch.addDependencies);
+    appendRepeated(argv, "--remove-dependency", patch.removeDependencies);
+    if (patch.parentId !== undefined) argv.push("--parent", patch.parentId);
+    if (patch.clearParent === true) argv.push("--clear-parent");
+    if (patch.milestoneId !== undefined)
+      argv.push("--milestone", patch.milestoneId);
+    if (patch.clearMilestone === true) argv.push("--clear-milestone");
+    appendRepeated(argv, "--add-assignee", patch.addAssignees);
+    appendRepeated(argv, "--remove-assignee", patch.removeAssignees);
+    appendRepeated(argv, "--add-reference", patch.addReferences);
+    appendRepeated(argv, "--remove-reference", patch.removeReferences);
+    appendRepeated(argv, "--add-modified-file", patch.addModifiedFiles);
+    appendRepeated(argv, "--remove-modified-file", patch.removeModifiedFiles);
     return parseEnvelope(await this.run(argv), "task.updated")
       .data as TrackerTask;
   }

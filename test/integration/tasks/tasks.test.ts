@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test";
 
 import {
+  closeMilestoneReference,
   createTask,
   defaultLifecyclePolicy,
   evaluateReadySet,
   taskState,
   transitionTask,
+  validateMilestoneClosure,
 } from "../../../src/domain/tasks/tasks.ts";
 import {
   replayGateHistory,
@@ -328,4 +330,170 @@ test("a repository CAS conflict includes its observed basis and never reports a 
     operationId: "operation-1",
     ownedPaths: [".quest/tasks/T-1.md"],
   });
+});
+
+test("schema-1 fields normalize to a deterministic canonical task state", () => {
+  const created = createTask("T-1", {
+    title: "full",
+    status: "To Do",
+    summary: "short",
+    description: "long",
+    priority: "high",
+    type: "feature",
+    ordinal: 7,
+    aliases: ["ONE"],
+    acceptanceCriteria: [
+      "works",
+      { index: 1, text: "checked ac", checked: true },
+    ],
+    definitionOfDone: ["verified"],
+    plan: ["build"],
+    implementationNotes: ["note"],
+    comments: [{ id: "c-1", authorId: "a", body: "hello", createdAt: "now" }],
+    labels: ["core"],
+    documentation: ["docs/spec.md"],
+    parentId: "T-0",
+    dependencies: [],
+    assignees: ["@quest-cli"],
+    references: ["QCLI-97.11"],
+    modifiedFiles: ["src/domain/tasks/tasks.ts"],
+    createdAt: "2026-08-21T00:00:00Z",
+    updatedAt: "2026-08-21T01:00:00Z",
+    finalSummary: "settled",
+    milestoneId: "M-1",
+    source: { system: "backlog", reference: "QCLI-80" },
+  });
+  expect(created.acceptanceCriteria).toEqual([
+    { index: 0, text: "works", checked: false },
+    { index: 1, text: "checked ac", checked: true },
+  ]);
+  expect(created.definitionOfDone).toEqual([
+    { index: 0, text: "verified", checked: false },
+  ]);
+  expect(created).toMatchObject({
+    assignees: ["@quest-cli"],
+    references: ["QCLI-97.11"],
+    modifiedFiles: ["src/domain/tasks/tasks.ts"],
+    createdAt: "2026-08-21T00:00:00Z",
+    updatedAt: "2026-08-21T01:00:00Z",
+    finalSummary: "settled",
+    milestoneId: "M-1",
+  });
+  expect(taskState(created)).toEqual(created);
+});
+
+test("checked acceptance criteria and definition of done migrate from legacy strings and reject reordering", () => {
+  const legacy = taskState({
+    ...task("T-1"),
+    acceptanceCriteria: ["a", "b"] as readonly (string | never)[],
+    definitionOfDone: [] as readonly (string | never)[],
+  });
+  expect(legacy.acceptanceCriteria).toEqual([
+    { index: 0, text: "a", checked: false },
+    { index: 1, text: "b", checked: false },
+  ]);
+  expect(() =>
+    taskState({
+      ...task("T-2"),
+      acceptanceCriteria: [
+        { index: 1, text: "reordered", checked: false },
+        { index: 0, text: "second", checked: false },
+      ],
+    }),
+  ).toThrow("check_item_index_mismatch");
+  expect(() => task("T-3", { milestoneId: "m-1" })).toThrow(
+    RecordValidationError,
+  );
+  expect(() => task("T-4", { milestoneId: "M-0" })).toThrow(
+    RecordValidationError,
+  );
+});
+
+test("milestone forward and back references close atomically", () => {
+  const todo = task("T-1");
+  const milestone = { id: "M-1", taskIds: [] as readonly string[] };
+  const linked = closeMilestoneReference(todo, milestone, true);
+  expect(linked.task.milestoneId).toBe("M-1");
+  expect(linked.milestone.taskIds).toEqual(["T-1"]);
+  expect(closeMilestoneReference(linked.task, linked.milestone, true)).toEqual(
+    linked,
+  );
+  const unlinked = closeMilestoneReference(
+    linked.task,
+    linked.milestone,
+    false,
+  );
+  expect(unlinked.task.milestoneId).toBeUndefined();
+  expect(unlinked.milestone.taskIds).toEqual([]);
+  expect(() =>
+    closeMilestoneReference(
+      task("T-2", { milestoneId: "M-1" }),
+      { id: "M-2", taskIds: [] as readonly string[] },
+      true,
+    ),
+  ).toThrow("milestone_reference_conflict");
+  expect(() =>
+    closeMilestoneReference(
+      todo,
+      { id: "M-3", taskIds: [] as readonly string[] },
+      false,
+    ),
+  ).toThrow("milestone_reference_drift");
+  expect(() =>
+    closeMilestoneReference(
+      todo,
+      { id: "x-1", taskIds: [] as readonly string[] },
+      true,
+    ),
+  ).toThrow("milestone_id_invalid");
+});
+
+test("workspace milestone closure fails loud on dangling forward or back references", () => {
+  const linkedTask = task("T-1", { milestoneId: "M-1" });
+  const closedPair = { id: "M-1", taskIds: ["T-1"] as readonly string[] };
+  expect(() =>
+    validateMilestoneClosure([linkedTask], [closedPair]),
+  ).not.toThrow();
+  expect(() =>
+    validateMilestoneClosure(
+      [task("T-2", { milestoneId: "M-9" })],
+      [closedPair],
+    ),
+  ).toThrow("milestone_reference_dangling");
+  expect(() =>
+    validateMilestoneClosure([], [{ id: "M-1", taskIds: ["T-9"] }]),
+  ).toThrow("milestone_reference_dangling");
+  expect(() =>
+    validateMilestoneClosure(
+      [task("T-3", { milestoneId: "M-1" })],
+      [{ id: "M-1", taskIds: ["T-1"] }],
+    ),
+  ).toThrow("milestone_reference_dangling");
+  expect(() =>
+    validateMilestoneClosure(
+      [],
+      [{ id: "m-1", taskIds: [] as readonly string[] }],
+    ),
+  ).toThrow("milestone_id_invalid");
+});
+
+test("configured statuses match case-insensitively and store the canonical spelling", () => {
+  expect(createTask("T-1", { title: "folded", status: "to do" }).status).toBe(
+    "To Do",
+  );
+  expect(transitionTask(task("T-2"), "IN PROGRESS").status).toBe("In Progress");
+  expect(() => createTask("T-3", { title: "bad", status: "Blocked" })).toThrow(
+    "Task status is not configured.",
+  );
+  const policy = {
+    statuses: ["Queued", "Working", "Closed"],
+    terminalStatuses: ["Closed"],
+  };
+  expect(
+    createTask("T-4", { title: "q", status: "queued" }, policy).status,
+  ).toBe("Queued");
+  expect(transitionTask(task("T-5"), "IN PROGRESS").status).toBe("In Progress");
+  expect(() => transitionTask(task("T-6"), "DONE")).toThrow(
+    "Illegal task transition",
+  );
 });

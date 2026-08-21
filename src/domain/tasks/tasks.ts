@@ -74,6 +74,23 @@ export interface TaskClaim {
   readonly expiresAt: string;
 }
 
+export interface TaskCheckItem {
+  readonly index: number;
+  readonly text: string;
+  readonly checked: boolean;
+}
+
+/** Legacy records store bare strings; taskState() always normalizes to items. */
+export type TaskCheckList = readonly (string | TaskCheckItem)[];
+
+/** Structural side of a milestone; domain/planning's Milestone is assignable. */
+export interface MilestoneTaskSide {
+  readonly id: string;
+  readonly taskIds: readonly string[];
+}
+
+const milestoneIdPattern = /^M-[1-9][0-9]*$/;
+
 export interface TaskGate {
   readonly id: string;
   readonly title: string;
@@ -93,8 +110,8 @@ export interface TaskState {
   readonly priority?: string;
   readonly type?: string;
   readonly ordinal?: number;
-  readonly acceptanceCriteria: readonly string[];
-  readonly definitionOfDone: readonly string[];
+  readonly acceptanceCriteria: TaskCheckList;
+  readonly definitionOfDone: TaskCheckList;
   readonly plan: readonly string[];
   readonly implementationNotes: readonly string[];
   readonly comments: readonly TaskComment[];
@@ -102,6 +119,13 @@ export interface TaskState {
   readonly documentation: readonly string[];
   readonly parentId?: string;
   readonly dependencies: readonly string[];
+  readonly assignees?: readonly string[];
+  readonly references?: readonly string[];
+  readonly modifiedFiles?: readonly string[];
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
+  readonly finalSummary?: string;
+  readonly milestoneId?: string;
   readonly blockers: readonly BlockerEvent[];
   readonly gates: readonly TaskGate[];
   /** Append-only authored gate history; `gates` is its materialized projection. */
@@ -130,8 +154,8 @@ export interface TaskInput
   > {
   readonly status?: TaskStatus;
   readonly aliases?: readonly string[];
-  readonly acceptanceCriteria?: readonly string[];
-  readonly definitionOfDone?: readonly string[];
+  readonly acceptanceCriteria?: TaskCheckList;
+  readonly definitionOfDone?: TaskCheckList;
   readonly plan?: readonly string[];
   readonly implementationNotes?: readonly string[];
   readonly comments?: readonly TaskComment[];
@@ -158,6 +182,12 @@ export interface DraftInput
 }
 
 const statusSchema = z.string().min(1);
+const checkItemSchema = z.object({
+  index: z.number().int().min(0),
+  text: z.string(),
+  checked: z.boolean(),
+});
+const checkListSchema = z.array(z.union([z.string(), checkItemSchema]));
 const draftIdSchema = z.string().regex(/^D-[1-9][0-9]*$/) as z.ZodType<DraftId>;
 const draftSchema = z.object({
   id: draftIdSchema,
@@ -184,8 +214,8 @@ const taskSchema = z.object({
   priority: z.string().optional(),
   type: z.string().optional(),
   ordinal: z.number().finite().optional(),
-  acceptanceCriteria: z.array(z.string()),
-  definitionOfDone: z.array(z.string()),
+  acceptanceCriteria: checkListSchema,
+  definitionOfDone: checkListSchema,
   plan: z.array(z.string()),
   implementationNotes: z.array(z.string()),
   comments: z.array(
@@ -200,6 +230,13 @@ const taskSchema = z.object({
   documentation: z.array(z.string()),
   parentId: z.string().optional(),
   dependencies: z.array(z.string()),
+  assignees: z.array(z.string()).optional(),
+  references: z.array(z.string()).optional(),
+  modifiedFiles: z.array(z.string()).optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  finalSummary: z.string().optional(),
+  milestoneId: z.string().regex(milestoneIdPattern).optional(),
   blockers: z.array(
     z.object({
       kind: z.enum(["opened", "cleared"]),
@@ -242,12 +279,47 @@ function unique(values: readonly string[], name: string): void {
     throw new RecordValidationError(`${name} cannot contain duplicates.`);
 }
 
+/** Casefold used only for configured-status matching; storage keeps the canonical spelling. */
+export function statusKey(status: string): string {
+  return status.trim().toLocaleLowerCase();
+}
+
+export function resolveConfiguredStatus(
+  requested: string,
+  policy = defaultLifecyclePolicy,
+): TaskStatus {
+  const configured = lifecyclePolicy(policy);
+  const match = configured.statuses.find(
+    (status) => statusKey(status) === statusKey(requested),
+  );
+  if (!match) throw new RecordValidationError("Task status is not configured.");
+  return match;
+}
+
+function normalizeCheckList(list: TaskCheckList): readonly TaskCheckItem[] {
+  return list.map((entry, index) => {
+    if (typeof entry === "string")
+      return { index, text: entry, checked: false };
+    if (entry.index !== index)
+      throw new RecordValidationError("check_item_index_mismatch");
+    return entry;
+  });
+}
+
 /** Normalizes defaults and rejects malformed authored task state. */
 export function taskState(value: TaskState): TaskState {
   const parsed = taskSchema.safeParse(value);
   if (!parsed.success) throw new RecordValidationError("Invalid task state.");
   let state = parsed.data as TaskState;
+  state = {
+    ...state,
+    acceptanceCriteria: normalizeCheckList(state.acceptanceCriteria),
+    definitionOfDone: normalizeCheckList(state.definitionOfDone),
+  };
   unique(state.labels, "Labels");
+  unique(state.assignees ?? [], "Assignees");
+  unique(state.references ?? [], "References");
+  unique(state.modifiedFiles ?? [], "Modified files");
   unique(state.documentation, "Documentation links");
   unique(
     state.comments.map((comment) => comment.id),
@@ -287,9 +359,10 @@ export function createTask(
   policy = defaultLifecyclePolicy,
 ): TaskState {
   const configured = lifecyclePolicy(policy);
-  const status = input.status ?? configured.statuses[0];
-  if (!status || !configured.statuses.includes(status))
-    throw new RecordValidationError("Task status is not configured.");
+  const status =
+    input.status === undefined
+      ? configured.statuses[0]
+      : resolveConfiguredStatus(input.status, policy);
   return taskState({
     ...input,
     id: canonicalId(id),
@@ -340,16 +413,17 @@ export function transitionTask(
 ): TaskState {
   const configured = lifecyclePolicy(policy);
   const position = configured.statuses.indexOf(task.status);
-  if (position < 0 || !configured.statuses.includes(next))
+  if (position < 0)
     throw new RecordValidationError(
       "Task transition uses an unconfigured status.",
     );
-  if (configured.statuses.indexOf(next) !== position + 1)
+  const resolved = resolveConfiguredStatus(next, policy);
+  if (configured.statuses.indexOf(resolved) !== position + 1)
     throw new RecordValidationError(
-      `Illegal task transition: ${task.status} -> ${next}.`,
+      `Illegal task transition: ${task.status} -> ${resolved}.`,
     );
   if (
-    configured.terminalStatuses.includes(next) &&
+    configured.terminalStatuses.includes(resolved) &&
     !blockingGatesSatisfied(
       task.gateEvents.length
         ? replayGateHistory(task.gateEvents).gates
@@ -364,7 +438,7 @@ export function transitionTask(
     )
   )
     throw new RecordValidationError("task_terminal_transition_gate_blocked");
-  return taskState({ ...task, status: next });
+  return taskState({ ...task, status: resolved });
 }
 
 export function activeBlockers(
@@ -498,6 +572,69 @@ export function canonicalizeTaskLinks(
   );
   validateTaskGraph(canonical);
   return canonical;
+}
+
+/**
+ * Pure forward/back reference closure between one task and one milestone.
+ * Callers persist both returned records in the same commit path.
+ */
+export function closeMilestoneReference(
+  task: TaskState,
+  milestone: MilestoneTaskSide,
+  link: boolean,
+): { readonly task: TaskState; readonly milestone: MilestoneTaskSide } {
+  taskState(task);
+  if (!milestoneIdPattern.test(milestone.id))
+    throw new RecordValidationError("milestone_id_invalid");
+  const linked = milestone.taskIds.includes(task.id);
+  if (link) {
+    if (task.milestoneId !== undefined && task.milestoneId !== milestone.id)
+      throw new RecordValidationError("milestone_reference_conflict");
+    if (linked && task.milestoneId === milestone.id) return { task, milestone };
+    return {
+      task: taskState({ ...task, milestoneId: milestone.id }),
+      milestone: linked
+        ? milestone
+        : {
+            ...milestone,
+            taskIds: [...milestone.taskIds, task.id].sort((a, b) =>
+              a.localeCompare(b),
+            ),
+          },
+    };
+  }
+  if (task.milestoneId !== milestone.id || !linked)
+    throw new RecordValidationError("milestone_reference_drift");
+  return {
+    task: taskState({ ...task, milestoneId: undefined }),
+    milestone: {
+      ...milestone,
+      taskIds: milestone.taskIds.filter((id) => id !== task.id),
+    },
+  };
+}
+
+/** Fails loud when any milestone forward/back reference pair is open or dangling. */
+export function validateMilestoneClosure(
+  tasks: readonly TaskState[],
+  milestones: readonly MilestoneTaskSide[],
+): void {
+  const seen = new Set(milestones.map((m) => m.id));
+  if (
+    seen.size !== milestones.length ||
+    milestones.some((m) => !milestoneIdPattern.test(m.id))
+  )
+    throw new RecordValidationError("milestone_id_invalid");
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  for (const task of tasks)
+    if (task.milestoneId !== undefined && !seen.has(task.milestoneId))
+      throw new RecordValidationError("milestone_reference_dangling");
+  for (const m of milestones)
+    for (const taskId of m.taskIds) {
+      const task = byId.get(taskId);
+      if (!task || task.milestoneId !== m.id)
+        throw new RecordValidationError("milestone_reference_dangling");
+    }
 }
 
 /** Pure, deterministic ready-set evaluation; validates the whole graph before returning anything. */
