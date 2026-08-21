@@ -1,11 +1,11 @@
 ---
 id: QCLI-97.11.3
 title: Complete Quest create/edit/list/view/search and status-flow semantics
-status: To Do
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-21 19:45'
-updated_date: '2026-08-21 21:16'
+updated_date: '2026-08-21 21:24'
 labels:
   - odoc-63.2
 dependencies:
@@ -32,10 +32,10 @@ Ownership (feature-wayfinding gate feature-wayfinding-v2, correlation 1cdd200728
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Edit operations support replace/add/remove/clear with deterministic ordering in results
-- [ ] #2 Status flow accepts configured statuses case-insensitively and rejects unknown statuses with stable versioned JSON diagnostics
-- [ ] #3 All writes require an actor and apply atomically; compatibility failures are loud, not silent
-- [ ] #4 Focused tests cover each semantic group including negative cases
+- [x] #1 Edit operations support replace/add/remove/clear with deterministic ordering in results
+- [x] #2 Status flow accepts configured statuses case-insensitively and rejects unknown statuses with stable versioned JSON diagnostics
+- [x] #3 All writes require an actor and apply atomically; compatibility failures are loud, not silent
+- [x] #4 Focused tests cover each semantic group including negative cases
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -52,4 +52,12 @@ Ownership corrected per Controller JIT payload a19bf67e0c5f41f7801c13af10459a4e:
 Pre-correction .3 implementation bytes (tasks.ts lifecycle accessor, commands/task dispatch patch builder, main.ts flag wiring, cli-process flag tables, cli-semantics.test.ts) preserved in git stash 'QCLI-97.11.3 pre-correction work' (stash@{0}) on branch feat/qcli-97.10-odoc-63.2-parity-migration; untracked test/integration/tasks/cli-semantics.test.ts retained in worktree. To be reconciled against the corrected contract after QCLI-97.11.6 settles.
 
 QCLI-97.11.6 settled Done at commit cdfe2d5 (settlement 39712bb, feature map delivery 48b0139). .3 is now unblocked: reconcile preserved bytes (stash@{0} + untracked test/integration/tasks/cli-semantics.test.ts) against the corrected contract, then implement the now-complete contract in src/cli/main.ts + src/cli/commands/task/index.ts.
+
+Implementation commit on feat/qcli-97.10-odoc-63.2-parity-migration (base 2d3bdd7). Reconciled preserved pre-correction bytes (former stash@{0}, dropped after reconciliation) against the corrected QCLI-97.11.6 contract: full advertised create/edit flag vocabulary, deterministic replace/add/remove/clear folding, case-insensitive configured statuses routed through the application layer (layer boundary respected), configured-policy status-flow, actor-required writes, stable versioned diagnostics. Verification: bun run check fully green (typecheck, lint, format, layer boundary, 187 pass / 0 fail across 30 files) including the new test/integration/tasks/cli-semantics.test.ts semantic suite.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Quest create/edit/list/view/search and status-flow semantics complete: the CLI now accepts exactly the advertised schema-1 field set with JSON list/check-list/comment/ordinal parsing, folds replace/add/remove/clear deterministically, resolves configured statuses case-insensitively through the application layer, reports the configured lifecycle policy, requires actors for writes, and fails loud with stable versioned JSON diagnostics; concurrent edits serialize into structured conflicts without silent loss.
+<!-- SECTION:FINAL_SUMMARY:END -->
