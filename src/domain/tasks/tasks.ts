@@ -297,13 +297,21 @@ export function resolveConfiguredStatus(
 }
 
 function normalizeCheckList(list: TaskCheckList): readonly TaskCheckItem[] {
-  return list.map((entry, index) => {
+  const items = list.map((entry, index) => {
     if (typeof entry === "string")
       return { index, text: entry, checked: false };
     if (entry.index !== index)
       throw new RecordValidationError("check_item_index_mismatch");
     return entry;
   });
+  // Legacy string migration is positional by construction; authored item lists
+  // must carry a complete, duplicate-free, positionally ordered index set.
+  if (list.some((entry) => typeof entry !== "string"))
+    unique(
+      items.map((item) => String(item.index)),
+      "Check item indexes",
+    );
+  return items;
 }
 
 /** Normalizes defaults and rejects malformed authored task state. */
@@ -593,14 +601,16 @@ export function closeMilestoneReference(
     if (!linked && task.milestoneId === milestone.id)
       throw new RecordValidationError("milestone_reference_drift");
     if (linked && task.milestoneId === milestone.id) return { task, milestone };
+    const nextTaskIds = linked
+      ? [...milestone.taskIds]
+      : [...milestone.taskIds, task.id];
+    // Deterministic ordering: canonical id order, duplicates fail closed.
+    nextTaskIds.sort();
+    if (new Set(nextTaskIds).size !== nextTaskIds.length)
+      throw new RecordValidationError("milestone_task_duplicate");
     return {
       task: taskState({ ...task, milestoneId: milestone.id }),
-      milestone: linked
-        ? milestone
-        : {
-            ...milestone,
-            taskIds: [...milestone.taskIds, task.id].sort(),
-          },
+      milestone: { ...milestone, taskIds: nextTaskIds },
     };
   }
   if (task.milestoneId !== milestone.id || !linked)
@@ -629,12 +639,16 @@ export function validateMilestoneClosure(
   for (const task of tasks)
     if (task.milestoneId !== undefined && !seen.has(task.milestoneId))
       throw new RecordValidationError("milestone_reference_dangling");
-  for (const m of milestones)
+  for (const m of milestones) {
+    const seenTaskIds = new Set(m.taskIds);
+    if (seenTaskIds.size !== m.taskIds.length)
+      throw new RecordValidationError("milestone_task_duplicate");
     for (const taskId of m.taskIds) {
       const task = byId.get(taskId);
       if (!task || task.milestoneId !== m.id)
         throw new RecordValidationError("milestone_reference_dangling");
     }
+  }
 }
 
 /** Pure, deterministic ready-set evaluation; validates the whole graph before returning anything. */

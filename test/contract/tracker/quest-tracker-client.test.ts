@@ -257,6 +257,75 @@ test("edits emit the full replace add remove clear argv in a fixed order", async
   ]);
 });
 
+test("probe requires exact fields and filters and rejects omissions or drift", async () => {
+  const { commands } = trackerConformanceFixtures.manifest.data;
+  const omitField = {
+    schemaVersion: 1,
+    kind: "manifest.registry",
+    data: {
+      commands: commands.map((entry) =>
+        entry.name === "task create"
+          ? {
+              ...entry,
+              fields: entry.fields?.filter((field) => field !== "summary"),
+            }
+          : entry,
+      ),
+    },
+  };
+  const driftFilter = {
+    schemaVersion: 1,
+    kind: "manifest.registry",
+    data: {
+      commands: commands.map((entry) =>
+        entry.name === "task list"
+          ? { ...entry, filters: ["label"] as readonly string[] }
+          : entry,
+      ),
+    },
+  };
+  for (const manifest of [omitField, driftFilter]) {
+    const runner: TrackerProcessRunner = {
+      async run(argv) {
+        if (argv[0] === "--version")
+          return {
+            exitCode: 0,
+            stdout: trackerConformanceFixtures.versionOutput,
+            stderr: "",
+          };
+        return {
+          exitCode: 0,
+          stdout: JSON.stringify(manifest),
+          stderr: "",
+        };
+      },
+    };
+    await expect(new QuestTrackerClient(runner).probe()).rejects.toMatchObject({
+      error_type: "drift",
+    });
+  }
+});
+
+test("checklist responses reject reordered indexes and mixed legacy strings", async () => {
+  const reordered = {
+    ...trackerTaskFixture,
+    acceptanceCriteria: [
+      { index: 1, text: "second", checked: false },
+      { index: 0, text: "first", checked: false },
+    ],
+  };
+  await expect(
+    new QuestTrackerClient(viewFixtureRunner(reordered)).view("T-1"),
+  ).rejects.toMatchObject({ error_type: "drift" });
+  const mixed = {
+    ...trackerTaskFixture,
+    acceptanceCriteria: [{ index: 0, text: "first", checked: false }, "legacy"],
+  };
+  await expect(
+    new QuestTrackerClient(viewFixtureRunner(mixed)).view("T-1"),
+  ).rejects.toMatchObject({ error_type: "drift" });
+});
+
 test("create emits structured field argv", async () => {
   const calls: string[][] = [];
   const runner: TrackerProcessRunner = {

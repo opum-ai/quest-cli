@@ -81,12 +81,21 @@ export interface TrackerTask extends TrackerSummary {
   readonly references?: readonly string[];
   readonly modifiedFiles?: readonly string[];
 }
+export interface TrackerManifestCommand {
+  readonly name: string;
+  readonly schemaVersion: number;
+  readonly kind: string | null;
+  readonly mutates: boolean;
+  readonly fields?: readonly string[];
+  readonly filters?: readonly string[];
+}
 export interface TrackerStatusFlow {
   readonly statuses: readonly string[];
   readonly terminalStatuses: readonly string[];
 }
 export interface TrackerCreateInput {
   readonly title: string;
+  readonly summary?: string;
   readonly description?: string;
   readonly labels?: readonly string[];
   readonly documentation?: readonly string[];
@@ -98,6 +107,7 @@ export interface TrackerCreateInput {
   readonly definitionOfDone?: readonly (string | TrackerCheckItem)[];
   readonly plan?: readonly string[];
   readonly implementationNotes?: readonly string[];
+  readonly comments?: readonly unknown[];
   readonly assignees?: readonly string[];
   readonly references?: readonly string[];
   readonly modifiedFiles?: readonly string[];
@@ -109,7 +119,10 @@ export interface TrackerCreateInput {
 /** Undefined preserves a field; arrays replace their corresponding full field. */
 export interface TrackerEditPatch {
   readonly status?: string;
+  readonly summary?: string;
   readonly description?: string;
+  /** Full label replacement; combine with addLabels/removeLabels for merge semantics. */
+  readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
   readonly documentation?: readonly string[];
@@ -120,6 +133,8 @@ export interface TrackerEditPatch {
   readonly addNotes?: readonly string[];
   readonly removeNotes?: readonly string[];
   readonly comments?: readonly unknown[];
+  readonly addComments?: readonly unknown[];
+  readonly removeComments?: readonly string[];
   readonly acceptanceCriteria?: readonly (string | TrackerCheckItem)[];
   readonly definitionOfDone?: readonly (string | TrackerCheckItem)[];
   readonly addDependencies?: readonly string[];
@@ -156,19 +171,24 @@ function isStringArray(value: unknown): value is readonly string[] {
 function isCheckList(
   value: unknown,
 ): value is readonly (string | TrackerCheckItem)[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (item) =>
-        typeof item === "string" ||
-        (!!item &&
-          typeof item === "object" &&
-          Number.isInteger((item as TrackerCheckItem).index) &&
-          (item as TrackerCheckItem).index >= 0 &&
-          typeof (item as TrackerCheckItem).text === "string" &&
-          typeof (item as TrackerCheckItem).checked === "boolean"),
+  if (!Array.isArray(value)) return false;
+  const items = value as readonly unknown[];
+  let authoredItems = false;
+  for (let position = 0; position < items.length; position += 1) {
+    const item = items[position];
+    if (typeof item === "string") continue;
+    authoredItems = true;
+    if (
+      !item ||
+      typeof item !== "object" ||
+      (item as TrackerCheckItem).index !== position ||
+      typeof (item as TrackerCheckItem).text !== "string" ||
+      typeof (item as TrackerCheckItem).checked !== "boolean"
     )
-  );
+      return false;
+  }
+  // Authored item lists must be complete: every position carries an item.
+  return !authoredItems || items.every((item) => typeof item !== "string");
 }
 
 function isSummary(value: unknown): value is TrackerSummary {
@@ -346,9 +366,9 @@ function actorArguments(actor: TrackerWriteActor): readonly string[] {
 function appendRepeated(
   argv: string[],
   flag: string,
-  values: readonly string[] | undefined,
+  values: readonly unknown[] | undefined,
 ): void {
-  for (const value of values ?? []) argv.push(flag, value);
+  for (const value of values ?? []) argv.push(flag, String(value));
 }
 
 /**
@@ -392,26 +412,175 @@ export class QuestTrackerClient {
     );
     const manifest = envelope.data as Partial<TrackerManifest>;
     const commands = manifest.commands;
-    const required = [
-      ["task status-flow", "task.status-flow", false],
-      ["task list", "task.list", false],
-      ["task view", "task.view", false],
-      ["search", "task.search", false],
-      ["task create", "task.created", true],
-      ["task edit", "task.updated", true],
-    ] as const;
+    // Exact fields/filters advertisement is part of the contract: omissions and drift both fail closed.
+    const required: readonly {
+      readonly name: string;
+      readonly kind: string;
+      readonly mutates: boolean;
+      readonly fields?: readonly string[];
+      readonly filters?: readonly string[];
+    }[] = [
+      {
+        name: "task status-flow",
+        kind: "task.status-flow",
+        mutates: false,
+        fields: ["statuses", "terminalStatuses"],
+      },
+      {
+        name: "task list",
+        kind: "task.list",
+        mutates: false,
+        filters: ["label", "status"],
+        fields: [
+          "assignees",
+          "createdAt",
+          "id",
+          "labels",
+          "ordinal",
+          "priority",
+          "status",
+          "summary",
+          "title",
+          "type",
+          "updatedAt",
+        ],
+      },
+      {
+        name: "task view",
+        kind: "task.view",
+        mutates: false,
+        fields: [
+          "acceptanceCriteria",
+          "aliases",
+          "assignees",
+          "comments",
+          "createdAt",
+          "definitionOfDone",
+          "dependencies",
+          "description",
+          "documentation",
+          "finalSummary",
+          "id",
+          "implementationNotes",
+          "labels",
+          "milestoneId",
+          "modifiedFiles",
+          "ordinal",
+          "parentId",
+          "plan",
+          "priority",
+          "references",
+          "status",
+          "summary",
+          "title",
+          "type",
+          "updatedAt",
+        ],
+      },
+      {
+        name: "search",
+        kind: "task.search",
+        mutates: false,
+        filters: ["query"],
+        fields: [
+          "assignees",
+          "createdAt",
+          "id",
+          "labels",
+          "ordinal",
+          "priority",
+          "status",
+          "summary",
+          "title",
+          "type",
+          "updatedAt",
+        ],
+      },
+      {
+        name: "task create",
+        kind: "task.created",
+        mutates: true,
+        fields: [
+          "acceptanceCriteria",
+          "aliases",
+          "assignees",
+          "comments",
+          "definitionOfDone",
+          "description",
+          "documentation",
+          "finalSummary",
+          "implementationNotes",
+          "labels",
+          "milestoneId",
+          "modifiedFiles",
+          "ordinal",
+          "parentId",
+          "plan",
+          "priority",
+          "references",
+          "summary",
+          "title",
+          "type",
+        ],
+      },
+      {
+        name: "task edit",
+        kind: "task.updated",
+        mutates: true,
+        fields: [
+          "acceptanceCriteria",
+          "addAssignees",
+          "addComments",
+          "addDependencies",
+          "addLabels",
+          "addModifiedFiles",
+          "addNotes",
+          "addPlan",
+          "addReferences",
+          "clearMilestone",
+          "clearParent",
+          "comments",
+          "definitionOfDone",
+          "description",
+          "documentation",
+          "implementationNotes",
+          "labels",
+          "milestoneId",
+          "parentId",
+          "plan",
+          "removeAssignees",
+          "removeComments",
+          "removeDependencies",
+          "removeLabels",
+          "removeModifiedFiles",
+          "removeNotes",
+          "removePlan",
+          "removeReferences",
+          "status",
+          "summary",
+        ],
+      },
+    ];
+    const sorted = (values: readonly string[] | undefined): readonly string[] =>
+      [...(values ?? [])].sort();
     if (
       !Array.isArray(commands) ||
-      required.some(
-        ([name, kind, mutates]) =>
-          !commands.some(
-            (command) =>
-              command?.name === name &&
-              command.schemaVersion === TRACKER_CONTRACT_VERSION &&
-              command.kind === kind &&
-              command.mutates === mutates,
-          ),
-      )
+      required.some((entry) => {
+        const match = commands.find(
+          (command) =>
+            command?.name === entry.name &&
+            command.schemaVersion === TRACKER_CONTRACT_VERSION &&
+            command.kind === entry.kind &&
+            command.mutates === entry.mutates,
+        );
+        if (!match) return true;
+        return (
+          JSON.stringify(sorted(match.fields)) !==
+            JSON.stringify(sorted(entry.fields)) ||
+          JSON.stringify(sorted(match.filters)) !==
+            JSON.stringify(sorted(entry.filters))
+        );
+      })
     ) {
       throw trackerError(
         "drift",
@@ -466,6 +635,7 @@ export class QuestTrackerClient {
       "--json",
       ...actorArguments(declared),
     ];
+    if (input.summary !== undefined) argv.push("--summary", input.summary);
     if (input.description !== undefined)
       argv.push("--description", input.description);
     appendRepeated(argv, "--label", input.labels);
@@ -489,6 +659,8 @@ export class QuestTrackerClient {
         "--implementation-notes",
         JSON.stringify(input.implementationNotes),
       );
+    if (input.comments !== undefined)
+      argv.push("--comments", JSON.stringify(input.comments));
     appendRepeated(argv, "--assignee", input.assignees);
     appendRepeated(argv, "--reference", input.references);
     appendRepeated(argv, "--modified-file", input.modifiedFiles);
@@ -509,8 +681,11 @@ export class QuestTrackerClient {
     const declared = requireActor(actor);
     const argv = ["task", "edit", id, "--json", ...actorArguments(declared)];
     if (patch.status !== undefined) argv.push("--status", patch.status);
+    if (patch.summary !== undefined) argv.push("--summary", patch.summary);
     if (patch.description !== undefined)
       argv.push("--description", patch.description);
+    if (patch.labels !== undefined)
+      argv.push("--labels", JSON.stringify(patch.labels));
     appendRepeated(argv, "--add-label", patch.addLabels);
     appendRepeated(argv, "--remove-label", patch.removeLabels);
     appendRepeated(argv, "--doc", patch.documentation);
@@ -524,6 +699,8 @@ export class QuestTrackerClient {
     appendRepeated(argv, "--remove-note", patch.removeNotes);
     if (patch.comments !== undefined)
       argv.push("--comments", JSON.stringify(patch.comments));
+    appendRepeated(argv, "--add-comment", patch.addComments);
+    appendRepeated(argv, "--remove-comment", patch.removeComments);
     if (patch.acceptanceCriteria !== undefined)
       argv.push(
         "--acceptance-criteria",

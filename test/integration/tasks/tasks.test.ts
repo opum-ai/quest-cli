@@ -401,6 +401,15 @@ test("checked acceptance criteria and definition of done migrate from legacy str
       ],
     }),
   ).toThrow("check_item_index_mismatch");
+  expect(() =>
+    taskState({
+      ...task("T-5"),
+      acceptanceCriteria: [
+        { index: 0, text: "first", checked: false },
+        { index: 0, text: "duplicate", checked: false },
+      ],
+    }),
+  ).toThrow("check_item_index_mismatch");
   expect(() => task("T-3", { milestoneId: "m-1" })).toThrow(
     RecordValidationError,
   );
@@ -446,6 +455,19 @@ test("milestone forward and back references close atomically", () => {
       true,
     ),
   ).toThrow("milestone_id_invalid");
+  expect(() =>
+    closeMilestoneReference(
+      todo,
+      { id: "M-4", taskIds: ["T-1", "T-1"] as readonly string[] },
+      true,
+    ),
+  ).toThrow("milestone_task_duplicate");
+  const reordered = closeMilestoneReference(
+    task("T-5"),
+    { id: "M-5", taskIds: ["T-9", "T-2"] as readonly string[] },
+    true,
+  );
+  expect(reordered.milestone.taskIds).toEqual(["T-2", "T-5", "T-9"]);
 });
 
 test("workspace milestone closure fails loud on dangling forward or back references", () => {
@@ -469,6 +491,12 @@ test("workspace milestone closure fails loud on dangling forward or back referen
       [{ id: "M-1", taskIds: ["T-1"] }],
     ),
   ).toThrow("milestone_reference_dangling");
+  expect(() =>
+    validateMilestoneClosure(
+      [linkedTask],
+      [{ id: "M-1", taskIds: ["T-1", "T-1"] }],
+    ),
+  ).toThrow("milestone_task_duplicate");
   expect(() =>
     validateMilestoneClosure(
       [],
