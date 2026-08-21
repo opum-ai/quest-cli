@@ -134,6 +134,8 @@ function flags(
     "--dry-run",
     "--include-archived",
     "--all",
+    "--clear-parent",
+    "--clear-milestone",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -193,6 +195,103 @@ function only(
   allowed: readonly string[],
 ): boolean {
   return [...parsed.values.keys()].every((flag) => allowed.includes(flag));
+}
+
+function stringValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): string[] | undefined {
+  const value = one(parsed, name);
+  if (value === undefined) return undefined;
+  try {
+    const parsedValue: unknown = JSON.parse(value);
+    if (
+      !Array.isArray(parsedValue) ||
+      !parsedValue.every((item) => typeof item === "string")
+    )
+      throw new Error("not a string array");
+    return parsedValue;
+  } catch {
+    throw new FlagUsageError(`${name} must be a JSON array of strings.`);
+  }
+}
+
+function checkListValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): (string | { index: number; text: string; checked: boolean })[] | undefined {
+  const value = one(parsed, name);
+  if (value === undefined) return undefined;
+  try {
+    const parsedValue: unknown = JSON.parse(value);
+    const items = parsedValue as readonly unknown[];
+    if (
+      !Array.isArray(parsedValue) ||
+      !items.every(
+        (item) =>
+          typeof item === "string" ||
+          (!!item &&
+            typeof item === "object" &&
+            Number.isInteger((item as Record<string, unknown>).index) &&
+            ((item as Record<string, unknown>).index as number) >= 0 &&
+            typeof (item as Record<string, unknown>).text === "string" &&
+            typeof (item as Record<string, unknown>).checked === "boolean"),
+      )
+    )
+      throw new Error("not a check list");
+    return items as (
+      | string
+      | { index: number; text: string; checked: boolean }
+    )[];
+  } catch {
+    throw new FlagUsageError(
+      `${name} must be a JSON array of strings or {index,text,checked} items.`,
+    );
+  }
+}
+
+function commentsValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+):
+  | { id: string; authorId: string; body: string; createdAt: string }[]
+  | undefined {
+  const value = one(parsed, name);
+  if (value === undefined) return undefined;
+  try {
+    const parsedValue: unknown = JSON.parse(value);
+    const items = parsedValue as readonly unknown[];
+    if (
+      !Array.isArray(parsedValue) ||
+      !items.every(
+        (item) =>
+          !!item &&
+          typeof item === "object" &&
+          typeof (item as Record<string, unknown>).id === "string" &&
+          typeof (item as Record<string, unknown>).authorId === "string" &&
+          typeof (item as Record<string, unknown>).body === "string" &&
+          typeof (item as Record<string, unknown>).createdAt === "string",
+      )
+    )
+      throw new Error("not a comment array");
+    return items as {
+      id: string;
+      authorId: string;
+      body: string;
+      createdAt: string;
+    }[];
+  } catch {
+    throw new FlagUsageError(
+      `${name} must be a JSON array of {id,authorId,body,createdAt} comments.`,
+    );
+  }
+}
+
+function ordinalValue(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^-?\d+$/.test(value) || !Number.isSafeInteger(Number(value)))
+    throw new FlagUsageError("--ordinal must be an integer.");
+  return Number(value);
 }
 
 function updatedMilestoneTaskIds(
@@ -1124,14 +1223,39 @@ export async function runQuest(
     }
     if (command === "create" && rest[0]) {
       const title = rest[0];
-      const parsed = flags(rest.slice(1), ["--label", "--doc"]);
+      const parsed = flags(rest.slice(1), [
+        "--label",
+        "--doc",
+        "--alias",
+        "--assignee",
+        "--reference",
+        "--modified-file",
+        "--dependency",
+      ]);
       if (
         !parsed ||
         !only(parsed, [
           "--id",
+          "--summary",
           "--description",
           "--label",
           "--doc",
+          "--priority",
+          "--type",
+          "--ordinal",
+          "--alias",
+          "--acceptance-criteria",
+          "--definition-of-done",
+          "--plan",
+          "--implementation-notes",
+          "--comments",
+          "--assignee",
+          "--reference",
+          "--modified-file",
+          "--dependency",
+          "--parent",
+          "--milestone",
+          "--final-summary",
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -1153,9 +1277,26 @@ export async function runQuest(
           actor: writeActor,
           input: {
             title,
+            summary: one(parsed, "--summary"),
             description: one(parsed, "--description"),
             labels: parsed.values.get("--label"),
             documentation: parsed.values.get("--doc"),
+            priority: one(parsed, "--priority"),
+            type: one(parsed, "--type"),
+            ordinal: ordinalValue(one(parsed, "--ordinal")),
+            aliases: parsed.values.get("--alias"),
+            acceptanceCriteria: checkListValue(parsed, "--acceptance-criteria"),
+            definitionOfDone: checkListValue(parsed, "--definition-of-done"),
+            plan: stringValue(parsed, "--plan"),
+            implementationNotes: stringValue(parsed, "--implementation-notes"),
+            comments: commentsValue(parsed, "--comments"),
+            assignees: parsed.values.get("--assignee"),
+            references: parsed.values.get("--reference"),
+            modifiedFiles: parsed.values.get("--modified-file"),
+            dependencies: parsed.values.get("--dependency"),
+            parentId: one(parsed, "--parent"),
+            milestoneId: one(parsed, "--milestone"),
+            finalSummary: one(parsed, "--final-summary"),
           },
         }),
         modeFor(parsed),
@@ -1167,15 +1308,54 @@ export async function runQuest(
         "--add-label",
         "--remove-label",
         "--doc",
+        "--add-plan",
+        "--remove-plan",
+        "--add-note",
+        "--remove-note",
+        "--add-comment",
+        "--remove-comment",
+        "--add-dependency",
+        "--remove-dependency",
+        "--add-assignee",
+        "--remove-assignee",
+        "--add-reference",
+        "--remove-reference",
+        "--add-modified-file",
+        "--remove-modified-file",
       ]);
       if (
         !parsed ||
         !only(parsed, [
           "--status",
+          "--summary",
           "--description",
+          "--labels",
           "--add-label",
           "--remove-label",
           "--doc",
+          "--plan",
+          "--add-plan",
+          "--remove-plan",
+          "--notes",
+          "--add-note",
+          "--remove-note",
+          "--comments",
+          "--add-comment",
+          "--remove-comment",
+          "--acceptance-criteria",
+          "--definition-of-done",
+          "--add-dependency",
+          "--remove-dependency",
+          "--parent",
+          "--clear-parent",
+          "--milestone",
+          "--clear-milestone",
+          "--add-assignee",
+          "--remove-assignee",
+          "--add-reference",
+          "--remove-reference",
+          "--add-modified-file",
+          "--remove-modified-file",
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -1196,10 +1376,35 @@ export async function runQuest(
           actor: writeActor,
           patch: {
             status: one(parsed, "--status"),
+            summary: one(parsed, "--summary"),
             description: one(parsed, "--description"),
+            labels: stringValue(parsed, "--labels"),
             addLabels: parsed.values.get("--add-label"),
             removeLabels: parsed.values.get("--remove-label"),
             documentation: parsed.values.get("--doc"),
+            plan: stringValue(parsed, "--plan"),
+            addPlan: parsed.values.get("--add-plan"),
+            removePlan: parsed.values.get("--remove-plan"),
+            implementationNotes: stringValue(parsed, "--notes"),
+            addNotes: parsed.values.get("--add-note"),
+            removeNotes: parsed.values.get("--remove-note"),
+            comments: commentsValue(parsed, "--comments"),
+            addComments: commentsValue(parsed, "--add-comment"),
+            removeComments: parsed.values.get("--remove-comment"),
+            acceptanceCriteria: checkListValue(parsed, "--acceptance-criteria"),
+            definitionOfDone: checkListValue(parsed, "--definition-of-done"),
+            addDependencies: parsed.values.get("--add-dependency"),
+            removeDependencies: parsed.values.get("--remove-dependency"),
+            parentId: one(parsed, "--parent"),
+            clearParent: parsed.values.has("--clear-parent") || undefined,
+            milestoneId: one(parsed, "--milestone"),
+            clearMilestone: parsed.values.has("--clear-milestone") || undefined,
+            addAssignees: parsed.values.get("--add-assignee"),
+            removeAssignees: parsed.values.get("--remove-assignee"),
+            addReferences: parsed.values.get("--add-reference"),
+            removeReferences: parsed.values.get("--remove-reference"),
+            addModifiedFiles: parsed.values.get("--add-modified-file"),
+            removeModifiedFiles: parsed.values.get("--remove-modified-file"),
           },
         }),
         modeFor(parsed),
