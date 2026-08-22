@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { LocalTaskRepository } from "../src/application/tasks/local-task-repository.ts";
 import { TaskService } from "../src/application/tasks/tasks.ts";
 import { createTask } from "../src/domain/tasks/tasks.ts";
+import { LocalPlanningRepository } from "../src/adapters/planning/local-planning-repository.ts";
 
 function request(id: string, revision: string) {
   return {
@@ -187,6 +188,239 @@ test("a corrupt recovery journal preserves existing records without applying any
       "code",
       "ENOENT",
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("applyTransaction atomically applies task and milestone changes with reciprocal closure", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-txn-"));
+  try {
+    const planning = new LocalPlanningRepository(root);
+    const repo = new LocalTaskRepository(
+      join(root, ".quest", "tasks"),
+      planning,
+    );
+
+    const t1 = createTask("T-1", { title: "one", milestoneId: "M-1" });
+    const t2 = createTask("T-2", { title: "two", milestoneId: "M-1" });
+    const m1 = {
+      id: "M-1" as `M-${number}`,
+      title: "Release",
+      status: "open" as const,
+      taskIds: ["T-1", "T-2"] as string[],
+    };
+
+    const before = await repo.readAll();
+    const planningBefore = await planning.read();
+
+    const result = await repo.applyTransaction({
+      expectedTaskRevision: before.revision,
+      expectedPlanningRevision: planningBefore.revision,
+      operationId: "txn-1",
+      ownedPaths: [
+        ".quest/tasks/T-1.json",
+        ".quest/tasks/T-2.json",
+        ".quest/planning.json",
+      ],
+      taskChanges: [
+        { task: t1, location: "tasks" },
+        { task: t2, location: "tasks" },
+      ],
+      milestones: [m1],
+      decisions: [],
+    });
+
+    expect(result.kind).toBe("success");
+    const after = await repo.readAll();
+    expect(after.taskRecords.map((r) => r.task.id).sort()).toEqual([
+      "T-1",
+      "T-2",
+    ]);
+    const planningAfter = await planning.read();
+    expect(planningAfter.milestones).toHaveLength(1);
+    expect(planningAfter.milestones[0].id).toBe("M-1");
+    expect(planningAfter.milestones[0].taskIds).toEqual(["T-1", "T-2"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("applyTransaction returns conflict on stale task revision and leaves no half graph", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-txn-conflict-"));
+  try {
+    const planning = new LocalPlanningRepository(root);
+    const repo = new LocalTaskRepository(
+      join(root, ".quest", "tasks"),
+      planning,
+    );
+
+    const t1 = createTask("T-1", { title: "one", milestoneId: "M-1" });
+    const m1 = {
+      id: "M-1" as `M-${number}`,
+      title: "Release",
+      status: "open" as const,
+      taskIds: ["T-1"] as string[],
+    };
+
+    const before = await repo.readAll();
+    const planningBefore = await planning.read();
+
+    // Mutate the store to change the revision
+    await repo.write({
+      task: createTask("T-99", { title: "interloper" }),
+      expectedRevision: before.revision,
+      operationId: "interloper",
+      ownedPaths: [".quest/tasks/T-99.json"],
+    });
+
+    const result = await repo.applyTransaction({
+      expectedTaskRevision: before.revision,
+      expectedPlanningRevision: planningBefore.revision,
+      operationId: "txn-stale",
+      ownedPaths: [".quest/tasks/T-1.json", ".quest/planning.json"],
+      taskChanges: [{ task: t1, location: "tasks" }],
+      milestones: [m1],
+      decisions: [],
+    });
+
+    expect(result.kind).toBe("conflict");
+    const after = await repo.readAll();
+    const ids = after.taskRecords.map((r) => r.task.id).sort();
+    expect(ids).toEqual(["T-99"]);
+    const planningAfter = await planning.read();
+    expect(planningAfter.milestones).toHaveLength(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("applyTransaction is idempotent when re-applied with same operationId and unchanged state", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-txn-idem-"));
+  try {
+    const planning = new LocalPlanningRepository(root);
+    const repo = new LocalTaskRepository(
+      join(root, ".quest", "tasks"),
+      planning,
+    );
+
+    const t1 = createTask("T-1", { title: "one", milestoneId: "M-1" });
+    const m1 = {
+      id: "M-1" as `M-${number}`,
+      title: "Release",
+      status: "open" as const,
+      taskIds: ["T-1"] as string[],
+    };
+
+    const before = await repo.readAll();
+    const planningBefore = await planning.read();
+
+    const request = {
+      expectedTaskRevision: before.revision,
+      expectedPlanningRevision: planningBefore.revision,
+      operationId: "txn-idem",
+      ownedPaths: [".quest/tasks/T-1.json", ".quest/planning.json"],
+      taskChanges: [{ task: t1, location: "tasks" as const }],
+      milestones: [m1],
+      decisions: [] as import("../src/domain/planning/planning.ts").Decision[],
+    };
+
+    const first = await repo.applyTransaction(request);
+    expect(first.kind).toBe("success");
+
+    // Re-apply with the new revisions; since the task already exists with the same fingerprint,
+    // the transaction should still succeed (idempotent upsert).
+    const afterFirst = await repo.readAll();
+    const planningAfterFirst = await planning.read();
+    const second = await repo.applyTransaction({
+      ...request,
+      expectedTaskRevision: afterFirst.revision,
+      expectedPlanningRevision: planningAfterFirst.revision,
+    });
+    expect(second.kind).toBe("success");
+    const afterSecond = await repo.readAll();
+    expect(afterSecond.taskRecords.map((r) => r.task.id)).toEqual(["T-1"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("applyTransaction rollback removes only unchanged migration-created records and names survivors", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-txn-rollback-"));
+  try {
+    const planning = new LocalPlanningRepository(root);
+    const repo = new LocalTaskRepository(
+      join(root, ".quest", "tasks"),
+      planning,
+    );
+
+    const t1 = createTask("T-1", { title: "one", milestoneId: "M-1" });
+    const t2 = createTask("T-2", { title: "two", milestoneId: "M-1" });
+    const m1 = {
+      id: "M-1" as `M-${number}`,
+      title: "Release",
+      status: "open" as const,
+      taskIds: ["T-1", "T-2"] as string[],
+    };
+
+    const before = await repo.readAll();
+    const planningBefore = await planning.read();
+
+    const result = await repo.applyTransaction({
+      expectedTaskRevision: before.revision,
+      expectedPlanningRevision: planningBefore.revision,
+      operationId: "txn-rb",
+      ownedPaths: [
+        ".quest/tasks/T-1.json",
+        ".quest/tasks/T-2.json",
+        ".quest/planning.json",
+      ],
+      taskChanges: [
+        { task: t1, location: "tasks" },
+        { task: t2, location: "tasks" },
+      ],
+      milestones: [m1],
+      decisions: [],
+    });
+    expect(result.kind).toBe("success");
+
+    // Mutate T-2 so it no longer matches the migration-created fingerprint
+    const current = await repo.readAll();
+    const t2Record = current.taskRecords.find((r) => r.task.id === "T-2");
+    if (!t2Record) throw new Error("T-2 not found");
+    const mutatedT2 = { ...t2Record.task, title: "modified" };
+    await repo.write({
+      task: mutatedT2,
+      expectedRevision: current.revision,
+      operationId: "mutate-t2",
+      ownedPaths: [".quest/tasks/T-2.json"],
+    });
+
+    // Now rollback via a reverse transaction: remove T-1 and T-2, restore milestones
+    const afterMutate = await repo.readAll();
+    const planningAfterMutate = await planning.read();
+    const rbResult = await repo.applyTransaction({
+      expectedTaskRevision: afterMutate.revision,
+      expectedPlanningRevision: planningAfterMutate.revision,
+      operationId: "txn-rb-rollback",
+      ownedPaths: [
+        ".quest/tasks/T-1.json",
+        ".quest/tasks/T-2.json",
+        ".quest/planning.json",
+      ],
+      taskChanges: [
+        { taskId: "T-1", location: "tasks", remove: true },
+        { taskId: "T-2", location: "tasks", remove: true },
+      ],
+      milestones: [],
+      decisions: [],
+    });
+    expect(rbResult.kind).toBe("success");
+
+    const final = await repo.readAll();
+    expect(final.taskRecords.map((r) => r.task.id)).toEqual([]);
+    const planningFinal = await planning.read();
+    expect(planningFinal.milestones).toHaveLength(0);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

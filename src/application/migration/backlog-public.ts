@@ -11,6 +11,7 @@ import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
 import type {
   BacklogImportRecord,
   BacklogImportSource,
+  MigrationTransactionRepository,
   PublicTaskRepository,
 } from "../../ports/backlog-import.ts";
 
@@ -160,7 +161,7 @@ export class BacklogImportService {
   constructor(
     private readonly root: string,
     private readonly source: BacklogImportSource,
-    private readonly repository: PublicTaskRepository,
+    private readonly repository: MigrationTransactionRepository,
   ) {}
 
   async preview(): Promise<BacklogPreview> {
@@ -193,7 +194,8 @@ export class BacklogImportService {
     await save(path, receipt);
     const survivors = new Set(receipt.survivors);
     const fingerprints = { ...receipt.taskFingerprints };
-    for (const [index, mapping] of preview.mappings.entries()) {
+    for (let index = 0; index < preview.mappings.length; index++) {
+      const mapping = preview.mappings[index];
       const record = records[index];
       if (!record) throw new Error("migration_source_record_missing");
       const task = importedTask(record, mapping.targetIdentifier);
@@ -209,7 +211,7 @@ export class BacklogImportService {
       fingerprints[task.id] = fingerprint(task);
       await save(path, {
         ...receipt,
-        survivors: [...survivors].sort(),
+        survivors: Array.from(survivors).sort(),
         taskFingerprints: fingerprints,
       });
       const result = await repository.write({
@@ -222,7 +224,7 @@ export class BacklogImportService {
         const failed = {
           ...receipt,
           state: "failed" as const,
-          survivors: [...survivors].sort(),
+          survivors: Array.from(survivors).sort(),
           taskFingerprints: fingerprints,
         };
         await save(path, failed);
@@ -230,7 +232,7 @@ export class BacklogImportService {
       }
       await save(path, {
         ...receipt,
-        survivors: [...survivors].sort(),
+        survivors: Array.from(survivors).sort(),
         taskFingerprints: fingerprints,
       });
     }
@@ -239,7 +241,7 @@ export class BacklogImportService {
       const failed = {
         ...receipt,
         state: "failed" as const,
-        survivors: [...survivors].sort(),
+        survivors: Array.from(survivors).sort(),
         taskFingerprints: fingerprints,
       };
       await save(path, failed);
@@ -248,7 +250,7 @@ export class BacklogImportService {
     const applied = {
       ...receipt,
       state: "applied" as const,
-      survivors: [...survivors].sort(),
+      survivors: Array.from(survivors).sort(),
       taskFingerprints: fingerprints,
     };
     await save(path, applied);

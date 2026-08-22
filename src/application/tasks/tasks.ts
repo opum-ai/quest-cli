@@ -11,6 +11,7 @@ import {
   findTask,
   type LifecyclePolicy,
   type ReadySet,
+  resolveConfiguredStatus,
   searchTasks,
   type TaskInput,
   type TaskLocation,
@@ -97,7 +98,7 @@ export type TaskMutationResult =
 export class TaskService {
   constructor(
     private readonly repository: TaskRepository,
-    private readonly lifecycle: LifecyclePolicy = defaultLifecyclePolicy,
+    private readonly lifecyclePolicy: LifecyclePolicy = defaultLifecyclePolicy,
     private readonly ownedPathFor = (task: TaskState) =>
       `.quest/tasks/${task.id}.md`,
   ) {}
@@ -140,6 +141,10 @@ export class TaskService {
     return this.taskRecords(snapshot)
       .map((record) => record.task)
       .sort((a, b) => a.id.localeCompare(b.id));
+  }
+  /** The configured lifecycle policy; status-flow reports it, never a hardcoded copy. */
+  get lifecycle(): LifecyclePolicy {
+    return this.lifecyclePolicy;
   }
   private lifecycleRepository(): LifecycleTaskRepository {
     if (!("writeLifecycle" in this.repository))
@@ -383,6 +388,10 @@ export class TaskService {
     operationId: string,
   ): Promise<TaskMutationResult> {
     return this.edit(reference, { status }, operationId);
+  }
+  /** Case-insensitive configured-status resolution for command-facing filters. */
+  resolveStatus(status: string): TaskStatus {
+    return resolveConfiguredStatus(status, this.lifecycle);
   }
   async ready(now: Date): Promise<ReadySet> {
     return evaluateReadySet(

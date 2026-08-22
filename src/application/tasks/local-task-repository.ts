@@ -20,12 +20,19 @@ import {
   type TaskLocation,
   type TaskState,
   taskState,
+  validateMilestoneClosure,
 } from "../../domain/tasks/tasks.ts";
+import { decision, milestone } from "../../domain/planning/planning.ts";
 import type {
   LifecycleTaskRepository,
   LifecycleWriteRequest,
   TaskWriteRequest,
 } from "./tasks.ts";
+import type {
+  MigrationTransactionRequest,
+  MigrationTransactionRepository,
+} from "../../ports/backlog-import.ts";
+import type { PlanningRepository } from "../../ports/planning.ts";
 
 const LOCK_WAIT_MS = 500;
 
@@ -33,8 +40,13 @@ const LOCK_WAIT_MS = 500;
  * Small repository-local storage used by the executable composition root.
  * It intentionally stores only validated public task records beneath .quest.
  */
-export class LocalTaskRepository implements LifecycleTaskRepository {
-  constructor(private readonly directory: string) {}
+export class LocalTaskRepository
+  implements LifecycleTaskRepository, MigrationTransactionRepository
+{
+  constructor(
+    private readonly directory: string,
+    private readonly planningRepository?: PlanningRepository,
+  ) {}
 
   private pathFor(id: string): string {
     return join(this.directory, `${id}.json`);
@@ -344,6 +356,157 @@ export class LocalTaskRepository implements LifecycleTaskRepository {
       return {
         kind: "success" as const,
         revision: (await this.readAll()).revision,
+      };
+    } finally {
+      await rm(lock, { recursive: true, force: true });
+    }
+  }
+
+  async applyTransaction(request: MigrationTransactionRequest) {
+    if (!request.operationId.trim())
+      throw new RecordValidationError("operation_id_required");
+    await mkdir(this.directory, { recursive: true });
+    const lock = join(this.directory, ".write.lock");
+    if (!(await this.acquireLock(lock))) {
+      const current = await this.readAll();
+      return {
+        kind: "conflict" as const,
+        expectedRevision: request.expectedTaskRevision,
+        actualRevision: current.revision,
+        operationId: request.operationId,
+        ownedPaths: request.ownedPaths,
+      };
+    }
+    try {
+      await this.recoverLifecycle();
+      const current = await this.readAll();
+      if (current.revision !== request.expectedTaskRevision)
+        return {
+          kind: "conflict" as const,
+          expectedRevision: request.expectedTaskRevision,
+          actualRevision: current.revision,
+          operationId: request.operationId,
+          ownedPaths: request.ownedPaths,
+        };
+
+      const planning = this.planningRepository;
+      let planningSnapshot:
+        | Awaited<ReturnType<PlanningRepository["read"]>>
+        | undefined;
+      if (planning) {
+        planningSnapshot = await planning.read();
+        if (planningSnapshot.revision !== request.expectedPlanningRevision)
+          return {
+            kind: "conflict" as const,
+            expectedRevision: request.expectedPlanningRevision,
+            actualRevision: planningSnapshot.revision,
+            operationId: request.operationId,
+            ownedPaths: request.ownedPaths,
+          };
+      }
+
+      const taskRecords = current.taskRecords ?? [];
+      const byId = new Map<
+        string,
+        { task: TaskState; location: TaskLocation }
+      >();
+      for (const record of taskRecords) byId.set(record.task.id, record);
+
+      const nextRecords = new Map(byId);
+      for (const change of request.taskChanges) {
+        if ("remove" in change) {
+          nextRecords.delete(change.taskId);
+        } else {
+          nextRecords.set(change.task.id, {
+            task: change.task,
+            location: change.location,
+          });
+        }
+      }
+
+      const nextTasks = Array.from(nextRecords.values()).map((r) => r.task);
+      const nextMilestones = request.milestones.map(milestone);
+      const nextDecisions = request.decisions.map(decision);
+
+      validateMilestoneClosure(nextTasks, nextMilestones);
+
+      const nextRecordsArray = Array.from(nextRecords.values());
+      const nextSnapshot = {
+        taskRecords: nextRecordsArray,
+        drafts: current.drafts ?? [],
+      };
+      if (
+        new Set(nextSnapshot.taskRecords.map((r) => r.task.id)).size !==
+        nextSnapshot.taskRecords.length
+      )
+        throw new RecordConflictError("task_lifecycle_duplicate_identity");
+
+      const nextTaskRevision = this.revision(nextSnapshot);
+
+      const removedTaskIds = new Set(
+        Array.from(byId.values())
+          .filter((record) => !nextRecords.has(record.task.id))
+          .map((record) => record.task.id),
+      );
+      const addedTaskIds = new Set(
+        nextRecordsArray
+          .filter((record) => !byId.has(record.task.id))
+          .map((record) => record.task.id),
+      );
+
+      for (const record of nextRecordsArray) {
+        await this.writeLifecycleRecord(
+          this.taskPath(record.task.id, record.location),
+          record.task,
+        );
+      }
+      for (const record of Array.from(byId.values())) {
+        if (!nextRecords.has(record.task.id)) {
+          await rm(this.taskPath(record.task.id, record.location), {
+            force: true,
+          });
+        }
+      }
+      if (planning) {
+        const planningResult = await planning.write({
+          expectedRevision: request.expectedPlanningRevision,
+          milestones: nextMilestones,
+          decisions: nextDecisions,
+          operationId: request.operationId,
+        });
+        if (planningResult.kind === "conflict") {
+          for (const record of Array.from(byId.values())) {
+            if (!nextRecords.has(record.task.id)) {
+              await this.writeLifecycleRecord(
+                this.taskPath(record.task.id, record.location),
+                record.task,
+              );
+            }
+          }
+          for (const record of nextRecordsArray) {
+            if (!byId.has(record.task.id)) {
+              await rm(this.taskPath(record.task.id, record.location), {
+                force: true,
+              });
+            }
+          }
+          return {
+            kind: "conflict" as const,
+            expectedRevision: request.expectedPlanningRevision,
+            actualRevision: planningSnapshot?.revision ?? "",
+            operationId: request.operationId,
+            ownedPaths: request.ownedPaths,
+          };
+        }
+      }
+
+      return {
+        kind: "success" as const,
+        revision: nextTaskRevision,
+        operationId: request.operationId,
+        taskIds: Array.from(addedTaskIds),
+        removedTaskIds: Array.from(removedTaskIds),
+        milestoneIds: nextMilestones.map((m) => m.id),
       };
     } finally {
       await rm(lock, { recursive: true, force: true });

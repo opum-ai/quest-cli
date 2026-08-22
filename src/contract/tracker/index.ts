@@ -41,11 +41,18 @@ export interface TrackerManifestEntry {
   readonly schemaVersion: number;
   readonly kind: string | null;
   readonly mutates: boolean;
+  readonly fields?: readonly string[];
+  readonly filters?: readonly string[];
 }
 export interface TrackerManifest {
   readonly commands: readonly TrackerManifestEntry[];
 }
 
+export interface TrackerCheckItem {
+  readonly index: number;
+  readonly text: string;
+  readonly checked: boolean;
+}
 export interface TrackerSummary {
   readonly id: string;
   readonly title: string;
@@ -54,17 +61,33 @@ export interface TrackerSummary {
   readonly summary?: string;
   readonly priority?: string;
   readonly type?: string;
+  readonly assignees?: readonly string[];
+  readonly ordinal?: number;
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
 }
 export interface TrackerTask extends TrackerSummary {
   readonly description?: string;
-  readonly acceptanceCriteria: readonly string[];
-  readonly definitionOfDone: readonly string[];
+  readonly acceptanceCriteria: readonly (string | TrackerCheckItem)[];
+  readonly definitionOfDone: readonly (string | TrackerCheckItem)[];
   readonly plan: readonly string[];
   readonly implementationNotes: readonly string[];
   readonly comments: readonly unknown[];
   readonly documentation: readonly string[];
   readonly dependencies: readonly string[];
   readonly parentId?: string;
+  readonly milestoneId?: string;
+  readonly finalSummary?: string;
+  readonly references?: readonly string[];
+  readonly modifiedFiles?: readonly string[];
+}
+export interface TrackerManifestCommand {
+  readonly name: string;
+  readonly schemaVersion: number;
+  readonly kind: string | null;
+  readonly mutates: boolean;
+  readonly fields?: readonly string[];
+  readonly filters?: readonly string[];
 }
 export interface TrackerStatusFlow {
   readonly statuses: readonly string[];
@@ -72,17 +95,60 @@ export interface TrackerStatusFlow {
 }
 export interface TrackerCreateInput {
   readonly title: string;
+  readonly summary?: string;
   readonly description?: string;
   readonly labels?: readonly string[];
   readonly documentation?: readonly string[];
+  readonly priority?: string;
+  readonly type?: string;
+  readonly ordinal?: number;
+  readonly aliases?: readonly string[];
+  readonly acceptanceCriteria?: readonly (string | TrackerCheckItem)[];
+  readonly definitionOfDone?: readonly (string | TrackerCheckItem)[];
+  readonly plan?: readonly string[];
+  readonly implementationNotes?: readonly string[];
+  readonly comments?: readonly unknown[];
+  readonly assignees?: readonly string[];
+  readonly references?: readonly string[];
+  readonly modifiedFiles?: readonly string[];
+  readonly dependencies?: readonly string[];
+  readonly parentId?: string;
+  readonly milestoneId?: string;
+  readonly finalSummary?: string;
 }
 /** Undefined preserves a field; arrays replace their corresponding full field. */
 export interface TrackerEditPatch {
   readonly status?: string;
+  readonly summary?: string;
   readonly description?: string;
+  /** Full label replacement; combine with addLabels/removeLabels for merge semantics. */
+  readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
   readonly documentation?: readonly string[];
+  readonly plan?: readonly string[];
+  readonly addPlan?: readonly string[];
+  readonly removePlan?: readonly string[];
+  readonly implementationNotes?: readonly string[];
+  readonly addNotes?: readonly string[];
+  readonly removeNotes?: readonly string[];
+  readonly comments?: readonly unknown[];
+  readonly addComments?: readonly unknown[];
+  readonly removeComments?: readonly string[];
+  readonly acceptanceCriteria?: readonly (string | TrackerCheckItem)[];
+  readonly definitionOfDone?: readonly (string | TrackerCheckItem)[];
+  readonly addDependencies?: readonly string[];
+  readonly removeDependencies?: readonly string[];
+  readonly parentId?: string;
+  readonly clearParent?: boolean;
+  readonly milestoneId?: string;
+  readonly clearMilestone?: boolean;
+  readonly addAssignees?: readonly string[];
+  readonly removeAssignees?: readonly string[];
+  readonly addReferences?: readonly string[];
+  readonly removeReferences?: readonly string[];
+  readonly addModifiedFiles?: readonly string[];
+  readonly removeModifiedFiles?: readonly string[];
 }
 export interface TrackerWriteActor {
   readonly id: string;
@@ -102,6 +168,29 @@ function isStringArray(value: unknown): value is readonly string[] {
   );
 }
 
+function isCheckList(
+  value: unknown,
+): value is readonly (string | TrackerCheckItem)[] {
+  if (!Array.isArray(value)) return false;
+  const items = value as readonly unknown[];
+  let authoredItems = false;
+  for (let position = 0; position < items.length; position += 1) {
+    const item = items[position];
+    if (typeof item === "string") continue;
+    authoredItems = true;
+    if (
+      !item ||
+      typeof item !== "object" ||
+      (item as TrackerCheckItem).index !== position ||
+      typeof (item as TrackerCheckItem).text !== "string" ||
+      typeof (item as TrackerCheckItem).checked !== "boolean"
+    )
+      return false;
+  }
+  // Authored item lists must be complete: every position carries an item.
+  return !authoredItems || items.every((item) => typeof item !== "string");
+}
+
 function isSummary(value: unknown): value is TrackerSummary {
   if (!value || typeof value !== "object") return false;
   const task = value as Partial<TrackerSummary>;
@@ -112,7 +201,11 @@ function isSummary(value: unknown): value is TrackerSummary {
     isStringArray(task.labels) &&
     (task.summary === undefined || typeof task.summary === "string") &&
     (task.priority === undefined || typeof task.priority === "string") &&
-    (task.type === undefined || typeof task.type === "string")
+    (task.type === undefined || typeof task.type === "string") &&
+    (task.assignees === undefined || isStringArray(task.assignees)) &&
+    (task.ordinal === undefined || Number.isFinite(task.ordinal)) &&
+    (task.createdAt === undefined || typeof task.createdAt === "string") &&
+    (task.updatedAt === undefined || typeof task.updatedAt === "string")
   );
 }
 
@@ -121,14 +214,19 @@ function isTask(value: unknown): value is TrackerTask {
   const task = value as Partial<TrackerTask>;
   return (
     (task.description === undefined || typeof task.description === "string") &&
-    isStringArray(task.acceptanceCriteria) &&
-    isStringArray(task.definitionOfDone) &&
+    isCheckList(task.acceptanceCriteria) &&
+    isCheckList(task.definitionOfDone) &&
     isStringArray(task.plan) &&
     isStringArray(task.implementationNotes) &&
     Array.isArray(task.comments) &&
     isStringArray(task.documentation) &&
     isStringArray(task.dependencies) &&
-    (task.parentId === undefined || typeof task.parentId === "string")
+    (task.parentId === undefined || typeof task.parentId === "string") &&
+    (task.milestoneId === undefined || typeof task.milestoneId === "string") &&
+    (task.finalSummary === undefined ||
+      typeof task.finalSummary === "string") &&
+    (task.references === undefined || isStringArray(task.references)) &&
+    (task.modifiedFiles === undefined || isStringArray(task.modifiedFiles))
   );
 }
 
@@ -268,9 +366,9 @@ function actorArguments(actor: TrackerWriteActor): readonly string[] {
 function appendRepeated(
   argv: string[],
   flag: string,
-  values: readonly string[] | undefined,
+  values: readonly unknown[] | undefined,
 ): void {
-  for (const value of values ?? []) argv.push(flag, value);
+  for (const value of values ?? []) argv.push(flag, String(value));
 }
 
 /**
@@ -314,26 +412,175 @@ export class QuestTrackerClient {
     );
     const manifest = envelope.data as Partial<TrackerManifest>;
     const commands = manifest.commands;
-    const required = [
-      ["task status-flow", "task.status-flow", false],
-      ["task list", "task.list", false],
-      ["task view", "task.view", false],
-      ["search", "task.search", false],
-      ["task create", "task.created", true],
-      ["task edit", "task.updated", true],
-    ] as const;
+    // Exact fields/filters advertisement is part of the contract: omissions and drift both fail closed.
+    const required: readonly {
+      readonly name: string;
+      readonly kind: string;
+      readonly mutates: boolean;
+      readonly fields?: readonly string[];
+      readonly filters?: readonly string[];
+    }[] = [
+      {
+        name: "task status-flow",
+        kind: "task.status-flow",
+        mutates: false,
+        fields: ["statuses", "terminalStatuses"],
+      },
+      {
+        name: "task list",
+        kind: "task.list",
+        mutates: false,
+        filters: ["label", "status"],
+        fields: [
+          "assignees",
+          "createdAt",
+          "id",
+          "labels",
+          "ordinal",
+          "priority",
+          "status",
+          "summary",
+          "title",
+          "type",
+          "updatedAt",
+        ],
+      },
+      {
+        name: "task view",
+        kind: "task.view",
+        mutates: false,
+        fields: [
+          "acceptanceCriteria",
+          "aliases",
+          "assignees",
+          "comments",
+          "createdAt",
+          "definitionOfDone",
+          "dependencies",
+          "description",
+          "documentation",
+          "finalSummary",
+          "id",
+          "implementationNotes",
+          "labels",
+          "milestoneId",
+          "modifiedFiles",
+          "ordinal",
+          "parentId",
+          "plan",
+          "priority",
+          "references",
+          "status",
+          "summary",
+          "title",
+          "type",
+          "updatedAt",
+        ],
+      },
+      {
+        name: "search",
+        kind: "task.search",
+        mutates: false,
+        filters: ["query"],
+        fields: [
+          "assignees",
+          "createdAt",
+          "id",
+          "labels",
+          "ordinal",
+          "priority",
+          "status",
+          "summary",
+          "title",
+          "type",
+          "updatedAt",
+        ],
+      },
+      {
+        name: "task create",
+        kind: "task.created",
+        mutates: true,
+        fields: [
+          "acceptanceCriteria",
+          "aliases",
+          "assignees",
+          "comments",
+          "definitionOfDone",
+          "description",
+          "documentation",
+          "finalSummary",
+          "implementationNotes",
+          "labels",
+          "milestoneId",
+          "modifiedFiles",
+          "ordinal",
+          "parentId",
+          "plan",
+          "priority",
+          "references",
+          "summary",
+          "title",
+          "type",
+        ],
+      },
+      {
+        name: "task edit",
+        kind: "task.updated",
+        mutates: true,
+        fields: [
+          "acceptanceCriteria",
+          "addAssignees",
+          "addComments",
+          "addDependencies",
+          "addLabels",
+          "addModifiedFiles",
+          "addNotes",
+          "addPlan",
+          "addReferences",
+          "clearMilestone",
+          "clearParent",
+          "comments",
+          "definitionOfDone",
+          "description",
+          "documentation",
+          "implementationNotes",
+          "labels",
+          "milestoneId",
+          "parentId",
+          "plan",
+          "removeAssignees",
+          "removeComments",
+          "removeDependencies",
+          "removeLabels",
+          "removeModifiedFiles",
+          "removeNotes",
+          "removePlan",
+          "removeReferences",
+          "status",
+          "summary",
+        ],
+      },
+    ];
+    const sorted = (values: readonly string[] | undefined): readonly string[] =>
+      [...(values ?? [])].sort();
     if (
       !Array.isArray(commands) ||
-      required.some(
-        ([name, kind, mutates]) =>
-          !commands.some(
-            (command) =>
-              command?.name === name &&
-              command.schemaVersion === TRACKER_CONTRACT_VERSION &&
-              command.kind === kind &&
-              command.mutates === mutates,
-          ),
-      )
+      required.some((entry) => {
+        const match = commands.find(
+          (command) =>
+            command?.name === entry.name &&
+            command.schemaVersion === TRACKER_CONTRACT_VERSION &&
+            command.kind === entry.kind &&
+            command.mutates === entry.mutates,
+        );
+        if (!match) return true;
+        return (
+          JSON.stringify(sorted(match.fields)) !==
+            JSON.stringify(sorted(entry.fields)) ||
+          JSON.stringify(sorted(match.filters)) !==
+            JSON.stringify(sorted(entry.filters))
+        );
+      })
     ) {
       throw trackerError(
         "drift",
@@ -388,10 +635,41 @@ export class QuestTrackerClient {
       "--json",
       ...actorArguments(declared),
     ];
+    if (input.summary !== undefined) argv.push("--summary", input.summary);
     if (input.description !== undefined)
       argv.push("--description", input.description);
     appendRepeated(argv, "--label", input.labels);
     appendRepeated(argv, "--doc", input.documentation);
+    if (input.priority !== undefined) argv.push("--priority", input.priority);
+    if (input.type !== undefined) argv.push("--type", input.type);
+    if (input.ordinal !== undefined)
+      argv.push("--ordinal", String(input.ordinal));
+    appendRepeated(argv, "--alias", input.aliases);
+    if (input.acceptanceCriteria !== undefined)
+      argv.push(
+        "--acceptance-criteria",
+        JSON.stringify(input.acceptanceCriteria),
+      );
+    if (input.definitionOfDone !== undefined)
+      argv.push("--definition-of-done", JSON.stringify(input.definitionOfDone));
+    if (input.plan !== undefined)
+      argv.push("--plan", JSON.stringify(input.plan));
+    if (input.implementationNotes !== undefined)
+      argv.push(
+        "--implementation-notes",
+        JSON.stringify(input.implementationNotes),
+      );
+    if (input.comments !== undefined)
+      argv.push("--comments", JSON.stringify(input.comments));
+    appendRepeated(argv, "--assignee", input.assignees);
+    appendRepeated(argv, "--reference", input.references);
+    appendRepeated(argv, "--modified-file", input.modifiedFiles);
+    appendRepeated(argv, "--dependency", input.dependencies);
+    if (input.parentId !== undefined) argv.push("--parent", input.parentId);
+    if (input.milestoneId !== undefined)
+      argv.push("--milestone", input.milestoneId);
+    if (input.finalSummary !== undefined)
+      argv.push("--final-summary", input.finalSummary);
     return parseEnvelope(await this.run(argv), "task.created")
       .data as TrackerTask;
   }
@@ -403,11 +681,46 @@ export class QuestTrackerClient {
     const declared = requireActor(actor);
     const argv = ["task", "edit", id, "--json", ...actorArguments(declared)];
     if (patch.status !== undefined) argv.push("--status", patch.status);
+    if (patch.summary !== undefined) argv.push("--summary", patch.summary);
     if (patch.description !== undefined)
       argv.push("--description", patch.description);
+    if (patch.labels !== undefined)
+      argv.push("--labels", JSON.stringify(patch.labels));
     appendRepeated(argv, "--add-label", patch.addLabels);
     appendRepeated(argv, "--remove-label", patch.removeLabels);
     appendRepeated(argv, "--doc", patch.documentation);
+    if (patch.plan !== undefined)
+      argv.push("--plan", JSON.stringify(patch.plan));
+    appendRepeated(argv, "--add-plan", patch.addPlan);
+    appendRepeated(argv, "--remove-plan", patch.removePlan);
+    if (patch.implementationNotes !== undefined)
+      argv.push("--notes", JSON.stringify(patch.implementationNotes));
+    appendRepeated(argv, "--add-note", patch.addNotes);
+    appendRepeated(argv, "--remove-note", patch.removeNotes);
+    if (patch.comments !== undefined)
+      argv.push("--comments", JSON.stringify(patch.comments));
+    appendRepeated(argv, "--add-comment", patch.addComments);
+    appendRepeated(argv, "--remove-comment", patch.removeComments);
+    if (patch.acceptanceCriteria !== undefined)
+      argv.push(
+        "--acceptance-criteria",
+        JSON.stringify(patch.acceptanceCriteria),
+      );
+    if (patch.definitionOfDone !== undefined)
+      argv.push("--definition-of-done", JSON.stringify(patch.definitionOfDone));
+    appendRepeated(argv, "--add-dependency", patch.addDependencies);
+    appendRepeated(argv, "--remove-dependency", patch.removeDependencies);
+    if (patch.parentId !== undefined) argv.push("--parent", patch.parentId);
+    if (patch.clearParent === true) argv.push("--clear-parent");
+    if (patch.milestoneId !== undefined)
+      argv.push("--milestone", patch.milestoneId);
+    if (patch.clearMilestone === true) argv.push("--clear-milestone");
+    appendRepeated(argv, "--add-assignee", patch.addAssignees);
+    appendRepeated(argv, "--remove-assignee", patch.removeAssignees);
+    appendRepeated(argv, "--add-reference", patch.addReferences);
+    appendRepeated(argv, "--remove-reference", patch.removeReferences);
+    appendRepeated(argv, "--add-modified-file", patch.addModifiedFiles);
+    appendRepeated(argv, "--remove-modified-file", patch.removeModifiedFiles);
     return parseEnvelope(await this.run(argv), "task.updated")
       .data as TrackerTask;
   }

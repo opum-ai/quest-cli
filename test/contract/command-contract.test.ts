@@ -147,51 +147,181 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "migration.backlog-preview",
       mutates: false,
+      fields: ["digest", "mappings", "requiresApproval", "sourceFingerprint"],
     },
     {
       name: "migration backlog apply",
       schemaVersion: 1,
       kind: "migration.backlog-applied",
       mutates: true,
+      fields: ["digest"],
     },
     {
       name: "migration backlog status",
       schemaVersion: 1,
       kind: "migration.backlog-status",
       mutates: false,
+      fields: ["digest"],
     },
     {
       name: "migration backlog rollback",
       schemaVersion: 1,
       kind: "migration.backlog-rolled-back",
       mutates: true,
+      fields: ["digest"],
     },
     {
       name: "task status-flow",
       schemaVersion: 1,
       kind: "task.status-flow",
       mutates: false,
+      fields: ["statuses", "terminalStatuses"],
     },
-    { name: "task list", schemaVersion: 1, kind: "task.list", mutates: false },
-    { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
-    { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
+    {
+      name: "task list",
+      schemaVersion: 1,
+      kind: "task.list",
+      mutates: false,
+      filters: ["label", "status"],
+      fields: [
+        "assignees",
+        "createdAt",
+        "id",
+        "labels",
+        "ordinal",
+        "priority",
+        "status",
+        "summary",
+        "title",
+        "type",
+        "updatedAt",
+      ],
+    },
+    {
+      name: "task view",
+      schemaVersion: 1,
+      kind: "task.view",
+      mutates: false,
+      fields: [
+        "acceptanceCriteria",
+        "aliases",
+        "assignees",
+        "comments",
+        "createdAt",
+        "definitionOfDone",
+        "dependencies",
+        "description",
+        "documentation",
+        "finalSummary",
+        "id",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "modifiedFiles",
+        "ordinal",
+        "parentId",
+        "plan",
+        "priority",
+        "references",
+        "status",
+        "summary",
+        "title",
+        "type",
+        "updatedAt",
+      ],
+    },
+    {
+      name: "search",
+      schemaVersion: 1,
+      kind: "task.search",
+      mutates: false,
+      filters: ["query"],
+      fields: [
+        "assignees",
+        "createdAt",
+        "id",
+        "labels",
+        "ordinal",
+        "priority",
+        "status",
+        "summary",
+        "title",
+        "type",
+        "updatedAt",
+      ],
+    },
     {
       name: "search --all",
       schemaVersion: 1,
       kind: "search.results",
       mutates: false,
+      filters: ["query"],
     },
     {
       name: "task create",
       schemaVersion: 1,
       kind: "task.created",
       mutates: true,
+      fields: [
+        "acceptanceCriteria",
+        "aliases",
+        "assignees",
+        "comments",
+        "definitionOfDone",
+        "description",
+        "documentation",
+        "finalSummary",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "modifiedFiles",
+        "ordinal",
+        "parentId",
+        "plan",
+        "priority",
+        "references",
+        "summary",
+        "title",
+        "type",
+      ],
     },
     {
       name: "task edit",
       schemaVersion: 1,
       kind: "task.updated",
       mutates: true,
+      fields: [
+        "acceptanceCriteria",
+        "addAssignees",
+        "addComments",
+        "addDependencies",
+        "addLabels",
+        "addModifiedFiles",
+        "addNotes",
+        "addPlan",
+        "addReferences",
+        "clearMilestone",
+        "clearParent",
+        "comments",
+        "definitionOfDone",
+        "description",
+        "documentation",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "parentId",
+        "plan",
+        "removeAssignees",
+        "removeComments",
+        "removeDependencies",
+        "removeLabels",
+        "removeModifiedFiles",
+        "removeNotes",
+        "removePlan",
+        "removeReferences",
+        "status",
+        "summary",
+      ],
     },
     {
       name: "task complete",
@@ -216,18 +346,21 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "draft.created",
       mutates: true,
+      fields: ["description", "documentation", "labels", "title"],
     },
     {
       name: "draft list",
       schemaVersion: 1,
       kind: "draft.list",
       mutates: false,
+      filters: ["include-archived"],
     },
     {
       name: "draft view",
       schemaVersion: 1,
       kind: "draft.view",
       mutates: false,
+      fields: ["description", "documentation", "labels", "title"],
     },
     {
       name: "draft promote",
@@ -246,24 +379,28 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "milestone.list",
       mutates: false,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone view",
       schemaVersion: 1,
       kind: "milestone.view",
       mutates: false,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone create",
       schemaVersion: 1,
       kind: "milestone.created",
       mutates: true,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone edit",
       schemaVersion: 1,
       kind: "milestone.updated",
       mutates: true,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone delete",
@@ -276,24 +413,28 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "decision.list",
       mutates: false,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision view",
       schemaVersion: 1,
       kind: "decision.view",
       mutates: false,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision create",
       schemaVersion: 1,
       kind: "decision.created",
       mutates: true,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision edit",
       schemaVersion: 1,
       kind: "decision.updated",
       mutates: true,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision delete",
@@ -360,4 +501,100 @@ test("the live manifest is non-empty and matches its result golden", () => {
       commands: [{ ...commandManifest.commands[0], mutates: undefined }],
     }),
   ).toBe(false);
+});
+
+test("manifest conformance rejects unknown, missing, and drifted command entries", () => {
+  const withUnknown = {
+    ...commandManifest,
+    commands: [
+      ...commandManifest.commands,
+      {
+        name: "task export",
+        schemaVersion: 1,
+        kind: "task.exported",
+        mutates: false,
+      },
+    ],
+  };
+  expect(validateCommandManifest(withUnknown)).toBe(false);
+  const withoutBrowser = {
+    ...commandManifest,
+    commands: commandManifest.commands.filter(
+      (entry) => entry.name !== "browser",
+    ),
+  };
+  expect(validateCommandManifest(withoutBrowser)).toBe(false);
+  const flippedMutates = {
+    ...commandManifest,
+    commands: commandManifest.commands.map((entry) =>
+      entry.name === "task create" ? { ...entry, mutates: false } : entry,
+    ),
+  };
+  expect(validateCommandManifest(flippedMutates)).toBe(false);
+  const driftedKind = {
+    ...commandManifest,
+    commands: commandManifest.commands.map((entry) =>
+      entry.name === "task edit"
+        ? { ...entry, kind: "task.edited" as `${string}.${string}` }
+        : entry,
+    ),
+  };
+  expect(validateCommandManifest(driftedKind)).toBe(false);
+  const badFields = {
+    ...commandManifest,
+    commands: commandManifest.commands.map((entry) =>
+      entry.name === "task view" ? { ...entry, fields: "nope" } : entry,
+    ),
+  };
+  expect(validateCommandManifest(badFields)).toBe(false);
+  const duplicateFields = {
+    ...commandManifest,
+    commands: commandManifest.commands.map((entry) =>
+      entry.name === "task view"
+        ? { ...entry, fields: ["id", "id"] as readonly string[] }
+        : entry,
+    ),
+  };
+  expect(validateCommandManifest(duplicateFields)).toBe(false);
+  const omittedFields = {
+    ...commandManifest,
+    commands: commandManifest.commands.map((entry) =>
+      entry.name === "task view"
+        ? {
+            name: entry.name,
+            schemaVersion: 1,
+            kind: entry.kind,
+            mutates: entry.mutates,
+          }
+        : entry,
+    ),
+  };
+  expect(validateCommandManifest(omittedFields)).toBe(false);
+});
+
+test("migration capabilities advertise exact kinds and mutability", () => {
+  const byName = new Map(commandManifest.commands.map((e) => [e.name, e]));
+  expect(byName.get("migration backlog preview")).toMatchObject({
+    kind: "migration.backlog-preview",
+    mutates: false,
+  });
+  expect(byName.get("migration backlog apply")).toMatchObject({
+    kind: "migration.backlog-applied",
+    mutates: true,
+  });
+  expect(byName.get("migration backlog status")).toMatchObject({
+    kind: "migration.backlog-status",
+    mutates: false,
+  });
+  expect(byName.get("migration backlog rollback")).toMatchObject({
+    kind: "migration.backlog-rolled-back",
+    mutates: true,
+  });
+  const kinds = commandManifest.commands.flatMap((entry) =>
+    entry.kind === null ? [] : [entry.kind],
+  );
+  for (const kind of kinds)
+    expect(/^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/.test(kind)).toBe(true);
+  expect(new Set(kinds).size).toBe(kinds.length);
+  expect(validateCommandManifest(commandManifest)).toBe(true);
 });
