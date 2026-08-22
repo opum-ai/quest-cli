@@ -5,11 +5,11 @@ status: To Do
 assignee:
   - '@quest-cli'
 created_date: '2026-08-21 19:45'
-updated_date: '2026-08-21 20:12'
+updated_date: '2026-08-21 23:05'
 labels:
   - odoc-63.2
 dependencies:
-  - QCLI-97.11.3
+  - QCLI-97.11.7
 parent_task_id: QCLI-97.11
 priority: high
 type: feature

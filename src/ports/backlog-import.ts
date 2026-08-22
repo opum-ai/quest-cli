@@ -1,4 +1,5 @@
 import type { TaskLocation, TaskState } from "../domain/tasks/tasks.ts";
+import type { Decision, Milestone } from "../domain/planning/planning.ts";
 
 export interface BacklogImportRecord {
   readonly sourceFolder: string;
@@ -82,4 +83,48 @@ export interface PublicTaskRepository {
     | { readonly kind: "success"; readonly revision: string }
     | { readonly kind: "conflict" }
   >;
+}
+
+export interface MigrationTransactionRequest {
+  readonly expectedTaskRevision: string;
+  readonly expectedPlanningRevision: string;
+  readonly operationId: string;
+  readonly ownedPaths: readonly string[];
+  readonly taskChanges: readonly (
+    | { readonly task: TaskState; readonly location: TaskLocation }
+    | {
+        readonly taskId: string;
+        readonly location: TaskLocation;
+        readonly remove: true;
+      }
+  )[];
+  readonly milestones: readonly Milestone[];
+  readonly decisions: readonly Decision[];
+}
+
+export interface MigrationTransactionSuccess {
+  readonly kind: "success";
+  readonly revision: string;
+  readonly operationId: string;
+  readonly taskIds: readonly string[];
+  readonly removedTaskIds: readonly string[];
+  readonly milestoneIds: readonly string[];
+}
+
+export interface MigrationTransactionConflict {
+  readonly kind: "conflict";
+  readonly expectedRevision: string;
+  readonly actualRevision: string;
+  readonly operationId: string;
+  readonly ownedPaths: readonly string[];
+}
+
+export type MigrationTransactionResult =
+  | MigrationTransactionSuccess
+  | MigrationTransactionConflict;
+
+export interface MigrationTransactionRepository extends PublicTaskRepository {
+  applyTransaction(
+    request: MigrationTransactionRequest,
+  ): Promise<MigrationTransactionResult>;
 }

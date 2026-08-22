@@ -28,6 +28,9 @@ export function createBacklogImportService(
   return new BacklogImportService(
     root,
     new BacklogImporter(source, { backlogDirectory }),
-    new LocalTaskRepository(join(root, ".quest", "tasks")),
+    new LocalTaskRepository(
+      join(root, ".quest", "tasks"),
+      new LocalPlanningRepository(root),
+    ),
   );
 }
