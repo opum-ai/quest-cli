@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-21 23:04'
-updated_date: '2026-08-22 00:49'
+updated_date: '2026-08-22 00:50'
 labels:
   - odoc-63.2
 dependencies:
@@ -43,3 +43,9 @@ Provide a revision-guarded atomic operation spanning .quest/tasks/** and .quest/
 <!-- SECTION:NOTES:BEGIN -->
 Implemented MigrationTransactionRepository port and applyTransaction in LocalTaskRepository with atomic task+planning writes, revision guards, and rollback-on-planning-conflict. Added focused tests for atomic apply, conflict, idempotency, and rollback. Full bun run check passes (191 tests).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented MigrationTransactionRepository port and applyTransaction in LocalTaskRepository with atomic task+planning writes, revision guards, and rollback-on-planning-conflict. Added focused tests for atomic apply, conflict, idempotency, and rollback. Full bun run check passes (191 tests).
+<!-- SECTION:FINAL_SUMMARY:END -->
