@@ -91,25 +91,34 @@ export class OpumAgentWorkflowBindingService {
     const record = await this.model.relationship(command.claimOrCorrelationId);
     let claim: ClaimGenerationEvidence | undefined;
     if (record?.kind === "claim") {
-      const events = await this.model.claimEvents(subject.id);
-      const actors = await this.model.actors();
-      const history = events.length
-        ? replayClaimHistory(events, actors)
-        : undefined;
-      const evaluation = evaluateClaim(history, now);
-      claim = {
-        anomalous:
-          (evaluation.anomalies?.length ?? 0) > 0 ||
-          (history?.anomalies.length ?? 0) > 0,
-        live: evaluation.status === "live",
-        hasLease: Boolean(history?.lease),
-        holderId: history?.lease?.holderId ?? null,
-        generationBound: generationBound(
-          events,
-          command.claimOrCorrelationId,
-          history?.lease,
-        ),
-      };
+      try {
+        const events = await this.model.claimEvents(subject.id);
+        const actors = await this.model.actors();
+        const history = events.length
+          ? replayClaimHistory(events, actors)
+          : undefined;
+        const evaluation = evaluateClaim(history, now);
+        claim = {
+          anomalous:
+            (evaluation.anomalies?.length ?? 0) > 0 ||
+            (history?.anomalies.length ?? 0) > 0,
+          live: evaluation.status === "live",
+          hasLease: Boolean(history?.lease),
+          holderId: history?.lease?.holderId ?? null,
+          generationBound: generationBound(
+            events,
+            command.claimOrCorrelationId,
+            history?.lease,
+          ),
+        };
+      } catch (error) {
+        if (error instanceof OpumAgentWorkflowError) throw error;
+        // Corrupt or unordered authoritative claim evidence is never live.
+        throw new OpumAgentWorkflowError(
+          "OPUM_WORKFLOW_QUEST_STATE",
+          "Claim history failed CAS replay.",
+        );
+      }
     }
     const issuedAt = now.toISOString();
     const expiresAt = new Date(
@@ -120,6 +129,7 @@ export class OpumAgentWorkflowBindingService {
     return evaluateTaskBindingV1({
       request,
       subject: { taskId: subject.id, status: subject.status },
+      identity: command.claimOrCorrelationId,
       record: record
         ? ({
             id: record.id,

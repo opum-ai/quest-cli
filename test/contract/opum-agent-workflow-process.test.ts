@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { runQuest } from "../../src/cli/main.ts";
+import {
+  LocalTaskRelationshipRepository,
+  safeStorageName,
+} from "../../src/adapters/claims/local-claim-evidence.ts";
 
 const correlation = "f54125ae12e541f4b7ba83abb8ba8a35";
 const renewal = "0123456789abcdef0123456789abcdef";
@@ -23,7 +27,7 @@ async function writeRelationship(
   const directory = join(workspace, ".quest", "relationships");
   await mkdir(directory, { recursive: true });
   await writeFile(
-    join(directory, `${id}.json`),
+    join(directory, `${safeStorageName(id)}.json`),
     JSON.stringify({ schemaVersion: 1, id, taskId: "T-1", ...record }),
   );
 }
@@ -165,7 +169,7 @@ test("prints the exact public v1 envelope with the closed key set", async () => 
 test("binds a live claim through its current generation, surviving renewal", async () => {
   const claimsDirectory = join(workspace, ".quest", "claims");
   await mkdir(claimsDirectory, { recursive: true });
-  await writeFile(
+  await Bun.write(
     join(claimsDirectory, "actors.json"),
     JSON.stringify([
       { id: "human", kind: "human", roles: ["maintainer"] },
@@ -200,15 +204,21 @@ test("binds a live claim through its current generation, surviving renewal", asy
     },
   ];
   await writeFile(
-    join(claimsDirectory, "T-1.jsonl"),
+    join(claimsDirectory, `${safeStorageName("T-1")}.jsonl`),
     events.map((event) => JSON.stringify(event)).join("\n"),
   );
   await writeRelationship(correlation, {
     kind: "claim",
+    state: "accepted",
     baseRef: "origin/dev",
     settlementRef: "origin/dev",
   });
   const originalIdentity = await quest(bindingArguments());
+  // eslint-disable-next-line no-console
+  if (originalIdentity.exitCode !== 0) console.error(originalIdentity.stderr);
+  function originalDebug() {
+    return true;
+  }
   expect(originalIdentity.exitCode).toBe(0);
   const response = JSON.parse(originalIdentity.stdout);
   expect(response.relationshipKind).toBe("claim");
@@ -218,6 +228,7 @@ test("binds a live claim through its current generation, surviving renewal", asy
   // The renewal identity also binds generation g1 via its own record.
   await writeRelationship(renewal, {
     kind: "claim",
+    state: "accepted",
     baseRef: "origin/dev",
     settlementRef: "origin/dev",
   });
@@ -229,7 +240,7 @@ test("binds a live claim through its current generation, surviving renewal", asy
 
   // A stale identity from a superseded generation is STATE.
   await writeFile(
-    join(claimsDirectory, "T-1.jsonl"),
+    join(claimsDirectory, `${safeStorageName("T-1")}.jsonl`),
     [
       ...events,
       {

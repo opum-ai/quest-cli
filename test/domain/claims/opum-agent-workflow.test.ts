@@ -161,6 +161,7 @@ describe("task binding evaluation", () => {
     const response = evaluateTaskBindingV1({
       request,
       subject,
+      identity: "corr-1",
       record,
       environment: environment(),
     });
@@ -187,12 +188,14 @@ describe("task binding evaluation", () => {
     const first = evaluateTaskBindingV1({
       request,
       subject,
+      identity: "corr-1",
       record,
       environment: environment(),
     });
     const second = evaluateTaskBindingV1({
       request,
       subject,
+      identity: "corr-1",
       record,
       environment: environment(),
     });
@@ -203,6 +206,7 @@ describe("task binding evaluation", () => {
     const response = evaluateTaskBindingV1({
       request,
       subject,
+      identity: "evt-1",
       record: { ...record, id: "evt-1", kind: "claim", holder: undefined },
       claim: {
         anomalous: false,
@@ -255,6 +259,7 @@ describe("task binding evaluation", () => {
           evaluateTaskBindingV1({
             request,
             subject,
+            identity: "corr-1",
             record: { ...record, kind: "claim", holder: undefined },
             claim,
             environment: environment(),
@@ -277,6 +282,7 @@ describe("task binding evaluation", () => {
           evaluateTaskBindingV1({
             request,
             subject,
+            identity: "corr-1",
             record: { ...record, state },
             environment: environment(),
           }),
@@ -291,6 +297,7 @@ describe("task binding evaluation", () => {
         evaluateTaskBindingV1({
           request,
           subject,
+          identity: "corr-1",
           environment: environment(),
         }),
       ),
@@ -303,6 +310,7 @@ describe("task binding evaluation", () => {
         evaluateTaskBindingV1({
           request,
           subject: { taskId: "T-1", status: "Done" },
+          identity: "corr-1",
           record,
           environment: environment(),
         }),
@@ -322,6 +330,7 @@ describe("task binding evaluation", () => {
           evaluateTaskBindingV1({
             request,
             subject,
+            identity: "corr-1",
             record,
             environment: environment(overrides),
           }),
@@ -336,6 +345,7 @@ describe("task binding evaluation", () => {
         evaluateTaskBindingV1({
           request,
           subject,
+          identity: "corr-1",
           record: { ...record, taskId: "T-9" },
           environment: environment(),
         }),
@@ -348,4 +358,20 @@ test("status normalization maps Quest lifecycle labels to snake_case", () => {
   expect(normalizedTaskState("In Progress")).toBe("in_progress");
   expect(normalizedTaskState("in-progress")).toBe("in_progress");
   expect(normalizedTaskState("To Do")).toBe("to_do");
+});
+
+test("a cross-wired record can never authorize another identity", () => {
+  // Deliberately cross-wired: the record belongs to a different relationship.
+  const crossWired = { ...record, id: "other-identity" };
+  expect(
+    codeOf(() =>
+      evaluateTaskBindingV1({
+        request,
+        subject: { taskId: "T-1", status: "In Progress" },
+        identity: "corr-1",
+        record: crossWired,
+        environment: environment(),
+      }),
+    ),
+  ).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
 });

@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { realpathSync } from "node:fs";
+import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
 const compiled = join(
@@ -871,7 +872,10 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       ? commonDirectory
       : join(realpathSync(store), commonDirectory);
     await writeFile(
-      join(relationshipsDirectory, "binding-correlation.json"),
+      join(
+        relationshipsDirectory,
+        `${safeStorageName("binding-correlation")}.json`,
+      ),
       JSON.stringify({
         schemaVersion: 1,
         id: "binding-correlation",

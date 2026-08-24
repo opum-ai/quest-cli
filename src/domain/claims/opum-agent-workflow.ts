@@ -251,6 +251,8 @@ export function normalizedTaskState(status: string): string {
 export function evaluateTaskBindingV1(input: {
   readonly request: TaskBindingRequestV1;
   readonly subject: BindingSubjectEvidence;
+  /** The exact opaque identity the caller bound; must match the record. */
+  readonly identity: string;
   readonly record?: RelationshipRecordEvidence;
   readonly claim?: ClaimGenerationEvidence;
   readonly environment: BindingEnvironmentInput;
@@ -262,6 +264,11 @@ export function evaluateTaskBindingV1(input: {
       "OPUM_WORKFLOW_QUEST_ABSENT",
       "No repository relationship record binds this identity.",
     );
+  }
+  // Domain-level binding guard: a record for one relationship must never
+  // authorize or emit another identity, even if an adapter is faulty.
+  if (record.id !== input.identity || input.identity.length === 0) {
+    incompatible("Relationship record identity does not match the request.");
   }
   if (record.taskId !== input.subject.taskId) {
     incompatible("Relationship record is bound to a different task.");

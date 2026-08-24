@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import {
   LocalClaimEvidence,
   LocalTaskRelationshipRepository,
+  safeStorageName,
 } from "../../../src/adapters/claims/local-claim-evidence.ts";
 import {
   OpumAgentWorkflowBindingService,
@@ -36,18 +37,22 @@ async function setup(store: {
   await Bun.write(join(claims, "actors.json"), JSON.stringify(actors));
   if (store.claimEvents) {
     await Bun.write(
-      join(claims, "T-1.jsonl"),
+      join(claims, `${safeStorageName("T-1")}.jsonl`),
       store.claimEvents.map((event) => JSON.stringify(event)).join("\n"),
     );
   }
   if (store.relationship !== null) {
+    const kind =
+      ((store.relationship as Record<string, unknown> | undefined)?.kind as
+        | string
+        | undefined) ?? "correlation";
     await new LocalTaskRelationshipRepository(root).write({
       schemaVersion: 1,
       id: correlation,
       taskId: "T-1",
-      kind: "correlation",
+      kind,
       state: "accepted",
-      holder: "agent-1",
+      ...(kind === "correlation" ? { holder: "agent-1" } : {}),
       baseRef: "origin/dev",
       settlementRef: "origin/dev",
       ...store.relationship,
