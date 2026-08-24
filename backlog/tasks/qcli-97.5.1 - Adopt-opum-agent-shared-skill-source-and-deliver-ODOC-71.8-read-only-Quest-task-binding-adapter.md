@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 16:51'
+updated_date: '2026-08-24 17:17'
 labels:
   - quest-0.1
   - parity
@@ -64,5 +64,5 @@ Salvage correction delivered: public quest task binding CLI command (contract op
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Fourth fresh correction delivered: claim evidence reads the authoritative ClaimService layout (.quest/claims/<canonical taskId>.jsonl, unhashed) with an end-to-end compatibility test through the production-owned path convention; symlink-safe containment (canonicalized root, per-component lstat, final regular-file check) guards relationship reads/writes, claim events, and actors with traversal/symlink tests proving no outside consumption or mutation; manifest task binding fields now the exact closed 14-key public response set; debug residue removed. bun run check green (244 tests), lore check green, CI run 32749525309 all seven jobs success.
+Fifth fresh correction delivered: binding evidence (tasks, actors, claim events, relationship records) is read exclusively from one revision-pinned Git-object snapshot via new GitPort.readBlob/listFiles seams — worktree symlinks are provably irrelevant; production LocalClaimRepository adapter over the Git CAS/operation commit seam wired to ClaimService with a true E2E claim/heartbeat/binding test and stale-revision conflict coverage; blind relationship writer replaced by CAS writer requiring expectedRevision+operationId with conflict/no-lost-update tests; manifest fields exactly the closed 14-key response set; debug residue removed. bun run check green (240 tests), lore check green, CI run 32754926971 all seven jobs success.
 <!-- SECTION:FINAL_SUMMARY:END -->
