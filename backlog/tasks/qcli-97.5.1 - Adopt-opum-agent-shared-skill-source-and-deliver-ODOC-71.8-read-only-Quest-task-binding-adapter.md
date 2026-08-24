@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 15:49'
+updated_date: '2026-08-24 16:01'
 labels:
   - quest-0.1
   - parity
@@ -60,5 +60,5 @@ Salvage correction delivered: public quest task binding CLI command (contract op
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Second fresh correction delivered: public quest task binding stdout is the exact closed 14-key opum-agent-workflow/v1 envelope; relationship identity resolves only from repository-native versioned relationship records (.quest/relationships, schemaVersion 1); claims replay full history through the real LocalClaimEvidence adapter with CAS/liveness/generation binding (renewals stay live; expired/reclaimed/anomalous are STATE); holder/repository/base/settlement verified against authoritative evidence. bun run check green (221 pass), lore check green, CI run 32744535550 all seven jobs success.
+Third fresh correction delivered: opaque identities map to fixed SHA-256 filenames with resolved-path containment (traversal/absolute/backslash/slash/unicode tests prove no outside read or mutation); relationship records pass closed exact-key schema validation at the adapter boundary; the evaluator independently enforces record.id===identity so cross-wired adapters cannot authorize another identity; all filesystem/parse/schema/replay failures normalize into stable redacted OPUM_WORKFLOW_QUEST_INCOMPATIBLE / _STATE diagnostics. bun run check green (240 tests), lore check green, CI run 32747229819 all seven jobs success.
 <!-- SECTION:FINAL_SUMMARY:END -->
