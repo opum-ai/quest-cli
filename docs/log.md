@@ -191,6 +191,7 @@
 - 2026-08-20T13:49:52-05:00 019e2ee06458e3696d079dd2d6e5df6e66dbfd03 docs: reconcile 0.2.x Lore ownership
 - 2026-08-20T20:46:38-05:00 cd0e437ff3928d54840ba96e23b6e0dc2ad9295f docs: sync 0.2.x Lore log after QCLI-115 settlement (#133)
 - 2026-08-24T09:21:17-05:00 2cc5e5f9d9d5b4532027e404c960952d93176856 QCLI-97.5.1: Adopt opum-agent skill source marker and ODOC-71.8 read-only task-binding adapter
+- 2026-08-24T09:51:03-05:00 30c9fbb66cacd981d00efc0d9aabc0681aad624b QCLI-97.5.1: Settle corrected task binding acceptance
 
 ## docs/adr
 
