@@ -190,6 +190,7 @@
 - 2026-08-18T19:28:01-05:00 db4e5d274bfaf87d8b9da5368dc42339aa8ee5a1 docs: reconcile 0.2.x Lore ownership
 - 2026-08-20T13:49:52-05:00 019e2ee06458e3696d079dd2d6e5df6e66dbfd03 docs: reconcile 0.2.x Lore ownership
 - 2026-08-20T20:46:38-05:00 cd0e437ff3928d54840ba96e23b6e0dc2ad9295f docs: sync 0.2.x Lore log after QCLI-115 settlement (#133)
+- 2026-08-24T09:21:17-05:00 2cc5e5f9d9d5b4532027e404c960952d93176856 QCLI-97.5.1: Adopt opum-agent skill source marker and ODOC-71.8 read-only task-binding adapter
 
 ## docs/adr
 
@@ -290,6 +291,8 @@
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 - 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
 - 2026-08-18T00:45:14-05:00 2b934d5db324419ebeaeb1760d9789525e51d715 docs: finalize Quest 0.2.7 installed evidence
+- 2026-08-24T09:21:17-05:00 2cc5e5f9d9d5b4532027e404c960952d93176856 QCLI-97.5.1: Adopt opum-agent skill source marker and ODOC-71.8 read-only task-binding adapter
+- 2026-08-24T09:50:24-05:00 c40ef91550819c4619eb610139e074d779210cca QCLI-97.5.1: Correct opum-agent-workflow/v1 to the public task-binding CLI contract
 
 ## docs/runbooks
 
