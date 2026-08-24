@@ -194,6 +194,7 @@
 - 2026-08-24T09:51:03-05:00 30c9fbb66cacd981d00efc0d9aabc0681aad624b QCLI-97.5.1: Settle corrected task binding acceptance
 - 2026-08-24T10:30:02-05:00 68503ccb5d4ef4b1cf9cf91f9b314ca217f9991d QCLI-97.5.1: Settle corrected binding acceptance
 - 2026-08-24T11:01:22-05:00 268f7c0f9c5a39323105e4bed0c5cf988e10d41e QCLI-97.5.1: Settle hardened binding acceptance
+- 2026-08-24T11:20:07-05:00 bf71789a765a42526147f58b233b44b3a189871f QCLI-97.5.1: Settle hardened binding acceptance
 
 ## docs/adr
 
