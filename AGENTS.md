@@ -33,6 +33,7 @@ Controller or any sibling repository.
 - Use the canonical user-level skills `codex-worker`, `backlog-handover`, and
   `opum-worktrees` under `/Users/jdnewhouse/.agents/skills/{codex-worker,backlog-handover,opum-worktrees}`.
   Do not allow repository copies of those skills to shadow the user-level procedures.
+- Authority marker (immutable): opum-agent shared skill source: /Volumes/external/.opum-worktrees/opum-agent-fb33aefbfb36/64/opum-agent/tooling/codex-skills
 - Announce as `quest-cli`, consume interrupts between work orders, and long-poll only its addressed
   inbox. Accept addressed Controller work orders one at a time, execute their repository-local
   scope under these instructions, and always reply with outcome, validation, delivery, worktree,

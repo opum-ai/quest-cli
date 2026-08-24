@@ -68,6 +68,7 @@ export interface CommandManifestEntry {
     | "migration backlog status"
     | "migration backlog rollback"
     | "task status-flow"
+    | "task binding"
     | "task list"
     | "task view"
     | "search"
@@ -177,6 +178,29 @@ export const commandManifest = {
       kind: "task.status-flow",
       mutates: false,
       fields: ["statuses", "terminalStatuses"],
+    },
+    {
+      name: "task binding",
+      schemaVersion: 1,
+      kind: "task.binding",
+      mutates: false,
+      fields: [
+        "baseRef",
+        "binding",
+        "contract",
+        "expiresAt",
+        "holder",
+        "issuedAt",
+        "relationshipId",
+        "relationshipKind",
+        "relationshipState",
+        "repositoryId",
+        "requestId",
+        "selectedVersion",
+        "settlementRef",
+        "taskId",
+        "taskState",
+      ],
     },
     {
       name: "task list",

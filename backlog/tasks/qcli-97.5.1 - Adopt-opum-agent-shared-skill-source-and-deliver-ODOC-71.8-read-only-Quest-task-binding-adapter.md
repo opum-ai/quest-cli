@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: Done
+status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 14:20'
+updated_date: '2026-08-24 14:44'
 labels:
   - quest-0.1
   - parity
@@ -39,6 +39,8 @@ ODOC-71.8 policy-adoption wave: record the immutable opum-agent shared skill sou
 
 <!-- SECTION:PLAN:BEGIN -->
 1. Add marker doc; 2. Rewire AGENTS.md + runbook routing; 3. Implement src/contract/tracker/opum-agent-workflow.ts over QuestTrackerClient reads only; 4. Contract tests; 5. Checks, review, PR to dev.
+
+6. Controller salvage correction: replace internal adapter with the public quest task binding CLI surface, exact opum-agent-workflow envelope, minimal QuestTaskBindingV1, stable ABSENT/STALE/INCOMPATIBLE/STATE diagnostics, manifest/help exposure, AGENTS marker, and process/artifact tests.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

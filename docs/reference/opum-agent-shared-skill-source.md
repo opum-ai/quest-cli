@@ -25,7 +25,8 @@ opum-agent shared skill source: /Volumes/external/.opum-worktrees/opum-agent-fb3
 ```
 
 Adopted by [QCLI-97.5.1](../../backlog/tasks/qcli-97.5.1%20-%20Adopt-opum-agent-shared-skill-source-and-deliver-ODOC-71.8-read-only-Quest-task-binding-adapter.md)
-under FMC correlation `1465f683c256452a84c18a7def45f817` (ODOC-71.8 policy-adoption).
+under FMC correlation `274b52ffa3194505b15cc7a094ec625e` (ODOC-71.8 policy-adoption,
+salvage continuation).
 
 ## Details
 

@@ -842,6 +842,22 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ])
       ).stdout,
     ).data.record.id as string;
+    const bound = JSON.parse(
+      (await quest(store, ["task", "create", "Bound", ...actor, "--json"]))
+        .stdout,
+    ).data.id as string;
+    await quest(store, [
+      "task",
+      "edit",
+      bound,
+      "--status",
+      "In Progress",
+      "--add-reference",
+      "binding-correlation",
+      ...actor,
+      "--json",
+    ]);
+
     const migrationDigest = JSON.parse(
       (
         await quest(store, [
@@ -900,6 +916,23 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         "--plain",
       ],
       "task status-flow": ["task", "status-flow", "--plain"],
+      "task binding": [
+        "task",
+        "binding",
+        "--contract",
+        "opum-agent-workflow/v1",
+        "--task",
+        bound,
+        "--claim-or-correlation",
+        "binding-correlation",
+        "--holder",
+        "agent-1",
+        "--base",
+        "origin/dev",
+        "--settlement",
+        "origin/dev",
+        "--plain",
+      ],
       "task list": ["task", "list", "--plain"],
       "task view": ["task", "view", created, "--plain"],
       search: ["search", "Existing", "--plain"],

@@ -19,6 +19,8 @@ import {
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { TaskService } from "../application/tasks/tasks.ts";
+import { OpumAgentWorkflowBindingService } from "../application/claims/opum-agent-workflow.ts";
+import { OpumAgentWorkflowError } from "../application/claims/opum-agent-workflow.ts";
 import {
   initializeWorkspace,
   resolveInitializedWorkspace,
@@ -1220,6 +1222,76 @@ export async function runQuest(
         }),
         modeFor(parsed),
       );
+    }
+    if (command === "binding") {
+      const parsed = flags(rest);
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--contract",
+          "--task",
+          "--claim-or-correlation",
+          "--holder",
+          "--base",
+          "--settlement",
+        ]) ||
+        !one(parsed, "--contract") ||
+        !one(parsed, "--task") ||
+        !one(parsed, "--claim-or-correlation") ||
+        !one(parsed, "--holder") ||
+        !one(parsed, "--base") ||
+        !one(parsed, "--settlement")
+      )
+        return failure(
+          "usage",
+          "task binding requires --contract, --task, --claim-or-correlation, --holder, --base, and --settlement.",
+        );
+      const root = await resolvedRoot();
+      let subject: Awaited<ReturnType<TaskService["view"]>>;
+      try {
+        subject = await (await taskService()).view(one(parsed, "--task") ?? "");
+      } catch {
+        return failure("not_found", "No such task.", {
+          input: { code: "OPUM_WORKFLOW_QUEST_ABSENT" },
+        });
+      }
+      const workspace = await createWorkspacePort().inspect(root);
+      const bindingService = new OpumAgentWorkflowBindingService({
+        subject: async () => ({
+          id: subject.id,
+          status: subject.status,
+          references: subject.references,
+        }),
+        repositoryId: async () => workspace.commonDirectory,
+      });
+      try {
+        const response = await bindingService.bind({
+          contract: one(parsed, "--contract") ?? "",
+          taskId: subject.id,
+          claimOrCorrelationId: one(parsed, "--claim-or-correlation") ?? "",
+          holder: one(parsed, "--holder") ?? "",
+          baseRef: one(parsed, "--base") ?? "",
+          settlementRef: one(parsed, "--settlement") ?? "",
+          requestId: crypto.randomUUID().replaceAll("-", ""),
+        });
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "task.binding",
+            data: response,
+          },
+          modeFor(parsed),
+        );
+      } catch (error) {
+        if (!(error instanceof OpumAgentWorkflowError)) throw error;
+        const errorType =
+          error.code === "OPUM_WORKFLOW_QUEST_ABSENT"
+            ? "not_found"
+            : error.code === "OPUM_WORKFLOW_QUEST_INCOMPATIBLE"
+              ? "drift"
+              : "conflict";
+        return failure(errorType, error.code, { input: { code: error.code } });
+      }
     }
     if (command === "create" && rest[0]) {
       const title = rest[0];
