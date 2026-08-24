@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { realpathSync } from "node:fs";
+import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
 const compiled = join(
@@ -842,6 +844,64 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ])
       ).stdout,
     ).data.record.id as string;
+    const bound = JSON.parse(
+      (await quest(store, ["task", "create", "Bound", ...actor, "--json"]))
+        .stdout,
+    ).data.id as string;
+    await quest(store, [
+      "task",
+      "edit",
+      bound,
+      "--status",
+      "In Progress",
+      "--add-reference",
+      "binding-correlation",
+      ...actor,
+      "--json",
+    ]);
+
+    const relationshipsDirectory = join(store, ".quest", "relationships");
+    await mkdir(relationshipsDirectory, { recursive: true });
+    const commonDirectory = Bun.spawnSync(
+      ["git", "rev-parse", "--git-common-dir"],
+      { cwd: store, stdout: "pipe" },
+    )
+      .stdout.toString()
+      .trim();
+    const repositoryId = commonDirectory.startsWith("/")
+      ? commonDirectory
+      : join(realpathSync(store), commonDirectory);
+    await writeFile(
+      join(
+        relationshipsDirectory,
+        `${safeStorageName("binding-correlation")}.json`,
+      ),
+      JSON.stringify({
+        schemaVersion: 1,
+        id: "binding-correlation",
+        taskId: bound,
+        kind: "correlation",
+        state: "accepted",
+        holder: "person-1",
+        baseRef: "origin/dev",
+        settlementRef: "origin/dev",
+      }),
+    );
+    Bun.spawnSync(["git", "add", "-A"], { cwd: store });
+    Bun.spawnSync(
+      [
+        "git",
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "commit",
+        "-m",
+        "evidence",
+      ],
+      { cwd: store },
+    );
+
     const migrationDigest = JSON.parse(
       (
         await quest(store, [
@@ -900,6 +960,25 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         "--plain",
       ],
       "task status-flow": ["task", "status-flow", "--plain"],
+      "task binding": [
+        "task",
+        "binding",
+        "--contract",
+        "opum-agent-workflow/v1",
+        "--task",
+        bound,
+        "--claim-or-correlation",
+        "binding-correlation",
+        "--holder",
+        "person-1",
+        "--repository",
+        repositoryId,
+        "--base",
+        "origin/dev",
+        "--settlement",
+        "origin/dev",
+        "--plain",
+      ],
       "task list": ["task", "list", "--plain"],
       "task view": ["task", "view", created, "--plain"],
       search: ["search", "Existing", "--plain"],
@@ -1043,6 +1122,11 @@ test("every manifest payload command declares principal null as its last JSON ke
     const stdout = outputs.get(entry.name);
     expect(stdout, entry.name).toBeDefined();
     const envelope = JSON.parse(stdout ?? "") as Record<string, unknown>;
+    if (entry.name === "task binding") {
+      // The public opum-agent-workflow/v1 envelope is its own closed shape.
+      expect(envelope.contract, entry.name).toBe("opum-agent-workflow");
+      continue;
+    }
     expect(envelope.principal, entry.name).toBeNull();
     expect(Object.keys(envelope).at(-1), entry.name).toBe("principal");
   }

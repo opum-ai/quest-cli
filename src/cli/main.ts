@@ -19,6 +19,9 @@ import {
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { TaskService } from "../application/tasks/tasks.ts";
+import { OpumAgentWorkflowBindingService } from "../application/claims/opum-agent-workflow.ts";
+import { OpumAgentWorkflowError } from "../application/claims/opum-agent-workflow.ts";
+import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
 import {
   initializeWorkspace,
   resolveInitializedWorkspace,
@@ -28,6 +31,7 @@ import {
   createAgentInstructionPort,
   createBacklogImportService,
   createPlanningService,
+  createTaskBindingModel,
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
@@ -1220,6 +1224,92 @@ export async function runQuest(
         }),
         modeFor(parsed),
       );
+    }
+    if (command === "binding") {
+      const parsed = flags(rest);
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--contract",
+          "--task",
+          "--claim-or-correlation",
+          "--holder",
+          "--repository",
+          "--base",
+          "--settlement",
+        ]) ||
+        !one(parsed, "--contract") ||
+        !one(parsed, "--task") ||
+        !one(parsed, "--claim-or-correlation") ||
+        !one(parsed, "--holder") ||
+        !one(parsed, "--repository") ||
+        !one(parsed, "--base") ||
+        !one(parsed, "--settlement")
+      )
+        return failure(
+          "usage",
+          "task binding requires --contract, --task, --claim-or-correlation, --holder, --repository, --base, and --settlement.",
+        );
+      const root = await resolvedRoot();
+      // No mutable pre-snapshot task read: the raw reference is resolved
+      // entirely inside the immutable revision-pinned snapshot model.
+      const bindingService = new OpumAgentWorkflowBindingService(
+        await createTaskBindingModel(root),
+      );
+      let response: QuestTaskBindingV1Response;
+      try {
+        response = await bindingService.bind({
+          contract: one(parsed, "--contract") ?? "",
+          taskId: one(parsed, "--task") ?? "",
+          claimOrCorrelationId: one(parsed, "--claim-or-correlation") ?? "",
+          holder: one(parsed, "--holder") ?? "",
+          repositoryId: one(parsed, "--repository") ?? "",
+          baseRef: one(parsed, "--base") ?? "",
+          settlementRef: one(parsed, "--settlement") ?? "",
+          requestId: crypto.randomUUID().replaceAll("-", ""),
+        });
+      } catch (error) {
+        if (!(error instanceof OpumAgentWorkflowError)) throw error;
+        const errorType =
+          error.code === "OPUM_WORKFLOW_QUEST_ABSENT"
+            ? "not_found"
+            : error.code === "OPUM_WORKFLOW_QUEST_INCOMPATIBLE"
+              ? "drift"
+              : "conflict";
+        return failure(errorType, error.code, { input: { code: error.code } });
+      }
+      if (resolvedModes.json || parsed?.json) {
+        // The public v1 surface prints the exact binding envelope on stdout.
+        return {
+          stdout: `${JSON.stringify(response)}\n`,
+          stderr: "",
+          exitCode: 0,
+        };
+      }
+      const lines = [
+        `contract ${response.contract}`,
+        `selectedVersion ${response.selectedVersion}`,
+        `requestId ${response.requestId}`,
+        `taskId ${response.taskId}`,
+        `repositoryId ${response.repositoryId}`,
+        `holder ${response.holder}`,
+        `taskState ${response.taskState}`,
+        `relationshipKind ${response.relationshipKind}`,
+        `relationshipId ${response.relationshipId}`,
+        `relationshipState ${response.relationshipState}`,
+        `baseRef ${response.baseRef}`,
+        `settlementRef ${response.settlementRef}`,
+        `issuedAt ${response.issuedAt}`,
+        `expiresAt ${response.expiresAt}`,
+      ];
+      return {
+        stdout:
+          modeFor(parsed) === "plain"
+            ? `${lines.join("\n")}\n`
+            : `${lines.join("\n")}\n`,
+        stderr: "",
+        exitCode: 0,
+      };
     }
     if (command === "create" && rest[0]) {
       const title = rest[0];

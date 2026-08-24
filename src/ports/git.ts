@@ -63,6 +63,21 @@ export interface GitPush {
 
 export interface GitPort {
   readRevision(repositoryPath: string, ref: string): Promise<string>;
+  /**
+   * Revision-pinned blob read: returns the object content at
+   * `<revision>:<path>` or null when absent. Immune to worktree symlinks.
+   */
+  readBlob(
+    repositoryPath: string,
+    revision: string,
+    path: string,
+  ): Promise<string | null>;
+  /** Revision-pinned recursive file listing under a tree prefix. */
+  listFiles(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly string[]>;
   commit(operation: GitOperation): Promise<GitOperationResult>;
   synchronize(operation: GitSynchronization): Promise<GitOperationResult>;
   push(operation: GitPush): Promise<GitOperationResult>;
