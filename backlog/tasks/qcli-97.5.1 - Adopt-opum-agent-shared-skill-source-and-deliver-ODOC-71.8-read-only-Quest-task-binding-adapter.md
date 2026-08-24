@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 17:38'
+updated_date: '2026-08-24 17:46'
 labels:
   - quest-0.1
   - parity
@@ -33,6 +33,7 @@ ODOC-71.8 policy-adoption wave: record the immutable opum-agent shared skill sou
 - [x] #4 Adapter enforces strict version/envelope diagnostics with typed outcomes
 - [x] #5 Binding evidence carries revision/freshness fields and a deterministic digest
 - [x] #6 Unit/contract tests cover binding, diagnostics, freshness, and digest determinism
+- [ ] #7 5
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -66,5 +67,5 @@ Salvage correction delivered: public quest task binding CLI command (contract op
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Fifth fresh correction delivered: binding evidence (tasks, actors, claim events, relationship records) is read exclusively from one revision-pinned Git-object snapshot via new GitPort.readBlob/listFiles seams — worktree symlinks are provably irrelevant; production LocalClaimRepository adapter over the Git CAS/operation commit seam wired to ClaimService with a true E2E claim/heartbeat/binding test and stale-revision conflict coverage; blind relationship writer replaced by CAS writer requiring expectedRevision+operationId with conflict/no-lost-update tests; manifest fields exactly the closed 14-key response set; debug residue removed. bun run check green (240 tests), lore check green, CI run 32754926971 all seven jobs success.
+Sixth fresh correction delivered: quest task binding resolves the raw reference entirely inside the pinned Git snapshot (no mutable pre-snapshot TaskService read) with authoritative taskState validation, deterministic enumeration, duplicate-id/alias-collision and ambiguous-reference rejection; production writeRaw backdoor deleted — fixtures seed through real Git commands only; LocalClaimRepository.append derives .quest/claims/<CanonicalId>.jsonl internally and rejects any other ownedPaths before commit with unchanged revision; true ClaimService→CAS-relationship→binding E2E asserts the exact 14-key envelope with live claim identity/holder/generation. bun run check green (244 tests), lore check green, CI run 32757820544 all seven jobs success.
 <!-- SECTION:FINAL_SUMMARY:END -->
