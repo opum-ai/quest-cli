@@ -2,6 +2,9 @@ import { createHash } from "node:crypto";
 import type { GitPort } from "../../ports/git.ts";
 import type { ClaimEvent } from "../../domain/claims/claims.ts";
 import type { Actor, CanonicalId } from "../../domain/records.ts";
+import { aliasKey } from "../../domain/records.ts";
+import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
+import { RecordValidationError } from "../../domain/records.ts";
 import { OpumAgentWorkflowError } from "../../domain/claims/opum-agent-workflow.ts";
 import type {
   ClaimEvidencePort,
@@ -215,41 +218,68 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
   async task(
     reference: string,
   ): Promise<{ id: string; status: string } | null> {
-    const files = await this.git.listFiles(
-      this.repositoryPath,
-      this.revision,
-      ".quest/tasks",
-    );
+    const files = (
+      await this.git.listFiles(
+        this.repositoryPath,
+        this.revision,
+        ".quest/tasks",
+      )
+    )
+      .filter((file) => file.endsWith(".json"))
+      .sort();
+    const tasks: TaskState[] = [];
     for (const file of files) {
-      if (!file.endsWith(".json")) continue;
       const text = await this.blob(file);
       if (text === null) continue;
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
       } catch {
-        continue;
+        throw unreadable();
       }
-      if (!parsed || typeof parsed !== "object") continue;
-      const task = parsed as {
-        id?: unknown;
-        status?: unknown;
-        aliases?: unknown;
-      };
-      if (typeof task.id !== "string" || typeof task.status !== "string") {
-        continue;
+      // Authoritative domain validation: malformed committed records fail
+      // closed instead of being skipped.
+      let state: TaskState;
+      try {
+        state = taskState(parsed as TaskState);
+      } catch {
+        throw unreadable();
       }
-      const aliases =
-        Array.isArray(task.aliases) &&
-        task.aliases.every((a) => typeof a === "string")
-          ? (task.aliases as readonly string[])
-          : [];
-      const matches =
-        task.id === reference || aliases.some((alias) => alias === reference);
-      if (!matches) continue;
-      return { id: task.id, status: task.status };
+      tasks.push(state);
     }
-    return null;
+    const seen = new Set<string>();
+    for (const task of tasks) {
+      if (seen.has(task.id)) throw unreadable();
+      seen.add(task.id);
+    }
+    const aliasOwners = new Map<string, string>();
+    for (const task of tasks) {
+      for (const alias of task.aliases) {
+        const key = aliasKey(alias);
+        const owner = aliasOwners.get(key);
+        if (owner !== undefined && owner !== task.id) throw unreadable();
+        aliasOwners.set(key, task.id);
+      }
+    }
+    // Deterministic resolution with the repository's own reference semantics.
+    let match: TaskState | undefined;
+    for (const task of tasks) {
+      if (
+        ![task.id, ...task.aliases].some(
+          (value) => aliasKey(value) === aliasKey(reference),
+        )
+      ) {
+        continue;
+      }
+      if (match && match.id !== task.id) {
+        throw new OpumAgentWorkflowError(
+          "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+          "Task reference is ambiguous.",
+        );
+      }
+      match ??= task;
+    }
+    return match ? { id: match.id, status: match.status } : null;
   }
 }
 
@@ -342,6 +372,17 @@ export class LocalClaimRepository {
         ownedPaths: readonly string[];
       }
   > {
+    // The sole authoritative path is derived internally from the validated
+    // canonical event taskId; caller-selected paths are never trusted.
+    const canonicalTaskId = String(request.event.taskId);
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(canonicalTaskId)) {
+      throw new RecordValidationError("claim_task_id_invalid");
+    }
+    const derivedPath = `.quest/claims/${canonicalTaskId}.jsonl`;
+    const ownedPaths = [...request.ownedPaths];
+    if (ownedPaths.length !== 1 || ownedPaths[0] !== derivedPath) {
+      throw new RecordValidationError("claim_owned_path_mismatch");
+    }
     const actual = await this.git.readRevision(
       this.repositoryPath,
       this.targetRef,
@@ -352,15 +393,11 @@ export class LocalClaimRepository {
         expectedRevision: request.expectedRevision,
         actualRevision: actual,
         operationId: request.operationId,
-        ownedPaths: request.ownedPaths,
+        ownedPaths,
       };
     }
     const existing =
-      (await this.git.readBlob(
-        this.repositoryPath,
-        actual,
-        request.ownedPaths[0] ?? "",
-      )) ?? "";
+      (await this.git.readBlob(this.repositoryPath, actual, derivedPath)) ?? "";
     // Blob reads are trimmed; re-add the line separator deterministically.
     const base = existing.length > 0 ? `${existing}\n` : "";
     const content = `${base}${JSON.stringify(request.event)}\n`;
@@ -370,8 +407,8 @@ export class LocalClaimRepository {
       expectedRevision: request.expectedRevision,
       operationId: request.operationId,
       message: `claim ${request.operationId}`,
-      ownedPaths: [...request.ownedPaths],
-      changes: [{ path: request.ownedPaths[0] ?? "", content }],
+      ownedPaths,
+      changes: [{ path: derivedPath, content }],
     });
     return result.kind === "success"
       ? { kind: "success", revision: result.revision }
@@ -380,7 +417,7 @@ export class LocalClaimRepository {
           expectedRevision: request.expectedRevision,
           actualRevision: result.actualRevision,
           operationId: request.operationId,
-          ownedPaths: request.ownedPaths,
+          ownedPaths,
         };
   }
 }
@@ -432,25 +469,5 @@ export class LocalTaskRelationshipCasWriter
           actualRevision: result.actualRevision,
           operationId: request.operationId,
         };
-  }
-
-  /** Test/seed helper committing raw content at an exact tree path. */
-  async writeRaw(
-    expectedRevision: string,
-    path: string,
-    content: string,
-  ): Promise<{ kind: "success"; revision: string } | { kind: "conflict" }> {
-    const result = await this.git.commit({
-      repositoryPath: this.repositoryPath,
-      targetRef: this.targetRef,
-      expectedRevision,
-      operationId: `raw-${crypto.randomUUID()}`,
-      message: `raw ${path}`,
-      ownedPaths: [path],
-      changes: [{ path, content }],
-    });
-    return result.kind === "success"
-      ? { kind: "success", revision: result.revision }
-      : { kind: "conflict" };
   }
 }

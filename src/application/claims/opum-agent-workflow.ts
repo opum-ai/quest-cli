@@ -72,6 +72,15 @@ export class OpumAgentWorkflowBindingService {
 
   async bind(command: TaskBindingCommand): Promise<QuestTaskBindingV1Response> {
     const now = command.now ?? new Date();
+    // Resolve the raw reference entirely inside the immutable snapshot first;
+    // the envelope is then validated against the canonical task id.
+    const subject = await this.model.subject(command.taskId);
+    if (!subject) {
+      throw new OpumAgentWorkflowError(
+        "OPUM_WORKFLOW_QUEST_ABSENT",
+        "No such task.",
+      );
+    }
     const request = parseTaskBindingRequestV1({
       contract:
         command.contract === "opum-agent-workflow/v1"
@@ -79,15 +88,8 @@ export class OpumAgentWorkflowBindingService {
           : command.contract,
       supportedVersions: [1],
       requestId: command.requestId,
-      taskId: command.taskId,
+      taskId: subject.id,
     });
-    const subject = await this.model.subject(command.taskId);
-    if (!subject || subject.id !== command.taskId) {
-      throw new OpumAgentWorkflowError(
-        "OPUM_WORKFLOW_QUEST_ABSENT",
-        "No such task.",
-      );
-    }
     const record = await this.model.relationship(command.claimOrCorrelationId);
     let claim: ClaimGenerationEvidence | undefined;
     if (record?.kind === "claim") {

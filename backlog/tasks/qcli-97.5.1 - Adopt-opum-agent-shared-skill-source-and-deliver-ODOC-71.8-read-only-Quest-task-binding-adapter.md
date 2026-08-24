@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: Done
+status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 17:17'
+updated_date: '2026-08-24 17:38'
 labels:
   - quest-0.1
   - parity
@@ -49,6 +49,8 @@ ODOC-71.8 policy-adoption wave: record the immutable opum-agent shared skill sou
 9. Fourth fresh correction (aabec9ec): claim evidence reads the authoritative ClaimService layout .quest/claims/<canonical taskId>.jsonl (no hashing); symlink-safe containment via canonicalized root + per-component lstat with final regular-file check across relationship reads/writes, claim events, and actors; manifest task binding fields reduced to the exact closed 14-key public response set; debug residue removed.
 
 10. Fifth fresh correction (27524798): authoritative evidence reads moved to revision-pinned Git-object seam (readBlob/listFiles on one immutable HEAD snapshot; no worktree FS access); production LocalClaimRepository adapter over the Git CAS/operation commit seam wired to ClaimService with true E2E claim/heartbeat/binding test plus stale-revision conflict coverage; blind relationship writer replaced by CAS writer (expectedRevision+operationId, conflict on stale); hostile-symlink tests prove pinned reads ignore worktree swaps.
+
+11. Sixth fresh correction (3d31c74b): binding no longer touches the mutable worktree pre-snapshot — raw --task reference resolves entirely inside the pinned Git snapshot with authoritative taskState validation, duplicate-id/alias-collision/ambiguity rejection; production writeRaw backdoor removed (fixtures use real Git commands); LocalClaimRepository.append derives .quest/claims/<CanonicalId>.jsonl internally and rejects any other ownedPaths before commit; true ClaimService→CAS-relationship→binding E2E asserts the exact 14-key envelope.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

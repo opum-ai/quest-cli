@@ -25,8 +25,9 @@ const validRecord = {
 
 let root = "";
 
-async function git(args: string[]) {
+async function git(args: string[], stdin?: string) {
   const child = Bun.spawn(["git", "-C", root, ...args], {
+    stdin: stdin === undefined ? "ignore" : new TextEncoder().encode(stdin),
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -47,6 +48,52 @@ async function store() {
 
 async function teardown() {
   await rm(root, { recursive: true, force: true });
+}
+
+/**
+ * Test-only fixture seeding through real Git commands (no production
+ * backdoor). Builds a temporary index from the parent commit so previously
+ * committed (possibly index-only) evidence is preserved.
+ */
+async function commitFiles(files: Record<string, string>): Promise<string> {
+  const env = {
+    GIT_INDEX_FILE: join(root, `.quest-fixture-${Date.now()}.index`),
+  };
+  const gitWithIndex = (args: string[]) => {
+    const child = Bun.spawn(["git", "-C", root, ...args], {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...Bun.env, ...env },
+    });
+    return child;
+  };
+  const parent = await git(["rev-parse", "HEAD"]);
+  let child = gitWithIndex(["read-tree", parent]);
+  if ((await child.exited) !== 0) throw new Error("read-tree failed");
+  for (const [path, content] of Object.entries(files)) {
+    const blob = await git(["hash-object", "-w", "--stdin"], content);
+    child = gitWithIndex([
+      "update-index",
+      "--add",
+      "--cacheinfo",
+      `100644,${blob.trim()},${path}`,
+    ]);
+    if ((await child.exited) !== 0) throw new Error("update-index failed");
+  }
+  const treeChild = gitWithIndex(["write-tree"]);
+  const code = await treeChild.exited;
+  if (code !== 0) throw new Error("write-tree failed");
+  const tree = await new Response(treeChild.stdout).text();
+  const commit = await git([
+    "commit-tree",
+    tree.trim(),
+    "-p",
+    parent,
+    "-m",
+    "fixture",
+  ]);
+  await git(["update-ref", "HEAD", commit.trim()]);
+  return commit.trim();
 }
 
 function codeOf(error: unknown): string | undefined {
@@ -98,10 +145,8 @@ describe("closed authoritative relationship schema (Git-object content)", () => 
         const path = `.quest/relationships/${safeStorageName(requestedId)}.json`;
         const content = malformed ? "{not json" : JSON.stringify(defect);
 
-        // Seed the blob through the CAS writer's own commit seam.
-        const writer = new LocalTaskRelationshipCasWriter(git, root);
-        const result = await writer.writeRaw(parent, path, content);
-        expect(result.kind).toBe("success");
+        // Seed the defective blob through fixture Git commands only.
+        await commitFiles({ [path]: content });
         const revision = await git.readRevision(root, "HEAD");
         const snapshot = new GitSnapshotEvidence(git, root, revision);
 
@@ -214,21 +259,28 @@ describe("production ClaimRepository + ClaimService E2E", () => {
   test("claim, renewal, and binding seam agree on live identity semantics", async () => {
     await store();
     const git = new LocalGitPort();
-    // Seed a task record so the claim snapshot can resolve the canonical id.
-    const base = await git.readRevision(root, "HEAD");
-    const writer = new LocalTaskRelationshipCasWriter(git, root);
-    let seed = base;
-    const taskSeed = await writer.writeRaw(
-      seed,
-      ".quest/tasks/T-1.json",
-      JSON.stringify({ id: "T-1", aliases: [], status: "In Progress" }),
-    );
-    expect(taskSeed.kind).toBe("success");
-    seed = (taskSeed as { kind: "success"; revision: string }).revision;
-    const actorSeed = await writer.writeRaw(
-      seed,
-      ".quest/claims/actors.json",
-      JSON.stringify([
+    // Seed a full valid task record so the snapshot resolves the canonical id.
+    const { taskState } = await import("../../../src/domain/tasks/tasks.ts");
+    const taskRecord = taskState({
+      id: "T-1",
+      aliases: [],
+      title: "Bound",
+      status: "In Progress",
+      acceptanceCriteria: [],
+      definitionOfDone: [],
+      plan: [],
+      implementationNotes: [],
+      comments: [],
+      labels: [],
+      documentation: [],
+      dependencies: [],
+      gateEvents: [],
+      gates: [],
+      blockers: [],
+    });
+    await commitFiles({
+      ".quest/tasks/T-1.json": JSON.stringify(taskRecord),
+      ".quest/claims/actors.json": JSON.stringify([
         { id: "human", kind: "human", roles: ["maintainer"] },
         {
           id: "agent-1",
@@ -237,8 +289,7 @@ describe("production ClaimRepository + ClaimService E2E", () => {
           roles: [],
         },
       ]),
-    );
-    expect(actorSeed.kind).toBe("success");
+    });
     const repository = new LocalClaimRepository(git, root);
     const claims = new ClaimService(repository);
     const now = new Date();
@@ -251,6 +302,7 @@ describe("production ClaimRepository + ClaimService E2E", () => {
       at: now,
     });
     expect(claimed.kind).toBe("success");
+    const postClaimRevision = await git.readRevision(root, "HEAD");
 
     // Renewal through the same production writer keeps the identity live.
     const renewed = await claims.heartbeat({
@@ -264,10 +316,73 @@ describe("production ClaimRepository + ClaimService E2E", () => {
     expect(renewed.kind).toBe("success");
 
     // The public binding seam reads the committed snapshot.
+    const postRenewal = await git.readRevision(root, "HEAD");
+    const preSnapshot = new GitSnapshotEvidence(git, root, postRenewal);
+    expect((await preSnapshot.events("T-1")).length).toBe(2);
+
+    // Bind through the public seam from the committed snapshot.
+    await commitFiles({
+      [`.quest/relationships/${safeStorageName("corr-e1")}.json`]:
+        JSON.stringify({
+          schemaVersion: 1,
+          id: "corr-e1",
+          taskId: "T-1",
+          kind: "claim",
+          state: "accepted",
+          baseRef: "origin/dev",
+          settlementRef: "origin/dev",
+        }),
+    });
+    const { OpumAgentWorkflowBindingService } = await import(
+      "../../../src/application/claims/opum-agent-workflow.ts"
+    );
     const revision = await git.readRevision(root, "HEAD");
-    const snapshot = new GitSnapshotEvidence(git, root, revision);
-    const events = await snapshot.events("T-1");
-    expect(events.length).toBe(2);
+    const evidence = new GitSnapshotEvidence(git, root, revision);
+    const binding = new OpumAgentWorkflowBindingService({
+      subject: (reference) => evidence.task(reference),
+      claimEvents: (taskId) => evidence.events(taskId),
+      actors: () => evidence.actors(),
+      relationship: (id) => evidence.relationship(id),
+      repositoryId: async () => "/repo/common",
+    });
+    const response = await binding.bind({
+      contract: "opum-agent-workflow/v1",
+      taskId: "T-1",
+      claimOrCorrelationId: "corr-e1",
+      holder: "agent-1",
+      repositoryId: "/repo/common",
+      baseRef: "origin/dev",
+      settlementRef: "origin/dev",
+      requestId: "a".repeat(32),
+    });
+    expect(Object.keys(response).sort()).toEqual(
+      [
+        "baseRef",
+        "contract",
+        "expiresAt",
+        "holder",
+        "issuedAt",
+        "relationshipId",
+        "relationshipKind",
+        "relationshipState",
+        "repositoryId",
+        "requestId",
+        "selectedVersion",
+        "settlementRef",
+        "taskId",
+        "taskState",
+      ].sort(),
+    );
+    expect(response).toMatchObject({
+      contract: "opum-agent-workflow",
+      selectedVersion: 1,
+      taskId: "T-1",
+      holder: "agent-1",
+      taskState: "in_progress",
+      relationshipKind: "claim",
+      relationshipId: "corr-e1",
+      relationshipState: "active",
+    });
 
     // A stale expected revision conflicts instead of losing updates.
     const staleAppend = await repository.append({
@@ -281,11 +396,200 @@ describe("production ClaimRepository + ClaimService E2E", () => {
         accountableHumanId: "human",
         at: new Date().toISOString(),
       },
-      expectedRevision: base,
+      expectedRevision: postClaimRevision,
       operationId: "op-stale",
       ownedPaths: [".quest/claims/T-1.jsonl"],
     });
     expect(staleAppend.kind).toBe("conflict");
+    await teardown();
+  });
+});
+
+describe("snapshot task resolution", () => {
+  const fullTask = (overrides: Record<string, unknown>) => {
+    const { taskState } = require("../../../src/domain/tasks/tasks.ts") as {
+      taskState: (value: unknown) => unknown;
+    };
+    return taskState({
+      id: "T-1",
+      aliases: [],
+      title: "Bound",
+      status: "In Progress",
+      acceptanceCriteria: [],
+      definitionOfDone: [],
+      plan: [],
+      implementationNotes: [],
+      comments: [],
+      labels: [],
+      documentation: [],
+      dependencies: [],
+      gateEvents: [],
+      gates: [],
+      blockers: [],
+      ...overrides,
+    });
+  };
+
+  test("malformed committed task records are INCOMPATIBLE, never skipped", async () => {
+    await store();
+    await commitFiles({
+      ".quest/tasks/T-1.json": JSON.stringify({ id: "T-1" }),
+    });
+    const git = new LocalGitPort();
+    const revision = await git.readRevision(root, "HEAD");
+    const snapshot = new GitSnapshotEvidence(git, root, revision);
+    let thrown: unknown;
+    try {
+      await snapshot.task("T-1");
+    } catch (error) {
+      thrown = error;
+    }
+    expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    await teardown();
+  });
+
+  test("duplicate canonical ids and colliding aliases are rejected", async () => {
+    await store();
+    const record = fullTask({});
+    const duplicate = fullTask({ id: "T-1", title: "Copy" });
+    await commitFiles({
+      ".quest/tasks/a.json": JSON.stringify(record),
+      ".quest/tasks/b.json": JSON.stringify(duplicate),
+    });
+    let git = new LocalGitPort();
+    let snapshot = new GitSnapshotEvidence(
+      git,
+      root,
+      await git.readRevision(root, "HEAD"),
+    );
+    expect(
+      codeOf((await Promise.allSettled([snapshot.task("T-1")])) && undefined),
+    ).toBeUndefined();
+    // Duplicate id detection happens on enumeration; assert via try/catch.
+    let thrown: unknown;
+    try {
+      await snapshot.task("T-1");
+    } catch (error) {
+      thrown = error;
+    }
+    expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    await teardown();
+
+    await store();
+    const aliasA = fullTask({ id: "T-1", aliases: ["dup"] });
+    const aliasB = fullTask({ id: "T-2", aliases: ["dup"] });
+    await commitFiles({
+      ".quest/tasks/a.json": JSON.stringify(aliasA),
+      ".quest/tasks/b.json": JSON.stringify(aliasB),
+    });
+    git = new LocalGitPort();
+    snapshot = new GitSnapshotEvidence(
+      git,
+      root,
+      await git.readRevision(root, "HEAD"),
+    );
+    thrown = undefined;
+    try {
+      await snapshot.task("dup");
+    } catch (error) {
+      thrown = error;
+    }
+    expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    await teardown();
+  });
+
+  test("hostile uncommitted or symlinked task records cannot influence binding", async () => {
+    await store();
+    const record = fullTask({});
+    const commit = await commitFiles({
+      ".quest/tasks/T-1.json": JSON.stringify(record),
+    });
+    // Hostile uncommitted replacement plus a symlink pointing outside.
+    await mkdir(join(root, ".quest", "tasks"), { recursive: true });
+    await writeFile(
+      join(root, ".quest", "tasks", "T-1.json"),
+      '{"id":"EVIL","status":"Done"}',
+    );
+    const outsideFile = join(root, "outside-task.json");
+    await writeFile(outsideFile, '{"id":"EVIL","status":"Done"}');
+    const { rm: rmPath, symlink } = await import("node:fs/promises");
+    await rmPath(join(root, ".quest", "tasks", "T-1.json"), { force: true });
+    await symlink(outsideFile, join(root, ".quest", "tasks", "T-1.json"));
+    const git = new LocalGitPort();
+    const snapshot = new GitSnapshotEvidence(git, root, commit);
+    const resolved = await snapshot.task("T-1");
+    expect(resolved).toEqual({ id: "T-1", status: "In Progress" });
+    await teardown();
+  });
+});
+
+describe("malicious claim owned paths", () => {
+  test("append rejects any path other than the derived canonical path", async () => {
+    await store();
+    const git = new LocalGitPort();
+    const writer = new LocalTaskRelationshipCasWriter(git, root);
+    const seedRevision = await git.readRevision(root, "HEAD");
+    const { taskState } = require("../../../src/domain/tasks/tasks.ts") as {
+      taskState: (value: unknown) => unknown;
+    };
+    await commitFiles({
+      ".quest/tasks/T-1.json": JSON.stringify(
+        taskState({
+          id: "T-1",
+          aliases: [],
+          title: "Bound",
+          status: "In Progress",
+          acceptanceCriteria: [],
+          definitionOfDone: [],
+          plan: [],
+          implementationNotes: [],
+          comments: [],
+          labels: [],
+          documentation: [],
+          dependencies: [],
+          gateEvents: [],
+          gates: [],
+          blockers: [],
+        }),
+      ),
+    });
+    const repository = new LocalClaimRepository(git, root);
+    const event = {
+      eventId: "corr-e1",
+      operationId: "op-1",
+      taskId: "T-1",
+      kind: "claimed" as const,
+      generation: "g1",
+      holderId: "agent-1",
+      accountableHumanId: "human",
+      at: new Date().toISOString(),
+    };
+    const before = await git.readRevision(root, "HEAD");
+    for (const ownedPaths of [
+      ["AGENTS.md"],
+      ["../../escape.jsonl"],
+      [".quest/tasks/T-1.json"],
+      [".quest/claims/T-1.jsonl", ".quest/claims/extra.jsonl"],
+      [],
+    ]) {
+      let thrown: unknown;
+      try {
+        await repository.append({
+          event,
+          expectedRevision: before,
+          operationId: "op-malicious",
+          ownedPaths,
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toMatch(/owned_path|task_id/);
+    }
+    // Revision unchanged: nothing was committed.
+    expect(await git.readRevision(root, "HEAD")).toBe(before);
+    void writer;
+    void seedRevision;
     await teardown();
   });
 });

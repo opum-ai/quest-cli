@@ -1251,14 +1251,8 @@ export async function runQuest(
           "task binding requires --contract, --task, --claim-or-correlation, --holder, --repository, --base, and --settlement.",
         );
       const root = await resolvedRoot();
-      let subject: Awaited<ReturnType<TaskService["view"]>>;
-      try {
-        subject = await (await taskService()).view(one(parsed, "--task") ?? "");
-      } catch {
-        return failure("not_found", "No such task.", {
-          input: { code: "OPUM_WORKFLOW_QUEST_ABSENT" },
-        });
-      }
+      // No mutable pre-snapshot task read: the raw reference is resolved
+      // entirely inside the immutable revision-pinned snapshot model.
       const bindingService = new OpumAgentWorkflowBindingService(
         await createTaskBindingModel(root),
       );
@@ -1266,7 +1260,7 @@ export async function runQuest(
       try {
         response = await bindingService.bind({
           contract: one(parsed, "--contract") ?? "",
-          taskId: subject.id,
+          taskId: one(parsed, "--task") ?? "",
           claimOrCorrelationId: one(parsed, "--claim-or-correlation") ?? "",
           holder: one(parsed, "--holder") ?? "",
           repositoryId: one(parsed, "--repository") ?? "",
