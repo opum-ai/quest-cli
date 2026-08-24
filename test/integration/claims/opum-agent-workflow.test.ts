@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import {
   LocalClaimEvidence,
   LocalTaskRelationshipRepository,
-  safeStorageName,
 } from "../../../src/adapters/claims/local-claim-evidence.ts";
 import {
   OpumAgentWorkflowBindingService,
@@ -37,7 +36,7 @@ async function setup(store: {
   await Bun.write(join(claims, "actors.json"), JSON.stringify(actors));
   if (store.claimEvents) {
     await Bun.write(
-      join(claims, `${safeStorageName("T-1")}.jsonl`),
+      join(claims, "T-1.jsonl"),
       store.claimEvents.map((event) => JSON.stringify(event)).join("\n"),
     );
   }

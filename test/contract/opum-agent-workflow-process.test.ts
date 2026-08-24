@@ -4,10 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { runQuest } from "../../src/cli/main.ts";
-import {
-  LocalTaskRelationshipRepository,
-  safeStorageName,
-} from "../../src/adapters/claims/local-claim-evidence.ts";
+import { safeStorageName } from "../../src/adapters/claims/local-claim-evidence.ts";
 
 const correlation = "f54125ae12e541f4b7ba83abb8ba8a35";
 const renewal = "0123456789abcdef0123456789abcdef";
@@ -204,7 +201,7 @@ test("binds a live claim through its current generation, surviving renewal", asy
     },
   ];
   await writeFile(
-    join(claimsDirectory, `${safeStorageName("T-1")}.jsonl`),
+    join(claimsDirectory, "T-1.jsonl"),
     events.map((event) => JSON.stringify(event)).join("\n"),
   );
   await writeRelationship(correlation, {
@@ -215,10 +212,6 @@ test("binds a live claim through its current generation, surviving renewal", asy
   });
   const originalIdentity = await quest(bindingArguments());
   // eslint-disable-next-line no-console
-  if (originalIdentity.exitCode !== 0) console.error(originalIdentity.stderr);
-  function originalDebug() {
-    return true;
-  }
   expect(originalIdentity.exitCode).toBe(0);
   const response = JSON.parse(originalIdentity.stdout);
   expect(response.relationshipKind).toBe("claim");
@@ -240,7 +233,7 @@ test("binds a live claim through its current generation, surviving renewal", asy
 
   // A stale identity from a superseded generation is STATE.
   await writeFile(
-    join(claimsDirectory, `${safeStorageName("T-1")}.jsonl`),
+    join(claimsDirectory, "T-1.jsonl"),
     [
       ...events,
       {

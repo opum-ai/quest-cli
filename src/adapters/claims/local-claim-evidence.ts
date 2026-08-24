@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import { lstat } from "node:fs/promises";
+import { realpath } from "node:fs/promises";
 import type { Actor, CanonicalId } from "../../domain/records.ts";
 import type { ClaimEvent } from "../../domain/claims/claims.ts";
 import { OpumAgentWorkflowError } from "../../domain/claims/opum-agent-workflow.ts";
@@ -31,10 +33,56 @@ function corruptClaimEvidence(): OpumAgentWorkflowError {
   );
 }
 
-/** Enforce that the resolved candidate stays beneath the resolved root. */
-function assertContained(candidate: string, root: string): void {
-  const resolvedRoot = root.endsWith("/") ? root : `${root}/`;
-  if (!candidate.startsWith(resolvedRoot)) throw unreadable();
+/**
+ * Symlink-safe containment. The trusted workspace root is canonicalized once;
+ * every path component from the root down is checked with lstat and any
+ * symlink (directory or file) fails closed before anything is read. The final
+ * evidence file itself must also be a regular non-symlink entry. Within this
+ * boundary no read can be redirected outside the workspace by a symlinked
+ * .quest, claims/, relationships/, or evidence file.
+ */
+async function containedPath(
+  canonicalRoot: string,
+  components: readonly string[],
+): Promise<string> {
+  let current = canonicalRoot;
+  let complete = true;
+  for (const component of components) {
+    current = join(current, component);
+    if (!complete) continue;
+    try {
+      const info = await lstat(current);
+      if (info.isSymbolicLink()) throw unreadable();
+    } catch (error) {
+      if (
+        error instanceof OpumAgentWorkflowError ||
+        (error as { code?: string })?.code !== "ENOENT"
+      ) {
+        throw error;
+      }
+      // Missing component: keep building the final path for the caller.
+      complete = false;
+    }
+  }
+  if (!complete) return current;
+  const resolvedParent = await realpath(
+    join(canonicalRoot, ...components.slice(0, -1)),
+  );
+  const resolvedCandidate = join(resolvedParent, components.at(-1) ?? "");
+  const resolvedRoot = canonicalRoot.endsWith("/")
+    ? canonicalRoot
+    : `${canonicalRoot}/`;
+  if (!resolvedCandidate.startsWith(resolvedRoot)) throw unreadable();
+  return resolvedCandidate;
+}
+
+async function regularFile(path: string): Promise<boolean> {
+  try {
+    const info = await lstat(path);
+    return info.isFile();
+  } catch {
+    return false;
+  }
 }
 
 const RELATIONSHIP_SCHEMA_KEYS = new Set([
@@ -149,30 +197,41 @@ export function validateRelationshipRecord(
 }
 
 /**
- * Read-only claim evidence over Quest's own `.quest/claims` layout. Identity
- * files are addressed by SHA-256 of the exact UTF-8 id; external consumers
- * never touch these files.
+ * Read-only claim evidence over the authoritative ClaimService/CAS layout:
+ * `.quest/claims/<canonical taskId>.jsonl` (see
+ * src/application/claims/claims.ts ownedPathFor) plus an optional
+ * `actors.json`. The canonical taskId is already validated, so it keys the
+ * file directly — no hashing. External consumers never read these files.
  */
 export class LocalClaimEvidence implements ClaimEvidencePort {
+  #canonicalRoot: string | undefined;
+
   constructor(private readonly root: string) {}
 
-  private containedPath(directory: string, name: string): string {
-    const directoryPath = join(this.root, ".quest", directory);
-    const candidate = join(directoryPath, name);
-    assertContained(candidate, directoryPath);
-    return candidate;
+  private async canonicalize(): Promise<string> {
+    this.#canonicalRoot ??= await realpath(this.root);
+    return this.#canonicalRoot;
+  }
+
+  private async containedFile(
+    directory: string,
+    name: string,
+  ): Promise<string | null> {
+    const canonicalRoot = await this.canonicalize();
+    const path = await containedPath(canonicalRoot, [
+      ".quest",
+      directory,
+      name,
+    ]);
+    return (await regularFile(path)) ? path : null;
   }
 
   async events(taskId: CanonicalId): Promise<readonly ClaimEvent[]> {
-    const path = this.containedPath(
-      "claims",
-      `${safeStorageName(String(taskId))}.jsonl`,
-    );
-    const file = Bun.file(path);
-    if (!(await file.exists())) return [];
+    const path = await this.containedFile("claims", `${String(taskId)}.jsonl`);
+    if (!path) return [];
     let text: string;
     try {
-      text = await file.text();
+      text = await Bun.file(path).text();
     } catch {
       throw corruptClaimEvidence();
     }
@@ -199,11 +258,10 @@ export class LocalClaimEvidence implements ClaimEvidencePort {
   }
 
   async actors(): Promise<readonly Actor[]> {
-    const path = this.containedPath("claims", "actors.json");
-    const file = Bun.file(path);
-    if (!(await file.exists())) return [];
+    const path = await this.containedFile("claims", "actors.json");
+    if (!path) return [];
     try {
-      const parsed: unknown = await file.json();
+      const parsed: unknown = await Bun.file(path).json();
       if (!Array.isArray(parsed)) throw corruptClaimEvidence();
       return parsed as Actor[];
     } catch (error) {
@@ -217,29 +275,35 @@ const RELATIONSHIP_SCHEMA_VERSION = 1;
 
 /**
  * Repository-native relationship records under `.quest/relationships`, one
- * versioned JSON document per SHA-256-addressed identity. `write` is the
- * repository-owned update seam; external consumers only ever get reads.
+ * versioned JSON document per SHA-256-addressed opaque identity. Reads and the
+ * internal write seam share the same symlink-safe containment boundary.
+ * `write` is repository-owned; external consumers only ever get reads.
  */
 export class LocalTaskRelationshipRepository implements TaskRelationshipPort {
+  #canonicalRoot: string | undefined;
+
   constructor(private readonly root: string) {}
 
-  private path(id: string): string {
-    return this.containedPath("relationships", `${safeStorageName(id)}.json`);
+  private async canonicalize(): Promise<string> {
+    this.#canonicalRoot ??= await realpath(this.root);
+    return this.#canonicalRoot;
   }
 
-  private containedPath(directory: string, name: string): string {
-    const directoryPath = join(this.root, ".quest", directory);
-    const candidate = join(directoryPath, name);
-    assertContained(candidate, directoryPath);
-    return candidate;
+  private async path(id: string): Promise<string> {
+    const canonicalRoot = await this.canonicalize();
+    return containedPath(canonicalRoot, [
+      ".quest",
+      "relationships",
+      `${safeStorageName(id)}.json`,
+    ]);
   }
 
   async find(id: string): Promise<TaskRelationshipRecord | null> {
-    const file = Bun.file(this.path(id));
-    if (!(await file.exists())) return null;
+    const path = await this.path(id);
+    if (!(await regularFile(path))) return null;
     let parsed: unknown;
     try {
-      parsed = JSON.parse(await file.text());
+      parsed = JSON.parse(await Bun.file(path).text());
     } catch {
       throw unreadable();
     }
@@ -250,9 +314,12 @@ export class LocalTaskRelationshipRepository implements TaskRelationshipPort {
     if (record.schemaVersion !== RELATIONSHIP_SCHEMA_VERSION) {
       throw new Error("Unsupported relationship record schema.");
     }
-    await Bun.write(
-      this.path(record.id),
-      `${JSON.stringify(record, null, 2)}\n`,
-    );
+    // The writer passes through the same symlink-safe containment boundary.
+    const path = await this.path(record.id);
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(await this.canonicalize(), ".quest", "relationships"), {
+      recursive: true,
+    });
+    await Bun.write(path, `${JSON.stringify(record, null, 2)}\n`);
   }
 }

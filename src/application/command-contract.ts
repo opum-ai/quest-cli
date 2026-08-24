@@ -186,7 +186,6 @@ export const commandManifest = {
       mutates: false,
       fields: [
         "baseRef",
-        "binding",
         "contract",
         "expiresAt",
         "holder",

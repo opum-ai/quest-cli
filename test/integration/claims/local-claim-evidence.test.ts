@@ -155,7 +155,7 @@ describe("closed authoritative relationship schema", () => {
 
   test("malformed claim JSONL is STATE-class corruption", async () => {
     const { root, claims } = await store();
-    await writeFile(join(claims, `${safeStorageName("T-1")}.jsonl`), "{oops\n");
+    await writeFile(join(claims, "T-1.jsonl"), "{oops\n");
     const evidence = new LocalClaimEvidence(root);
     let thrown: unknown;
     try {
@@ -181,7 +181,7 @@ describe("closed authoritative relationship schema", () => {
       at: new Date().toISOString(),
     };
     await writeFile(
-      join(claims, `${safeStorageName("T-1")}.jsonl`),
+      join(claims, "T-1.jsonl"),
       `${JSON.stringify(event)}\n${JSON.stringify(event)}`,
     );
     const evidence = new LocalClaimEvidence(root);
@@ -208,12 +208,123 @@ describe("closed authoritative relationship schema", () => {
       accountableHumanId: "human",
       at: new Date().toISOString(),
     };
-    await writeFile(
-      join(claims, `${safeStorageName("T-1")}.jsonl`),
-      JSON.stringify(event),
-    );
+    await writeFile(join(claims, "T-1.jsonl"), JSON.stringify(event));
     const evidence = new LocalClaimEvidence(root);
     expect((await evidence.events("T-1")).length).toBe(1);
+    await rm(root, { recursive: true, force: true });
+  });
+});
+
+describe("symlink-safe containment", () => {
+  test("rejects a symlinked .quest directory", async () => {
+    const { root } = await store();
+    const outside = await mkdtemp(join(tmpdir(), "quest-outside-"));
+    await mkdir(join(outside, "relationships"), { recursive: true });
+    await Bun.write(
+      join(outside, "relationships", `${safeStorageName("corr-1")}.json`),
+      JSON.stringify(validRecord),
+    );
+    const { rm: rmfs, symlink } = await import("node:fs/promises");
+    await rmfs(join(root, ".quest"), { recursive: true, force: true });
+    await symlink(join(outside), join(root, ".quest"));
+    const repository = new LocalTaskRelationshipRepository(root);
+    let thrown: unknown;
+    try {
+      await repository.find("corr-1");
+    } catch (error) {
+      thrown = error;
+    }
+    expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    // Outside content untouched.
+    expect(
+      await Bun.file(
+        join(outside, "relationships", `${safeStorageName("corr-1")}.json`),
+      ).text(),
+    ).toBe(JSON.stringify(validRecord));
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  test("rejects a symlinked final relationship file pointing outside", async () => {
+    const { root, relationships } = await store();
+    const outside = await mkdtemp(join(tmpdir(), "quest-outside-"));
+    const target = join(outside, "leak.json");
+    await writeFile(target, JSON.stringify(validRecord));
+    const { symlink } = await import("node:fs/promises");
+    await symlink(
+      target,
+      join(relationships, `${safeStorageName("corr-1")}.json`),
+    );
+    const repository = new LocalTaskRelationshipRepository(root);
+    let thrown: unknown;
+    try {
+      await repository.find("corr-1");
+    } catch (error) {
+      thrown = error;
+    }
+    expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    // Outside content untouched.
+    expect(await Bun.file(target).text()).toBe(JSON.stringify(validRecord));
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  test("rejects symlinked claim event and actor files", async () => {
+    const { root, claims } = await store();
+    const outside = await mkdtemp(join(tmpdir(), "quest-outside-"));
+    const leakEvents = join(outside, "events.jsonl");
+    const leakActors = join(outside, "actors.json");
+    await writeFile(leakEvents, '{"eventId":"x"}');
+    await writeFile(leakActors, "[]");
+    const { symlink } = await import("node:fs/promises");
+    await symlink(leakEvents, join(claims, "T-1.jsonl"));
+    await symlink(leakActors, join(claims, "actors.json"));
+    const evidence = new LocalClaimEvidence(root);
+    for (const read of [
+      () => evidence.events("T-1"),
+      () => evidence.actors(),
+    ]) {
+      let thrown: unknown;
+      try {
+        await read();
+      } catch (error) {
+        thrown = error;
+      }
+      expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    }
+    expect(await Bun.file(leakEvents).text()).toBe('{"eventId":"x"}');
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  test("ClaimService-compatible claim layout drives the binding seam end-to-end", async () => {
+    const { root, claims } = await store();
+    const actors = [
+      { id: "human", kind: "human", roles: ["maintainer"] },
+      {
+        id: "agent-1",
+        kind: "delegated-agent",
+        accountableHumanId: "human",
+        roles: [],
+      },
+    ];
+    await writeFile(join(claims, "actors.json"), JSON.stringify(actors));
+    // Written through the production-owned ClaimService path convention:
+    // .quest/claims/<canonical taskId>.jsonl.
+    const claimed = {
+      eventId: "corr-e1",
+      operationId: "op-1",
+      taskId: "T-1",
+      kind: "claimed",
+      generation: "g1",
+      holderId: "agent-1",
+      accountableHumanId: "human",
+      at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    };
+    await writeFile(join(claims, "T-1.jsonl"), JSON.stringify(claimed));
+    const evidence = new LocalClaimEvidence(root);
+    const history = (await evidence.events("T-1")).length;
+    expect(history).toBe(1);
     await rm(root, { recursive: true, force: true });
   });
 });

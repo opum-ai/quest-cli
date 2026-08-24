@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: Done
+status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 16:01'
+updated_date: '2026-08-24 16:12'
 labels:
   - quest-0.1
   - parity
@@ -45,6 +45,8 @@ ODOC-71.8 policy-adoption wave: record the immutable opum-agent shared skill sou
 7. Second fresh correction (dfa3cb89): public v1 stdout is the exact closed 14-key envelope; relationshipId is the accepted identity; claims replay full history with CAS/liveness/generation binding via real LocalClaimEvidence adapter; correlation state resolves only from repository-native versioned relationship records; holder/repository/base/settlement verified against authoritative evidence, never echoed.
 
 8. Third fresh correction (be1306c8): opaque IDs hashed to fixed SHA-256 filenames with resolved-path containment; closed authoritative relationship schema validated at the adapter boundary; domain-level record.id===identity binding guard; stable redacted ABSENT/STALE/INCOMPATIBLE/STATE normalization for malformed JSON/JSONL, schema defects, undeclared actors, duplicate events, and replay failures.
+
+9. Fourth fresh correction (aabec9ec): claim evidence reads the authoritative ClaimService layout .quest/claims/<canonical taskId>.jsonl (no hashing); symlink-safe containment via canonicalized root + per-component lstat with final regular-file check across relationship reads/writes, claim events, and actors; manifest task binding fields reduced to the exact closed 14-key public response set; debug residue removed.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

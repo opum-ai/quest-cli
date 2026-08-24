@@ -184,7 +184,6 @@ test("the live manifest is non-empty and matches its result golden", () => {
       mutates: false,
       fields: [
         "baseRef",
-        "binding",
         "contract",
         "expiresAt",
         "holder",
