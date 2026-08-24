@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 16:12'
+updated_date: '2026-08-24 16:19'
 labels:
   - quest-0.1
   - parity
@@ -62,5 +62,5 @@ Salvage correction delivered: public quest task binding CLI command (contract op
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Third fresh correction delivered: opaque identities map to fixed SHA-256 filenames with resolved-path containment (traversal/absolute/backslash/slash/unicode tests prove no outside read or mutation); relationship records pass closed exact-key schema validation at the adapter boundary; the evaluator independently enforces record.id===identity so cross-wired adapters cannot authorize another identity; all filesystem/parse/schema/replay failures normalize into stable redacted OPUM_WORKFLOW_QUEST_INCOMPATIBLE / _STATE diagnostics. bun run check green (240 tests), lore check green, CI run 32747229819 all seven jobs success.
+Fourth fresh correction delivered: claim evidence reads the authoritative ClaimService layout (.quest/claims/<canonical taskId>.jsonl, unhashed) with an end-to-end compatibility test through the production-owned path convention; symlink-safe containment (canonicalized root, per-component lstat, final regular-file check) guards relationship reads/writes, claim events, and actors with traversal/symlink tests proving no outside consumption or mutation; manifest task binding fields now the exact closed 14-key public response set; debug residue removed. bun run check green (244 tests), lore check green, CI run 32749525309 all seven jobs success.
 <!-- SECTION:FINAL_SUMMARY:END -->
