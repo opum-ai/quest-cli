@@ -15,6 +15,16 @@ const request = {
   taskId: "T-1",
 } as const;
 
+const record = {
+  id: "corr-1",
+  taskId: "T-1",
+  kind: "correlation" as const,
+  state: "accepted",
+  holder: "agent-1",
+  baseRef: "origin/dev",
+  settlementRef: "origin/dev",
+};
+
 function environment(
   overrides: Partial<
     Parameters<typeof evaluateTaskBindingV1>[0]["environment"]
@@ -24,10 +34,11 @@ function environment(
     issuedAt: "2026-08-24T00:00:00.000Z",
     expiresAt: "2026-08-24T00:05:00.000Z",
     observedAt: new Date("2026-08-24T00:01:00.000Z"),
-    repositoryId: "/repo/common",
-    holder: "agent-1",
-    baseRef: "origin/dev",
-    settlementRef: "origin/dev",
+    derivedRepositoryId: "/repo/common",
+    requestedRepositoryId: "/repo/common",
+    requestedHolder: "agent-1",
+    requestedBaseRef: "origin/dev",
+    requestedSettlementRef: "origin/dev",
     ...overrides,
   };
 }
@@ -91,9 +102,7 @@ describe("binding freshness", () => {
     expect(
       codeOf(() =>
         validateBindingFreshness(
-          environment({
-            observedAt: new Date("2026-08-23T23:58:00.000Z"),
-          }),
+          environment({ observedAt: new Date("2026-08-23T23:58:00.000Z") }),
         ),
       ),
     ).toBe("OPUM_WORKFLOW_QUEST_STALE");
@@ -130,28 +139,43 @@ describe("binding freshness", () => {
 
 describe("task binding evaluation", () => {
   const subject = { taskId: "T-1", status: "In Progress" };
-  const relationship = {
-    kind: "claim" as const,
-    id: "T-1",
-    state: "active",
-  };
 
-  test("binds an in-progress task with a live claim", () => {
-    const binding = evaluateTaskBindingV1({
+  const expectedKeys = [
+    "contract",
+    "selectedVersion",
+    "requestId",
+    "taskId",
+    "repositoryId",
+    "holder",
+    "taskState",
+    "relationshipKind",
+    "relationshipId",
+    "relationshipState",
+    "baseRef",
+    "settlementRef",
+    "issuedAt",
+    "expiresAt",
+  ];
+
+  test("produces the exact closed public key set for a correlation binding", () => {
+    const response = evaluateTaskBindingV1({
       request,
       subject,
-      relationship,
+      record,
       environment: environment(),
     });
-    expect(binding).toEqual({
+    expect(Object.keys(response).sort()).toEqual([...expectedKeys].sort());
+    expect(response).toEqual({
+      contract: "opum-agent-workflow",
       selectedVersion: 1,
+      requestId: "a".repeat(32),
       taskId: "T-1",
       repositoryId: "/repo/common",
       holder: "agent-1",
       taskState: "in_progress",
-      relationshipKind: "claim",
-      relationshipId: "T-1",
-      relationshipState: "active",
+      relationshipKind: "correlation",
+      relationshipId: "corr-1",
+      relationshipState: "accepted",
       baseRef: "origin/dev",
       settlementRef: "origin/dev",
       issuedAt: "2026-08-24T00:00:00.000Z",
@@ -163,43 +187,105 @@ describe("task binding evaluation", () => {
     const first = evaluateTaskBindingV1({
       request,
       subject,
-      relationship,
+      record,
       environment: environment(),
     });
     const second = evaluateTaskBindingV1({
       request,
       subject,
-      relationship,
+      record,
       environment: environment(),
     });
     expect(first).toEqual(second);
   });
 
-  test("accepts correlation relationships only in accepted/delivered/working states", () => {
-    const states = ["accepted", "delivered", "working"] as const;
-    for (const state of states) {
-      expect(
-        evaluateTaskBindingV1({
-          request,
-          subject,
-          relationship: { kind: "correlation", id: "T-1", state },
-          environment: environment(),
-        }).relationshipState,
-      ).toBe(state);
-    }
-    expect(
-      codeOf(() =>
-        evaluateTaskBindingV1({
-          request,
-          subject,
-          relationship: { kind: "correlation", id: "T-1", state: "rejected" },
-          environment: environment(),
-        }),
-      ),
-    ).toBe("OPUM_WORKFLOW_QUEST_STATE");
+  test("live claims bind through the current generation with lease holder identity", () => {
+    const response = evaluateTaskBindingV1({
+      request,
+      subject,
+      record: { ...record, id: "evt-1", kind: "claim", holder: undefined },
+      claim: {
+        anomalous: false,
+        live: true,
+        hasLease: true,
+        holderId: "agent-1",
+        generationBound: true,
+      },
+      environment: environment({ requestedHolder: "agent-1" }),
+    });
+    expect(response.relationshipKind).toBe("claim");
+    expect(response.relationshipState).toBe("active");
+    expect(response.relationshipId).toBe("evt-1");
+    expect(response.holder).toBe("agent-1");
   });
 
-  test("absent relationship is ABSENT", () => {
+  test("expired, reclaimed, anomalous, and unbound generations are STATE", () => {
+    for (const claim of [
+      {
+        anomalous: false,
+        live: false,
+        hasLease: true,
+        holderId: "agent-1",
+        generationBound: true,
+      },
+      {
+        anomalous: false,
+        live: false,
+        hasLease: false,
+        holderId: null,
+        generationBound: false,
+      },
+      {
+        anomalous: true,
+        live: true,
+        hasLease: true,
+        holderId: "agent-1",
+        generationBound: true,
+      },
+      {
+        anomalous: false,
+        live: true,
+        hasLease: true,
+        holderId: "agent-1",
+        generationBound: false,
+      },
+    ]) {
+      expect(
+        codeOf(() =>
+          evaluateTaskBindingV1({
+            request,
+            subject,
+            record: { ...record, kind: "claim", holder: undefined },
+            claim,
+            environment: environment(),
+          }),
+        ),
+      ).toBe("OPUM_WORKFLOW_QUEST_STATE");
+    }
+  });
+
+  test("terminal relationship states are STATE rejections", () => {
+    for (const state of [
+      "cancelled",
+      "rejected",
+      "expired",
+      "superseded",
+      "done",
+    ]) {
+      expect(
+        codeOf(() =>
+          evaluateTaskBindingV1({
+            request,
+            subject,
+            record: { ...record, state },
+            environment: environment(),
+          }),
+        ),
+      ).toBe("OPUM_WORKFLOW_QUEST_STATE");
+    }
+  });
+
+  test("missing relationship records are ABSENT", () => {
     expect(
       codeOf(() =>
         evaluateTaskBindingV1({
@@ -217,24 +303,44 @@ describe("task binding evaluation", () => {
         evaluateTaskBindingV1({
           request,
           subject: { taskId: "T-1", status: "Done" },
-          relationship,
+          record,
           environment: environment(),
         }),
       ),
     ).toBe("OPUM_WORKFLOW_QUEST_STATE");
   });
 
-  test("expired claims are STATE rejections", () => {
+  test("foreign repository, holder, base, and settlement are INCOMPATIBLE", () => {
+    for (const overrides of [
+      { requestedRepositoryId: "/repo/other" },
+      { requestedHolder: "agent-2" },
+      { requestedBaseRef: "origin/main" },
+      { requestedSettlementRef: "origin/main" },
+    ]) {
+      expect(
+        codeOf(() =>
+          evaluateTaskBindingV1({
+            request,
+            subject,
+            record,
+            environment: environment(overrides),
+          }),
+        ),
+      ).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    }
+  });
+
+  test("records bound to a different task are INCOMPATIBLE", () => {
     expect(
       codeOf(() =>
         evaluateTaskBindingV1({
           request,
           subject,
-          relationship: { kind: "claim", id: "T-1", state: "expired" },
+          record: { ...record, taskId: "T-9" },
           environment: environment(),
         }),
       ),
-    ).toBe("OPUM_WORKFLOW_QUEST_STATE");
+    ).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
   });
 });
 

@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { realpathSync } from "node:fs";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
 const compiled = join(
@@ -858,6 +859,31 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       "--json",
     ]);
 
+    const relationshipsDirectory = join(store, ".quest", "relationships");
+    await mkdir(relationshipsDirectory, { recursive: true });
+    const commonDirectory = Bun.spawnSync(
+      ["git", "rev-parse", "--git-common-dir"],
+      { cwd: store, stdout: "pipe" },
+    )
+      .stdout.toString()
+      .trim();
+    const repositoryId = commonDirectory.startsWith("/")
+      ? commonDirectory
+      : join(realpathSync(store), commonDirectory);
+    await writeFile(
+      join(relationshipsDirectory, "binding-correlation.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        id: "binding-correlation",
+        taskId: bound,
+        kind: "correlation",
+        state: "accepted",
+        holder: "person-1",
+        baseRef: "origin/dev",
+        settlementRef: "origin/dev",
+      }),
+    );
+
     const migrationDigest = JSON.parse(
       (
         await quest(store, [
@@ -926,7 +952,9 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         "--claim-or-correlation",
         "binding-correlation",
         "--holder",
-        "agent-1",
+        "person-1",
+        "--repository",
+        repositoryId,
         "--base",
         "origin/dev",
         "--settlement",
@@ -1076,6 +1104,11 @@ test("every manifest payload command declares principal null as its last JSON ke
     const stdout = outputs.get(entry.name);
     expect(stdout, entry.name).toBeDefined();
     const envelope = JSON.parse(stdout ?? "") as Record<string, unknown>;
+    if (entry.name === "task binding") {
+      // The public opum-agent-workflow/v1 envelope is its own closed shape.
+      expect(envelope.contract, entry.name).toBe("opum-agent-workflow");
+      continue;
+    }
     expect(envelope.principal, entry.name).toBeNull();
     expect(Object.keys(envelope).at(-1), entry.name).toBe("principal");
   }

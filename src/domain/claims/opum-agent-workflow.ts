@@ -2,17 +2,14 @@
  * Public, read-only task-binding contract for the opum-doc control plane
  * (ODOC-71.8, `opum-agent-workflow` v1).
  *
- * This module is pure: it defines the exact request envelope, the minimal
- * binding record, and strict diagnostics. It never reads private storage,
- * never calls Lore, never acquires worktrees, and never mutates anything.
+ * Pure module: exact request/response envelopes, strict diagnostics, and the
+ * freshness gate. Never touches private storage, Lore, worktrees, or writes.
  */
 
 export const OPUM_AGENT_WORKFLOW_CONTRACT = "opum-agent-workflow" as const;
 
 /** The only supported contract version; requests never fall back. */
 export const OPUM_AGENT_WORKFLOW_SUPPORTED_VERSIONS = [1] as const;
-export type OpumAgentWorkflowVersion =
-  (typeof OPUM_AGENT_WORKFLOW_SUPPORTED_VERSIONS)[number];
 
 /** Stable, redacted diagnostic codes surfaced to control-plane consumers. */
 export type OpumAgentWorkflowFailureCode =
@@ -43,8 +40,14 @@ export interface TaskBindingRequestV1 {
   readonly taskId: string;
 }
 
-export interface QuestTaskBindingV1 {
+/**
+ * The exact public v1 response body printed on stdout. Closed key set:
+ * contract, selectedVersion, requestId, taskId, plus the ten record fields.
+ */
+export interface QuestTaskBindingV1Response {
+  readonly contract: typeof OPUM_AGENT_WORKFLOW_CONTRACT;
   readonly selectedVersion: 1;
+  readonly requestId: string;
   readonly taskId: string;
   readonly repositoryId: string;
   readonly holder: string;
@@ -60,21 +63,25 @@ export interface QuestTaskBindingV1 {
 
 const REQUEST_ID_PATTERN = /^[0-9a-f]{32}$/;
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+const TERMINAL_RELATIONSHIP_STATES = new Set([
+  "cancelled",
+  "rejected",
+  "expired",
+  "superseded",
+  "done",
+]);
+const ACCEPTABLE_CORRELATION_STATES = new Set([
+  "accepted",
+  "delivered",
+  "working",
+]);
+
+function fail(code: OpumAgentWorkflowFailureCode, message: string): never {
+  throw new OpumAgentWorkflowError(code, message);
+}
 
 function incompatible(message: string): never {
-  throw new OpumAgentWorkflowError("OPUM_WORKFLOW_QUEST_INCOMPATIBLE", message);
-}
-
-function absent(message: string): never {
-  throw new OpumAgentWorkflowError("OPUM_WORKFLOW_QUEST_ABSENT", message);
-}
-
-function stale(message: string): never {
-  throw new OpumAgentWorkflowError("OPUM_WORKFLOW_QUEST_STALE", message);
-}
-
-function stateRejected(message: string): never {
-  throw new OpumAgentWorkflowError("OPUM_WORKFLOW_QUEST_STATE", message);
+  return fail("OPUM_WORKFLOW_QUEST_INCOMPATIBLE", message);
 }
 
 function finiteTime(value: string): number {
@@ -83,9 +90,7 @@ function finiteTime(value: string): number {
       `Timestamp ${JSON.stringify(value)} is not a UTC ISO instant.`,
     );
   }
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return Number.NaN;
-  return parsed;
+  return Date.parse(value);
 }
 
 /**
@@ -134,27 +139,56 @@ export function parseTaskBindingRequestV1(
   return record as unknown as TaskBindingRequestV1;
 }
 
-export interface BindingEnvironmentInput {
-  readonly issuedAt: string;
-  readonly expiresAt: string;
-  readonly observedAt: Date;
-  readonly repositoryId: string;
-  readonly holder: string;
+/**
+ * Authoritative relationship record resolved from repository-owned public
+ * state. The caller-declared identity selects it; its contents are trusted
+ * only because they are repository-native, never because they were echoed.
+ */
+export interface RelationshipRecordEvidence {
+  readonly id: string;
+  readonly taskId: string;
+  readonly kind: "claim" | "correlation";
+  readonly state: string;
+  /** Declared holder for correlations; claims verify against the live lease. */
+  readonly holder?: string;
   readonly baseRef: string;
   readonly settlementRef: string;
 }
 
-export interface BindingRelationshipEvidence {
-  readonly kind: "claim" | "correlation";
-  readonly id: string;
-  readonly state: string;
+/**
+ * Live claim evidence produced by replaying the task's full event history
+ * under the repository's CAS/liveness semantics.
+ */
+export interface ClaimGenerationEvidence {
+  readonly anomalous: boolean;
+  readonly live: boolean;
+  readonly hasLease: boolean;
+  readonly holderId: string | null;
+  /**
+   * True when the supplied opaque identity binds the CURRENT claim
+   * generation. Stable rule: the identity matches the eventId or operationId
+   * of an event whose generation equals the live lease's generation, so
+   * renewals after the original identity stay live while superseded
+   * generations fall away.
+   */
+  readonly generationBound: boolean;
+}
+
+export interface BindingEnvironmentInput {
+  readonly issuedAt: string;
+  readonly expiresAt: string;
+  readonly observedAt: Date;
+  /** Derived from the exact Quest workspace; compared against the request. */
+  readonly derivedRepositoryId: string;
+  readonly requestedRepositoryId: string;
+  readonly requestedHolder: string;
+  readonly requestedBaseRef: string;
+  readonly requestedSettlementRef: string;
 }
 
 export interface BindingSubjectEvidence {
   readonly taskId: string;
-  /** Canonical Quest lifecycle status of the resolved task. */
   readonly status: string;
-  readonly terminalStatuses?: readonly string[];
 }
 
 /**
@@ -170,18 +204,33 @@ export function validateBindingFreshness(
   const issued = finiteTime(environment.issuedAt);
   const expires = finiteTime(environment.expiresAt);
   const now = environment.observedAt.getTime();
-  if (!Number.isFinite(now)) stale("Observation instant is not finite.");
+  if (!Number.isFinite(now)) {
+    fail("OPUM_WORKFLOW_QUEST_STALE", "Observation instant is not finite.");
+  }
   if (Number.isNaN(issued) || Number.isNaN(expires)) {
-    stale("Binding lifetime timestamps are not finite instants.");
+    fail(
+      "OPUM_WORKFLOW_QUEST_STALE",
+      "Binding lifetime timestamps are not finite instants.",
+    );
   }
   if (now < issued - OPUM_AGENT_WORKFLOW_CLOCK_SKEW_MS) {
-    stale("Binding observation precedes issuance beyond clock tolerance.");
+    fail(
+      "OPUM_WORKFLOW_QUEST_STALE",
+      "Binding observation precedes issuance beyond clock tolerance.",
+    );
   }
-  if (now >= expires) stale("Binding has expired.");
+  if (now >= expires) {
+    fail("OPUM_WORKFLOW_QUEST_STALE", "Binding has expired.");
+  }
   if (expires - issued > OPUM_AGENT_WORKFLOW_MAX_LIFETIME_MS) {
-    stale("Binding lifetime exceeds the five-minute maximum.");
+    fail(
+      "OPUM_WORKFLOW_QUEST_STALE",
+      "Binding lifetime exceeds the five-minute maximum.",
+    );
   }
-  if (expires <= issued) stale("Binding lifetime is not positive.");
+  if (expires <= issued) {
+    fail("OPUM_WORKFLOW_QUEST_STALE", "Binding lifetime is not positive.");
+  }
 }
 
 /** Normalizes a Quest lifecycle status into the contract's snake_case form. */
@@ -193,68 +242,102 @@ export function normalizedTaskState(status: string): string {
 }
 
 /**
- * Pure v1 evaluation: subject, relationship, and environment must all be
- * exactly acceptable, otherwise a stable coded diagnostic is thrown.
+ * Pure v1 evaluation producing the exact public response. Every field source
+ * is authoritative: subject from the canonical alias resolution, relationship
+ * from the repository-owned record, claim liveness from CAS replay, and the
+ * repository identifier from the workspace itself. Caller assertions are only
+ * ever compared, never trusted.
  */
 export function evaluateTaskBindingV1(input: {
   readonly request: TaskBindingRequestV1;
   readonly subject: BindingSubjectEvidence;
-  readonly relationship?: BindingRelationshipEvidence;
+  readonly record?: RelationshipRecordEvidence;
+  readonly claim?: ClaimGenerationEvidence;
   readonly environment: BindingEnvironmentInput;
-}): QuestTaskBindingV1 {
+}): QuestTaskBindingV1Response {
   validateBindingFreshness(input.environment);
-  if (input.subject.taskId !== input.request.taskId) {
-    absent("Resolved task does not match the requested identifier.");
+  const record = input.record;
+  if (!record) {
+    fail(
+      "OPUM_WORKFLOW_QUEST_ABSENT",
+      "No repository relationship record binds this identity.",
+    );
+  }
+  if (record.taskId !== input.subject.taskId) {
+    incompatible("Relationship record is bound to a different task.");
   }
   if (normalizedTaskState(input.subject.status) !== "in_progress") {
-    const terminal = input.subject.terminalStatuses?.some(
-      (candidate) =>
-        normalizedTaskState(candidate) ===
-        normalizedTaskState(input.subject.status),
-    );
-    stateRejected(
-      terminal
-        ? "Bound task is in a terminal state."
-        : "Bound task is not in progress.",
+    fail("OPUM_WORKFLOW_QUEST_STATE", "Bound task is not in progress.");
+  }
+  if (TERMINAL_RELATIONSHIP_STATES.has(record.state)) {
+    fail(
+      "OPUM_WORKFLOW_QUEST_STATE",
+      `Relationship state ${record.state} is terminal.`,
     );
   }
-  const relationship = input.relationship;
-  if (!relationship || relationship.id !== input.request.taskId) {
-    absent("No active claim or accepted correlation binds this task.");
-  }
-  if (relationship.kind === "claim") {
-    if (relationship.state !== "active") {
-      stateRejected(`Claim relationship is ${relationship.state}.`);
+  let relationshipState: QuestTaskBindingV1Response["relationshipState"];
+  let holder: string;
+  if (record.kind === "claim") {
+    const claim = input.claim;
+    if (!claim)
+      fail(
+        "OPUM_WORKFLOW_QUEST_STATE",
+        "No claim history is available for this task.",
+      );
+    if (claim.anomalous)
+      fail("OPUM_WORKFLOW_QUEST_STATE", "Claim history failed CAS replay.");
+    if (!claim.hasLease || !claim.live) {
+      fail(
+        "OPUM_WORKFLOW_QUEST_STATE",
+        "The claim lease is not live (expired, reclaimed, or superseded).",
+      );
     }
-  } else if (
-    relationship.state !== "accepted" &&
-    relationship.state !== "delivered" &&
-    relationship.state !== "working"
-  ) {
-    stateRejected(`Correlation relationship is ${relationship.state}.`);
+    if (!claim.generationBound) {
+      fail(
+        "OPUM_WORKFLOW_QUEST_STATE",
+        "Identity does not bind the current claim generation.",
+      );
+    }
+    holder = claim.holderId ?? "";
+    relationshipState = "active";
+  } else {
+    if (!ACCEPTABLE_CORRELATION_STATES.has(record.state)) {
+      fail(
+        "OPUM_WORKFLOW_QUEST_STATE",
+        `Relationship state ${record.state} is not acceptable.`,
+      );
+    }
+    holder = record.holder ?? "";
+    relationshipState = record.state as "accepted" | "delivered" | "working";
   }
-  const environment = input.environment;
   if (
-    environment.repositoryId.length === 0 ||
-    environment.holder.length === 0 ||
-    environment.baseRef.length === 0 ||
-    environment.settlementRef.length === 0
+    input.environment.requestedHolder !== holder ||
+    input.environment.derivedRepositoryId !==
+      input.environment.requestedRepositoryId ||
+    record.baseRef !== input.environment.requestedBaseRef ||
+    record.settlementRef !== input.environment.requestedSettlementRef ||
+    record.baseRef.length === 0 ||
+    record.settlementRef.length === 0 ||
+    holder.length === 0
   ) {
-    incompatible("Repository, holder, base, and settlement are required.");
+    incompatible(
+      "Holder, repository, base, or settlement does not match the authoritative record.",
+    );
   }
   return {
+    contract: OPUM_AGENT_WORKFLOW_CONTRACT,
     selectedVersion: 1,
+    requestId: input.request.requestId,
     taskId: input.subject.taskId,
-    repositoryId: environment.repositoryId,
-    holder: environment.holder,
+    repositoryId: input.environment.derivedRepositoryId,
+    holder,
     taskState: "in_progress",
-    relationshipKind: relationship.kind,
-    relationshipId: relationship.id,
-    relationshipState:
-      relationship.kind === "claim" ? "active" : relationship.state,
-    baseRef: environment.baseRef,
-    settlementRef: environment.settlementRef,
-    issuedAt: environment.issuedAt,
-    expiresAt: environment.expiresAt,
+    relationshipKind: record.kind,
+    relationshipId: record.id,
+    relationshipState,
+    baseRef: record.baseRef,
+    settlementRef: record.settlementRef,
+    issuedAt: input.environment.issuedAt,
+    expiresAt: input.environment.expiresAt,
   };
 }

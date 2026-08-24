@@ -21,6 +21,7 @@ import { LocalTaskRepository } from "../application/tasks/local-task-repository.
 import { TaskService } from "../application/tasks/tasks.ts";
 import { OpumAgentWorkflowBindingService } from "../application/claims/opum-agent-workflow.ts";
 import { OpumAgentWorkflowError } from "../application/claims/opum-agent-workflow.ts";
+import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
 import {
   initializeWorkspace,
   resolveInitializedWorkspace,
@@ -30,6 +31,7 @@ import {
   createAgentInstructionPort,
   createBacklogImportService,
   createPlanningService,
+  createTaskBindingModel,
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
@@ -1232,6 +1234,7 @@ export async function runQuest(
           "--task",
           "--claim-or-correlation",
           "--holder",
+          "--repository",
           "--base",
           "--settlement",
         ]) ||
@@ -1239,12 +1242,13 @@ export async function runQuest(
         !one(parsed, "--task") ||
         !one(parsed, "--claim-or-correlation") ||
         !one(parsed, "--holder") ||
+        !one(parsed, "--repository") ||
         !one(parsed, "--base") ||
         !one(parsed, "--settlement")
       )
         return failure(
           "usage",
-          "task binding requires --contract, --task, --claim-or-correlation, --holder, --base, and --settlement.",
+          "task binding requires --contract, --task, --claim-or-correlation, --holder, --repository, --base, and --settlement.",
         );
       const root = await resolvedRoot();
       let subject: Awaited<ReturnType<TaskService["view"]>>;
@@ -1255,33 +1259,21 @@ export async function runQuest(
           input: { code: "OPUM_WORKFLOW_QUEST_ABSENT" },
         });
       }
-      const workspace = await createWorkspacePort().inspect(root);
-      const bindingService = new OpumAgentWorkflowBindingService({
-        subject: async () => ({
-          id: subject.id,
-          status: subject.status,
-          references: subject.references,
-        }),
-        repositoryId: async () => workspace.commonDirectory,
-      });
+      const bindingService = new OpumAgentWorkflowBindingService(
+        await createTaskBindingModel(root),
+      );
+      let response: QuestTaskBindingV1Response;
       try {
-        const response = await bindingService.bind({
+        response = await bindingService.bind({
           contract: one(parsed, "--contract") ?? "",
           taskId: subject.id,
           claimOrCorrelationId: one(parsed, "--claim-or-correlation") ?? "",
           holder: one(parsed, "--holder") ?? "",
+          repositoryId: one(parsed, "--repository") ?? "",
           baseRef: one(parsed, "--base") ?? "",
           settlementRef: one(parsed, "--settlement") ?? "",
           requestId: crypto.randomUUID().replaceAll("-", ""),
         });
-        return output(
-          {
-            schemaVersion: 1,
-            kind: "task.binding",
-            data: response,
-          },
-          modeFor(parsed),
-        );
       } catch (error) {
         if (!(error instanceof OpumAgentWorkflowError)) throw error;
         const errorType =
@@ -1292,6 +1284,38 @@ export async function runQuest(
               : "conflict";
         return failure(errorType, error.code, { input: { code: error.code } });
       }
+      if (resolvedModes.json || parsed?.json) {
+        // The public v1 surface prints the exact binding envelope on stdout.
+        return {
+          stdout: `${JSON.stringify(response)}\n`,
+          stderr: "",
+          exitCode: 0,
+        };
+      }
+      const lines = [
+        `contract ${response.contract}`,
+        `selectedVersion ${response.selectedVersion}`,
+        `requestId ${response.requestId}`,
+        `taskId ${response.taskId}`,
+        `repositoryId ${response.repositoryId}`,
+        `holder ${response.holder}`,
+        `taskState ${response.taskState}`,
+        `relationshipKind ${response.relationshipKind}`,
+        `relationshipId ${response.relationshipId}`,
+        `relationshipState ${response.relationshipState}`,
+        `baseRef ${response.baseRef}`,
+        `settlementRef ${response.settlementRef}`,
+        `issuedAt ${response.issuedAt}`,
+        `expiresAt ${response.expiresAt}`,
+      ];
+      return {
+        stdout:
+          modeFor(parsed) === "plain"
+            ? `${lines.join("\n")}\n`
+            : `${lines.join("\n")}\n`,
+        stderr: "",
+        exitCode: 0,
+      };
     }
     if (command === "create" && rest[0]) {
       const title = rest[0];

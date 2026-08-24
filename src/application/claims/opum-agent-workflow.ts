@@ -1,31 +1,39 @@
-import type { ClaimReadSnapshot } from "./claims.ts";
+import { createHash } from "node:crypto";
+
+import type { ClaimEvent } from "../../domain/claims/claims.ts";
 import {
-  evaluateClaim,
   replayClaimHistory,
+  evaluateClaim,
 } from "../../domain/claims/claims.ts";
 import {
   evaluateTaskBindingV1,
   OpumAgentWorkflowError,
+  OPUM_AGENT_WORKFLOW_CLOCK_SKEW_MS,
   OPUM_AGENT_WORKFLOW_MAX_LIFETIME_MS,
   parseTaskBindingRequestV1,
-  type BindingRelationshipEvidence,
-  type QuestTaskBindingV1,
+  type ClaimGenerationEvidence,
+  type QuestTaskBindingV1Response,
+  type RelationshipRecordEvidence,
 } from "../../domain/claims/opum-agent-workflow.ts";
+import type { Actor } from "../../domain/records.ts";
+import type { TaskRelationshipRecord } from "../../ports/claims.ts";
 
 export { OpumAgentWorkflowError };
+export type { QuestTaskBindingV1Response };
 
 /** Minimal read projection of the bound task; canonical alias resolution happens upstream. */
 export interface TaskBindingSubject {
   readonly id: string;
   readonly status: string;
-  readonly references?: readonly string[];
 }
 
 export interface TaskBindingReadModel {
-  /** Resolves the canonical alias and returns the task, or null when absent. */
   subject(reference: string): Promise<TaskBindingSubject | null>;
-  /** Optional live claim store; when absent only correlations can bind. */
-  claimSnapshot?(): Promise<ClaimReadSnapshot>;
+  /** Live claim evidence; required so claim bindings use real CAS replay. */
+  claimEvents(taskId: string): Promise<readonly ClaimEvent[]>;
+  actors(): Promise<readonly Actor[]>;
+  relationship(id: string): Promise<TaskRelationshipRecord | null>;
+  /** Derived from the exact Quest workspace, compared against the request. */
   repositoryId(): Promise<string>;
 }
 
@@ -34,56 +42,35 @@ export interface TaskBindingCommand {
   readonly taskId: string;
   readonly claimOrCorrelationId: string;
   readonly holder: string;
+  readonly repositoryId: string;
   readonly baseRef: string;
   readonly settlementRef: string;
   readonly requestId: string;
   readonly now?: Date;
 }
 
-export interface TaskBindingResponseV1 {
-  readonly contract: "opum-agent-workflow";
-  readonly requestId: string;
-  readonly binding: QuestTaskBindingV1;
-}
-
-function relationshipFromClaims(
-  snapshot: ClaimReadSnapshot,
-  taskId: string,
+function generationBound(
+  events: readonly ClaimEvent[],
   identity: string,
-  now: Date,
-): BindingRelationshipEvidence | undefined {
-  const events = snapshot.events.filter(
+  lease: { readonly generation: string } | undefined,
+): boolean {
+  if (!lease) return false;
+  return events.some(
     (event) =>
-      event.taskId === taskId &&
-      (event.eventId === identity ||
-        event.operationId === identity ||
-        event.holderId === identity),
+      event.generation === lease.generation &&
+      (event.eventId === identity || event.operationId === identity),
   );
-  if (events.length === 0) return undefined;
-  const history = replayClaimHistory(events, snapshot.actors);
-  const evaluation = evaluateClaim(history, now);
-  if (!history?.lease) return undefined;
-  return {
-    kind: "claim",
-    id: taskId,
-    state:
-      evaluation.status === "live"
-        ? "active"
-        : evaluation.status === "reclaimable"
-          ? "expired"
-          : "unclaimed",
-  };
 }
 
 /**
- * Read-only application service assembling the public opum-agent-workflow/v1
- * binding from Quest's canonical alias resolution, claim liveness replay, and
- * the caller-declared environment. Performs no mutation of any kind.
+ * Read-only binding orchestration: canonical alias resolution, authoritative
+ * relationship record lookup, full claim-history CAS/liveness replay, and
+ * exact environment comparison. Performs no mutation of any kind.
  */
 export class OpumAgentWorkflowBindingService {
   constructor(private readonly model: TaskBindingReadModel) {}
 
-  async bind(command: TaskBindingCommand): Promise<TaskBindingResponseV1> {
+  async bind(command: TaskBindingCommand): Promise<QuestTaskBindingV1Response> {
     const now = command.now ?? new Date();
     const request = parseTaskBindingRequestV1({
       contract:
@@ -101,47 +88,67 @@ export class OpumAgentWorkflowBindingService {
         "No such task.",
       );
     }
-    let relationship = relationshipFromClaims(
-      (await this.model.claimSnapshot?.()) ?? {
-        revision: "",
-        tasks: [],
-        actors: [],
-        events: [],
-      },
-      subject.id,
-      command.claimOrCorrelationId,
-      now,
-    );
-    if (!relationship) {
-      const accepted = subject.references?.includes(
-        command.claimOrCorrelationId,
-      );
-      relationship = accepted
-        ? { kind: "correlation", id: subject.id, state: "accepted" }
+    const record = await this.model.relationship(command.claimOrCorrelationId);
+    let claim: ClaimGenerationEvidence | undefined;
+    if (record?.kind === "claim") {
+      const events = await this.model.claimEvents(subject.id);
+      const actors = await this.model.actors();
+      const history = events.length
+        ? replayClaimHistory(events, actors)
         : undefined;
+      const evaluation = evaluateClaim(history, now);
+      claim = {
+        anomalous:
+          (evaluation.anomalies?.length ?? 0) > 0 ||
+          (history?.anomalies.length ?? 0) > 0,
+        live: evaluation.status === "live",
+        hasLease: Boolean(history?.lease),
+        holderId: history?.lease?.holderId ?? null,
+        generationBound: generationBound(
+          events,
+          command.claimOrCorrelationId,
+          history?.lease,
+        ),
+      };
     }
     const issuedAt = now.toISOString();
     const expiresAt = new Date(
-      now.getTime() + OPUM_AGENT_WORKFLOW_MAX_LIFETIME_MS,
+      now.getTime() +
+        OPUM_AGENT_WORKFLOW_MAX_LIFETIME_MS -
+        OPUM_AGENT_WORKFLOW_CLOCK_SKEW_MS,
     ).toISOString();
-    const binding = evaluateTaskBindingV1({
+    return evaluateTaskBindingV1({
       request,
       subject: { taskId: subject.id, status: subject.status },
-      relationship,
+      record: record
+        ? ({
+            id: record.id,
+            taskId: record.taskId,
+            kind: record.kind,
+            state: record.state,
+            ...(record.holder === undefined ? {} : { holder: record.holder }),
+            baseRef: record.baseRef,
+            settlementRef: record.settlementRef,
+          } satisfies RelationshipRecordEvidence)
+        : undefined,
+      claim,
       environment: {
         issuedAt,
         expiresAt,
         observedAt: now,
-        repositoryId: await this.model.repositoryId(),
-        holder: command.holder,
-        baseRef: command.baseRef,
-        settlementRef: command.settlementRef,
+        derivedRepositoryId: await this.model.repositoryId(),
+        requestedRepositoryId: command.repositoryId,
+        requestedHolder: command.holder,
+        requestedBaseRef: command.baseRef,
+        requestedSettlementRef: command.settlementRef,
       },
     });
-    return {
-      contract: "opum-agent-workflow",
-      requestId: request.requestId,
-      binding,
-    };
   }
+}
+
+/** Deterministic revision digest helper for snapshot-style stores. */
+export function contentRevision(parts: readonly string[]): string {
+  const hash = createHash("sha256");
+  for (const part of parts) hash.update(part);
+  return hash.digest("hex");
 }
