@@ -27,6 +27,24 @@ async function writeRelationship(
     join(directory, `${safeStorageName(id)}.json`),
     JSON.stringify({ schemaVersion: 1, id, taskId: "T-1", ...record }),
   );
+  await commitAll();
+}
+
+async function commitAll(): Promise<void> {
+  Bun.spawnSync(["git", "add", "-A"], { cwd: workspace });
+  Bun.spawnSync(
+    [
+      "git",
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "user.name=t",
+      "commit",
+      "-m",
+      "evidence",
+    ],
+    { cwd: workspace },
+  );
 }
 
 beforeAll(async () => {
@@ -204,6 +222,7 @@ test("binds a live claim through its current generation, surviving renewal", asy
     join(claimsDirectory, "T-1.jsonl"),
     events.map((event) => JSON.stringify(event)).join("\n"),
   );
+  await commitAll();
   await writeRelationship(correlation, {
     kind: "claim",
     state: "accepted",
@@ -211,7 +230,6 @@ test("binds a live claim through its current generation, surviving renewal", asy
     settlementRef: "origin/dev",
   });
   const originalIdentity = await quest(bindingArguments());
-  // eslint-disable-next-line no-console
   expect(originalIdentity.exitCode).toBe(0);
   const response = JSON.parse(originalIdentity.stdout);
   expect(response.relationshipKind).toBe("claim");

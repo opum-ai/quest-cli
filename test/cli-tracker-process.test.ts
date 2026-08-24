@@ -887,6 +887,20 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         settlementRef: "origin/dev",
       }),
     );
+    Bun.spawnSync(["git", "add", "-A"], { cwd: store });
+    Bun.spawnSync(
+      [
+        "git",
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "commit",
+        "-m",
+        "evidence",
+      ],
+      { cwd: store },
+    );
 
     const migrationDigest = JSON.parse(
       (

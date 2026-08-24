@@ -36,10 +36,8 @@ export function createBacklogImportService(
   );
 }
 
-import {
-  LocalClaimEvidence,
-  LocalTaskRelationshipRepository,
-} from "../adapters/claims/local-claim-evidence.ts";
+import { GitSnapshotEvidence } from "../adapters/claims/local-claim-evidence.ts";
+import { LocalGitPort } from "../adapters/git/local-git.ts";
 import {
   OpumAgentWorkflowBindingService,
   type TaskBindingReadModel,
@@ -49,23 +47,30 @@ import {
 export async function createTaskBindingModel(
   root: string,
 ): Promise<TaskBindingReadModel> {
-  const claims = new LocalClaimEvidence(root);
-  const relationships = new LocalTaskRelationshipRepository(root);
+  const git = new LocalGitPort();
+  // One immutable revision snapshot backs every evidence read. A freshly
+  // initialized workspace may have no commits yet; all evidence reads then
+  // resolve to absent.
+  let revision: string;
+  try {
+    revision = await git.readRevision(root, "HEAD");
+  } catch {
+    const workspace2 = await createWorkspacePort().inspect(root);
+    return {
+      subject: async () => null,
+      claimEvents: async () => [],
+      actors: async () => [],
+      relationship: async () => null,
+      repositoryId: async () => workspace2.commonDirectory,
+    };
+  }
+  const snapshot = new GitSnapshotEvidence(git, root, revision);
   const workspace = await createWorkspacePort().inspect(root);
   return {
-    subject: async (reference) => {
-      try {
-        const task = await new TaskService(
-          new LocalTaskRepository(join(root, ".quest", "tasks")),
-        ).view(reference);
-        return { id: task.id, status: task.status };
-      } catch {
-        return null;
-      }
-    },
-    claimEvents: (taskId) => claims.events(taskId),
-    actors: () => claims.actors(),
-    relationship: (id) => relationships.find(id),
+    subject: (reference) => snapshot.task(reference),
+    claimEvents: (taskId) => snapshot.events(taskId),
+    actors: () => snapshot.actors(),
+    relationship: (id) => snapshot.relationship(id),
     repositoryId: async () => workspace.commonDirectory,
   };
 }

@@ -35,11 +35,23 @@ export interface TaskRelationshipReader {
   find(id: string): Promise<TaskRelationshipRecord | null>;
 }
 
-/** Repository-owned update seam; never exposed to external consumers. */
-export interface TaskRelationshipWriter {
-  write(record: TaskRelationshipRecord): Promise<void>;
+/**
+ * Production-owned CAS relationship writer. Requires the expected snapshot
+ * revision and an immutable operationId, commits through the repository's
+ * Git operation seam, and never blind-overwrites.
+ */
+export interface TaskRelationshipCasWriter {
+  write(request: {
+    readonly record: TaskRelationshipRecord;
+    readonly expectedRevision: string;
+    readonly operationId: string;
+  }): Promise<
+    | { readonly kind: "success"; readonly revision: string }
+    | {
+        readonly kind: "conflict";
+        readonly expectedRevision: string;
+        readonly actualRevision: string;
+        readonly operationId: string;
+      }
+  >;
 }
-
-export interface TaskRelationshipPort
-  extends TaskRelationshipReader,
-    TaskRelationshipWriter {}

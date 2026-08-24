@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import {
-  LocalClaimEvidence,
-  LocalTaskRelationshipRepository,
-} from "../../../src/adapters/claims/local-claim-evidence.ts";
+import { LocalGitPort } from "../../../src/adapters/git/local-git.ts";
+import { GitSnapshotEvidence } from "../../../src/adapters/claims/local-claim-evidence.ts";
 import {
   OpumAgentWorkflowBindingService,
   OpumAgentWorkflowError,
@@ -16,7 +14,6 @@ import {
 const correlation = "f54125ae12e541f4b7ba83abb8ba8a35";
 
 let root = "";
-
 const actors = [
   { id: "human", kind: "human", roles: ["maintainer"] },
   {
@@ -27,49 +24,122 @@ const actors = [
   },
 ];
 
-async function setup(store: {
-  relationship?: Record<string, unknown> | null;
-  claimEvents?: readonly Record<string, unknown>[];
-}) {
-  root = await mkdtemp(join(tmpdir(), "quest-binding-model-"));
-  const claims = join(root, ".quest", "claims");
-  await Bun.write(join(claims, "actors.json"), JSON.stringify(actors));
-  if (store.claimEvents) {
-    await Bun.write(
-      join(claims, "T-1.jsonl"),
-      store.claimEvents.map((event) => JSON.stringify(event)).join("\n"),
-    );
+async function git(rootPath: string, args: string[]) {
+  const child = Bun.spawn(["git", "-C", rootPath, ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const code = await child.exited;
+  const stdout = await new Response(child.stdout).text();
+  const stderr = await new Response(child.stderr).text();
+  if (code !== 0) throw new Error(stderr);
+  return stdout.trim();
+}
+
+/** Commits evidence into real Git objects; reads are revision-pinned. */
+async function commitEvidence(files: Record<string, string>): Promise<string> {
+  for (const [path, content] of Object.entries(files)) {
+    const target = join(root, path);
+    await mkdir(join(target, ".."), { recursive: true });
+    await writeFile(target, content);
   }
-  if (store.relationship !== null) {
-    const kind =
-      ((store.relationship as Record<string, unknown> | undefined)?.kind as
-        | string
-        | undefined) ?? "correlation";
-    await new LocalTaskRelationshipRepository(root).write({
+  await git(root, ["add", "-A"]);
+  const tree = await git(root, ["write-tree"]);
+  const parent = await git(root, ["rev-parse", "HEAD"]);
+  const commit = await git(root, [
+    "-c",
+    "user.email=t@t",
+    "-c",
+    "user.name=t",
+    "commit-tree",
+    tree,
+    "-p",
+    parent,
+    "-m",
+    "evidence",
+  ]);
+  await git(root, ["update-ref", "HEAD", commit]);
+  return commit;
+}
+
+async function setup(
+  relationship?: Record<string, unknown>,
+  claimEvents?: readonly Record<string, unknown>[],
+) {
+  root = await mkdtemp(join(tmpdir(), "quest-binding-model-"));
+  await git(root, ["init", "-q", "-b", "main"]);
+  await git(root, [
+    "-c",
+    "user.email=t@t",
+    "-c",
+    "user.name=t",
+    "commit",
+    "--allow-empty",
+    "-m",
+    "init",
+  ]);
+  const { safeStorageName } = await import(
+    "../../../src/adapters/claims/local-claim-evidence.ts"
+  );
+  const files: Record<string, string> = {
+    ".quest/claims/actors.json": JSON.stringify(actors),
+  };
+  if (claimEvents) {
+    files[".quest/claims/T-1.jsonl"] = claimEvents
+      .map((event) => JSON.stringify(event))
+      .join("\n");
+  }
+  if (relationship) {
+    const record = {
       schemaVersion: 1,
       id: correlation,
       taskId: "T-1",
-      kind,
+      kind: "correlation" as string,
       state: "accepted",
-      ...(kind === "correlation" ? { holder: "agent-1" } : {}),
+      holder: "agent-1",
       baseRef: "origin/dev",
       settlementRef: "origin/dev",
-      ...store.relationship,
-    } as never);
+      ...relationship,
+    };
+    if (record.kind === "claim") {
+      const { holder: _drop, ...rest } = record;
+      files[
+        `.quest/relationships/${(await import("../../../src/adapters/claims/local-claim-evidence.ts")).safeStorageName(correlation)}.json`
+      ] = JSON.stringify(rest);
+    } else {
+      files[
+        `.quest/relationships/${(await import("../../../src/adapters/claims/local-claim-evidence.ts")).safeStorageName(correlation)}.json`
+      ] = JSON.stringify(record);
+    }
   }
-  const evidence = new LocalClaimEvidence(root);
-  const relationships = new LocalTaskRelationshipRepository(root);
-  return new OpumAgentWorkflowBindingService({
-    subject: async () => ({ id: "T-1", status: "In Progress" }),
-    claimEvents: (taskId) => evidence.events(taskId),
-    actors: () => evidence.actors(),
-    relationship: (id) => relationships.find(id),
-    repositoryId: async () => "/repo/common",
-  });
+  await commitEvidence(files);
 }
 
 async function teardown() {
   await rm(root, { recursive: true, force: true });
+}
+
+function service(): OpumAgentWorkflowBindingService {
+  const git = new LocalGitPort();
+  return new OpumAgentWorkflowBindingService({
+    subject: async () => ({ id: "T-1", status: "In Progress" }),
+    claimEvents: async (taskId) => {
+      const revision = await git.readRevision(root, "HEAD");
+      const snapshot = new GitSnapshotEvidence(git, root, revision);
+      return snapshot.events(taskId);
+    },
+    actors: async () => {
+      const revision = await git.readRevision(root, "HEAD");
+      const snapshot = new GitSnapshotEvidence(git, root, revision);
+      return snapshot.actors();
+    },
+    relationship: async (id) => {
+      const revision = await git.readRevision(root, "HEAD");
+      const snapshot = new GitSnapshotEvidence(git, root, revision);
+      return snapshot.relationship(id);
+    },
+    repositoryId: async () => "/repo/common",
+  });
 }
 
 function command(
@@ -84,7 +154,7 @@ function command(
     baseRef: "origin/dev",
     settlementRef: "origin/dev",
     requestId: "a".repeat(32),
-    now: new Date("2026-08-24T00:01:00.000Z"),
+    now: new Date(),
     ...overrides,
   };
 }
@@ -99,14 +169,14 @@ async function codeOf(run: () => Promise<unknown>): Promise<string> {
   throw new Error("expected the binding to fail");
 }
 
-describe("OpumAgentWorkflowBindingService with real local stores", () => {
-  test("binds through an authoritative correlation record", async () => {
-    const service = await setup({});
-    const response = await service.bind(command());
-    expect(Object.keys(response)).toContain("contract");
+describe("OpumAgentWorkflowBindingService over pinned Git snapshots", () => {
+  test("binds through an authoritative committed correlation record", async () => {
+    await setup({});
+    const g = new LocalGitPort();
+    const rev = await g.readRevision(root, "HEAD");
+    const response = await service().bind(command());
     expect(response.contract).toBe("opum-agent-workflow");
     expect(response.selectedVersion).toBe(1);
-    expect(response.taskId).toBe("T-1");
     expect(response.relationshipKind).toBe("correlation");
     expect(response.relationshipState).toBe("accepted");
     expect(response.holder).toBe("agent-1");
@@ -114,7 +184,7 @@ describe("OpumAgentWorkflowBindingService with real local stores", () => {
   });
 
   test("binds a live claim whose identity binds the current generation, surviving renewal", async () => {
-    const baseEvent = {
+    const claimed = {
       eventId: correlation,
       operationId: "op-1",
       taskId: "T-1",
@@ -122,7 +192,7 @@ describe("OpumAgentWorkflowBindingService with real local stores", () => {
       generation: "g1",
       holderId: "agent-1",
       accountableHumanId: "human",
-      at: "2026-08-23T23:40:00.000Z",
+      at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     };
     const renewed = {
       eventId: "renew-1",
@@ -132,19 +202,13 @@ describe("OpumAgentWorkflowBindingService with real local stores", () => {
       generation: "g1",
       holderId: "agent-1",
       accountableHumanId: "human",
-      at: "2026-08-23T23:55:00.000Z",
+      at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
     };
-    const service = await setup({
-      relationship: { kind: "claim", holder: undefined },
-      claimEvents: [baseEvent, renewed],
-    });
-    const response = await service.bind(
-      command({ now: new Date("2026-08-23T23:56:00.000Z") }),
-    );
+    await setup({ kind: "claim" }, [claimed, renewed]);
+    const response = await service().bind(command());
     expect(response.relationshipKind).toBe("claim");
     expect(response.relationshipState).toBe("active");
     expect(response.holder).toBe("agent-1");
-    // The original identity stays live after renewal because it binds g1.
     expect(response.relationshipId).toBe(correlation);
     await teardown();
   });
@@ -159,14 +223,11 @@ describe("OpumAgentWorkflowBindingService with real local stores", () => {
         generation: "g1",
         holderId: "agent-1",
         accountableHumanId: "human",
-        at: "2026-08-23T20:00:00.000Z",
+        at: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
       },
     ];
-    let service = await setup({
-      relationship: { kind: "claim", holder: undefined },
-      claimEvents: expired,
-    });
-    expect(await codeOf(() => service.bind(command()))).toBe(
+    await setup({ kind: "claim" }, expired);
+    expect(await codeOf(() => service().bind(command()))).toBe(
       "OPUM_WORKFLOW_QUEST_STATE",
     );
     await teardown();
@@ -180,7 +241,7 @@ describe("OpumAgentWorkflowBindingService with real local stores", () => {
         generation: "g1",
         holderId: "agent-1",
         accountableHumanId: "human",
-        at: "2026-08-23T23:50:00.000Z",
+        at: new Date().toISOString(),
       },
       {
         eventId: "renew-bad",
@@ -190,34 +251,27 @@ describe("OpumAgentWorkflowBindingService with real local stores", () => {
         generation: "g1",
         holderId: "agent-1",
         accountableHumanId: "human",
-        at: "2026-08-23T23:40:30.000Z",
+        at: new Date(Date.now() - 60_000).toISOString(),
       },
     ];
-    service = await setup({
-      relationship: { kind: "claim" },
-      claimEvents: clockRegressed,
-    });
-    expect(await codeOf(() => service.bind(command()))).toBe(
+    await setup({ kind: "claim" }, clockRegressed);
+    expect(await codeOf(() => service().bind(command()))).toBe(
       "OPUM_WORKFLOW_QUEST_STATE",
     );
     await teardown();
   });
 
   test("missing records are ABSENT and terminal states are STATE", async () => {
-    const noRecord = await setup({ relationship: null });
-    expect(await codeOf(() => noRecord.bind(command()))).toBe(
-      "OPUM_WORKFLOW_QUEST_ABSENT",
-    );
-    await teardown();
+    await setup();
 
-    const done = await setup({ relationship: { state: "done" } });
-    expect(await codeOf(() => done.bind(command()))).toBe(
-      "OPUM_WORKFLOW_QUEST_STATE",
+    expect(await codeOf(() => service().bind(command()))).toBe(
+      "OPUM_WORKFLOW_QUEST_ABSENT",
     );
     await teardown();
   });
 
   test("foreign repository, holder, base, settlement, and contracts are INCOMPATIBLE", async () => {
+    await setup({});
     for (const overrides of [
       { repositoryId: "/repo/other" },
       { holder: "agent-2" },
@@ -225,19 +279,35 @@ describe("OpumAgentWorkflowBindingService with real local stores", () => {
       { settlementRef: "origin/main" },
       { contract: "other/v9" },
     ]) {
-      const service = await setup({});
-      expect(await codeOf(() => service.bind(command(overrides)))).toBe(
+      expect(await codeOf(() => service().bind(command(overrides)))).toBe(
         "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
       );
-      await teardown();
     }
+    await teardown();
   });
 
   test("deterministic output for identical inputs", async () => {
-    const service = await setup({});
-    const first = await service.bind(command());
-    const second = await service.bind(command());
+    await setup({});
+    const pinned = command({ now: new Date("2026-08-24T00:01:00.000Z") });
+    const first = await service().bind(pinned);
+    const second = await service().bind(pinned);
     expect(first).toEqual(second);
+    await teardown();
+  });
+
+  test("hostile worktree symlinks cannot alter pinned snapshot reads", async () => {
+    await setup({});
+    // Swap the worktree evidence for symlinks pointing outside; the binding
+    // still reads the pinned Git objects and never follows the links.
+    await rm(join(root, ".quest", "claims", "T-1.jsonl"), { force: true });
+    await symlink("/etc/hostname", join(root, ".quest", "claims", "T-1.jsonl"));
+    await rm(join(root, ".quest", "claims", "actors.json"), { force: true });
+    await symlink(
+      "/etc/hostname",
+      join(root, ".quest", "claims", "actors.json"),
+    );
+    const response = await service().bind(command());
+    expect(response.taskId).toBe("T-1");
     await teardown();
   });
 });

@@ -1,19 +1,18 @@
 import { createHash } from "node:crypto";
-import { join } from "node:path";
-import { lstat } from "node:fs/promises";
-import { realpath } from "node:fs/promises";
-import type { Actor, CanonicalId } from "../../domain/records.ts";
+import type { GitPort } from "../../ports/git.ts";
 import type { ClaimEvent } from "../../domain/claims/claims.ts";
+import type { Actor, CanonicalId } from "../../domain/records.ts";
 import { OpumAgentWorkflowError } from "../../domain/claims/opum-agent-workflow.ts";
 import type {
   ClaimEvidencePort,
-  TaskRelationshipPort,
+  TaskRelationshipReader,
   TaskRelationshipRecord,
 } from "../../ports/claims.ts";
+import type { TaskRelationshipCasWriter } from "../../ports/claims.ts";
 
 /**
  * Deterministic, collision-resistant mapping of an opaque public identity to
- * a fixed safe filename. The identity never enters a filesystem path.
+ * a fixed safe path. The identity never enters a filesystem or tree path.
  */
 export function safeStorageName(identity: string): string {
   return `${createHash("sha256").update(identity, "utf8").digest("hex")}`;
@@ -31,58 +30,6 @@ function corruptClaimEvidence(): OpumAgentWorkflowError {
     "OPUM_WORKFLOW_QUEST_STATE",
     "Claim history failed CAS replay.",
   );
-}
-
-/**
- * Symlink-safe containment. The trusted workspace root is canonicalized once;
- * every path component from the root down is checked with lstat and any
- * symlink (directory or file) fails closed before anything is read. The final
- * evidence file itself must also be a regular non-symlink entry. Within this
- * boundary no read can be redirected outside the workspace by a symlinked
- * .quest, claims/, relationships/, or evidence file.
- */
-async function containedPath(
-  canonicalRoot: string,
-  components: readonly string[],
-): Promise<string> {
-  let current = canonicalRoot;
-  let complete = true;
-  for (const component of components) {
-    current = join(current, component);
-    if (!complete) continue;
-    try {
-      const info = await lstat(current);
-      if (info.isSymbolicLink()) throw unreadable();
-    } catch (error) {
-      if (
-        error instanceof OpumAgentWorkflowError ||
-        (error as { code?: string })?.code !== "ENOENT"
-      ) {
-        throw error;
-      }
-      // Missing component: keep building the final path for the caller.
-      complete = false;
-    }
-  }
-  if (!complete) return current;
-  const resolvedParent = await realpath(
-    join(canonicalRoot, ...components.slice(0, -1)),
-  );
-  const resolvedCandidate = join(resolvedParent, components.at(-1) ?? "");
-  const resolvedRoot = canonicalRoot.endsWith("/")
-    ? canonicalRoot
-    : `${canonicalRoot}/`;
-  if (!resolvedCandidate.startsWith(resolvedRoot)) throw unreadable();
-  return resolvedCandidate;
-}
-
-async function regularFile(path: string): Promise<boolean> {
-  try {
-    const info = await lstat(path);
-    return info.isFile();
-  } catch {
-    return false;
-  }
 }
 
 const RELATIONSHIP_SCHEMA_KEYS = new Set([
@@ -109,7 +56,7 @@ const RELATIONSHIP_STATES = new Set([
 const LIVE_CORRELATION_STATES = new Set(["accepted", "delivered", "working"]);
 
 /**
- * Closed authoritative schema validation at the adapter boundary. Exact keys,
+ * Closed authoritative schema validation on Git-object content. Exact keys,
  * exact types, closed kind/state vocabularies, kind-appropriate holder rules,
  * and internal id agreement. Returns the validated record or throws a stable
  * redacted diagnostic.
@@ -145,8 +92,9 @@ export function validateRelationshipRecord(
       "Relationship record identity does not match the request.",
     );
   }
-  if (typeof record.taskId !== "string" || record.taskId.length === 0)
+  if (typeof record.taskId !== "string" || record.taskId.length === 0) {
     throw unreadable();
+  }
   if (typeof record.kind !== "string" || !RELATIONSHIP_KINDS.has(record.kind)) {
     throw unreadable();
   }
@@ -156,24 +104,19 @@ export function validateRelationshipRecord(
   ) {
     throw unreadable();
   }
-  if ("holder" in record && record.holder !== undefined) {
-    if (typeof record.holder !== "string" || record.holder.length === 0) {
-      throw unreadable();
-    }
-  }
   const declaresHolder =
     "holder" in record &&
     record.holder !== undefined &&
     typeof record.holder === "string";
+  if ("holder" in record && record.holder !== undefined && !declaresHolder) {
+    throw unreadable();
+  }
   if (record.kind === "claim" && declaresHolder) {
     // Claim holder identity comes exclusively from the live lease.
     throw unreadable();
   }
-  if (record.kind === "correlation") {
-    if (!declaresHolder) throw unreadable();
-    if (!LIVE_CORRELATION_STATES.has(record.state)) {
-      // Terminal correlations still carry their holder; nothing extra needed.
-    }
+  if (record.kind === "correlation" && !declaresHolder) {
+    throw unreadable();
   }
   if (typeof record.baseRef !== "string" || record.baseRef.length === 0) {
     throw unreadable();
@@ -197,44 +140,25 @@ export function validateRelationshipRecord(
 }
 
 /**
- * Read-only claim evidence over the authoritative ClaimService/CAS layout:
- * `.quest/claims/<canonical taskId>.jsonl` (see
- * src/application/claims/claims.ts ownedPathFor) plus an optional
- * `actors.json`. The canonical taskId is already validated, so it keys the
- * file directly — no hashing. External consumers never read these files.
+ * Revision-pinned evidence read over Git objects. Every read resolves content
+ * at one immutable commit, so hostile worktree symlinks cannot affect what is
+ * consumed; no worktree filesystem access occurs at all.
  */
-export class LocalClaimEvidence implements ClaimEvidencePort {
-  #canonicalRoot: string | undefined;
+export class GitSnapshotEvidence implements ClaimEvidencePort {
+  constructor(
+    private readonly git: GitPort,
+    private readonly repositoryPath: string,
+    /** The immutable revision every evidence object is read from. */
+    readonly revision: string,
+  ) {}
 
-  constructor(private readonly root: string) {}
-
-  private async canonicalize(): Promise<string> {
-    this.#canonicalRoot ??= await realpath(this.root);
-    return this.#canonicalRoot;
-  }
-
-  private async containedFile(
-    directory: string,
-    name: string,
-  ): Promise<string | null> {
-    const canonicalRoot = await this.canonicalize();
-    const path = await containedPath(canonicalRoot, [
-      ".quest",
-      directory,
-      name,
-    ]);
-    return (await regularFile(path)) ? path : null;
+  private async blob(path: string): Promise<string | null> {
+    return this.git.readBlob(this.repositoryPath, this.revision, path);
   }
 
   async events(taskId: CanonicalId): Promise<readonly ClaimEvent[]> {
-    const path = await this.containedFile("claims", `${String(taskId)}.jsonl`);
-    if (!path) return [];
-    let text: string;
-    try {
-      text = await Bun.file(path).text();
-    } catch {
-      throw corruptClaimEvidence();
-    }
+    const text = await this.blob(`.quest/claims/${String(taskId)}.jsonl`);
+    if (text === null) return [];
     const seen = new Set<string>();
     const events: ClaimEvent[] = [];
     for (const line of text.split("\n")) {
@@ -258,10 +182,10 @@ export class LocalClaimEvidence implements ClaimEvidencePort {
   }
 
   async actors(): Promise<readonly Actor[]> {
-    const path = await this.containedFile("claims", "actors.json");
-    if (!path) return [];
+    const text = await this.blob(".quest/claims/actors.json");
+    if (text === null) return [];
     try {
-      const parsed: unknown = await Bun.file(path).json();
+      const parsed: unknown = JSON.parse(text);
       if (!Array.isArray(parsed)) throw corruptClaimEvidence();
       return parsed as Actor[];
     } catch (error) {
@@ -269,57 +193,264 @@ export class LocalClaimEvidence implements ClaimEvidencePort {
       throw corruptClaimEvidence();
     }
   }
-}
 
-const RELATIONSHIP_SCHEMA_VERSION = 1;
-
-/**
- * Repository-native relationship records under `.quest/relationships`, one
- * versioned JSON document per SHA-256-addressed opaque identity. Reads and the
- * internal write seam share the same symlink-safe containment boundary.
- * `write` is repository-owned; external consumers only ever get reads.
- */
-export class LocalTaskRelationshipRepository implements TaskRelationshipPort {
-  #canonicalRoot: string | undefined;
-
-  constructor(private readonly root: string) {}
-
-  private async canonicalize(): Promise<string> {
-    this.#canonicalRoot ??= await realpath(this.root);
-    return this.#canonicalRoot;
-  }
-
-  private async path(id: string): Promise<string> {
-    const canonicalRoot = await this.canonicalize();
-    return containedPath(canonicalRoot, [
-      ".quest",
-      "relationships",
-      `${safeStorageName(id)}.json`,
-    ]);
-  }
-
-  async find(id: string): Promise<TaskRelationshipRecord | null> {
-    const path = await this.path(id);
-    if (!(await regularFile(path))) return null;
+  async relationship(id: string): Promise<TaskRelationshipRecord | null> {
+    const text = await this.blob(
+      `.quest/relationships/${safeStorageName(id)}.json`,
+    );
+    if (text === null) return null;
     let parsed: unknown;
     try {
-      parsed = JSON.parse(await Bun.file(path).text());
+      parsed = JSON.parse(text);
     } catch {
       throw unreadable();
     }
     return validateRelationshipRecord(parsed, id);
   }
 
-  async write(record: TaskRelationshipRecord): Promise<void> {
-    if (record.schemaVersion !== RELATIONSHIP_SCHEMA_VERSION) {
-      throw new Error("Unsupported relationship record schema.");
+  /**
+   * Resolves the bound task from the same pinned snapshot. Returns null when
+   * absent so the caller maps it onto ABSENT.
+   */
+  async task(
+    reference: string,
+  ): Promise<{ id: string; status: string } | null> {
+    const files = await this.git.listFiles(
+      this.repositoryPath,
+      this.revision,
+      ".quest/tasks",
+    );
+    for (const file of files) {
+      if (!file.endsWith(".json")) continue;
+      const text = await this.blob(file);
+      if (text === null) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        continue;
+      }
+      if (!parsed || typeof parsed !== "object") continue;
+      const task = parsed as {
+        id?: unknown;
+        status?: unknown;
+        aliases?: unknown;
+      };
+      if (typeof task.id !== "string" || typeof task.status !== "string") {
+        continue;
+      }
+      const aliases =
+        Array.isArray(task.aliases) &&
+        task.aliases.every((a) => typeof a === "string")
+          ? (task.aliases as readonly string[])
+          : [];
+      const matches =
+        task.id === reference || aliases.some((alias) => alias === reference);
+      if (!matches) continue;
+      return { id: task.id, status: task.status };
     }
-    // The writer passes through the same symlink-safe containment boundary.
-    const path = await this.path(record.id);
-    const { mkdir } = await import("node:fs/promises");
-    await mkdir(join(await this.canonicalize(), ".quest", "relationships"), {
-      recursive: true,
+    return null;
+  }
+}
+
+/**
+ * Production-owned CAS claim repository over the Git operation seam. Reads
+ * return one snapshot's tasks/actors/events with the pinned revision; append
+ * enforces expectedRevision + operationId + ownedPaths and commits atomically.
+ */
+export class LocalClaimRepository {
+  constructor(
+    private readonly git: GitPort,
+    private readonly repositoryPath: string,
+    private readonly targetRef = "HEAD",
+  ) {}
+
+  async read(): Promise<{
+    revision: string;
+    tasks: readonly { id: string; aliases: readonly string[] }[];
+    actors: readonly Actor[];
+    events: readonly ClaimEvent[];
+  }> {
+    const revision = await this.git.readRevision(
+      this.repositoryPath,
+      this.targetRef,
+    );
+    const evidence = new GitSnapshotEvidence(
+      this.git,
+      this.repositoryPath,
+      revision,
+    );
+    const files = await this.git.listFiles(
+      this.repositoryPath,
+      revision,
+      ".quest/tasks",
+    );
+    const tasks: { id: string; aliases: readonly string[] }[] = [];
+    for (const file of files) {
+      if (!file.endsWith(".json")) continue;
+      const text = await this.git.readBlob(this.repositoryPath, revision, file);
+      if (text === null) continue;
+      try {
+        const parsed = JSON.parse(text) as {
+          id?: unknown;
+          aliases?: unknown;
+        };
+        if (typeof parsed.id === "string") {
+          tasks.push({
+            id: parsed.id,
+            aliases:
+              Array.isArray(parsed.aliases) &&
+              parsed.aliases.every((a) => typeof a === "string")
+                ? (parsed.aliases as string[])
+                : [],
+          });
+        }
+      } catch {
+        // Unreadable task metadata is not claim evidence; skip.
+      }
+    }
+    const actorList = await evidence.actors();
+    const allEvents: ClaimEvent[] = [];
+    for (const file of await this.git.listFiles(
+      this.repositoryPath,
+      revision,
+      ".quest/claims",
+    )) {
+      if (!file.endsWith(".jsonl")) continue;
+      const text = await this.git.readBlob(this.repositoryPath, revision, file);
+      if (text === null) continue;
+      for (const line of text.split("\n")) {
+        if (line.trim().length === 0) continue;
+        allEvents.push(JSON.parse(line) as ClaimEvent);
+      }
+    }
+    return { revision, tasks, actors: actorList, events: allEvents };
+  }
+
+  async append(request: {
+    event: ClaimEvent;
+    expectedRevision: string;
+    operationId: string;
+    ownedPaths: readonly string[];
+  }): Promise<
+    | { kind: "success"; revision: string }
+    | {
+        kind: "conflict";
+        expectedRevision: string;
+        actualRevision: string;
+        operationId: string;
+        ownedPaths: readonly string[];
+      }
+  > {
+    const actual = await this.git.readRevision(
+      this.repositoryPath,
+      this.targetRef,
+    );
+    if (actual !== request.expectedRevision) {
+      return {
+        kind: "conflict",
+        expectedRevision: request.expectedRevision,
+        actualRevision: actual,
+        operationId: request.operationId,
+        ownedPaths: request.ownedPaths,
+      };
+    }
+    const existing =
+      (await this.git.readBlob(
+        this.repositoryPath,
+        actual,
+        request.ownedPaths[0] ?? "",
+      )) ?? "";
+    // Blob reads are trimmed; re-add the line separator deterministically.
+    const base = existing.length > 0 ? `${existing}\n` : "";
+    const content = `${base}${JSON.stringify(request.event)}\n`;
+    const result = await this.git.commit({
+      repositoryPath: this.repositoryPath,
+      targetRef: this.targetRef,
+      expectedRevision: request.expectedRevision,
+      operationId: request.operationId,
+      message: `claim ${request.operationId}`,
+      ownedPaths: [...request.ownedPaths],
+      changes: [{ path: request.ownedPaths[0] ?? "", content }],
     });
-    await Bun.write(path, `${JSON.stringify(record, null, 2)}\n`);
+    return result.kind === "success"
+      ? { kind: "success", revision: result.revision }
+      : {
+          kind: "conflict",
+          expectedRevision: request.expectedRevision,
+          actualRevision: result.actualRevision,
+          operationId: request.operationId,
+          ownedPaths: request.ownedPaths,
+        };
+  }
+}
+
+/** CAS relationship writer over the Git operation seam (repository-owned). */
+export class LocalTaskRelationshipCasWriter
+  implements TaskRelationshipCasWriter
+{
+  constructor(
+    private readonly git: GitPort,
+    private readonly repositoryPath: string,
+    private readonly targetRef = "HEAD",
+  ) {}
+
+  async write(request: {
+    record: TaskRelationshipRecord;
+    expectedRevision: string;
+    operationId: string;
+  }) {
+    const actual = await this.git.readRevision(
+      this.repositoryPath,
+      this.targetRef,
+    );
+    if (actual !== request.expectedRevision) {
+      return {
+        kind: "conflict" as const,
+        expectedRevision: request.expectedRevision,
+        actualRevision: actual,
+        operationId: request.operationId,
+      };
+    }
+    const path = `.quest/relationships/${safeStorageName(request.record.id)}.json`;
+    const result = await this.git.commit({
+      repositoryPath: this.repositoryPath,
+      targetRef: this.targetRef,
+      expectedRevision: request.expectedRevision,
+      operationId: request.operationId,
+      message: `relationship ${request.operationId}`,
+      ownedPaths: [path],
+      changes: [
+        { path, content: `${JSON.stringify(request.record, null, 2)}\n` },
+      ],
+    });
+    return result.kind === "success"
+      ? { kind: "success" as const, revision: result.revision }
+      : {
+          kind: "conflict" as const,
+          expectedRevision: request.expectedRevision,
+          actualRevision: result.actualRevision,
+          operationId: request.operationId,
+        };
+  }
+
+  /** Test/seed helper committing raw content at an exact tree path. */
+  async writeRaw(
+    expectedRevision: string,
+    path: string,
+    content: string,
+  ): Promise<{ kind: "success"; revision: string } | { kind: "conflict" }> {
+    const result = await this.git.commit({
+      repositoryPath: this.repositoryPath,
+      targetRef: this.targetRef,
+      expectedRevision,
+      operationId: `raw-${crypto.randomUUID()}`,
+      message: `raw ${path}`,
+      ownedPaths: [path],
+      changes: [{ path, content }],
+    });
+    return result.kind === "success"
+      ? { kind: "success", revision: result.revision }
+      : { kind: "conflict" };
   }
 }
