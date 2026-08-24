@@ -7,7 +7,7 @@ status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 18:08'
+updated_date: '2026-08-24 18:16'
 labels:
   - quest-0.1
   - parity
@@ -72,5 +72,5 @@ Salvage correction delivered: public quest task binding CLI command (contract op
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Seventh bounded correction delivered: duplicate-ID test rewritten to assert the stable OPUM_WORKFLOW_QUEST_INCOMPATIBLE error through a real callable (broken allSettled/undefined expression removed and proven in full suite); E2E chain made fully real — ClaimService claim+heartbeat → pinned snapshot → relationship via production LocalTaskRelationshipCasWriter.write() → binding asserting live claim and exact result; LocalClaimRepository read now validates every committed task through authoritative taskState with duplicate-id and alias-collision rejection, append validates canonicalId() (rejecting AGENTS.md/foo/arbitrary/T-0/T-01/wrong types) and derives the sole owned path internally with unchanged-revision evidence on every rejection. bun run check green (246 tests), lore check green, git diff --check clean, CI run 32759435482 all seven jobs success.
+Eighth test-adequacy correction delivered: duplicate-ID and alias-collision read tests now seed full valid TaskState records (differing only as intended), reach the production duplicate/alias branches in LocalClaimRepository.read, and assert the discriminating RecordValidationError messages plus the stable OPUM_WORKFLOW_QUEST_INCOMPATIBLE mapping through the binding seam; the separate malformed-record early-validation test is retained. bun run check green (246 tests), lore check green, git diff --check clean, CI run 32760670425 all seven jobs success.
 <!-- SECTION:FINAL_SUMMARY:END -->
