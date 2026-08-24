@@ -467,14 +467,20 @@ describe("snapshot task resolution", () => {
       root,
       await git.readRevision(root, "HEAD"),
     );
-    // Duplicate canonical ids must fail closed with the stable workflow error.
+    const repository = new LocalClaimRepository(git, root);
+    // Duplicate canonical ids must fail closed in read() itself with the
+    // discriminating validation message (proving the duplicate branch ran).
     let thrown: unknown;
+    const { RecordValidationError } = await import(
+      "../../../src/domain/records.ts"
+    );
     try {
-      await snapshot.task("T-1");
+      await repository.read();
     } catch (error) {
       thrown = error;
     }
-    expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    expect(thrown).toBeInstanceOf(RecordValidationError);
+    expect((thrown as Error).message).toBe("Duplicate canonical task id.");
     await teardown();
 
     await store();
@@ -490,13 +496,24 @@ describe("snapshot task resolution", () => {
       root,
       await git.readRevision(root, "HEAD"),
     );
-    thrown = undefined;
+    const aliasRepository = new LocalClaimRepository(git, root);
+    // Alias collision must be discriminated from other failures.
+    let aliasThrown: unknown;
+    try {
+      await aliasRepository.read();
+    } catch (error) {
+      aliasThrown = error;
+    }
+    expect(aliasThrown).toBeInstanceOf(RecordValidationError);
+    expect((aliasThrown as Error).message).toBe("Duplicate task alias.");
+    // And through the binding seam as a stable workflow error.
+    let workflowThrown: unknown;
     try {
       await snapshot.task("dup");
     } catch (error) {
-      thrown = error;
+      workflowThrown = error;
     }
-    expect(codeOf(thrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+    expect(codeOf(workflowThrown)).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
     await teardown();
   });
 

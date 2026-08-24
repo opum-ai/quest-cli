@@ -7,7 +7,7 @@ status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 18:02'
+updated_date: '2026-08-24 18:08'
 labels:
   - quest-0.1
   - parity
@@ -55,6 +55,8 @@ ODOC-71.8 policy-adoption wave: record the immutable opum-agent shared skill sou
 11. Sixth fresh correction (3d31c74b): binding no longer touches the mutable worktree pre-snapshot — raw --task reference resolves entirely inside the pinned Git snapshot with authoritative taskState validation, duplicate-id/alias-collision/ambiguity rejection; production writeRaw backdoor removed (fixtures use real Git commands); LocalClaimRepository.append derives .quest/claims/<CanonicalId>.jsonl internally and rejects any other ownedPaths before commit; true ClaimService→CAS-relationship→binding E2E asserts the exact 14-key envelope.
 
 12. Seventh bounded correction (42b4efaa): fixed broken duplicate-ID assertion to prove the stable workflow error through a real callable; E2E chain now creates the relationship via the production LocalTaskRelationshipCasWriter.write(); LocalClaimRepository read/append hardened with authoritative taskState/canonicalId validation, duplicate-id and alias-collision rejection, and internally derived sole owned claim path with unchanged-revision evidence on every malicious-path rejection.
+
+13. Eighth test-adequacy correction (9c57f471): duplicate-ID and alias-collision read tests now seed full valid TaskState records and assert the discriminating RecordValidationError messages ('Duplicate canonical task id.' / 'Duplicate task alias.') plus the stable workflow-error mapping, with the separate malformed-record early-validation test retained.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
