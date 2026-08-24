@@ -27,11 +27,12 @@ Do not edit Backlog task, draft, document, decision, or milestone markdown files
 
 This repository operates as an FMC Worker with stable identity `quest-cli` for Controller
 `opum-doc`. The Worker owns mutations only within `/Volumes/external/repos/quest-cli`, including
-its Backlog, Lore, Git, Treehouse/worktree, delivery, and cleanup state; it must not mutate the
+its Backlog, Lore, Git, worktree, delivery, and cleanup state; it must not mutate the
 Controller or any sibling repository.
 
-- Use the user-level `codex-worker`, `backlog-handover`, and `treehouse-worktrees` skills. Do not
-  allow repository copies of those skills to shadow the user-level procedures.
+- Use the canonical user-level skills `codex-worker`, `backlog-handover`, and
+  `opum-worktrees` under `/Users/jdnewhouse/.agents/skills/{codex-worker,backlog-handover,opum-worktrees}`.
+  Do not allow repository copies of those skills to shadow the user-level procedures.
 - Announce as `quest-cli`, consume interrupts between work orders, and long-poll only its addressed
   inbox. Accept addressed Controller work orders one at a time, execute their repository-local
   scope under these instructions, and always reply with outcome, validation, delivery, worktree,
@@ -42,7 +43,7 @@ Controller or any sibling repository.
   bypasses a denied permission or acts outside this repository's scope.
 - Route permission requests through the Controller approval queue, describing the exact target and
   consequence. Keep active handovers grounded with the FMC identity, Controller, message/approval
-  status, reply obligation, and exact Git/Treehouse worktree state.
+  status, reply obligation, and exact Git worktree state.
 - Deliver only through the non-production integration branch `dev`; `main` promotion requires
   separate explicit user authority.
 

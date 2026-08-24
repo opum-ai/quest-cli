@@ -82,8 +82,10 @@ available to restore.
 
 ### Worktree and cleanup hygiene
 
-The [`treehouse-worktrees` skill](../../.codex/skills/treehouse-worktrees/SKILL.md) gives
-the coordinator a fenced lease workflow for reusable agent worktrees. Clean detached pool
+The canonical user-level skills give the coordinator its fenced lease workflow and worker
+procedures: `opum-worktrees` for reusable agent worktrees, with `codex-worker` and
+`backlog-handover` alongside, all under `/Users/jdnewhouse/.agents/skills/` (outside this
+bundle by authority of the opum-agent shared skill source record). Clean detached pool
 entries are infrastructure, not debris; workers never release their own leases.
 
 Dirty campaign work is classified by content, not by `git status` alone. Work already
