@@ -40,16 +40,9 @@ async function git(args: string[]) {
 async function store() {
   root = await mkdtemp(join(tmpdir(), "quest-storage-"));
   await git(["init", "-q", "-b", "main"]);
-  await git([
-    "-c",
-    "user.email=t@t",
-    "-c",
-    "user.name=t",
-    "commit",
-    "--allow-empty",
-    "-m",
-    "init",
-  ]);
+  await git(["config", "user.email", "t@t"]);
+  await git(["config", "user.name", "t"]);
+  await git(["commit", "--allow-empty", "-m", "init"]);
 }
 
 async function teardown() {
