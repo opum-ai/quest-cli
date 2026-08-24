@@ -3,11 +3,11 @@ id: QCLI-97.5.1
 title: >-
   Adopt opum-agent shared skill source and deliver ODOC-71.8 read-only Quest
   task-binding adapter
-status: Done
+status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-24 14:13'
-updated_date: '2026-08-24 17:46'
+updated_date: '2026-08-24 17:55'
 labels:
   - quest-0.1
   - parity
@@ -52,6 +52,8 @@ ODOC-71.8 policy-adoption wave: record the immutable opum-agent shared skill sou
 10. Fifth fresh correction (27524798): authoritative evidence reads moved to revision-pinned Git-object seam (readBlob/listFiles on one immutable HEAD snapshot; no worktree FS access); production LocalClaimRepository adapter over the Git CAS/operation commit seam wired to ClaimService with true E2E claim/heartbeat/binding test plus stale-revision conflict coverage; blind relationship writer replaced by CAS writer (expectedRevision+operationId, conflict on stale); hostile-symlink tests prove pinned reads ignore worktree swaps.
 
 11. Sixth fresh correction (3d31c74b): binding no longer touches the mutable worktree pre-snapshot — raw --task reference resolves entirely inside the pinned Git snapshot with authoritative taskState validation, duplicate-id/alias-collision/ambiguity rejection; production writeRaw backdoor removed (fixtures use real Git commands); LocalClaimRepository.append derives .quest/claims/<CanonicalId>.jsonl internally and rejects any other ownedPaths before commit; true ClaimService→CAS-relationship→binding E2E asserts the exact 14-key envelope.
+
+12. Seventh bounded correction (42b4efaa): fixed broken duplicate-ID assertion to prove the stable workflow error through a real callable; E2E chain now creates the relationship via the production LocalTaskRelationshipCasWriter.write(); LocalClaimRepository read/append hardened with authoritative taskState/canonicalId validation, duplicate-id and alias-collision rejection, and internally derived sole owned claim path with unchanged-revision evidence on every malicious-path rejection.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { GitPort } from "../../ports/git.ts";
 import type { ClaimEvent } from "../../domain/claims/claims.ts";
 import type { Actor, CanonicalId } from "../../domain/records.ts";
-import { aliasKey } from "../../domain/records.ts";
+import { aliasKey, canonicalId } from "../../domain/records.ts";
 import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
 import { RecordValidationError } from "../../domain/records.ts";
 import { OpumAgentWorkflowError } from "../../domain/claims/opum-agent-workflow.ts";
@@ -316,28 +316,38 @@ export class LocalClaimRepository {
       ".quest/tasks",
     );
     const tasks: { id: string; aliases: readonly string[] }[] = [];
-    for (const file of files) {
+    const seenIds = new Set<string>();
+    const aliasOwners = new Map<string, string>();
+    for (const file of [...files].sort()) {
       if (!file.endsWith(".json")) continue;
       const text = await this.git.readBlob(this.repositoryPath, revision, file);
       if (text === null) continue;
+      let parsed: unknown;
       try {
-        const parsed = JSON.parse(text) as {
-          id?: unknown;
-          aliases?: unknown;
-        };
-        if (typeof parsed.id === "string") {
-          tasks.push({
-            id: parsed.id,
-            aliases:
-              Array.isArray(parsed.aliases) &&
-              parsed.aliases.every((a) => typeof a === "string")
-                ? (parsed.aliases as string[])
-                : [],
-          });
-        }
+        parsed = JSON.parse(text);
       } catch {
-        // Unreadable task metadata is not claim evidence; skip.
+        throw new RecordValidationError("Invalid task state.");
       }
+      let state: TaskState;
+      try {
+        state = taskState(parsed as TaskState);
+      } catch (error) {
+        if (error instanceof RecordValidationError) throw error;
+        throw new RecordValidationError("Invalid task state.");
+      }
+      if (seenIds.has(state.id)) {
+        throw new RecordValidationError("Duplicate canonical task id.");
+      }
+      seenIds.add(state.id);
+      for (const alias of state.aliases) {
+        const key = aliasKey(alias);
+        const owner = aliasOwners.get(key);
+        if (owner !== undefined && owner !== state.id) {
+          throw new RecordValidationError("Duplicate task alias.");
+        }
+        aliasOwners.set(key, state.id);
+      }
+      tasks.push({ id: state.id, aliases: state.aliases });
     }
     const actorList = await evidence.actors();
     const allEvents: ClaimEvent[] = [];
@@ -374,10 +384,7 @@ export class LocalClaimRepository {
   > {
     // The sole authoritative path is derived internally from the validated
     // canonical event taskId; caller-selected paths are never trusted.
-    const canonicalTaskId = String(request.event.taskId);
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(canonicalTaskId)) {
-      throw new RecordValidationError("claim_task_id_invalid");
-    }
+    const canonicalTaskId = String(canonicalId(String(request.event.taskId)));
     const derivedPath = `.quest/claims/${canonicalTaskId}.jsonl`;
     const ownedPaths = [...request.ownedPaths];
     if (ownedPaths.length !== 1 || ownedPaths[0] !== derivedPath) {

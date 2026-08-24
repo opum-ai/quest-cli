@@ -320,19 +320,24 @@ describe("production ClaimRepository + ClaimService E2E", () => {
     const preSnapshot = new GitSnapshotEvidence(git, root, postRenewal);
     expect((await preSnapshot.events("T-1")).length).toBe(2);
 
-    // Bind through the public seam from the committed snapshot.
-    await commitFiles({
-      [`.quest/relationships/${safeStorageName("corr-e1")}.json`]:
-        JSON.stringify({
-          schemaVersion: 1,
-          id: "corr-e1",
-          taskId: "T-1",
-          kind: "claim",
-          state: "accepted",
-          baseRef: "origin/dev",
-          settlementRef: "origin/dev",
-        }),
+    // Bind through the public seam from the committed snapshot. The
+    // relationship is created by the production CAS writer, not fixtures.
+    const relWriter = new LocalTaskRelationshipCasWriter(git, root);
+    const relHead = await git.readRevision(root, "HEAD");
+    const relResult = await relWriter.write({
+      record: {
+        schemaVersion: 1,
+        id: "corr-e1",
+        taskId: "T-1",
+        kind: "claim",
+        state: "accepted",
+        baseRef: "origin/dev",
+        settlementRef: "origin/dev",
+      },
+      expectedRevision: relHead,
+      operationId: "rel-1",
     });
+    expect(relResult.kind).toBe("success");
     const { OpumAgentWorkflowBindingService } = await import(
       "../../../src/application/claims/opum-agent-workflow.ts"
     );
@@ -462,10 +467,7 @@ describe("snapshot task resolution", () => {
       root,
       await git.readRevision(root, "HEAD"),
     );
-    expect(
-      codeOf((await Promise.allSettled([snapshot.task("T-1")])) && undefined),
-    ).toBeUndefined();
-    // Duplicate id detection happens on enumeration; assert via try/catch.
+    // Duplicate canonical ids must fail closed with the stable workflow error.
     let thrown: unknown;
     try {
       await snapshot.task("T-1");
@@ -591,5 +593,121 @@ describe("malicious claim owned paths", () => {
     void writer;
     void seedRevision;
     await teardown();
+  });
+});
+
+describe("canonical authoritative-task and owned-path hardening", () => {
+  test("append rejects invalid canonical ids and foreign owned paths, leaving the revision unchanged", async () => {
+    await store();
+    const git = new LocalGitPort();
+    const { taskState } = await import("../../../src/domain/tasks/tasks.ts");
+    await commitFiles({
+      ".quest/tasks/T-1.json": JSON.stringify(
+        taskState({
+          id: "T-1",
+          aliases: [],
+          title: "Bound",
+          status: "In Progress",
+          acceptanceCriteria: [],
+          definitionOfDone: [],
+          plan: [],
+          implementationNotes: [],
+          comments: [],
+          labels: [],
+          documentation: [],
+          dependencies: [],
+          gateEvents: [],
+          gates: [],
+          blockers: [],
+        }),
+      ),
+    });
+    const before = await git.readRevision(root, "HEAD");
+    const repository = new LocalClaimRepository(git, root);
+    const at = new Date().toISOString();
+    const cases: {
+      taskId: unknown;
+      ownedPaths: readonly string[];
+    }[] = [
+      { taskId: "AGENTS.md", ownedPaths: ["AGENTS.md"] },
+      { taskId: "T-1", ownedPaths: ["AGENTS.md"] },
+      { taskId: "T-1", ownedPaths: ["foo/arbitrary"] },
+      { taskId: "T-0", ownedPaths: [".quest/claims/T-0.jsonl"] },
+      { taskId: "T-01", ownedPaths: [".quest/claims/T-01.jsonl"] },
+      { taskId: 7, ownedPaths: [".quest/claims/7.jsonl"] },
+      { taskId: "T-1", ownedPaths: [".quest/claims/T-1.jsonl", "extra"] },
+      { taskId: "T-1", ownedPaths: [] },
+    ];
+    for (const partial of cases) {
+      let thrown: unknown;
+      try {
+        await repository.append({
+          event: {
+            eventId: `e-${Math.random()}`,
+            operationId: "op-hardening",
+            taskId: partial.taskId as string,
+            kind: "claimed",
+            generation: "g1",
+            holderId: "agent-1",
+            accountableHumanId: "human",
+            at,
+          },
+          expectedRevision: before,
+          operationId: "op-hardening",
+          ownedPaths: partial.ownedPaths,
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown, JSON.stringify(partial)).toBeInstanceOf(Error);
+    }
+    expect(await git.readRevision(root, "HEAD")).toBe(before);
+    // The tree is unchanged too: same file set as before the rejections.
+    const filesBefore = await git.listFiles(root, before, ".quest");
+    const filesAfter = await git.listFiles(
+      root,
+      await git.readRevision(root, "HEAD"),
+      ".quest",
+    );
+    expect(filesAfter).toEqual(filesBefore);
+    await teardown();
+  });
+
+  test("read rejects malformed task metadata, duplicate ids, and alias ambiguity via ClaimRepository.read", async () => {
+    const seeds: Record<string, string>[] = [
+      { ".quest/tasks/bad.json": '{"id":"T-9"}' },
+      {
+        ".quest/tasks/a.json": JSON.stringify({ id: "T-1", aliases: [] }),
+        ".quest/tasks/b.json": JSON.stringify({ id: "T-1", aliases: [] }),
+      },
+      {
+        ".quest/tasks/a.json": JSON.stringify({
+          id: "T-1",
+          aliases: ["x"],
+          title: "t",
+          status: "To Do",
+        }),
+        ".quest/tasks/b.json": JSON.stringify({
+          id: "T-2",
+          aliases: ["x"],
+          title: "t",
+          status: "To Do",
+        }),
+      },
+    ];
+    for (const seed of seeds) {
+      await store();
+      const git = new LocalGitPort();
+      await commitFiles(seed);
+      const repository = new LocalClaimRepository(git, root);
+      let thrown: unknown;
+      try {
+        await repository.read();
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      await teardown();
+    }
   });
 });
