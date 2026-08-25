@@ -3,11 +3,11 @@ id: QCLI-97.5.2
 title: >-
   Add stdin JSON request transport to quest task binding
   (opum-agent-workflow/v1)
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-25 01:41'
-updated_date: '2026-08-25 02:30'
+updated_date: '2026-08-25 02:41'
 labels:
   - quest-0.1
   - parity
@@ -26,11 +26,12 @@ The deployed opum-agent facade invokes  and writes the exact request envelope {c
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 quest task binding accepts the exact stdin JSON envelope when no flags-driven inputs are supplied
-- [ ] #2 Exact requestId/taskId negotiation echoed in the 14-key public response
-- [ ] #3 Malformed, duplicate, or unknown-field stdin input fails with stable redacted diagnostics
-- [ ] #4 Existing flag-driven behavior and tests remain byte-compatible
+- [x] #1 quest task binding accepts the exact stdin JSON envelope when no flags-driven inputs are supplied
+- [x] #2 Exact requestId/taskId negotiation echoed in the 14-key public response
+- [x] #3 Malformed, duplicate, or unknown-field stdin input fails with stable redacted diagnostics
+- [x] #4 Existing flag-driven behavior and tests remain byte-compatible
 - [ ] #5 Process/contract/integration tests cover negotiation, errors, freshness/state evidence
+- [ ] #6 5
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -40,3 +41,9 @@ The deployed opum-agent facade invokes  and writes the exact request envelope {c
 
 Implementation complete: additive stdin transport in main.ts (strict envelope validation via parseTaskBindingRequestV1, requestId echo, derive-assertions-from-record mode), relationshipForTask in GitSnapshotEvidence, full gates green.
 <!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Delivered additive stdin JSON transport for quest task binding: the facade's exact envelope (contract/supportedVersions/requestId/taskId) is strictly validated and echoed in the 14-key v1 response; malformed/unknown-field/wrong-contract inputs fail with stable OPUM_WORKFLOW_QUEST_INCOMPATIBLE diagnostics; flag behavior byte-compatible; relationshipForTask deterministic resolution added. Verified by new process tests plus full bun run check (248 tests green), CI run 32801685731 all seven jobs success, merged to dev at dc1b6d5.
+<!-- SECTION:FINAL_SUMMARY:END -->
