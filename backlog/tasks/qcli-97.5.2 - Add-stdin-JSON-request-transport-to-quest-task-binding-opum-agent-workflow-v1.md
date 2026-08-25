@@ -3,11 +3,11 @@ id: QCLI-97.5.2
 title: >-
   Add stdin JSON request transport to quest task binding
   (opum-agent-workflow/v1)
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-25 01:41'
-updated_date: '2026-08-25 03:16'
+updated_date: '2026-08-25 03:37'
 labels:
   - quest-0.1
   - parity
@@ -50,10 +50,12 @@ Two-axis correction (fbcd80e0): (1) relationshipForTask must also admit live CLA
 Two-axis correction implemented: (a) relationshipForTask admits live claim records and single non-live matches surface as stable STATE; ambiguity among multiple live records is INCOMPATIBLE; (b) stdin envelopes reject duplicate top-level keys pre-parse via strict scanner; (c) mixed stdin+flag transport refused at usage level; (d) LocalClaimRepository.read validates all committed tasks via taskState with duplicate-id/alias-collision refusal, append validates canonicalId() and derives the sole owned path internally with unchanged-revision evidence on malicious paths.
 
 Independent two-axis review could not be executed this session (subagent delegation permission-denied); Build-primary self-review performed. Full gates: bun run check green (250 tests), lore check green, git diff --check clean.
+
+Two-axis correction merged: PR #141 merge commit e243812733a947b14db38e86ef47f668c9f42a1e into dev; origin/dev verified to contain parseStrictJson duplicate-key refusal and relationshipForTask claim-record binding. CI run 32804583767 success on correction head 67704d4.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Delivered additive stdin JSON transport for quest task binding: the facade's exact envelope (contract/supportedVersions/requestId/taskId) is strictly validated and echoed in the 14-key v1 response; malformed/unknown-field/wrong-contract inputs fail with stable OPUM_WORKFLOW_QUEST_INCOMPATIBLE diagnostics; flag behavior byte-compatible; relationshipForTask deterministic resolution added. Verified by new process tests plus full bun run check (248 tests green), CI run 32801685731 all seven jobs success, merged to dev at dc1b6d5.
+Two-axis corrections delivered and verified on dev: live claim records bind via stdin transport with CAS liveness (ambiguity refused), duplicate top-level JSON keys refused pre-parse, mixed stdin+flag transport refused, LocalClaimRepository read/append hardened with authoritative taskState/canonicalId validation and derived sole owned path with unchanged-revision evidence on malicious paths. 250 tests green locally; CI run 32804583767 all seven jobs success.
 <!-- SECTION:FINAL_SUMMARY:END -->
