@@ -425,3 +425,98 @@ test("applyTransaction rollback removes only unchanged migration-created records
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("applyTransaction compensates an updated-in-place task when the planning write conflicts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-txn-rollback-"));
+  try {
+    const planning = new LocalPlanningRepository(root);
+    const repo = new LocalTaskRepository(
+      join(root, ".quest", "tasks"),
+      planning,
+    );
+
+    const original = createTask("T-1", { title: "original" });
+    const before = await repo.readAll();
+    await repo.write({
+      task: original,
+      expectedRevision: before.revision,
+      operationId: "seed",
+      ownedPaths: [".quest/tasks/T-1.json"],
+    });
+
+    // A competing planning write invalidates the expected planning revision
+    // only after task files have already been staged, forcing compensation.
+    const stalePlanningRevision = (await planning.read()).revision;
+    const updated = createTask("T-1", { title: "updated" });
+    const added = createTask("T-2", { title: "added" });
+    const taskBefore = await repo.readAll();
+
+    const directPlanningWrite = await planning.write({
+      expectedRevision: stalePlanningRevision,
+      milestones: [
+        {
+          id: "M-9" as `M-${number}`,
+          title: "interloper",
+          status: "open" as const,
+          taskIds: [],
+        },
+      ],
+      decisions: [],
+      operationId: "interloper-planning",
+    });
+    expect(directPlanningWrite.kind).toBe("success");
+
+    const result = await repo.applyTransaction({
+      expectedTaskRevision: taskBefore.revision,
+      expectedPlanningRevision: stalePlanningRevision,
+      operationId: "txn-compensate",
+      ownedPaths: [".quest/tasks/T-1.json"],
+      taskChanges: [
+        { task: updated, location: "tasks" as const },
+        { task: added, location: "tasks" as const },
+      ],
+      milestones: [],
+      decisions: [],
+    });
+    expect(result.kind).toBe("conflict");
+
+    const after = await repo.readAll();
+    expect(after.taskRecords.map((r) => r.task.id).sort()).toEqual(["T-1"]);
+    const restored = after.taskRecords.find((r) => r.task.id === "T-1");
+    expect(restored?.task.title).toBe("original");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("applyTransaction fails loud when no planning repository can verify the revision", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-txn-noplanning-"));
+  try {
+    const repo = new LocalTaskRepository(join(root, ".quest", "tasks"));
+    const before = await repo.readAll();
+    let message = "";
+    try {
+      await repo.applyTransaction({
+        expectedTaskRevision: before.revision,
+        expectedPlanningRevision: "unverifiable",
+        operationId: "txn-no-planning",
+        ownedPaths: [],
+        taskChanges: [
+          {
+            task: createTask("T-1", { title: "one" }),
+            location: "tasks" as const,
+          },
+        ],
+        milestones: [],
+        decisions: [],
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("planning_repository_unavailable");
+    const after = await repo.readAll();
+    expect(after.taskRecords).toHaveLength(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -389,21 +389,21 @@ export class LocalTaskRepository
           ownedPaths: request.ownedPaths,
         };
 
+      // Fail loud instead of silently skipping the planning revision guard:
+      // a transaction that claims cross-store atomicity must be able to
+      // verify and compensate both stores.
       const planning = this.planningRepository;
-      let planningSnapshot:
-        | Awaited<ReturnType<PlanningRepository["read"]>>
-        | undefined;
-      if (planning) {
-        planningSnapshot = await planning.read();
-        if (planningSnapshot.revision !== request.expectedPlanningRevision)
-          return {
-            kind: "conflict" as const,
-            expectedRevision: request.expectedPlanningRevision,
-            actualRevision: planningSnapshot.revision,
-            operationId: request.operationId,
-            ownedPaths: request.ownedPaths,
-          };
-      }
+      if (!planning)
+        throw new RecordValidationError("planning_repository_unavailable");
+      const planningSnapshot = await planning.read();
+      if (planningSnapshot.revision !== request.expectedPlanningRevision)
+        return {
+          kind: "conflict" as const,
+          expectedRevision: request.expectedPlanningRevision,
+          actualRevision: planningSnapshot.revision,
+          operationId: request.operationId,
+          ownedPaths: request.ownedPaths,
+        };
 
       const taskRecords = current.taskRecords ?? [];
       const byId = new Map<
@@ -467,7 +467,7 @@ export class LocalTaskRepository
           });
         }
       }
-      if (planning) {
+      {
         const planningResult = await planning.write({
           expectedRevision: request.expectedPlanningRevision,
           milestones: nextMilestones,
@@ -475,13 +475,14 @@ export class LocalTaskRepository
           operationId: request.operationId,
         });
         if (planningResult.kind === "conflict") {
+          // Compensate every touched record, not only removals: updated
+          // in-place tasks must return to their pre-transaction content so a
+          // failed planning write never leaves half-mutated task state.
           for (const record of Array.from(byId.values())) {
-            if (!nextRecords.has(record.task.id)) {
-              await this.writeLifecycleRecord(
-                this.taskPath(record.task.id, record.location),
-                record.task,
-              );
-            }
+            await this.writeLifecycleRecord(
+              this.taskPath(record.task.id, record.location),
+              record.task,
+            );
           }
           for (const record of nextRecordsArray) {
             if (!byId.has(record.task.id)) {
@@ -493,7 +494,7 @@ export class LocalTaskRepository
           return {
             kind: "conflict" as const,
             expectedRevision: request.expectedPlanningRevision,
-            actualRevision: planningSnapshot?.revision ?? "",
+            actualRevision: planningSnapshot.revision,
             operationId: request.operationId,
             ownedPaths: request.ownedPaths,
           };

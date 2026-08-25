@@ -6,6 +6,10 @@ import { PlanningService } from "../application/planning/planning.ts";
 import { BacklogImportService } from "../application/migration/backlog-public.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { join } from "node:path";
+import {
+  TaskService,
+  defaultTaskLifecyclePolicy,
+} from "../application/tasks/tasks.ts";
 
 /** The sole CLI composition root permitted to construct concrete adapters. */
 export function createAgentInstructionPort(root: string) {
@@ -32,6 +36,7 @@ export function createBacklogImportService(
       join(root, ".quest", "tasks"),
       new LocalPlanningRepository(root),
     ),
+    new LocalPlanningRepository(root),
   );
 }
 
@@ -77,4 +82,17 @@ export async function createTaskBindingModel(
 
 export function createTaskBindingService(model: TaskBindingReadModel) {
   return new OpumAgentWorkflowBindingService(model);
+}
+
+/** Sole composition root for the CLI task service with milestone closure capability. */
+export function createTaskService(root: string): TaskService {
+  return new TaskService(
+    new LocalTaskRepository(
+      join(root, ".quest", "tasks"),
+      new LocalPlanningRepository(root),
+    ),
+    defaultTaskLifecyclePolicy,
+    undefined,
+    new LocalPlanningRepository(root),
+  );
 }

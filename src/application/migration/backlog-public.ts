@@ -8,12 +8,14 @@ import {
   alias,
 } from "../../domain/records.ts";
 import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
+import type { Milestone } from "../../domain/planning/planning.ts";
 import type {
   BacklogImportRecord,
   BacklogImportSource,
   MigrationTransactionRepository,
   PublicTaskRepository,
 } from "../../ports/backlog-import.ts";
+import type { PlanningRepository } from "../../ports/planning.ts";
 
 export interface BacklogImportMapping {
   readonly sourceIdentifier: string;
@@ -64,7 +66,11 @@ async function load(path: string): Promise<Receipt | undefined> {
   }
 }
 
-function importedTask(record: BacklogImportRecord, id: string): TaskState {
+function importedTask(
+  record: BacklogImportRecord,
+  id: string,
+  milestoneId?: string,
+): TaskState {
   return taskState({
     id: id as `T-${number}`,
     aliases: record.aliases,
@@ -105,6 +111,7 @@ function importedTask(record: BacklogImportRecord, id: string): TaskState {
     documentation: record.documentation,
     parentId: record.parentTaskId,
     dependencies: record.dependencies,
+    milestoneId,
     blockers: [],
     gates: [],
     gateEvents: [],
@@ -162,6 +169,7 @@ export class BacklogImportService {
     private readonly root: string,
     private readonly source: BacklogImportSource,
     private readonly repository: MigrationTransactionRepository,
+    private readonly planning: PlanningRepository,
   ) {}
 
   async preview(): Promise<BacklogPreview> {
@@ -194,11 +202,48 @@ export class BacklogImportService {
     await save(path, receipt);
     const survivors = new Set(receipt.survivors);
     const fingerprints = { ...receipt.taskFingerprints };
+    // Milestone names map deterministically: sorted distinct source names,
+    // reusing an existing planning milestone with the same exact title,
+    // otherwise allocating the next free M-<n> id.
+    const planningSnapshot = await this.planning.read();
+    const milestoneNames = Array.from(
+      new Set(
+        records
+          .map((record) => record.milestone?.trim())
+          .filter((name): name is string => !!name),
+      ),
+    ).sort();
+    const byTitle = new Map(
+      planningSnapshot.milestones.map((m) => [m.title, m]),
+    );
+    let nextMilestoneNumber = planningSnapshot.milestones.reduce(
+      (maximum, m) => Math.max(maximum, Number(m.id.slice(2))),
+      0,
+    );
+    const milestoneIdForName = new Map<string, string>();
+    for (const name of milestoneNames) {
+      const existing = byTitle.get(name);
+      if (existing) {
+        milestoneIdForName.set(name, existing.id);
+        continue;
+      }
+      nextMilestoneNumber += 1;
+      milestoneIdForName.set(name, `M-${nextMilestoneNumber}`);
+    }
+    // Closure is computed over every mapping (not only non-survivors) so a
+    // resumed migration still yields fully closed forward/back references.
+    const taskChanges: {
+      readonly task: TaskState;
+      readonly location: "tasks";
+    }[] = [];
+    const imported: { id: string; milestoneId?: string }[] = [];
     for (let index = 0; index < preview.mappings.length; index++) {
       const mapping = preview.mappings[index];
       const record = records[index];
       if (!record) throw new Error("migration_source_record_missing");
-      const task = importedTask(record, mapping.targetIdentifier);
+      const name = record.milestone?.trim();
+      const milestoneId = name ? milestoneIdForName.get(name) : undefined;
+      const task = importedTask(record, mapping.targetIdentifier, milestoneId);
       const current = await repository.readAll();
       const existing = current.taskRecords.find(
         (entry) => entry.task.id === task.id,
@@ -209,16 +254,48 @@ export class BacklogImportService {
       }
       survivors.add(task.id);
       fingerprints[task.id] = fingerprint(task);
-      await save(path, {
-        ...receipt,
-        survivors: Array.from(survivors).sort(),
-        taskFingerprints: fingerprints,
+      taskChanges.push({ task, location: "tasks" });
+      imported.push({ id: task.id, milestoneId });
+    }
+    // Closure over every mapping (not only non-survivors) so a resumed
+    // migration still yields closed forward/back references.
+    const milestones = new Map<string, Milestone>();
+    for (const name of milestoneNames) {
+      const existing = byTitle.get(name);
+      const id = milestoneIdForName.get(name);
+      if (!id) continue;
+      const members = new Set(existing?.taskIds ?? []);
+      for (const entry of imported)
+        if (entry.milestoneId === id) members.add(entry.id);
+      milestones.set(id, {
+        id: id as Milestone["id"],
+        title: name,
+        description: existing?.description,
+        status: existing?.status ?? "open",
+        taskIds: Array.from(members).sort(),
       });
-      const result = await repository.write({
-        task,
-        expectedRevision: current.revision,
+    }
+    await save(path, {
+      ...receipt,
+      survivors: Array.from(survivors).sort(),
+      taskFingerprints: fingerprints,
+    });
+    if (taskChanges.length > 0) {
+      const current = await repository.readAll();
+      const result = await repository.applyTransaction({
+        expectedTaskRevision: current.revision,
+        expectedPlanningRevision: planningSnapshot.revision,
         operationId: `backlog-import-${digest}`,
-        ownedPaths: [`.quest/tasks/${task.id}.json`],
+        ownedPaths: [
+          ".quest/migrations/backlog",
+          ...taskChanges.map(({ task }) => `.quest/tasks/${task.id}.json`),
+        ],
+        taskChanges,
+        milestones: [
+          ...planningSnapshot.milestones.filter((m) => !milestones.has(m.id)),
+          ...Array.from(milestones.values()),
+        ],
+        decisions: planningSnapshot.decisions,
       });
       if (result.kind === "conflict") {
         const failed = {
@@ -230,11 +307,6 @@ export class BacklogImportService {
         await save(path, failed);
         return failed;
       }
-      await save(path, {
-        ...receipt,
-        survivors: Array.from(survivors).sort(),
-        taskFingerprints: fingerprints,
-      });
     }
     const after = await source.readSnapshot();
     if (after.fingerprint !== preview.sourceFingerprint) {
@@ -269,6 +341,7 @@ export class BacklogImportService {
     const receipt = await this.status(digest);
     if (receipt.state === "rolled-back") return receipt;
     const survivors: string[] = [];
+    const removedIds = new Set<string>();
     for (const mapping of receipt.mappings) {
       const snapshot = await repository.readAll();
       const located = snapshot.taskRecords.find(
@@ -292,6 +365,24 @@ export class BacklogImportService {
         draftChanges: [],
       });
       if (result.kind === "conflict") survivors.push(mapping.targetIdentifier);
+      else removedIds.add(mapping.targetIdentifier);
+    }
+    // Keep forward/back closure: strip removed task ids from milestone
+    // membership instead of leaving dangling milestone back-references.
+    if (removedIds.size > 0) {
+      const planningSnapshot = await this.planning.read();
+      const result = await this.planning.write({
+        expectedRevision: planningSnapshot.revision,
+        operationId: `backlog-rollback-${digest}`,
+        decisions: planningSnapshot.decisions,
+        milestones: planningSnapshot.milestones.map((m) => ({
+          ...m,
+          taskIds: m.taskIds.filter((id) => !removedIds.has(id)),
+        })),
+      });
+      if (result.kind === "conflict")
+        for (const mapping of receipt.mappings)
+          survivors.push(mapping.targetIdentifier);
     }
     const rolled = {
       ...receipt,
