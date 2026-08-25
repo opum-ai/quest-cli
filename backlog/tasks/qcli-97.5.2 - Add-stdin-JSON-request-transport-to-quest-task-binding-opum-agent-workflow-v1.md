@@ -3,11 +3,11 @@ id: QCLI-97.5.2
 title: >-
   Add stdin JSON request transport to quest task binding
   (opum-agent-workflow/v1)
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-25 01:41'
-updated_date: '2026-08-25 07:01'
+updated_date: '2026-08-25 07:28'
 labels:
   - quest-0.1
   - parity
@@ -30,8 +30,7 @@ The deployed opum-agent facade invokes  and writes the exact request envelope {c
 - [x] #2 Exact requestId/taskId negotiation echoed in the 14-key public response
 - [x] #3 Malformed, duplicate, or unknown-field stdin input fails with stable redacted diagnostics
 - [x] #4 Existing flag-driven behavior and tests remain byte-compatible
-- [ ] #5 Process/contract/integration tests cover negotiation, errors, freshness/state evidence
-- [ ] #6 5
+- [x] #5 Process/contract/integration tests cover negotiation, errors, freshness/state evidence
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -60,10 +59,12 @@ Independent-review corrective pass (correlation 8f0f52d299e94ef698abe27bff9d9ff1
 Build takeover of review-diagnostic patch (replacement correlation f270442d67a54de2a764fcb5f32aeb86, base HEAD 900713a): AC #4 compatibility correction committed as 52f757a. Final-review finding confirmed: treating every non-TTY stdin as supplied transport refused legacy flag invocations over empty/closed pipes (< /dev/null, cron, CI). Semantics now: piped stdin read once; nonempty piped body + ANY binding flag = mixed-transport usage refusal; empty/closed pipe + complete six-flag set = legacy flag mode (byte-compatible); partial flag sets = usage refusal regardless of transport. Regression tests added for complete-flags-empty-pipe success and partial-flags-empty-pipe usage refusal. No unrelated reviewer mutations present (diff 900713a..52f757a touches only src/cli/main.ts and the process test). bun run check green (254 tests), lore check clean, git diff --check clean, DBG/temp scan clean. Pushed; PR #142 head 52f757a; CI run 32816757467 all 7 jobs pass. Not merged.
 
 Fresh Codex final-review corrections (correlation a1373e015a0e43d39861f8487462bbf5, base 3f816f1): (1) parseStrictJson now skips insignificant JSON whitespace before every value and after object-key colons, so pretty-printed/multiline exact envelopes and whitespace-padded nested values parse while decoded recursive duplicate-key, strict escape/literal, trailing-content, and closed-envelope refusals are preserved; added pretty-printed + padded process coverage. (2) relationshipForTask classifies claim-record state BEFORE CAS liveness: terminal/superseded/done claim records can never be promoted live by a task-level lease; terminal claim + one live correlation now selects the correlation successfully; terminal claim alone surfaces stable STATE; genuine multi-live ambiguity refusal retained; corrupt-evidence fail-closed behavior unchanged. Full gates green (256 tests), lore check clean, diff check clean, DBG scan clean.
+
+Finalization (successor session 8da36de3, pane wS:p5, ses_fc83c0e72ffeGwDCuOwvnGcIru, openrouter/stealth/ox-alpha, generation opencode-openrouter-ox-alpha-2026-08-23-v1): exact head e34dd33 revalidated clean; PR #142 OPEN/MERGEABLE then merged; exact-head CI run 32819628493 completed/success 7/7; local gates rerun green in worktree: bun run check 256 tests pass, lore check --strict clean, git diff --check clean, DBG scan clean. Malformed AC #6 value '5' removed via backlog CLI (--remove-ac 6); no acceptance invented. AC #5 checked on evidence: stdin negotiation/error/duplicate-key/mixed-transport/claim-liveness/state-freshness coverage in test/contract/opum-agent-workflow-process.test.ts within the 256-test suite.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Two-axis corrections delivered and verified on dev: live claim records bind via stdin transport with CAS liveness (ambiguity refused), duplicate top-level JSON keys refused pre-parse, mixed stdin+flag transport refused, LocalClaimRepository read/append hardened with authoritative taskState/canonicalId validation and derived sole owned path with unchanged-revision evidence on malicious paths. 250 tests green locally; CI run 32804583767 all seven jobs success.
+Stdin JSON request transport for quest task binding delivered on PR #142 (head e34dd33, squash-merged as c2a2f69b14cf2c4be3e38bfe66e5a35d97b9c8ad into dev): additive strict envelope parse (duplicate/escaped-equivalent keys, trailing content, malformed escapes refused), requestId/taskId echo, claim-record binding via CAS liveness replay with ambiguity refusal, mixed stdin+flag transport refusal with byte-compatible legacy six-flag empty-pipe mode. Verified by bun run check 256 tests green, lore check --strict clean, independent two-axis reviews PASS, and exact-head CI run 32819628493 all seven jobs success.
 <!-- SECTION:FINAL_SUMMARY:END -->
