@@ -608,7 +608,7 @@ test("stdin transport refuses duplicate, escaped-duplicate, and trailing input",
   );
 });
 
-test("any binding flag combined with piped stdin is a usage refusal", async () => {
+test("any binding flag combined with a non-empty piped envelope is a usage refusal", async () => {
   const bindingFlags = [
     "--task",
     "--claim-or-correlation",
@@ -625,6 +625,28 @@ test("any binding flag combined with piped stdin is a usage refusal", async () =
     expect(result.exitCode).not.toBe(0);
     expect(JSON.parse(result.stderr).error_type).toBe("usage");
   }
+});
+
+test("complete flag set over an empty pipe stays byte-compatible flag mode", async () => {
+  await writeRelationship(correlation, {
+    kind: "correlation",
+    state: "accepted",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const result = await spawnRawStdin(bindingArguments().slice(4), "");
+  expect(result.exitCode, result.stderr.slice(0, 400)).toBe(0);
+  expect(result.stderr).toBe("");
+  const response = JSON.parse(result.stdout);
+  expect(Object.keys(response).sort()).toEqual(EXPECTED_KEYS);
+  expect(response.taskId).toBe("T-1");
+});
+
+test("partial flag set without a piped envelope is a usage refusal", async () => {
+  const result = await spawnRawStdin(["--task", "T-1"], "");
+  expect(result.exitCode).not.toBe(0);
+  expect(JSON.parse(result.stderr).error_type).toBe("usage");
 });
 
 test("stdin transport reports terminal relationship state as STATE", async () => {

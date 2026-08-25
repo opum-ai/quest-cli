@@ -1240,23 +1240,38 @@ export async function runQuest(
         "--base",
         "--settlement",
       ] as const;
-      // Non-TTY stdin is piped input; the facade transport is then the only
-      // accepted form and NO binding flag may accompany it.
+      // Non-TTY stdin is piped input. Piped transport requires the exact
+      // envelope and NO binding flag; a complete flag set over an empty or
+      // closed pipe remains the legacy flag-driven form (AC byte-compat).
       const stdinIsPiped = stdinIsTty !== true;
       const suppliedBindingFlags = parsed
         ? bindingFlagNames.filter((flag) => one(parsed, flag) !== undefined)
         : [];
+      let pipedBody: string | null = null;
+      if (stdinIsPiped) {
+        pipedBody = await Bun.stdin.text();
+        if (suppliedBindingFlags.length > 0 && pipedBody.trim() !== "") {
+          return failure(
+            "usage",
+            "task binding accepts either the piped stdin request envelope alone or the complete --task/--claim-or-correlation/--holder/--repository/--base/--settlement flag set, never both.",
+          );
+        }
+      }
+      const flagsIncomplete =
+        !parsed ||
+        (suppliedBindingFlags.length > 0 &&
+          bindingFlagNames.some((flag) => one(parsed, flag) === undefined));
       if (
         !parsed ||
         !only(parsed, ["--contract", ...bindingFlagNames]) ||
         !one(parsed, "--contract") ||
-        (stdinIsPiped && suppliedBindingFlags.length > 0)
+        flagsIncomplete
       )
         return failure(
           "usage",
-          "task binding requires --contract plus either the piped stdin request envelope alone or all of --task/--claim-or-correlation/--holder/--repository/--base/--settlement on a TTY.",
+          "task binding requires --contract plus either the piped stdin request envelope alone or all of --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
         );
-      const stdinTransport = stdinIsPiped;
+      const stdinTransport = stdinIsPiped && suppliedBindingFlags.length === 0;
       const root = await resolvedRoot();
       // No mutable pre-snapshot task read: the raw reference is resolved
       // entirely inside the immutable revision-pinned snapshot model.
@@ -1271,7 +1286,7 @@ export async function runQuest(
         // stdin; parse and validate it strictly before any resolution.
         let parsedEnvelope: unknown;
         try {
-          parsedEnvelope = parseStrictJson(await Bun.stdin.text());
+          parsedEnvelope = parseStrictJson(pipedBody ?? "");
         } catch {
           return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
             input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
