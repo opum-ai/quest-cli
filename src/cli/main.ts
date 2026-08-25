@@ -1231,45 +1231,31 @@ export async function runQuest(
     }
     if (command === "binding") {
       const parsed = flags(rest);
-      const stdinIsTerminal = process.stdin.isTTY === true;
-      const stdinTransport =
-        (parsed ? !one(parsed, "--task") : true) && !stdinIsTerminal;
+      const bindingFlagNames = [
+        "--task",
+        "--claim-or-correlation",
+        "--holder",
+        "--repository",
+        "--base",
+        "--settlement",
+      ] as const;
+      // Non-TTY stdin is piped input; the facade transport is then the only
+      // accepted form and NO binding flag may accompany it.
+      const stdinIsPiped = process.stdin.isTTY !== true;
+      const suppliedBindingFlags = parsed
+        ? bindingFlagNames.filter((flag) => one(parsed, flag) !== undefined)
+        : [];
       if (
         !parsed ||
-        !only(parsed, [
-          "--contract",
-          "--task",
-          "--claim-or-correlation",
-          "--holder",
-          "--repository",
-          "--base",
-          "--settlement",
-        ]) ||
+        !only(parsed, ["--contract", ...bindingFlagNames]) ||
         !one(parsed, "--contract") ||
-        (!stdinTransport &&
-          (!one(parsed, "--task") ||
-            !one(parsed, "--claim-or-correlation") ||
-            !one(parsed, "--holder") ||
-            !one(parsed, "--repository") ||
-            !one(parsed, "--base") ||
-            !one(parsed, "--settlement")))
+        (stdinIsPiped && suppliedBindingFlags.length > 0)
       )
         return failure(
           "usage",
-          "task binding requires --contract plus either the stdin request envelope or --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
+          "task binding requires --contract plus either the piped stdin request envelope alone or all of --task/--claim-or-correlation/--holder/--repository/--base/--settlement on a TTY.",
         );
-      if (
-        stdinTransport &&
-        (!!one(parsed, "--claim-or-correlation") ||
-          !!one(parsed, "--holder") ||
-          !!one(parsed, "--repository") ||
-          !!one(parsed, "--base") ||
-          !!one(parsed, "--settlement"))
-      )
-        return failure(
-          "usage",
-          "stdin transport accepts only --contract and output mode flags.",
-        );
+      const stdinTransport = stdinIsPiped;
       const root = await resolvedRoot();
       // No mutable pre-snapshot task read: the raw reference is resolved
       // entirely inside the immutable revision-pinned snapshot model.
@@ -1325,7 +1311,9 @@ export async function runQuest(
             : error.code === "OPUM_WORKFLOW_QUEST_INCOMPATIBLE"
               ? "drift"
               : "conflict";
-        return failure(errorType, error.code, { input: { code: error.code } });
+        return failure(errorType, error.code, {
+          input: { code: error.code, detail: error.message },
+        });
       }
       if (resolvedModes.json || parsed?.json) {
         // The public v1 surface prints the exact binding envelope on stdout.

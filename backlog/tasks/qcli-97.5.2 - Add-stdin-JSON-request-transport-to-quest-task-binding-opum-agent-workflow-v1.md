@@ -3,11 +3,11 @@ id: QCLI-97.5.2
 title: >-
   Add stdin JSON request transport to quest task binding
   (opum-agent-workflow/v1)
-status: Done
+status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-25 01:41'
-updated_date: '2026-08-25 03:37'
+updated_date: '2026-08-25 04:32'
 labels:
   - quest-0.1
   - parity
@@ -52,6 +52,8 @@ Two-axis correction implemented: (a) relationshipForTask admits live claim recor
 Independent two-axis review could not be executed this session (subagent delegation permission-denied); Build-primary self-review performed. Full gates: bun run check green (250 tests), lore check green, git diff --check clean.
 
 Two-axis correction merged: PR #141 merge commit e243812733a947b14db38e86ef47f668c9f42a1e into dev; origin/dev verified to contain parseStrictJson duplicate-key refusal and relationshipForTask claim-record binding. CI run 32804583767 success on correction head 67704d4.
+
+CHECKPOINT c995b1d4c6724a4fa70c72816bd71f94 (Controller-ordered pre-compaction): WORKTREE slot2 /Volumes/external/.opum-worktrees/quest-cli-b114ef03d0b9/2/quest-cli on quest/odoc-71.8-stdin-transport, lease 2ee86dc2783cc2e01a588f3a15317948, base 0a7a66a78d5080172ef72a20433ba6f56bfc4030, HEAD c846675df2715c19d2f863df109385d0a4a1bf61 + UNCOMMITTED dirty diff implementing the accepted four forward-fix requirements: (1) parseStrictJson rewritten as decoded-name recursive JSON scanner detecting escaped-equivalent duplicate keys (requestId vs \u0072equestId) with trailing-content refusal — VERIFIED working via bun -e (dup/escaped/trailing all caught) after fixing missing top-level scanValue(null) call; (2) relationshipForTask effective-liveness selection: liveCorrelations/liveClaims partitioned, claim liveness proven by replayClaimHistory+evaluateClaim CAS replay, ambiguity INCOMPATIBLE when >1 live, single non-live surfaces STATE — typechecks; (3) main.ts binding branch: non-TTY stdin = piped transport, ANY binding flag + piped stdin refused at usage level (mixed-transport refusal incl. --task + full set); (4) DBGREPLAY removed; exactly-one structured stderr envelope preserved. TEST FILE test/contract/opum-agent-workflow-process.test.ts MID-REWRITE (truncated at EXPECTED_KEYS, needs re-append of tests using helpers makeReadyTask/writeTaskRelationship/spawnBindingFor/spawnBinding + commitAll in makeReadyTask before pinned reads; hostile T-5 fixture wrapped try/finally restore pending). NEXT SAFE ACTION: finish rewriting process test file (stdin envelope exact-keys, claim-active via committed CAS evidence, stale-claim+live-correlation success, true multiple-live ambiguity, duplicate-key/escaped-equivalent refusals, mixed-transport refusals incl. --task+piped), then bun run check + lore check + git diff --check, commit/push ordinary correction PR to dev, CI watch all-jobs-green, STOP for fresh independent Controller two-axis review BEFORE merge (PR #140 already merged earlier at dc1b6d5; new PR required for 67704d4..HEAD corrections; do NOT merge until review). Denied approval on record: 0a46ed186b9149b3a8f3a90e009d2141 (subagent delegation). Older leases a3e43356/e409c8ef untouched. No PR opened/merged for uncommitted work; no history rewrite.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

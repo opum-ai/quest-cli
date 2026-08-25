@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import type { GitPort } from "../../ports/git.ts";
-import type { ClaimEvent } from "../../domain/claims/claims.ts";
+import {
+  evaluateClaim,
+  replayClaimHistory,
+  type ClaimHistory,
+  type ClaimEvent,
+} from "../../domain/claims/claims.ts";
 import type { Actor, CanonicalId } from "../../domain/records.ts";
 import { aliasKey, canonicalId } from "../../domain/records.ts";
 import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
@@ -234,7 +239,10 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       .filter((file) => file.endsWith(".json"))
       .sort();
     const matches: TaskRelationshipRecord[] = [];
-    const anyMatches: TaskRelationshipRecord[] = [];
+    const liveCorrelations: TaskRelationshipRecord[] = [];
+    const liveClaims: TaskRelationshipRecord[] = [];
+    const claimCandidates: TaskRelationshipRecord[] = [];
+    const nonLiveMatches: TaskRelationshipRecord[] = [];
     for (const file of files) {
       const text = await this.blob(file);
       if (text === null) continue;
@@ -254,20 +262,53 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
         if (error instanceof OpumAgentWorkflowError) throw error;
         throw unreadable();
       }
-      // Stdin transport carries only the task identity, so the record itself
-      // is the authority: admit live correlations and non-terminal claims
-      // (claim liveness is proven by CAS replay in the application layer).
-      const bindable =
-        ((record.kind === "correlation" &&
-          LIVE_CORRELATION_STATES.has(record.state)) ||
-          (record.kind === "claim" &&
-            !TERMINAL_RELATIONSHIP_STATES.has(record.state))) &&
-        record.taskId === taskId;
       const matching = record.taskId === taskId;
-      if (bindable) matches.push(record);
-      else if (matching) anyMatches.push(record);
+      if (!matching) continue;
+      if (record.kind === "correlation") {
+        if (LIVE_CORRELATION_STATES.has(record.state)) {
+          liveCorrelations.push(record);
+        } else {
+          nonLiveMatches.push(record);
+        }
+        continue;
+      }
+      // Claim-kind candidates: true liveness is proven by replaying the full
+      // committed event history under CAS semantics before selection, so a
+      // stale/expired/superseded claim can never shadow a live correlation.
+      claimCandidates.push(record);
     }
-    // Live records take precedence; more than one is an ambiguity refusal.
+    for (const record of claimCandidates) {
+      const events = await this.events(taskId);
+      const actors = await this.actors();
+      let live = false;
+      try {
+        const history = events.length
+          ? replayClaimHistory(events, actors)
+          : undefined;
+        const evaluation = evaluateClaim(history, new Date());
+        live =
+          Boolean(history?.lease) &&
+          evaluation.status === "live" &&
+          (evaluation.anomalies?.length ?? 0) === 0 &&
+          (history?.anomalies.length ?? 0) === 0 &&
+          (history as { lease?: { holderId: string } } | undefined)?.lease
+            ?.holderId === record.holder;
+      } catch {
+        live = false;
+      }
+      const leaseHolderId = (
+        history as unknown as { lease?: { holderId: string } } | undefined
+      )?.lease?.holderId;
+      if (live) {
+        liveClaims.push({ ...record, holder: leaseHolderId });
+      } else {
+        nonLiveMatches.push({
+          ...record,
+          holder: record.holder,
+        });
+      }
+    }
+    matches.push(...liveCorrelations, ...liveClaims);
     if (matches.length > 1) {
       throw new OpumAgentWorkflowError(
         "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
@@ -275,16 +316,16 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       );
     }
     if (matches.length === 1) return matches[0] ?? null;
-    if (anyMatches.length > 1) {
+    if (nonLiveMatches.length > 1) {
       throw new OpumAgentWorkflowError(
         "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
         "Multiple relationship records bind this task.",
       );
     }
-    if (anyMatches.length === 1) {
+    if (nonLiveMatches.length === 1) {
       // Single non-live match: surface it so the evaluator classifies the
       // stable STATE diagnostic.
-      return anyMatches[0] ?? null;
+      return nonLiveMatches[0] ?? null;
     }
     return null;
   }
@@ -312,7 +353,8 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
-      } catch {
+      } catch (error) {
+        console.error("DBGUNREADABLE-parse", String(error));
         throw unreadable();
       }
       // Authoritative domain validation: malformed committed records fail
@@ -320,7 +362,8 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       let state: TaskState;
       try {
         state = taskState(parsed as TaskState);
-      } catch {
+      } catch (error) {
+        console.error("DBGUNREADABLE-taskstate", String(error));
         throw unreadable();
       }
       tasks.push(state);

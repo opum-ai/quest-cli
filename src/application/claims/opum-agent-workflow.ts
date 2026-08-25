@@ -22,65 +22,172 @@ export { OpumAgentWorkflowError };
 export { parseTaskBindingRequestV1 } from "../../domain/claims/opum-agent-workflow.ts";
 
 /**
- * Strict stdin-envelope parser: refuses duplicate object keys before any
- * semantic validation, so silently-overwritten fields cannot slip through.
- */
-/**
- * Strict stdin-envelope parser: refuses duplicate TOP-LEVEL object keys
- * before semantic parsing (JSON.parse alone silently overwrites them), then
- * defers to the exact-envelope validator.
+ * Strict stdin-envelope scanner and parser: decodes every member name
+ * (including \uXXXX escapes) and refuses duplicate keys — escaped-equivalent
+ * names such as "requestId" versus "\u0072equestId" are detected before any
+ * semantic validation.
  */
 export function parseStrictJson(text: string): unknown {
-  assertNoDuplicateTopLevelKeys(text);
+  let position = 0;
+
+  const fail = (message: string): never => {
+    throw new OpumAgentWorkflowError(
+      "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+      message,
+    );
+  };
+
+  const skipWhitespace = (): void => {
+    while (position < text.length && /\s/.test(text[position] ?? "")) {
+      position += 1;
+    }
+  };
+
+  const decodeString = (): string => {
+    position += 1; // opening quote
+    let value = "";
+    while (position < text.length) {
+      const character = text[position] ?? "";
+      if (character === '"') {
+        position += 1;
+        return value;
+      }
+      if (character !== "\\") {
+        value += character;
+        position += 1;
+        continue;
+      }
+      const escape = text[position + 1] ?? "";
+      position += 2;
+      switch (escape) {
+        case '"':
+          value += '"';
+          break;
+        case "\\":
+          value += "\\";
+          break;
+        case "/":
+          value += "/";
+          break;
+        case "b":
+          value += "\b";
+          break;
+        case "f":
+          value += "\f";
+          break;
+        case "n":
+          value += "\n";
+          break;
+        case "r":
+          value += "\r";
+          break;
+        case "t":
+          value += "\t";
+          break;
+        case "u": {
+          const code = Number.parseInt(text.slice(position, position + 4), 16);
+          if (Number.isNaN(code)) fail("Invalid unicode escape in key.");
+          value += String.fromCharCode(code);
+          position += 4;
+          break;
+        }
+        default:
+          fail("Invalid escape in key.");
+      }
+    }
+    return fail("Unterminated string in request envelope.");
+  };
+
+  const seenContainers = new Set<object>();
+  const memberNames = new Map<object, Set<string>>();
+
+  const recordMember = (container: object, name: string): void => {
+    let names = memberNames.get(container);
+    if (!names) {
+      names = new Set();
+      memberNames.set(container, names);
+    }
+    if (names.has(name)) fail("Duplicate key in request envelope.");
+    names.add(name);
+  };
+
+  const scanValue = (container: object | null): unknown => {
+    const character = text[position] ?? "";
+    if (character === "{") {
+      position += 1;
+      const obj: Record<string, unknown> = {};
+      seenContainers.add(obj);
+      skipWhitespace();
+      if ((text[position] ?? "") === "}") {
+        position += 1;
+        return obj;
+      }
+      for (;;) {
+        skipWhitespace();
+        if ((text[position] ?? "") !== '"') fail('Expected member name.');
+        const name = decodeString();
+        recordMember(obj, name);
+        skipWhitespace();
+        if ((text[position] ?? "") !== ":") fail('Expected ":".');
+        position += 1;
+        obj[name] = scanValue(obj);
+        skipWhitespace();
+        const separator = text[position] ?? "";
+        if (separator === ",") {
+          position += 1;
+          continue;
+        }
+        if (separator === "}") {
+          position += 1;
+          return obj;
+        }
+        fail('Expected "," or "}".');
+      }
+    }
+    if (character === "[") {
+      position += 1;
+      const array: unknown[] = [];
+      skipWhitespace();
+      if ((text[position] ?? "") === "]") {
+        position += 1;
+        return array;
+      }
+      for (;;) {
+        array.push(scanValue(null));
+        skipWhitespace();
+        const separator = text[position] ?? "";
+        if (separator === ",") {
+          position += 1;
+          continue;
+        }
+        if (separator === "]") {
+          position += 1;
+          return array;
+        }
+        fail('Expected "," or "]".');
+      }
+    }
+    if (character === '"') return decodeString();
+    const literalStart = position;
+    while (
+      position < text.length &&
+      !/[,}\]\s]/u.test(text[position] ?? "")
+    ) {
+      position += 1;
+    }
+    return text.slice(literalStart, position);
+  };
+  scanValue(null);
+  // Require the scan to consume the entire input (trailing whitespace only).
+  skipWhitespace();
+  if (position < text.length) {
+    fail("Unexpected trailing content after request envelope.");
+  }
+  // Native value types come from JSON.parse.
+  position = 0;
   return JSON.parse(text);
 }
 
-function assertNoDuplicateTopLevelKeys(text: string): void {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("{")) return;
-  const seen = new Set<string>();
-  let index = 1;
-  let depth = 0;
-  while (index < trimmed.length - 1) {
-    const character = trimmed[index];
-    if (character === '"') {
-      // Read a full JSON string.
-      let cursor = index + 1;
-      let escaped = false;
-      let value = "";
-      while (cursor < trimmed.length) {
-        const c = trimmed[cursor];
-        if (escaped) {
-          value += c;
-          escaped = false;
-        } else if (c === "\\") {
-          escaped = true;
-        } else if (c === '"') {
-          break;
-        } else {
-          value += c;
-        }
-        cursor += 1;
-      }
-      const afterQuote = trimmed.slice(cursor + 1).trimStart();
-      const isKey = depth === 0 && afterQuote.startsWith(":");
-      if (isKey) {
-        if (seen.has(value)) {
-          throw new OpumAgentWorkflowError(
-            "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
-            "Duplicate key in request envelope.",
-          );
-        }
-        seen.add(value);
-      }
-      index = cursor + 1;
-      continue;
-    }
-    if (character === "{" || character === "[") depth += 1;
-    else if (character === "}" || character === "]") depth -= 1;
-    index += 1;
-  }
-}
 export type { QuestTaskBindingV1Response };
 
 /** Minimal read projection of the bound task; canonical alias resolution happens upstream. */
@@ -194,7 +301,6 @@ export class OpumAgentWorkflowBindingService {
         };
       } catch (error) {
         if (error instanceof OpumAgentWorkflowError) throw error;
-        console.error("DBGREPLAY", String(error));
         // Corrupt or unordered authoritative claim evidence is never live.
         throw new OpumAgentWorkflowError(
           "OPUM_WORKFLOW_QUEST_STATE",
