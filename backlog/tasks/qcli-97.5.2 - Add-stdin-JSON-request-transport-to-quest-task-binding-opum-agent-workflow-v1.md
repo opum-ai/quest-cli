@@ -3,11 +3,11 @@ id: QCLI-97.5.2
 title: >-
   Add stdin JSON request transport to quest task binding
   (opum-agent-workflow/v1)
-status: Done
+status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-25 01:41'
-updated_date: '2026-08-25 02:41'
+updated_date: '2026-08-25 03:16'
 labels:
   - quest-0.1
   - parity
@@ -40,7 +40,17 @@ The deployed opum-agent facade invokes  and writes the exact request envelope {c
 1. Red: process test invoking the selector with stdin envelope; 2. Implement additive stdin parse path reusing parseTaskBindingRequestV1; 3. Green + full gates; 4. Review and deliver to dev.
 
 Implementation complete: additive stdin transport in main.ts (strict envelope validation via parseTaskBindingRequestV1, requestId echo, derive-assertions-from-record mode), relationshipForTask in GitSnapshotEvidence, full gates green.
+
+Two-axis correction (fbcd80e0): (1) relationshipForTask must also admit live CLAIM records (identity via generation-bound eventId/operationId against caller identity absent in stdin — instead bind claim records only when the stdin envelope taskId resolves and the live lease holder is authoritative; ambiguity refusal preserved); (2) refuse duplicate JSON keys in stdin envelopes pre-parse; (3) reject mixed stdin+flag transport (only --contract and output mode may accompany stdin); (4) add state/freshness/claim/duplicate-key/mixed-transport coverage.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Two-axis correction implemented: (a) relationshipForTask admits live claim records and single non-live matches surface as stable STATE; ambiguity among multiple live records is INCOMPATIBLE; (b) stdin envelopes reject duplicate top-level keys pre-parse via strict scanner; (c) mixed stdin+flag transport refused at usage level; (d) LocalClaimRepository.read validates all committed tasks via taskState with duplicate-id/alias-collision refusal, append validates canonicalId() and derives the sole owned path internally with unchanged-revision evidence on malicious paths.
+
+Independent two-axis review could not be executed this session (subagent delegation permission-denied); Build-primary self-review performed. Full gates: bun run check green (250 tests), lore check green, git diff --check clean.
+<!-- SECTION:NOTES:END -->
 
 ## Final Summary
 

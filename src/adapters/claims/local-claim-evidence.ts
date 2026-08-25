@@ -56,6 +56,13 @@ const RELATIONSHIP_STATES = new Set([
   "done",
 ]);
 const LIVE_CORRELATION_STATES = new Set(["accepted", "delivered", "working"]);
+const TERMINAL_RELATIONSHIP_STATES = new Set([
+  "cancelled",
+  "rejected",
+  "expired",
+  "superseded",
+  "done",
+]);
 
 /**
  * Closed authoritative schema validation on Git-object content. Exact keys,
@@ -227,6 +234,7 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       .filter((file) => file.endsWith(".json"))
       .sort();
     const matches: TaskRelationshipRecord[] = [];
+    const anyMatches: TaskRelationshipRecord[] = [];
     for (const file of files) {
       const text = await this.blob(file);
       if (text === null) continue;
@@ -246,25 +254,39 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
         if (error instanceof OpumAgentWorkflowError) throw error;
         throw unreadable();
       }
-      // Stdin transport carries only the task identity, so only
-      // correlation relationships (whose holder/base/settlement live in the
-      // record itself) are bindable without an explicit caller identity.
-      if (
-        record.kind === "correlation" &&
-        record.taskId === taskId &&
-        LIVE_CORRELATION_STATES.has(record.state)
-      ) {
-        matches.push(record);
-      }
+      // Stdin transport carries only the task identity, so the record itself
+      // is the authority: admit live correlations and non-terminal claims
+      // (claim liveness is proven by CAS replay in the application layer).
+      const bindable =
+        ((record.kind === "correlation" &&
+          LIVE_CORRELATION_STATES.has(record.state)) ||
+          (record.kind === "claim" &&
+            !TERMINAL_RELATIONSHIP_STATES.has(record.state))) &&
+        record.taskId === taskId;
+      const matching = record.taskId === taskId;
+      if (bindable) matches.push(record);
+      else if (matching) anyMatches.push(record);
     }
-    if (matches.length === 0) return null;
+    // Live records take precedence; more than one is an ambiguity refusal.
     if (matches.length > 1) {
       throw new OpumAgentWorkflowError(
         "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
         "Multiple live relationship records bind this task.",
       );
     }
-    return matches[0] ?? null;
+    if (matches.length === 1) return matches[0] ?? null;
+    if (anyMatches.length > 1) {
+      throw new OpumAgentWorkflowError(
+        "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+        "Multiple relationship records bind this task.",
+      );
+    }
+    if (anyMatches.length === 1) {
+      // Single non-live match: surface it so the evaluator classifies the
+      // stable STATE diagnostic.
+      return anyMatches[0] ?? null;
+    }
+    return null;
   }
 
   /**

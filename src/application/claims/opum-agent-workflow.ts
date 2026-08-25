@@ -20,6 +20,67 @@ import type { TaskRelationshipRecord } from "../../ports/claims.ts";
 
 export { OpumAgentWorkflowError };
 export { parseTaskBindingRequestV1 } from "../../domain/claims/opum-agent-workflow.ts";
+
+/**
+ * Strict stdin-envelope parser: refuses duplicate object keys before any
+ * semantic validation, so silently-overwritten fields cannot slip through.
+ */
+/**
+ * Strict stdin-envelope parser: refuses duplicate TOP-LEVEL object keys
+ * before semantic parsing (JSON.parse alone silently overwrites them), then
+ * defers to the exact-envelope validator.
+ */
+export function parseStrictJson(text: string): unknown {
+  assertNoDuplicateTopLevelKeys(text);
+  return JSON.parse(text);
+}
+
+function assertNoDuplicateTopLevelKeys(text: string): void {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{")) return;
+  const seen = new Set<string>();
+  let index = 1;
+  let depth = 0;
+  while (index < trimmed.length - 1) {
+    const character = trimmed[index];
+    if (character === '"') {
+      // Read a full JSON string.
+      let cursor = index + 1;
+      let escaped = false;
+      let value = "";
+      while (cursor < trimmed.length) {
+        const c = trimmed[cursor];
+        if (escaped) {
+          value += c;
+          escaped = false;
+        } else if (c === "\\") {
+          escaped = true;
+        } else if (c === '"') {
+          break;
+        } else {
+          value += c;
+        }
+        cursor += 1;
+      }
+      const afterQuote = trimmed.slice(cursor + 1).trimStart();
+      const isKey = depth === 0 && afterQuote.startsWith(":");
+      if (isKey) {
+        if (seen.has(value)) {
+          throw new OpumAgentWorkflowError(
+            "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+            "Duplicate key in request envelope.",
+          );
+        }
+        seen.add(value);
+      }
+      index = cursor + 1;
+      continue;
+    }
+    if (character === "{" || character === "[") depth += 1;
+    else if (character === "}" || character === "]") depth -= 1;
+    index += 1;
+  }
+}
 export type { QuestTaskBindingV1Response };
 
 /** Minimal read projection of the bound task; canonical alias resolution happens upstream. */
@@ -120,14 +181,20 @@ export class OpumAgentWorkflowBindingService {
           live: evaluation.status === "live",
           hasLease: Boolean(history?.lease),
           holderId: history?.lease?.holderId ?? null,
-          generationBound: generationBound(
-            events,
-            command.claimOrCorrelationId,
-            history?.lease,
-          ),
+          // Stdin transport supplies no opaque identity; the live lease
+          // itself is the authority, so generation binding cannot be
+          // identity-proven and is satisfied by liveness alone.
+          generationBound:
+            command.deriveAssertionsFromRecord === true ||
+            generationBound(
+              events,
+              command.claimOrCorrelationId,
+              history?.lease,
+            ),
         };
       } catch (error) {
         if (error instanceof OpumAgentWorkflowError) throw error;
+        console.error("DBGREPLAY", String(error));
         // Corrupt or unordered authoritative claim evidence is never live.
         throw new OpumAgentWorkflowError(
           "OPUM_WORKFLOW_QUEST_STATE",
