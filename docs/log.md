@@ -199,6 +199,7 @@
 - 2026-08-24T12:46:18-05:00 e1806e69cf16b330a3bc8bb2fa9a2b167abd1475 QCLI-97.5.1: Settle snapshot-resolved binding acceptance
 - 2026-08-24T13:03:12-05:00 afa1019e74009bd73e9eb887eead865c4b675003 QCLI-97.5.1: Settle hardened canonical binding acceptance
 - 2026-08-24T13:16:23-05:00 78631e7578918e3a1bf39f00d9dbba400c2ec08f QCLI-97.5.1: Settle test-adequacy correction
+- 2026-08-24T21:42:28-05:00 c846675df2715c19d2f863df109385d0a4a1bf61 QCLI-97.5.2: Settle stdin transport acceptance
 
 ## docs/adr
 
