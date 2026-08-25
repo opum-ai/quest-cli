@@ -78,9 +78,6 @@ async function setup(
     "-m",
     "init",
   ]);
-  const { safeStorageName } = await import(
-    "../../../src/adapters/claims/local-claim-evidence.ts"
-  );
   const files: Record<string, string> = {
     ".quest/claims/actors.json": JSON.stringify(actors),
   };
@@ -172,8 +169,6 @@ async function codeOf(run: () => Promise<unknown>): Promise<string> {
 describe("OpumAgentWorkflowBindingService over pinned Git snapshots", () => {
   test("binds through an authoritative committed correlation record", async () => {
     await setup({});
-    const g = new LocalGitPort();
-    const rev = await g.readRevision(root, "HEAD");
     const response = await service().bind(command());
     expect(response.contract).toBe("opum-agent-workflow");
     expect(response.selectedVersion).toBe(1);

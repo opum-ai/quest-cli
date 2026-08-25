@@ -13,8 +13,29 @@ let workspace = "";
 let repositoryId = "";
 let previousCwd = "";
 
-async function quest(arguments_: string[]) {
-  return runQuest([...arguments_, "--json"], false);
+async function quest(arguments_: string[], stdin?: string) {
+  if (stdin === undefined) return runQuest([...arguments_, "--json"], false);
+  // Stdin transport: pipe the envelope through runQuest's real stdin.
+  const { runQuest: rq } = await import("../../src/cli/main.ts");
+  void rq;
+  const child = Bun.spawn(
+    ["bun", "run", join("src/cli/main.ts"), ...arguments_, "--json"],
+    {
+      cwd: `${import.meta.dir}/../..`,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...Bun.env, QUEST_TASK_STORE: workspace },
+    },
+  );
+  child.stdin.write(stdin);
+  child.stdin.end();
+  const exitCode = await child.exited;
+  return {
+    exitCode,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
 }
 
 async function writeRelationship(
@@ -337,4 +358,114 @@ test("missing records are ABSENT; terminal states are STATE", async () => {
     }),
   );
   expect(JSON.parse(idle.stderr).input.code).toBe("OPUM_WORKFLOW_QUEST_STATE");
+});
+
+async function spawnBinding(stdinBody: string): Promise<{
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}> {
+  const child = Bun.spawn(
+    [
+      "bun",
+      new URL("../../src/cli/main.ts", import.meta.url).pathname,
+      "task",
+      "binding",
+      "--contract",
+      "opum-agent-workflow/v1",
+      "--json",
+    ],
+    {
+      cwd: workspace,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...Bun.env, QUEST_TASK_STORE: workspace },
+    },
+  );
+  child.stdin.write(stdinBody);
+  await child.stdin.end();
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
+test("stdin transport accepts the exact request envelope and negotiates identity", async () => {
+  await writeRelationship(correlation, {
+    kind: "correlation",
+    state: "accepted",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const envelope = {
+    contract: "opum-agent-workflow",
+    supportedVersions: [1],
+    requestId: "b".repeat(32),
+    taskId: "T-1",
+  };
+  const result = await spawnBinding(JSON.stringify(envelope));
+  expect(result.exitCode).toBe(0);
+  expect(result.stderr).toBe("");
+  const response = JSON.parse(result.stdout);
+  expect(Object.keys(response).sort()).toEqual(
+    [
+      "baseRef",
+      "contract",
+      "expiresAt",
+      "holder",
+      "issuedAt",
+      "relationshipId",
+      "relationshipKind",
+      "relationshipState",
+      "repositoryId",
+      "requestId",
+      "selectedVersion",
+      "settlementRef",
+      "taskId",
+      "taskState",
+    ].sort(),
+  );
+  expect(response.requestId).toBe("b".repeat(32));
+  expect(response.selectedVersion).toBe(1);
+  expect(response.taskId).toBe("T-1");
+  expect(response.contract).toBe("opum-agent-workflow");
+});
+
+test("stdin transport rejects unknown fields, bad ids, and wrong contracts", async () => {
+  for (const body of [
+    JSON.stringify({
+      contract: "opum-agent-workflow",
+      supportedVersions: [1],
+      requestId: "c".repeat(32),
+      taskId: "T-1",
+      extra: true,
+    }),
+    JSON.stringify({
+      contract: "other",
+      supportedVersions: [1],
+      requestId: "c".repeat(32),
+      taskId: "T-1",
+    }),
+    JSON.stringify({
+      contract: "opum-agent-workflow",
+      supportedVersions: [1],
+      requestId: "nope",
+      taskId: "T-1",
+    }),
+    "{not json",
+  ]) {
+    const result = await spawnBinding(body);
+    if (result.exitCode !== 0 && result.stderr.length === 0) {
+      throw new Error(`empty stderr for body ${body}: stdout=${result.stdout}`);
+    }
+    expect(result.exitCode).not.toBe(0);
+    const diag = JSON.parse(result.stderr);
+    if (diag.input?.code !== "OPUM_WORKFLOW_QUEST_INCOMPATIBLE") {
+      throw new Error(`body ${body}: ${result.stderr}`);
+    }
+    expect(diag.input.code).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+  }
 });

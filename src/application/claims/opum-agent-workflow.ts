@@ -19,6 +19,7 @@ import type { Actor } from "../../domain/records.ts";
 import type { TaskRelationshipRecord } from "../../ports/claims.ts";
 
 export { OpumAgentWorkflowError };
+export { parseTaskBindingRequestV1 } from "../../domain/claims/opum-agent-workflow.ts";
 export type { QuestTaskBindingV1Response };
 
 /** Minimal read projection of the bound task; canonical alias resolution happens upstream. */
@@ -33,6 +34,8 @@ export interface TaskBindingReadModel {
   claimEvents(taskId: string): Promise<readonly ClaimEvent[]>;
   actors(): Promise<readonly Actor[]>;
   relationship(id: string): Promise<TaskRelationshipRecord | null>;
+  /** Stdin transport: resolve the authoritative record for a task. */
+  relationshipForTask?(taskId: string): Promise<TaskRelationshipRecord | null>;
   /** Derived from the exact Quest workspace, compared against the request. */
   repositoryId(): Promise<string>;
 }
@@ -47,6 +50,12 @@ export interface TaskBindingCommand {
   readonly settlementRef: string;
   readonly requestId: string;
   readonly now?: Date;
+  /**
+   * Stdin transport mode: the facade supplies only contract/requestId/taskId,
+   * so caller assertion inputs are absent and the authoritative relationship
+   * record is the single source for holder/base/settlement comparisons.
+   */
+  readonly deriveAssertionsFromRecord?: boolean;
 }
 
 function generationBound(
@@ -90,7 +99,11 @@ export class OpumAgentWorkflowBindingService {
       requestId: command.requestId,
       taskId: subject.id,
     });
-    const record = await this.model.relationship(command.claimOrCorrelationId);
+    const record =
+      command.deriveAssertionsFromRecord && this.model.relationshipForTask
+        ? ((await this.model.relationshipForTask(subject.id)) ??
+          (await this.model.relationship(command.claimOrCorrelationId)))
+        : await this.model.relationship(command.claimOrCorrelationId);
     let claim: ClaimGenerationEvidence | undefined;
     if (record?.kind === "claim") {
       try {
@@ -131,7 +144,11 @@ export class OpumAgentWorkflowBindingService {
     return evaluateTaskBindingV1({
       request,
       subject: { taskId: subject.id, status: subject.status },
-      identity: command.claimOrCorrelationId,
+      // Stdin mode binds by task; the authoritative record's own id is the
+      // accepted relationship identity emitted in the response.
+      identity: command.deriveAssertionsFromRecord
+        ? (record?.id ?? "")
+        : command.claimOrCorrelationId,
       record: record
         ? ({
             id: record.id,
@@ -149,10 +166,18 @@ export class OpumAgentWorkflowBindingService {
         expiresAt,
         observedAt: now,
         derivedRepositoryId: await this.model.repositoryId(),
-        requestedRepositoryId: command.repositoryId,
-        requestedHolder: command.holder,
-        requestedBaseRef: command.baseRef,
-        requestedSettlementRef: command.settlementRef,
+        requestedRepositoryId: command.deriveAssertionsFromRecord
+          ? await this.model.repositoryId()
+          : command.repositoryId,
+        requestedHolder: command.deriveAssertionsFromRecord
+          ? (record?.holder ?? claim?.holderId ?? "")
+          : command.holder,
+        requestedBaseRef: command.deriveAssertionsFromRecord
+          ? (record?.baseRef ?? "")
+          : command.baseRef,
+        requestedSettlementRef: command.deriveAssertionsFromRecord
+          ? (record?.settlementRef ?? "")
+          : command.settlementRef,
       },
     });
   }
