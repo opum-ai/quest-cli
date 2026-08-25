@@ -398,6 +398,7 @@ async function nextPlanningId(
 export async function runQuest(
   input: readonly string[],
   stdoutIsTty: boolean,
+  stdinIsTty: boolean = process.stdin.isTTY === true,
 ): Promise<InvocationResult> {
   try {
     const resolvedModes = resolveOutputModes(input);
@@ -1231,45 +1232,46 @@ export async function runQuest(
     }
     if (command === "binding") {
       const parsed = flags(rest);
-      const stdinIsTerminal = process.stdin.isTTY === true;
-      const stdinTransport =
-        (parsed ? !one(parsed, "--task") : true) && !stdinIsTerminal;
+      const bindingFlagNames = [
+        "--task",
+        "--claim-or-correlation",
+        "--holder",
+        "--repository",
+        "--base",
+        "--settlement",
+      ] as const;
+      // Non-TTY stdin is piped input. Piped transport requires the exact
+      // envelope and NO binding flag; a complete flag set over an empty or
+      // closed pipe remains the legacy flag-driven form (AC byte-compat).
+      const stdinIsPiped = stdinIsTty !== true;
+      const suppliedBindingFlags = parsed
+        ? bindingFlagNames.filter((flag) => one(parsed, flag) !== undefined)
+        : [];
+      let pipedBody: string | null = null;
+      if (stdinIsPiped) {
+        pipedBody = await Bun.stdin.text();
+        if (suppliedBindingFlags.length > 0 && pipedBody.trim() !== "") {
+          return failure(
+            "usage",
+            "task binding accepts either the piped stdin request envelope alone or the complete --task/--claim-or-correlation/--holder/--repository/--base/--settlement flag set, never both.",
+          );
+        }
+      }
+      const flagsIncomplete =
+        !parsed ||
+        (suppliedBindingFlags.length > 0 &&
+          bindingFlagNames.some((flag) => one(parsed, flag) === undefined));
       if (
         !parsed ||
-        !only(parsed, [
-          "--contract",
-          "--task",
-          "--claim-or-correlation",
-          "--holder",
-          "--repository",
-          "--base",
-          "--settlement",
-        ]) ||
+        !only(parsed, ["--contract", ...bindingFlagNames]) ||
         !one(parsed, "--contract") ||
-        (!stdinTransport &&
-          (!one(parsed, "--task") ||
-            !one(parsed, "--claim-or-correlation") ||
-            !one(parsed, "--holder") ||
-            !one(parsed, "--repository") ||
-            !one(parsed, "--base") ||
-            !one(parsed, "--settlement")))
+        flagsIncomplete
       )
         return failure(
           "usage",
-          "task binding requires --contract plus either the stdin request envelope or --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
+          "task binding requires --contract plus either the piped stdin request envelope alone or all of --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
         );
-      if (
-        stdinTransport &&
-        (!!one(parsed, "--claim-or-correlation") ||
-          !!one(parsed, "--holder") ||
-          !!one(parsed, "--repository") ||
-          !!one(parsed, "--base") ||
-          !!one(parsed, "--settlement"))
-      )
-        return failure(
-          "usage",
-          "stdin transport accepts only --contract and output mode flags.",
-        );
+      const stdinTransport = stdinIsPiped && suppliedBindingFlags.length === 0;
       const root = await resolvedRoot();
       // No mutable pre-snapshot task read: the raw reference is resolved
       // entirely inside the immutable revision-pinned snapshot model.
@@ -1284,7 +1286,7 @@ export async function runQuest(
         // stdin; parse and validate it strictly before any resolution.
         let parsedEnvelope: unknown;
         try {
-          parsedEnvelope = parseStrictJson(await Bun.stdin.text());
+          parsedEnvelope = parseStrictJson(pipedBody ?? "");
         } catch {
           return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
             input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
@@ -1325,7 +1327,9 @@ export async function runQuest(
             : error.code === "OPUM_WORKFLOW_QUEST_INCOMPATIBLE"
               ? "drift"
               : "conflict";
-        return failure(errorType, error.code, { input: { code: error.code } });
+        return failure(errorType, error.code, {
+          input: { code: error.code },
+        });
       }
       if (resolvedModes.json || parsed?.json) {
         // The public v1 surface prints the exact binding envelope on stdout.

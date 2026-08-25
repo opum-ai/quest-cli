@@ -14,10 +14,9 @@ let repositoryId = "";
 let previousCwd = "";
 
 async function quest(arguments_: string[], stdin?: string) {
-  if (stdin === undefined) return runQuest([...arguments_, "--json"], false);
-  // Stdin transport: pipe the envelope through runQuest's real stdin.
-  const { runQuest: rq } = await import("../../src/cli/main.ts");
-  void rq;
+  if (stdin === undefined)
+    return runQuest([...arguments_, "--json"], false, true);
+  // Stdin transport: pipe the envelope through the real CLI process.
   const child = Bun.spawn(
     ["bun", "run", join("src/cli/main.ts"), ...arguments_, "--json"],
     {
@@ -121,6 +120,7 @@ beforeAll(async () => {
     "human",
   ]);
   expect(edited.exitCode).toBe(0);
+  await commitAll();
 });
 
 afterAll(async () => {
@@ -146,6 +146,23 @@ function bindingArguments(overrides: Record<string, string> = {}) {
   return arguments_;
 }
 
+const EXPECTED_KEYS = [
+  "baseRef",
+  "contract",
+  "expiresAt",
+  "holder",
+  "issuedAt",
+  "relationshipId",
+  "relationshipKind",
+  "relationshipState",
+  "repositoryId",
+  "requestId",
+  "selectedVersion",
+  "settlementRef",
+  "taskId",
+  "taskState",
+].sort();
+
 test("manifest and help expose the read-only binding command", async () => {
   const manifest = await quest(["manifest"]);
   expect(manifest.exitCode).toBe(0);
@@ -162,7 +179,7 @@ test("manifest and help expose the read-only binding command", async () => {
   ).toBe(true);
 });
 
-test("prints the exact public v1 envelope with the closed key set", async () => {
+test("flag transport prints the exact closed-key public v1 envelope", async () => {
   await writeRelationship(correlation, {
     kind: "correlation",
     state: "accepted",
@@ -174,24 +191,7 @@ test("prints the exact public v1 envelope with the closed key set", async () => 
   expect(result.exitCode).toBe(0);
   expect(result.stderr).toBe("");
   const response = JSON.parse(result.stdout);
-  expect(Object.keys(response).sort()).toEqual(
-    [
-      "baseRef",
-      "contract",
-      "expiresAt",
-      "holder",
-      "issuedAt",
-      "relationshipId",
-      "relationshipKind",
-      "relationshipState",
-      "repositoryId",
-      "requestId",
-      "selectedVersion",
-      "settlementRef",
-      "taskId",
-      "taskState",
-    ].sort(),
-  );
+  expect(Object.keys(response).sort()).toEqual(EXPECTED_KEYS);
   expect(response.contract).toBe("opum-agent-workflow");
   expect(response.selectedVersion).toBe(1);
   expect(response.requestId).toMatch(/^[0-9a-f]{32}$/);
@@ -372,15 +372,7 @@ async function makeReadyTask(id: string): Promise<void> {
     "--actor-kind",
     "human",
   ]);
-  if (created.exitCode !== 0)
-    throw new Error(
-      "create: " +
-        created.stderr +
-        " | tasks:" +
-        require("node:fs")
-          .readdirSync(join(workspace, ".quest", "tasks"))
-          .join(","),
-    );
+  expect(created.exitCode).toBe(0);
   const edited = await quest([
     "task",
     "edit",
@@ -409,10 +401,18 @@ async function writeTaskRelationship(
   await commitAll();
 }
 
-async function spawnBindingFor(
-  taskId: string,
-  requestId: string,
-  extraFlags: readonly string[] = [],
+function envelope(taskId: string, requestId: string): string {
+  return JSON.stringify({
+    contract: "opum-agent-workflow",
+    supportedVersions: [1],
+    requestId,
+    taskId,
+  });
+}
+
+async function spawnRawStdin(
+  extraFlags: readonly string[],
+  stdinBody: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const child = Bun.spawn(
     [
@@ -433,14 +433,7 @@ async function spawnBindingFor(
       env: { ...Bun.env, QUEST_TASK_STORE: workspace },
     },
   );
-  child.stdin.write(
-    JSON.stringify({
-      contract: "opum-agent-workflow",
-      supportedVersions: [1],
-      requestId,
-      taskId,
-    }),
-  );
+  child.stdin.write(stdinBody);
   await child.stdin.end();
   return {
     exitCode: await child.exited,
@@ -449,40 +442,29 @@ async function spawnBindingFor(
   };
 }
 
-const EXPECTED_KEYS = [
-  "baseRef",
-  "contract",
-  "expiresAt",
-  "holder",
-  "issuedAt",
-  "relationshipId",
-  "relationshipKind",
-  "relationshipState",
-  "repositoryId",
-  "requestId",
-  "selectedVersion",
-  "settlementRef",
-  "taskId",
-  "taskState",
-].sort();
+async function spawnBindingFor(
+  taskId: string,
+  requestId: string,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return spawnRawStdin([], envelope(taskId, requestId));
+}
 
 test("stdin transport resolves tasks exclusively from the pinned snapshot", async () => {
   await makeReadyTask("T-5");
   // Uncommitted hostile replacement cannot influence the pinned read.
-  const originalTask = await Bun.file(
-    join(workspace, ".quest", "tasks", "T-5.json"),
-  ).text();
-  await writeFile(
-    join(workspace, ".quest", "tasks", "T-5.json"),
-    '{"id":"EVIL"}',
-  );
-  const result = await spawnBindingFor("T-5", "f".repeat(32));
-  expect(result.exitCode).not.toBe(0);
-  expect(JSON.parse(result.stderr).input.code).toBe(
-    "OPUM_WORKFLOW_QUEST_ABSENT",
-  );
-  // Restore the committed worktree content so later operations are healthy.
-  await writeFile(join(workspace, ".quest", "tasks", "T-5.json"), originalTask);
+  const taskPath = join(workspace, ".quest", "tasks", "T-5.json");
+  const originalTask = await Bun.file(taskPath).text();
+  try {
+    await writeFile(taskPath, '{"id":"EVIL"}');
+    const result = await spawnBindingFor("T-5", "f".repeat(32));
+    expect(result.exitCode).not.toBe(0);
+    expect(JSON.parse(result.stderr).input.code).toBe(
+      "OPUM_WORKFLOW_QUEST_ABSENT",
+    );
+  } finally {
+    // Restore the committed worktree content so later operations are healthy.
+    await writeFile(taskPath, originalTask);
+  }
 });
 
 test("stdin transport binds a committed correlation record end-to-end", async () => {
@@ -509,70 +491,258 @@ test("stdin transport binds a committed correlation record end-to-end", async ()
   expect(response.holder).toBe("agent-1");
 });
 
-test("stdin transport refuses mixed transport and duplicate keys", async () => {
-  const mixed = Bun.spawn(
+test("stdin transport binds a live claim through CAS replay", async () => {
+  await makeReadyTask("T-7");
+  const claimsDirectory = join(workspace, ".quest", "claims");
+  await mkdir(claimsDirectory, { recursive: true });
+  await Bun.write(
+    join(claimsDirectory, "actors.json"),
+    JSON.stringify([
+      { id: "human", kind: "human", roles: ["maintainer"] },
+      {
+        id: "agent-1",
+        kind: "delegated-agent",
+        accountableHumanId: "human",
+        roles: [],
+      },
+    ]),
+  );
+  await writeFile(
+    join(claimsDirectory, "T-7.jsonl"),
     [
-      "bun",
-      new URL("../../src/cli/main.ts", import.meta.url).pathname,
-      "task",
-      "binding",
-      "--contract",
-      "opum-agent-workflow/v1",
-      "--json",
-      "--holder",
-      "someone",
-    ],
-    {
-      cwd: workspace,
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: { ...Bun.env, QUEST_TASK_STORE: workspace },
-    },
+      {
+        eventId: "claim-t7",
+        operationId: "op-t7-1",
+        taskId: "T-7",
+        kind: "claimed",
+        generation: "g1",
+        holderId: "agent-1",
+        accountableHumanId: "human",
+        at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      },
+      {
+        eventId: "renew-t7",
+        operationId: "op-t7-2",
+        taskId: "T-7",
+        kind: "renewed",
+        generation: "g1",
+        holderId: "agent-1",
+        accountableHumanId: "human",
+        at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      },
+    ]
+      .map((event) => JSON.stringify(event))
+      .join("\n"),
   );
-  mixed.stdin.write(
-    JSON.stringify({
-      contract: "opum-agent-workflow",
-      supportedVersions: [1],
-      requestId: "b".repeat(32),
-      taskId: "T-6",
-    }),
-  );
-  await mixed.stdin.end();
-  expect(await mixed.exited).not.toBe(0);
+  await commitAll();
+  await writeTaskRelationship("stdin-claim-1", "T-7", {
+    kind: "claim",
+    state: "accepted",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const result = await spawnBindingFor("T-7", "9".repeat(32));
+  expect(result.exitCode).toBe(0);
+  expect(result.stderr).toBe("");
+  const response = JSON.parse(result.stdout);
+  expect(response.relationshipKind).toBe("claim");
+  expect(response.relationshipState).toBe("active");
+  expect(response.holder).toBe("agent-1");
+});
 
+test("stdin transport refuses duplicate, escaped-duplicate, and trailing input", async () => {
+  // Top-level duplicate key (JSON.parse alone would silently last-write-win).
   const dupBody =
     '{"contract":"opum-agent-workflow","supportedVersions":[1],"requestId":"' +
     "c".repeat(32) +
     '","taskId":"T-6","requestId":"' +
     "d".repeat(32) +
     '"}';
-  const dup = Bun.spawn(
-    [
-      "bun",
-      new URL("../../src/cli/main.ts", import.meta.url).pathname,
-      "task",
-      "binding",
-      "--contract",
-      "opum-agent-workflow/v1",
-      "--json",
-    ],
-    {
-      cwd: workspace,
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: { ...Bun.env, QUEST_TASK_STORE: workspace },
-    },
+  const dup = await spawnRawStdin([], dupBody);
+  expect(dup.exitCode).not.toBe(0);
+  expect(JSON.parse(dup.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
   );
-  dup.stdin.write(dupBody);
-  await dup.stdin.end();
-  expect(await dup.exited).not.toBe(0);
-  const diag = JSON.parse(await new Response(dup.stderr).text());
-  expect(diag.input.code).toBe("OPUM_WORKFLOW_QUEST_INCOMPATIBLE");
+
+  // Nested-object duplicate keys are caught by the recursive scanner.
+  const nestedDupBody =
+    '{"contract":"opum-agent-workflow","supportedVersions":[1],"requestId":"' +
+    "c".repeat(32) +
+    '","taskId":"T-6","extra":{"a":1,"a":2}}';
+  const nestedDup = await spawnRawStdin([], nestedDupBody);
+  expect(nestedDup.exitCode).not.toBe(0);
+  expect(JSON.parse(nestedDup.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+
+  // Escaped-equivalent names decode to the same member name.
+  const escapedBody =
+    '{"contract":"opum-agent-workflow","supportedVersions":[1],"requestId":"' +
+    "c".repeat(32) +
+    '","\\u0074askId":"T-6","taskId":"T-6"}';
+  const escaped = await spawnRawStdin([], escapedBody);
+  expect(escaped.exitCode).not.toBe(0);
+  expect(JSON.parse(escaped.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+
+  // Trailing content after the envelope is refused.
+  const trailing = await spawnRawStdin(
+    [],
+    `${envelope("T-6", "e".repeat(32))} {"x":1}`,
+  );
+  expect(trailing.exitCode).not.toBe(0);
+  expect(JSON.parse(trailing.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+
+  // Malformed unicode escape is refused before any semantic validation.
+  const badEscapeBody =
+    '{"contract":"opum-agent-workflow","supportedVersions":[1],"requestId":"' +
+    "c".repeat(32) +
+    '","taskId":"T-\\u12g4"}';
+  const badEscape = await spawnRawStdin([], badEscapeBody);
+  expect(badEscape.exitCode).not.toBe(0);
+  expect(JSON.parse(badEscape.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
 });
 
-test("stdin transport reports terminal relationship state as STATE and preserves freshness evidence", async () => {
+test("any binding flag combined with a non-empty piped envelope is a usage refusal", async () => {
+  const bindingFlags = [
+    "--task",
+    "--claim-or-correlation",
+    "--holder",
+    "--repository",
+    "--base",
+    "--settlement",
+  ];
+  for (const flag of bindingFlags) {
+    const result = await spawnRawStdin(
+      [flag, "x"],
+      envelope("T-6", "b".repeat(32)),
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(JSON.parse(result.stderr).error_type).toBe("usage");
+  }
+});
+
+test("complete flag set over an empty pipe stays byte-compatible flag mode", async () => {
+  await writeRelationship(correlation, {
+    kind: "correlation",
+    state: "accepted",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const result = await spawnRawStdin(bindingArguments().slice(4), "");
+  expect(result.exitCode, result.stderr.slice(0, 400)).toBe(0);
+  expect(result.stderr).toBe("");
+  const response = JSON.parse(result.stdout);
+  expect(Object.keys(response).sort()).toEqual(EXPECTED_KEYS);
+  expect(response.taskId).toBe("T-1");
+});
+
+test("partial flag set without a piped envelope is a usage refusal", async () => {
+  const result = await spawnRawStdin(["--task", "T-1"], "");
+  expect(result.exitCode).not.toBe(0);
+  expect(JSON.parse(result.stderr).error_type).toBe("usage");
+});
+
+test("stdin transport accepts pretty-printed and whitespace-padded envelopes", async () => {
+  const pretty = spawnRawStdin(
+    [],
+    JSON.stringify(
+      {
+        contract: "opum-agent-workflow",
+        supportedVersions: [1],
+        requestId: "7".repeat(32),
+        taskId: "T-6",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  const padded = spawnRawStdin(
+    [],
+    '{ "contract" : "opum-agent-workflow" ,\n' +
+      '  "supportedVersions" : [ 1 ] ,\n' +
+      '  "requestId" : "' +
+      "8".repeat(32) +
+      '" ,\n' +
+      '  "taskId" : "T-6" }\n',
+  );
+  for (const result of await Promise.all([pretty, padded])) {
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    const response = JSON.parse(result.stdout);
+    expect(response.contract).toBe("opum-agent-workflow");
+    expect(response.selectedVersion).toBe(1);
+    expect(response.taskId).toBe("T-6");
+    expect(Object.keys(response).sort()).toEqual(EXPECTED_KEYS);
+  }
+});
+
+test("terminal claim never shadows a live correlation; alone it is STATE", async () => {
+  await makeReadyTask("T-9");
+  // Terminal/superseded claim record plus a live correlation: the live
+  // correlation must be selected successfully.
+  await writeTaskRelationship("claim-t9-superseded", "T-9", {
+    kind: "claim",
+    state: "superseded",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  await writeTaskRelationship("corr-t9-live", "T-9", {
+    kind: "correlation",
+    state: "accepted",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const both = await spawnBindingFor("T-9", "4".repeat(32));
+  expect(both.exitCode).toBe(0);
+  expect(both.stderr).toBe("");
+  const response = JSON.parse(both.stdout);
+  expect(response.relationshipKind).toBe("correlation");
+  expect(response.relationshipId).toBe("corr-t9-live");
+
+  // A terminal claim record alone surfaces the stable STATE diagnostic.
+  await makeReadyTask("T-10");
+  await writeTaskRelationship("claim-t10-done", "T-10", {
+    kind: "claim",
+    state: "done",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const doneOnly = await spawnBindingFor("T-10", "5".repeat(32));
+  expect(JSON.parse(doneOnly.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_STATE",
+  );
+
+  // Two genuinely live records still refuse as ambiguous.
+  await makeReadyTask("T-11");
+  await writeTaskRelationship("corr-t11-a", "T-11", {
+    kind: "correlation",
+    state: "accepted",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  await writeTaskRelationship("corr-t11-b", "T-11", {
+    kind: "correlation",
+    state: "working",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const ambiguous = await spawnBindingFor("T-11", "6".repeat(32));
+  expect(JSON.parse(ambiguous.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+});
+
+test("stdin transport reports terminal relationship state as STATE", async () => {
   await makeReadyTask("T-8");
   await writeTaskRelationship("terminal-corr", "T-8", {
     kind: "correlation",
@@ -581,7 +751,7 @@ test("stdin transport reports terminal relationship state as STATE and preserves
     baseRef: "origin/dev",
     settlementRef: "origin/dev",
   });
-  const result = await spawnBindingFor("T-8", "e".repeat(32));
+  const result = await spawnBindingFor("T-8", "1".repeat(32));
   expect(JSON.parse(result.stderr).input.code).toBe(
     "OPUM_WORKFLOW_QUEST_STATE",
   );
