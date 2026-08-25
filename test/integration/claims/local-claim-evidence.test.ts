@@ -136,14 +136,13 @@ describe("closed authoritative relationship schema (Git-object content)", () => 
       await store();
       try {
         const git = new LocalGitPort();
-        const parent = await git.readRevision(root, "HEAD");
-        const malformed = defect === undefined;
         // The reader addresses blobs by the SHA-256 of the requested identity
         // ("corr-1"); seed the defective content at exactly that path so only
         // the internal schema/id validation can reject it.
         const requestedId = "corr-1";
         const path = `.quest/relationships/${safeStorageName(requestedId)}.json`;
-        const content = malformed ? "{not json" : JSON.stringify(defect);
+        const malformedRecord = _name === "malformedJsonText";
+        const content = malformedRecord ? "{not json" : JSON.stringify(defect);
 
         // Seed the defective blob through fixture Git commands only.
         await commitFiles({ [path]: content });

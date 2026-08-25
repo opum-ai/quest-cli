@@ -8,7 +8,6 @@ import { RecordValidationError } from "../../domain/records.ts";
 import { OpumAgentWorkflowError } from "../../domain/claims/opum-agent-workflow.ts";
 import type {
   ClaimEvidencePort,
-  TaskRelationshipReader,
   TaskRelationshipRecord,
 } from "../../ports/claims.ts";
 import type { TaskRelationshipCasWriter } from "../../ports/claims.ts";
@@ -209,6 +208,63 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       throw unreadable();
     }
     return validateRelationshipRecord(parsed, id);
+  }
+
+  /**
+   * Stdin transport: deterministically resolves the authoritative
+   * relationship record for a task. Ambiguous matches fail closed.
+   */
+  async relationshipForTask(
+    taskId: string,
+  ): Promise<TaskRelationshipRecord | null> {
+    const files = [
+      ...(await this.git.listFiles(
+        this.repositoryPath,
+        this.revision,
+        ".quest/relationships",
+      )),
+    ]
+      .filter((file) => file.endsWith(".json"))
+      .sort();
+    const matches: TaskRelationshipRecord[] = [];
+    for (const file of files) {
+      const text = await this.blob(file);
+      if (text === null) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw unreadable();
+      }
+      let record: TaskRelationshipRecord;
+      try {
+        record = validateRelationshipRecord(
+          parsed,
+          String((parsed as { id?: unknown }).id),
+        );
+      } catch (error) {
+        if (error instanceof OpumAgentWorkflowError) throw error;
+        throw unreadable();
+      }
+      // Stdin transport carries only the task identity, so only
+      // correlation relationships (whose holder/base/settlement live in the
+      // record itself) are bindable without an explicit caller identity.
+      if (
+        record.kind === "correlation" &&
+        record.taskId === taskId &&
+        LIVE_CORRELATION_STATES.has(record.state)
+      ) {
+        matches.push(record);
+      }
+    }
+    if (matches.length === 0) return null;
+    if (matches.length > 1) {
+      throw new OpumAgentWorkflowError(
+        "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+        "Multiple live relationship records bind this task.",
+      );
+    }
+    return matches[0] ?? null;
   }
 
   /**

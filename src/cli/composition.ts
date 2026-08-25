@@ -3,7 +3,6 @@ import { BacklogImporter } from "../adapters/migration/backlog/importer.ts";
 import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
 import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
 import { PlanningService } from "../application/planning/planning.ts";
-import { TaskService } from "../application/tasks/tasks.ts";
 import { BacklogImportService } from "../application/migration/backlog-public.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import { join } from "node:path";
@@ -71,6 +70,7 @@ export async function createTaskBindingModel(
     claimEvents: (taskId) => snapshot.events(taskId),
     actors: () => snapshot.actors(),
     relationship: (id) => snapshot.relationship(id),
+    relationshipForTask: (taskId) => snapshot.relationshipForTask(taskId),
     repositoryId: async () => workspace.commonDirectory,
   };
 }

@@ -21,6 +21,7 @@ import { LocalTaskRepository } from "../application/tasks/local-task-repository.
 import { TaskService } from "../application/tasks/tasks.ts";
 import { OpumAgentWorkflowBindingService } from "../application/claims/opum-agent-workflow.ts";
 import { OpumAgentWorkflowError } from "../application/claims/opum-agent-workflow.ts";
+import { parseTaskBindingRequestV1 } from "../application/claims/opum-agent-workflow.ts";
 import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
 import {
   initializeWorkspace,
@@ -1227,6 +1228,9 @@ export async function runQuest(
     }
     if (command === "binding") {
       const parsed = flags(rest);
+      const stdinIsTerminal = process.stdin.isTTY === true;
+      const stdinTransport =
+        (parsed ? !one(parsed, "--task") : true) && !stdinIsTerminal;
       if (
         !parsed ||
         !only(parsed, [
@@ -1239,16 +1243,17 @@ export async function runQuest(
           "--settlement",
         ]) ||
         !one(parsed, "--contract") ||
-        !one(parsed, "--task") ||
-        !one(parsed, "--claim-or-correlation") ||
-        !one(parsed, "--holder") ||
-        !one(parsed, "--repository") ||
-        !one(parsed, "--base") ||
-        !one(parsed, "--settlement")
+        (!stdinTransport &&
+          (!one(parsed, "--task") ||
+            !one(parsed, "--claim-or-correlation") ||
+            !one(parsed, "--holder") ||
+            !one(parsed, "--repository") ||
+            !one(parsed, "--base") ||
+            !one(parsed, "--settlement")))
       )
         return failure(
           "usage",
-          "task binding requires --contract, --task, --claim-or-correlation, --holder, --repository, --base, and --settlement.",
+          "task binding requires --contract plus either the stdin request envelope or --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
         );
       const root = await resolvedRoot();
       // No mutable pre-snapshot task read: the raw reference is resolved
@@ -1256,17 +1261,46 @@ export async function runQuest(
       const bindingService = new OpumAgentWorkflowBindingService(
         await createTaskBindingModel(root),
       );
+      let envelopeTaskId = one(parsed, "--task") ?? "";
+      let envelopeRequestId = crypto.randomUUID().replaceAll("-", "");
+      let deriveAssertionsFromRecord = false;
+      if (stdinTransport) {
+        // The deployed opum-agent facade writes the exact request envelope to
+        // stdin; parse and validate it strictly before any resolution.
+        let parsedEnvelope: unknown;
+        try {
+          parsedEnvelope = JSON.parse(await Bun.stdin.text());
+        } catch {
+          return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
+            input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
+          });
+        }
+        let checked: ReturnType<typeof parseTaskBindingRequestV1>;
+        try {
+          checked = parseTaskBindingRequestV1(parsedEnvelope);
+        } catch (error) {
+          if (!(error instanceof OpumAgentWorkflowError)) throw error;
+          return failure("drift", error.code, {
+            input: { code: error.code },
+          });
+        }
+        envelopeTaskId = checked.taskId;
+        envelopeRequestId = checked.requestId;
+        deriveAssertionsFromRecord = true;
+      }
       let response: QuestTaskBindingV1Response;
       try {
         response = await bindingService.bind({
           contract: one(parsed, "--contract") ?? "",
-          taskId: one(parsed, "--task") ?? "",
-          claimOrCorrelationId: one(parsed, "--claim-or-correlation") ?? "",
+          taskId: envelopeTaskId,
+          claimOrCorrelationId:
+            one(parsed, "--claim-or-correlation") ?? envelopeTaskId,
           holder: one(parsed, "--holder") ?? "",
           repositoryId: one(parsed, "--repository") ?? "",
           baseRef: one(parsed, "--base") ?? "",
           settlementRef: one(parsed, "--settlement") ?? "",
-          requestId: crypto.randomUUID().replaceAll("-", ""),
+          requestId: envelopeRequestId,
+          deriveAssertionsFromRecord,
         });
       } catch (error) {
         if (!(error instanceof OpumAgentWorkflowError)) throw error;
