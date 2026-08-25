@@ -113,6 +113,7 @@ export function parseStrictJson(text: string): unknown {
   };
 
   const scanValue = (): unknown => {
+    skipWhitespace();
     const character = text[position] ?? "";
     if (character === "{") {
       position += 1;
@@ -130,6 +131,7 @@ export function parseStrictJson(text: string): unknown {
         skipWhitespace();
         if ((text[position] ?? "") !== ":") fail('Expected ":".');
         position += 1;
+        skipWhitespace();
         obj[name] = scanValue();
         skipWhitespace();
         const separator = text[position] ?? "";

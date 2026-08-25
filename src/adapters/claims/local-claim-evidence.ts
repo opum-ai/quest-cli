@@ -61,6 +61,13 @@ const RELATIONSHIP_STATES = new Set([
   "done",
 ]);
 const LIVE_CORRELATION_STATES = new Set(["accepted", "delivered", "working"]);
+const TERMINAL_RELATIONSHIP_STATES = new Set([
+  "cancelled",
+  "rejected",
+  "expired",
+  "superseded",
+  "done",
+]);
 
 /**
  * Closed authoritative schema validation on Git-object content. Exact keys,
@@ -265,9 +272,14 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
         }
         continue;
       }
-      // Claim-kind candidates: true liveness is proven by replaying the full
-      // committed event history under CAS semantics before selection, so a
-      // stale/expired/superseded claim can never shadow a live correlation.
+      // Claim-kind candidates: record state is classified FIRST, so a
+      // terminal/superseded/done claim record can never be promoted to live
+      // merely because some task-level lease is live. Only non-terminal claim
+      // records earn CAS replay liveness against the committed history.
+      if (TERMINAL_RELATIONSHIP_STATES.has(record.state)) {
+        nonLiveMatches.push(record);
+        continue;
+      }
       claimCandidates.push(record);
     }
     let history: ClaimHistory | undefined;

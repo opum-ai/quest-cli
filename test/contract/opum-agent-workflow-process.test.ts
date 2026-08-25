@@ -649,6 +649,99 @@ test("partial flag set without a piped envelope is a usage refusal", async () =>
   expect(JSON.parse(result.stderr).error_type).toBe("usage");
 });
 
+test("stdin transport accepts pretty-printed and whitespace-padded envelopes", async () => {
+  const pretty = spawnRawStdin(
+    [],
+    JSON.stringify(
+      {
+        contract: "opum-agent-workflow",
+        supportedVersions: [1],
+        requestId: "7".repeat(32),
+        taskId: "T-6",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  const padded = spawnRawStdin(
+    [],
+    '{ "contract" : "opum-agent-workflow" ,\n' +
+      '  "supportedVersions" : [ 1 ] ,\n' +
+      '  "requestId" : "' +
+      "8".repeat(32) +
+      '" ,\n' +
+      '  "taskId" : "T-6" }\n',
+  );
+  for (const result of await Promise.all([pretty, padded])) {
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    const response = JSON.parse(result.stdout);
+    expect(response.contract).toBe("opum-agent-workflow");
+    expect(response.selectedVersion).toBe(1);
+    expect(response.taskId).toBe("T-6");
+    expect(Object.keys(response).sort()).toEqual(EXPECTED_KEYS);
+  }
+});
+
+test("terminal claim never shadows a live correlation; alone it is STATE", async () => {
+  await makeReadyTask("T-9");
+  // Terminal/superseded claim record plus a live correlation: the live
+  // correlation must be selected successfully.
+  await writeTaskRelationship("claim-t9-superseded", "T-9", {
+    kind: "claim",
+    state: "superseded",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  await writeTaskRelationship("corr-t9-live", "T-9", {
+    kind: "correlation",
+    state: "accepted",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const both = await spawnBindingFor("T-9", "4".repeat(32));
+  expect(both.exitCode).toBe(0);
+  expect(both.stderr).toBe("");
+  const response = JSON.parse(both.stdout);
+  expect(response.relationshipKind).toBe("correlation");
+  expect(response.relationshipId).toBe("corr-t9-live");
+
+  // A terminal claim record alone surfaces the stable STATE diagnostic.
+  await makeReadyTask("T-10");
+  await writeTaskRelationship("claim-t10-done", "T-10", {
+    kind: "claim",
+    state: "done",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const doneOnly = await spawnBindingFor("T-10", "5".repeat(32));
+  expect(JSON.parse(doneOnly.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_STATE",
+  );
+
+  // Two genuinely live records still refuse as ambiguous.
+  await makeReadyTask("T-11");
+  await writeTaskRelationship("corr-t11-a", "T-11", {
+    kind: "correlation",
+    state: "accepted",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  await writeTaskRelationship("corr-t11-b", "T-11", {
+    kind: "correlation",
+    state: "working",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const ambiguous = await spawnBindingFor("T-11", "6".repeat(32));
+  expect(JSON.parse(ambiguous.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+});
+
 test("stdin transport reports terminal relationship state as STATE", async () => {
   await makeReadyTask("T-8");
   await writeTaskRelationship("terminal-corr", "T-8", {
