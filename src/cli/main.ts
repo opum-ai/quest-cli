@@ -398,6 +398,7 @@ async function nextPlanningId(
 export async function runQuest(
   input: readonly string[],
   stdoutIsTty: boolean,
+  stdinIsTty: boolean = process.stdin.isTTY === true,
 ): Promise<InvocationResult> {
   try {
     const resolvedModes = resolveOutputModes(input);
@@ -1241,7 +1242,7 @@ export async function runQuest(
       ] as const;
       // Non-TTY stdin is piped input; the facade transport is then the only
       // accepted form and NO binding flag may accompany it.
-      const stdinIsPiped = process.stdin.isTTY !== true;
+      const stdinIsPiped = stdinIsTty !== true;
       const suppliedBindingFlags = parsed
         ? bindingFlagNames.filter((flag) => one(parsed, flag) !== undefined)
         : [];
@@ -1312,7 +1313,7 @@ export async function runQuest(
               ? "drift"
               : "conflict";
         return failure(errorType, error.code, {
-          input: { code: error.code, detail: error.message },
+          input: { code: error.code },
         });
       }
       if (resolvedModes.json || parsed?.json) {

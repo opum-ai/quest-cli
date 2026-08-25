@@ -61,13 +61,6 @@ const RELATIONSHIP_STATES = new Set([
   "done",
 ]);
 const LIVE_CORRELATION_STATES = new Set(["accepted", "delivered", "working"]);
-const TERMINAL_RELATIONSHIP_STATES = new Set([
-  "cancelled",
-  "rejected",
-  "expired",
-  "superseded",
-  "done",
-]);
 
 /**
  * Closed authoritative schema validation on Git-object content. Exact keys,
@@ -277,35 +270,34 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       // stale/expired/superseded claim can never shadow a live correlation.
       claimCandidates.push(record);
     }
-    for (const record of claimCandidates) {
+    let history: ClaimHistory | undefined;
+    let liveLease = false;
+    let anomalyCount = 0;
+    if (claimCandidates.length > 0) {
+      // One snapshot read shared by every claim candidate; a corrupt or
+      // unordered committed history is repository state corruption and fails
+      // closed instead of silently demoting candidates to non-live.
       const events = await this.events(taskId);
       const actors = await this.actors();
-      let live = false;
       try {
-        const history = events.length
+        history = events.length
           ? replayClaimHistory(events, actors)
           : undefined;
         const evaluation = evaluateClaim(history, new Date());
-        live =
-          Boolean(history?.lease) &&
-          evaluation.status === "live" &&
-          (evaluation.anomalies?.length ?? 0) === 0 &&
-          (history?.anomalies.length ?? 0) === 0 &&
-          (history as { lease?: { holderId: string } } | undefined)?.lease
-            ?.holderId === record.holder;
-      } catch {
-        live = false;
+        liveLease = Boolean(history?.lease) && evaluation.status === "live";
+        anomalyCount =
+          (evaluation.anomalies?.length ?? 0) +
+          (history?.anomalies.length ?? 0);
+      } catch (error) {
+        if (error instanceof OpumAgentWorkflowError) throw error;
+        throw corruptClaimEvidence();
       }
-      const leaseHolderId = (
-        history as unknown as { lease?: { holderId: string } } | undefined
-      )?.lease?.holderId;
-      if (live) {
-        liveClaims.push({ ...record, holder: leaseHolderId });
+    }
+    for (const record of claimCandidates) {
+      if (liveLease && anomalyCount === 0) {
+        liveClaims.push(record);
       } else {
-        nonLiveMatches.push({
-          ...record,
-          holder: record.holder,
-        });
+        nonLiveMatches.push(record);
       }
     }
     matches.push(...liveCorrelations, ...liveClaims);
@@ -353,8 +345,7 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
-      } catch (error) {
-        console.error("DBGUNREADABLE-parse", String(error));
+      } catch {
         throw unreadable();
       }
       // Authoritative domain validation: malformed committed records fail
@@ -362,8 +353,7 @@ export class GitSnapshotEvidence implements ClaimEvidencePort {
       let state: TaskState;
       try {
         state = taskState(parsed as TaskState);
-      } catch (error) {
-        console.error("DBGUNREADABLE-taskstate", String(error));
+      } catch {
         throw unreadable();
       }
       tasks.push(state);

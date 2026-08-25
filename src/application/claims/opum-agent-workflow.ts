@@ -57,9 +57,9 @@ export function parseStrictJson(text: string): unknown {
         position += 1;
         continue;
       }
-      const escape = text[position + 1] ?? "";
+      const escapeChar = text[position + 1] ?? "";
       position += 2;
-      switch (escape) {
+      switch (escapeChar) {
         case '"':
           value += '"';
           break;
@@ -85,9 +85,11 @@ export function parseStrictJson(text: string): unknown {
           value += "\t";
           break;
         case "u": {
-          const code = Number.parseInt(text.slice(position, position + 4), 16);
-          if (Number.isNaN(code)) fail("Invalid unicode escape in key.");
-          value += String.fromCharCode(code);
+          const hex = text.slice(position, position + 4);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) {
+            fail("Invalid unicode escape in key.");
+          }
+          value += String.fromCharCode(Number.parseInt(hex, 16));
           position += 4;
           break;
         }
@@ -98,7 +100,6 @@ export function parseStrictJson(text: string): unknown {
     return fail("Unterminated string in request envelope.");
   };
 
-  const seenContainers = new Set<object>();
   const memberNames = new Map<object, Set<string>>();
 
   const recordMember = (container: object, name: string): void => {
@@ -111,12 +112,11 @@ export function parseStrictJson(text: string): unknown {
     names.add(name);
   };
 
-  const scanValue = (container: object | null): unknown => {
+  const scanValue = (): unknown => {
     const character = text[position] ?? "";
     if (character === "{") {
       position += 1;
       const obj: Record<string, unknown> = {};
-      seenContainers.add(obj);
       skipWhitespace();
       if ((text[position] ?? "") === "}") {
         position += 1;
@@ -124,13 +124,13 @@ export function parseStrictJson(text: string): unknown {
       }
       for (;;) {
         skipWhitespace();
-        if ((text[position] ?? "") !== '"') fail('Expected member name.');
+        if ((text[position] ?? "") !== '"') fail("Expected member name.");
         const name = decodeString();
         recordMember(obj, name);
         skipWhitespace();
         if ((text[position] ?? "") !== ":") fail('Expected ":".');
         position += 1;
-        obj[name] = scanValue(obj);
+        obj[name] = scanValue();
         skipWhitespace();
         const separator = text[position] ?? "";
         if (separator === ",") {
@@ -153,7 +153,7 @@ export function parseStrictJson(text: string): unknown {
         return array;
       }
       for (;;) {
-        array.push(scanValue(null));
+        array.push(scanValue());
         skipWhitespace();
         const separator = text[position] ?? "";
         if (separator === ",") {
@@ -169,15 +169,20 @@ export function parseStrictJson(text: string): unknown {
     }
     if (character === '"') return decodeString();
     const literalStart = position;
-    while (
-      position < text.length &&
-      !/[,}\]\s]/u.test(text[position] ?? "")
-    ) {
+    while (position < text.length && !/[,}\]\s]/u.test(text[position] ?? "")) {
       position += 1;
     }
-    return text.slice(literalStart, position);
+    const literal = text.slice(literalStart, position);
+    if (
+      !/^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)$/u.test(
+        literal,
+      )
+    ) {
+      fail("Invalid literal in request envelope.");
+    }
+    return literal;
   };
-  scanValue(null);
+  scanValue();
   // Require the scan to consume the entire input (trailing whitespace only).
   skipWhitespace();
   if (position < text.length) {

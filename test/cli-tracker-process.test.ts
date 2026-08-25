@@ -37,6 +37,27 @@ async function quest(store: string, argv: readonly string[]) {
   };
 }
 
+async function questWithStdin(
+  store: string,
+  argv: readonly string[],
+  stdinBody: string,
+) {
+  const child = Bun.spawn(["bun", source, ...argv, "--json"], {
+    cwd: store,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...Bun.env, QUEST_TASK_STORE: store },
+  });
+  child.stdin.write(stdinBody);
+  await child.stdin.end();
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
 async function compiledQuest(store: string, argv: readonly string[]) {
   const child = Bun.spawn([compiled, ...argv], {
     cwd: store,
@@ -1078,13 +1099,24 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       const result =
         entry.name === "browser"
           ? await questUntilOutput(store, argv ?? [])
-          : await (async () => {
-              const invocation = await quest(store, argv ?? []);
-              if (invocation.exitCode !== 0)
-                throw new Error(`${entry.name}: ${invocation.stderr}`);
-              expect(invocation.exitCode, entry.name).toBe(0);
-              return invocation;
-            })();
+          : entry.name === "task binding"
+            ? await questWithStdin(
+                store,
+                ["task", "binding", "--contract", "opum-agent-workflow/v1"],
+                JSON.stringify({
+                  contract: "opum-agent-workflow",
+                  supportedVersions: [1],
+                  requestId: "0".repeat(32),
+                  taskId: bound,
+                }),
+              )
+            : await (async () => {
+                const invocation = await quest(store, argv ?? []);
+                if (invocation.exitCode !== 0)
+                  throw new Error(`${entry.name}: ${invocation.stderr}`);
+                expect(invocation.exitCode, entry.name).toBe(0);
+                return invocation;
+              })();
       const diagnostic = result.stderr
         ? (JSON.parse(result.stderr) as { readonly error_type?: string })
         : undefined;
