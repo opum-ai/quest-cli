@@ -21,7 +21,10 @@ import { LocalTaskRepository } from "../application/tasks/local-task-repository.
 import { TaskService } from "../application/tasks/tasks.ts";
 import { OpumAgentWorkflowBindingService } from "../application/claims/opum-agent-workflow.ts";
 import { OpumAgentWorkflowError } from "../application/claims/opum-agent-workflow.ts";
-import { parseTaskBindingRequestV1 } from "../application/claims/opum-agent-workflow.ts";
+import {
+  parseStrictJson,
+  parseTaskBindingRequestV1,
+} from "../application/claims/opum-agent-workflow.ts";
 import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
 import {
   initializeWorkspace,
@@ -1255,6 +1258,18 @@ export async function runQuest(
           "usage",
           "task binding requires --contract plus either the stdin request envelope or --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
         );
+      if (
+        stdinTransport &&
+        (!!one(parsed, "--claim-or-correlation") ||
+          !!one(parsed, "--holder") ||
+          !!one(parsed, "--repository") ||
+          !!one(parsed, "--base") ||
+          !!one(parsed, "--settlement"))
+      )
+        return failure(
+          "usage",
+          "stdin transport accepts only --contract and output mode flags.",
+        );
       const root = await resolvedRoot();
       // No mutable pre-snapshot task read: the raw reference is resolved
       // entirely inside the immutable revision-pinned snapshot model.
@@ -1269,7 +1284,7 @@ export async function runQuest(
         // stdin; parse and validate it strictly before any resolution.
         let parsedEnvelope: unknown;
         try {
-          parsedEnvelope = JSON.parse(await Bun.stdin.text());
+          parsedEnvelope = parseStrictJson(await Bun.stdin.text());
         } catch {
           return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
             input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
