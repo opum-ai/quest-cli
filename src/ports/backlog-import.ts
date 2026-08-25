@@ -18,6 +18,7 @@ export interface BacklogImportRecord {
   readonly ordinal?: number;
   readonly parentTaskId?: string;
   readonly dependencies: readonly string[];
+  readonly milestone?: string;
   readonly acceptanceCriteria: readonly {
     readonly index: number;
     readonly text: string;

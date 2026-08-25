@@ -1,5 +1,6 @@
 import { RecordValidationError } from "../../domain/records.ts";
 import {
+  closeMilestoneReference,
   canonicalizeTaskLinks,
   createDraft,
   createTask,
@@ -20,6 +21,8 @@ import {
   taskState,
   transitionTask,
 } from "../../domain/tasks/tasks.ts";
+import type { MigrationTransactionRepository } from "../../ports/backlog-import.ts";
+import type { PlanningRepository } from "../../ports/planning.ts";
 
 /** The authoritative store is Git-backed in production; query methods deliberately have no write capability. */
 export interface TaskReader {
@@ -95,13 +98,111 @@ export type TaskMutationResult =
     }
   | TaskWriteConflict;
 
+/** Application-level default so CLI composition never imports the domain layer directly. */
+export const defaultTaskLifecyclePolicy = defaultLifecyclePolicy;
+
 export class TaskService {
   constructor(
     private readonly repository: TaskRepository,
     private readonly lifecyclePolicy: LifecyclePolicy = defaultLifecyclePolicy,
     private readonly ownedPathFor = (task: TaskState) =>
       `.quest/tasks/${task.id}.md`,
+    private readonly planning?: PlanningRepository,
   ) {}
+
+  /**
+   * Persists a task whose milestone reference changed with atomic forward/back
+   * milestone closure: the planning revision is verified and both stores are
+   * written in one revision-guarded transaction.
+   */
+  private async persistWithMilestoneClosure(
+    persisted: TaskState,
+    previousMilestoneId: string | undefined,
+    snapshot: TaskReadSnapshot,
+    operationId: string,
+    location: TaskLocation,
+  ): Promise<TaskMutationResult> {
+    const transactional = this.repository as unknown as
+      | MigrationTransactionRepository
+      | undefined;
+    if (
+      !transactional ||
+      typeof transactional.applyTransaction !== "function" ||
+      !this.planning
+    )
+      throw new RecordValidationError("planning_repository_unavailable");
+    const planningSnapshot = await this.planning.read();
+    const milestones = [...planningSnapshot.milestones];
+    const index =
+      persisted.milestoneId !== undefined
+        ? milestones.findIndex((m) => m.id === persisted.milestoneId)
+        : -1;
+    if (persisted.milestoneId !== undefined && index < 0)
+      throw new RecordValidationError("milestone_reference_dangling");
+    let closedTask = persisted;
+    // Close from the pre-change state so closeMilestoneReference observes the
+    // actual transition instead of mistaking a fresh link for drift.
+    const baseTask =
+      persisted.milestoneId !== previousMilestoneId
+        ? { ...persisted, milestoneId: previousMilestoneId }
+        : persisted;
+    const movingFromPrevious =
+      previousMilestoneId !== undefined &&
+      previousMilestoneId !== persisted.milestoneId;
+    if (movingFromPrevious) {
+      // Unlink the previous milestone first so a move is one atomic re-close.
+      const previousIndex = milestones.findIndex(
+        (m) => m.id === previousMilestoneId,
+      );
+      if (previousIndex >= 0) {
+        const unlinked = closeMilestoneReference(
+          baseTask,
+          milestones[previousIndex],
+          false,
+        );
+        closedTask = unlinked.task;
+        milestones[previousIndex] = {
+          ...milestones[previousIndex],
+          taskIds: unlinked.milestone.taskIds,
+        };
+      }
+    }
+    if (
+      persisted.milestoneId !== undefined &&
+      persisted.milestoneId !== previousMilestoneId
+    ) {
+      const closed = closeMilestoneReference(
+        closedTask.milestoneId === persisted.milestoneId
+          ? baseTask
+          : closedTask,
+        milestones[Math.max(index, 0)],
+        true,
+      );
+      closedTask = closed.task;
+      milestones[Math.max(index, 0)] = {
+        ...milestones[Math.max(index, 0)],
+        taskIds: closed.milestone.taskIds,
+      };
+    }
+    const result = await transactional.applyTransaction({
+      expectedTaskRevision: snapshot.revision,
+      expectedPlanningRevision: planningSnapshot.revision,
+      operationId,
+      ownedPaths: [this.ownedPathFor(closedTask)],
+      taskChanges: [{ task: closedTask, location }],
+      milestones,
+      decisions: planningSnapshot.decisions,
+    });
+    return result.kind === "success"
+      ? { kind: "success", task: closedTask, revision: result.revision }
+      : {
+          kind: "conflict",
+          expectedRevision: result.expectedRevision,
+          actualRevision: result.actualRevision,
+          operationId: result.operationId,
+          ownedPaths: result.ownedPaths,
+        };
+  }
   async create(
     id: string,
     input: TaskInput,
@@ -120,6 +221,14 @@ export class TaskService {
       )
     )
       throw new Error("task_already_exists");
+    if (persisted.milestoneId !== undefined)
+      return this.persistWithMilestoneClosure(
+        persisted,
+        undefined,
+        snapshot,
+        operationId,
+        "tasks",
+      );
     const result = await this.repository.write({
       task: persisted,
       expectedRevision: snapshot.revision,
@@ -372,6 +481,18 @@ export class TaskService {
       tasks.map((item) => (item.id === task.id ? next : item)),
     );
     const persisted = findTask(canonical, task.id);
+    if (persisted.milestoneId !== task.milestoneId) {
+      const located = this.taskRecords(snapshot).find(
+        (record) => record.task.id === task.id,
+      );
+      return this.persistWithMilestoneClosure(
+        persisted,
+        task.milestoneId,
+        snapshot,
+        operationId,
+        located?.location ?? "tasks",
+      );
+    }
     const result = await this.repository.write({
       task: persisted,
       expectedRevision: snapshot.revision,

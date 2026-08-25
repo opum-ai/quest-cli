@@ -18,7 +18,8 @@ import {
 } from "../application/command-contract.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
-import { TaskService } from "../application/tasks/tasks.ts";
+import type { TaskService } from "../application/tasks/tasks.ts";
+import { createTaskService } from "./composition.ts";
 import { OpumAgentWorkflowBindingService } from "../application/claims/opum-agent-workflow.ts";
 import { OpumAgentWorkflowError } from "../application/claims/opum-agent-workflow.ts";
 import {
@@ -328,12 +329,6 @@ function updatedMilestoneTaskIds(
     return result.filter((taskId) => !removed.has(taskId));
   }
   return result;
-}
-
-function createTaskService(root: string): TaskService {
-  return new TaskService(
-    new LocalTaskRepository(join(root, ".quest", "tasks")),
-  );
 }
 
 function createTaskReader(root: string): LocalTaskRepository {

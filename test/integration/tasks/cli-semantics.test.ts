@@ -171,6 +171,29 @@ test("edit resolves case-insensitive configured statuses and rejects unknown or 
 
 test("create accepts the full advertised field set and stores it losslessly", async () => {
   await withStore(async (run) => {
+    // A dangling milestone reference must be rejected before any mutation.
+    const withoutMilestone = await run([
+      "task",
+      "create",
+      "Full create",
+      "--id",
+      "T-9",
+      "--milestone",
+      "M-1",
+      ...actor,
+      "--json",
+    ]);
+    expect(withoutMilestone.exitCode).toBe(6);
+    const milestoneCreate = await run([
+      "milestone",
+      "create",
+      "Sprint One",
+      "--id",
+      "M-1",
+      ...actor,
+      "--json",
+    ]);
+    if (milestoneCreate.exitCode !== 0) console.error(milestoneCreate.stderr);
     const created = await run([
       "task",
       "create",
@@ -538,5 +561,91 @@ test("concurrent edits serialize into a structured conflict without silent loss"
     const writers = labels.filter((label) => label.startsWith("writer-"));
     expect(writers).toEqual([...writers].sort());
     expect(new Set(writers).size).toBe(writers.length);
+  });
+});
+
+test("task edit --milestone closes forward and back references atomically", async () => {
+  await withStore(async (run) => {
+    await run([
+      "milestone",
+      "create",
+      "Sprint One",
+      "--id",
+      "M-1",
+      ...actor,
+      "--json",
+    ]);
+    await run([
+      "milestone",
+      "create",
+      "Sprint Two",
+      "--id",
+      "M-2",
+      ...actor,
+      "--json",
+    ]);
+    await run(["task", "create", "Linked", "--id", "T-1", ...actor, "--json"]);
+
+    const link = await run([
+      "task",
+      "edit",
+      "T-1",
+      "--milestone",
+      "M-1",
+      ...actor,
+      "--json",
+    ]);
+    expect(link.exitCode).toBe(0);
+    expect(JSON.parse(link.stdout).data.milestoneId).toBe("M-1");
+    expect(
+      JSON.parse((await run(["milestone", "view", "M-1", "--json"])).stdout)
+        .data.taskIds,
+    ).toEqual(["T-1"]);
+
+    const move = await run([
+      "task",
+      "edit",
+      "T-1",
+      "--milestone",
+      "M-2",
+      ...actor,
+      "--json",
+    ]);
+    expect(move.exitCode).toBe(0);
+    expect(
+      JSON.parse((await run(["milestone", "view", "M-1", "--json"])).stdout)
+        .data.taskIds,
+    ).toEqual([]);
+    expect(
+      JSON.parse((await run(["milestone", "view", "M-2", "--json"])).stdout)
+        .data.taskIds,
+    ).toEqual(["T-1"]);
+
+    const clear = await run([
+      "task",
+      "edit",
+      "T-1",
+      "--clear-milestone",
+      ...actor,
+      "--json",
+    ]);
+    expect(clear.exitCode).toBe(0);
+    expect(JSON.parse(clear.stdout).data.milestoneId).toBeUndefined();
+    expect(
+      JSON.parse((await run(["milestone", "view", "M-2", "--json"])).stdout)
+        .data.taskIds,
+    ).toEqual([]);
+
+    const dangling = await run([
+      "task",
+      "edit",
+      "T-1",
+      "--milestone",
+      "M-99",
+      ...actor,
+      "--json",
+    ]);
+    expect(dangling.exitCode).toBe(6);
+    expect(diagnostic(dangling).message).toBe("milestone_reference_dangling");
   });
 });

@@ -130,3 +130,89 @@ test("the public Backlog migration contract preserves Lore-facing aliases and du
     await rm(source, { recursive: true, force: true });
   }
 });
+
+test("migration closes milestone references transactionally and rollback keeps closure", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-milestone-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-milestone-src-"));
+  try {
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "TASK-M1.md"),
+      `---\nid: TASK-M1\ntitle: Milestoned task\nstatus: To Do\nmilestone: Sprint One\n---\n\nBody.\n`,
+    );
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const apply = await quest(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(apply.exitCode).toBe(0);
+    expect(JSON.parse(apply.stdout).data.state).toBe("applied");
+
+    const viewed = await quest(store, ["task", "view", "TASK-M1", "--json"]);
+    expect(JSON.parse(viewed.stdout).data.milestoneId).toBe("M-1");
+    const milestone = await quest(store, [
+      "milestone",
+      "view",
+      "M-1",
+      "--json",
+    ]);
+    expect(milestone.exitCode).toBe(0);
+    expect(JSON.parse(milestone.stdout).data).toMatchObject({
+      id: "M-1",
+      title: "Sprint One",
+      taskIds: ["T-1"],
+    });
+
+    const rollback = await quest(store, [
+      "migration",
+      "backlog",
+      "rollback",
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(rollback.exitCode).toBe(0);
+    expect(JSON.parse(rollback.stdout).data.state).toBe("rolled-back");
+    const milestoneAfter = await quest(store, [
+      "milestone",
+      "view",
+      "M-1",
+      "--json",
+    ]);
+    expect(JSON.parse(milestoneAfter.stdout).data.taskIds).toEqual([]);
+    const viewedAfter = await quest(store, [
+      "task",
+      "view",
+      "TASK-M1",
+      "--json",
+    ]);
+    expect(viewedAfter.exitCode).not.toBe(0);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
