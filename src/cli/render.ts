@@ -13,7 +13,7 @@ function renderLines(value: unknown, indentation: number): readonly string[] {
     return [`${prefix}${renderScalar(value)}`];
 
   if (Array.isArray(value)) {
-    if (value.length === 0) return [`${prefix}[]`];
+    if (value.length === 0) return [`${prefix}(empty)`];
     return value.flatMap((entry) => {
       if (entry === null || typeof entry !== "object")
         return [`${prefix}- ${renderScalar(entry)}`];
