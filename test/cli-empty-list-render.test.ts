@@ -51,8 +51,7 @@ test("an empty task list renders human output in every mode without changing JSO
     expect(pretty.stdout).not.toBe("[]\n");
     expect(pretty.stdout).toContain("(empty)");
   } finally {
-    if (previousStore === undefined)
-      delete process.env.QUEST_TASK_STORE;
+    if (previousStore === undefined) delete process.env.QUEST_TASK_STORE;
     else process.env.QUEST_TASK_STORE = previousStore;
     await rm(store, { recursive: true, force: true });
   }

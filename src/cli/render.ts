@@ -1,7 +1,9 @@
 /**
  * Renders structured command payloads without coupling the human surface to a
  * particular result kind. Keys are sorted so the same payload always produces
- * the same bytes, independent of construction order.
+ * the same bytes, independent of construction order. Empty arrays render the
+ * intentional human marker `(empty)` (never bare JSON); empty objects keep
+ * their established `{}` form.
  */
 export function renderHumanPayload(payload: unknown): string {
   return `${renderLines(payload, 0).join("\n")}\n`;
