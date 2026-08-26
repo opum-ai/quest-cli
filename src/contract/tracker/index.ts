@@ -8,6 +8,60 @@ export const TRACKER_CONTRACT_VERSION = 1 as const;
 export const MIN_QUEST_VERSION = "0.1.0";
 export const DEFAULT_TIMEOUT_MS = 5_000;
 
+/**
+ * Exact Quest package version pinned by Lore's versioned tracker-adapter
+ * boundary (Lore `docs/reference/backlog-cli-contract.md`,
+ * "Tracker adapter boundary" / "Quest CLI 0.2.7 package"). Consumers cache
+ * this pin at probe time and fail loud on any other version.
+ */
+export const QUEST_ADAPTER_PINNED_VERSION = "0.2.7" as const;
+
+/**
+ * The schema-1 manifest descriptors the adapter boundary requires from the
+ * pinned Quest package: public discovery, the mutating workspace bootstrap,
+ * the complete read/write task surface, the live status-flow payload, and the
+ * explicit Backlog-migration lifecycle with their advertised fields.
+ *
+ * This is the Lore-facing authority for descriptor coverage; `probe()`'s
+ * local `required` table enforces the deeper consumer-side field/filter
+ * contract for the task surface only.
+ */
+export const ADAPTER_REQUIRED_MANIFEST_COMMANDS = [
+  { name: "manifest", kind: "manifest.registry", mutates: false },
+  { name: "version", kind: null, mutates: false },
+  { name: "init", kind: "workspace.initialized", mutates: true },
+  { name: "task status-flow", kind: "task.status-flow", mutates: false },
+  { name: "task list", kind: "task.list", mutates: false },
+  { name: "task view", kind: "task.view", mutates: false },
+  { name: "search", kind: "task.search", mutates: false },
+  { name: "task create", kind: "task.created", mutates: true },
+  { name: "task edit", kind: "task.updated", mutates: true },
+  {
+    name: "migration backlog preview",
+    kind: "migration.backlog-preview",
+    mutates: false,
+    fields: ["digest", "mappings", "requiresApproval", "sourceFingerprint"],
+  },
+  {
+    name: "migration backlog apply",
+    kind: "migration.backlog-applied",
+    mutates: true,
+    fields: ["digest"],
+  },
+  {
+    name: "migration backlog status",
+    kind: "migration.backlog-status",
+    mutates: false,
+    fields: ["digest"],
+  },
+  {
+    name: "migration backlog rollback",
+    kind: "migration.backlog-rolled-back",
+    mutates: true,
+    fields: ["digest"],
+  },
+] as const;
+
 export type TrackerOutcome =
   | "not_found"
   | "denied"
