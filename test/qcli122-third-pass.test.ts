@@ -176,7 +176,7 @@ test("red: repeated edits to the same task compose instead of overwriting", asyn
       undefined,
       undefined,
       undefined,
-      repo as unknown as BatchTaskRepository,
+      repo satisfies BatchTaskRepository,
     );
     await seed(root, "T-1", "Evolve");
     const result = await service.editBatch([
@@ -207,7 +207,7 @@ test("red: A->B existing edge blocks B->A cycle swap without invalid persistence
       undefined,
       undefined,
       undefined,
-      repo as unknown as BatchTaskRepository,
+      repo satisfies BatchTaskRepository,
     );
     await seed(root, "T-1", "A", ["T-2"]);
     await seed(root, "T-2", "B");
@@ -319,7 +319,7 @@ test("red: interleaved milestone edit with repeated tasks preserves input order 
       undefined,
       undefined,
       undefined,
-      repo as unknown as BatchTaskRepository,
+      repo satisfies BatchTaskRepository,
     );
     await seed(root, "T-1", "Interleave A");
     await seed(root, "T-2", "Interleave B");

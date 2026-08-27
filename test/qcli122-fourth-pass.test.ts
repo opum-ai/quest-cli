@@ -348,3 +348,269 @@ test("red: strict scalar/boolean/checklist/status field grammar enforced atomica
     await rm(root, { recursive: true, force: true });
   }
 }, 120_000);
+
+test("red: uncreatable journal path rejects begin and leaves the lock absent", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-journal-"));
+  try {
+    const tasksDir = join(root, ".quest", "tasks");
+    const repo = new LocalTaskRepository(tasksDir);
+    await seed(root, "T-1", "Journal failure");
+    // Make journal creation impossible: create a DIRECTORY at the journal
+    // path so appendFile fails with EISDIR/ENOTDIR.
+    await mkdir(join(tasksDir, ".batch.journal.jsonl"), { recursive: true });
+    let rejected = false;
+    try {
+      const opened = await repo.beginTaskBatch((await repo.readAll()).revision);
+      if (opened.kind !== "locked") rejected = true;
+      else {
+        await opened.session.finish();
+        throw new Error("begin should have rejected");
+      }
+    } catch (error) {
+      // Thrown journal-creation failure is a valid begin rejection.
+      rejected = true;
+    }
+    expect(rejected).toBe(true);
+    // The owned lock must be gone after the failed begin.
+    expect(existsSync(join(tasksDir, ".write.lock"))).toBe(false);
+    void rm;
+    void writeFile;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 20_000);
+
+test("red: recovered stale-revision conflict leaves no lock; current revision reacquires", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-reclock-"));
+  try {
+    const tasksDir = join(root, ".quest", "tasks");
+    const repository = () => new LocalTaskRepository(tasksDir);
+    await seed(root, "T-1", "Recover conflict");
+    // Fabricate a crash: foreign dead pid holds lock + journal.
+    await mkdir(join(tasksDir, ".write.lock"), { recursive: true });
+    await writeFile(
+      join(tasksDir, ".batch.journal.jsonl"),
+      `${JSON.stringify({ schemaVersion: 1, sessionId: "dead0beef", pid: 999_999_999, at: "2026-01-01T00:00:00.000Z" })}\n`,
+    );
+    const staleRevision = "dead-revision-value";
+    const result = await repository().beginTaskBatch(staleRevision);
+    expect(result.kind).toBe("conflict");
+    expect(existsSync(join(tasksDir, ".write.lock"))).toBe(false);
+    // Current revision acquires cleanly afterwards.
+    const reopened = await repository().beginTaskBatch(
+      (await repository().readAll()).revision,
+    );
+    expect(reopened.kind).toBe("locked");
+    if (reopened.kind === "locked") {
+      await reopened.session.finish();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
+test("red: milestone transition row is rejected at exact index without task or planning mutation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-milestone-"));
+  try {
+    Bun.spawnSync(["/usr/bin/git", "init", "-q"], {
+      cwd: root,
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    spawnJson(root, ["init"]);
+    await seed(root, "T-1", "Milestone target");
+    await seed(root, "T-2", "Neighbour");
+    // Configure a REAL milestone through the public CLI (correct schema).
+    const milestoneCreated = spawnJson(root, [
+      "milestone",
+      "create",
+      "Real milestone",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(milestoneCreated.exitCode).toBe(0);
+    const milestoneId = JSON.parse(milestoneCreated.stdout).data.record
+      .id as string;
+    const before = JSON.parse(
+      spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    const file = join(root, "ops.jsonl");
+    await writeFile(
+      file,
+      [
+        JSON.stringify({
+          reference: "T-2",
+          operationId: "keep",
+          patch: { addLabels: ["kept"] },
+        }),
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "ms-row",
+          patch: { milestoneId },
+        }),
+      ].join("\n"),
+    );
+    const run = spawnJson(root, [
+      "task",
+      "edit-batch",
+      "--file",
+      file,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(run.exitCode).toBe(0);
+    const envelope = JSON.parse(run.stdout);
+    expect(
+      envelope.data.items.map((i: { operationId: string }) => i.operationId),
+    ).toEqual(["keep", "ms-row"]);
+    expect(envelope.data.items[1].kind).toBe("error");
+    expect(envelope.data.items[1].message).toBe(
+      "milestone_transition_requires_single_edit",
+    );
+    // No mutation for the rejected row.
+    const after = JSON.parse(
+      spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    expect(after.data.milestoneId ?? null).toBe(
+      before.data.milestoneId ?? null,
+    );
+    expect(after.data.status).toBe(before.data.status);
+    // The earlier valid row still applied.
+    expect(envelope.data.items[0].kind).toBe("updated");
+    expect(envelope.data.items[0].task.labels).toEqual(["kept"]);
+    // Terminal revision authoritative (non-empty, matches fresh read).
+    const listAfter = JSON.parse(
+      spawnJson(root, ["task", "list", "--json"]).stdout,
+    );
+    expect(listAfter.data.length).toBe(2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 90_000);
+
+test("red: strict JSONL grammar — duplicates, atomic neighbour rejection, wrong scalars, malformed checklist", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-jsonl-"));
+  try {
+    Bun.spawnSync(["/usr/bin/git", "init", "-q"], {
+      cwd: root,
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    spawnJson(root, ["init"]);
+    await seed(root, "T-1", "Grammar target");
+    const viewBefore = () =>
+      spawnJson(root, ["task", "view", "T-1", "--json"]).stdout;
+    const cases: { name: string; lines: string[] }[] = [
+      {
+        name: "duplicate operation ids",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "dup",
+            patch: { addLabels: ["a"] },
+          }),
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "dup",
+            patch: { addLabels: ["b"] },
+          }),
+        ],
+      },
+      {
+        name: "valid first + malformed neighbour (atomic no-write)",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "ok1",
+            patch: { addLabels: ["a"] },
+          }),
+          "{not json",
+        ],
+      },
+      {
+        name: "invalid list member number",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "n1",
+            patch: { addLabels: [1] },
+          }),
+        ],
+      },
+      {
+        name: "invalid dependency object member",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "o1",
+            patch: { addDependencies: [{}] },
+          }),
+        ],
+      },
+      {
+        name: "wrong scalar status type",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "st1",
+            patch: { status: 1 },
+          }),
+        ],
+      },
+      {
+        name: "wrong scalar description type",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "d1",
+            patch: { description: false },
+          }),
+        ],
+      },
+      {
+        name: "malformed checklist object",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "ac1",
+            patch: { acceptanceCriteria: [{ wrong: 1 }] },
+          }),
+        ],
+      },
+    ];
+    for (const [caseIndex, { name, lines }] of cases.entries()) {
+      const file = join(
+        root,
+        `case-${caseIndex}-${name.replace(/\W+/g, "-")}.jsonl`,
+      );
+      await writeFile(file, lines.join("\n"));
+      const run = spawnJson(root, [
+        "task",
+        "edit-batch",
+        "--file",
+        file,
+        "--actor",
+        "person-1",
+        "--actor-kind",
+        "human",
+        "--json",
+      ]);
+      expect(run.exitCode, name).not.toBe(0);
+      expect(JSON.parse(run.stderr).error_type, name).toBe("usage");
+      expect(viewBefore().length > 0, name).toBe(true);
+      // Whole-input atomicity: nothing persisted for ANY rejected batch.
+      const stored = JSON.parse(
+        await readFile(join(root, ".quest", "tasks", "T-1.json"), "utf8"),
+      );
+      expect(stored.labels ?? [], name).toEqual([]);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 120_000);
