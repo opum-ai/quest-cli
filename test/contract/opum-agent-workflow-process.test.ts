@@ -549,6 +549,56 @@ test("stdin transport binds a live claim through CAS replay", async () => {
   expect(response.holder).toBe("agent-1");
 });
 
+test("stdin transport binds the deployed facade envelope carrying claimOrCorrelation", async () => {
+  await makeReadyTask("T-20");
+  await writeTaskRelationship("facade-corr-1", "T-20", {
+    kind: "correlation",
+    state: "delivered",
+    holder: "agent-1",
+    baseRef: "origin/dev",
+    settlementRef: "origin/dev",
+  });
+  const result = await spawnRawStdin(
+    [],
+    JSON.stringify({
+      contract: "opum-agent-workflow",
+      supportedVersions: [1],
+      requestId: "b".repeat(32),
+      taskId: "T-20",
+      claimOrCorrelation: "90183b29cf6140488471282be868b328",
+    }),
+  );
+  expect(result.exitCode).toBe(0);
+  expect(result.stderr).toBe("");
+  const response = JSON.parse(result.stdout);
+  expect(Object.keys(response).sort()).toEqual(EXPECTED_KEYS);
+  expect(response.requestId).toBe("b".repeat(32));
+  expect(response.taskId).toBe("T-20");
+  expect(response.taskState).toBe("in_progress");
+  expect(response.relationshipKind).toBe("correlation");
+  expect(response.relationshipState).toBe("delivered");
+  expect(response.holder).toBe("agent-1");
+});
+
+test("stdin transport still rejects unknown envelope fields beyond the facade correlation", async () => {
+  await makeReadyTask("T-21");
+  const result = await spawnRawStdin(
+    [],
+    JSON.stringify({
+      contract: "opum-agent-workflow",
+      supportedVersions: [1],
+      requestId: "c".repeat(32),
+      taskId: "T-21",
+      hostileField: "x",
+    }),
+  );
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stdout).toBe("");
+  expect(JSON.parse(result.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+});
+
 test("stdin transport refuses duplicate, escaped-duplicate, and trailing input", async () => {
   // Top-level duplicate key (JSON.parse alone would silently last-write-win).
   const dupBody =
