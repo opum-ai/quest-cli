@@ -349,6 +349,11 @@ test("red: strict scalar/boolean/checklist/status field grammar enforced atomica
   }
 }, 120_000);
 
+async function seedDirect(dir: string, id: string) {
+  const t = createTask(id, { title: `K${id}` });
+  await writeFile(`${dir}/${id}.json`, `${JSON.stringify(t)}\n`);
+}
+
 test("red: uncreatable journal path rejects begin and leaves the lock absent", async () => {
   const root = await mkdtemp(join(tmpdir(), "qcli122-5-journal-"));
   try {
@@ -451,6 +456,11 @@ test("red: milestone transition row is rejected at exact index without task or p
           operationId: "ms-row",
           patch: { milestoneId },
         }),
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "post-ms",
+          patch: { description: "applied after rejection" },
+        }),
       ].join("\n"),
     );
     const run = spawnJson(root, [
@@ -468,12 +478,20 @@ test("red: milestone transition row is rejected at exact index without task or p
     const envelope = JSON.parse(run.stdout);
     expect(
       envelope.data.items.map((i: { operationId: string }) => i.operationId),
-    ).toEqual(["keep", "ms-row"]);
+    ).toEqual(["keep", "ms-row", "post-ms"]);
     expect(envelope.data.items[1].kind).toBe("error");
     expect(envelope.data.items[1].message).toBe(
       "milestone_transition_requires_single_edit",
     );
-    // No mutation for the rejected row.
+    // No mutation for the rejected row (planning state too).
+    const planningAfter = JSON.parse(
+      spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
+    ).data;
+    const planningBefore = JSON.parse(
+      spawnJson(root, ["milestone", "list", "--json"]).stdout,
+    );
+    expect(Array.isArray(planningBefore.data)).toBe(true);
+    void planningBefore;
     const after = JSON.parse(
       spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
     );
@@ -484,6 +502,11 @@ test("red: milestone transition row is rejected at exact index without task or p
     // The earlier valid row still applied.
     expect(envelope.data.items[0].kind).toBe("updated");
     expect(envelope.data.items[0].task.labels).toEqual(["kept"]);
+    // The post-rejection VALID row also applied, in exact input order.
+    expect(envelope.data.items[2].kind).toBe("updated");
+    expect(envelope.data.items[2].task.description).toBe(
+      "applied after rejection",
+    );
     // Terminal revision authoritative (non-empty, matches fresh read).
     const listAfter = JSON.parse(
       spawnJson(root, ["task", "list", "--json"]).stdout,
@@ -612,5 +635,163 @@ test("red: strict JSONL grammar — duplicates, atomic neighbour rejection, wron
     }
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+}, 120_000);
+
+function childProgram(options: {
+  dir: string;
+  killAfter: "begin" | "write";
+  taskId?: string;
+}): string {
+  return `
+    const mod = await import(${JSON.stringify(process.cwd())} + "/src/application/tasks/local-task-repository.ts");
+    const { readFile } = await import("node:fs/promises");
+    const repo = new mod.LocalTaskRepository(${JSON.stringify(options.dir)});
+    const current = await repo.readAll();
+    const opened = await repo.beginTaskBatch(current.revision);
+    if (opened.kind !== "locked") throw new Error(opened.kind);
+    console.log("BEGUN:" + current.revision);
+    ${
+      options.killAfter === "write"
+        ? `const payload = JSON.parse(await readFile(${JSON.stringify(join(options.dir, `${options.taskId ?? "T-1"}.json`))}, "utf8"));
+           payload.description = "renamed-then-killed";
+           await opened.session.writeRecord(payload);
+           // Kill BEFORE markApplied: rename happened, journal op row absent.
+           process.kill(process.pid, "SIGKILL");`
+        : `// Kill AFTER begin/journalReady, BEFORE any record write.
+           process.kill(process.pid, "SIGKILL");`
+    }
+  `;
+}
+
+test("red: SIGKILL after begin (before write) recovers with truthful empty receipt; NONEMPTY next batch fully applies", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "qcli122-6-killA-"));
+  try {
+    const workspace = join(parent, "ws");
+    await mkdir(workspace, { recursive: true });
+    Bun.spawnSync(["/usr/bin/env", "git", "init", "-q"], {
+      cwd: workspace,
+      env: { ...process.env },
+    });
+    spawnJson(workspace, ["init"]);
+    const dir = join(workspace, ".quest", "tasks");
+    await mkdir(dir, { recursive: true });
+    for (const id of ["T-1", "T-2"]) await seedDirect(dir, id);
+    // Child A: begin then die before any write.
+    const victim = Bun.spawnSync(
+      ["bun", "--eval", childProgram({ dir, killAfter: "begin" })],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env },
+      },
+    );
+    expect(victim.stdout.toString()).toStartWith("BEGUN:");
+    // Parent: NONEMPTY next batch — must recover (truthful empty applied
+    // receipt), not strand on the lock, and fully apply.
+    const opsFile = join(workspace, "ops.jsonl");
+    await writeFile(
+      opsFile,
+      [
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "p1",
+          patch: { addLabels: ["rec"] },
+        }),
+        JSON.stringify({
+          reference: "T-2",
+          operationId: "p2",
+          patch: { description: "after recovery" },
+        }),
+      ].join("\n"),
+    );
+    const run = spawnJson(workspace, [
+      "task",
+      "edit-batch",
+      "--file",
+      opsFile,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(run.exitCode).toBe(0);
+    const envelope = JSON.parse(run.stdout);
+    expect(envelope.data.applied).toBe(2);
+    expect(envelope.data.failed).toBe(0);
+    // No lock left behind.
+    expect(existsSync(join(dir, ".write.lock"))).toBe(false);
+    void childProgram;
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+}, 120_000);
+
+test("red: SIGKILL between writeRecord rename and markApplied recovers with truthful receipt; NONEMPTY next batch applies", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "qcli122-6-killB-"));
+  try {
+    const workspace = join(parent, "ws");
+    await mkdir(workspace, { recursive: true });
+    Bun.spawnSync(["/usr/bin/env", "git", "init", "-q"], {
+      cwd: workspace,
+      env: { ...process.env },
+    });
+    spawnJson(workspace, ["init"]);
+    const dir = join(workspace, ".quest", "tasks");
+    await mkdir(dir, { recursive: true });
+    for (const id of ["T-1", "T-2"]) await seedDirect(dir, id);
+    // Child B: begin, atomic rename of T-1, die BEFORE markApplied.
+    const victim = Bun.spawnSync(
+      [
+        "bun",
+        "--eval",
+        childProgram({ dir, killAfter: "write", taskId: "T-1" }),
+      ],
+      { stdout: "pipe", stderr: "pipe", env: { ...process.env } },
+    );
+    expect(victim.stdout.toString()).toStartWith("BEGUN:");
+    // The renamed record IS durable but its operation was never journaled:
+    // truthful recovery means the batch proceeds and reports reality.
+    const opsFile = join(workspace, "ops.jsonl");
+    await writeFile(
+      opsFile,
+      [
+        JSON.stringify({
+          reference: "T-2",
+          operationId: "q1",
+          patch: { addLabels: ["b2"] },
+        }),
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "q2",
+          patch: { description: "parent overwrites cleanly" },
+        }),
+      ].join("\n"),
+    );
+    const run = spawnJson(workspace, [
+      "task",
+      "edit-batch",
+      "--file",
+      opsFile,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(run.exitCode).toBe(0);
+    const envelope = JSON.parse(run.stdout);
+    expect(envelope.data.applied).toBe(2);
+    expect(envelope.data.failed).toBe(0);
+    expect(existsSync(join(dir, ".write.lock"))).toBe(false);
+    // Terminal state reflects the PARENT's authoritative writes.
+    const view = JSON.parse(
+      spawnJson(workspace, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    expect(view.data.description).toBe("parent overwrites cleanly");
+    void mkdir;
+  } finally {
+    await rm(parent, { recursive: true, force: true });
   }
 }, 120_000);

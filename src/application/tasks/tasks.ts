@@ -618,17 +618,6 @@ export class TaskService {
   }
 
   /**
-   * QCLI-122 batch mutation: applies many distinct domain-patch operations
-   * inside one locked repository session so large stores pay one entry CAS
-   * and one final authoritative revision instead of per-operation rescans.
-   * Each applied record is persisted atomically exactly like a single edit;
-   * per-item validation failures are recorded and do not abort the batch;
-   * milestone-transition items execute through the ordinary single-edit path
-   * after the session releases (planning closure keeps its own CAS), in the
-   * order submitted. The returned revision is the authoritative terminal
-   * store revision.
-   */
-  /**
    * QCLI-122 batch mutation (corrected under FMC 05fe52e8):
    * - results preserve exact input order, exactly one per submitted item;
    * - milestone-transition items are rejected AT THEIR INDEX with a
