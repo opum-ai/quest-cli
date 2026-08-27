@@ -1,10 +1,11 @@
 ---
 id: QCLI-117
 title: Normalize Quest Treehouse 2.2 repository/pool identity
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-21 16:03'
+updated_date: '2026-08-27 15:10'
 labels:
   - infrastructure-housekeeping
   - treehouse
@@ -23,10 +24,10 @@ Normalize the owner-local Treehouse 2.2 pool identity so treehouse.toml uses the
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 treehouse.toml uses root '.' and max_trees 3
-- [ ] #2 Three-layer Git/Treehouse/physical audit is valid before and after the change
-- [ ] #3 Focused repository checks, backlog validation, strict Lore validate/check, diff/check hygiene, and independent verify evidence pass
-- [ ] #4 Change is committed to a task branch, pushed, PR to dev is green, merged, and node-created artifacts are safely cleaned/returned
+- [x] #1 treehouse.toml uses root '.' and max_trees 3
+- [x] #2 Three-layer Git/Treehouse/physical audit is valid before and after the change
+- [x] #3 Focused repository checks, backlog validation, strict Lore validate/check, diff/check hygiene, and independent verify evidence pass
+- [x] #4 Change is committed to a task branch, pushed, PR to dev is green, merged, and node-created artifacts are safely cleaned/returned
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -41,3 +42,15 @@ Normalize the owner-local Treehouse 2.2 pool identity so treehouse.toml uses the
 7. Commit without amend, push task branch, open PR to dev, monitor checks, merge if green.
 8. Clean/return only node-created artifacts when safely proved disposable; reply with full evidence.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Duplicate record of QCLI-116 (same title/description/ACs/plan; QCLI-116 Done via PR #134). Settled independently under FMC correlation 0cc0230c79fb4e0780fe2725ff4ec156 on Opum lease 7a8d29bcf82012909042b4207c73ad8e (branch chore/qcli-117-120-evidence-settlement, base baef3444b169f5d44597f1e8b381b36c83ecd188, primary_checkout=false). AC1 proven live: origin/dev treehouse.toml = root "." + max_trees 3, unchanged since merge 8a9c13efddee5bd64fb24008f0d0047c655f7237 (before-state 8a9c13e^ = root ".treehouse"). AC2 three-layer audit re-run in leased tree: Git layer - treehouse.toml tracked at origin/dev with canonical values; Pool/Treehouse layer - canonical root "." consistent with owner pool registry quest-cli-b114ef03d0b9 (repositoryId b114ef03d0b9, exactly 3 slots = max_trees, slot 1 clean/settled); Physical layer - legacy nested .treehouse path retained with recorded QCLI-116 sandbox-denial exception, gitignored, no repo delta; historical before/after audit recorded in the tracked QCLI-116 record. AC3 re-run current in leased tree: backlog doctor clean, lore validate --strict PASS, lore check --strict PASS, git diff --check clean, independent verify child PASS; PR #134 check receipts purged by GitHub (branch-scoped Actions list empty) and a backlog/tasks-only change matches no path-filtered workflow, so no-checks-applicable is the applicable green state - proven identically on merged PR #154. AC4: PR #134 MERGED (GitHub state, mergeCommit 8a9c13efddee5bd64fb24008f0d0047c655f7237) and proven ancestor of origin/dev by merge-base; local branch deleted after content-presence proof (remote head e752c05 retained); Treehouse lease returned; legacy nested path retention documented.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Duplicate record of QCLI-116 settled independently: all four ACs proven from live config (treehouse.toml root "." + max_trees 3 at origin/dev), merged PR #134 ancestry (8a9c13efddee5bd64fb24008f0d0047c655f7237), re-run three-layer audit and validation gates, and cleanup evidence; no code change; delivered via settlement PR to dev.
+<!-- SECTION:FINAL_SUMMARY:END -->
