@@ -1,3 +1,7 @@
+import {
+  foldEditPatch,
+  type EditPatchVocabulary as TrackerEditPatch,
+} from "../../../application/tasks/edit-patch.ts";
 import type { TaskService } from "../../../application/tasks/tasks.ts";
 
 type TrackerTask = Awaited<ReturnType<TaskService["view"]>>;
@@ -31,56 +35,18 @@ export type TaskCommandRequest =
       readonly patch: TrackerEditPatch;
       readonly operationId: string;
       readonly actor: TaskCommandActor;
+    }
+  | {
+      readonly command: "edit-batch";
+      readonly actor: TaskCommandActor;
+      readonly items: readonly {
+        readonly reference: string;
+        readonly operationId?: string;
+        readonly patch?: Partial<TrackerEditPatch>;
+      }[];
     };
 
 /** Mirrors the public tracker contract's edit vocabulary (QCLI-97.11.6). */
-export interface TrackerEditPatch {
-  readonly status?: string;
-  readonly summary?: string;
-  readonly description?: string;
-  /** Full label replacement; combine with addLabels/removeLabels for merge semantics. */
-  readonly labels?: readonly string[];
-  readonly addLabels?: readonly string[];
-  readonly removeLabels?: readonly string[];
-  readonly documentation?: readonly string[];
-  readonly plan?: readonly string[];
-  readonly addPlan?: readonly string[];
-  readonly removePlan?: readonly string[];
-  readonly implementationNotes?: readonly string[];
-  readonly addNotes?: readonly string[];
-  readonly removeNotes?: readonly string[];
-  readonly comments?: readonly unknown[];
-  readonly addComments?: readonly unknown[];
-  readonly removeComments?: readonly string[];
-  readonly acceptanceCriteria?: readonly (
-    | string
-    | {
-        readonly index: number;
-        readonly text: string;
-        readonly checked: boolean;
-      }
-  )[];
-  readonly definitionOfDone?: readonly (
-    | string
-    | {
-        readonly index: number;
-        readonly text: string;
-        readonly checked: boolean;
-      }
-  )[];
-  readonly addDependencies?: readonly string[];
-  readonly removeDependencies?: readonly string[];
-  readonly parentId?: string;
-  readonly clearParent?: boolean;
-  readonly milestoneId?: string;
-  readonly clearMilestone?: boolean;
-  readonly addAssignees?: readonly string[];
-  readonly removeAssignees?: readonly string[];
-  readonly addReferences?: readonly string[];
-  readonly removeReferences?: readonly string[];
-  readonly addModifiedFiles?: readonly string[];
-  readonly removeModifiedFiles?: readonly string[];
-}
 
 export type TaskCommandResponse =
   | {
@@ -105,6 +71,30 @@ export type TaskCommandResponse =
       readonly schemaVersion: 1;
       readonly kind: "task.search";
       readonly data: readonly TrackerTask[];
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "task.batch-updated";
+      readonly data: {
+        readonly items: readonly (
+          | {
+              readonly kind: "updated";
+              readonly reference: string;
+              readonly operationId: string;
+              readonly task: TrackerTask;
+            }
+          | {
+              readonly kind: "error";
+              readonly reference: string;
+              readonly operationId: string;
+              readonly message: string;
+            }
+        )[];
+        readonly applied: number;
+        readonly failed: number;
+        readonly deferredCount: number;
+        readonly revision: string;
+      };
     };
 
 function requireWriteActor(actor: TaskCommandActor): void {
@@ -181,17 +171,58 @@ export async function dispatchTrackerTaskCommand(
       };
     case "edit": {
       requireWriteActor(request.actor);
-      const patch = buildEditPatch(
-        await tasks.view(request.reference),
-        request.patch,
-        tasks,
-      );
+      // QCLI-122: resolve the current task and its authoritative snapshot in
+      // one read, then apply the mutation from that same snapshot instead of
+      // performing two independent full-collection reads per public edit.
+      const prepared = await tasks.prepareMutation(request.reference);
+      const patch = buildEditPatch(prepared.task, request.patch, tasks);
       return {
         schemaVersion: 1,
         kind: "task.updated",
         data: taskFromMutation(
-          await tasks.edit(request.reference, patch, request.operationId),
+          await tasks.editOn(
+            prepared.snapshot,
+            request.reference,
+            patch as Parameters<TaskService["edit"]>[1],
+            request.operationId,
+          ),
         ),
+      };
+    }
+    case "edit-batch": {
+      requireWriteActor(request.actor);
+      if (!request.items.length)
+        return {
+          schemaVersion: 1,
+          kind: "task.batch-updated",
+          data: {
+            items: [],
+            applied: 0,
+            failed: 0,
+            deferredCount: 0,
+            revision: "",
+          },
+        };
+      const result = await tasks.editBatch(
+        request.items.map((item, index) => ({
+          reference: item.reference,
+          operationId: item.operationId ?? `batch-item-${index + 1}`,
+          patch: (item.patch ?? {}) as Parameters<TaskService["edit"]>[1],
+        })),
+      );
+      void buildEditPatch;
+      if (result.kind === "conflict") throw new Error("tracker_write_conflict");
+      return {
+        schemaVersion: 1,
+        kind: "task.batch-updated",
+        data: {
+          items: result.items,
+          applied: result.items.filter((item) => item.kind === "updated")
+            .length,
+          failed: result.items.filter((item) => item.kind === "error").length,
+          deferredCount: result.deferredCount,
+          revision: result.revision,
+        },
       };
     }
   }
@@ -237,69 +268,5 @@ function buildEditPatch(
   patch: TrackerEditPatch,
   tasks: TaskService,
 ): Record<string, unknown> {
-  const next: Record<string, unknown> = {};
-  if (patch.status !== undefined)
-    next.status = tasks.resolveStatus(patch.status);
-  if (patch.summary !== undefined) next.summary = patch.summary;
-  if (patch.description !== undefined) next.description = patch.description;
-  if (patch.labels !== undefined) next.labels = [...patch.labels];
-  else if (patch.addLabels?.length || patch.removeLabels?.length)
-    next.labels = mergeList(
-      current.labels,
-      patch.addLabels,
-      patch.removeLabels,
-    );
-  if (patch.documentation !== undefined)
-    next.documentation = patch.documentation;
-  if (patch.plan !== undefined) next.plan = [...patch.plan];
-  else if (patch.addPlan?.length || patch.removePlan?.length)
-    next.plan = mergeList(current.plan, patch.addPlan, patch.removePlan);
-  if (patch.implementationNotes !== undefined)
-    next.implementationNotes = [...patch.implementationNotes];
-  else if (patch.addNotes?.length || patch.removeNotes?.length)
-    next.implementationNotes = mergeList(
-      current.implementationNotes,
-      patch.addNotes,
-      patch.removeNotes,
-    );
-  if (patch.comments !== undefined) next.comments = [...patch.comments];
-  else if (patch.addComments?.length || patch.removeComments?.length)
-    next.comments = mergeComments(
-      current.comments,
-      patch.addComments,
-      patch.removeComments,
-    );
-  if (patch.acceptanceCriteria !== undefined)
-    next.acceptanceCriteria = patch.acceptanceCriteria;
-  if (patch.definitionOfDone !== undefined)
-    next.definitionOfDone = patch.definitionOfDone;
-  if (patch.addDependencies?.length || patch.removeDependencies?.length)
-    next.dependencies = mergeList(
-      current.dependencies,
-      patch.addDependencies,
-      patch.removeDependencies,
-    );
-  if (patch.parentId !== undefined) next.parentId = patch.parentId;
-  else if (patch.clearParent === true) next.parentId = undefined;
-  if (patch.milestoneId !== undefined) next.milestoneId = patch.milestoneId;
-  else if (patch.clearMilestone === true) next.milestoneId = undefined;
-  if (patch.addAssignees?.length || patch.removeAssignees?.length)
-    next.assignees = mergeList(
-      current.assignees ?? [],
-      patch.addAssignees,
-      patch.removeAssignees,
-    );
-  if (patch.addReferences?.length || patch.removeReferences?.length)
-    next.references = mergeList(
-      current.references ?? [],
-      patch.addReferences,
-      patch.removeReferences,
-    );
-  if (patch.addModifiedFiles?.length || patch.removeModifiedFiles?.length)
-    next.modifiedFiles = mergeList(
-      current.modifiedFiles ?? [],
-      patch.addModifiedFiles,
-      patch.removeModifiedFiles,
-    );
-  return next;
+  return foldEditPatch(current, patch, (status) => tasks.resolveStatus(status));
 }

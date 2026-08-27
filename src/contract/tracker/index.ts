@@ -170,12 +170,17 @@ export interface TrackerCreateInput {
   readonly milestoneId?: string;
   readonly finalSummary?: string;
 }
-/** Undefined preserves a field; arrays replace their corresponding full field. */
+/**
+ * Undefined preserves a field; arrays replace their corresponding full field.
+ *
+ * Layer-boundary note: this public contract type intentionally mirrors the
+ * application-layer `EditPatchVocabulary` (src/application/tasks/edit-patch.ts)
+ * one-to-one; the fold behavior itself lives there. Keep both lists in sync.
+ */
 export interface TrackerEditPatch {
   readonly status?: string;
   readonly summary?: string;
   readonly description?: string;
-  /** Full label replacement; combine with addLabels/removeLabels for merge semantics. */
   readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
@@ -189,8 +194,12 @@ export interface TrackerEditPatch {
   readonly comments?: readonly unknown[];
   readonly addComments?: readonly unknown[];
   readonly removeComments?: readonly string[];
-  readonly acceptanceCriteria?: readonly (string | TrackerCheckItem)[];
-  readonly definitionOfDone?: readonly (string | TrackerCheckItem)[];
+  readonly acceptanceCriteria?:
+    | readonly (string | TrackerCheckItem)[]
+    | undefined;
+  readonly definitionOfDone?:
+    | readonly (string | TrackerCheckItem)[]
+    | undefined;
   readonly addDependencies?: readonly string[];
   readonly removeDependencies?: readonly string[];
   readonly parentId?: string;

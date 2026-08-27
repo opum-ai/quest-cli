@@ -201,7 +201,8 @@ export class LocalTaskRepository
     }
   }
 
-  private async snapshot() {
+  /** Protected (not private) so tests can instrument scan counts on a subclass. */
+  protected async snapshot() {
     const root = this.root();
     const [active, completed, archived, drafts, archivedDrafts] =
       await Promise.all([
@@ -260,6 +261,36 @@ export class LocalTaskRepository
       .digest("hex");
   }
 
+  /**
+   * Deterministically splices an upserted task record into an already
+   * authoritative snapshot and derives the post-write revision without a
+   * second full directory rescan (QCLI-122). The splice is only used when
+   * the record replaces an existing active-row in place; every other case
+   * falls back to an authoritative fresh read. Byte-equivalence with a
+   * fresh read holds because the embedded record is reconstructed through
+   * exactly the same JSON round trip (`taskState(JSON.parse(payload))`)
+   * that `snapshot()` applies, and `recordsAt` sorts filenames so an
+   * in-place replacement cannot change ordering.
+   */
+  private splicedSnapshotAfterUpsert(
+    current: Awaited<ReturnType<LocalTaskRepository["readAll"]>>,
+    payload: string,
+  ): { snapshot: Awaited<ReturnType<LocalTaskRepository["snapshot"]>> } {
+    const reparsed = taskState(JSON.parse(payload));
+    const replaced = current.taskRecords.find(
+      (record) => record.location === "tasks" && record.task.id === reparsed.id,
+    );
+    if (!replaced) throw new RecordValidationError("task_upsert_target_absent");
+    return {
+      snapshot: {
+        taskRecords: current.taskRecords.map((record) =>
+          record === replaced ? { ...record, task: reparsed } : record,
+        ),
+        drafts: current.drafts,
+      },
+    };
+  }
+
   private async acquireLock(lock: string): Promise<boolean> {
     const deadline = Date.now() + LOCK_WAIT_MS;
     while (Date.now() < deadline) {
@@ -284,6 +315,48 @@ export class LocalTaskRepository
       taskRecords: snapshot.taskRecords,
       drafts: snapshot.drafts,
     };
+  }
+
+  /**
+   * QCLI-122 batch session: amortizes the per-operation directory rescan and
+   * inter-process lock churn behind one locked session. Entry performs the
+   * same revision CAS as a single write, under the same lock, so concurrent
+   * writers surface as structured conflicts before any mutation. Each record
+   * write stays atomic exactly like a single-op write; the lock is released
+   * only by {@link TaskBatchSession.finish} (or abort on failure), and a
+   * crashed process leaves the standard stale-lock conflict recovery story.
+   */
+  async beginTaskBatch(expectedRevision: string): Promise<
+    | { readonly kind: "locked"; readonly session: TaskBatchSession }
+    | {
+        readonly kind: "conflict";
+        readonly expectedRevision: string;
+        readonly actualRevision: string;
+      }
+  > {
+    await mkdir(this.directory, { recursive: true });
+    const lock = join(this.directory, ".write.lock");
+    if (!(await this.acquireLock(lock))) {
+      const current = await this.readAll();
+      return {
+        kind: "conflict",
+        expectedRevision,
+        actualRevision: current.revision,
+      };
+    }
+    try {
+      const current = await this.readAll();
+      if (current.revision !== expectedRevision)
+        return {
+          kind: "conflict",
+          expectedRevision,
+          actualRevision: current.revision,
+        };
+      return { kind: "locked", session: new LocalTaskBatchSession(this, lock) };
+    } catch (error) {
+      await rm(lock, { recursive: true, force: true });
+      throw error;
+    }
   }
 
   async write(request: TaskWriteRequest) {
@@ -313,12 +386,31 @@ export class LocalTaskRepository
         };
       }
       const destination = this.pathFor(request.task.id);
+      const payload = `${JSON.stringify(request.task)}\n`;
       const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
-      await writeFile(temporary, `${JSON.stringify(request.task)}\n`, "utf8");
+      await writeFile(temporary, payload, "utf8");
       await rename(temporary, destination);
+      // QCLI-122: derive the post-write revision by splicing the written
+      // record into the locked snapshot instead of rescanning every stored
+      // record; fall back to an authoritative read whenever the upsert is
+      // not a plain in-place replacement of an existing active row.
+      let revision: string;
+      try {
+        const spliced = this.splicedSnapshotAfterUpsert(current, payload);
+        revision = this.revision(spliced.snapshot);
+      } catch (error) {
+        if (
+          error instanceof RecordValidationError &&
+          (error as Error).message === "task_upsert_target_absent"
+        ) {
+          revision = (await this.readAll()).revision;
+        } else {
+          throw error;
+        }
+      }
       return {
         kind: "success" as const,
-        revision: (await this.readAll()).revision,
+        revision,
       };
     } finally {
       await rm(lock, { recursive: true, force: true });
@@ -512,5 +604,34 @@ export class LocalTaskRepository
     } finally {
       await rm(lock, { recursive: true, force: true });
     }
+  }
+}
+
+/** Public session contract consumed by TaskService.editBatch. */
+export interface TaskBatchSession {
+  /** Persists one record atomically, identical to a single-op write payload. */
+  writeRecord(task: TaskState): Promise<void>;
+  /** Releases the batch lock; idempotent per session instance. */
+  finish(): Promise<void>;
+}
+
+class LocalTaskBatchSession implements TaskBatchSession {
+  private finished = false;
+  constructor(
+    private readonly repository: LocalTaskRepository,
+    private readonly lock: string,
+  ) {}
+
+  async writeRecord(task: TaskState): Promise<void> {
+    const destination = this.repository["pathFor"](task.id);
+    const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(task)}\n`, "utf8");
+    await rename(temporary, destination);
+  }
+
+  async finish(): Promise<void> {
+    if (this.finished) return;
+    this.finished = true;
+    await rm(this.lock, { recursive: true, force: true });
   }
 }
