@@ -599,6 +599,43 @@ test("stdin transport still rejects unknown envelope fields beyond the facade co
   );
 });
 
+test("stdin transport rejects a non-string claimOrCorrelation transport field", async () => {
+  await makeReadyTask("T-22");
+  const result = await spawnRawStdin(
+    [],
+    JSON.stringify({
+      contract: "opum-agent-workflow",
+      supportedVersions: [1],
+      requestId: "d".repeat(32),
+      taskId: "T-22",
+      claimOrCorrelation: 12345,
+    }),
+  );
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stdout).toBe("");
+  expect(JSON.parse(result.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+});
+
+test("stdin transport rejects an unsupported contract selector", async () => {
+  await makeReadyTask("T-23");
+  const result = await spawnRawStdin(
+    [],
+    JSON.stringify({
+      contract: "opum-agent-workflow/v2",
+      supportedVersions: [1],
+      requestId: "e".repeat(32),
+      taskId: "T-23",
+    }),
+  );
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stdout).toBe("");
+  expect(JSON.parse(result.stderr).input.code).toBe(
+    "OPUM_WORKFLOW_QUEST_INCOMPATIBLE",
+  );
+});
+
 test("stdin transport refuses duplicate, escaped-duplicate, and trailing input", async () => {
   // Top-level duplicate key (JSON.parse alone would silently last-write-win).
   const dupBody =
