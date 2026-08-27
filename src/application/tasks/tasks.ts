@@ -161,9 +161,6 @@ function rebuildSlot(
   return index;
 }
 
-/** Tracks whether an operation id was graph-validated during the batch run. */
-const rowGraphValidated = new Map<string, boolean>();
-
 /** Application-level default so CLI composition never imports the domain layer directly. */
 export const defaultTaskLifecyclePolicy = defaultLifecyclePolicy;
 
@@ -799,12 +796,10 @@ export class TaskService {
               JSON.stringify(current.blockers ?? []);
           if (touchesGraph) {
             const linkSession = createTaskLinkSession(workingTasks);
-            rowGraphValidated.set(operationId, true);
             await session.writeRecord(linkSession.apply(rawNext));
           } else {
             // Non-graph rows validate locally: one authoritative record
             // parse + unique-row check (session holds the lock).
-            rowGraphValidated.set(operationId, false);
             await session.writeRecord(taskState(rawNext));
           }
           await session.markApplied(operationId, rawNext.id);
