@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-17 06:07'
-updated_date: '2026-08-19 03:36'
+updated_date: '2026-08-26 03:10'
 labels:
   - quest-0.1
   - parity
@@ -48,7 +48,6 @@ Make Quest a first-class, explicitly selected tracker backend for Lore CLI. This
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Wave A execution started under FMC correlation df87b7e0b26e46109279e10cab14aa49; campaign tracker doc-22. Direct user authorizes eventual npm release, but this correlation defers publication until the later Controller gate.
-
-2026-08-19 live grounding: Quest's public tracker client conformance test passes (3/3). The versioned dependency evidence identifies an external Lore-side blocker: published Lore 0.1.0 has only BacklogAdapter; Quest cannot unilaterally define Lore's Quest binary selection, probe sequence, or write-response handling. QCLI-97.5 therefore stops at a cross-repository owner decision/implementation edge; QCLI-97.6 remains dependency-gated and QCLI-97 cannot settle.
+2026-08-26 exact-dev RC provenance build (correlation b7766e120c7346b6a0bacb284cda5992, lease 6f4625c4ed74bc6f0d22c305372a6d9e returned available): durable candidate staged at /Volumes/external/.opum-candidates/opum-doc-qualification-2026-08-26/final-quest-01456d7 from merged dev 01456d7d8c4fe74c1e413a84b5cfdd81c12a2779 — root + six 0.2.7 platform tarballs, self-consistent sha256.txt (shasum -c OK), package-metadata.json with computed npm integrity/shasum per tarball, manifest contract + status-flow evidence, isolated darwin-arm64 packed-install smoke. No npm publish, no tags, no PR (no source defect found). QCLI-97.5 remains nonterminal pending E2E rows #2-#4.
+2026-08-26 supersession: post PR #148 the authoritative 0.2.7 candidate lineage moved to final-quest-11cb1a9 (merged dev 11cb1a9f5f054019e1e6aa67eeea49089c1f24cb); prior final-quest-01456d7 evidence retained for history.
 <!-- SECTION:NOTES:END -->
