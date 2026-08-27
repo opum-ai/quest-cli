@@ -463,6 +463,10 @@ test("red: milestone transition row is rejected at exact index without task or p
         }),
       ].join("\n"),
     );
+    // Canonical milestone object captured BEFORE edit-batch.
+    const planningBefore = JSON.parse(
+      spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
+    ).data;
     const run = spawnJson(root, [
       "task",
       "edit-batch",
@@ -483,10 +487,7 @@ test("red: milestone transition row is rejected at exact index without task or p
     expect(envelope.data.items[1].message).toBe(
       "milestone_transition_requires_single_edit",
     );
-    // Canonical milestone object captured BEFORE edit-batch.
-    const planningBefore = JSON.parse(
-      spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
-    ).data;
+    // No task mutation for the rejected row.
     const after = JSON.parse(
       spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
     );
@@ -494,14 +495,12 @@ test("red: milestone transition row is rejected at exact index without task or p
       before.data.milestoneId ?? null,
     );
     expect(after.data.status).toBe(before.data.status);
-    // The earlier valid row still applied.
-    expect(envelope.data.items[0].kind).toBe("updated");
-    expect(envelope.data.items[0].task.labels).toEqual(["kept"]);
-    // Milestone record read again AFTER edit-batch must equal the BEFORE
-    // object exactly — no planning mutation of any kind.
+    // Milestone record read again AFTER edit-batch must equal BEFORE exactly.
     const planningAfter = JSON.parse(
       spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
     ).data;
+    expect(planningAfter).toEqual(planningBefore);
+    // Canonical milestone object captured BEFORE edit-batch.
     expect(planningAfter).toEqual(planningBefore);
     // The post-rejection VALID row also applied, in exact input order.
     expect(envelope.data.items[2].kind).toBe("updated");
