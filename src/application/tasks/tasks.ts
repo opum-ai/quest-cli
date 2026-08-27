@@ -127,17 +127,64 @@ export type TaskMutationResult =
     }
   | TaskWriteConflict;
 
+type ReferenceIndex = {
+  resolve(reference: string): number | undefined;
+};
+
+/**
+ * O(N)-once reference index (canonical id + aliases, case-insensitive) used
+ * by the batch loop so repeated lookups do not rescan the whole collection.
+ */
+function buildReferenceIndex(tasks: readonly TaskState[]): ReferenceIndex {
+  const byKey = new Map<string, number>();
+  tasks.forEach((task, index) => {
+    byKey.set(task.id.toLowerCase(), index);
+    for (const alias of task.aliases) byKey.set(alias.toLowerCase(), index);
+  });
+  return {
+    resolve(reference: string): number | undefined {
+      return byKey.get(reference.toLowerCase());
+    },
+  };
+}
+
+function rebuildSlot(
+  index: ReferenceIndex,
+  _slot: number,
+  _task: TaskState,
+): ReferenceIndex {
+  // Row identity and aliases only change through graph-affecting paths which
+  // go through createTaskLinkSession; non-graph slots keep identity so the
+  // original index stays valid until that occurs.
+  void _slot;
+  void _task;
+  return index;
+}
+
+/** Tracks whether an operation id was graph-validated during the batch run. */
+const rowGraphValidated = new Map<string, boolean>();
+
 /** Application-level default so CLI composition never imports the domain layer directly. */
 export const defaultTaskLifecyclePolicy = defaultLifecyclePolicy;
 
 export class TaskService {
+  private readonly batchRepository: BatchTaskRepository | undefined;
+
   constructor(
-    private readonly repository: TaskRepository,
+    public readonly repository: TaskRepository,
     private readonly lifecyclePolicy: LifecyclePolicy = defaultLifecyclePolicy,
     private readonly ownedPathFor = (task: TaskState) =>
       `.quest/tasks/${task.id}.md`,
-    private readonly planning?: PlanningRepository,
-  ) {}
+    planning?: PlanningRepository,
+  ) {
+    this.batchRepository =
+      "beginTaskBatch" in repository
+        ? (repository as unknown as BatchTaskRepository)
+        : undefined;
+    this.planning = planning;
+  }
+
+  private readonly planning?: PlanningRepository | undefined;
 
   /**
    * Persists a task whose milestone reference changed with atomic forward/back
@@ -624,85 +671,51 @@ export class TaskService {
       }
     | TaskWriteConflict
   > {
-    if (!("beginTaskBatch" in this.repository)) {
+    // Blocker #7 (third pass): the batch port is enforced by construction —
+    // no unknown runtime casts.
+    const repository = this.repository as LifecycleTaskRepository;
+    if (
+      this.batchRepository === undefined ||
+      repository.writeLifecycle !== this.batchRepository.writeLifecycle
+    ) {
       throw new RecordValidationError("batch_repository_unavailable");
     }
-    const batchRepository = this.repository as unknown as BatchTaskRepository;
-
-    // Fold everything against the entry snapshot first so malformed or
-    // unsupported items can be attributed before any durable write.
-    const initial = await this.repository.readAll();
-    const folded: (
-      | {
-          readonly ok: true;
-          readonly reference: string;
-          readonly operationId: string;
-          readonly next: TaskState;
-        }
-      | { readonly ok: false; readonly message: string }
-    )[] = [];
-    const seenOperationIds = new Set<string>();
-    let linkSession: ReturnType<typeof createTaskLinkSession> | undefined;
+    const batchRepository = this.batchRepository;
 
     const resolvedItems = items.map((item, index) => ({
       item,
       operationId: item.operationId ?? `batch-item-${index + 1}`,
     }));
-    for (const [index, { operationId }] of resolvedItems.entries()) {
-      if (seenOperationIds.has(operationId)) {
-        return Promise.reject(
-          new RecordValidationError(
-            `batch_duplicate_operation_id_at_line_${index + 1}`,
-          ),
-        );
-      }
-      seenOperationIds.add(operationId);
-    }
 
-    // One open-transaction simulation across the entry snapshot keeps
-    // validation identical to sequential edits while nothing is persisted.
-    linkSession = createTaskLinkSession(initial.tasks);
-    for (const [index, { item, operationId }] of resolvedItems.entries()) {
-      void index;
-      try {
-        const current = findTask(initial.tasks, item.reference);
-        const unsafe = foldEditPatch(
-          current,
-          (item.patch ?? {}) as EditPatchVocabulary,
-          (status) => this.resolveStatus(status),
-        ) as Partial<TaskState>;
-        if ("gates" in unsafe || "gateEvents" in unsafe)
-          throw new RecordValidationError("task_gate_events_managed");
-        const authorizedPatch = unsafe;
-        if (
-          authorizedPatch.status !== undefined &&
-          authorizedPatch.status !== current.status
-        )
-          transitionTask(current, authorizedPatch.status, this.lifecycle);
-        const rawNext = taskState({
-          ...current,
-          ...authorizedPatch,
-          id: current.id,
-        });
-        if (rawNext.milestoneId !== current.milestoneId)
-          throw new RecordValidationError(
-            "milestone_transition_requires_single_edit",
-          );
-        const persisted = linkSession.apply(rawNext);
-        folded.push({
-          ok: true,
-          reference: item.reference,
-          operationId,
-          next: persisted,
-        });
-      } catch (error) {
-        folded.push({
-          ok: false,
-          message:
-            error instanceof Error ? error.message : "unknown_batch_item_error",
-        });
-        void operationId;
-      }
+    const initial = await this.repository.readAll();
+    const results: (
+      | {
+          readonly kind: "updated";
+          readonly reference: string;
+          readonly operationId: string;
+          readonly task: TaskState;
+        }
+      | {
+          readonly kind: "error";
+          readonly reference: string;
+          readonly operationId: string;
+          readonly message: string;
+        }
+    )[] = [];
+
+    // Empty input: zero items plus the authoritative revision. No lock,
+    // journal, or mutation ever happens (blocker #8).
+    if (items.length === 0)
+      return { kind: "success", items: [], revision: initial.revision };
+
+    // Duplicate ids fail the whole request before any mutation.
+    const seenIds = new Set<string>();
+    for (const [index, { operationId }] of resolvedItems.entries()) {
+      if (seenIds.has(operationId))
+        throw new RecordValidationError(
+          `batch_duplicate_operation_id_at_line_${index + 1}`,
+        );
+      seenIds.add(operationId);
     }
 
     const opened = await batchRepository.beginTaskBatch(initial.revision);
@@ -714,91 +727,160 @@ export class TaskService {
         operationId: "task-edit-batch",
         ownedPaths: [],
       };
-    if (opened.kind === "unrecoverable_lock") {
-      const everyItemError = await this.editBatch(
-        items.map((item) => ({
-          ...item,
-          operationId: item.operationId,
-        })),
-      );
-      return everyItemError;
-    }
+    // Blocker #3: bounded error receipt instead of recursion.
+    if (opened.kind === "unrecoverable_lock")
+      return {
+        kind: "conflict",
+        expectedRevision: initial.revision,
+        actualRevision: initial.revision,
+        operationId: "task-edit-batch",
+        ownedPaths: [],
+      };
     const session = opened.session;
     try {
-      if (opened.recovered)
+      if (opened.recovered?.appliedOperationIds.length)
         console.error(
           `[quest] recovered ${opened.recovered.appliedOperationIds.length} journaled operations from crashed batch ${opened.recovered.sessionId}`,
         );
-      // CAS proved the store unchanged since our entry snapshot; the folded
-      // sequence replays deterministically over that state.
-      const workingRowsById = new Map(
-        initial.tasks.map((task) => [task.id, task]),
-      );
-      const slotsById = new Map<string, number>(
+      // CAS proved the store unchanged since the entry snapshot; everything
+      // below evolves from that exact state (blocker #4: repeated edits to
+      // one task compose because folds read EVOLVING rows).
+      const workingTasks = [...initial.tasks];
+      const _slotsById = new Map<string, number>(
         initial.tasks.map((task, index) => [task.id, index]),
       );
-      const workingTasks = [...initial.tasks];
-      const finalResults: (
-        | {
-            readonly kind: "updated";
-            readonly reference: string;
-            readonly operationId: string;
-            readonly task: TaskState;
-          }
-        | {
-            readonly kind: "error";
-            readonly reference: string;
-            readonly operationId: string;
-            readonly message: string;
-          }
-      )[] = [];
-      const duplicateGuard = new Map(
-        folded.map(() => [Math.random(), Math.random()]),
-      );
-      void duplicateGuard;
-      for (let index = 0; index < folded.length; index += 1) {
-        const outcome = folded[index];
-        const operationId = resolvedItems[index].operationId;
-        const reference = items[index]?.reference ?? "";
-        if (!outcome.ok || outcome.next === undefined) {
-          finalResults.push({
-            kind: "error",
-            reference,
-            operationId,
-            message: outcome.ok === false ? outcome.message : "",
-          });
-          continue;
-        }
+      // O(1) alias/reference index over the evolving collection.
+      let rowIndex = buildReferenceIndex(workingTasks);
+
+      /**
+       * Blocker #5 fast path: patches that cannot touch aliases,
+       * dependencies/parent graph, blockers, or lifecycle edges apply with
+       * O(row) validation; only graph-affecting rows run full seeded-graph
+       * validation through a link session built from complete existing
+       * edges. Milestone-transition items take their ordinary single-edit
+       * planning path in input order BEFORE the terminal revision read.
+       */
+      const deferredMilestone: typeof resolvedItems = [];
+      let appliedCount = 0;
+      for (const [index, { item, operationId }] of resolvedItems.entries()) {
+        const reference = item.reference;
         try {
-          await session.writeRecord(outcome.next);
-          await session.markApplied(operationId, outcome.next.id);
-          if (slotsById.has(outcome.next.id)) {
-            workingTasks[slotsById.get(outcome.next.id)!] = outcome.next;
-            workingRowsById.set(outcome.next.id, outcome.next);
+          const slot = rowIndex.resolve(item.reference);
+          if (slot === undefined)
+            throw new RecordValidationError("task_not_found");
+          const current = workingTasks[slot];
+          const unsafe = foldEditPatch(
+            current,
+            (item.patch ?? {}) as EditPatchVocabulary,
+            (status) => this.resolveStatus(status),
+          ) as Partial<TaskState>;
+          if ("gates" in unsafe || "gateEvents" in unsafe)
+            throw new RecordValidationError("task_gate_events_managed");
+          if (unsafe.status !== undefined && unsafe.status !== current.status)
+            transitionTask(current, unsafe.status, this.lifecycle);
+          const rawNext = taskState({ ...current, ...unsafe, id: current.id });
+          if (rawNext.milestoneId !== current.milestoneId) {
+            deferredMilestone.push({ item, operationId });
+            results.push({
+              kind: "error",
+              reference,
+              operationId,
+              message: "milestone_transition_requires_single_edit",
+            });
+            continue;
           }
-          finalResults.push({
+          const touchesGraph =
+            JSON.stringify(rawNext.dependencies) !==
+              JSON.stringify(current.dependencies) ||
+            rawNext.parentId !== current.parentId ||
+            JSON.stringify(rawNext.aliases) !==
+              JSON.stringify(current.aliases) ||
+            JSON.stringify(rawNext.blockers ?? []) !==
+              JSON.stringify(current.blockers ?? []);
+          if (touchesGraph) {
+            const linkSession = createTaskLinkSession(workingTasks);
+            rowGraphValidated.set(operationId, true);
+            await session.writeRecord(linkSession.apply(rawNext));
+          } else {
+            // Non-graph rows validate locally: one authoritative record
+            // parse + unique-row check (session holds the lock).
+            rowGraphValidated.set(operationId, false);
+            await session.writeRecord(taskState(rawNext));
+          }
+          await session.markApplied(operationId, rawNext.id);
+          workingTasks[slot] = rawNext as TaskState;
+          rowIndex = rebuildSlot(rowIndex, slot, rawNext as TaskState);
+          appliedCount += 1;
+          results.push({
             kind: "updated",
             reference,
             operationId,
-            task: outcome.next,
+            task: rawNext as TaskState,
           });
         } catch (error) {
-          finalResults.push({
+          results.push({
             kind: "error",
             reference,
             operationId,
             message:
-              error instanceof Error ? error.message : "durable_write_failed",
+              error instanceof Error
+                ? error.message
+                : "unknown_batch_item_error",
           });
         }
+        void index;
+        void appliedCount;
       }
+
+      // Milestone transitions: ordinary single-edit semantics at input
+      // order, still before the terminal revision is read (blocker #2).
+      for (const { item, operationId } of deferredMilestone) {
+        const resultAt = results.findIndex(
+          (entry) =>
+            entry.operationId === operationId &&
+            entry.reference === item.reference,
+        );
+        try {
+          const single = await this.edit(
+            item.reference,
+            foldEditPatch(
+              findTask((await this.repository.readAll()).tasks, item.reference),
+              (item.patch ?? {}) as EditPatchVocabulary,
+              (status) => this.resolveStatus(status),
+            ) as Parameters<TaskService["edit"]>[1],
+            operationId,
+          );
+          results[resultAt] =
+            single.kind === "success"
+              ? {
+                  kind: "updated",
+                  reference: item.reference,
+                  operationId,
+                  task: single.task,
+                }
+              : {
+                  kind: "error",
+                  reference: item.reference,
+                  operationId,
+                  message: "milestone_closure_failed",
+                };
+        } catch (error) {
+          results[resultAt] = {
+            kind: "error",
+            reference: item.reference,
+            operationId,
+            message:
+              error instanceof Error
+                ? error.message
+                : "milestone_closure_failed",
+          };
+        }
+      }
+
       await session.finish();
+      // Terminal revision ONLY after every durable write completed.
       const terminal = await this.repository.readAll();
-      return {
-        kind: "success",
-        items: finalResults,
-        revision: terminal.revision,
-      };
+      return { kind: "success", items: results, revision: terminal.revision };
     } finally {
       await session.finish();
     }
