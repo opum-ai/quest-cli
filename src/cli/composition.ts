@@ -1,14 +1,14 @@
+import { join } from "node:path";
 import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
 import { BacklogImporter } from "../adapters/migration/backlog/importer.ts";
 import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
 import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
-import { PlanningService } from "../application/planning/planning.ts";
 import { BacklogImportService } from "../application/migration/backlog-public.ts";
+import { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
-import { join } from "node:path";
 import {
-  TaskService,
   defaultTaskLifecyclePolicy,
+  TaskService,
 } from "../application/tasks/tasks.ts";
 
 /** The sole CLI composition root permitted to construct concrete adapters. */

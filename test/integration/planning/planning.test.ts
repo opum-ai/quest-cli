@@ -1,13 +1,12 @@
 import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-
-import {
-  PlanningService,
-  type PlanningRepository,
-} from "../../../src/application/planning/planning.ts";
+import { join } from "node:path";
 import { LocalPlanningRepository } from "../../../src/adapters/planning/local-planning-repository.ts";
+import {
+  type PlanningRepository,
+  PlanningService,
+} from "../../../src/application/planning/planning.ts";
 import type {
   Decision,
   Milestone,

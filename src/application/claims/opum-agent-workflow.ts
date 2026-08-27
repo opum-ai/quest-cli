@@ -2,24 +2,24 @@ import { createHash } from "node:crypto";
 
 import type { ClaimEvent } from "../../domain/claims/claims.ts";
 import {
-  replayClaimHistory,
   evaluateClaim,
+  replayClaimHistory,
 } from "../../domain/claims/claims.ts";
 import {
+  type ClaimGenerationEvidence,
   evaluateTaskBindingV1,
-  OpumAgentWorkflowError,
   OPUM_AGENT_WORKFLOW_CLOCK_SKEW_MS,
   OPUM_AGENT_WORKFLOW_MAX_LIFETIME_MS,
+  OpumAgentWorkflowError,
   parseTaskBindingRequestV1,
-  type ClaimGenerationEvidence,
   type QuestTaskBindingV1Response,
   type RelationshipRecordEvidence,
 } from "../../domain/claims/opum-agent-workflow.ts";
 import type { Actor } from "../../domain/records.ts";
 import type { TaskRelationshipRecord } from "../../ports/claims.ts";
 
-export { OpumAgentWorkflowError };
 export { parseTaskBindingRequestV1 } from "../../domain/claims/opum-agent-workflow.ts";
+export { OpumAgentWorkflowError };
 
 /**
  * Strict stdin-envelope scanner and parser: decodes every member name

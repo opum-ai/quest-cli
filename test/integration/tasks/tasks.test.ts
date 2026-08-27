@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test";
-
+import {
+  type TaskRepository,
+  TaskService,
+} from "../../../src/application/tasks/tasks.ts";
+import {
+  type GateEvent,
+  replayGateHistory,
+} from "../../../src/domain/gates/gates.ts";
+import { RecordValidationError } from "../../../src/domain/records.ts";
 import {
   closeMilestoneReference,
   createTask,
@@ -9,15 +17,6 @@ import {
   transitionTask,
   validateMilestoneClosure,
 } from "../../../src/domain/tasks/tasks.ts";
-import {
-  replayGateHistory,
-  type GateEvent,
-} from "../../../src/domain/gates/gates.ts";
-import {
-  TaskService,
-  type TaskRepository,
-} from "../../../src/application/tasks/tasks.ts";
-import { RecordValidationError } from "../../../src/domain/records.ts";
 
 function task(
   id: string,

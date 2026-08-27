@@ -1,10 +1,9 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-
-import { runQuest } from "../../src/cli/main.ts";
+import { join } from "node:path";
 import { safeStorageName } from "../../src/adapters/claims/local-claim-evidence.ts";
+import { runQuest } from "../../src/cli/main.ts";
 
 const correlation = "f54125ae12e541f4b7ba83abb8ba8a35";
 const renewal = "0123456789abcdef0123456789abcdef";
@@ -652,7 +651,7 @@ test("partial flag set without a piped envelope is a usage refusal", async () =>
 test("stdin transport accepts pretty-printed and whitespace-padded envelopes", async () => {
   const pretty = spawnRawStdin(
     [],
-    JSON.stringify(
+    `${JSON.stringify(
       {
         contract: "opum-agent-workflow",
         supportedVersions: [1],
@@ -661,7 +660,7 @@ test("stdin transport accepts pretty-printed and whitespace-padded envelopes", a
       },
       null,
       2,
-    ) + "\n",
+    )}\n`,
   );
   const padded = spawnRawStdin(
     [],

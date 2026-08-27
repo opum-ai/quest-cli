@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-
+import {
+  readQuestConfiguration,
+  validateQuestConfiguration,
+} from "../../src/adapters/toml-configuration.ts";
 import {
   commandManifest,
   diagnostic,
@@ -9,10 +12,6 @@ import {
   success,
   validateCommandManifest,
 } from "../../src/application/command-contract.ts";
-import {
-  readQuestConfiguration,
-  validateQuestConfiguration,
-} from "../../src/adapters/toml-configuration.ts";
 
 test("success envelopes have the frozen Opum wire shape", () => {
   const envelope = success("query.results", { tasks: [] });

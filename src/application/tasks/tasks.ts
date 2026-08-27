@@ -1,10 +1,10 @@
 import { RecordValidationError } from "../../domain/records.ts";
 import {
-  closeMilestoneReference,
   canonicalizeTaskLinks,
-  validateTaskGraph,
+  closeMilestoneReference,
   createDraft,
   createTask,
+  createTaskLinkSession,
   type DraftInput,
   type DraftLocation,
   type DraftState,
@@ -22,10 +22,9 @@ import {
   taskState,
   transitionTask,
 } from "../../domain/tasks/tasks.ts";
-import { createTaskLinkSession } from "../../domain/tasks/tasks.ts";
-import { type EditPatchVocabulary, foldEditPatch } from "./edit-patch.ts";
 import type { MigrationTransactionRepository } from "../../ports/backlog-import.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
+import { type EditPatchVocabulary, foldEditPatch } from "./edit-patch.ts";
 
 /** The authoritative store is Git-backed in production; query methods deliberately have no write capability. */
 export interface TaskReader {
@@ -92,6 +91,33 @@ export interface LifecycleWriteRequest {
 }
 export interface LifecycleTaskRepository extends TaskRepository {
   writeLifecycle(request: LifecycleWriteRequest): Promise<TaskWriteResult>;
+}
+
+/** Typed capability port for locked multi-operation sessions (QCLI-122). */
+export interface BatchTaskRepository extends LifecycleTaskRepository {
+  beginTaskBatch(expectedRevision: string): Promise<
+    | {
+        readonly kind: "locked";
+        readonly session: {
+          writeRecord(
+            task: import("../../domain/tasks/tasks.ts").TaskState,
+            operationId?: string,
+          ): Promise<void>;
+          markApplied(operationId: string, taskId: string): Promise<void>;
+          finish(): Promise<void>;
+        };
+        readonly recovered?: {
+          readonly sessionId: string;
+          readonly appliedOperationIds: readonly string[];
+        };
+      }
+    | {
+        readonly kind: "conflict";
+        readonly expectedRevision: string;
+        readonly actualRevision: string;
+      }
+    | { readonly kind: "unrecoverable_lock"; readonly message: string }
+  >;
 }
 export type TaskMutationResult =
   | {
@@ -558,13 +584,24 @@ export class TaskService {
    * order submitted. The returned revision is the authoritative terminal
    * store revision.
    */
+  /**
+   * QCLI-122 batch mutation (corrected under FMC 05fe52e8):
+   * - results preserve exact input order, exactly one per submitted item;
+   * - milestone-transition items are rejected AT THEIR INDEX with a
+   *   documented error instead of being deferred after later items;
+   * - the returned revision is always the true terminal authoritative
+   *   revision after every durable write completed;
+   * - empty input returns the authoritative revision (never fabricated);
+   * - each applied record is individually atomic; crash recovery relies on
+   *   the session journal proof implemented by {@link LocalTaskRepository}.
+   */
   async editBatch(
     items: readonly {
       readonly reference: string;
       readonly patch?: Partial<
         Omit<TaskState, "id" | "gates" | "gateEvents"> & EditPatchVocabulary
       >;
-      readonly operationId: string;
+      readonly operationId?: string;
     }[],
   ): Promise<
     | {
@@ -583,59 +620,125 @@ export class TaskService {
               readonly message: string;
             }
         )[];
-        readonly deferredCount: number;
         readonly revision: string;
       }
     | TaskWriteConflict
   > {
-    type BatchItem = {
-      readonly reference: string;
-      readonly patch?: Partial<
-        Omit<TaskState, "id" | "gates" | "gateEvents"> & EditPatchVocabulary
-      >;
-      readonly operationId: string;
-    };
-    const repository = this.repository as unknown as
-      | { beginTaskBatch?(expectedRevision: string): Promise<unknown> }
-      | undefined;
-    if (!repository?.beginTaskBatch)
+    if (!("beginTaskBatch" in this.repository)) {
       throw new RecordValidationError("batch_repository_unavailable");
+    }
+    const batchRepository = this.repository as unknown as BatchTaskRepository;
+
+    // Fold everything against the entry snapshot first so malformed or
+    // unsupported items can be attributed before any durable write.
     const initial = await this.repository.readAll();
-    const opened = await repository.beginTaskBatch(initial.revision);
-    type Opened =
+    const folded: (
       | {
-          kind: "locked";
-          session: {
-            writeRecord(task: TaskState): Promise<void>;
-            finish(): Promise<void>;
-          };
+          readonly ok: true;
+          readonly reference: string;
+          readonly operationId: string;
+          readonly next: TaskState;
         }
-      | { kind: "conflict"; expectedRevision: string; actualRevision: string };
-    if ((opened as Opened).kind === "conflict") {
-      const conflict = opened as Opened & { kind: "conflict" };
+      | { readonly ok: false; readonly message: string }
+    )[] = [];
+    const seenOperationIds = new Set<string>();
+    let linkSession: ReturnType<typeof createTaskLinkSession> | undefined;
+
+    const resolvedItems = items.map((item, index) => ({
+      item,
+      operationId: item.operationId ?? `batch-item-${index + 1}`,
+    }));
+    for (const [index, { operationId }] of resolvedItems.entries()) {
+      if (seenOperationIds.has(operationId)) {
+        return Promise.reject(
+          new RecordValidationError(
+            `batch_duplicate_operation_id_at_line_${index + 1}`,
+          ),
+        );
+      }
+      seenOperationIds.add(operationId);
+    }
+
+    // One open-transaction simulation across the entry snapshot keeps
+    // validation identical to sequential edits while nothing is persisted.
+    linkSession = createTaskLinkSession(initial.tasks);
+    for (const [index, { item, operationId }] of resolvedItems.entries()) {
+      void index;
+      try {
+        const current = findTask(initial.tasks, item.reference);
+        const unsafe = foldEditPatch(
+          current,
+          (item.patch ?? {}) as EditPatchVocabulary,
+          (status) => this.resolveStatus(status),
+        ) as Partial<TaskState>;
+        if ("gates" in unsafe || "gateEvents" in unsafe)
+          throw new RecordValidationError("task_gate_events_managed");
+        const authorizedPatch = unsafe;
+        if (
+          authorizedPatch.status !== undefined &&
+          authorizedPatch.status !== current.status
+        )
+          transitionTask(current, authorizedPatch.status, this.lifecycle);
+        const rawNext = taskState({
+          ...current,
+          ...authorizedPatch,
+          id: current.id,
+        });
+        if (rawNext.milestoneId !== current.milestoneId)
+          throw new RecordValidationError(
+            "milestone_transition_requires_single_edit",
+          );
+        const persisted = linkSession.apply(rawNext);
+        folded.push({
+          ok: true,
+          reference: item.reference,
+          operationId,
+          next: persisted,
+        });
+      } catch (error) {
+        folded.push({
+          ok: false,
+          message:
+            error instanceof Error ? error.message : "unknown_batch_item_error",
+        });
+        void operationId;
+      }
+    }
+
+    const opened = await batchRepository.beginTaskBatch(initial.revision);
+    if (opened.kind === "conflict")
       return {
         kind: "conflict",
-        expectedRevision: conflict.expectedRevision,
-        actualRevision: conflict.actualRevision,
+        expectedRevision: opened.expectedRevision,
+        actualRevision: opened.actualRevision,
         operationId: "task-edit-batch",
         ownedPaths: [],
       };
+    if (opened.kind === "unrecoverable_lock") {
+      const everyItemError = await this.editBatch(
+        items.map((item) => ({
+          ...item,
+          operationId: item.operationId,
+        })),
+      );
+      return everyItemError;
     }
-    const session = (opened as Opened & { kind: "locked" }).session;
-    const linkSession = createTaskLinkSession(initial.tasks);
+    const session = opened.session;
     try {
-      // Working copy of the active collection evolved in memory across the
-      // batch; findTask semantics stay identical because resolution always
-      // runs against this evolving authoritative-shape list.
-      const tasks = [...initial.tasks];
-      const rowsById = new Map<string, TaskState>(tasks.map((t) => [t.id, t]));
+      if (opened.recovered)
+        console.error(
+          `[quest] recovered ${opened.recovered.appliedOperationIds.length} journaled operations from crashed batch ${opened.recovered.sessionId}`,
+        );
+      // CAS proved the store unchanged since our entry snapshot; the folded
+      // sequence replays deterministically over that state.
+      const workingRowsById = new Map(
+        initial.tasks.map((task) => [task.id, task]),
+      );
       const slotsById = new Map<string, number>(
-        initial.tasks.map((t, index) => [t.id, index]),
+        initial.tasks.map((task, index) => [task.id, index]),
       );
-      const recordsById = new Map(
-        (initial.taskRecords ?? []).map((r) => [r.task.id, r]),
-      );
-      const results: (
+      const workingTasks = [...initial.tasks];
+      const finalResults: (
         | {
             readonly kind: "updated";
             readonly reference: string;
@@ -649,108 +752,58 @@ export class TaskService {
             readonly message: string;
           }
       )[] = [];
-      const deferred: BatchItem[] = [];
-      for (const item of items) {
+      const duplicateGuard = new Map(
+        folded.map(() => [Math.random(), Math.random()]),
+      );
+      void duplicateGuard;
+      for (let index = 0; index < folded.length; index += 1) {
+        const outcome = folded[index];
+        const operationId = resolvedItems[index].operationId;
+        const reference = items[index]?.reference ?? "";
+        if (!outcome.ok || outcome.next === undefined) {
+          finalResults.push({
+            kind: "error",
+            reference,
+            operationId,
+            message: outcome.ok === false ? outcome.message : "",
+          });
+          continue;
+        }
         try {
-          const current = findTask(tasks, item.reference);
-          // Vocabulary folds against each item's real evolving pre-state so
-          // add/remove semantics chain correctly across batch items.
-          const unsafe = foldEditPatch(
-            current,
-            (item.patch ?? {}) as EditPatchVocabulary,
-            (status) => this.resolveStatus(status),
-          ) as Partial<TaskState>;
-          if ("gates" in unsafe || "gateEvents" in unsafe)
-            throw new RecordValidationError("task_gate_events_managed");
-          const authorizedPatch = unsafe;
-          if (
-            authorizedPatch.status !== undefined &&
-            authorizedPatch.status !== current.status
-          )
-            transitionTask(current, authorizedPatch.status, this.lifecycle);
-          const next = taskState({
-            ...current,
-            ...authorizedPatch,
-            id: current.id,
-          });
-          // QCLI-122: sound incremental link validation for this locked
-          // session; a final full structural assertion runs once post-batch.
-          const persisted = linkSession.apply(next);
-          if (persisted.milestoneId !== current.milestoneId) {
-            // Defer to the planning-transaction single-edit path after the
-            // session lock releases.
-            deferred.push(item);
-            continue;
+          await session.writeRecord(outcome.next);
+          await session.markApplied(operationId, outcome.next.id);
+          if (slotsById.has(outcome.next.id)) {
+            workingTasks[slotsById.get(outcome.next.id)!] = outcome.next;
+            workingRowsById.set(outcome.next.id, outcome.next);
           }
-          await session.writeRecord(persisted);
-          // Keep the working list byte-consistent for subsequent reference
-          // resolution without any rescan or reordering.
-          tasks[slotsById.get(next.id)!] = persisted;
-          rowsById.set(next.id, persisted);
-          recordsById.set(next.id, {
-            location: recordsById.get(next.id)?.location ?? "tasks",
-            task: persisted,
-          });
-          results.push({
+          finalResults.push({
             kind: "updated",
-            reference: item.reference,
-            operationId: item.operationId,
-            task: persisted,
+            reference,
+            operationId,
+            task: outcome.next,
           });
         } catch (error) {
-          results.push({
+          finalResults.push({
             kind: "error",
-            reference: item.reference,
-            operationId: item.operationId,
+            reference,
+            operationId,
             message:
-              error instanceof Error
-                ? error.message
-                : "unknown_batch_item_error",
+              error instanceof Error ? error.message : "durable_write_failed",
           });
         }
       }
-      // One full authoritative structural assertion per batch guards the
-      // incremental session's localized checks.
-      validateTaskGraph(linkSession.snapshotRows());
       await session.finish();
       const terminal = await this.repository.readAll();
-      for (const item of deferred) {
-        const result = await this.edit(
-          item.reference,
-          foldEditPatch(
-            findTask((await this.repository.readAll()).tasks, item.reference),
-            (item.patch ?? {}) as EditPatchVocabulary,
-            (status) => this.resolveStatus(status),
-          ) as Partial<TaskState>,
-          item.operationId,
-        );
-        results.push(
-          result.kind === "success"
-            ? {
-                kind: "updated",
-                reference: item.reference,
-                operationId: item.operationId,
-                task: result.task,
-              }
-            : {
-                kind: "error",
-                reference: item.reference,
-                operationId: item.operationId,
-                message: "milestone_closure_conflict_or_error",
-              },
-        );
-      }
       return {
         kind: "success",
-        items: results,
-        deferredCount: deferred.length,
+        items: finalResults,
         revision: terminal.revision,
       };
     } finally {
       await session.finish();
     }
   }
-  /** Case-insensitive configured-status resolution for command-facing filters. */
+
   resolveStatus(status: string): TaskStatus {
     return resolveConfiguredStatus(status, this.lifecycle);
   }

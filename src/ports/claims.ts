@@ -1,5 +1,5 @@
-import type { Actor, CanonicalId } from "../domain/records.ts";
 import type { ClaimEvent } from "../domain/claims/claims.ts";
+import type { Actor, CanonicalId } from "../domain/records.ts";
 
 /** Read-only claim evidence used by the opum-agent-workflow binding service. */
 export interface ClaimEvidencePort {

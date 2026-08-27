@@ -9,6 +9,13 @@ import {
   updateQuestAgentInstructions,
 } from "../application/agents/agent-instructions.ts";
 import { startBrowserServer } from "../application/browser/browser.ts";
+import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
+import {
+  OpumAgentWorkflowBindingService,
+  OpumAgentWorkflowError,
+  parseStrictJson,
+  parseTaskBindingRequestV1,
+} from "../application/claims/opum-agent-workflow.ts";
 import {
   commandManifest,
   diagnostic,
@@ -20,14 +27,6 @@ import {
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import type { TaskService } from "../application/tasks/tasks.ts";
-import { createTaskService } from "./composition.ts";
-import { OpumAgentWorkflowBindingService } from "../application/claims/opum-agent-workflow.ts";
-import { OpumAgentWorkflowError } from "../application/claims/opum-agent-workflow.ts";
-import {
-  parseStrictJson,
-  parseTaskBindingRequestV1,
-} from "../application/claims/opum-agent-workflow.ts";
-import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
 import {
   initializeWorkspace,
   resolveInitializedWorkspace,
@@ -38,6 +37,7 @@ import {
   createBacklogImportService,
   createPlanningService,
   createTaskBindingModel,
+  createTaskService,
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
@@ -1442,8 +1442,9 @@ export async function runQuest(
       );
     }
     if (command === "edit-batch") {
-      // QCLI-122 public batch boundary: many distinct edit operations in one
-      // native process; per-operation validation and results are preserved.
+      // QCLI-122 public batch boundary (strict JSONL per FMC 05fe52e8):
+      // malformed/unknown/managed content fails at parse time or becomes a
+      // documented per-item error — never a silent successful no-op.
       const parsed = flags(rest, [
         "--add-label",
         "--remove-label",
@@ -1491,38 +1492,100 @@ export async function runQuest(
           `Operations file is not readable: ${filePath}`,
         );
       }
+      const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      if (lines.length === 0)
+        return failure(
+          "usage",
+          "Operations file contained zero operations; provide at least one.",
+        );
       const writeActor = actor(parsed);
       if (!writeActor)
         return failure(
           "denied",
           "Tracker writes require an explicit actor declaration.",
         );
-      const items = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      const parsedItems: unknown[] = [];
-      for (const [index, line] of items.entries()) {
+      // Allowed patch keys come straight from the published manifest entry so
+      // the CLI cannot drift from the public contract.
+      const manifestEntry = commandManifest.commands.find(
+        (entry: { name: string }) => entry.name === "task edit-batch",
+      ) as { fields?: readonly string[] } | undefined;
+      const allowedPatchKeys = new Set(manifestEntry?.fields ?? []);
+      if (allowedPatchKeys.size === 0) allowedPatchKeys.add("__unavailable__"); // defensive: no-op semantics
+      const managedKeys = new Set(["gates", "gateEvents"]);
+      const seenOperationIds = new Set<string>();
+      const items: unknown[] = [];
+      for (const [index, line] of lines.entries()) {
+        let value: unknown;
         try {
-          const value: unknown = JSON.parse(line);
-          if (
-            !value ||
-            typeof value !== "object" ||
-            typeof (value as { reference?: unknown }).reference !== "string" ||
-            ((value as { patch?: unknown }).patch !== undefined &&
-              typeof (value as { patch: unknown }).patch !== "object")
-          )
-            throw new Error("item shape");
-          parsedItems.push(value);
+          value = JSON.parse(line);
         } catch {
           return failure(
             "usage",
-            `Invalid operations JSONL at line ${index + 1}.`,
+            `Malformed operations JSONL at line ${index + 1}.`,
           );
         }
+        const record = value as Record<string, unknown>;
+        if (!record || typeof record !== "object" || Array.isArray(record))
+          return failure(
+            "usage",
+            `Invalid operations item at line ${index + 1}: expected an object.`,
+          );
+        const allowedTop = new Set(["reference", "operationId", "patch"]);
+        for (const key of Object.keys(record))
+          if (!allowedTop.has(key))
+            return failure(
+              "usage",
+              `Unknown field ${key} in operations item at line ${index + 1}.`,
+            );
+        const reference =
+          typeof record.reference === "string" ? record.reference : undefined;
+        if (!reference)
+          return failure(
+            "usage",
+            `Missing reference string in operations item at line ${index + 1}.`,
+          );
+        const operationIdRaw = record.operationId;
+        if (
+          typeof operationIdRaw !== "string" ||
+          operationIdRaw.trim().length === 0
+        )
+          return failure(
+            "usage",
+            `Operation id must be a non-empty string in operations item at line ${index + 1}.`,
+          );
+        if (seenOperationIds.has(operationIdRaw))
+          return failure(
+            "usage",
+            `Duplicate operation id ${operationIdRaw} at line ${index + 1}.`,
+          );
+        seenOperationIds.add(operationIdRaw);
+        const patchValue = record.patch;
+        if (
+          patchValue !== undefined &&
+          (typeof patchValue !== "object" ||
+            patchValue === null ||
+            Array.isArray(patchValue))
+        )
+          return failure(
+            "usage",
+            `Patch must be an object in operations item at line ${index + 1}.`,
+          );
+        for (const key of Object.keys(
+          (patchValue as Record<string, unknown>) ?? {},
+        )) {
+          if (managedKeys.has(key) || !allowedPatchKeys.has(key))
+            return failure(
+              "usage",
+              `${managedKeys.has(key) ? "Managed" : "Unknown"} patch key ${key} in operations item at line ${index + 1}.`,
+            );
+        }
+        items.push(record);
       }
       return output(
         await dispatchTrackerTaskCommand(await taskService(), {
           command,
           actor: writeActor,
-          items: parsedItems as {
+          items: items as {
             reference: string;
             operationId?: string;
             patch?: Record<string, unknown>;

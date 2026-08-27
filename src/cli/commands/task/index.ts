@@ -92,7 +92,6 @@ export type TaskCommandResponse =
         )[];
         readonly applied: number;
         readonly failed: number;
-        readonly deferredCount: number;
         readonly revision: string;
       };
     };
@@ -191,26 +190,16 @@ export async function dispatchTrackerTaskCommand(
     }
     case "edit-batch": {
       requireWriteActor(request.actor);
-      if (!request.items.length)
-        return {
-          schemaVersion: 1,
-          kind: "task.batch-updated",
-          data: {
-            items: [],
-            applied: 0,
-            failed: 0,
-            deferredCount: 0,
-            revision: "",
-          },
-        };
       const result = await tasks.editBatch(
         request.items.map((item, index) => ({
           reference: item.reference,
           operationId: item.operationId ?? `batch-item-${index + 1}`,
-          patch: (item.patch ?? {}) as Parameters<TaskService["edit"]>[1],
+          patch: (item.patch ?? {}) as Partial<
+            import("../../../domain/tasks/tasks.ts").TaskState &
+              TrackerEditPatch
+          >,
         })),
       );
-      void buildEditPatch;
       if (result.kind === "conflict") throw new Error("tracker_write_conflict");
       return {
         schemaVersion: 1,
@@ -220,7 +209,6 @@ export async function dispatchTrackerTaskCommand(
           applied: result.items.filter((item) => item.kind === "updated")
             .length,
           failed: result.items.filter((item) => item.kind === "error").length,
-          deferredCount: result.deferredCount,
           revision: result.revision,
         },
       };
@@ -232,7 +220,7 @@ export async function dispatchTrackerTaskCommand(
  * Folds the public replace/add/remove/clear vocabulary into one deterministic
  * TaskState patch: current minus removed, then new entries not already present.
  */
-function mergeList(
+function _mergeList(
   current: readonly string[],
   added: readonly string[] | undefined,
   removed: readonly string[] | undefined,
@@ -244,7 +232,7 @@ function mergeList(
   return result;
 }
 
-function mergeComments(
+function _mergeComments(
   current: readonly unknown[],
   added: readonly unknown[] | undefined,
   removed: readonly string[] | undefined,

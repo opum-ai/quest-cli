@@ -18,9 +18,9 @@
  * or need credentials and never publishes anything.
  */
 import { spawnSync } from "node:child_process";
-import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 
 const argv = process.argv.slice(2);
@@ -73,7 +73,7 @@ async function seedWorkspace(root) {
       env: { ...process.env },
     },
   );
-  if (!result.stdout || !result.stdout.includes(`seeded:${taskCount}`)) {
+  if (!result.stdout?.includes(`seeded:${taskCount}`)) {
     throw new Error(
       `seeding failed:\nstdout=${result.stdout}\nstderr=${result.stderr}`,
     );

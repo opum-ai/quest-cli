@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-
-import { LocalGitPort } from "../../../src/adapters/git/local-git.ts";
+import { join } from "node:path";
 import { GitSnapshotEvidence } from "../../../src/adapters/claims/local-claim-evidence.ts";
+import { LocalGitPort } from "../../../src/adapters/git/local-git.ts";
 import {
   OpumAgentWorkflowBindingService,
   OpumAgentWorkflowError,

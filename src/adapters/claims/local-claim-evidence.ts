@@ -1,21 +1,24 @@
 import { createHash } from "node:crypto";
-import type { GitPort } from "../../ports/git.ts";
 import {
+  type ClaimEvent,
+  type ClaimHistory,
   evaluateClaim,
   replayClaimHistory,
-  type ClaimHistory,
-  type ClaimEvent,
 } from "../../domain/claims/claims.ts";
-import type { Actor, CanonicalId } from "../../domain/records.ts";
-import { aliasKey, canonicalId } from "../../domain/records.ts";
-import { taskState, type TaskState } from "../../domain/tasks/tasks.ts";
-import { RecordValidationError } from "../../domain/records.ts";
 import { OpumAgentWorkflowError } from "../../domain/claims/opum-agent-workflow.ts";
+import type { Actor, CanonicalId } from "../../domain/records.ts";
+import {
+  aliasKey,
+  canonicalId,
+  RecordValidationError,
+} from "../../domain/records.ts";
+import { type TaskState, taskState } from "../../domain/tasks/tasks.ts";
 import type {
   ClaimEvidencePort,
+  TaskRelationshipCasWriter,
   TaskRelationshipRecord,
 } from "../../ports/claims.ts";
-import type { TaskRelationshipCasWriter } from "../../ports/claims.ts";
+import type { GitPort } from "../../ports/git.ts";
 
 /**
  * Deterministic, collision-resistant mapping of an opaque public identity to

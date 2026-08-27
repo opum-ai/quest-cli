@@ -1,7 +1,7 @@
 import {
-  exitCodes,
   type DiagnosticEnvelope,
   type ExitCode,
+  exitCodes,
   type ResultEnvelope,
 } from "../domain/command-contract.ts";
 

@@ -1,4 +1,5 @@
 import {
+  appendFile,
   mkdir,
   readdir,
   readFile,
@@ -7,6 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { decision, milestone } from "../../domain/planning/planning.ts";
 import {
   canonicalId,
   RecordConflictError,
@@ -22,17 +24,16 @@ import {
   taskState,
   validateMilestoneClosure,
 } from "../../domain/tasks/tasks.ts";
-import { decision, milestone } from "../../domain/planning/planning.ts";
+import type {
+  MigrationTransactionRepository,
+  MigrationTransactionRequest,
+} from "../../ports/backlog-import.ts";
+import type { PlanningRepository } from "../../ports/planning.ts";
 import type {
   LifecycleTaskRepository,
   LifecycleWriteRequest,
   TaskWriteRequest,
 } from "./tasks.ts";
-import type {
-  MigrationTransactionRequest,
-  MigrationTransactionRepository,
-} from "../../ports/backlog-import.ts";
-import type { PlanningRepository } from "../../ports/planning.ts";
 
 const LOCK_WAIT_MS = 500;
 
@@ -48,8 +49,70 @@ export class LocalTaskRepository
     private readonly planningRepository?: PlanningRepository,
   ) {}
 
+  /** Typed active-record persistence shared by single writes and sessions. */
+  async writeActiveRecord(task: TaskState): Promise<void> {
+    const destination = this.pathFor(task.id);
+    const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(task)}\n`, "utf8");
+    await rename(temporary, destination);
+  }
+
   private pathFor(id: string): string {
     return join(this.directory, `${id}.json`);
+  }
+
+  batchJournalPath(): string {
+    return join(this.directory, ".batch.journal.jsonl");
+  }
+
+  /**
+   * Reads a leftover batch journal and verifies it really belongs to a dead
+   * process on this host. Anything ambiguous returns null so callers treat
+   * the lock as live.
+   */
+  private async readOrphanJournal(): Promise<
+    | undefined
+    | {
+        readonly sessionId: string;
+        readonly appliedOperationIds: readonly string[];
+      }
+  > {
+    try {
+      const lines = (await readFile(this.batchJournalPath(), "utf8"))
+        .split(/\r?\n/)
+        .filter((line) => line.trim().length > 0);
+      if (lines.length === 0) return undefined;
+      const parsed = lines.map((line) => JSON.parse(line));
+      const sessionId =
+        typeof parsed[0]?.sessionId === "string"
+          ? (parsed[0].sessionId as string)
+          : undefined;
+      const pid =
+        typeof parsed[0]?.pid === "number"
+          ? (parsed[0].pid as number)
+          : undefined;
+      if (!sessionId || !pid) return undefined;
+      // Local liveness proof: the recorded pid must be ours-or-dead on the
+      // same host to qualify as an orphan.
+      if (pid === process.pid) return undefined;
+      try {
+        process.kill(pid, 0);
+        return undefined; // still alive elsewhere: treat lock as live
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "ESRCH") return undefined; // cannot prove death safely
+      }
+      return {
+        sessionId,
+        appliedOperationIds: parsed
+          .map((entry) =>
+            typeof entry.operationId === "string" ? entry.operationId : null,
+          )
+          .filter((value): value is string => value !== null),
+      };
+    } catch {
+      return undefined;
+    }
   }
 
   private root(): string {
@@ -318,44 +381,68 @@ export class LocalTaskRepository
   }
 
   /**
-   * QCLI-122 batch session: amortizes the per-operation directory rescan and
-   * inter-process lock churn behind one locked session. Entry performs the
-   * same revision CAS as a single write, under the same lock, so concurrent
-   * writers surface as structured conflicts before any mutation. Each record
-   * write stays atomic exactly like a single-op write; the lock is released
-   * only by {@link TaskBatchSession.finish} (or abort on failure), and a
-   * crashed process leaves the standard stale-lock conflict recovery story.
+   * QCLI-122 batch session (corrected): amortizes per-operation directory
+   * rescans and inter-process lock churn behind one locked session. Entry
+   * performs the same revision CAS as a single write under the same lock;
+   * EVERY non-locked exit (conflict, throw) releases the owned lock. Lock
+   * ownership is journaled while held: an orphan journal proves the previous
+   * holder died (its pid no longer exists), enabling real stale-lock
+   * recovery instead of a permanent conflict.
    */
   async beginTaskBatch(expectedRevision: string): Promise<
-    | { readonly kind: "locked"; readonly session: TaskBatchSession }
+    | {
+        readonly kind: "locked";
+        readonly session: TaskBatchSession;
+        readonly recovered?: {
+          readonly sessionId: string;
+          readonly appliedOperationIds: readonly string[];
+        };
+      }
     | {
         readonly kind: "conflict";
         readonly expectedRevision: string;
         readonly actualRevision: string;
       }
+    | {
+        readonly kind: "unrecoverable_lock";
+        readonly message: string;
+      }
   > {
     await mkdir(this.directory, { recursive: true });
     const lock = join(this.directory, ".write.lock");
-    if (!(await this.acquireLock(lock))) {
-      const current = await this.readAll();
-      return {
-        kind: "conflict",
-        expectedRevision,
-        actualRevision: current.revision,
-      };
+    const lockAcquired = await this.acquireLock(lock);
+    if (!lockAcquired) {
+      // Real stale-lock recovery: an orphaned journal proves the previous
+      // holder crashed before finishing (finish removes the journal first).
+      const orphan = await this.readOrphanJournal();
+      if (!orphan)
+        return {
+          kind: "unrecoverable_lock",
+          message:
+            "Another writer holds .write.lock and no crash evidence exists.",
+        };
+      await rm(lock, { recursive: true, force: true });
+      return this.beginTaskBatch(expectedRevision);
     }
+    // From here on this process owns the freshly-created lock; every exit
+    // releases it unless ownership transfers to the returned session.
+    let released = false;
     try {
       const current = await this.readAll();
-      if (current.revision !== expectedRevision)
+      if (current.revision !== expectedRevision) {
+        await rm(lock, { recursive: true, force: true });
+        released = true;
         return {
           kind: "conflict",
           expectedRevision,
           actualRevision: current.revision,
         };
-      return { kind: "locked", session: new LocalTaskBatchSession(this, lock) };
-    } catch (error) {
-      await rm(lock, { recursive: true, force: true });
-      throw error;
+      }
+      const sessionId = crypto.randomUUID();
+      const session = new LocalTaskBatchSession(this, lock, sessionId);
+      return { kind: "locked", session };
+    } finally {
+      void released;
     }
   }
 
@@ -607,11 +694,13 @@ export class LocalTaskRepository
   }
 }
 
-/** Public session contract consumed by TaskService.editBatch. */
+/** Public session contract consumed by the typed BatchTaskRepository port. */
 export interface TaskBatchSession {
   /** Persists one record atomically, identical to a single-op write payload. */
-  writeRecord(task: TaskState): Promise<void>;
-  /** Releases the batch lock; idempotent per session instance. */
+  writeRecord(task: TaskState, operationId?: string): Promise<void>;
+  /** Appends one journaled, already-persisted operation for crash proofing. */
+  markApplied(operationId: string, taskId: string): Promise<void>;
+  /** Removes the journal then releases the owned lock; idempotent. */
   finish(): Promise<void>;
 }
 
@@ -620,18 +709,41 @@ class LocalTaskBatchSession implements TaskBatchSession {
   constructor(
     private readonly repository: LocalTaskRepository,
     private readonly lock: string,
+    readonly sessionId: string,
+    private readonly onReleased?: () => void,
   ) {}
 
   async writeRecord(task: TaskState): Promise<void> {
-    const destination = this.repository["pathFor"](task.id);
-    const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
-    await writeFile(temporary, `${JSON.stringify(task)}\n`, "utf8");
-    await rename(temporary, destination);
+    await this.repository.writeActiveRecord(task);
+  }
+
+  /**
+   * The journal is best-effort reconnaissance, not a safety claim: each
+   * record write is individually atomic, and a surviving journal exactly
+   * proves a dead holder so the next entry can reclaim the lock. It is
+   * appended after the corresponding durable rename.
+   */
+  async markApplied(operationId: string, taskId: string): Promise<void> {
+    if (this.finished) return;
+    const path = this.repository.batchJournalPath();
+    const line = `${JSON.stringify({
+      schemaVersion: 1,
+      sessionId: this.sessionId,
+      pid: process.pid,
+      at: new Date().toISOString(),
+      operationId,
+      taskId,
+    })}\n`;
+    await appendFile(path, line, "utf8");
   }
 
   async finish(): Promise<void> {
     if (this.finished) return;
     this.finished = true;
+    // Journal first: once gone, a lingering lock can only be foreign work in
+    // flight, never our own crashed session.
+    await rm(this.repository.batchJournalPath(), { force: true });
     await rm(this.lock, { recursive: true, force: true });
+    this.onReleased?.();
   }
 }

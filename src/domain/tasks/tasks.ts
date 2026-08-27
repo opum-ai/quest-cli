@@ -2,14 +2,14 @@ import { z } from "zod";
 
 import {
   blockingGatesSatisfied,
-  replayGateHistory,
   type GateEvent,
+  replayGateHistory,
 } from "../gates/gates.ts";
 import {
   aliasKey,
+  type CanonicalId,
   canonicalId,
   canonicalIdSchema,
-  type CanonicalId,
   RecordConflictError,
   RecordValidationError,
 } from "../records.ts";
@@ -595,9 +595,16 @@ export function canonicalizeTaskLinks(
 export function createTaskLinkSession(initial: readonly TaskState[]) {
   const byId = new Map<string, TaskState>();
   const aliases = new Map<string, CanonicalId>();
-  const dependencies = new Map<CanonicalId, readonly CanonicalId[]>();
+  const dependenciesMap = new Map<CanonicalId, readonly CanonicalId[]>();
   const parentOf = new Map<CanonicalId, CanonicalId>();
-  const index = (task: TaskState): void => {
+  const resolveFromAliases = (raw: string): CanonicalId => {
+    const id = aliases.get(aliasKey(raw));
+    if (!id) throw new RecordValidationError("dependency_target_not_found");
+    return id;
+  };
+  // Phase one seeds identities only; phase two resolves every pre-existing
+  // edge once the alias map is complete so nothing is silently dropped.
+  const indexIdentity = (task: TaskState): void => {
     if (byId.has(task.id))
       throw new RecordValidationError("dependency_target_ambiguous");
     byId.set(task.id, task);
@@ -608,104 +615,88 @@ export function createTaskLinkSession(initial: readonly TaskState[]) {
         throw new RecordValidationError("dependency_target_ambiguous");
       aliases.set(key, task.id);
     }
-    dependencies.set(task.id, []);
-    if (task.parentId) parentOf.set(task.id, task.parentId as CanonicalId);
   };
-  for (const task of initial) index(task);
+  for (const task of initial) indexIdentity(task);
+  const indexEdges = (task: TaskState): void => {
+    const resolvedDependencies = task.dependencies.map(resolveFromAliases);
+    dependenciesMap.set(task.id, resolvedDependencies);
+    if (task.parentId) parentOf.set(task.id, resolveFromAliases(task.parentId));
+  };
+  for (const task of initial) indexEdges(task);
+  // The initial collection must arrive already validated (snapshot() does
+  // this); re-run the authoritative structural walk so session state starts
+  // from proven-good data.
+  validateTaskGraph([...byId.values()]);
 
-  const removeIndex = (task: TaskState): void => {
+  const unindexRow = (task: TaskState): void => {
     byId.delete(task.id);
     for (const value of [task.id, ...task.aliases]) {
       const key = aliasKey(value);
       if (aliases.get(key) === task.id) aliases.delete(key);
     }
-    dependencies.delete(task.id);
+    dependenciesMap.delete(task.id);
     parentOf.delete(task.id);
   };
 
-  /** Locally validates and indexes one row-validated replacement. */
+  /** Validates and indexes one replacement; returns its canonical spelling. */
   const apply = (next: TaskState): TaskState => {
     const previous = byId.get(next.id);
     if (!previous) throw new RecordValidationError("batch_link_target_absent");
-    removeIndex(previous);
+    unindexRow(previous);
     try {
-      index(next);
-      const resolve = (raw: string): CanonicalId => {
-        const id = aliases.get(aliasKey(raw));
-        if (!id) throw new RecordValidationError("dependency_target_not_found");
-        return id;
-      };
-      // Canonical dependency/parent spellings for the row being applied.
-      const resolvedDependencies = next.dependencies.map(resolve);
-      if (
-        resolvedDependencies.some((id) => id === next.id) ||
-        new Set(resolvedDependencies).size !== resolvedDependencies.length
-      ) {
-        throw new RecordValidationError(
-          resolvedDependencies.some((id) => id === next.id)
-            ? "dependency_self_edge"
-            : "dependency_duplicate_edge",
-        );
-      }
+      indexIdentity(next);
+      const canonicalDependencies = next.dependencies.map(resolveFromAliases);
+      if (canonicalDependencies.some((id) => id === next.id))
+        throw new RecordValidationError("dependency_self_edge");
+      if (new Set(canonicalDependencies).size !== canonicalDependencies.length)
+        throw new RecordValidationError("dependency_duplicate_edge");
       let parentResolved: CanonicalId | undefined;
       if (next.parentId) {
-        parentResolved = resolve(next.parentId);
+        parentResolved = resolveFromAliases(next.parentId);
         if (parentResolved === next.id)
           throw new RecordValidationError("parent_self_edge");
       }
-      dependencies.set(next.id, resolvedDependencies);
-      if (parentResolved) parentOf.set(next.id, parentResolved);
-      else parentOf.delete(next.id);
-      // Persisted spelling mirrors canonicalizeTaskLinks: links are written
-      // back in resolved canonical form on the returned row.
       const canonicalRow: TaskState = {
         ...next,
-        dependencies: resolvedDependencies,
+        dependencies: canonicalDependencies,
         parentId: parentResolved,
       };
-      // A new cycle must pass through the changed row.
-      const walkParents = (start: CanonicalId): boolean => {
-        const seen = new Set<CanonicalId>();
-        let current: CanonicalId | undefined = start;
-        while (current && parentOf.has(current)) {
-          if (seen.has(current)) return true;
-          seen.add(current);
-          current = parentOf.get(current);
-        }
-        return false;
-      };
-      if (walkParents(next.id)) throw new RecordValidationError("parent_cycle");
-      for (const root of [next.id, ...resolvedDependencies]) {
-        const visiting = new Set<CanonicalId>();
-        const stack: readonly CanonicalId[] = [root];
-        const walkDeps = (id: CanonicalId): boolean => {
-          if (visiting.has(id)) return true;
-          if (!dependencies.has(id)) return false;
-          visiting.add(id);
-          for (const dep of dependencies.get(id) ?? []) {
-            if (walkDeps(dep)) {
-              visiting.delete(id);
-              return true;
-            }
-          }
-          visiting.delete(id);
-          return false;
-        };
-        if (walkDeps(root as CanonicalId))
-          throw new RecordValidationError("dependency_cycle");
+      dependenciesMap.set(next.id, canonicalDependencies);
+      if (parentResolved) parentOf.set(next.id, parentResolved);
+      else parentOf.delete(next.id);
+      // A cycle introduced here must involve this row: walk outward from it.
+      const seenParentChain = new Set<CanonicalId>();
+      let parentCursor: CanonicalId | undefined = next.id;
+      while (parentCursor && parentOf.has(parentCursor)) {
+        if (seenParentChain.has(parentCursor))
+          throw new RecordValidationError("parent_cycle");
+        seenParentChain.add(parentCursor);
+        parentCursor = parentOf.get(parentCursor);
       }
+      // Soundness: the session starts from a proven-valid graph and exactly
+      // one row changes per apply, so any NEW dependency cycle must pass
+      // through this row's subgraph. A single rooted DFS therefore matches
+      // the authoritative full walk while keeping per-operation cost local.
+      const visiting = new Set<CanonicalId>();
+      const walkDependencies = (id: CanonicalId): void => {
+        if (visiting.has(id))
+          throw new RecordValidationError("dependency_cycle");
+        visiting.add(id);
+        for (const dependency of dependenciesMap.get(id) ?? [])
+          walkDependencies(dependency);
+        visiting.delete(id);
+      };
+      walkDependencies(next.id);
       byId.set(next.id, canonicalRow);
       return canonicalRow;
     } catch (error) {
-      // Roll back partial indexing so the session stays coherent.
-      byId.delete(next.id);
-      for (const value of [next.id, ...next.aliases]) {
-        const key = aliasKey(value);
-        if (aliases.get(key) === next.id) aliases.delete(key);
+      unindexRow(next);
+      try {
+        indexIdentity(previous);
+        indexEdges(previous);
+      } catch {
+        /* identity previously existed: restoration cannot fail */
       }
-      dependencies.delete(next.id);
-      parentOf.delete(next.id);
-      index(previous);
       throw error;
     }
   };
