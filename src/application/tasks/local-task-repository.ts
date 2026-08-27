@@ -436,22 +436,41 @@ export class LocalTaskRepository
           kind: "unrecoverable_lock",
           message: "Recovered journal but failed to reclaim the freed lock.",
         };
+      // Blocker #2 (fourth pass): the REACQUIRED lock belongs to this call
+      // — every non-transfer exit (stale-revision conflict, read failure)
+      // releases it through one bounded cleanup, matching main-path rules.
+      let reacquisitionReleased = false;
+      const releaseReacquired = async (): Promise<void> => {
+        if (!reacquisitionReleased) {
+          reacquisitionReleased = true;
+          await rm(lock, { recursive: true, force: true });
+        }
+      };
       try {
-        const current = await this.readAll();
-        if (current.revision !== expectedRevision)
+        let current: Awaited<ReturnType<LocalTaskRepository["readAll"]>>;
+        try {
+          current = await this.readAll();
+        } catch (error) {
+          await releaseReacquired();
+          throw error;
+        }
+        if (current.revision !== expectedRevision) {
+          await releaseReacquired();
           return {
             kind: "conflict",
             expectedRevision,
             actualRevision: current.revision,
           };
+        }
         const session = new LocalTaskBatchSession(
           this,
           lock,
           crypto.randomUUID(),
         );
+        await session.journalReady();
         return { kind: "locked", session, recovered: recoveredReceipt };
       } catch (error) {
-        await rm(lock, { recursive: true, force: true });
+        await releaseReacquired();
         throw error;
       }
     }
