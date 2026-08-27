@@ -413,7 +413,8 @@ export class LocalTaskRepository
     const lockAcquired = await this.acquireLock(lock);
     if (!lockAcquired) {
       // Real stale-lock recovery: an orphaned journal proves the previous
-      // holder crashed before finishing (finish removes the journal first).
+      // holder crashed before finishing. Bounded single retry — never
+      // recursion — and the recovered receipt travels to the caller.
       const orphan = await this.readOrphanJournal();
       if (!orphan)
         return {
@@ -421,17 +422,60 @@ export class LocalTaskRepository
           message:
             "Another writer holds .write.lock and no crash evidence exists.",
         };
+      // Window A (crash before any marked write) still carries the session
+      // id with an EMPTY operation receipt; windows B/C list what was
+      // durably marked before death.
+      const recoveredReceipt = {
+        sessionId: orphan.sessionId,
+        appliedOperationIds: orphan.appliedOperationIds,
+      };
       await rm(lock, { recursive: true, force: true });
-      return this.beginTaskBatch(expectedRevision);
-    }
-    // From here on this process owns the freshly-created lock; every exit
-    // releases it unless ownership transfers to the returned session.
-    let released = false;
-    try {
-      const current = await this.readAll();
-      if (current.revision !== expectedRevision) {
+      const retried = await this.acquireLock(lock);
+      if (!retried)
+        return {
+          kind: "unrecoverable_lock",
+          message: "Recovered journal but failed to reclaim the freed lock.",
+        };
+      try {
+        const current = await this.readAll();
+        if (current.revision !== expectedRevision)
+          return {
+            kind: "conflict",
+            expectedRevision,
+            actualRevision: current.revision,
+          };
+        const session = new LocalTaskBatchSession(
+          this,
+          lock,
+          crypto.randomUUID(),
+        );
+        return { kind: "locked", session, recovered: recoveredReceipt };
+      } catch (error) {
         await rm(lock, { recursive: true, force: true });
+        throw error;
+      }
+    }
+    // From here on this process owns the freshly-created lock: EVERY exit
+    // path that does not hand ownership to a returned session must remove
+    // it exactly once. released tracks whether an early return cleaned up;
+    // a throw falls through to the same cleanup before rethrowing.
+    let released = false;
+    const releaseOwnedLock = async (): Promise<void> => {
+      if (!released) {
         released = true;
+        await rm(lock, { recursive: true, force: true });
+      }
+    };
+    try {
+      let current: Awaited<ReturnType<LocalTaskRepository["readAll"]>>;
+      try {
+        current = await this.readAll();
+      } catch (error) {
+        await releaseOwnedLock();
+        throw error;
+      }
+      if (current.revision !== expectedRevision) {
+        await releaseOwnedLock();
         return {
           kind: "conflict",
           expectedRevision,
@@ -439,10 +483,18 @@ export class LocalTaskRepository
         };
       }
       const sessionId = crypto.randomUUID();
-      const session = new LocalTaskBatchSession(this, lock, sessionId);
+      const session = new LocalTaskBatchSession(
+        this,
+        lock,
+        sessionId,
+        async () => {
+          released = true;
+        },
+      );
       return { kind: "locked", session };
-    } finally {
-      void released;
+    } catch (error) {
+      await releaseOwnedLock();
+      throw error;
     }
   }
 
@@ -710,7 +762,7 @@ class LocalTaskBatchSession implements TaskBatchSession {
     private readonly repository: LocalTaskRepository,
     private readonly lock: string,
     readonly sessionId: string,
-    private readonly onReleased?: () => void,
+    private readonly onReleased?: () => Promise<void>,
   ) {}
 
   async writeRecord(task: TaskState): Promise<void> {
@@ -744,6 +796,6 @@ class LocalTaskBatchSession implements TaskBatchSession {
     // flight, never our own crashed session.
     await rm(this.repository.batchJournalPath(), { force: true });
     await rm(this.lock, { recursive: true, force: true });
-    this.onReleased?.();
+    await this.onReleased?.();
   }
 }

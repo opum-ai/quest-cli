@@ -1493,17 +1493,24 @@ export async function runQuest(
         );
       }
       const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      if (lines.length === 0)
-        return failure(
-          "usage",
-          "Operations file contained zero operations; provide at least one.",
-        );
       const writeActor = actor(parsed);
       if (!writeActor)
         return failure(
           "denied",
           "Tracker writes require an explicit actor declaration.",
         );
+      // Empty file is a public no-op: zero items plus the authoritative
+      // revision, no lock/journal/mutation (QCLI-122 third pass #8).
+      if (lines.length === 0) {
+        return output(
+          await dispatchTrackerTaskCommand(await taskService(), {
+            command,
+            actor: writeActor,
+            items: [],
+          }),
+          modeFor(parsed),
+        );
+      }
       // Allowed patch keys come straight from the published manifest entry so
       // the CLI cannot drift from the public contract.
       const manifestEntry = commandManifest.commands.find(
@@ -1570,13 +1577,33 @@ export async function runQuest(
             "usage",
             `Patch must be an object in operations item at line ${index + 1}.`,
           );
-        for (const key of Object.keys(
-          (patchValue as Record<string, unknown>) ?? {},
-        )) {
-          if (managedKeys.has(key) || !allowedPatchKeys.has(key))
+        const patchObject = (patchValue as Record<string, unknown>) ?? {};
+        for (const [patchKey, fieldValue] of Object.entries(patchObject)) {
+          if (managedKeys.has(patchKey) || !allowedPatchKeys.has(patchKey))
             return failure(
               "usage",
-              `${managedKeys.has(key) ? "Managed" : "Unknown"} patch key ${key} in operations item at line ${index + 1}.`,
+              `${managedKeys.has(patchKey) ? "Managed" : "Unknown"} patch key ${patchKey} in operations item at line ${index + 1}.`,
+            );
+          // QCLI-122 third pass #6: value types must match the published
+          // vocabulary — a string never silently char-iterates into a list.
+          const isListField =
+            /^(add|remove)[A-Z]/.test(patchKey) ||
+            [
+              "labels",
+              "documentation",
+              "plan",
+              "implementationNotes",
+              "acceptanceCriteria",
+              "definitionOfDone",
+              "assignees",
+              "references",
+              "modifiedFiles",
+              "dependencies",
+            ].includes(patchKey);
+          if (isListField && !Array.isArray(fieldValue))
+            return failure(
+              "usage",
+              `Invalid list value for patch key ${patchKey} in operations item at line ${index + 1}.`,
             );
         }
         items.push(record);
