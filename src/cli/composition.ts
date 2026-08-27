@@ -86,13 +86,16 @@ export function createTaskBindingService(model: TaskBindingReadModel) {
 
 /** Sole composition root for the CLI task service with milestone closure capability. */
 export function createTaskService(root: string): TaskService {
+  const repository = new LocalTaskRepository(
+    join(root, ".quest", "tasks"),
+    new LocalPlanningRepository(root),
+  );
   return new TaskService(
-    new LocalTaskRepository(
-      join(root, ".quest", "tasks"),
-      new LocalPlanningRepository(root),
-    ),
+    repository,
     defaultTaskLifecyclePolicy,
     undefined,
     new LocalPlanningRepository(root),
+    // Real typed batch capability port (QCLI-122 blocker #4): no casting.
+    repository,
   );
 }

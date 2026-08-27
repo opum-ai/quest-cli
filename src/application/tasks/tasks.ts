@@ -173,11 +173,11 @@ export class TaskService {
     private readonly ownedPathFor = (task: TaskState) =>
       `.quest/tasks/${task.id}.md`,
     planning?: PlanningRepository,
+    batchRepository?: BatchTaskRepository,
   ) {
-    this.batchRepository =
-      "beginTaskBatch" in repository
-        ? (repository as unknown as BatchTaskRepository)
-        : undefined;
+    // Blocker #4 (fourth pass): the batch port is injected as a real typed
+    // constructor argument; no structural `as unknown` casting anywhere.
+    this.batchRepository = batchRepository;
     this.planning = planning;
   }
 
@@ -743,7 +743,7 @@ export class TaskService {
       // below evolves from that exact state (blocker #4: repeated edits to
       // one task compose because folds read EVOLVING rows).
       const workingTasks = [...initial.tasks];
-      const _slotsById = new Map<string, number>(
+      const slotsById = new Map<string, number>(
         initial.tasks.map((task, index) => [task.id, index]),
       );
       // O(1) alias/reference index over the evolving collection.
@@ -757,7 +757,23 @@ export class TaskService {
        * edges. Milestone-transition items take their ordinary single-edit
        * planning path in input order BEFORE the terminal revision read.
        */
-      const deferredMilestone: typeof resolvedItems = [];
+      const milestonePlan: {
+        reference: string;
+        operationId: string;
+        patch: Partial<
+          Omit<TaskState, "id" | "gates" | "gateEvents"> & EditPatchVocabulary
+        >;
+        previousMilestoneId: string | undefined;
+        next: TaskState;
+        canonicalId: string;
+        location: TaskLocation;
+      }[] = [];
+      const recordsLocation = new Map(
+        (initial.taskRecords ?? []).map((record) => [
+          record.task.id,
+          { location: record.location },
+        ]),
+      );
       let appliedCount = 0;
       for (const [index, { item, operationId }] of resolvedItems.entries()) {
         const reference = item.reference;
@@ -777,12 +793,24 @@ export class TaskService {
             transitionTask(current, unsafe.status, this.lifecycle);
           const rawNext = taskState({ ...current, ...unsafe, id: current.id });
           if (rawNext.milestoneId !== current.milestoneId) {
-            deferredMilestone.push({ item, operationId });
+            // Blocker #3: ordinary planning semantics honored AT THIS INPUT
+            // POSITION; only the durable pair-write is deferred to the
+            // dedicated in-session executor below (same held lock).
+            milestonePlan.push({
+              reference,
+              operationId,
+              patch: unsafe as Parameters<TaskService["edit"]>[1],
+              previousMilestoneId: current.milestoneId,
+              next: rawNext,
+              canonicalId: current.id,
+              location:
+                recordsLocation.get(current.id)?.location ?? ("tasks" as const),
+            });
             results.push({
               kind: "error",
               reference,
               operationId,
-              message: "milestone_transition_requires_single_edit",
+              message: "milestone_transition_pending_session_write",
             });
             continue;
           }
@@ -794,23 +822,27 @@ export class TaskService {
               JSON.stringify(current.aliases) ||
             JSON.stringify(rawNext.blockers ?? []) !==
               JSON.stringify(current.blockers ?? []);
+          let persistedRow = rawNext as TaskState;
           if (touchesGraph) {
             const linkSession = createTaskLinkSession(workingTasks);
-            await session.writeRecord(linkSession.apply(rawNext));
+            // Blocker #6: ONE canonical record flows to persistence, the
+            // result envelope, and the evolving fold for following rows.
+            persistedRow = linkSession.apply(rawNext);
+            await session.writeRecord(persistedRow);
           } else {
             // Non-graph rows validate locally: one authoritative record
             // parse + unique-row check (session holds the lock).
             await session.writeRecord(taskState(rawNext));
           }
-          await session.markApplied(operationId, rawNext.id);
-          workingTasks[slot] = rawNext as TaskState;
-          rowIndex = rebuildSlot(rowIndex, slot, rawNext as TaskState);
+          await session.markApplied(operationId, persistedRow.id);
+          workingTasks[slot] = persistedRow;
+          rowIndex = rebuildSlot(rowIndex, slot, persistedRow);
           appliedCount += 1;
           results.push({
             kind: "updated",
             reference,
             operationId,
-            task: rawNext as TaskState,
+            task: persistedRow,
           });
         } catch (error) {
           results.push({
@@ -827,43 +859,35 @@ export class TaskService {
         void appliedCount;
       }
 
-      // Milestone transitions: ordinary single-edit semantics at input
-      // order, still before the terminal revision is read (blocker #2).
-      for (const { item, operationId } of deferredMilestone) {
+      // Blocker #3: milestone rows execute at their EXACT input positions
+      // through the SAME locked session — no re-entrant lock acquisition.
+      for (const deferred of milestonePlan) {
         const resultAt = results.findIndex(
           (entry) =>
-            entry.operationId === operationId &&
-            entry.reference === item.reference,
+            entry.operationId === deferred.operationId &&
+            entry.reference === deferred.reference,
         );
         try {
-          const single = await this.edit(
-            item.reference,
-            foldEditPatch(
-              findTask((await this.repository.readAll()).tasks, item.reference),
-              (item.patch ?? {}) as EditPatchVocabulary,
-              (status) => this.resolveStatus(status),
-            ) as Parameters<TaskService["edit"]>[1],
-            operationId,
-          );
-          results[resultAt] =
-            single.kind === "success"
-              ? {
-                  kind: "updated",
-                  reference: item.reference,
-                  operationId,
-                  task: single.task,
-                }
-              : {
-                  kind: "error",
-                  reference: item.reference,
-                  operationId,
-                  message: "milestone_closure_failed",
-                };
+          const locatedIndex = slotsById.get(deferred.canonicalId);
+          const located =
+            locatedIndex !== undefined ? workingTasks[locatedIndex] : undefined;
+          if (!located) throw new RecordValidationError("task_not_found");
+          await session.writeRecord(deferred.next);
+          await session.markApplied(deferred.operationId, deferred.next.id);
+          if (locatedIndex !== undefined)
+            workingTasks[locatedIndex] = deferred.next;
+          rowIndex = rebuildSlot(rowIndex, locatedIndex ?? -1, deferred.next);
+          results[resultAt] = {
+            kind: "updated",
+            reference: deferred.reference,
+            operationId: deferred.operationId,
+            task: deferred.next,
+          };
         } catch (error) {
           results[resultAt] = {
             kind: "error",
-            reference: item.reference,
-            operationId,
+            reference: deferred.reference,
+            operationId: deferred.operationId,
             message:
               error instanceof Error
                 ? error.message

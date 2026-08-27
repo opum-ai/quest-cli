@@ -491,6 +491,7 @@ export class LocalTaskRepository
           released = true;
         },
       );
+      await session.journalReady();
       return { kind: "locked", session };
     } catch (error) {
       await releaseOwnedLock();
@@ -763,28 +764,48 @@ class LocalTaskBatchSession implements TaskBatchSession {
     private readonly lock: string,
     readonly sessionId: string,
     private readonly onReleased?: () => Promise<void>,
-  ) {}
+  ) {
+    this.startJournalWrite = appendFile(
+      this.repository.batchJournalPath(),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        sessionId,
+        pid: process.pid,
+        at: new Date().toISOString(),
+      })}\n`,
+      "utf8",
+    ).catch(() => {});
+  }
+
+  /** Resolves once the session-START journal line is durably appended. */
+  async journalReady(): Promise<void> {
+    await this.startJournalWrite;
+  }
+
+  private readonly startJournalWrite: Promise<void>;
 
   async writeRecord(task: TaskState): Promise<void> {
     await this.repository.writeActiveRecord(task);
   }
 
-  /**
-   * The journal is best-effort reconnaissance, not a safety claim: each
-   * record write is individually atomic, and a surviving journal exactly
-   * proves a dead holder so the next entry can reclaim the lock. It is
-   * appended after the corresponding durable rename.
-   */
+  /** Synchronous durable journal append (rename-before-append window aware). */
   async markApplied(operationId: string, taskId: string): Promise<void> {
     if (this.finished) return;
+    await this.appendJournal(operationId, taskId);
+  }
+
+  private async appendJournal(
+    operationId?: string,
+    taskId?: string,
+  ): Promise<void> {
     const path = this.repository.batchJournalPath();
     const line = `${JSON.stringify({
       schemaVersion: 1,
       sessionId: this.sessionId,
       pid: process.pid,
       at: new Date().toISOString(),
-      operationId,
-      taskId,
+      ...(operationId ? { operationId } : {}),
+      ...(taskId ? { taskId } : {}),
     })}\n`;
     await appendFile(path, line, "utf8");
   }

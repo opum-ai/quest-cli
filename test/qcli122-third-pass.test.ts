@@ -11,7 +11,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { LocalTaskRepository } from "../src/application/tasks/local-task-repository.ts";
-import { TaskService } from "../src/application/tasks/tasks.ts";
+import {
+  type BatchTaskRepository,
+  TaskService,
+} from "../src/application/tasks/tasks.ts";
 import {
   createTask,
   createTaskLinkSession,
@@ -168,7 +171,13 @@ test("red: repeated edits to the same task compose instead of overwriting", asyn
     await Bun.spawn(["git", "init", "-q"], { cwd: root }).exited;
     spawnJson(root, ["init"]);
     const repo = repository(root);
-    const service = new TaskService(repo);
+    const service = new TaskService(
+      repo,
+      undefined,
+      undefined,
+      undefined,
+      repo as unknown as BatchTaskRepository,
+    );
     await seed(root, "T-1", "Evolve");
     const result = await service.editBatch([
       { reference: "T-1", operationId: "one", patch: { addLabels: ["a"] } },
@@ -193,7 +202,13 @@ test("red: A->B existing edge blocks B->A cycle swap without invalid persistence
   const root = await mkdtemp(join(tmpdir(), "qcli122-3-cycle-"));
   try {
     const repo = repository(root);
-    const service = new TaskService(repo);
+    const service = new TaskService(
+      repo,
+      undefined,
+      undefined,
+      undefined,
+      repo as unknown as BatchTaskRepository,
+    );
     await seed(root, "T-1", "A", ["T-2"]);
     await seed(root, "T-2", "B");
     const result = await service.editBatch([
@@ -299,7 +314,13 @@ test("red: interleaved milestone edit with repeated tasks preserves input order 
     await Bun.spawn(["git", "init", "-q"], { cwd: root }).exited;
     spawnJson(root, ["init"]);
     const repo = repository(root);
-    const service = new TaskService(repo);
+    const service = new TaskService(
+      repo,
+      undefined,
+      undefined,
+      undefined,
+      repo as unknown as BatchTaskRepository,
+    );
     await seed(root, "T-1", "Interleave A");
     await seed(root, "T-2", "Interleave B");
     const result = await service.editBatch([

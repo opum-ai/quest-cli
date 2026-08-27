@@ -1586,6 +1586,8 @@ export async function runQuest(
             );
           // QCLI-122 third pass #6: value types must match the published
           // vocabulary — a string never silently char-iterates into a list.
+          // QCLI-122 fourth pass #5: complete field grammar — scalar vs
+          // list vs checklist-object vs boolean, validated atomically.
           const isListField =
             /^(add|remove)[A-Z]/.test(patchKey) ||
             [
@@ -1593,18 +1595,102 @@ export async function runQuest(
               "documentation",
               "plan",
               "implementationNotes",
-              "acceptanceCriteria",
-              "definitionOfDone",
               "assignees",
               "references",
               "modifiedFiles",
               "dependencies",
             ].includes(patchKey);
-          if (isListField && !Array.isArray(fieldValue))
-            return failure(
-              "usage",
-              `Invalid list value for patch key ${patchKey} in operations item at line ${index + 1}.`,
-            );
+          const booleanFields = new Set(["clearParent", "clearMilestone"]);
+          const checklistFields = new Set([
+            "acceptanceCriteria",
+            "definitionOfDone",
+          ]);
+          const commentFields = new Set(["comments", "addComments"]);
+          if (booleanFields.has(patchKey)) {
+            if (typeof fieldValue !== "boolean")
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a boolean in operations item at line ${index + 1}.`,
+              );
+          } else if (checklistFields.has(patchKey)) {
+            if (
+              !Array.isArray(fieldValue) ||
+              fieldValue.some(
+                (entry) =>
+                  !(
+                    typeof entry === "string" ||
+                    (entry !== null &&
+                      typeof entry === "object" &&
+                      !Array.isArray(entry) &&
+                      typeof (entry as { index?: unknown }).index ===
+                        "number" &&
+                      typeof (entry as { text?: unknown }).text === "string" &&
+                      typeof (entry as { checked?: unknown }).checked ===
+                        "boolean")
+                  ),
+              )
+            )
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a string or {index,text,checked} list in operations item at line ${index + 1}.`,
+              );
+          } else if (commentFields.has(patchKey)) {
+            if (
+              !Array.isArray(fieldValue) ||
+              fieldValue.some((entry) => typeof entry !== "object") ||
+              fieldValue.some(
+                (entry) =>
+                  entry !== null &&
+                  typeof entry === "object" &&
+                  Array.isArray(entry),
+              )
+            )
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a comment object list in operations item at line ${index + 1}.`,
+              );
+          } else if (isListField) {
+            if (!Array.isArray(fieldValue))
+              return failure(
+                "usage",
+                `Invalid list value for patch key ${patchKey} in operations item at line ${index + 1}.`,
+              );
+            if (
+              fieldValue.some(
+                (entry) =>
+                  entry === null ||
+                  typeof entry === "object" ||
+                  typeof entry === "number" ||
+                  typeof entry === "boolean",
+              )
+            )
+              return failure(
+                "usage",
+                `Invalid list member type for patch key ${patchKey} in operations item at line ${index + 1}.`,
+              );
+          } else if (patchKey === "status") {
+            if (
+              typeof fieldValue !== "string" ||
+              !["To Do", "In Progress", "Done"].includes(fieldValue)
+            )
+              return failure(
+                "usage",
+                `Invalid status value in operations item at line ${index + 1}.`,
+              );
+          } else if (patchKey === "ordinal") {
+            if (!Number.isFinite(fieldValue))
+              return failure(
+                "usage",
+                `Patch key ordinal must be numeric in operations item at line ${index + 1}.`,
+              );
+          } else {
+            // Default: plain scalar string fields from the manifest.
+            if (typeof fieldValue !== "string")
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a string in operations item at line ${index + 1}.`,
+              );
+          }
         }
         items.push(record);
       }
