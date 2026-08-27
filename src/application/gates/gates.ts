@@ -1,16 +1,16 @@
 import {
-  replayGateHistory,
-  snapshotEvidenceActor,
   type GateDefinition,
   type GateEvent,
+  replayGateHistory,
+  snapshotEvidenceActor,
 } from "../../domain/gates/gates.ts";
 import { type Actor, RecordValidationError } from "../../domain/records.ts";
 import {
   findTask,
-  taskState,
   type TaskGate,
+  taskState,
 } from "../../domain/tasks/tasks.ts";
-import type { TaskRepository, TaskMutationResult } from "../tasks/tasks.ts";
+import type { TaskMutationResult, TaskRepository } from "../tasks/tasks.ts";
 
 export interface DefineGateCommand {
   readonly reference: string;

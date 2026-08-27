@@ -2,15 +2,15 @@ import { expect, test } from "bun:test";
 
 import { GateService } from "../../../src/application/gates/gates.ts";
 import {
+  type TaskRepository,
+  TaskService,
+} from "../../../src/application/tasks/tasks.ts";
+import {
   replayGateHistory,
   snapshotEvidenceActor,
 } from "../../../src/domain/gates/gates.ts";
-import { createTask } from "../../../src/domain/tasks/tasks.ts";
-import {
-  TaskService,
-  type TaskRepository,
-} from "../../../src/application/tasks/tasks.ts";
 import type { Actor } from "../../../src/domain/records.ts";
+import { createTask } from "../../../src/domain/tasks/tasks.ts";
 
 const author: Actor = { id: "author", kind: "human", roles: [] };
 const reviewer: Actor = { id: "reviewer", kind: "human", roles: ["reviewer"] };

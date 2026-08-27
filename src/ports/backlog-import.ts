@@ -1,5 +1,5 @@
-import type { TaskLocation, TaskState } from "../domain/tasks/tasks.ts";
 import type { Decision, Milestone } from "../domain/planning/planning.ts";
+import type { TaskLocation, TaskState } from "../domain/tasks/tasks.ts";
 
 export interface BacklogImportRecord {
   readonly sourceFolder: string;

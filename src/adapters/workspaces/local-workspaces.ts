@@ -1,17 +1,17 @@
 import {
+  lstat,
   mkdir,
+  readFile,
   realpath,
   stat,
   writeFile,
-  readFile,
-  lstat,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
+  WorkspaceError,
   type WorkspaceIdentity,
   type WorkspacePort,
-  WorkspaceError,
 } from "../../ports/workspaces.ts";
 
 async function git(path: string, args: readonly string[]): Promise<string> {

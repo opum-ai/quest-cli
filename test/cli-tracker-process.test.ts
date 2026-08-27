@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
+import { realpathSync, writeFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { realpathSync, writeFileSync } from "node:fs";
 import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");

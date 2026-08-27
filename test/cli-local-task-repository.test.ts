@@ -10,11 +10,10 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import { LocalPlanningRepository } from "../src/adapters/planning/local-planning-repository.ts";
 import { LocalTaskRepository } from "../src/application/tasks/local-task-repository.ts";
 import { TaskService } from "../src/application/tasks/tasks.ts";
 import { createTask } from "../src/domain/tasks/tasks.ts";
-import { LocalPlanningRepository } from "../src/adapters/planning/local-planning-repository.ts";
 
 function request(id: string, revision: string) {
   return {
