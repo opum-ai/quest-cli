@@ -793,7 +793,7 @@ class LocalTaskBatchSession implements TaskBatchSession {
         at: new Date().toISOString(),
       })}\n`,
       "utf8",
-    ).catch(() => {});
+    );
   }
 
   /** Resolves once the session-START journal line is durably appended. */

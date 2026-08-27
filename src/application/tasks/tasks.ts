@@ -618,17 +618,6 @@ export class TaskService {
   }
 
   /**
-   * QCLI-122 batch mutation: applies many distinct domain-patch operations
-   * inside one locked repository session so large stores pay one entry CAS
-   * and one final authoritative revision instead of per-operation rescans.
-   * Each applied record is persisted atomically exactly like a single edit;
-   * per-item validation failures are recorded and do not abort the batch;
-   * milestone-transition items execute through the ordinary single-edit path
-   * after the session releases (planning closure keeps its own CAS), in the
-   * order submitted. The returned revision is the authoritative terminal
-   * store revision.
-   */
-  /**
    * QCLI-122 batch mutation (corrected under FMC 05fe52e8):
    * - results preserve exact input order, exactly one per submitted item;
    * - milestone-transition items are rejected AT THEIR INDEX with a
@@ -754,26 +743,11 @@ export class TaskService {
        * dependencies/parent graph, blockers, or lifecycle edges apply with
        * O(row) validation; only graph-affecting rows run full seeded-graph
        * validation through a link session built from complete existing
-       * edges. Milestone-transition items take their ordinary single-edit
-       * planning path in input order BEFORE the terminal revision read.
+       * edges. Milestone-transition items are REJECTED AT THEIR EXACT
+       * INPUT INDEX with milestone_transition_requires_single_edit — no
+       * task or planning mutation occurs for them (single contract).
        */
-      const milestonePlan: {
-        reference: string;
-        operationId: string;
-        patch: Partial<
-          Omit<TaskState, "id" | "gates" | "gateEvents"> & EditPatchVocabulary
-        >;
-        previousMilestoneId: string | undefined;
-        next: TaskState;
-        canonicalId: string;
-        location: TaskLocation;
-      }[] = [];
-      const recordsLocation = new Map(
-        (initial.taskRecords ?? []).map((record) => [
-          record.task.id,
-          { location: record.location },
-        ]),
-      );
+
       let appliedCount = 0;
       for (const [index, { item, operationId }] of resolvedItems.entries()) {
         const reference = item.reference;
@@ -793,26 +767,12 @@ export class TaskService {
             transitionTask(current, unsafe.status, this.lifecycle);
           const rawNext = taskState({ ...current, ...unsafe, id: current.id });
           if (rawNext.milestoneId !== current.milestoneId) {
-            // Blocker #3: ordinary planning semantics honored AT THIS INPUT
-            // POSITION; only the durable pair-write is deferred to the
-            // dedicated in-session executor below (same held lock).
-            milestonePlan.push({
-              reference,
-              operationId,
-              patch: unsafe as Parameters<TaskService["edit"]>[1],
-              previousMilestoneId: current.milestoneId,
-              next: rawNext,
-              canonicalId: current.id,
-              location:
-                recordsLocation.get(current.id)?.location ?? ("tasks" as const),
-            });
-            results.push({
-              kind: "error",
-              reference,
-              operationId,
-              message: "milestone_transition_pending_session_write",
-            });
-            continue;
+            // Fifth-pass blocker #3 (public JSDoc contract): milestone
+            // transitions are rejected AT THEIR EXACT INDEX with the
+            // documented error; no task or planning mutation occurs.
+            throw new RecordValidationError(
+              "milestone_transition_requires_single_edit",
+            );
           }
           const touchesGraph =
             JSON.stringify(rawNext.dependencies) !==
@@ -857,43 +817,6 @@ export class TaskService {
         }
         void index;
         void appliedCount;
-      }
-
-      // Blocker #3: milestone rows execute at their EXACT input positions
-      // through the SAME locked session — no re-entrant lock acquisition.
-      for (const deferred of milestonePlan) {
-        const resultAt = results.findIndex(
-          (entry) =>
-            entry.operationId === deferred.operationId &&
-            entry.reference === deferred.reference,
-        );
-        try {
-          const locatedIndex = slotsById.get(deferred.canonicalId);
-          const located =
-            locatedIndex !== undefined ? workingTasks[locatedIndex] : undefined;
-          if (!located) throw new RecordValidationError("task_not_found");
-          await session.writeRecord(deferred.next);
-          await session.markApplied(deferred.operationId, deferred.next.id);
-          if (locatedIndex !== undefined)
-            workingTasks[locatedIndex] = deferred.next;
-          rowIndex = rebuildSlot(rowIndex, locatedIndex ?? -1, deferred.next);
-          results[resultAt] = {
-            kind: "updated",
-            reference: deferred.reference,
-            operationId: deferred.operationId,
-            task: deferred.next,
-          };
-        } catch (error) {
-          results[resultAt] = {
-            kind: "error",
-            reference: deferred.reference,
-            operationId: deferred.operationId,
-            message:
-              error instanceof Error
-                ? error.message
-                : "milestone_closure_failed",
-          };
-        }
       }
 
       await session.finish();

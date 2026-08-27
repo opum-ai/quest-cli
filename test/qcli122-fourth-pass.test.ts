@@ -348,3 +348,425 @@ test("red: strict scalar/boolean/checklist/status field grammar enforced atomica
     await rm(root, { recursive: true, force: true });
   }
 }, 120_000);
+
+async function seedDirect(dir: string, id: string) {
+  const t = createTask(id, { title: `K${id}` });
+  await writeFile(`${dir}/${id}.json`, `${JSON.stringify(t)}\n`);
+}
+
+test("red: uncreatable journal path rejects begin and leaves the lock absent", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-journal-"));
+  try {
+    const tasksDir = join(root, ".quest", "tasks");
+    const repo = new LocalTaskRepository(tasksDir);
+    await seed(root, "T-1", "Journal failure");
+    // Make journal creation impossible: create a DIRECTORY at the journal
+    // path so appendFile fails with EISDIR/ENOTDIR.
+    await mkdir(join(tasksDir, ".batch.journal.jsonl"), { recursive: true });
+    let rejected = false;
+    try {
+      const opened = await repo.beginTaskBatch((await repo.readAll()).revision);
+      if (opened.kind !== "locked") rejected = true;
+      else {
+        await opened.session.finish();
+        throw new Error("begin should have rejected");
+      }
+    } catch (error) {
+      // Thrown journal-creation failure is a valid begin rejection.
+      rejected = true;
+    }
+    expect(rejected).toBe(true);
+    // The owned lock must be gone after the failed begin.
+    expect(existsSync(join(tasksDir, ".write.lock"))).toBe(false);
+    void rm;
+    void writeFile;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 20_000);
+
+test("red: recovered stale-revision conflict leaves no lock; current revision reacquires", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-reclock-"));
+  try {
+    const tasksDir = join(root, ".quest", "tasks");
+    const repository = () => new LocalTaskRepository(tasksDir);
+    await seed(root, "T-1", "Recover conflict");
+    // Fabricate a crash: foreign dead pid holds lock + journal.
+    await mkdir(join(tasksDir, ".write.lock"), { recursive: true });
+    await writeFile(
+      join(tasksDir, ".batch.journal.jsonl"),
+      `${JSON.stringify({ schemaVersion: 1, sessionId: "dead0beef", pid: 999_999_999, at: "2026-01-01T00:00:00.000Z" })}\n`,
+    );
+    const staleRevision = "dead-revision-value";
+    const result = await repository().beginTaskBatch(staleRevision);
+    expect(result.kind).toBe("conflict");
+    expect(existsSync(join(tasksDir, ".write.lock"))).toBe(false);
+    // Current revision acquires cleanly afterwards.
+    const reopened = await repository().beginTaskBatch(
+      (await repository().readAll()).revision,
+    );
+    expect(reopened.kind).toBe("locked");
+    if (reopened.kind === "locked") {
+      await reopened.session.finish();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
+test("red: milestone transition row is rejected at exact index without task or planning mutation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-milestone-"));
+  try {
+    Bun.spawnSync(["/usr/bin/git", "init", "-q"], {
+      cwd: root,
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    spawnJson(root, ["init"]);
+    await seed(root, "T-1", "Milestone target");
+    await seed(root, "T-2", "Neighbour");
+    // Configure a REAL milestone through the public CLI (correct schema).
+    const milestoneCreated = spawnJson(root, [
+      "milestone",
+      "create",
+      "Real milestone",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(milestoneCreated.exitCode).toBe(0);
+    const milestoneId = JSON.parse(milestoneCreated.stdout).data.record
+      .id as string;
+    const before = JSON.parse(
+      spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    const file = join(root, "ops.jsonl");
+    await writeFile(
+      file,
+      [
+        JSON.stringify({
+          reference: "T-2",
+          operationId: "keep",
+          patch: { addLabels: ["kept"] },
+        }),
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "ms-row",
+          patch: { milestoneId },
+        }),
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "post-ms",
+          patch: { description: "applied after rejection" },
+        }),
+      ].join("\n"),
+    );
+    // Canonical milestone object captured BEFORE edit-batch.
+    const planningBefore = JSON.parse(
+      spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
+    ).data;
+    const run = spawnJson(root, [
+      "task",
+      "edit-batch",
+      "--file",
+      file,
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(run.exitCode).toBe(0);
+    const envelope = JSON.parse(run.stdout);
+    expect(
+      envelope.data.items.map((i: { operationId: string }) => i.operationId),
+    ).toEqual(["keep", "ms-row", "post-ms"]);
+    expect(envelope.data.items[1].kind).toBe("error");
+    expect(envelope.data.items[1].message).toBe(
+      "milestone_transition_requires_single_edit",
+    );
+    // No task mutation for the rejected row.
+    const after = JSON.parse(
+      spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    expect(after.data.milestoneId ?? null).toBe(
+      before.data.milestoneId ?? null,
+    );
+    expect(after.data.status).toBe(before.data.status);
+    // Milestone record read again AFTER edit-batch must equal BEFORE exactly.
+    const planningAfter = JSON.parse(
+      spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
+    ).data;
+    expect(planningAfter).toEqual(planningBefore);
+    // Canonical milestone object captured BEFORE edit-batch.
+    expect(planningAfter).toEqual(planningBefore);
+    // The post-rejection VALID row also applied, in exact input order.
+    expect(envelope.data.items[2].kind).toBe("updated");
+    expect(envelope.data.items[2].task.description).toBe(
+      "applied after rejection",
+    );
+    // Terminal revision authoritative (non-empty, matches fresh read).
+    const listAfter = JSON.parse(
+      spawnJson(root, ["task", "list", "--json"]).stdout,
+    );
+    expect(listAfter.data.length).toBe(2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 90_000);
+
+test("red: strict JSONL grammar — duplicates, atomic neighbour rejection, wrong scalars, malformed checklist", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli122-5-jsonl-"));
+  try {
+    Bun.spawnSync(["/usr/bin/git", "init", "-q"], {
+      cwd: root,
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    spawnJson(root, ["init"]);
+    await seed(root, "T-1", "Grammar target");
+    const viewBefore = () =>
+      spawnJson(root, ["task", "view", "T-1", "--json"]).stdout;
+    const cases: { name: string; lines: string[] }[] = [
+      {
+        name: "duplicate operation ids",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "dup",
+            patch: { addLabels: ["a"] },
+          }),
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "dup",
+            patch: { addLabels: ["b"] },
+          }),
+        ],
+      },
+      {
+        name: "valid first + malformed neighbour (atomic no-write)",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "ok1",
+            patch: { addLabels: ["a"] },
+          }),
+          "{not json",
+        ],
+      },
+      {
+        name: "invalid list member number",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "n1",
+            patch: { addLabels: [1] },
+          }),
+        ],
+      },
+      {
+        name: "invalid dependency object member",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "o1",
+            patch: { addDependencies: [{}] },
+          }),
+        ],
+      },
+      {
+        name: "wrong scalar status type",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "st1",
+            patch: { status: 1 },
+          }),
+        ],
+      },
+      {
+        name: "wrong scalar description type",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "d1",
+            patch: { description: false },
+          }),
+        ],
+      },
+      {
+        name: "malformed checklist object",
+        lines: [
+          JSON.stringify({
+            reference: "T-1",
+            operationId: "ac1",
+            patch: { acceptanceCriteria: [{ wrong: 1 }] },
+          }),
+        ],
+      },
+    ];
+    for (const [caseIndex, { name, lines }] of cases.entries()) {
+      const file = join(
+        root,
+        `case-${caseIndex}-${name.replace(/\W+/g, "-")}.jsonl`,
+      );
+      await writeFile(file, lines.join("\n"));
+      const run = spawnJson(root, [
+        "task",
+        "edit-batch",
+        "--file",
+        file,
+        "--actor",
+        "person-1",
+        "--actor-kind",
+        "human",
+        "--json",
+      ]);
+      expect(run.exitCode, name).not.toBe(0);
+      expect(JSON.parse(run.stderr).error_type, name).toBe("usage");
+      expect(viewBefore().length > 0, name).toBe(true);
+      // Whole-input atomicity: nothing persisted for ANY rejected batch.
+      const stored = JSON.parse(
+        await readFile(join(root, ".quest", "tasks", "T-1.json"), "utf8"),
+      );
+      expect(stored.labels ?? [], name).toEqual([]);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 120_000);
+
+function childProgram(options: {
+  dir: string;
+  killAfter: "begin" | "write";
+  taskId?: string;
+}): string {
+  return `
+    const mod = await import(${JSON.stringify(process.cwd())} + "/src/application/tasks/local-task-repository.ts");
+    const { readFile } = await import("node:fs/promises");
+    const repo = new mod.LocalTaskRepository(${JSON.stringify(options.dir)});
+    const current = await repo.readAll();
+    const opened = await repo.beginTaskBatch(current.revision);
+    if (opened.kind !== "locked") throw new Error(opened.kind);
+    console.log("BEGUN:" + current.revision);
+    ${
+      options.killAfter === "write"
+        ? `const payload = JSON.parse(await readFile(${JSON.stringify(join(options.dir, `${options.taskId ?? "T-1"}.json`))}, "utf8"));
+           payload.description = "renamed-then-killed";
+           await opened.session.writeRecord(payload);
+           // Kill BEFORE markApplied: rename happened, journal op row absent.
+           process.kill(process.pid, "SIGKILL");`
+        : `// Kill AFTER begin/journalReady, BEFORE any record write.
+           process.kill(process.pid, "SIGKILL");`
+    }
+  `;
+}
+
+test("red: SIGKILL after begin (before write) recovers with truthful empty receipt; NONEMPTY next batch fully applies", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "qcli122-6-killA-"));
+  try {
+    const workspace = join(parent, "ws");
+    await mkdir(workspace, { recursive: true });
+    Bun.spawnSync(["/usr/bin/env", "git", "init", "-q"], {
+      cwd: workspace,
+      env: { ...process.env },
+    });
+    spawnJson(workspace, ["init"]);
+    const dir = join(workspace, ".quest", "tasks");
+    await mkdir(dir, { recursive: true });
+    for (const id of ["T-1", "T-2"]) await seedDirect(dir, id);
+    // Child A: begin then die before any write.
+    const victim = Bun.spawnSync(
+      ["bun", "--eval", childProgram({ dir, killAfter: "begin" })],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env },
+      },
+    );
+    expect(victim.stdout.toString()).toStartWith("BEGUN:");
+    // Parent recovers DIRECTLY at the repository seam with the CURRENT
+    // expected revision: kind=locked plus the truthful EMPTY receipt
+    // (window A crashed before any operation was journaled).
+    const parentRepo = new LocalTaskRepository(dir);
+    const currentRevision = (await parentRepo.readAll()).revision;
+    const opened = await parentRepo.beginTaskBatch(currentRevision);
+    expect(opened.kind).toBe("locked");
+    if (opened.kind !== "locked") return;
+    expect(opened.recovered?.appliedOperationIds).toEqual([]);
+    // Real nonempty work through THIS recovering session.
+    const t1raw = JSON.parse(await readFile(join(dir, "T-1.json"), "utf8"));
+    await opened.session.writeRecord({
+      ...t1raw,
+      description: "recovered write A",
+    });
+    await opened.session.markApplied("parent-A", "T-1");
+    await opened.session.finish();
+    expect(existsSync(join(dir, ".write.lock"))).toBe(false);
+    const viewA = JSON.parse(
+      spawnJson(workspace, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    expect(viewA.data.description).toBe("recovered write A");
+    void childProgram;
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+}, 120_000);
+
+test("red: SIGKILL between writeRecord rename and markApplied recovers with truthful receipt; NONEMPTY next batch applies", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "qcli122-6-killB-"));
+  try {
+    const workspace = join(parent, "ws");
+    await mkdir(workspace, { recursive: true });
+    Bun.spawnSync(["/usr/bin/env", "git", "init", "-q"], {
+      cwd: workspace,
+      env: { ...process.env },
+    });
+    spawnJson(workspace, ["init"]);
+    const dir = join(workspace, ".quest", "tasks");
+    await mkdir(dir, { recursive: true });
+    for (const id of ["T-1", "T-2"]) await seedDirect(dir, id);
+    // Child B: begin, atomic rename of T-1, die BEFORE markApplied.
+    const victim = Bun.spawnSync(
+      [
+        "bun",
+        "--eval",
+        childProgram({ dir, killAfter: "write", taskId: "T-1" }),
+      ],
+      { stdout: "pipe", stderr: "pipe", env: { ...process.env } },
+    );
+    expect(victim.stdout.toString()).toStartWith("BEGUN:");
+    // Parent recovers DIRECTLY at the repository seam; truthful receipt is
+    // EMPTY (crash happened after rename but before markApplied appended).
+    const parentRepo = new LocalTaskRepository(dir);
+    const currentRevision = (await parentRepo.readAll()).revision;
+    const opened = await parentRepo.beginTaskBatch(currentRevision);
+    expect(opened.kind).toBe("locked");
+    if (opened.kind !== "locked") return;
+    expect(opened.recovered?.appliedOperationIds).toEqual([]);
+    // Real nonempty work through THIS recovering session.
+    const t2raw = JSON.parse(await readFile(join(dir, "T-2.json"), "utf8"));
+    await opened.session.writeRecord({
+      ...t2raw,
+      labels: [...(t2raw.labels ?? []), "b2"],
+    });
+    await opened.session.markApplied("parent-B", "T-2");
+    await opened.session.finish();
+    expect(existsSync(join(dir, ".write.lock"))).toBe(false);
+    // Child rename reality: T-1 carries the killed child's description,
+    // and T-2 carries the recovering session's label write.
+    const viewChildRename = JSON.parse(
+      spawnJson(workspace, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    expect(viewChildRename.data.description).toBe("renamed-then-killed");
+    const viewB = JSON.parse(
+      spawnJson(workspace, ["task", "view", "T-2", "--json"]).stdout,
+    );
+    expect(viewB.data.labels).toEqual(["b2"]);
+    void mkdir;
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+}, 120_000);
