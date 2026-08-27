@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { realpathSync } from "node:fs";
+import { realpathSync, writeFileSync } from "node:fs";
 import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
@@ -1014,6 +1014,28 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ...actor,
         "--plain",
       ],
+      "task edit-batch": (() => {
+        const operations = join(store, `ops-${safeStorageName(created)}.jsonl`);
+        writeFileSync(
+          operations,
+          [
+            JSON.stringify({
+              reference: created,
+              operationId: "batch-1",
+              patch: { addLabels: ["batched"] },
+            }),
+            "",
+          ].join("\n"),
+        );
+        return [
+          "task",
+          "edit-batch",
+          "--file",
+          operations,
+          ...actor,
+          "--plain",
+        ];
+      })(),
       "task complete": ["task", "complete", created, ...actor, "--plain"],
       "task archive": ["task", "archive", created, ...actor, "--plain"],
       "task demote": ["task", "demote", created, ...actor, "--plain"],

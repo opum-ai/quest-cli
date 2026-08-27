@@ -2,6 +2,7 @@ import { RecordValidationError } from "../../domain/records.ts";
 import {
   closeMilestoneReference,
   canonicalizeTaskLinks,
+  validateTaskGraph,
   createDraft,
   createTask,
   type DraftInput,
@@ -21,6 +22,8 @@ import {
   taskState,
   transitionTask,
 } from "../../domain/tasks/tasks.ts";
+import { createTaskLinkSession } from "../../domain/tasks/tasks.ts";
+import { type EditPatchVocabulary, foldEditPatch } from "./edit-patch.ts";
 import type { MigrationTransactionRepository } from "../../ports/backlog-import.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
 
@@ -452,6 +455,24 @@ export class TaskService {
       reference,
     );
   }
+
+  /**
+   * Resolves the mutable task and its authoritative snapshot in one read
+   * (QCLI-122). Pair with {@link editOn} in the CLI composition root so one
+   * public mutation performs exactly one authoritative collection read.
+   */
+  async prepareMutation(
+    reference: string,
+  ): Promise<{ snapshot: TaskReadSnapshot; task: TaskState }> {
+    const snapshot = await this.repository.readAll();
+    return {
+      snapshot,
+      task: findTask(
+        this.taskRecords(snapshot).map((r) => r.task),
+        reference,
+      ),
+    };
+  }
   async search(query: string): Promise<readonly TaskState[]> {
     const snapshot = await this.repository.readAll();
     return searchTasks(
@@ -465,6 +486,21 @@ export class TaskService {
     operationId: string,
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
+    return this.editOn(snapshot, reference, patch, operationId);
+  }
+
+  /**
+   * Single-snapshot variant of {@link edit} for the CLI composition root
+   * (QCLI-122): one public task mutation reads the authoritative collection
+   * exactly once instead of once per service call. Behavior, validation,
+   * and result envelopes are identical to {@link edit}.
+   */
+  async editOn(
+    snapshot: TaskReadSnapshot,
+    reference: string,
+    patch: Partial<Omit<TaskState, "id" | "gates" | "gateEvents">>,
+    operationId: string,
+  ): Promise<TaskMutationResult> {
     const tasks = snapshot.tasks;
     const task = findTask(tasks, reference);
     const unsafe = patch as Partial<TaskState>;
@@ -509,6 +545,210 @@ export class TaskService {
     operationId: string,
   ): Promise<TaskMutationResult> {
     return this.edit(reference, { status }, operationId);
+  }
+
+  /**
+   * QCLI-122 batch mutation: applies many distinct domain-patch operations
+   * inside one locked repository session so large stores pay one entry CAS
+   * and one final authoritative revision instead of per-operation rescans.
+   * Each applied record is persisted atomically exactly like a single edit;
+   * per-item validation failures are recorded and do not abort the batch;
+   * milestone-transition items execute through the ordinary single-edit path
+   * after the session releases (planning closure keeps its own CAS), in the
+   * order submitted. The returned revision is the authoritative terminal
+   * store revision.
+   */
+  async editBatch(
+    items: readonly {
+      readonly reference: string;
+      readonly patch?: Partial<
+        Omit<TaskState, "id" | "gates" | "gateEvents"> & EditPatchVocabulary
+      >;
+      readonly operationId: string;
+    }[],
+  ): Promise<
+    | {
+        readonly kind: "success";
+        readonly items: readonly (
+          | {
+              readonly kind: "updated";
+              readonly reference: string;
+              readonly operationId: string;
+              readonly task: TaskState;
+            }
+          | {
+              readonly kind: "error";
+              readonly reference: string;
+              readonly operationId: string;
+              readonly message: string;
+            }
+        )[];
+        readonly deferredCount: number;
+        readonly revision: string;
+      }
+    | TaskWriteConflict
+  > {
+    type BatchItem = {
+      readonly reference: string;
+      readonly patch?: Partial<
+        Omit<TaskState, "id" | "gates" | "gateEvents"> & EditPatchVocabulary
+      >;
+      readonly operationId: string;
+    };
+    const repository = this.repository as unknown as
+      | { beginTaskBatch?(expectedRevision: string): Promise<unknown> }
+      | undefined;
+    if (!repository?.beginTaskBatch)
+      throw new RecordValidationError("batch_repository_unavailable");
+    const initial = await this.repository.readAll();
+    const opened = await repository.beginTaskBatch(initial.revision);
+    type Opened =
+      | {
+          kind: "locked";
+          session: {
+            writeRecord(task: TaskState): Promise<void>;
+            finish(): Promise<void>;
+          };
+        }
+      | { kind: "conflict"; expectedRevision: string; actualRevision: string };
+    if ((opened as Opened).kind === "conflict") {
+      const conflict = opened as Opened & { kind: "conflict" };
+      return {
+        kind: "conflict",
+        expectedRevision: conflict.expectedRevision,
+        actualRevision: conflict.actualRevision,
+        operationId: "task-edit-batch",
+        ownedPaths: [],
+      };
+    }
+    const session = (opened as Opened & { kind: "locked" }).session;
+    const linkSession = createTaskLinkSession(initial.tasks);
+    try {
+      // Working copy of the active collection evolved in memory across the
+      // batch; findTask semantics stay identical because resolution always
+      // runs against this evolving authoritative-shape list.
+      const tasks = [...initial.tasks];
+      const rowsById = new Map<string, TaskState>(tasks.map((t) => [t.id, t]));
+      const slotsById = new Map<string, number>(
+        initial.tasks.map((t, index) => [t.id, index]),
+      );
+      const recordsById = new Map(
+        (initial.taskRecords ?? []).map((r) => [r.task.id, r]),
+      );
+      const results: (
+        | {
+            readonly kind: "updated";
+            readonly reference: string;
+            readonly operationId: string;
+            readonly task: TaskState;
+          }
+        | {
+            readonly kind: "error";
+            readonly reference: string;
+            readonly operationId: string;
+            readonly message: string;
+          }
+      )[] = [];
+      const deferred: BatchItem[] = [];
+      for (const item of items) {
+        try {
+          const current = findTask(tasks, item.reference);
+          // Vocabulary folds against each item's real evolving pre-state so
+          // add/remove semantics chain correctly across batch items.
+          const unsafe = foldEditPatch(
+            current,
+            (item.patch ?? {}) as EditPatchVocabulary,
+            (status) => this.resolveStatus(status),
+          ) as Partial<TaskState>;
+          if ("gates" in unsafe || "gateEvents" in unsafe)
+            throw new RecordValidationError("task_gate_events_managed");
+          const authorizedPatch = unsafe;
+          if (
+            authorizedPatch.status !== undefined &&
+            authorizedPatch.status !== current.status
+          )
+            transitionTask(current, authorizedPatch.status, this.lifecycle);
+          const next = taskState({
+            ...current,
+            ...authorizedPatch,
+            id: current.id,
+          });
+          // QCLI-122: sound incremental link validation for this locked
+          // session; a final full structural assertion runs once post-batch.
+          const persisted = linkSession.apply(next);
+          if (persisted.milestoneId !== current.milestoneId) {
+            // Defer to the planning-transaction single-edit path after the
+            // session lock releases.
+            deferred.push(item);
+            continue;
+          }
+          await session.writeRecord(persisted);
+          // Keep the working list byte-consistent for subsequent reference
+          // resolution without any rescan or reordering.
+          tasks[slotsById.get(next.id)!] = persisted;
+          rowsById.set(next.id, persisted);
+          recordsById.set(next.id, {
+            location: recordsById.get(next.id)?.location ?? "tasks",
+            task: persisted,
+          });
+          results.push({
+            kind: "updated",
+            reference: item.reference,
+            operationId: item.operationId,
+            task: persisted,
+          });
+        } catch (error) {
+          results.push({
+            kind: "error",
+            reference: item.reference,
+            operationId: item.operationId,
+            message:
+              error instanceof Error
+                ? error.message
+                : "unknown_batch_item_error",
+          });
+        }
+      }
+      // One full authoritative structural assertion per batch guards the
+      // incremental session's localized checks.
+      validateTaskGraph(linkSession.snapshotRows());
+      await session.finish();
+      const terminal = await this.repository.readAll();
+      for (const item of deferred) {
+        const result = await this.edit(
+          item.reference,
+          foldEditPatch(
+            findTask((await this.repository.readAll()).tasks, item.reference),
+            (item.patch ?? {}) as EditPatchVocabulary,
+            (status) => this.resolveStatus(status),
+          ) as Partial<TaskState>,
+          item.operationId,
+        );
+        results.push(
+          result.kind === "success"
+            ? {
+                kind: "updated",
+                reference: item.reference,
+                operationId: item.operationId,
+                task: result.task,
+              }
+            : {
+                kind: "error",
+                reference: item.reference,
+                operationId: item.operationId,
+                message: "milestone_closure_conflict_or_error",
+              },
+        );
+      }
+      return {
+        kind: "success",
+        items: results,
+        deferredCount: deferred.length,
+        revision: terminal.revision,
+      };
+    } finally {
+      await session.finish();
+    }
   }
   /** Case-insensitive configured-status resolution for command-facing filters. */
   resolveStatus(status: string): TaskStatus {

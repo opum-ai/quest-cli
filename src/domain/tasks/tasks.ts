@@ -583,6 +583,144 @@ export function canonicalizeTaskLinks(
 }
 
 /**
+ * QCLI-122 batch link validator. Inside one locked batch session rows are
+ * immutable except through {@link TaskLinkSession.apply}, so a graph edge
+ * violation introduced by a mutation must involve the mutated row: local
+ * checks from that row are then sound, provided the initial collection was
+ * fully validated (snapshot() does this at session entry). Structural maps
+ * rebuild per apply without re-running zod across all rows, which keeps
+ * authoritative semantics while making per-operation cost linear in the
+ * changed record rather than the store.
+ */
+export function createTaskLinkSession(initial: readonly TaskState[]) {
+  const byId = new Map<string, TaskState>();
+  const aliases = new Map<string, CanonicalId>();
+  const dependencies = new Map<CanonicalId, readonly CanonicalId[]>();
+  const parentOf = new Map<CanonicalId, CanonicalId>();
+  const index = (task: TaskState): void => {
+    if (byId.has(task.id))
+      throw new RecordValidationError("dependency_target_ambiguous");
+    byId.set(task.id, task);
+    for (const value of [task.id, ...task.aliases]) {
+      const key = aliasKey(value);
+      const existing = aliases.get(key);
+      if (existing !== undefined && existing !== task.id)
+        throw new RecordValidationError("dependency_target_ambiguous");
+      aliases.set(key, task.id);
+    }
+    dependencies.set(task.id, []);
+    if (task.parentId) parentOf.set(task.id, task.parentId as CanonicalId);
+  };
+  for (const task of initial) index(task);
+
+  const removeIndex = (task: TaskState): void => {
+    byId.delete(task.id);
+    for (const value of [task.id, ...task.aliases]) {
+      const key = aliasKey(value);
+      if (aliases.get(key) === task.id) aliases.delete(key);
+    }
+    dependencies.delete(task.id);
+    parentOf.delete(task.id);
+  };
+
+  /** Locally validates and indexes one row-validated replacement. */
+  const apply = (next: TaskState): TaskState => {
+    const previous = byId.get(next.id);
+    if (!previous) throw new RecordValidationError("batch_link_target_absent");
+    removeIndex(previous);
+    try {
+      index(next);
+      const resolve = (raw: string): CanonicalId => {
+        const id = aliases.get(aliasKey(raw));
+        if (!id) throw new RecordValidationError("dependency_target_not_found");
+        return id;
+      };
+      // Canonical dependency/parent spellings for the row being applied.
+      const resolvedDependencies = next.dependencies.map(resolve);
+      if (
+        resolvedDependencies.some((id) => id === next.id) ||
+        new Set(resolvedDependencies).size !== resolvedDependencies.length
+      ) {
+        throw new RecordValidationError(
+          resolvedDependencies.some((id) => id === next.id)
+            ? "dependency_self_edge"
+            : "dependency_duplicate_edge",
+        );
+      }
+      let parentResolved: CanonicalId | undefined;
+      if (next.parentId) {
+        parentResolved = resolve(next.parentId);
+        if (parentResolved === next.id)
+          throw new RecordValidationError("parent_self_edge");
+      }
+      dependencies.set(next.id, resolvedDependencies);
+      if (parentResolved) parentOf.set(next.id, parentResolved);
+      else parentOf.delete(next.id);
+      // Persisted spelling mirrors canonicalizeTaskLinks: links are written
+      // back in resolved canonical form on the returned row.
+      const canonicalRow: TaskState = {
+        ...next,
+        dependencies: resolvedDependencies,
+        parentId: parentResolved,
+      };
+      // A new cycle must pass through the changed row.
+      const walkParents = (start: CanonicalId): boolean => {
+        const seen = new Set<CanonicalId>();
+        let current: CanonicalId | undefined = start;
+        while (current && parentOf.has(current)) {
+          if (seen.has(current)) return true;
+          seen.add(current);
+          current = parentOf.get(current);
+        }
+        return false;
+      };
+      if (walkParents(next.id)) throw new RecordValidationError("parent_cycle");
+      for (const root of [next.id, ...resolvedDependencies]) {
+        const visiting = new Set<CanonicalId>();
+        const stack: readonly CanonicalId[] = [root];
+        const walkDeps = (id: CanonicalId): boolean => {
+          if (visiting.has(id)) return true;
+          if (!dependencies.has(id)) return false;
+          visiting.add(id);
+          for (const dep of dependencies.get(id) ?? []) {
+            if (walkDeps(dep)) {
+              visiting.delete(id);
+              return true;
+            }
+          }
+          visiting.delete(id);
+          return false;
+        };
+        if (walkDeps(root as CanonicalId))
+          throw new RecordValidationError("dependency_cycle");
+      }
+      byId.set(next.id, canonicalRow);
+      return canonicalRow;
+    } catch (error) {
+      // Roll back partial indexing so the session stays coherent.
+      byId.delete(next.id);
+      for (const value of [next.id, ...next.aliases]) {
+        const key = aliasKey(value);
+        if (aliases.get(key) === next.id) aliases.delete(key);
+      }
+      dependencies.delete(next.id);
+      parentOf.delete(next.id);
+      index(previous);
+      throw error;
+    }
+  };
+  return {
+    apply,
+    get size(): number {
+      return byId.size;
+    },
+    snapshotRows(): readonly TaskState[] {
+      return [...byId.values()];
+    },
+  };
+}
+
+/**
  * Pure forward/back reference closure between one task and one milestone.
  * Callers persist both returned records in the same commit path.
  */

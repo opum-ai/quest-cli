@@ -75,6 +75,7 @@ export interface CommandManifestEntry {
     | "search --all"
     | "task create"
     | "task edit"
+    | "task edit-batch"
     | "task complete"
     | "task archive"
     | "task demote"
@@ -313,6 +314,44 @@ export const commandManifest = {
       name: "task edit",
       schemaVersion: 1,
       kind: "task.updated",
+      mutates: true,
+      fields: [
+        "acceptanceCriteria",
+        "addAssignees",
+        "addComments",
+        "addDependencies",
+        "addLabels",
+        "addModifiedFiles",
+        "addNotes",
+        "addPlan",
+        "addReferences",
+        "clearMilestone",
+        "clearParent",
+        "comments",
+        "definitionOfDone",
+        "description",
+        "documentation",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "parentId",
+        "plan",
+        "removeAssignees",
+        "removeComments",
+        "removeDependencies",
+        "removeLabels",
+        "removeModifiedFiles",
+        "removeNotes",
+        "removePlan",
+        "removeReferences",
+        "status",
+        "summary",
+      ],
+    },
+    {
+      name: "task edit-batch",
+      schemaVersion: 1,
+      kind: "task.batch-updated",
       mutates: true,
       fields: [
         "acceptanceCriteria",

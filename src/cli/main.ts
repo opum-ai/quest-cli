@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Database } from "bun:sqlite";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
 import {
@@ -1436,6 +1437,96 @@ export async function runQuest(
             milestoneId: one(parsed, "--milestone"),
             finalSummary: one(parsed, "--final-summary"),
           },
+        }),
+        modeFor(parsed),
+      );
+    }
+    if (command === "edit-batch") {
+      // QCLI-122 public batch boundary: many distinct edit operations in one
+      // native process; per-operation validation and results are preserved.
+      const parsed = flags(rest, [
+        "--add-label",
+        "--remove-label",
+        "--doc",
+        "--add-plan",
+        "--remove-plan",
+        "--add-note",
+        "--remove-note",
+        "--add-comment",
+        "--remove-comment",
+        "--add-dependency",
+        "--remove-dependency",
+        "--add-assignee",
+        "--remove-assignee",
+        "--add-reference",
+        "--remove-reference",
+        "--add-modified-file",
+        "--remove-modified-file",
+      ]);
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--file",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      )
+        return failure(
+          "usage",
+          "task edit-batch requires exactly one --file pointing at a JSONL operations file plus --actor/--actor-kind.",
+        );
+      const filePath = one(parsed, "--file");
+      if (!filePath)
+        return failure(
+          "usage",
+          "task edit-batch requires --file <operations.jsonl>.",
+        );
+      let raw: string;
+      try {
+        raw = await readFile(filePath, "utf8");
+      } catch {
+        return failure(
+          "not_found",
+          `Operations file is not readable: ${filePath}`,
+        );
+      }
+      const writeActor = actor(parsed);
+      if (!writeActor)
+        return failure(
+          "denied",
+          "Tracker writes require an explicit actor declaration.",
+        );
+      const items = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      const parsedItems: unknown[] = [];
+      for (const [index, line] of items.entries()) {
+        try {
+          const value: unknown = JSON.parse(line);
+          if (
+            !value ||
+            typeof value !== "object" ||
+            typeof (value as { reference?: unknown }).reference !== "string" ||
+            ((value as { patch?: unknown }).patch !== undefined &&
+              typeof (value as { patch: unknown }).patch !== "object")
+          )
+            throw new Error("item shape");
+          parsedItems.push(value);
+        } catch {
+          return failure(
+            "usage",
+            `Invalid operations JSONL at line ${index + 1}.`,
+          );
+        }
+      }
+      return output(
+        await dispatchTrackerTaskCommand(await taskService(), {
+          command,
+          actor: writeActor,
+          items: parsedItems as {
+            reference: string;
+            operationId?: string;
+            patch?: Record<string, unknown>;
+          }[],
         }),
         modeFor(parsed),
       );
