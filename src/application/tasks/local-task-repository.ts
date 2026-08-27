@@ -436,22 +436,41 @@ export class LocalTaskRepository
           kind: "unrecoverable_lock",
           message: "Recovered journal but failed to reclaim the freed lock.",
         };
+      // Blocker #2 (fourth pass): the REACQUIRED lock belongs to this call
+      // — every non-transfer exit (stale-revision conflict, read failure)
+      // releases it through one bounded cleanup, matching main-path rules.
+      let reacquisitionReleased = false;
+      const releaseReacquired = async (): Promise<void> => {
+        if (!reacquisitionReleased) {
+          reacquisitionReleased = true;
+          await rm(lock, { recursive: true, force: true });
+        }
+      };
       try {
-        const current = await this.readAll();
-        if (current.revision !== expectedRevision)
+        let current: Awaited<ReturnType<LocalTaskRepository["readAll"]>>;
+        try {
+          current = await this.readAll();
+        } catch (error) {
+          await releaseReacquired();
+          throw error;
+        }
+        if (current.revision !== expectedRevision) {
+          await releaseReacquired();
           return {
             kind: "conflict",
             expectedRevision,
             actualRevision: current.revision,
           };
+        }
         const session = new LocalTaskBatchSession(
           this,
           lock,
           crypto.randomUUID(),
         );
+        await session.journalReady();
         return { kind: "locked", session, recovered: recoveredReceipt };
       } catch (error) {
-        await rm(lock, { recursive: true, force: true });
+        await releaseReacquired();
         throw error;
       }
     }
@@ -491,6 +510,7 @@ export class LocalTaskRepository
           released = true;
         },
       );
+      await session.journalReady();
       return { kind: "locked", session };
     } catch (error) {
       await releaseOwnedLock();
@@ -763,28 +783,48 @@ class LocalTaskBatchSession implements TaskBatchSession {
     private readonly lock: string,
     readonly sessionId: string,
     private readonly onReleased?: () => Promise<void>,
-  ) {}
+  ) {
+    this.startJournalWrite = appendFile(
+      this.repository.batchJournalPath(),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        sessionId,
+        pid: process.pid,
+        at: new Date().toISOString(),
+      })}\n`,
+      "utf8",
+    ).catch(() => {});
+  }
+
+  /** Resolves once the session-START journal line is durably appended. */
+  async journalReady(): Promise<void> {
+    await this.startJournalWrite;
+  }
+
+  private readonly startJournalWrite: Promise<void>;
 
   async writeRecord(task: TaskState): Promise<void> {
     await this.repository.writeActiveRecord(task);
   }
 
-  /**
-   * The journal is best-effort reconnaissance, not a safety claim: each
-   * record write is individually atomic, and a surviving journal exactly
-   * proves a dead holder so the next entry can reclaim the lock. It is
-   * appended after the corresponding durable rename.
-   */
+  /** Synchronous durable journal append (rename-before-append window aware). */
   async markApplied(operationId: string, taskId: string): Promise<void> {
     if (this.finished) return;
+    await this.appendJournal(operationId, taskId);
+  }
+
+  private async appendJournal(
+    operationId?: string,
+    taskId?: string,
+  ): Promise<void> {
     const path = this.repository.batchJournalPath();
     const line = `${JSON.stringify({
       schemaVersion: 1,
       sessionId: this.sessionId,
       pid: process.pid,
       at: new Date().toISOString(),
-      operationId,
-      taskId,
+      ...(operationId ? { operationId } : {}),
+      ...(taskId ? { taskId } : {}),
     })}\n`;
     await appendFile(path, line, "utf8");
   }
