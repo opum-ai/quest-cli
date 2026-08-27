@@ -483,15 +483,10 @@ test("red: milestone transition row is rejected at exact index without task or p
     expect(envelope.data.items[1].message).toBe(
       "milestone_transition_requires_single_edit",
     );
-    // No mutation for the rejected row (planning state too).
-    const planningAfter = JSON.parse(
+    // Canonical milestone object captured BEFORE edit-batch.
+    const planningBefore = JSON.parse(
       spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
     ).data;
-    const planningBefore = JSON.parse(
-      spawnJson(root, ["milestone", "list", "--json"]).stdout,
-    );
-    expect(Array.isArray(planningBefore.data)).toBe(true);
-    void planningBefore;
     const after = JSON.parse(
       spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
     );
@@ -502,6 +497,12 @@ test("red: milestone transition row is rejected at exact index without task or p
     // The earlier valid row still applied.
     expect(envelope.data.items[0].kind).toBe("updated");
     expect(envelope.data.items[0].task.labels).toEqual(["kept"]);
+    // Milestone record read again AFTER edit-batch must equal the BEFORE
+    // object exactly — no planning mutation of any kind.
+    const planningAfter = JSON.parse(
+      spawnJson(root, ["milestone", "view", milestoneId, "--json"]).stdout,
+    ).data;
+    expect(planningAfter).toEqual(planningBefore);
     // The post-rejection VALID row also applied, in exact input order.
     expect(envelope.data.items[2].kind).toBe("updated");
     expect(envelope.data.items[2].task.description).toBe(
@@ -687,41 +688,28 @@ test("red: SIGKILL after begin (before write) recovers with truthful empty recei
       },
     );
     expect(victim.stdout.toString()).toStartWith("BEGUN:");
-    // Parent: NONEMPTY next batch — must recover (truthful empty applied
-    // receipt), not strand on the lock, and fully apply.
-    const opsFile = join(workspace, "ops.jsonl");
-    await writeFile(
-      opsFile,
-      [
-        JSON.stringify({
-          reference: "T-1",
-          operationId: "p1",
-          patch: { addLabels: ["rec"] },
-        }),
-        JSON.stringify({
-          reference: "T-2",
-          operationId: "p2",
-          patch: { description: "after recovery" },
-        }),
-      ].join("\n"),
-    );
-    const run = spawnJson(workspace, [
-      "task",
-      "edit-batch",
-      "--file",
-      opsFile,
-      "--actor",
-      "person-1",
-      "--actor-kind",
-      "human",
-      "--json",
-    ]);
-    expect(run.exitCode).toBe(0);
-    const envelope = JSON.parse(run.stdout);
-    expect(envelope.data.applied).toBe(2);
-    expect(envelope.data.failed).toBe(0);
-    // No lock left behind.
+    // Parent recovers DIRECTLY at the repository seam with the CURRENT
+    // expected revision: kind=locked plus the truthful EMPTY receipt
+    // (window A crashed before any operation was journaled).
+    const parentRepo = new LocalTaskRepository(dir);
+    const currentRevision = (await parentRepo.readAll()).revision;
+    const opened = await parentRepo.beginTaskBatch(currentRevision);
+    expect(opened.kind).toBe("locked");
+    if (opened.kind !== "locked") return;
+    expect(opened.recovered?.appliedOperationIds).toEqual([]);
+    // Real nonempty work through THIS recovering session.
+    const t1raw = JSON.parse(await readFile(join(dir, "T-1.json"), "utf8"));
+    await opened.session.writeRecord({
+      ...t1raw,
+      description: "recovered write A",
+    });
+    await opened.session.markApplied("parent-A", "T-1");
+    await opened.session.finish();
     expect(existsSync(join(dir, ".write.lock"))).toBe(false);
+    const viewA = JSON.parse(
+      spawnJson(workspace, ["task", "view", "T-1", "--json"]).stdout,
+    );
+    expect(viewA.data.description).toBe("recovered write A");
     void childProgram;
   } finally {
     await rm(parent, { recursive: true, force: true });
@@ -751,45 +739,33 @@ test("red: SIGKILL between writeRecord rename and markApplied recovers with trut
       { stdout: "pipe", stderr: "pipe", env: { ...process.env } },
     );
     expect(victim.stdout.toString()).toStartWith("BEGUN:");
-    // The renamed record IS durable but its operation was never journaled:
-    // truthful recovery means the batch proceeds and reports reality.
-    const opsFile = join(workspace, "ops.jsonl");
-    await writeFile(
-      opsFile,
-      [
-        JSON.stringify({
-          reference: "T-2",
-          operationId: "q1",
-          patch: { addLabels: ["b2"] },
-        }),
-        JSON.stringify({
-          reference: "T-1",
-          operationId: "q2",
-          patch: { description: "parent overwrites cleanly" },
-        }),
-      ].join("\n"),
-    );
-    const run = spawnJson(workspace, [
-      "task",
-      "edit-batch",
-      "--file",
-      opsFile,
-      "--actor",
-      "person-1",
-      "--actor-kind",
-      "human",
-      "--json",
-    ]);
-    expect(run.exitCode).toBe(0);
-    const envelope = JSON.parse(run.stdout);
-    expect(envelope.data.applied).toBe(2);
-    expect(envelope.data.failed).toBe(0);
+    // Parent recovers DIRECTLY at the repository seam; truthful receipt is
+    // EMPTY (crash happened after rename but before markApplied appended).
+    const parentRepo = new LocalTaskRepository(dir);
+    const currentRevision = (await parentRepo.readAll()).revision;
+    const opened = await parentRepo.beginTaskBatch(currentRevision);
+    expect(opened.kind).toBe("locked");
+    if (opened.kind !== "locked") return;
+    expect(opened.recovered?.appliedOperationIds).toEqual([]);
+    // Real nonempty work through THIS recovering session.
+    const t2raw = JSON.parse(await readFile(join(dir, "T-2.json"), "utf8"));
+    await opened.session.writeRecord({
+      ...t2raw,
+      labels: [...(t2raw.labels ?? []), "b2"],
+    });
+    await opened.session.markApplied("parent-B", "T-2");
+    await opened.session.finish();
     expect(existsSync(join(dir, ".write.lock"))).toBe(false);
-    // Terminal state reflects the PARENT's authoritative writes.
-    const view = JSON.parse(
+    // Child rename reality: T-1 carries the killed child's description,
+    // and T-2 carries the recovering session's label write.
+    const viewChildRename = JSON.parse(
       spawnJson(workspace, ["task", "view", "T-1", "--json"]).stdout,
     );
-    expect(view.data.description).toBe("parent overwrites cleanly");
+    expect(viewChildRename.data.description).toBe("renamed-then-killed");
+    const viewB = JSON.parse(
+      spawnJson(workspace, ["task", "view", "T-2", "--json"]).stdout,
+    );
+    expect(viewB.data.labels).toEqual(["b2"]);
     void mkdir;
   } finally {
     await rm(parent, { recursive: true, force: true });

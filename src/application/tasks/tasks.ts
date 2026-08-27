@@ -743,8 +743,9 @@ export class TaskService {
        * dependencies/parent graph, blockers, or lifecycle edges apply with
        * O(row) validation; only graph-affecting rows run full seeded-graph
        * validation through a link session built from complete existing
-       * edges. Milestone-transition items take their ordinary single-edit
-       * planning path in input order BEFORE the terminal revision read.
+       * edges. Milestone-transition items are REJECTED AT THEIR EXACT
+       * INPUT INDEX with milestone_transition_requires_single_edit — no
+       * task or planning mutation occurs for them (single contract).
        */
 
       let appliedCount = 0;
