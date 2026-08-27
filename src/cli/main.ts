@@ -43,7 +43,7 @@ import {
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.7";
+const VERSION = "0.2.8";
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -1277,6 +1277,7 @@ export async function runQuest(
       let envelopeTaskId = one(parsed, "--task") ?? "";
       let envelopeRequestId = crypto.randomUUID().replaceAll("-", "");
       let deriveAssertionsFromRecord = false;
+      let stdinCorrelation: string | undefined;
       if (stdinTransport) {
         // The deployed opum-agent facade writes the exact request envelope to
         // stdin; parse and validate it strictly before any resolution.
@@ -1287,6 +1288,27 @@ export async function runQuest(
           return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
             input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
           });
+        }
+        // Facade transport compatibility: the deployed opum-agent facade
+        // appends its claim-or-correlation reference to the piped envelope.
+        // Lift that one transport field out before the strict domain
+        // validation so the normative four-key envelope is what the domain
+        // contract sees; the reference feeds the relationship lookup only.
+        if (
+          parsedEnvelope !== null &&
+          typeof parsedEnvelope === "object" &&
+          !Array.isArray(parsedEnvelope) &&
+          "claimOrCorrelation" in parsedEnvelope
+        ) {
+          const { claimOrCorrelation: correlation, ...remainder } =
+            parsedEnvelope as Record<string, unknown>;
+          if (typeof correlation !== "string") {
+            return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
+              input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
+            });
+          }
+          stdinCorrelation = correlation;
+          parsedEnvelope = remainder;
         }
         let checked: ReturnType<typeof parseTaskBindingRequestV1>;
         try {
@@ -1307,7 +1329,9 @@ export async function runQuest(
           contract: one(parsed, "--contract") ?? "",
           taskId: envelopeTaskId,
           claimOrCorrelationId:
-            one(parsed, "--claim-or-correlation") ?? envelopeTaskId,
+            stdinCorrelation ??
+            one(parsed, "--claim-or-correlation") ??
+            envelopeTaskId,
           holder: one(parsed, "--holder") ?? "",
           repositoryId: one(parsed, "--repository") ?? "",
           baseRef: one(parsed, "--base") ?? "",
