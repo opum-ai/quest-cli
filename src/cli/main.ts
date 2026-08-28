@@ -31,6 +31,7 @@ import {
   initializeWorkspace,
   resolveInitializedWorkspace,
 } from "../application/workspaces/workspaces.ts";
+import { QUEST_VERSION } from "../application/version.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
 import {
   createAgentInstructionPort,
@@ -43,7 +44,7 @@ import {
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.8";
+const VERSION = QUEST_VERSION;
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {

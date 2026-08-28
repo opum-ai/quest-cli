@@ -12,6 +12,20 @@ import {
   questAgentInstructions,
   updateQuestAgentInstructions,
 } from "../../../src/application/agents/agent-instructions.ts";
+import { QUEST_VERSION } from "../../../src/application/version.ts";
+
+test("managed instructions derive the runtime release version without hand-synced literals", () => {
+  expect(questAgentInstructions).toContain(
+    `This project uses Quest CLI ${QUEST_VERSION} for tracker operations.`,
+  );
+  const drifted = questAgentInstructions
+    .trimEnd()
+    .replace(`Quest CLI ${QUEST_VERSION}`, "Quest CLI 0.0.0");
+  expect(checkQuestAgentInstructions(drifted)).toEqual({
+    state: "drift",
+    message: `Quest agent instruction block differs from version ${QUEST_VERSION}.`,
+  });
+});
 
 test("opt-in Codex guidance preserves authored AGENTS content and remains idempotent", async () => {
   const root = await mkdtemp(join(tmpdir(), "quest-agents-"));

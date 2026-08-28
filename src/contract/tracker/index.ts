@@ -11,10 +11,10 @@ export const DEFAULT_TIMEOUT_MS = 5_000;
 /**
  * Exact Quest package version pinned by Lore's versioned tracker-adapter
  * boundary (Lore `docs/reference/backlog-cli-contract.md`,
- * "Tracker adapter boundary" / "Quest CLI 0.2.7 package"). Consumers cache
+ * "Tracker adapter boundary" / "Quest CLI 0.2.9 package"). Consumers cache
  * this pin at probe time and fail loud on any other version.
  */
-export const QUEST_ADAPTER_PINNED_VERSION = "0.2.8" as const;
+export const QUEST_ADAPTER_PINNED_VERSION = "0.2.9" as const;
 
 /**
  * The schema-1 manifest descriptors the adapter boundary requires from the
