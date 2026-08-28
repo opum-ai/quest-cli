@@ -7,7 +7,7 @@ status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 18:50'
-updated_date: '2026-08-28 21:32'
+updated_date: '2026-08-28 23:08'
 labels:
   - cli
   - init
@@ -29,7 +29,7 @@ Unlike backlog init and lore init, quest init (src/cli/main.ts, init branch) onl
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Running quest init interactively (TTY, no --json/--plain) prompts for the information needed to configure the project, at minimum a project name and project ID.
+- [x] #1 Running quest init interactively (TTY, no --json/--plain) prompts for the information needed to configure the project, at minimum a project name and project ID.
 - [x] #2 quest init offers to create or update CLAUDE.md and AGENTS.md with the Quest managed instructions block without requiring the caller to already know about --agent-instructions.
 - [x] #3 Non-interactive usage (--json, --plain, or no TTY) skips prompts and keeps today scriptable, flag-only behavior.
 <!-- AC:END -->
@@ -71,6 +71,8 @@ BLOCKED mid-implementation: task-ID prefix is validated against a hardcoded doma
 SCOPE ADJUSTED (user-approved): shipped name prompting + CLAUDE.md/AGENTS.md prompting only. Dropped --task-id-prefix flag and wizard question after finding the domain-layer canonicalIdPattern blocker (see prior note); filed QCLI-132 for that separately. AC3 (task-ID prefix at minimum) intentionally left unchecked and out of scope for this task now - superseded by QCLI-132's AC4, which restores it once the domain layer supports it.
 
 Correction to my own bookkeeping: AC1 (name AND project ID/prefix, 'at minimum') is only partially met - name is done, project ID/prefix is not (see the blocker note above) - so AC1 is correctly left unchecked, not AC3. AC3 (non-interactive usage keeps today's exact flag-only behavior) is fully verified by the --name flag end-to-end test and the legacy no-flags test, so it is checked.
+
+AC1's remaining leg (project ID / task-ID prefix) is now met: QCLI-132 landed the domain-layer change via PR #170, restoring --task-id-prefix and the wizard's third question. AC1 checked retroactively - the interactive wizard now prompts for both project name and task ID prefix as originally specified.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
