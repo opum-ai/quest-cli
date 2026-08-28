@@ -1,5 +1,6 @@
 import { join } from "node:path";
 
+import { canonicalIdPrefixPattern } from "../../domain/records.ts";
 import {
   WorkspaceError,
   type WorkspaceConfiguration,
@@ -13,6 +14,12 @@ export {
   type WorkspaceIdentity,
   type WorkspacePort,
 } from "../../ports/workspaces.ts";
+
+/** Re-exported for the CLI boundary, which may not reach into the domain
+ * layer directly (see scripts/check-layers.mjs). */
+export function isValidTaskIdPrefix(value: string): boolean {
+  return canonicalIdPrefixPattern.test(value);
+}
 
 export interface WorkspaceEntry extends WorkspaceIdentity {
   readonly state: "present" | "missing" | "invalid";
