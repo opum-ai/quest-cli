@@ -151,6 +151,10 @@ export const commandHelp: Record<
       'quest task edit <id> --status "In Progress" --actor <name> --actor-kind human',
     flags: [
       "--status",
+      "--title",
+      "--priority",
+      "--type",
+      "--ordinal",
       "--summary",
       "--description",
       "--labels",

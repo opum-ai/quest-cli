@@ -1185,3 +1185,121 @@ test("every manifest payload command declares principal null as its last JSON ke
     expect(Object.keys(envelope).at(-1), entry.name).toBe("principal");
   }
 }, 15_000);
+
+test("task edit can mutate title, priority, type and ordinal (QCLI-133)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-edit-fields-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    const created = await quest(store, [
+      "task",
+      "create",
+      "Typo titel",
+      "--priority",
+      "High",
+      "--type",
+      "bug",
+      "--ordinal",
+      "5",
+      ...human,
+    ]);
+    expect(created.exitCode).toBe(0);
+    expect(JSON.parse(created.stdout).data).toMatchObject({
+      id: "T-1",
+      title: "Typo titel",
+      priority: "High",
+      type: "bug",
+      ordinal: 5,
+    });
+
+    // All four previously exited 2 with "task edit received invalid arguments".
+    const edited = await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--title",
+      "Fixed title",
+      "--priority",
+      "Low",
+      "--type",
+      "feature",
+      "--ordinal",
+      "10",
+      ...human,
+    ]);
+    expect(edited.exitCode).toBe(0);
+    expect(JSON.parse(edited.stdout).data).toMatchObject({
+      id: "T-1",
+      title: "Fixed title",
+      priority: "Low",
+      type: "feature",
+      ordinal: 10,
+    });
+
+    // The rename keeps the record's identity rather than forcing a replacement.
+    const viewed = await quest(store, ["task", "view", "T-1", "--json"]);
+    expect(JSON.parse(viewed.stdout).data).toMatchObject({
+      id: "T-1",
+      title: "Fixed title",
+      aliases: [],
+    });
+
+    // Each field is independently settable, not all-or-nothing.
+    const titleOnly = await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--title",
+      "Third title",
+      ...human,
+    ]);
+    expect(titleOnly.exitCode).toBe(0);
+    expect(JSON.parse(titleOnly.stdout).data).toMatchObject({
+      title: "Third title",
+      priority: "Low",
+      type: "feature",
+      ordinal: 10,
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task edit --ordinal rejects a non-integer exactly as create does (QCLI-133)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-edit-ordinal-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "T", ...human]);
+    for (const argv of [
+      ["task", "create", "Other", "--ordinal", "1.5", ...human],
+      ["task", "edit", "T-1", "--ordinal", "1.5", ...human],
+    ]) {
+      const result = await quest(store, argv);
+      expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        error_type: "usage",
+        message: "--ordinal must be an integer.",
+      });
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("the published manifest advertises the four newly editable fields (QCLI-133)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-edit-manifest-"));
+  try {
+    const manifest = await quest(store, ["manifest", "--json"]);
+    const registry = JSON.parse(manifest.stdout);
+    // Both edit transports share one fold, so both must advertise the fields.
+    for (const name of ["task edit", "task edit-batch"]) {
+      const entry = registry.data.commands.find(
+        (command: { name: string }) => command.name === name,
+      );
+      for (const field of ["title", "priority", "type", "ordinal"]) {
+        expect(entry.fields, `${name} advertises ${field}`).toContain(field);
+      }
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});

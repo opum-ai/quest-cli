@@ -1910,6 +1910,10 @@ export async function runQuest(
         !parsed ||
         !only(parsed, [
           "--status",
+          "--title",
+          "--priority",
+          "--type",
+          "--ordinal",
           "--summary",
           "--description",
           "--labels",
@@ -1959,6 +1963,11 @@ export async function runQuest(
           actor: writeActor,
           patch: {
             status: one(parsed, "--status"),
+            title: one(parsed, "--title"),
+            priority: one(parsed, "--priority"),
+            type: one(parsed, "--type"),
+            // Same parser create uses, so the two paths cannot diverge.
+            ordinal: ordinalValue(one(parsed, "--ordinal")),
             summary: one(parsed, "--summary"),
             description: one(parsed, "--description"),
             labels: stringValue(parsed, "--labels"),
