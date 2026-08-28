@@ -3,6 +3,10 @@ import type { TaskState } from "../../domain/tasks/tasks.ts";
 /** Public tracker edit vocabulary (QCLI-97.11.6) owned by the application layer. */
 export interface EditPatchVocabulary {
   readonly status?: string;
+  readonly title?: string;
+  readonly priority?: string;
+  readonly type?: string;
+  readonly ordinal?: number;
   readonly summary?: string;
   readonly description?: string;
   readonly labels?: readonly string[];
@@ -62,6 +66,13 @@ export function foldEditPatch(
 ): Record<string, unknown> {
   const next: Record<string, unknown> = {};
   if (patch.status !== undefined) next.status = resolveStatus(patch.status);
+  // Plain scalar replaces. The domain has always carried these (TaskState
+  // title/priority/type/ordinal); only the public edit vocabulary omitted them,
+  // which left a typo in a title permanently unfixable (QCLI-133).
+  if (patch.title !== undefined) next.title = patch.title;
+  if (patch.priority !== undefined) next.priority = patch.priority;
+  if (patch.type !== undefined) next.type = patch.type;
+  if (patch.ordinal !== undefined) next.ordinal = patch.ordinal;
   if (patch.summary !== undefined) next.summary = patch.summary;
   if (patch.description !== undefined) next.description = patch.description;
   if (patch.labels !== undefined) next.labels = [...patch.labels];
