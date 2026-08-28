@@ -1,11 +1,11 @@
 ---
 id: QCLI-129
 title: quest init does not scaffold a Quest Claude skill for the project
-status: In Progress
+status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 18:50'
-updated_date: '2026-08-28 21:49'
+updated_date: '2026-08-28 22:30'
 labels:
   - cli
   - init
@@ -28,10 +28,10 @@ quest init never creates a .claude/skills/quest/SKILL.md the way this repo alrea
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A Quest skill (SKILL.md plus any supporting files) exists and installs under .claude/skills/quest/.
-- [ ] #2 quest init offers to install or update this skill for the project, the same way --agent-instructions updates CLAUDE.md/AGENTS.md.
-- [ ] #3 The skill documents the canonical agent loop for driving quest so agents reach for the quest CLI instead of editing tracker files directly.
-- [ ] #4 Skill content is generated from or kept in sync with quest instructions output rather than duplicating a second, divergent copy.
+- [x] #1 A Quest skill (SKILL.md plus any supporting files) exists and installs under .claude/skills/quest/.
+- [x] #2 quest init offers to install or update this skill for the project, the same way --agent-instructions updates CLAUDE.md/AGENTS.md.
+- [x] #3 The skill documents the canonical agent loop for driving quest so agents reach for the quest CLI instead of editing tracker files directly.
+- [x] #4 Skill content is generated from or kept in sync with quest instructions output rather than duplicating a second, divergent copy.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -64,3 +64,16 @@ quest init never creates a .claude/skills/quest/SKILL.md the way this repo alrea
    --agent-instructions end-to-end writes both targets.
 6. bun run typecheck / lint / layer:check / format:check / test before opening the PR.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Note on tooling: /skill-creator, named in the original request, is not available in this environment (Skill tool returned 'Unknown skill: skill-creator'). Authored the skill by hand against .claude/skills/lore/SKILL.md's structure instead - which is also the closer precedent, since lore agents already implements exactly the 'regenerate SKILL.md + the CLAUDE.md nudge' install pattern this task needed.
+Adapter change worth flagging for review: relaxing LocalAgentInstructionPort to accept nested paths also fixed a latent portability bug - the old containment check tested for the literal '../' and would have missed Windows-style '..\' traversal on the newly-allowed nested path. Now uses the platform sep, matching local-workspaces.ts. Windows CI (win32-arm64, win32-x64) passes.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added .claude/skills/quest/SKILL.md and wired its installation into quest agents --update-instructions and quest init's instructions path, so any project - not just this repo - gets the skill alongside the CLAUDE.md/AGENTS.md managed block. AC4 (kept in sync, not a divergent second copy) is satisfied structurally: the file is generated from a single bundled questSkillContent constant, and agents --check reports drift the moment an installed copy differs, so the two cannot silently diverge; verified byte-identical between the repo file and the constant. Verified with new tests covering nested-path write, symlink-escape-through-intermediate-directory rejection, skill missing/current/drift states, init installing both targets end to end, and mixed missing/drifted recovery - plus confirmation the existing flat AGENTS.md path is unaffected. Merged via PR #166 (merge commit 5c7b2eb); all 7 CI checks passed including both Windows targets.
+<!-- SECTION:FINAL_SUMMARY:END -->
