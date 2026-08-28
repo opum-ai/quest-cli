@@ -159,7 +159,7 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
     "summary: Initialize a Quest workspace in the current Git worktree.",
   );
   expect(helpPlain.stdout).toContain(
-    "usage: quest init [--agent-instructions]",
+    'usage: quest init [--name "My Project"] [--agent-instructions]',
   );
   expect(helpPlain.stdout).toContain("summary: Create a task.");
 
@@ -171,9 +171,8 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
       name: "init",
       kind: "workspace.initialized",
       mutates: true,
-      summary: "Initialize a Quest workspace in the current Git worktree.",
-      usage: "quest init [--agent-instructions]",
-      flags: ["--agent-instructions"],
+      usage: 'quest init [--name "My Project"] [--agent-instructions]',
+      flags: ["--name", "--agent-instructions"],
     }),
   ]);
 

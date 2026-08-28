@@ -10,9 +10,21 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
   WorkspaceError,
+  type WorkspaceConfiguration,
   type WorkspaceIdentity,
   type WorkspacePort,
 } from "../../ports/workspaces.ts";
+
+/** Reads one `key = "value"` line from the small, self-authored TOML subset
+ * Quest writes; undefined when the key is absent, quoteless, or malformed. */
+function tomlString(content: string, key: string): string | undefined {
+  const match = content.match(
+    new RegExp(`^${key}\\s*=\\s*"((?:[^"\\\\]|\\\\.)*)"\\s*$`, "mu"),
+  );
+  return match
+    ? match[1].replaceAll('\\"', '"').replaceAll("\\\\", "\\")
+    : undefined;
+}
 
 async function git(path: string, args: readonly string[]): Promise<string> {
   const process = Bun.spawn(["git", "-C", path, ...args], {
@@ -107,6 +119,24 @@ export class LocalWorkspacePort implements WorkspacePort {
     await mkdir(parent, { recursive: true });
     await assertNoSymlinkEscape(root, target);
     await writeFile(target, content, { encoding: "utf8", flag: "wx" });
+  }
+
+  async readConfiguration(path: string): Promise<WorkspaceConfiguration> {
+    const root = await realpath(path);
+    const target = resolve(root, ".quest", "workspace.toml");
+    let content: string;
+    try {
+      content = await readFile(target, "utf8");
+    } catch {
+      return { schemaVersion: 1 };
+    }
+    const name = tomlString(content, "name");
+    const taskIdPrefix = tomlString(content, "taskIdPrefix");
+    return {
+      schemaVersion: 1,
+      ...(name ? { name } : {}),
+      ...(taskIdPrefix ? { taskIdPrefix } : {}),
+    };
   }
 
   async readRegistry(
