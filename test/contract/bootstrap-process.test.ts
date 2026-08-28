@@ -503,3 +503,87 @@ test("init with no name/agent-instructions flags keeps writing the legacy schema
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test("a configured task ID prefix round-trips through create, view, edit and complete", async () => {
+  // The exact scenario QCLI-126 could not ship: before QCLI-132 relaxed the
+  // domain pattern, `task create` here failed with "Invalid canonical id".
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-prefix-"));
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const init = await run(
+      cwd,
+      "init",
+      "--name",
+      "Demo",
+      "--task-id-prefix",
+      "QCLI",
+      "--json",
+    );
+    expect(init.exitCode).toBe(0);
+    expect(JSON.parse(init.stdout)).toMatchObject({
+      data: { configuration: { name: "Demo", taskIdPrefix: "QCLI" } },
+    });
+
+    const created = await run(cwd, "task", "create", "First", ...human);
+    expect(created.exitCode).toBe(0);
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      data: { id: "QCLI-1", title: "First" },
+    });
+
+    // The sequence advances within the configured family.
+    const second = await run(cwd, "task", "create", "Second", ...human);
+    expect(JSON.parse(second.stdout)).toMatchObject({ data: { id: "QCLI-2" } });
+
+    // Read and mutate paths accept the id rather than rejecting it downstream.
+    const viewed = await run(cwd, "task", "view", "QCLI-1", "--json");
+    expect(viewed.exitCode).toBe(0);
+    expect(JSON.parse(viewed.stdout)).toMatchObject({
+      data: { id: "QCLI-1", title: "First" },
+    });
+
+    const edited = await run(
+      cwd,
+      "task",
+      "edit",
+      "QCLI-1",
+      "--status",
+      "In Progress",
+      ...human,
+    );
+    expect(edited.exitCode).toBe(0);
+
+    const completed = await run(cwd, "task", "complete", "QCLI-1", ...human);
+    expect(completed.exitCode).toBe(0);
+
+    // list() reports active tasks, so the completed one is retained, not shown.
+    const listed = await run(cwd, "task", "list", "--json");
+    expect(
+      JSON.parse(listed.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["QCLI-2"]);
+
+    // The retained record still reserves its number: allocation never reuses it.
+    const third = await run(cwd, "task", "create", "Third", ...human);
+    expect(JSON.parse(third.stdout)).toMatchObject({ data: { id: "QCLI-3" } });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("an unusable task ID prefix fails at init rather than at the first write", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-bad-prefix-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const result = await run(cwd, "init", "--task-id-prefix", "1BAD", "--json");
+    expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "usage",
+      message:
+        "Task ID prefix must start with a letter and contain only letters and digits: 1BAD",
+    });
+    // Nothing was provisioned by the rejected run.
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

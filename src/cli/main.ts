@@ -33,6 +33,7 @@ import { LocalTaskRepository } from "../application/tasks/local-task-repository.
 import type { TaskService } from "../application/tasks/tasks.ts";
 import {
   initializeWorkspace,
+  isValidTaskIdPrefix,
   resolveInitializedWorkspace,
   resolveWorkspaceConfiguration,
   WorkspaceError,
@@ -375,8 +376,13 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
 
 async function nextTaskId(tasks: TaskService, prefix: string): Promise<string> {
   const ids = await tasks.listIncludingRetained();
+  // Only this prefix's own family can advance the counter: a foreign-prefixed
+  // id (an imported record, or a workspace whose prefix changed) must never
+  // perturb the sequence.
+  const marker = `${prefix}-`;
   const highest = ids.reduce((maximum, task) => {
-    const numeric = Number(task.id.slice(prefix.length + 1));
+    if (!task.id.startsWith(marker)) return maximum;
+    const numeric = Number(task.id.slice(marker.length));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
   return `${prefix}-${highest + 1}`;
@@ -432,6 +438,7 @@ export interface InitWizardPrompts {
 
 export interface InitWizardAnswers {
   readonly name: string;
+  readonly taskIdPrefix: string;
   readonly writeInstructions: boolean;
 }
 
@@ -442,11 +449,13 @@ export async function runInitWizard(
   prompts: InitWizardPrompts,
 ): Promise<InitWizardAnswers> {
   const name = await prompts.text("Project name", defaultName);
+  const taskIdPrefix =
+    (await prompts.text("Task ID prefix", "T")).trim() || "T";
   const writeInstructions = await prompts.confirm(
     "Write CLAUDE.md/AGENTS.md instructions?",
     true,
   );
-  return { name, writeInstructions };
+  return { name, taskIdPrefix, writeInstructions };
 }
 
 async function nextPlanningId(
@@ -565,14 +574,18 @@ export async function runQuest(
     }
     if (arguments_[0] === "init") {
       const parsed = flags(arguments_.slice(1));
-      if (!parsed || !only(parsed, ["--agent-instructions", "--name"]))
+      if (
+        !parsed ||
+        !only(parsed, ["--agent-instructions", "--name", "--task-id-prefix"])
+      )
         return failure(
           "usage",
-          "init accepts only --name, --agent-instructions, --json, and --plain.",
+          "init accepts only --name, --task-id-prefix, --agent-instructions, --json, and --plain.",
         );
       const explicitFlagsGiven =
         parsed.values.has("--agent-instructions") ||
-        parsed.values.has("--name");
+        parsed.values.has("--name") ||
+        parsed.values.has("--task-id-prefix");
       const explicitOutputMode =
         resolvedModes.json ||
         resolvedModes.plain ||
@@ -581,6 +594,7 @@ export async function runQuest(
       const interactive =
         stdoutIsTty && stdinIsTty && !explicitOutputMode && !explicitFlagsGiven;
       let name = one(parsed, "--name");
+      let taskIdPrefix = one(parsed, "--task-id-prefix");
       let writeInstructions = parsed.values.has("--agent-instructions");
       if (interactive) {
         const answers = await runInitWizard(basename(process.cwd()), {
@@ -588,12 +602,20 @@ export async function runQuest(
           confirm: readlineConfirm,
         });
         name = answers.name;
+        taskIdPrefix = answers.taskIdPrefix;
         writeInstructions = answers.writeInstructions;
       }
+      // Fail at init rather than at the first task write, which is where an
+      // unusable prefix would otherwise surface.
+      if (taskIdPrefix !== undefined && !isValidTaskIdPrefix(taskIdPrefix))
+        return failure(
+          "usage",
+          `Task ID prefix must start with a letter and contain only letters and digits: ${taskIdPrefix}`,
+        );
       const workspace = await initializeWorkspace(
         createWorkspacePort(),
         process.cwd(),
-        { name },
+        { name, taskIdPrefix },
       );
       let instructions: AgentInstructionCheck | undefined;
       let skill: AgentInstructionCheck | undefined;
@@ -606,7 +628,12 @@ export async function runQuest(
         {
           schemaVersion: 1,
           kind: "workspace.initialized",
-          data: { workspace, configuration: { name }, instructions, skill },
+          data: {
+            workspace,
+            configuration: { name, taskIdPrefix },
+            instructions,
+            skill,
+          },
         },
         modeFor(parsed),
       );

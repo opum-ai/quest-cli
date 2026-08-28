@@ -31,9 +31,10 @@ export const commandHelp: Record<
   },
   init: {
     summary:
-      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name and whether to write CLAUDE.md/AGENTS.md instead of doing nothing.",
-    usage: 'quest init [--name "My Project"] [--agent-instructions]',
-    flags: ["--name", "--agent-instructions"],
+      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write CLAUDE.md/AGENTS.md instead of doing nothing.",
+    usage:
+      'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
+    flags: ["--name", "--task-id-prefix", "--agent-instructions"],
   },
   instructions: {
     summary:
