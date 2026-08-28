@@ -4,9 +4,12 @@ import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { Command } from "commander";
 import {
+  type AgentInstructionCheck,
   inspectQuestAgentInstructions,
+  inspectQuestSkillFile,
   questAgentInstructions,
   updateQuestAgentInstructions,
+  updateQuestSkillFile,
 } from "../application/agents/agent-instructions.ts";
 import { startBrowserServer } from "../application/browser/browser.ts";
 import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
@@ -592,16 +595,18 @@ export async function runQuest(
         process.cwd(),
         { name },
       );
-      const instructions = writeInstructions
-        ? await updateQuestAgentInstructions(
-            createAgentInstructionPort(process.cwd()),
-          )
-        : undefined;
+      let instructions: AgentInstructionCheck | undefined;
+      let skill: AgentInstructionCheck | undefined;
+      if (writeInstructions) {
+        const agentInstructionPort = createAgentInstructionPort(process.cwd());
+        instructions = await updateQuestAgentInstructions(agentInstructionPort);
+        skill = await updateQuestSkillFile(agentInstructionPort);
+      }
       return output(
         {
           schemaVersion: 1,
           kind: "workspace.initialized",
-          data: { workspace, configuration: { name }, instructions },
+          data: { workspace, configuration: { name }, instructions, skill },
         },
         modeFor(parsed),
       );
@@ -643,22 +648,34 @@ export async function runQuest(
         return failure("usage", "agents requires exactly one action.");
       if (requireInstalled && !check)
         return failure("usage", "--require-installed requires --check.");
-      const result = check
-        ? await inspectQuestAgentInstructions(
-            createAgentInstructionPort(process.cwd()),
-          )
-        : await updateQuestAgentInstructions(
-            createAgentInstructionPort(process.cwd()),
+      const agentInstructionPort = createAgentInstructionPort(process.cwd());
+      const instructionsResult = check
+        ? await inspectQuestAgentInstructions(agentInstructionPort)
+        : await updateQuestAgentInstructions(agentInstructionPort);
+      const skillResult = check
+        ? await inspectQuestSkillFile(agentInstructionPort)
+        : await updateQuestSkillFile(agentInstructionPort);
+      if (check) {
+        if (instructionsResult.state === "drift")
+          return failure("drift", instructionsResult.message);
+        if (skillResult.state === "drift")
+          return failure("drift", skillResult.message);
+        if (
+          requireInstalled &&
+          (instructionsResult.state === "missing" ||
+            skillResult.state === "missing")
+        )
+          return failure(
+            "validation",
+            "Quest agent instruction block is missing. Run quest agents --update-instructions.",
           );
-      if (check && result.state === "drift")
-        return failure("drift", result.message);
-      if (check && requireInstalled && result.state === "missing")
-        return failure(
-          "validation",
-          "Quest agent instruction block is missing. Run quest agents --update-instructions.",
-        );
+      }
       return output(
-        { schemaVersion: 1, kind: "agent.instructions-status", data: result },
+        {
+          schemaVersion: 1,
+          kind: "agent.instructions-status",
+          data: { ...instructionsResult, skill: skillResult },
+        },
         modeFor(parsed),
       );
     }
