@@ -136,6 +136,81 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
   }
 });
 
+test("--agent-instructions also installs the quest skill, and agents --check/--update-instructions cover both targets", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toMatchObject({
+      data: {
+        instructions: { state: "current" },
+        skill: { state: "current" },
+      },
+    });
+    const skillContent = await readFile(skillFile, "utf8");
+    expect(skillContent).toContain("name: quest");
+    expect(skillContent).toContain("quest instructions");
+
+    // Both targets already current: check reports current for both, no rewrite.
+    const current = await run(root, "agents", "--check", "--json");
+    expect(current.exitCode).toBe(0);
+    expect(JSON.parse(current.stdout)).toMatchObject({
+      data: {
+        state: "current",
+        skill: { state: "current" },
+      },
+    });
+
+    // Drift only the skill file: AGENTS.md stays current, --check fails on skill drift.
+    await writeFile(skillFile, "hand-edited\n");
+    const skillDrift = await run(root, "agents", "--check", "--json");
+    expect(skillDrift.exitCode).toBe(6);
+    expect(JSON.parse(skillDrift.stderr)).toMatchObject({
+      error_type: "drift",
+      message: "Quest skill file differs from the bundled version.",
+    });
+
+    // Missing only the skill file: --require-installed still fails closed.
+    await rm(skillFile);
+    const skillMissing = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(skillMissing.exitCode).toBe(6);
+    expect(JSON.parse(skillMissing.stderr)).toMatchObject({
+      error_type: "validation",
+    });
+
+    // update-instructions restores both from a mixed missing/drifted state.
+    await writeFile(
+      join(root, "AGENTS.md"),
+      "drifted\n<!-- quest:agent-instructions:begin -->\nold\n<!-- quest:agent-instructions:end -->\n",
+    );
+    const restored = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--json",
+    );
+    expect(restored.exitCode).toBe(0);
+    expect(await readFile(skillFile, "utf8")).toContain("name: quest");
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain(
+      "# Quest agent instructions",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("agents strict checks pin missing, current, drift, and malformed exit semantics", async () => {
   const root = await repository();
   const file = join(root, "AGENTS.md");
