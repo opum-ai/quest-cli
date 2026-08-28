@@ -24,12 +24,14 @@ import {
   type OutputMode,
   selectOutputMode,
 } from "../application/command-contract.ts";
+import { commandHelp } from "../application/command-help.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import type { TaskService } from "../application/tasks/tasks.ts";
 import {
   initializeWorkspace,
   resolveInitializedWorkspace,
+  WorkspaceError,
 } from "../application/workspaces/workspaces.ts";
 import { QUEST_VERSION } from "../application/version.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
@@ -96,6 +98,15 @@ function output(
     stderr: "",
     exitCode: 0,
   };
+}
+
+/** Merges human help content into manifest entries for `quest help` output
+ * only; `commandManifest`/`quest manifest` are never touched. */
+function withHelp(entries: typeof commandManifest.commands) {
+  return entries.map((entry) => ({
+    ...entry,
+    ...commandHelp[entry.name],
+  }));
 }
 
 class FlagUsageError extends Error {}
@@ -422,7 +433,7 @@ export async function runQuest(
         {
           schemaVersion: 1,
           kind: "help.commands",
-          data: { commands: commandManifest.commands },
+          data: { commands: withHelp(commandManifest.commands) },
         },
         modeFor(),
       );
@@ -444,15 +455,16 @@ export async function runQuest(
       const parsed = flags([]);
       if (!parsed || !only(parsed, []))
         return failure("usage", "help accepts only --json and --plain.");
-      const commands = helpTarget
+      const matched = helpTarget
         ? commandManifest.commands.filter(
             (entry) =>
               entry.name === helpTarget ||
               entry.name.startsWith(`${helpTarget} `),
           )
         : commandManifest.commands;
-      if (helpTarget && commands.length === 0)
+      if (helpTarget && matched.length === 0)
         return failure("not_found", `No help is available for ${helpTarget}.`);
+      const commands = withHelp(matched);
       const details = {
         valueSyntax:
           "Use --flag=<value> to pass a value that begins with --; the value is preserved exactly after the first =.",
@@ -1861,6 +1873,14 @@ export async function runQuest(
         `Quest cannot access required storage: ${message}`,
         {
           hint: "Check the task-store filesystem permissions and retry.",
+        },
+      );
+    if (error instanceof WorkspaceError && error.code === "not_git_worktree")
+      return failure(
+        "validation",
+        "No Git repository was found here. Run `git init` to create one, then re-run `quest init`.",
+        {
+          hint: "Quest requires an existing Git worktree; it does not create one for you.",
         },
       );
     if (
