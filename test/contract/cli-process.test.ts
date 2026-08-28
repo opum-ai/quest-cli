@@ -153,6 +153,46 @@ test("human output renders payload fields while JSON remains byte-identical", as
   }
 });
 
+test("quest help prints human-readable summary and usage prose, and manifest stays unchanged", async () => {
+  const helpPlain = await runQuest(["help", "--plain"], false);
+  expect(helpPlain.stdout).toContain(
+    "summary: Initialize a Quest workspace in the current Git worktree.",
+  );
+  expect(helpPlain.stdout).toContain(
+    "usage: quest init [--agent-instructions]",
+  );
+  expect(helpPlain.stdout).toContain("summary: Create a task.");
+
+  const helpJson = JSON.parse(
+    (await runQuest(["help", "init", "--json"], false)).stdout,
+  );
+  expect(helpJson.data.commands).toEqual([
+    expect.objectContaining({
+      name: "init",
+      kind: "workspace.initialized",
+      mutates: true,
+      summary: "Initialize a Quest workspace in the current Git worktree.",
+      usage: "quest init [--agent-instructions]",
+      flags: ["--agent-instructions"],
+    }),
+  ]);
+
+  const manifestJson = JSON.parse(
+    (await runQuest(["manifest", "--json"], false)).stdout,
+  );
+  const manifestInit = manifestJson.data.commands.find(
+    (entry: { name: string }) => entry.name === "init",
+  );
+  expect(manifestInit).toEqual({
+    name: "init",
+    schemaVersion: 1,
+    kind: "workspace.initialized",
+    mutates: true,
+  });
+  expect(manifestInit.summary).toBeUndefined();
+  expect(manifestInit.usage).toBeUndefined();
+});
+
 test("pretty output is readable without ANSI escapes when color is disabled", async () => {
   const result = await runQuest(["manifest"], true);
   expect(result.stdout).toContain("commands:");

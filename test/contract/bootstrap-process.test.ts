@@ -305,7 +305,9 @@ test("implicit storage fails closed while QUEST_TASK_STORE remains an explicit o
     expect(implicit).toMatchObject({ exitCode: 6, stdout: "" });
     expect(JSON.parse(implicit.stderr)).toMatchObject({
       error_type: "validation",
-      message: "Path is not a Git worktree.",
+      message:
+        "No Git repository was found here. Run `git init` to create one, then re-run `quest init`.",
+      hint: "Quest requires an existing Git worktree; it does not create one for you.",
     });
     await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
 
@@ -331,5 +333,37 @@ test("implicit storage fails closed while QUEST_TASK_STORE remains an explicit o
   } finally {
     await rm(cwd, { recursive: true, force: true });
     await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("quest init outside a Git repository names the missing repository and names the fix", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-no-git-"));
+  try {
+    const result = await run(cwd, "init", "--json");
+    expect(result).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "validation",
+      message:
+        "No Git repository was found here. Run `git init` to create one, then re-run `quest init`.",
+      hint: "Quest requires an existing Git worktree; it does not create one for you.",
+    });
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("quest init inside a real Git worktree is unaffected by the missing-repository message", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-real-git-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const result = await run(cwd, "init", "--json");
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      kind: "workspace.initialized",
+    });
+    expect(await stat(join(cwd, ".quest", "workspace.toml"))).toBeTruthy();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
   }
 });
