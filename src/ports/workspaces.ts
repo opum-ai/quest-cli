@@ -24,9 +24,18 @@ export class WorkspaceError extends Error {
   }
 }
 
+/** Optional operator-declared identity stored alongside schemaVersion.
+ * Both fields are absent on every workspace initialized before this existed. */
+export interface WorkspaceConfiguration {
+  readonly schemaVersion: 1;
+  readonly name?: string;
+  readonly taskIdPrefix?: string;
+}
+
 export interface WorkspacePort {
   inspect(path: string): Promise<WorkspaceIdentity>;
   writeInitialization(path: string, content: string): Promise<void>;
+  readConfiguration(path: string): Promise<WorkspaceConfiguration>;
   readRegistry(registryPath: string): Promise<readonly WorkspaceIdentity[]>;
   writeRegistry(
     registryPath: string,

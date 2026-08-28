@@ -367,3 +367,64 @@ test("quest init inside a real Git worktree is unaffected by the missing-reposit
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test("--name configures the workspace without changing task ID generation", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-flags-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const init = await run(cwd, "init", "--name", "My Project", "--json");
+    expect(init.exitCode).toBe(0);
+    expect(JSON.parse(init.stdout)).toMatchObject({
+      data: { configuration: { name: "My Project" } },
+    });
+    expect(await readFile(join(cwd, ".quest", "workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\nname = "My Project"\n',
+    );
+
+    const created = await run(
+      cwd,
+      "task",
+      "create",
+      "First task",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    );
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      data: { id: "T-1", title: "First task" },
+    });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("init with no name/agent-instructions flags keeps writing the legacy schemaVersion-only file", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-legacy-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const init = await run(cwd, "init", "--json");
+    expect(init.exitCode).toBe(0);
+    expect(await readFile(join(cwd, ".quest", "workspace.toml"), "utf8")).toBe(
+      "schemaVersion = 1\n",
+    );
+
+    const created = await run(
+      cwd,
+      "task",
+      "create",
+      "Default prefix task",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    );
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      data: { id: "T-1" },
+    });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

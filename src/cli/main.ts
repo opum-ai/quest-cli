@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Database } from "bun:sqlite";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { Command } from "commander";
 import {
   inspectQuestAgentInstructions,
@@ -31,6 +31,7 @@ import type { TaskService } from "../application/tasks/tasks.ts";
 import {
   initializeWorkspace,
   resolveInitializedWorkspace,
+  resolveWorkspaceConfiguration,
   WorkspaceError,
 } from "../application/workspaces/workspaces.ts";
 import { QUEST_VERSION } from "../application/version.ts";
@@ -369,13 +370,13 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   } as const;
 }
 
-async function nextTaskId(tasks: TaskService): Promise<string> {
+async function nextTaskId(tasks: TaskService, prefix: string): Promise<string> {
   const ids = await tasks.listIncludingRetained();
   const highest = ids.reduce((maximum, task) => {
-    const numeric = Number(task.id.slice(2));
+    const numeric = Number(task.id.slice(prefix.length + 1));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
-  return `T-${highest + 1}`;
+  return `${prefix}-${highest + 1}`;
 }
 
 async function nextDraftId(tasks: TaskService): Promise<string> {
@@ -385,6 +386,64 @@ async function nextDraftId(tasks: TaskService): Promise<string> {
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
   return `D-${highest + 1}`;
+}
+
+/** Asks one question on the real terminal and returns the trimmed answer, or
+ * defaultValue when the answer is empty. Swapped out in tests. */
+async function readlinePrompt(
+  question: string,
+  defaultValue: string,
+): Promise<string> {
+  const { createInterface } = await import("node:readline/promises");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question} [${defaultValue}]: `);
+    return answer.trim() || defaultValue;
+  } finally {
+    rl.close();
+  }
+}
+
+async function readlineConfirm(
+  question: string,
+  defaultYes: boolean,
+): Promise<boolean> {
+  const { createInterface } = await import("node:readline/promises");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(
+      `${question} [${defaultYes ? "Y/n" : "y/N"}]: `,
+    );
+    const trimmed = answer.trim();
+    if (!trimmed) return defaultYes;
+    return /^y/i.test(trimmed);
+  } finally {
+    rl.close();
+  }
+}
+
+export interface InitWizardPrompts {
+  readonly text: (question: string, defaultValue: string) => Promise<string>;
+  readonly confirm: (question: string, defaultYes: boolean) => Promise<boolean>;
+}
+
+export interface InitWizardAnswers {
+  readonly name: string;
+  readonly writeInstructions: boolean;
+}
+
+/** The interactive quest init question set, isolated from real readline/TTY
+ * so it can run against a fake prompt in tests. */
+export async function runInitWizard(
+  defaultName: string,
+  prompts: InitWizardPrompts,
+): Promise<InitWizardAnswers> {
+  const name = await prompts.text("Project name", defaultName);
+  const writeInstructions = await prompts.confirm(
+    "Write CLAUDE.md/AGENTS.md instructions?",
+    true,
+  );
+  return { name, writeInstructions };
 }
 
 async function nextPlanningId(
@@ -428,6 +487,20 @@ export async function runQuest(
     const taskReader = async () => createTaskReader(await resolvedRoot());
     const planningService = async () =>
       createPlanningService(await resolvedRoot());
+    let taskIdPrefix: Promise<string> | undefined;
+    const configuredTaskIdPrefix = () =>
+      (taskIdPrefix ??= (async () => {
+        if (process.env.QUEST_TASK_STORE !== undefined) return "T";
+        try {
+          const configuration = await resolveWorkspaceConfiguration(
+            createWorkspacePort(),
+            process.cwd(),
+          );
+          return configuration.taskIdPrefix ?? "T";
+        } catch {
+          return "T";
+        }
+      })());
     if (arguments_.length === 0) {
       return output(
         {
@@ -489,16 +562,37 @@ export async function runQuest(
     }
     if (arguments_[0] === "init") {
       const parsed = flags(arguments_.slice(1));
-      if (!parsed || !only(parsed, ["--agent-instructions"]))
+      if (!parsed || !only(parsed, ["--agent-instructions", "--name"]))
         return failure(
           "usage",
-          "init accepts only --agent-instructions, --json, and --plain.",
+          "init accepts only --name, --agent-instructions, --json, and --plain.",
         );
+      const explicitFlagsGiven =
+        parsed.values.has("--agent-instructions") ||
+        parsed.values.has("--name");
+      const explicitOutputMode =
+        resolvedModes.json ||
+        resolvedModes.plain ||
+        parsed.json ||
+        parsed.plain;
+      const interactive =
+        stdoutIsTty && stdinIsTty && !explicitOutputMode && !explicitFlagsGiven;
+      let name = one(parsed, "--name");
+      let writeInstructions = parsed.values.has("--agent-instructions");
+      if (interactive) {
+        const answers = await runInitWizard(basename(process.cwd()), {
+          text: readlinePrompt,
+          confirm: readlineConfirm,
+        });
+        name = answers.name;
+        writeInstructions = answers.writeInstructions;
+      }
       const workspace = await initializeWorkspace(
         createWorkspacePort(),
         process.cwd(),
+        { name },
       );
-      const instructions = parsed.values.has("--agent-instructions")
+      const instructions = writeInstructions
         ? await updateQuestAgentInstructions(
             createAgentInstructionPort(process.cwd()),
           )
@@ -507,7 +601,7 @@ export async function runQuest(
         {
           schemaVersion: 1,
           kind: "workspace.initialized",
-          data: { workspace, instructions },
+          data: { workspace, configuration: { name }, instructions },
         },
         modeFor(parsed),
       );
@@ -1140,7 +1234,8 @@ export async function runQuest(
           );
         const data = await tasks.promoteDraft(
           rest[0],
-          one(parsed, "--task-id") ?? (await nextTaskId(tasks)),
+          one(parsed, "--task-id") ??
+            (await nextTaskId(tasks, await configuredTaskIdPrefix())),
           crypto.randomUUID(),
         );
         return output(
@@ -1448,7 +1543,9 @@ export async function runQuest(
       return output(
         await dispatchTrackerTaskCommand(tasks, {
           command,
-          id: one(parsed, "--id") ?? (await nextTaskId(tasks)),
+          id:
+            one(parsed, "--id") ??
+            (await nextTaskId(tasks, await configuredTaskIdPrefix())),
           operationId: crypto.randomUUID(),
           actor: writeActor,
           input: {

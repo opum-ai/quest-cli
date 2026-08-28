@@ -16,6 +16,7 @@ import {
   enrollWorkspace,
   initializeWorkspace,
   resolveInitializedWorkspace,
+  resolveWorkspaceConfiguration,
   WorkspaceError,
 } from "../../../src/application/workspaces/workspaces.ts";
 
@@ -154,6 +155,40 @@ test("hostile components and symlink escapes are rejected before initialization 
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("declared name and taskIdPrefix round-trip through initialization and configuration reads", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root, {
+      name: 'My "Special" Project',
+      taskIdPrefix: "QCLI",
+    });
+    expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\nname = "My \\"Special\\" Project"\ntaskIdPrefix = "QCLI"\n',
+    );
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+      name: 'My "Special" Project',
+      taskIdPrefix: "QCLI",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a workspace initialized before name/taskIdPrefix existed reads back with neither field", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root);
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 
