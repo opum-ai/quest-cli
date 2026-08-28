@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
+import { realpathSync, writeFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
 const compiled = join(
@@ -28,6 +30,27 @@ async function quest(store: string, argv: readonly string[]) {
     stderr: "pipe",
     env: { ...Bun.env, QUEST_TASK_STORE: store },
   });
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
+async function questWithStdin(
+  store: string,
+  argv: readonly string[],
+  stdinBody: string,
+) {
+  const child = Bun.spawn(["bun", source, ...argv, "--json"], {
+    cwd: store,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...Bun.env, QUEST_TASK_STORE: store },
+  });
+  child.stdin.write(stdinBody);
+  await child.stdin.end();
   return {
     exitCode: await child.exited,
     stdout: await new Response(child.stdout).text(),
@@ -91,7 +114,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.7\n",
+      stdout: "0.2.9\n",
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);
@@ -842,6 +865,64 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ])
       ).stdout,
     ).data.record.id as string;
+    const bound = JSON.parse(
+      (await quest(store, ["task", "create", "Bound", ...actor, "--json"]))
+        .stdout,
+    ).data.id as string;
+    await quest(store, [
+      "task",
+      "edit",
+      bound,
+      "--status",
+      "In Progress",
+      "--add-reference",
+      "binding-correlation",
+      ...actor,
+      "--json",
+    ]);
+
+    const relationshipsDirectory = join(store, ".quest", "relationships");
+    await mkdir(relationshipsDirectory, { recursive: true });
+    const commonDirectory = Bun.spawnSync(
+      ["git", "rev-parse", "--git-common-dir"],
+      { cwd: store, stdout: "pipe" },
+    )
+      .stdout.toString()
+      .trim();
+    const repositoryId = commonDirectory.startsWith("/")
+      ? commonDirectory
+      : join(realpathSync(store), commonDirectory);
+    await writeFile(
+      join(
+        relationshipsDirectory,
+        `${safeStorageName("binding-correlation")}.json`,
+      ),
+      JSON.stringify({
+        schemaVersion: 1,
+        id: "binding-correlation",
+        taskId: bound,
+        kind: "correlation",
+        state: "accepted",
+        holder: "person-1",
+        baseRef: "origin/dev",
+        settlementRef: "origin/dev",
+      }),
+    );
+    Bun.spawnSync(["git", "add", "-A"], { cwd: store });
+    Bun.spawnSync(
+      [
+        "git",
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "commit",
+        "-m",
+        "evidence",
+      ],
+      { cwd: store },
+    );
+
     const migrationDigest = JSON.parse(
       (
         await quest(store, [
@@ -900,6 +981,25 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         "--plain",
       ],
       "task status-flow": ["task", "status-flow", "--plain"],
+      "task binding": [
+        "task",
+        "binding",
+        "--contract",
+        "opum-agent-workflow/v1",
+        "--task",
+        bound,
+        "--claim-or-correlation",
+        "binding-correlation",
+        "--holder",
+        "person-1",
+        "--repository",
+        repositoryId,
+        "--base",
+        "origin/dev",
+        "--settlement",
+        "origin/dev",
+        "--plain",
+      ],
       "task list": ["task", "list", "--plain"],
       "task view": ["task", "view", created, "--plain"],
       search: ["search", "Existing", "--plain"],
@@ -914,6 +1014,28 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ...actor,
         "--plain",
       ],
+      "task edit-batch": (() => {
+        const operations = join(store, `ops-${safeStorageName(created)}.jsonl`);
+        writeFileSync(
+          operations,
+          [
+            JSON.stringify({
+              reference: created,
+              operationId: "batch-1",
+              patch: { addLabels: ["batched"] },
+            }),
+            "",
+          ].join("\n"),
+        );
+        return [
+          "task",
+          "edit-batch",
+          "--file",
+          operations,
+          ...actor,
+          "--plain",
+        ];
+      })(),
       "task complete": ["task", "complete", created, ...actor, "--plain"],
       "task archive": ["task", "archive", created, ...actor, "--plain"],
       "task demote": ["task", "demote", created, ...actor, "--plain"],
@@ -999,13 +1121,24 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       const result =
         entry.name === "browser"
           ? await questUntilOutput(store, argv ?? [])
-          : await (async () => {
-              const invocation = await quest(store, argv ?? []);
-              if (invocation.exitCode !== 0)
-                throw new Error(`${entry.name}: ${invocation.stderr}`);
-              expect(invocation.exitCode, entry.name).toBe(0);
-              return invocation;
-            })();
+          : entry.name === "task binding"
+            ? await questWithStdin(
+                store,
+                ["task", "binding", "--contract", "opum-agent-workflow/v1"],
+                JSON.stringify({
+                  contract: "opum-agent-workflow",
+                  supportedVersions: [1],
+                  requestId: "0".repeat(32),
+                  taskId: bound,
+                }),
+              )
+            : await (async () => {
+                const invocation = await quest(store, argv ?? []);
+                if (invocation.exitCode !== 0)
+                  throw new Error(`${entry.name}: ${invocation.stderr}`);
+                expect(invocation.exitCode, entry.name).toBe(0);
+                return invocation;
+              })();
       const diagnostic = result.stderr
         ? (JSON.parse(result.stderr) as { readonly error_type?: string })
         : undefined;
@@ -1043,6 +1176,11 @@ test("every manifest payload command declares principal null as its last JSON ke
     const stdout = outputs.get(entry.name);
     expect(stdout, entry.name).toBeDefined();
     const envelope = JSON.parse(stdout ?? "") as Record<string, unknown>;
+    if (entry.name === "task binding") {
+      // The public opum-agent-workflow/v1 envelope is its own closed shape.
+      expect(envelope.contract, entry.name).toBe("opum-agent-workflow");
+      continue;
+    }
     expect(envelope.principal, entry.name).toBeNull();
     expect(Object.keys(envelope).at(-1), entry.name).toBe("principal");
   }

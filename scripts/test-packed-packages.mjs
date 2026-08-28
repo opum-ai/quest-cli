@@ -93,6 +93,27 @@ try {
   );
   if (agentCheck.data?.state !== "current")
     throw new Error("Packed launcher agent onboarding check failed.");
+  await Bun.$`node ${quest} agents --update-instructions --json`
+    .cwd(workspace)
+    .text();
+  const packedAgents = await readFile(join(workspace, "AGENTS.md"), "utf8");
+  if (
+    !packedAgents.includes(
+      `This project uses Quest CLI ${rootPackage.version} `,
+    )
+  )
+    throw new Error(
+      "Packed launcher wrote managed instructions with a stale release version.",
+    );
+  const requireInstalled = Bun.spawnSync(
+    ["node", quest, "agents", "--check", "--require-installed", "--json"],
+    { cwd: workspace, stderr: "pipe" },
+  );
+  if (requireInstalled.exitCode !== 0)
+    throw new Error(
+      "Packed launcher required-installed agent check failed: " +
+        new TextDecoder().decode(requireInstalled.stderr),
+    );
   const help = JSON.parse(
     await Bun.$`node ${quest} help task --json`.cwd(workspace).text(),
   );

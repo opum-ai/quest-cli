@@ -184,6 +184,25 @@
 - 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
 - 2026-08-17T20:54:55-05:00 a45e2483957f1cfa4c44a1ba4bdd1afc2d524520 docs: record QCLI-97.9 external handoff
 - 2026-08-18T00:45:14-05:00 2b934d5db324419ebeaeb1760d9789525e51d715 docs: finalize Quest 0.2.7 installed evidence
+- 2026-08-18T08:26:48-05:00 04ef2bdd7cf04a80d43033cc4a0a9e96d75bc54f docs: synchronize Lore history log
+- 2026-08-18T12:06:42-05:00 3699c2e87e2ea0e128fd5b801221a1125bb13f08 chore: settle FMC worker authority
+- 2026-08-18T12:08:00-05:00 bb117004544967880ba8489ea43e005f4af1c1fc chore(docs): sync worker settlement
+- 2026-08-18T19:28:01-05:00 db4e5d274bfaf87d8b9da5368dc42339aa8ee5a1 docs: reconcile 0.2.x Lore ownership
+- 2026-08-20T13:49:52-05:00 019e2ee06458e3696d079dd2d6e5df6e66dbfd03 docs: reconcile 0.2.x Lore ownership
+- 2026-08-20T20:46:38-05:00 cd0e437ff3928d54840ba96e23b6e0dc2ad9295f docs: sync 0.2.x Lore log after QCLI-115 settlement (#133)
+- 2026-08-24T09:21:17-05:00 2cc5e5f9d9d5b4532027e404c960952d93176856 QCLI-97.5.1: Adopt opum-agent skill source marker and ODOC-71.8 read-only task-binding adapter
+- 2026-08-24T09:51:03-05:00 30c9fbb66cacd981d00efc0d9aabc0681aad624b QCLI-97.5.1: Settle corrected task binding acceptance
+- 2026-08-24T10:30:02-05:00 68503ccb5d4ef4b1cf9cf91f9b314ca217f9991d QCLI-97.5.1: Settle corrected binding acceptance
+- 2026-08-24T11:01:22-05:00 268f7c0f9c5a39323105e4bed0c5cf988e10d41e QCLI-97.5.1: Settle hardened binding acceptance
+- 2026-08-24T11:20:07-05:00 bf71789a765a42526147f58b233b44b3a189871f QCLI-97.5.1: Settle hardened binding acceptance
+- 2026-08-24T12:17:49-05:00 2f11b79281c8651c9027bc442a41801d248c1b29 QCLI-97.5.1: Settle snapshot-pinned binding acceptance
+- 2026-08-24T12:46:18-05:00 e1806e69cf16b330a3bc8bb2fa9a2b167abd1475 QCLI-97.5.1: Settle snapshot-resolved binding acceptance
+- 2026-08-24T13:03:12-05:00 afa1019e74009bd73e9eb887eead865c4b675003 QCLI-97.5.1: Settle hardened canonical binding acceptance
+- 2026-08-24T13:16:23-05:00 78631e7578918e3a1bf39f00d9dbba400c2ec08f QCLI-97.5.1: Settle test-adequacy correction
+- 2026-08-24T21:42:28-05:00 c846675df2715c19d2f863df109385d0a4a1bf61 QCLI-97.5.2: Settle stdin transport acceptance
+- 2026-08-25T02:24:51-05:00 c2a2f69b14cf2c4be3e38bfe66e5a35d97b9c8ad QCLI-97.5.2: stdin JSON request transport for quest task binding (opum-agent-workflow/v1) (#142)
+- 2026-08-25T02:29:52-05:00 ca52c3c85f9323116ef34659842bae01587f529f chore(docs): sync lore log after QCLI-97.5.2 settlement
+- 2026-08-25T03:10:40-05:00 57e56b6d505139f28dfe04bbf97ccf9a9f93fecb Revert "chore(docs): sync lore log after QCLI-97.5.2 settlement"
 
 ## docs/adr
 
@@ -284,6 +303,8 @@
 - 2026-08-17T09:12:11-05:00 d2aeacc382b7c9a7e05fa5e400b4163bebaa2058 feat: qualify Quest parity packages
 - 2026-08-17T20:42:44-05:00 16232894d9bc0c3ce73d89cee2b30ad09744c04e docs: record unpublished Quest 0.2.7 evidence
 - 2026-08-18T00:45:14-05:00 2b934d5db324419ebeaeb1760d9789525e51d715 docs: finalize Quest 0.2.7 installed evidence
+- 2026-08-24T09:21:17-05:00 2cc5e5f9d9d5b4532027e404c960952d93176856 QCLI-97.5.1: Adopt opum-agent skill source marker and ODOC-71.8 read-only task-binding adapter
+- 2026-08-24T09:50:24-05:00 c40ef91550819c4619eb610139e074d779210cca QCLI-97.5.1: Correct opum-agent-workflow/v1 to the public task-binding CLI contract
 
 ## docs/runbooks
 
@@ -418,3 +439,5 @@
 - 2026-08-17T16:56:59-05:00 10cc3761c757e791a26e7375f06a926ebf27f4df docs: sync planning contract completion
 - 2026-08-17T17:16:08-05:00 72336111fb328e743104f89cbd6c3a82a2262714 docs: sync agent gate completion
 - 2026-08-17T18:51:21-05:00 f3d1ea5f001455a0566d51203de23bb4a2258d3f fix: align manifest help dispatcher
+- 2026-08-18T19:28:01-05:00 db4e5d274bfaf87d8b9da5368dc42339aa8ee5a1 docs: reconcile 0.2.x Lore ownership
+- 2026-08-20T13:49:52-05:00 019e2ee06458e3696d079dd2d6e5df6e66dbfd03 docs: reconcile 0.2.x Lore ownership

@@ -1,3 +1,7 @@
+import {
+  foldEditPatch,
+  type EditPatchVocabulary as TrackerEditPatch,
+} from "../../../application/tasks/edit-patch.ts";
 import type { TaskService } from "../../../application/tasks/tasks.ts";
 
 type TrackerTask = Awaited<ReturnType<TaskService["view"]>>;
@@ -28,16 +32,21 @@ export type TaskCommandRequest =
   | {
       readonly command: "edit";
       readonly reference: string;
-      readonly patch: {
-        readonly status?: string;
-        readonly description?: string;
-        readonly addLabels?: readonly string[];
-        readonly removeLabels?: readonly string[];
-        readonly documentation?: readonly string[];
-      };
+      readonly patch: TrackerEditPatch;
       readonly operationId: string;
       readonly actor: TaskCommandActor;
+    }
+  | {
+      readonly command: "edit-batch";
+      readonly actor: TaskCommandActor;
+      readonly items: readonly {
+        readonly reference: string;
+        readonly operationId?: string;
+        readonly patch?: Partial<TrackerEditPatch>;
+      }[];
     };
+
+/** Mirrors the public tracker contract's edit vocabulary (QCLI-97.11.6). */
 
 export type TaskCommandResponse =
   | {
@@ -62,6 +71,29 @@ export type TaskCommandResponse =
       readonly schemaVersion: 1;
       readonly kind: "task.search";
       readonly data: readonly TrackerTask[];
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "task.batch-updated";
+      readonly data: {
+        readonly items: readonly (
+          | {
+              readonly kind: "updated";
+              readonly reference: string;
+              readonly operationId: string;
+              readonly task: TrackerTask;
+            }
+          | {
+              readonly kind: "error";
+              readonly reference: string;
+              readonly operationId: string;
+              readonly message: string;
+            }
+        )[];
+        readonly applied: number;
+        readonly failed: number;
+        readonly revision: string;
+      };
     };
 
 function requireWriteActor(actor: TaskCommandActor): void {
@@ -90,22 +122,26 @@ export async function dispatchTrackerTaskCommand(
 ): Promise<TaskCommandResponse> {
   switch (request.command) {
     case "status-flow":
+      // Reports the service's configured policy; the default policy is the historical spelling.
       return {
         schemaVersion: 1,
         kind: "task.status-flow",
         data: {
-          statuses: ["To Do", "In Progress", "Done"],
-          terminalStatuses: ["Done"],
+          statuses: tasks.lifecycle.statuses,
+          terminalStatuses: tasks.lifecycle.terminalStatuses,
         },
       };
     case "list": {
+      const status = request.status
+        ? tasks.resolveStatus(request.status)
+        : undefined;
       const listed = await tasks.list();
       return {
         schemaVersion: 1,
         kind: "task.list",
         data: listed.filter(
           (task) =>
-            (!request.status || task.status === request.status) &&
+            (!status || task.status === status) &&
             (!request.labels?.length ||
               request.labels.every((label) => task.labels.includes(label))),
         ),
@@ -134,37 +170,91 @@ export async function dispatchTrackerTaskCommand(
       };
     case "edit": {
       requireWriteActor(request.actor);
-      const current = await tasks.view(request.reference);
-      const labels = [
-        ...current.labels.filter(
-          (label) => !request.patch.removeLabels?.includes(label),
-        ),
-        ...(request.patch.addLabels ?? []).filter(
-          (label) => !current.labels.includes(label),
-        ),
-      ];
-      const patch = {
-        ...(request.patch.status !== undefined
-          ? { status: request.patch.status }
-          : {}),
-        ...(request.patch.description !== undefined
-          ? { description: request.patch.description }
-          : {}),
-        ...(request.patch.addLabels?.length ||
-        request.patch.removeLabels?.length
-          ? { labels }
-          : {}),
-        ...(request.patch.documentation !== undefined
-          ? { documentation: request.patch.documentation }
-          : {}),
-      };
+      // QCLI-122: resolve the current task and its authoritative snapshot in
+      // one read, then apply the mutation from that same snapshot instead of
+      // performing two independent full-collection reads per public edit.
+      const prepared = await tasks.prepareMutation(request.reference);
+      const patch = buildEditPatch(prepared.task, request.patch, tasks);
       return {
         schemaVersion: 1,
         kind: "task.updated",
         data: taskFromMutation(
-          await tasks.edit(request.reference, patch, request.operationId),
+          await tasks.editOn(
+            prepared.snapshot,
+            request.reference,
+            patch as Parameters<TaskService["edit"]>[1],
+            request.operationId,
+          ),
         ),
       };
     }
+    case "edit-batch": {
+      requireWriteActor(request.actor);
+      const result = await tasks.editBatch(
+        request.items.map((item, index) => ({
+          reference: item.reference,
+          operationId: item.operationId ?? `batch-item-${index + 1}`,
+          patch: (item.patch ?? {}) as Partial<
+            import("../../../domain/tasks/tasks.ts").TaskState &
+              TrackerEditPatch
+          >,
+        })),
+      );
+      if (result.kind === "conflict") throw new Error("tracker_write_conflict");
+      return {
+        schemaVersion: 1,
+        kind: "task.batch-updated",
+        data: {
+          items: result.items,
+          applied: result.items.filter((item) => item.kind === "updated")
+            .length,
+          failed: result.items.filter((item) => item.kind === "error").length,
+          revision: result.revision,
+        },
+      };
+    }
   }
+}
+
+/**
+ * Folds the public replace/add/remove/clear vocabulary into one deterministic
+ * TaskState patch: current minus removed, then new entries not already present.
+ */
+function _mergeList(
+  current: readonly string[],
+  added: readonly string[] | undefined,
+  removed: readonly string[] | undefined,
+): readonly string[] {
+  const dropped = new Set(removed ?? []);
+  const result = current.filter((value) => !dropped.has(value));
+  for (const value of added ?? [])
+    if (!result.includes(value)) result.push(value);
+  return result;
+}
+
+function _mergeComments(
+  current: readonly unknown[],
+  added: readonly unknown[] | undefined,
+  removed: readonly string[] | undefined,
+): readonly unknown[] {
+  const dropped = new Set(removed ?? []);
+  const isCommentId = (comment: unknown): boolean =>
+    !!comment &&
+    typeof comment === "object" &&
+    typeof (comment as { id?: unknown }).id === "string";
+  const result = current.filter((comment) => {
+    const id = isCommentId(comment) ? (comment as { id: string }).id : "";
+    return !dropped.has(id);
+  });
+  for (const comment of added ?? [])
+    if (!result.includes(comment)) result.push(comment);
+  return result;
+}
+
+function buildEditPatch(
+  current: TrackerTask,
+  patch: TrackerEditPatch,
+  tasks: TaskService,
+): Record<string, unknown> {
+  return foldEditPatch(current, patch, (status) => tasks.resolveStatus(status));
 }

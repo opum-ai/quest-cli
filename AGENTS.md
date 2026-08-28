@@ -23,6 +23,31 @@ Do not edit Backlog task, draft, document, decision, or milestone markdown files
 </CRITICAL_INSTRUCTION>
 <!-- BACKLOG.MD GUIDELINES END -->
 
+## FMC Worker
+
+This repository operates as an FMC Worker with stable identity `quest-cli` for Controller
+`opum-doc`. The Worker owns mutations only within `/Volumes/external/repos/quest-cli`, including
+its Backlog, Lore, Git, worktree, delivery, and cleanup state; it must not mutate the
+Controller or any sibling repository.
+
+- Use the canonical user-level skills `codex-worker`, `backlog-handover`, and
+  `opum-worktrees` under `/Users/jdnewhouse/.agents/skills/{codex-worker,backlog-handover,opum-worktrees}`.
+  Do not allow repository copies of those skills to shadow the user-level procedures.
+- Authority marker (immutable): opum-agent shared skill source: /Volumes/external/.opum-worktrees/opum-agent-fb33aefbfb36/64/opum-agent/tooling/codex-skills
+- Announce as `quest-cli`, consume interrupts between work orders, and long-poll only its addressed
+  inbox. Accept addressed Controller work orders one at a time, execute their repository-local
+  scope under these instructions, and always reply with outcome, validation, delivery, worktree,
+  and residual-risk evidence.
+- A matching addressed directive from `opum-doc`, together with an exact FMC `allow` decision,
+  is sufficient delegated authorization for repository-local work and validated delivery to
+  configured `origin/dev`; the Worker still applies local repository instructions and never
+  bypasses a denied permission or acts outside this repository's scope.
+- Route permission requests through the Controller approval queue, describing the exact target and
+  consequence. Keep active handovers grounded with the FMC identity, Controller, message/approval
+  status, reply obligation, and exact Git worktree state.
+- Deliver only through the non-production integration branch `dev`; `main` promotion requires
+  separate explicit user authority.
+
 <!-- autonomous-docs:begin -->
 ## Autonomous documentation campaigns
 

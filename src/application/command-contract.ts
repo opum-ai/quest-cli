@@ -1,7 +1,7 @@
 import {
-  exitCodes,
   type DiagnosticEnvelope,
   type ExitCode,
+  exitCodes,
   type ResultEnvelope,
 } from "../domain/command-contract.ts";
 
@@ -68,12 +68,14 @@ export interface CommandManifestEntry {
     | "migration backlog status"
     | "migration backlog rollback"
     | "task status-flow"
+    | "task binding"
     | "task list"
     | "task view"
     | "search"
     | "search --all"
     | "task create"
     | "task edit"
+    | "task edit-batch"
     | "task complete"
     | "task archive"
     | "task demote"
@@ -100,6 +102,8 @@ export interface CommandManifestEntry {
   readonly schemaVersion: 1;
   readonly kind: `${string}.${string}` | null;
   readonly mutates: boolean;
+  readonly fields?: readonly string[];
+  readonly filters?: readonly string[];
 }
 
 export const commandManifest = {
@@ -146,51 +150,241 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "migration.backlog-preview",
       mutates: false,
+      fields: ["digest", "mappings", "requiresApproval", "sourceFingerprint"],
     },
     {
       name: "migration backlog apply",
       schemaVersion: 1,
       kind: "migration.backlog-applied",
       mutates: true,
+      fields: ["digest"],
     },
     {
       name: "migration backlog status",
       schemaVersion: 1,
       kind: "migration.backlog-status",
       mutates: false,
+      fields: ["digest"],
     },
     {
       name: "migration backlog rollback",
       schemaVersion: 1,
       kind: "migration.backlog-rolled-back",
       mutates: true,
+      fields: ["digest"],
     },
     {
       name: "task status-flow",
       schemaVersion: 1,
       kind: "task.status-flow",
       mutates: false,
+      fields: ["statuses", "terminalStatuses"],
     },
-    { name: "task list", schemaVersion: 1, kind: "task.list", mutates: false },
-    { name: "task view", schemaVersion: 1, kind: "task.view", mutates: false },
-    { name: "search", schemaVersion: 1, kind: "task.search", mutates: false },
+    {
+      name: "task binding",
+      schemaVersion: 1,
+      kind: "task.binding",
+      mutates: false,
+      fields: [
+        "baseRef",
+        "contract",
+        "expiresAt",
+        "holder",
+        "issuedAt",
+        "relationshipId",
+        "relationshipKind",
+        "relationshipState",
+        "repositoryId",
+        "requestId",
+        "selectedVersion",
+        "settlementRef",
+        "taskId",
+        "taskState",
+      ],
+    },
+    {
+      name: "task list",
+      schemaVersion: 1,
+      kind: "task.list",
+      mutates: false,
+      filters: ["label", "status"],
+      fields: [
+        "assignees",
+        "createdAt",
+        "id",
+        "labels",
+        "ordinal",
+        "priority",
+        "status",
+        "summary",
+        "title",
+        "type",
+        "updatedAt",
+      ],
+    },
+    {
+      name: "task view",
+      schemaVersion: 1,
+      kind: "task.view",
+      mutates: false,
+      fields: [
+        "acceptanceCriteria",
+        "aliases",
+        "assignees",
+        "comments",
+        "createdAt",
+        "definitionOfDone",
+        "dependencies",
+        "description",
+        "documentation",
+        "finalSummary",
+        "id",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "modifiedFiles",
+        "ordinal",
+        "parentId",
+        "plan",
+        "priority",
+        "references",
+        "status",
+        "summary",
+        "title",
+        "type",
+        "updatedAt",
+      ],
+    },
+    {
+      name: "search",
+      schemaVersion: 1,
+      kind: "task.search",
+      mutates: false,
+      filters: ["query"],
+      fields: [
+        "assignees",
+        "createdAt",
+        "id",
+        "labels",
+        "ordinal",
+        "priority",
+        "status",
+        "summary",
+        "title",
+        "type",
+        "updatedAt",
+      ],
+    },
     {
       name: "search --all",
       schemaVersion: 1,
       kind: "search.results",
       mutates: false,
+      filters: ["query"],
     },
     {
       name: "task create",
       schemaVersion: 1,
       kind: "task.created",
       mutates: true,
+      fields: [
+        "acceptanceCriteria",
+        "aliases",
+        "assignees",
+        "comments",
+        "definitionOfDone",
+        "description",
+        "documentation",
+        "finalSummary",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "modifiedFiles",
+        "ordinal",
+        "parentId",
+        "plan",
+        "priority",
+        "references",
+        "summary",
+        "title",
+        "type",
+      ],
     },
     {
       name: "task edit",
       schemaVersion: 1,
       kind: "task.updated",
       mutates: true,
+      fields: [
+        "acceptanceCriteria",
+        "addAssignees",
+        "addComments",
+        "addDependencies",
+        "addLabels",
+        "addModifiedFiles",
+        "addNotes",
+        "addPlan",
+        "addReferences",
+        "clearMilestone",
+        "clearParent",
+        "comments",
+        "definitionOfDone",
+        "description",
+        "documentation",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "parentId",
+        "plan",
+        "removeAssignees",
+        "removeComments",
+        "removeDependencies",
+        "removeLabels",
+        "removeModifiedFiles",
+        "removeNotes",
+        "removePlan",
+        "removeReferences",
+        "status",
+        "summary",
+      ],
+    },
+    {
+      name: "task edit-batch",
+      schemaVersion: 1,
+      kind: "task.batch-updated",
+      mutates: true,
+      fields: [
+        "acceptanceCriteria",
+        "addAssignees",
+        "addComments",
+        "addDependencies",
+        "addLabels",
+        "addModifiedFiles",
+        "addNotes",
+        "addPlan",
+        "addReferences",
+        "clearMilestone",
+        "clearParent",
+        "comments",
+        "definitionOfDone",
+        "description",
+        "documentation",
+        "implementationNotes",
+        "labels",
+        "milestoneId",
+        "parentId",
+        "plan",
+        "removeAssignees",
+        "removeComments",
+        "removeDependencies",
+        "removeLabels",
+        "removeModifiedFiles",
+        "removeNotes",
+        "removePlan",
+        "removeReferences",
+        "status",
+        "summary",
+      ],
     },
     {
       name: "task complete",
@@ -215,18 +409,21 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "draft.created",
       mutates: true,
+      fields: ["description", "documentation", "labels", "title"],
     },
     {
       name: "draft list",
       schemaVersion: 1,
       kind: "draft.list",
       mutates: false,
+      filters: ["include-archived"],
     },
     {
       name: "draft view",
       schemaVersion: 1,
       kind: "draft.view",
       mutates: false,
+      fields: ["description", "documentation", "labels", "title"],
     },
     {
       name: "draft promote",
@@ -245,24 +442,28 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "milestone.list",
       mutates: false,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone view",
       schemaVersion: 1,
       kind: "milestone.view",
       mutates: false,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone create",
       schemaVersion: 1,
       kind: "milestone.created",
       mutates: true,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone edit",
       schemaVersion: 1,
       kind: "milestone.updated",
       mutates: true,
+      fields: ["description", "status", "taskIds", "title"],
     },
     {
       name: "milestone delete",
@@ -275,24 +476,28 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "decision.list",
       mutates: false,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision view",
       schemaVersion: 1,
       kind: "decision.view",
       mutates: false,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision create",
       schemaVersion: 1,
       kind: "decision.created",
       mutates: true,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision edit",
       schemaVersion: 1,
       kind: "decision.updated",
       mutates: true,
+      fields: ["context", "outcome", "status", "title"],
     },
     {
       name: "decision delete",
@@ -344,8 +549,20 @@ export function validateCommandManifest(manifest: unknown): boolean {
   if (JSON.stringify(candidate.exitCodes) !== JSON.stringify(exitCodes)) {
     return false;
   }
+  const canonical = new Map<string, CommandManifestEntry>();
+  for (const entry of commandManifest.commands)
+    canonical.set(entry.name, entry);
   const names = new Set<string>();
   const kinds = new Set<string>();
+  // Non-empty unique string lists; the live manifest never advertises an
+  // empty list, and order is part of the closed-set contract (exact
+  // JSON.stringify equality below is deliberately order-sensitive).
+  const isStringList = (value: unknown): boolean =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.length > 0 &&
+      value.every((item) => typeof item === "string") &&
+      new Set(value).size === value.length);
   for (const command of candidate.commands) {
     if (!command || typeof command !== "object") return false;
     const entry = command as Record<string, unknown>;
@@ -354,6 +571,21 @@ export function validateCommandManifest(manifest: unknown): boolean {
       entry.schemaVersion !== 1 ||
       typeof entry.mutates !== "boolean" ||
       names.has(entry.name)
+    ) {
+      return false;
+    }
+    if (!canonical.has(entry.name)) return false;
+    if (!isStringList(entry.fields) || !isStringList(entry.filters))
+      return false;
+    const expected = canonical.get(entry.name);
+    if (
+      !expected ||
+      entry.kind !== expected.kind ||
+      entry.mutates !== expected.mutates ||
+      JSON.stringify(entry.fields ?? []) !==
+        JSON.stringify(expected.fields ?? []) ||
+      JSON.stringify(entry.filters ?? []) !==
+        JSON.stringify(expected.filters ?? [])
     ) {
       return false;
     }
@@ -369,5 +601,7 @@ export function validateCommandManifest(manifest: unknown): boolean {
       kinds.add(entry.kind);
     }
   }
+  for (const entry of commandManifest.commands)
+    if (!names.has(entry.name)) return false;
   return true;
 }

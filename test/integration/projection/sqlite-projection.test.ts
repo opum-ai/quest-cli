@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -59,15 +59,35 @@ function snapshot(): AuthoritativeProjectionSnapshot {
     aliases: ["one"],
     title: "One",
     status: "In Progress",
-    acceptanceCriteria: [],
-    definitionOfDone: [],
-    plan: [],
-    implementationNotes: [],
-    comments: [],
-    labels: [],
-    documentation: [],
+    acceptanceCriteria: [
+      { index: 0, text: "round-trip", checked: false },
+      { index: 1, text: "reviewed", checked: true },
+    ],
+    definitionOfDone: [{ index: 0, text: "verified", checked: true }],
+    plan: ["build"],
+    implementationNotes: ["note"],
+    comments: [
+      {
+        id: "c-1",
+        authorId: "reviewer",
+        body: "hello",
+        createdAt: "2026-08-15T00:00:00Z",
+      },
+    ],
+    labels: ["core"],
+    documentation: ["docs/spec.md"],
     parentId: undefined,
     dependencies: [],
+    assignees: ["@quest-cli"],
+    references: ["QCLI-97.11"],
+    modifiedFiles: ["src/domain/tasks/tasks.ts"],
+    createdAt: "2026-08-15T00:00:00Z",
+    updatedAt: "2026-08-15T01:00:00Z",
+    finalSummary: "settled",
+    milestoneId: "M-1",
+    ordinal: 7,
+    priority: "high",
+    type: "feature",
     blockers: [],
     gates,
     gateEvents: events,
@@ -567,4 +587,82 @@ test("query reader opens an existing projection read-only", async () => {
       tasks: source.tasks,
     },
   );
+});
+
+test("the schema-1 payload round-trips every projection field group", async () => {
+  const path = databasePath();
+  const source = snapshot();
+  await new SqliteProjectionStore(path).rebuild({
+    enumerate: async () => source,
+  });
+  const db = new Database(path, { readonly: true });
+  try {
+    const row = readDatabaseRow<{ payload: string }>(
+      db,
+      "SELECT payload FROM tasks WHERE id = 'T-1'",
+    );
+    const parsed = JSON.parse(row.payload) as Record<string, unknown>;
+    expect(parsed.acceptanceCriteria).toEqual([
+      { index: 0, text: "round-trip", checked: false },
+      { index: 1, text: "reviewed", checked: true },
+    ]);
+    expect(parsed.definitionOfDone).toEqual([
+      { index: 0, text: "verified", checked: true },
+    ]);
+    expect(parsed.assignees).toEqual(["@quest-cli"]);
+    expect(parsed.references).toEqual(["QCLI-97.11"]);
+    expect(parsed.modifiedFiles).toEqual(["src/domain/tasks/tasks.ts"]);
+    expect(parsed.createdAt).toBe("2026-08-15T00:00:00Z");
+    expect(parsed.updatedAt).toBe("2026-08-15T01:00:00Z");
+    expect(parsed.finalSummary).toBe("settled");
+    expect(parsed.milestoneId).toBe("M-1");
+    expect(parsed.ordinal).toBe(7);
+    expect(parsed.priority).toBe("high");
+    expect(parsed.type).toBe("feature");
+  } finally {
+    db.close(true);
+  }
+});
+
+test("legacy string checklists in the payload normalize to checked items on read", async () => {
+  const path = databasePath();
+  const source = snapshot();
+  const [first, second] = source.tasks;
+  if (!first || !second) throw new Error("fixture_task_missing");
+  const legacy = taskState({
+    ...first,
+    acceptanceCriteria: ["legacy"] as readonly (string | never)[],
+    definitionOfDone: [] as readonly (string | never)[],
+  });
+  await new SqliteProjectionStore(path).rebuild({
+    enumerate: async () => ({ ...source, tasks: [legacy, second] }),
+  });
+  const raw = new Database(path);
+  try {
+    // Insert a genuinely legacy payload (bare strings) directly, bypassing
+    // taskState(), to prove the read path normalizes pre-change artifacts.
+    raw.exec(
+      "INSERT INTO tasks (id, title, status, payload) VALUES ('T-9', 'Legacy', 'To Do', ?)",
+      [
+        JSON.stringify({
+          ...legacy,
+          id: "T-9",
+          title: "Legacy",
+          acceptanceCriteria: ["legacy"],
+          gates: [],
+          gateEvents: [],
+        }),
+      ],
+    );
+  } finally {
+    raw.close(true);
+  }
+  const read = await new SqliteProjectionTaskReader(path).readAll();
+  expect(read.tasks[0]?.acceptanceCriteria).toEqual([
+    { index: 0, text: "legacy", checked: false },
+  ]);
+  const legacyRow = read.tasks.find((task) => task.id === "T-9");
+  expect(legacyRow?.acceptanceCriteria).toEqual([
+    { index: 0, text: "legacy", checked: false },
+  ]);
 });

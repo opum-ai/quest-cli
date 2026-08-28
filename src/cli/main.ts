@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Database } from "bun:sqlite";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
 import {
@@ -8,6 +9,13 @@ import {
   updateQuestAgentInstructions,
 } from "../application/agents/agent-instructions.ts";
 import { startBrowserServer } from "../application/browser/browser.ts";
+import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
+import {
+  OpumAgentWorkflowBindingService,
+  OpumAgentWorkflowError,
+  parseStrictJson,
+  parseTaskBindingRequestV1,
+} from "../application/claims/opum-agent-workflow.ts";
 import {
   commandManifest,
   diagnostic,
@@ -18,22 +26,25 @@ import {
 } from "../application/command-contract.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
-import { TaskService } from "../application/tasks/tasks.ts";
+import type { TaskService } from "../application/tasks/tasks.ts";
 import {
   initializeWorkspace,
   resolveInitializedWorkspace,
 } from "../application/workspaces/workspaces.ts";
+import { QUEST_VERSION } from "../application/version.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
 import {
   createAgentInstructionPort,
   createBacklogImportService,
   createPlanningService,
+  createTaskBindingModel,
+  createTaskService,
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload } from "./render.ts";
 
-const VERSION = "0.2.7";
+const VERSION = QUEST_VERSION;
 
 /** Retains the program identity for embedders; subprocess routing uses runQuest. */
 export function createQuestProgram(): Command {
@@ -134,6 +145,8 @@ function flags(
     "--dry-run",
     "--include-archived",
     "--all",
+    "--clear-parent",
+    "--clear-milestone",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -195,6 +208,103 @@ function only(
   return [...parsed.values.keys()].every((flag) => allowed.includes(flag));
 }
 
+function stringValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): string[] | undefined {
+  const value = one(parsed, name);
+  if (value === undefined) return undefined;
+  try {
+    const parsedValue: unknown = JSON.parse(value);
+    if (
+      !Array.isArray(parsedValue) ||
+      !parsedValue.every((item) => typeof item === "string")
+    )
+      throw new Error("not a string array");
+    return parsedValue;
+  } catch {
+    throw new FlagUsageError(`${name} must be a JSON array of strings.`);
+  }
+}
+
+function checkListValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): (string | { index: number; text: string; checked: boolean })[] | undefined {
+  const value = one(parsed, name);
+  if (value === undefined) return undefined;
+  try {
+    const parsedValue: unknown = JSON.parse(value);
+    const items = parsedValue as readonly unknown[];
+    if (
+      !Array.isArray(parsedValue) ||
+      !items.every(
+        (item) =>
+          typeof item === "string" ||
+          (!!item &&
+            typeof item === "object" &&
+            Number.isInteger((item as Record<string, unknown>).index) &&
+            ((item as Record<string, unknown>).index as number) >= 0 &&
+            typeof (item as Record<string, unknown>).text === "string" &&
+            typeof (item as Record<string, unknown>).checked === "boolean"),
+      )
+    )
+      throw new Error("not a check list");
+    return items as (
+      | string
+      | { index: number; text: string; checked: boolean }
+    )[];
+  } catch {
+    throw new FlagUsageError(
+      `${name} must be a JSON array of strings or {index,text,checked} items.`,
+    );
+  }
+}
+
+function commentsValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+):
+  | { id: string; authorId: string; body: string; createdAt: string }[]
+  | undefined {
+  const value = one(parsed, name);
+  if (value === undefined) return undefined;
+  try {
+    const parsedValue: unknown = JSON.parse(value);
+    const items = parsedValue as readonly unknown[];
+    if (
+      !Array.isArray(parsedValue) ||
+      !items.every(
+        (item) =>
+          !!item &&
+          typeof item === "object" &&
+          typeof (item as Record<string, unknown>).id === "string" &&
+          typeof (item as Record<string, unknown>).authorId === "string" &&
+          typeof (item as Record<string, unknown>).body === "string" &&
+          typeof (item as Record<string, unknown>).createdAt === "string",
+      )
+    )
+      throw new Error("not a comment array");
+    return items as {
+      id: string;
+      authorId: string;
+      body: string;
+      createdAt: string;
+    }[];
+  } catch {
+    throw new FlagUsageError(
+      `${name} must be a JSON array of {id,authorId,body,createdAt} comments.`,
+    );
+  }
+}
+
+function ordinalValue(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^-?\d+$/.test(value) || !Number.isSafeInteger(Number(value)))
+    throw new FlagUsageError("--ordinal must be an integer.");
+  return Number(value);
+}
+
 function updatedMilestoneTaskIds(
   current: readonly string[],
   parsed: NonNullable<ReturnType<typeof flags>>,
@@ -221,12 +331,6 @@ function updatedMilestoneTaskIds(
     return result.filter((taskId) => !removed.has(taskId));
   }
   return result;
-}
-
-function createTaskService(root: string): TaskService {
-  return new TaskService(
-    new LocalTaskRepository(join(root, ".quest", "tasks")),
-  );
 }
 
 function createTaskReader(root: string): LocalTaskRepository {
@@ -291,6 +395,7 @@ async function nextPlanningId(
 export async function runQuest(
   input: readonly string[],
   stdoutIsTty: boolean,
+  stdinIsTty: boolean = process.stdin.isTTY === true,
 ): Promise<InvocationResult> {
   try {
     const resolvedModes = resolveOutputModes(input);
@@ -1122,16 +1227,199 @@ export async function runQuest(
         modeFor(parsed),
       );
     }
+    if (command === "binding") {
+      const parsed = flags(rest);
+      const bindingFlagNames = [
+        "--task",
+        "--claim-or-correlation",
+        "--holder",
+        "--repository",
+        "--base",
+        "--settlement",
+      ] as const;
+      // Non-TTY stdin is piped input. Piped transport requires the exact
+      // envelope and NO binding flag; a complete flag set over an empty or
+      // closed pipe remains the legacy flag-driven form (AC byte-compat).
+      const stdinIsPiped = stdinIsTty !== true;
+      const suppliedBindingFlags = parsed
+        ? bindingFlagNames.filter((flag) => one(parsed, flag) !== undefined)
+        : [];
+      let pipedBody: string | null = null;
+      if (stdinIsPiped) {
+        pipedBody = await Bun.stdin.text();
+        if (suppliedBindingFlags.length > 0 && pipedBody.trim() !== "") {
+          return failure(
+            "usage",
+            "task binding accepts either the piped stdin request envelope alone or the complete --task/--claim-or-correlation/--holder/--repository/--base/--settlement flag set, never both.",
+          );
+        }
+      }
+      const flagsIncomplete =
+        !parsed ||
+        (suppliedBindingFlags.length > 0 &&
+          bindingFlagNames.some((flag) => one(parsed, flag) === undefined));
+      if (
+        !parsed ||
+        !only(parsed, ["--contract", ...bindingFlagNames]) ||
+        !one(parsed, "--contract") ||
+        flagsIncomplete
+      )
+        return failure(
+          "usage",
+          "task binding requires --contract plus either the piped stdin request envelope alone or all of --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
+        );
+      const stdinTransport = stdinIsPiped && suppliedBindingFlags.length === 0;
+      const root = await resolvedRoot();
+      // No mutable pre-snapshot task read: the raw reference is resolved
+      // entirely inside the immutable revision-pinned snapshot model.
+      const bindingService = new OpumAgentWorkflowBindingService(
+        await createTaskBindingModel(root),
+      );
+      let envelopeTaskId = one(parsed, "--task") ?? "";
+      let envelopeRequestId = crypto.randomUUID().replaceAll("-", "");
+      let deriveAssertionsFromRecord = false;
+      let stdinCorrelation: string | undefined;
+      if (stdinTransport) {
+        // The deployed opum-agent facade writes the exact request envelope to
+        // stdin; parse and validate it strictly before any resolution.
+        let parsedEnvelope: unknown;
+        try {
+          parsedEnvelope = parseStrictJson(pipedBody ?? "");
+        } catch {
+          return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
+            input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
+          });
+        }
+        // Facade transport compatibility: the deployed opum-agent facade
+        // appends its claim-or-correlation reference to the piped envelope.
+        // Lift that one transport field out before the strict domain
+        // validation so the normative four-key envelope is what the domain
+        // contract sees; the reference feeds the relationship lookup only.
+        if (
+          parsedEnvelope !== null &&
+          typeof parsedEnvelope === "object" &&
+          !Array.isArray(parsedEnvelope) &&
+          "claimOrCorrelation" in parsedEnvelope
+        ) {
+          const { claimOrCorrelation: correlation, ...remainder } =
+            parsedEnvelope as Record<string, unknown>;
+          if (typeof correlation !== "string") {
+            return failure("drift", "OPUM_WORKFLOW_QUEST_INCOMPATIBLE", {
+              input: { code: "OPUM_WORKFLOW_QUEST_INCOMPATIBLE" },
+            });
+          }
+          stdinCorrelation = correlation;
+          parsedEnvelope = remainder;
+        }
+        let checked: ReturnType<typeof parseTaskBindingRequestV1>;
+        try {
+          checked = parseTaskBindingRequestV1(parsedEnvelope);
+        } catch (error) {
+          if (!(error instanceof OpumAgentWorkflowError)) throw error;
+          return failure("drift", error.code, {
+            input: { code: error.code },
+          });
+        }
+        envelopeTaskId = checked.taskId;
+        envelopeRequestId = checked.requestId;
+        deriveAssertionsFromRecord = true;
+      }
+      let response: QuestTaskBindingV1Response;
+      try {
+        response = await bindingService.bind({
+          contract: one(parsed, "--contract") ?? "",
+          taskId: envelopeTaskId,
+          claimOrCorrelationId:
+            stdinCorrelation ??
+            one(parsed, "--claim-or-correlation") ??
+            envelopeTaskId,
+          holder: one(parsed, "--holder") ?? "",
+          repositoryId: one(parsed, "--repository") ?? "",
+          baseRef: one(parsed, "--base") ?? "",
+          settlementRef: one(parsed, "--settlement") ?? "",
+          requestId: envelopeRequestId,
+          deriveAssertionsFromRecord,
+        });
+      } catch (error) {
+        if (!(error instanceof OpumAgentWorkflowError)) throw error;
+        const errorType =
+          error.code === "OPUM_WORKFLOW_QUEST_ABSENT"
+            ? "not_found"
+            : error.code === "OPUM_WORKFLOW_QUEST_INCOMPATIBLE"
+              ? "drift"
+              : "conflict";
+        return failure(errorType, error.code, {
+          input: { code: error.code },
+        });
+      }
+      if (resolvedModes.json || parsed?.json) {
+        // The public v1 surface prints the exact binding envelope on stdout.
+        return {
+          stdout: `${JSON.stringify(response)}\n`,
+          stderr: "",
+          exitCode: 0,
+        };
+      }
+      const lines = [
+        `contract ${response.contract}`,
+        `selectedVersion ${response.selectedVersion}`,
+        `requestId ${response.requestId}`,
+        `taskId ${response.taskId}`,
+        `repositoryId ${response.repositoryId}`,
+        `holder ${response.holder}`,
+        `taskState ${response.taskState}`,
+        `relationshipKind ${response.relationshipKind}`,
+        `relationshipId ${response.relationshipId}`,
+        `relationshipState ${response.relationshipState}`,
+        `baseRef ${response.baseRef}`,
+        `settlementRef ${response.settlementRef}`,
+        `issuedAt ${response.issuedAt}`,
+        `expiresAt ${response.expiresAt}`,
+      ];
+      return {
+        stdout:
+          modeFor(parsed) === "plain"
+            ? `${lines.join("\n")}\n`
+            : `${lines.join("\n")}\n`,
+        stderr: "",
+        exitCode: 0,
+      };
+    }
     if (command === "create" && rest[0]) {
       const title = rest[0];
-      const parsed = flags(rest.slice(1), ["--label", "--doc"]);
+      const parsed = flags(rest.slice(1), [
+        "--label",
+        "--doc",
+        "--alias",
+        "--assignee",
+        "--reference",
+        "--modified-file",
+        "--dependency",
+      ]);
       if (
         !parsed ||
         !only(parsed, [
           "--id",
+          "--summary",
           "--description",
           "--label",
           "--doc",
+          "--priority",
+          "--type",
+          "--ordinal",
+          "--alias",
+          "--acceptance-criteria",
+          "--definition-of-done",
+          "--plan",
+          "--implementation-notes",
+          "--comments",
+          "--assignee",
+          "--reference",
+          "--modified-file",
+          "--dependency",
+          "--parent",
+          "--milestone",
+          "--final-summary",
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -1153,10 +1441,293 @@ export async function runQuest(
           actor: writeActor,
           input: {
             title,
+            summary: one(parsed, "--summary"),
             description: one(parsed, "--description"),
             labels: parsed.values.get("--label"),
             documentation: parsed.values.get("--doc"),
+            priority: one(parsed, "--priority"),
+            type: one(parsed, "--type"),
+            ordinal: ordinalValue(one(parsed, "--ordinal")),
+            aliases: parsed.values.get("--alias"),
+            acceptanceCriteria: checkListValue(parsed, "--acceptance-criteria"),
+            definitionOfDone: checkListValue(parsed, "--definition-of-done"),
+            plan: stringValue(parsed, "--plan"),
+            implementationNotes: stringValue(parsed, "--implementation-notes"),
+            comments: commentsValue(parsed, "--comments"),
+            assignees: parsed.values.get("--assignee"),
+            references: parsed.values.get("--reference"),
+            modifiedFiles: parsed.values.get("--modified-file"),
+            dependencies: parsed.values.get("--dependency"),
+            parentId: one(parsed, "--parent"),
+            milestoneId: one(parsed, "--milestone"),
+            finalSummary: one(parsed, "--final-summary"),
           },
+        }),
+        modeFor(parsed),
+      );
+    }
+    if (command === "edit-batch") {
+      // QCLI-122 public batch boundary (strict JSONL per FMC 05fe52e8):
+      // malformed/unknown/managed content fails at parse time or becomes a
+      // documented per-item error — never a silent successful no-op.
+      const parsed = flags(rest, [
+        "--add-label",
+        "--remove-label",
+        "--doc",
+        "--add-plan",
+        "--remove-plan",
+        "--add-note",
+        "--remove-note",
+        "--add-comment",
+        "--remove-comment",
+        "--add-dependency",
+        "--remove-dependency",
+        "--add-assignee",
+        "--remove-assignee",
+        "--add-reference",
+        "--remove-reference",
+        "--add-modified-file",
+        "--remove-modified-file",
+      ]);
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--file",
+          "--actor",
+          "--actor-kind",
+          "--accountable-human",
+        ])
+      )
+        return failure(
+          "usage",
+          "task edit-batch requires exactly one --file pointing at a JSONL operations file plus --actor/--actor-kind.",
+        );
+      const filePath = one(parsed, "--file");
+      if (!filePath)
+        return failure(
+          "usage",
+          "task edit-batch requires --file <operations.jsonl>.",
+        );
+      let raw: string;
+      try {
+        raw = await readFile(filePath, "utf8");
+      } catch {
+        return failure(
+          "not_found",
+          `Operations file is not readable: ${filePath}`,
+        );
+      }
+      const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      const writeActor = actor(parsed);
+      if (!writeActor)
+        return failure(
+          "denied",
+          "Tracker writes require an explicit actor declaration.",
+        );
+      // Empty file is a public no-op: zero items plus the authoritative
+      // revision, no lock/journal/mutation (QCLI-122 third pass #8).
+      if (lines.length === 0) {
+        return output(
+          await dispatchTrackerTaskCommand(await taskService(), {
+            command,
+            actor: writeActor,
+            items: [],
+          }),
+          modeFor(parsed),
+        );
+      }
+      // Allowed patch keys come straight from the published manifest entry so
+      // the CLI cannot drift from the public contract.
+      const manifestEntry = commandManifest.commands.find(
+        (entry: { name: string }) => entry.name === "task edit-batch",
+      ) as { fields?: readonly string[] } | undefined;
+      const allowedPatchKeys = new Set(manifestEntry?.fields ?? []);
+      if (allowedPatchKeys.size === 0) allowedPatchKeys.add("__unavailable__"); // defensive: no-op semantics
+      const managedKeys = new Set(["gates", "gateEvents"]);
+      const seenOperationIds = new Set<string>();
+      const items: unknown[] = [];
+      for (const [index, line] of lines.entries()) {
+        let value: unknown;
+        try {
+          value = JSON.parse(line);
+        } catch {
+          return failure(
+            "usage",
+            `Malformed operations JSONL at line ${index + 1}.`,
+          );
+        }
+        const record = value as Record<string, unknown>;
+        if (!record || typeof record !== "object" || Array.isArray(record))
+          return failure(
+            "usage",
+            `Invalid operations item at line ${index + 1}: expected an object.`,
+          );
+        const allowedTop = new Set(["reference", "operationId", "patch"]);
+        for (const key of Object.keys(record))
+          if (!allowedTop.has(key))
+            return failure(
+              "usage",
+              `Unknown field ${key} in operations item at line ${index + 1}.`,
+            );
+        const reference =
+          typeof record.reference === "string" ? record.reference : undefined;
+        if (!reference)
+          return failure(
+            "usage",
+            `Missing reference string in operations item at line ${index + 1}.`,
+          );
+        const operationIdRaw = record.operationId;
+        if (
+          typeof operationIdRaw !== "string" ||
+          operationIdRaw.trim().length === 0
+        )
+          return failure(
+            "usage",
+            `Operation id must be a non-empty string in operations item at line ${index + 1}.`,
+          );
+        if (seenOperationIds.has(operationIdRaw))
+          return failure(
+            "usage",
+            `Duplicate operation id ${operationIdRaw} at line ${index + 1}.`,
+          );
+        seenOperationIds.add(operationIdRaw);
+        const patchValue = record.patch;
+        if (
+          patchValue !== undefined &&
+          (typeof patchValue !== "object" ||
+            patchValue === null ||
+            Array.isArray(patchValue))
+        )
+          return failure(
+            "usage",
+            `Patch must be an object in operations item at line ${index + 1}.`,
+          );
+        const patchObject = (patchValue as Record<string, unknown>) ?? {};
+        for (const [patchKey, fieldValue] of Object.entries(patchObject)) {
+          if (managedKeys.has(patchKey) || !allowedPatchKeys.has(patchKey))
+            return failure(
+              "usage",
+              `${managedKeys.has(patchKey) ? "Managed" : "Unknown"} patch key ${patchKey} in operations item at line ${index + 1}.`,
+            );
+          // QCLI-122 third pass #6: value types must match the published
+          // vocabulary — a string never silently char-iterates into a list.
+          // QCLI-122 fourth pass #5: complete field grammar — scalar vs
+          // list vs checklist-object vs boolean, validated atomically.
+          const isListField =
+            /^(add|remove)[A-Z]/.test(patchKey) ||
+            [
+              "labels",
+              "documentation",
+              "plan",
+              "implementationNotes",
+              "assignees",
+              "references",
+              "modifiedFiles",
+              "dependencies",
+            ].includes(patchKey);
+          const booleanFields = new Set(["clearParent", "clearMilestone"]);
+          const checklistFields = new Set([
+            "acceptanceCriteria",
+            "definitionOfDone",
+          ]);
+          const commentFields = new Set(["comments", "addComments"]);
+          if (booleanFields.has(patchKey)) {
+            if (typeof fieldValue !== "boolean")
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a boolean in operations item at line ${index + 1}.`,
+              );
+          } else if (checklistFields.has(patchKey)) {
+            if (
+              !Array.isArray(fieldValue) ||
+              fieldValue.some(
+                (entry) =>
+                  !(
+                    typeof entry === "string" ||
+                    (entry !== null &&
+                      typeof entry === "object" &&
+                      !Array.isArray(entry) &&
+                      typeof (entry as { index?: unknown }).index ===
+                        "number" &&
+                      typeof (entry as { text?: unknown }).text === "string" &&
+                      typeof (entry as { checked?: unknown }).checked ===
+                        "boolean")
+                  ),
+              )
+            )
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a string or {index,text,checked} list in operations item at line ${index + 1}.`,
+              );
+          } else if (commentFields.has(patchKey)) {
+            if (
+              !Array.isArray(fieldValue) ||
+              fieldValue.some((entry) => typeof entry !== "object") ||
+              fieldValue.some(
+                (entry) =>
+                  entry !== null &&
+                  typeof entry === "object" &&
+                  Array.isArray(entry),
+              )
+            )
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a comment object list in operations item at line ${index + 1}.`,
+              );
+          } else if (isListField) {
+            if (!Array.isArray(fieldValue))
+              return failure(
+                "usage",
+                `Invalid list value for patch key ${patchKey} in operations item at line ${index + 1}.`,
+              );
+            if (
+              fieldValue.some(
+                (entry) =>
+                  entry === null ||
+                  typeof entry === "object" ||
+                  typeof entry === "number" ||
+                  typeof entry === "boolean",
+              )
+            )
+              return failure(
+                "usage",
+                `Invalid list member type for patch key ${patchKey} in operations item at line ${index + 1}.`,
+              );
+          } else if (patchKey === "status") {
+            if (
+              typeof fieldValue !== "string" ||
+              !["To Do", "In Progress", "Done"].includes(fieldValue)
+            )
+              return failure(
+                "usage",
+                `Invalid status value in operations item at line ${index + 1}.`,
+              );
+          } else if (patchKey === "ordinal") {
+            if (!Number.isFinite(fieldValue))
+              return failure(
+                "usage",
+                `Patch key ordinal must be numeric in operations item at line ${index + 1}.`,
+              );
+          } else {
+            // Default: plain scalar string fields from the manifest.
+            if (typeof fieldValue !== "string")
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a string in operations item at line ${index + 1}.`,
+              );
+          }
+        }
+        items.push(record);
+      }
+      return output(
+        await dispatchTrackerTaskCommand(await taskService(), {
+          command,
+          actor: writeActor,
+          items: items as {
+            reference: string;
+            operationId?: string;
+            patch?: Record<string, unknown>;
+          }[],
         }),
         modeFor(parsed),
       );
@@ -1167,15 +1738,54 @@ export async function runQuest(
         "--add-label",
         "--remove-label",
         "--doc",
+        "--add-plan",
+        "--remove-plan",
+        "--add-note",
+        "--remove-note",
+        "--add-comment",
+        "--remove-comment",
+        "--add-dependency",
+        "--remove-dependency",
+        "--add-assignee",
+        "--remove-assignee",
+        "--add-reference",
+        "--remove-reference",
+        "--add-modified-file",
+        "--remove-modified-file",
       ]);
       if (
         !parsed ||
         !only(parsed, [
           "--status",
+          "--summary",
           "--description",
+          "--labels",
           "--add-label",
           "--remove-label",
           "--doc",
+          "--plan",
+          "--add-plan",
+          "--remove-plan",
+          "--notes",
+          "--add-note",
+          "--remove-note",
+          "--comments",
+          "--add-comment",
+          "--remove-comment",
+          "--acceptance-criteria",
+          "--definition-of-done",
+          "--add-dependency",
+          "--remove-dependency",
+          "--parent",
+          "--clear-parent",
+          "--milestone",
+          "--clear-milestone",
+          "--add-assignee",
+          "--remove-assignee",
+          "--add-reference",
+          "--remove-reference",
+          "--add-modified-file",
+          "--remove-modified-file",
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -1196,10 +1806,35 @@ export async function runQuest(
           actor: writeActor,
           patch: {
             status: one(parsed, "--status"),
+            summary: one(parsed, "--summary"),
             description: one(parsed, "--description"),
+            labels: stringValue(parsed, "--labels"),
             addLabels: parsed.values.get("--add-label"),
             removeLabels: parsed.values.get("--remove-label"),
             documentation: parsed.values.get("--doc"),
+            plan: stringValue(parsed, "--plan"),
+            addPlan: parsed.values.get("--add-plan"),
+            removePlan: parsed.values.get("--remove-plan"),
+            implementationNotes: stringValue(parsed, "--notes"),
+            addNotes: parsed.values.get("--add-note"),
+            removeNotes: parsed.values.get("--remove-note"),
+            comments: commentsValue(parsed, "--comments"),
+            addComments: commentsValue(parsed, "--add-comment"),
+            removeComments: parsed.values.get("--remove-comment"),
+            acceptanceCriteria: checkListValue(parsed, "--acceptance-criteria"),
+            definitionOfDone: checkListValue(parsed, "--definition-of-done"),
+            addDependencies: parsed.values.get("--add-dependency"),
+            removeDependencies: parsed.values.get("--remove-dependency"),
+            parentId: one(parsed, "--parent"),
+            clearParent: parsed.values.has("--clear-parent") || undefined,
+            milestoneId: one(parsed, "--milestone"),
+            clearMilestone: parsed.values.has("--clear-milestone") || undefined,
+            addAssignees: parsed.values.get("--add-assignee"),
+            removeAssignees: parsed.values.get("--remove-assignee"),
+            addReferences: parsed.values.get("--add-reference"),
+            removeReferences: parsed.values.get("--remove-reference"),
+            addModifiedFiles: parsed.values.get("--add-modified-file"),
+            removeModifiedFiles: parsed.values.get("--remove-modified-file"),
           },
         }),
         modeFor(parsed),

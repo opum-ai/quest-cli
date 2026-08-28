@@ -1,0 +1,56 @@
+---
+id: QCLI-120
+title: Normalize Quest Treehouse 2.2 repository/pool identity
+status: Done
+assignee:
+  - '@quest-cli'
+created_date: '2026-08-21 16:03'
+updated_date: '2026-08-27 15:11'
+labels:
+  - infrastructure-housekeeping
+  - treehouse
+  - odoc-63
+dependencies: []
+priority: high
+type: chore
+ordinal: 146000
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Normalize the owner-local Treehouse 2.2 pool identity so treehouse.toml uses the canonical root '.' rather than the nested '.treehouse' resolution, with a valid three-layer Git/Treehouse/physical audit and reviewed dev delivery.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 treehouse.toml uses root '.' and max_trees 3
+- [x] #2 Three-layer Git/Treehouse/physical audit is valid before and after the change
+- [x] #3 Focused repository checks, backlog validation, strict Lore validate/check, diff/check hygiene, and independent verify evidence pass
+- [x] #4 Change is committed to a task branch, pushed, PR to dev is green, merged, and node-created artifacts are safely cleaned/returned
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Ground AGENTS.md, backlog overview/task-execution, lore instructions, treehouse-worktrees skill.
+2. Audit current Git/Treehouse/physical state and confirm no equivalent change already delivered.
+3. Lease existing available Treehouse slot from pinned origin/dev base cd0e437ff3928d54840ba96e23b6e0dc2ad9295f with immutable lease ID.
+4. Refresh stable quest-cli presence attestation keyed to message 2633694f98944c2c963fa015f836611b before mutation.
+5. Change only treehouse.toml root to "." in leased worktree; preserve primary checkout and unrelated artifacts.
+6. Validate config semantics, three-layer audit, focused checks, backlog validation, strict Lore validate/check, diff hygiene.
+7. Commit without amend, push task branch, open PR to dev, monitor checks, merge if green.
+8. Clean/return only node-created artifacts when safely proved disposable; reply with full evidence.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Duplicate record of QCLI-116 (same title/description/ACs/plan; QCLI-116 Done via PR #134). Settled independently under FMC correlation 0cc0230c79fb4e0780fe2725ff4ec156 on Opum lease 7a8d29bcf82012909042b4207c73ad8e (branch chore/qcli-117-120-evidence-settlement, base baef3444b169f5d44597f1e8b381b36c83ecd188, primary_checkout=false). AC1 proven live: origin/dev treehouse.toml = root "." + max_trees 3, unchanged since merge 8a9c13efddee5bd64fb24008f0d0047c655f7237 (before-state 8a9c13e^ = root ".treehouse"). AC2 three-layer audit re-run in leased tree: Git layer - treehouse.toml tracked at origin/dev with canonical values; Pool/Treehouse layer - canonical root "." consistent with owner pool registry quest-cli-b114ef03d0b9 (repositoryId b114ef03d0b9, exactly 3 slots = max_trees, slot 1 clean/settled); Physical layer - legacy nested .treehouse path retained with recorded QCLI-116 sandbox-denial exception, gitignored, no repo delta; historical before/after audit recorded in the tracked QCLI-116 record. AC3 re-run current in leased tree: backlog doctor clean, lore validate --strict PASS, lore check --strict PASS, git diff --check clean, independent verify child PASS; PR #134 check receipts purged by GitHub (branch-scoped Actions list empty) and a backlog/tasks-only change matches no path-filtered workflow, so no-checks-applicable is the applicable green state - proven identically on merged PR #154. AC4: PR #134 MERGED (GitHub state, mergeCommit 8a9c13efddee5bd64fb24008f0d0047c655f7237) and proven ancestor of origin/dev by merge-base; local branch deleted after content-presence proof (remote head e752c05 retained); Treehouse lease returned; legacy nested path retention documented.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Duplicate record of QCLI-116 settled independently: all four ACs proven from live config (treehouse.toml root "." + max_trees 3 at origin/dev), merged PR #134 ancestry (8a9c13efddee5bd64fb24008f0d0047c655f7237), re-run three-layer audit and validation gates, and cleanup evidence; no code change; delivered via settlement PR to dev.
+<!-- SECTION:FINAL_SUMMARY:END -->

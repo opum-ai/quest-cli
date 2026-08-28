@@ -121,3 +121,41 @@ manifest, actor-denial, alias, preview, apply, status, and rollback proof with
 the source commit, artifact commit, tarball hashes, and installed realpaths in
 its evidence. This is installed local-artifact qualification only and does not
 represent npm publication.
+
+## Unpublished 0.2.9 corrective candidate
+
+Quest 0.2.9 is a local corrective candidate, not an npm release. Registry
+publication remains unauthorized and 0.2.9 is absent from the registry on all
+seven packages as of 2026-08-28. It corrects the shipped 0.2.8 packaging
+defect in which the committed platform bundles carried a hand-synced managed
+instructions template (a fresh registry install of 0.2.8 wrote `This project
+uses Quest CLI 0.2.7`); the managed-instructions template and drift message
+now derive from the single `QUEST_VERSION` constant consumed by the CLI and
+cannot drift from the release version. Source is PR #158 (merge commit
+`75c214d`), tree `fb25b6cca31f5cb3dc0aeae9eb2127cb35b6bfba`; all thirteen
+required GitHub checks passed, including the per-platform qualification
+matrix and the packed-seam assertions that installed tarballs must write the
+package version via `agents --update-instructions` and pass
+`agents --check --require-installed`.
+
+The seven locally packed tarballs have these SHA-256 values:
+
+| Package | Local tarball SHA-256 |
+| --- | --- |
+| `@opum-ai/quest@0.2.9` | `48cc78674b0eb4b6fd9f3ba5a877b6523d86843255ad524b43cc723a3e195039` |
+| `@opum-ai/quest-darwin-arm64@0.2.9` | `00e4f490b00476fb69ff3e714311b05690344dd5dd5d9d665673e0ac089ea982` |
+| `@opum-ai/quest-darwin-x64@0.2.9` | `5e6aa19198cf97dea95e1b9e8d53788effe43f005bed64ad4a83231d1ca0aaef` |
+| `@opum-ai/quest-linux-arm64@0.2.9` | `3185eac7251660b13d31473b5e87b70949d79cb6121b4665ec9d43f159273b36` |
+| `@opum-ai/quest-linux-x64@0.2.9` | `ffe924e2c08a295536358dcea38fe85813284eb13d1c6ad809bb944965cffbef` |
+| `@opum-ai/quest-win32-arm64@0.2.9` | `73cb516faad241189633f3848e38b5cb16855edd45fedf26b718697f7d3276f8` |
+| `@opum-ai/quest-win32-x64@0.2.9` | `1e900e13014a395cd7cfd32c6995dc2f57fd363dca0095a37fcca178ed34cee5` |
+
+npm shasum and SRI integrity for every tarball are recorded beside these
+values in the candidate evidence metadata. A clean isolated install of the
+root and darwin-arm64 tarballs proved the root launcher, the node launcher,
+and the native binary all report 0.2.9; `agents --update-instructions`
+writes `This project uses Quest CLI 0.2.9`;
+`agents --check --require-installed` exits 0; `instructions --json` reports
+version 0.2.9; and the launcher's missing-platform diagnostic is intact.
+This is local-artifact qualification only and does not represent npm
+publication.

@@ -9,7 +9,7 @@ tags:
   - release
 summary: Complete Quest parity, resolve 0.2.x qualification defects, and establish release-ready evidence without rewriting the 0.1.0 delivery record.
 timestamp: 2026-08-17T16:25:23.594Z
-status: todo
+status: in-progress
 tasks:
   - qcli-97
   - qcli-97.1
@@ -30,6 +30,12 @@ tasks:
   - qcli-106
   - qcli-107
   - qcli-108
+  - qcli-109
+  - qcli-110
+  - qcli-111
+  - qcli-112
+  - qcli-113
+  - qcli-114
 ---
 
 # Harden and qualify Quest CLI 0.2.x
@@ -65,7 +71,7 @@ candidate needed to close them.
 | [QCLI-97.2](../../backlog/tasks/qcli-97.2%20-%20Implement-Quest-project-bootstrap-discovery-and-Codex-instructions.md) | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
 | [QCLI-97.3](../../backlog/tasks/qcli-97.3%20-%20Restore-Quest-planning-and-operations-parity-commands.md) | Restore Quest planning and operations parity commands | Done |
 | [QCLI-97.4](../../backlog/tasks/qcli-97.4%20-%20Restore-Quest-task-lifecycle-and-draft-parity.md) | Restore Quest task lifecycle and draft parity | Done |
-| [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | To Do |
+| [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | In Progress |
 | [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | To Do |
 | [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | Done |
 | [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | Done |
@@ -79,6 +85,12 @@ candidate needed to close them.
 | [QCLI-106](../../backlog/tasks/qcli-106%20-%20agents-check-exits-0-when-the-managed-block-is-missing-so-CI-cannot-gate-on-it.md) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | Done |
 | [QCLI-107](../../backlog/tasks/qcli-107%20-%20Error-classification-contention-leaks-dependency_target_ambiguous-and-EACCES-maps-to-validation-not-denied.md) | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | Done |
 | [QCLI-108](../../backlog/tasks/qcli-108%20-%20Keep-repository-checks-from-traversing-pooled-Treehouse-worktrees.md) | Keep repository checks from traversing pooled Treehouse worktrees | Done |
+| [QCLI-109](../../backlog/tasks/qcli-109%20-%20No-way-to-pass-a-flag-value-that-begins-with-two-dashes.md) | No way to pass a flag value that begins with two dashes | Done |
+| [QCLI-110](../../backlog/tasks/qcli-110%20-%20Output-mode-flags-are-only-recognised-after-the-command-unlike-lore.md) | Output mode flags are only recognised after the command, unlike lore | Done |
+| [QCLI-111](../../backlog/tasks/qcli-111%20-%20Diagnose-and-restore-required-Windows-ARM64-SQLite-projection-qualification.md) | Diagnose and restore required Windows ARM64 SQLite projection qualification | Done |
+| [QCLI-112](../../backlog/tasks/qcli-112%20-%20Make-six-target-Bun-artifact-delivery-safe-in-Treehouse-worktrees.md) | Make six-target Bun artifact delivery safe in Treehouse worktrees | Done |
+| [QCLI-113](../../backlog/tasks/qcli-113%20-%20Settle-FMC-worker-ledger-and-delivery.md) | Settle FMC worker ledger and delivery | Done |
+| [QCLI-114](../../backlog/tasks/qcli-114%20-%20Reconcile-completed-0.2.x-delivery-records-into-Lore-ownership.md) | Reconcile completed 0.2.x delivery records into Lore ownership | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

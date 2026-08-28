@@ -138,6 +138,35 @@ export class LocalGitPort implements GitPort {
     return requiredGit(repositoryPath, ["rev-parse", "--verify", ref]);
   }
 
+  async readBlob(
+    repositoryPath: string,
+    revision: string,
+    path: string,
+  ): Promise<string | null> {
+    const result = await git(repositoryPath, [
+      "cat-file",
+      "blob",
+      `${revision}:${path}`,
+    ]);
+    return result.code === 0 ? result.stdout : null;
+  }
+
+  async listFiles(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly string[]> {
+    const result = await git(repositoryPath, [
+      "ls-tree",
+      "-r",
+      "--name-only",
+      revision,
+      prefix,
+    ]);
+    if (result.code !== 0) return [];
+    return result.stdout.split("\n").filter((line) => line.length > 0);
+  }
+
   async commit(operation: GitOperation): Promise<GitOperationResult> {
     this.assertOperationScope(operation);
     const prepared = await this.withPreparationLock(

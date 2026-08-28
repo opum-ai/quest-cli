@@ -4,6 +4,7 @@
 - [Former OCLI to QCLI migration ledger](former-ocli-to-qcli-migration-ledger.md)
 - [Legacy Opum requirement reconciliation for Quest CLI](legacy-opum-requirement-reconciliation-for-quest-cli.md)
 - [Operate Quest CLI autonomous documentation campaigns](operate-quest-cli-autonomous-documentation-campaigns.md)
+- [opum-agent shared skill source](opum-agent-shared-skill-source.md)
 - [Quest CLI activation-gate evidence record](quest-cli-activation-gate-evidence-record.md)
 - [Quest CLI Backlog adoption and migration playbook](quest-cli-backlog-adoption-and-migration-playbook.md)
 - [Quest CLI Backlog migration fidelity contract](quest-cli-backlog-migration-fidelity-contract.md)
