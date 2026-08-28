@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-28 21:31'
+updated_date: '2026-08-28 23:51'
 labels:
   - parity
   - audit
@@ -58,3 +59,13 @@ Evidence: opum-cli-e2e baselines/v0.2.9 (407 rows), surface parity/backlog. Ever
 - [ ] #3 The declared exclusions are written down in the repository as product policy — doc (Lore owns documentation), config, mcp — so downstream qualification can cite a source rather than inferring intent
 - [ ] #4 The structural divergences are recorded as intentional, in particular whether the Quest and Backlog output envelopes are ever meant to converge
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Gap 1 of the nine (task edit --title/--priority/--type/--ordinal) is CLOSED as of dev 3852c3c: QCLI-133 shipped it via PR #172, on both the task edit and task edit-batch transports, with the manifest field lists updated for both. The owner's remaining triage set is therefore 8 gaps (items 2-9) plus the five structural divergences, not nine.
+
+Also relevant to this triage, found while re-verifying QCLI-97.10 under QCLI-133 AC4 and not currently in the nine: the manifest declares createdAt and updatedAt on task list, task view and task create, but the CLI never returns them and .quest/tasks/<id>.json never stores them. Isolated from ordinary unset-field omission by setting summary/description/assignee/reference/modified-file - all appeared, the timestamps did not. That is a contract-vs-implementation gap of the same class as gap 1 and may belong in this register; recorded here rather than filed, pending the owner's call.
+
+No triage decisions taken by this session: every remaining AC requires a product judgment (implement vs accept-as-deliberate-exclusion, the AC-checkbox correctness call, writing declared exclusions down as policy, and whether the envelopes are ever meant to converge). Those are owner decisions under AGENTS.md, not agent-resolvable.
+<!-- SECTION:NOTES:END -->
