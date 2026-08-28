@@ -93,6 +93,9 @@ try {
   );
   if (agentCheck.data?.state !== "current")
     throw new Error("Packed launcher agent onboarding check failed.");
+  await Bun.$`node ${quest} agents --update-instructions --json`
+    .cwd(workspace)
+    .text();
   const packedAgents = await readFile(join(workspace, "AGENTS.md"), "utf8");
   if (
     !packedAgents.includes(

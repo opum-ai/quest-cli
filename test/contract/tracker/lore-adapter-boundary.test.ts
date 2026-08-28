@@ -8,6 +8,7 @@ import {
   QUEST_ADAPTER_PINNED_VERSION,
   TRACKER_CONTRACT_VERSION,
 } from "../../../src/contract/tracker/index.ts";
+import { QUEST_VERSION } from "../../../src/application/version.ts";
 
 const source = join(import.meta.dir, "..", "..", "..", "src", "cli", "main.ts");
 
@@ -30,6 +31,7 @@ async function quest(
 
 test("the adapter boundary pins the exact authorized Quest package version", () => {
   expect(QUEST_ADAPTER_PINNED_VERSION).toBe("0.2.9");
+  expect(QUEST_ADAPTER_PINNED_VERSION).toBe(QUEST_VERSION);
 });
 
 test("the live binary reports the pinned version through public discovery", async () => {
