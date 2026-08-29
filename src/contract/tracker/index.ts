@@ -62,12 +62,21 @@ export const ADAPTER_REQUIRED_MANIFEST_COMMANDS = [
   },
 ] as const;
 
+/**
+ * Every diagnostic Quest can emit, matching the canonical DiagnosticEnvelope.
+ * `usage` and `uncaught` are reachable through this adapter: the checklist
+ * collision rules deliberately live in the CLI (QCLI-146), so a caller that
+ * combines a replacement with an index operation gets `usage` back from
+ * `quest` rather than a client-side guess.
+ */
 export type TrackerOutcome =
+  | "usage"
   | "not_found"
   | "denied"
   | "conflict"
   | "validation"
-  | "drift";
+  | "drift"
+  | "uncaught";
 
 export interface TrackerDiagnostic {
   readonly error_type: TrackerOutcome;
@@ -179,6 +188,10 @@ export interface TrackerCreateInput {
  */
 export interface TrackerEditPatch {
   readonly status?: string;
+  readonly title?: string;
+  readonly priority?: string;
+  readonly type?: string;
+  readonly ordinal?: number;
   readonly summary?: string;
   readonly description?: string;
   readonly labels?: readonly string[];
@@ -200,6 +213,25 @@ export interface TrackerEditPatch {
   readonly definitionOfDone?:
     | readonly (string | TrackerCheckItem)[]
     | undefined;
+  /**
+   * Index-addressed checklist operations (QCLI-138, exposed here by QCLI-146).
+   * Positions are 1-based, as on the CLI — note that {@link TrackerCheckItem}
+   * `index` is 0-based on read, so addressing the item you just read means
+   * passing `index + 1`, not `index`. Addressing one entry leaves the rest
+   * byte-identical, so an adapter no longer has to read-modify-write a whole
+   * checklist to tick one box. The CLI owns the collision rules: a replacement
+   * combined with these, `clear` combined with anything, or one position given
+   * contradictory operations are all usage errors from `quest`, and are
+   * deliberately not second-guessed here.
+   */
+  readonly checkAcceptanceCriteria?: readonly number[];
+  readonly uncheckAcceptanceCriteria?: readonly number[];
+  readonly removeAcceptanceCriteria?: readonly number[];
+  readonly clearAcceptanceCriteria?: boolean;
+  readonly checkDefinitionOfDone?: readonly number[];
+  readonly uncheckDefinitionOfDone?: readonly number[];
+  readonly removeDefinitionOfDone?: readonly number[];
+  readonly clearDefinitionOfDone?: boolean;
   readonly addDependencies?: readonly string[];
   readonly removeDependencies?: readonly string[];
   readonly parentId?: string;
@@ -770,6 +802,11 @@ export class QuestTrackerClient {
     const declared = requireActor(actor);
     const argv = ["task", "edit", id, "--json", ...actorArguments(declared)];
     if (patch.status !== undefined) argv.push("--status", patch.status);
+    if (patch.title !== undefined) argv.push("--title", patch.title);
+    if (patch.priority !== undefined) argv.push("--priority", patch.priority);
+    if (patch.type !== undefined) argv.push("--type", patch.type);
+    if (patch.ordinal !== undefined)
+      argv.push("--ordinal", String(patch.ordinal));
     if (patch.summary !== undefined) argv.push("--summary", patch.summary);
     if (patch.description !== undefined)
       argv.push("--description", patch.description);
@@ -797,6 +834,14 @@ export class QuestTrackerClient {
       );
     if (patch.definitionOfDone !== undefined)
       argv.push("--definition-of-done", JSON.stringify(patch.definitionOfDone));
+    appendRepeated(argv, "--check-ac", patch.checkAcceptanceCriteria);
+    appendRepeated(argv, "--uncheck-ac", patch.uncheckAcceptanceCriteria);
+    appendRepeated(argv, "--remove-ac", patch.removeAcceptanceCriteria);
+    if (patch.clearAcceptanceCriteria === true) argv.push("--clear-ac");
+    appendRepeated(argv, "--check-dod", patch.checkDefinitionOfDone);
+    appendRepeated(argv, "--uncheck-dod", patch.uncheckDefinitionOfDone);
+    appendRepeated(argv, "--remove-dod", patch.removeDefinitionOfDone);
+    if (patch.clearDefinitionOfDone === true) argv.push("--clear-dod");
     appendRepeated(argv, "--add-dependency", patch.addDependencies);
     appendRepeated(argv, "--remove-dependency", patch.removeDependencies);
     if (patch.parentId !== undefined) argv.push("--parent", patch.parentId);

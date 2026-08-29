@@ -3,7 +3,7 @@ id: doc-22
 title: 'Backlog campaign tracker — Quest CLI parity, release, and onboarding'
 type: other
 created_date: '2026-08-19 03:32'
-updated_date: '2026-08-29 12:37'
+updated_date: '2026-08-29 14:10'
 ---
 # Backlog campaign — Quest CLI parity, release, and onboarding
 
@@ -13,6 +13,10 @@ updated_date: '2026-08-29 12:37'
 - FMC identity: quest-cli
 - FMC controller: opum-doc
 - Scope and queue rule: quest-cli only; dependencies, then priority and ordinal.
+- Standing owner instruction 2026-08-29: IGNORE the `pi` tooling. It commits its own runtime
+  state and reports onto local `dev` in this shared checkout, unpushed. Do not preserve, branch,
+  deliver, revert or report those commits. Work from a leased worktree based on `origin/dev` and
+  leave the primary checkout's local `dev` and `.pi/` alone.
 - Contract challenged and restored 2026-08-29: a `pi` migration briefly replaced AGENTS.md and
   deleted CLAUDE.md in the working tree; its author rolled it back. Both files are back at
   committed HEAD and the tree is clean. This contract stands.

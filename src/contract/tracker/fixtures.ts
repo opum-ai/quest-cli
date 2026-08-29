@@ -227,5 +227,13 @@ export const trackerConformanceFixtures = {
   search: { schemaVersion: 1, kind: "task.search", data: [trackerTaskFixture] },
   created: { schemaVersion: 1, kind: "task.created", data: trackerTaskFixture },
   updated: { schemaVersion: 1, kind: "task.updated", data: trackerTaskFixture },
-  outcomes: ["not_found", "denied", "conflict", "validation", "drift"] as const,
+  outcomes: [
+    "usage",
+    "not_found",
+    "denied",
+    "conflict",
+    "validation",
+    "drift",
+    "uncaught",
+  ] as const,
 } as const;
