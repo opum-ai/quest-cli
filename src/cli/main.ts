@@ -346,6 +346,8 @@ function ordinalValue(value: string | undefined): number | undefined {
   return Number(value);
 }
 
+// createdAt/updatedAt are deliberately absent: Quest never stores task
+// timestamps (QCLI-137), so offering them would advertise a silent no-op.
 const TASK_LIST_SORT_FIELDS = [
   "id",
   "title",
@@ -353,9 +355,27 @@ const TASK_LIST_SORT_FIELDS = [
   "priority",
   "type",
   "ordinal",
-  "createdAt",
-  "updatedAt",
 ] as const;
+
+/**
+ * Splits a repeatable selection flag that also accepts one comma-separated
+ * value, matching the tracker Quest is at parity with. Blank members are
+ * dropped so a trailing comma is not a filter for the empty string.
+ */
+function csvValues(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): string[] | undefined {
+  const values = parsed.values.get(name);
+  if (values === undefined) return undefined;
+  const members = values
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  if (members.length === 0)
+    throw new FlagUsageError(`${name} requires at least one value.`);
+  return members;
+}
 
 /** Parses `--sort <field>[:asc|desc]`; default direction is ascending. */
 function sortValue(
@@ -1415,7 +1435,12 @@ export async function runQuest(
       );
     }
     if (command === "list") {
-      const parsed = flags(rest, ["--label", "--exclude-status", "--assignee"]);
+      const parsed = flags(rest, [
+        "--label",
+        "--exclude-status",
+        "--assignee",
+        "--type",
+      ]);
       if (
         !parsed ||
         !only(parsed, [
@@ -1446,13 +1471,13 @@ export async function runQuest(
           status: one(parsed, "--status"),
           labels: parsed.values.get("--label"),
           ready: parsed.values.has("--ready") || undefined,
-          excludeStatuses: parsed.values.get("--exclude-status"),
-          assignees: parsed.values.get("--assignee"),
+          excludeStatuses: csvValues(parsed, "--exclude-status"),
+          assignees: csvValues(parsed, "--assignee"),
           unassigned: parsed.values.has("--unassigned") || undefined,
           milestoneId: one(parsed, "--milestone"),
           parentId: one(parsed, "--parent"),
           priority: one(parsed, "--priority"),
-          type: one(parsed, "--type"),
+          types: csvValues(parsed, "--type"),
           search: one(parsed, "--search"),
           limit: limitValue(one(parsed, "--limit")),
           sort: sortValue(one(parsed, "--sort")),

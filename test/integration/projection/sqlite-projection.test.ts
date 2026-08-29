@@ -1,5 +1,11 @@
 import { Database } from "bun:sqlite";
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -246,11 +252,15 @@ beforeEach(async () => {
   fixtureDirectory = await mkdtemp(join(tmpdir(), "quest-projection-"));
 });
 
-// The installed bun runtime's afterEach does not accept a per-hook timeout
-// (bun-types 1.3.14 advertises one, but bun 1.2.23 rejects any second
-// argument); fixtureTeardownTimeoutMs remains as the documented budget this
-// cleanup is expected to fit inside, folded into the tests' own timeouts
-// below instead.
+// The teardown budget is applied as this file's default timeout rather than
+// as an afterEach argument: bun 1.3.14 (the pinned CI runtime) accepts a
+// per-hook timeout, but 1.2.23 rejects any second argument to afterEach, and
+// the six-platform projection job genuinely needs the full window because
+// Windows holds file locks through the retry loop. setDefaultTimeout covers
+// hooks as well as tests and behaves the same on both runtimes; each test that
+// needs more than the teardown budget still passes its own larger timeout.
+setDefaultTimeout(fixtureTeardownTimeoutMs);
+
 afterEach(async () => {
   if (fixtureDirectory) await removeFixtureDirectory(fixtureDirectory);
   fixtureDirectory = undefined;

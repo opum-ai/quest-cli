@@ -97,7 +97,6 @@ test("task list composes --ready with every other selection filter", async () =>
     priority: "high",
     type: "feature",
     assignees: ["person-2"],
-    milestoneId: undefined,
   });
   await create("T-2", {
     labels: ["frontend"],
@@ -105,15 +104,7 @@ test("task list composes --ready with every other selection filter", async () =>
     type: "bug",
     dependencies: ["T-1"],
   });
-  await create("T-3", { labels: ["backend"], priority: "high" });
-  await dispatchTrackerTaskCommand(service, {
-    command: "edit",
-    reference: "T-1",
-    operationId: "op-t1-parent",
-    actor,
-    patch: {},
-  });
-
+  await create("T-3", { labels: ["backend"], priority: "medium" });
   // --ready: T-2 depends on T-1 (still "To Do"), so only T-1 and T-3 are ready.
   await expect(
     dispatchTrackerTaskCommand(service, { command: "list", ready: true }),
@@ -134,24 +125,39 @@ test("task list composes --ready with every other selection filter", async () =>
     data: [{ id: "T-1" }, { id: "T-3" }],
   });
 
-  // --exclude-status drops Done/etc; here nothing is Done yet so all remain,
-  // but composed with --priority it narrows to the high-priority tasks.
+  // Readiness is evaluated over the whole collection, not over the filtered
+  // rows. T-2 is the only "frontend" task and it depends on T-1, which the
+  // label filter excludes; computing readiness after filtering would lose
+  // that edge and wrongly report T-2 as ready.
   await expect(
     dispatchTrackerTaskCommand(service, {
       command: "list",
-      priority: "high",
+      ready: true,
+      labels: ["frontend"],
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [] });
+
+  // Priority and type are free-form authored strings, so both match
+  // case-insensitively rather than returning a silent empty list.
+  for (const priority of ["high", "HIGH", " High "])
+    await expect(
+      dispatchTrackerTaskCommand(service, { command: "list", priority }),
+    ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-1" }] });
+
+  await expect(
+    dispatchTrackerTaskCommand(service, { command: "list", types: ["BUG"] }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-2" }] });
+
+  // A repeated --type is a union.
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      types: ["bug", "feature"],
     }),
   ).resolves.toMatchObject({
     kind: "task.list",
-    data: [{ id: "T-1" }, { id: "T-3" }],
+    data: [{ id: "T-1" }, { id: "T-2" }],
   });
-
-  await expect(
-    dispatchTrackerTaskCommand(service, {
-      command: "list",
-      type: "bug",
-    }),
-  ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-2" }] });
 
   await expect(
     dispatchTrackerTaskCommand(service, {
@@ -184,10 +190,18 @@ test("task list composes --ready with every other selection filter", async () =>
     }),
   ).resolves.toMatchObject({ kind: "task.list", data: [] });
 
-  // Lexicographic descending on the string "priority" field: "low" sorts
-  // after "high" alphabetically, so it comes first in descending order;
-  // ties ("high"/"high") always break by ascending id, regardless of
-  // sort direction.
+  // T-1 high, T-2 low, T-3 medium. Priority sorts by rank, not alphabetically:
+  // as strings the order would be high, low, medium, putting the lowest
+  // priority in the middle. Ties break by ascending id in both directions.
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      sort: { field: "priority" },
+    }),
+  ).resolves.toMatchObject({
+    kind: "task.list",
+    data: [{ id: "T-1" }, { id: "T-3" }, { id: "T-2" }],
+  });
   await expect(
     dispatchTrackerTaskCommand(service, {
       command: "list",
@@ -195,7 +209,7 @@ test("task list composes --ready with every other selection filter", async () =>
     }),
   ).resolves.toMatchObject({
     kind: "task.list",
-    data: [{ id: "T-2" }, { id: "T-1" }, { id: "T-3" }],
+    data: [{ id: "T-2" }, { id: "T-3" }, { id: "T-1" }],
   });
 
   await expect(
