@@ -2292,6 +2292,14 @@ export async function runQuest(
     // Decidable from argv alone, so they belong with the other flag-combination
     // usage errors rather than the post-read validation failures. The fold
     // still owns the rule, so `task edit-batch` reports it per item.
+    if (message === "check_index_out_of_range")
+      return failure(
+        "validation",
+        "A checklist position does not exist on this task.",
+        {
+          hint: "Positions are 1-based. Read the task and count from 1, or use --clear-ac/--clear-dod to empty the list.",
+        },
+      );
     if (message === "check_operation_conflict")
       return failure(
         "usage",

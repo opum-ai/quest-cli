@@ -290,8 +290,9 @@ test("index operations reject out-of-range positions, bad values, and conflictin
     expect(outOfRange.exitCode).toBe(6);
     expect(diagnostic(outOfRange)).toMatchObject({
       error_type: "validation",
-      message: "check_index_out_of_range",
+      message: "A checklist position does not exist on this task.",
     });
+    expect(diagnostic(outOfRange).hint).toContain("1-based");
 
     for (const bad of ["0", "-1", "two", "1.5"]) {
       const rejected = await run([

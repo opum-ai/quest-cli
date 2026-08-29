@@ -9,8 +9,10 @@ import {
   trackerManifestFixture,
   trackerTaskFixture,
 } from "../../../src/contract/tracker/fixtures.ts";
+import type { EditPatchVocabulary } from "../../../src/application/tasks/edit-patch.ts";
 import {
   QuestTrackerClient,
+  type TrackerEditPatch,
   type TrackerProcessRunner,
 } from "../../../src/contract/tracker/index.ts";
 
@@ -527,6 +529,37 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       { index: 1, text: "third", checked: true },
     ]);
 
+    // uncheck flips one box and leaves its neighbour alone.
+    const unchecked = await client.edit(
+      created.id,
+      { uncheckAcceptanceCriteria: [2] },
+      actor,
+    );
+    expect(unchecked.acceptanceCriteria).toEqual([
+      { index: 0, text: "first", checked: true },
+      { index: 1, text: "third", checked: false },
+    ]);
+
+    const dodEdited = await client.edit(
+      created.id,
+      { checkDefinitionOfDone: [1], uncheckDefinitionOfDone: [2] },
+      actor,
+    );
+    expect(dodEdited.definitionOfDone).toEqual([
+      { index: 0, text: "reviewed", checked: true },
+      { index: 1, text: "shipped", checked: false },
+    ]);
+
+    // --remove-dod re-indexes the survivors and keeps their checkmarks.
+    const dodRemoved = await client.edit(
+      created.id,
+      { removeDefinitionOfDone: [2] },
+      actor,
+    );
+    expect(dodRemoved.definitionOfDone).toEqual([
+      { index: 0, text: "reviewed", checked: true },
+    ]);
+
     const cleared = await client.edit(
       created.id,
       { clearDefinitionOfDone: true },
@@ -534,6 +567,28 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
     );
     expect(cleared.definitionOfDone).toEqual([]);
     expect(cleared.acceptanceCriteria).toHaveLength(2);
+
+    // clearAcceptanceCriteria empties one list without touching the other.
+    const clearedAc = await client.edit(
+      created.id,
+      { clearAcceptanceCriteria: true },
+      actor,
+    );
+    expect(clearedAc.acceptanceCriteria).toEqual([]);
+    expect(clearedAc.definitionOfDone).toEqual([]);
+
+    // The four scalars QCLI-133 added to the vocabulary reach the CLI too.
+    const rescoped = await client.edit(
+      created.id,
+      { title: "Renamed", priority: "high", type: "bug", ordinal: 42 },
+      actor,
+    );
+    expect(rescoped).toMatchObject({
+      title: "Renamed",
+      priority: "high",
+      type: "bug",
+      ordinal: 42,
+    });
 
     // The CLI owns the collision rules; the adapter surfaces them rather than
     // reimplementing them.
@@ -549,4 +604,21 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
     else process.env.QUEST_TASK_STORE = previous;
     await rm(store, { recursive: true, force: true });
   }
+});
+
+test("the tracker edit patch mirrors the application edit vocabulary (QCLI-146)", () => {
+  // "Keep both lists in sync" was a comment, and it drifted twice: QCLI-133
+  // added four scalars the adapter never mirrored, and QCLI-138 added eight
+  // checklist operations it never mirrored either. This is the same statement
+  // as a compile-time obligation. It fails to typecheck the moment either
+  // vocabulary gains a key the other lacks, in either direction.
+  const forward: Record<keyof EditPatchVocabulary, true> = {} as Record<
+    keyof TrackerEditPatch,
+    true
+  >;
+  const backward: Record<keyof TrackerEditPatch, true> = {} as Record<
+    keyof EditPatchVocabulary,
+    true
+  >;
+  expect([forward, backward]).toHaveLength(2);
 });
