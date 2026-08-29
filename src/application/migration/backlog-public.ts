@@ -90,6 +90,11 @@ function importedTask(
         updatedAt: record.updatedAt,
       },
     }),
+    // The importer already parsed these; promoting them out of the summary
+    // blob keeps an imported corpus distinguishable from records written
+    // before Quest had timestamps at all (QCLI-137).
+    ...(record.createdAt ? { createdAt: record.createdAt } : {}),
+    ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
     priority: record.priority,
     type: record.type,
     ordinal: record.ordinal,

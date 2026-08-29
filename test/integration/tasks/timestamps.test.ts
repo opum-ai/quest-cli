@@ -209,3 +209,56 @@ test("task list sorts by timestamp, and a record written before QCLI-137 sorts l
     ]);
   });
 });
+
+test("a promoted draft is born stamped, not looking like a legacy record", async () => {
+  await withStore(async (run) => {
+    const draft = await run([
+      "draft",
+      "create",
+      "Promoted",
+      ...actor,
+      "--json",
+    ]);
+    expect(draft.exitCode).toBe(0);
+    const promoted = await run([
+      "draft",
+      "promote",
+      "D-1",
+      "--task-id",
+      "T-9",
+      ...actor,
+      "--json",
+    ]);
+    expect(promoted.exitCode).toBe(0);
+
+    const viewed = await run(["task", "view", "T-9", "--json"]);
+    expect(viewed.exitCode).toBe(0);
+    const createdAt = data(viewed).createdAt as string;
+    // Without this, a brand-new task would sort last under --sort createdAt as
+    // though it predated timestamps entirely.
+    expect(typeof createdAt).toBe("string");
+    expect(createdAt).toBe(new Date(createdAt).toISOString());
+    expect(data(viewed).updatedAt).toBe(createdAt);
+  });
+});
+
+test("createdAt is immutable through the public edit surface", async () => {
+  await withStore(async (run) => {
+    const created = await run(["task", "create", "Fixed", ...actor, "--json"]);
+    const createdAt = data(created).createdAt as string;
+
+    // Nothing in the CLI edit vocabulary can reach createdAt, and a status
+    // change must not disturb it.
+    const edited = await run([
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...actor,
+      "--json",
+    ]);
+    expect(edited.exitCode).toBe(0);
+    expect(data(edited).createdAt).toBe(createdAt);
+  });
+});

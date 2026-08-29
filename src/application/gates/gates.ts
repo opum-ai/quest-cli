@@ -48,6 +48,8 @@ export class GateService {
     private readonly actors: readonly Actor[],
     private readonly ownedPathFor = (taskId: string) =>
       `.quest/tasks/${taskId}.md`,
+    /** Injected clock, matching TaskService (QCLI-137). */
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   private async append(
@@ -62,6 +64,9 @@ export class GateService {
       ...task,
       gateEvents: events,
       gates: projectedGates(events),
+      // A gate append rewrites the durable record, so it is a write and
+      // advances `updatedAt` like every other one (QCLI-137).
+      updatedAt: this.now().toISOString(),
     });
     const result = await this.repository.write({
       task: next,

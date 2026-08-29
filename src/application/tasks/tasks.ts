@@ -691,17 +691,25 @@ export class TaskService {
     const allTasks = this.taskRecords(snapshot);
     if (allTasks.some((record) => record.task.id === taskId))
       throw new RecordValidationError("task_already_exists");
-    const task = createTask(
-      taskId,
-      {
-        title: current.draft.title,
-        description: current.draft.description,
-        labels: current.draft.labels,
-        documentation: current.draft.documentation,
-        source: current.draft.source,
-      },
-      this.lifecycle,
-    );
+    // A promoted draft is a newly created task and is stamped like one
+    // (QCLI-137): without this it would be born looking like a record written
+    // before timestamps existed, and sort last under --sort createdAt.
+    const promotedAt = this.timestamp();
+    const task = taskState({
+      ...createTask(
+        taskId,
+        {
+          title: current.draft.title,
+          description: current.draft.description,
+          labels: current.draft.labels,
+          documentation: current.draft.documentation,
+          source: current.draft.source,
+        },
+        this.lifecycle,
+      ),
+      createdAt: promotedAt,
+      updatedAt: promotedAt,
+    });
     const result = await this.lifecycleRepository().writeLifecycle({
       expectedRevision: snapshot.revision,
       operationId,
@@ -774,6 +782,11 @@ export class TaskService {
     const unsafe = patch as Partial<TaskState>;
     if ("gates" in unsafe || "gateEvents" in unsafe)
       throw new RecordValidationError("task_gate_events_managed");
+    // `updatedAt` is shielded by spread position below, but `createdAt` would
+    // otherwise be silently rewritable by a service-API caller. It is written
+    // once, so an attempt to patch it is an error rather than a no-op.
+    if ("createdAt" in unsafe)
+      throw new RecordValidationError("task_created_at_immutable");
     const authorizedPatch = unsafe;
     if (
       authorizedPatch.status !== undefined &&
@@ -966,6 +979,8 @@ export class TaskService {
           ) as Partial<TaskState>;
           if ("gates" in unsafe || "gateEvents" in unsafe)
             throw new RecordValidationError("task_gate_events_managed");
+          if ("createdAt" in unsafe)
+            throw new RecordValidationError("task_created_at_immutable");
           if (unsafe.status !== undefined && unsafe.status !== current.status)
             transitionTask(current, unsafe.status, this.lifecycle);
           const rawNext = taskState({

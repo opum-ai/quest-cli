@@ -563,3 +563,16 @@ test("the injected clock stamps createdAt once and advances updatedAt on every e
   expect(again.task.createdAt).toBe(ticks[0]);
   expect(again.task.updatedAt).toBe(ticks[2]);
 });
+
+test("the service refuses to rewrite createdAt (QCLI-137)", async () => {
+  const store = new MemoryTasks();
+  const tasks = new TaskService(store);
+  const created = await tasks.create("T-1", { title: "Fixed" }, "op-1");
+  expect(created.kind).toBe("success");
+
+  // The CLI cannot reach createdAt, but the service API is public: an attempt
+  // to patch a write-once field is an error, not a silent overwrite.
+  await expect(
+    tasks.edit("T-1", { createdAt: "1999-01-01T00:00:00.000Z" }, "op-2"),
+  ).rejects.toThrow("task_created_at_immutable");
+});

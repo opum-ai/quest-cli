@@ -218,3 +218,30 @@ test("generic task writes cannot erase gate history or inject a satisfied gate",
     } as never).gates,
   ).toEqual([]);
 });
+
+test("a gate append is a write and advances updatedAt (QCLI-137)", async () => {
+  const store = new MemoryTasks();
+  const stamp = "2026-06-06T00:00:00.000Z";
+  const gates = new GateService(
+    store,
+    [author, reviewer, agent],
+    undefined,
+    () => new Date(stamp),
+  );
+  await gates.define({
+    reference: "GATE",
+    definition: {
+      id: "review",
+      title: "Independent review",
+      blocking: true,
+      separatedFromActorId: "author",
+      requiresHumanJudgement: true,
+      requiredRole: "reviewer",
+    },
+    eventId: "g-1",
+    operationId: "define",
+  });
+  // The gate append rewrites the durable record, so it must not leave the
+  // record claiming it was last updated before the gate existed.
+  expect((await new TaskService(store).view("T-1")).updatedAt).toBe(stamp);
+});

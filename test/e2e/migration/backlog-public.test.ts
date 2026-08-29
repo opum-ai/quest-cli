@@ -216,3 +216,57 @@ test("migration closes milestone references transactionally and rollback keeps c
     await rm(source, { recursive: true, force: true });
   }
 });
+
+test("an imported Backlog task carries its source timestamps at the top level (QCLI-137)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-timestamps-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-ts-source-"));
+  try {
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "TASK-1.md"),
+      "---\nid: TASK-1\ntitle: Dated task\nstatus: To Do\ncreated_date: 2024-03-04 05:06\nupdated_date: 2024-05-06 07:08\n---\n\nDated fixture.\n",
+    );
+
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const applied = await quest(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    if (applied.exitCode !== 0) console.error(applied.stderr);
+    expect(applied.exitCode).toBe(0);
+
+    const viewed = await quest(store, ["task", "view", "T-1", "--json"]);
+    expect(viewed.exitCode).toBe(0);
+    const record = JSON.parse(viewed.stdout).data;
+    // An imported corpus must stay distinguishable from records written before
+    // Quest had timestamps: the importer already parsed these values, so
+    // leaving them only inside the summary blob made every imported task sort
+    // last under --sort createdAt as though it were a legacy record.
+    expect(typeof record.createdAt).toBe("string");
+    expect(record.createdAt).not.toBe("");
+    expect(typeof record.updatedAt).toBe("string");
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
