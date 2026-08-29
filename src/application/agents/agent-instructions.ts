@@ -96,7 +96,7 @@ export async function inspectQuestAgentInstructions(
 
 export const questSkillPath = ".claude/skills/quest/SKILL.md";
 
-/** The bundled Quest skill, installed opt-in alongside the CLAUDE.md/AGENTS.md
+/** The bundled Quest skill, installed opt-in alongside the managed AGENTS.md
  * block. Entirely Quest-owned: unlike the managed block, the whole file is
  * either an exact match or drifted, never merged into surrounding content. */
 export const questSkillContent = `---
@@ -106,18 +106,15 @@ description: "Drive this repo's task tracker with the quest CLI instead of editi
 
 # quest — tracker CLI
 
-\`quest\` is a deterministic, envelope-based tracker CLI. This skill is a pointer, not a
-manual: the guidance lives in the CLI so it cannot drift from the release you have installed.
+This skill is a pointer, not a manual. The guidance ships inside the CLI, so it cannot
+drift from the release you have installed:
 
-- \`quest instructions --list\` — the workflow guides, with a one-line purpose each. Read the
-  one that matches what you are about to do.
-- \`quest instructions overview\` — start here if you have not used Quest in this workspace.
-- \`quest instructions\` — the versioned agent protocol block Quest manages in CLAUDE.md and
-  AGENTS.md.
-- \`quest help [command]\` — exact flags. \`quest manifest --json\` is the same registry
-  without the prose.
+- \`quest instructions --list\` — the workflow guides, one line each.
+- \`quest instructions overview\` — start here.
+- \`quest instructions\` — the versioned protocol block Quest manages in AGENTS.md.
+- \`quest help [command]\` — exact flags; \`quest manifest --json\` for the machine registry.
 
-Use \`quest\` rather than editing \`.quest/\` by hand, so every write carries an actor.
+Drive tracker state through \`quest\`, never by editing \`.quest/\` by hand.
 `;
 
 /** Whole-file check: the skill is entirely Quest-owned, so any content other

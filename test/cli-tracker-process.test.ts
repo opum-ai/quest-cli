@@ -2001,8 +2001,24 @@ test("instructions serves guides and --list without changing the bare form (QCLI
     expect(both.exitCode).toBe(2);
     expect(JSON.parse(both.stderr)).toMatchObject({ error_type: "usage" });
 
-    const bogusFlag = await quest(store, ["instructions", "--nope", "--json"]);
-    expect(bogusFlag.exitCode).toBe(2);
+    // A malformed flag is a usage error, not "unknown guide -x": a leading
+    // dash is a flag however many dashes it has.
+    for (const flag of ["--nope", "-x", "-l"]) {
+      const bogus = await quest(store, ["instructions", flag, "--json"]);
+      expect({ flag, exitCode: bogus.exitCode }).toEqual({ flag, exitCode: 2 });
+      expect(JSON.parse(bogus.stderr)).toMatchObject({ error_type: "usage" });
+    }
+
+    // The guide argument is positional and may precede or follow --json.
+    const flagFirst = await quest(store, [
+      "instructions",
+      "--json",
+      "overview",
+    ]);
+    expect(flagFirst.exitCode).toBe(0);
+    expect(JSON.parse(flagFirst.stdout).data.name).toBe("overview");
+    const trailing = await quest(store, ["instructions", "overview", "extra"]);
+    expect(trailing.exitCode).toBe(2);
   } finally {
     await rm(store, { recursive: true, force: true });
   }

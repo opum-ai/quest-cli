@@ -32,7 +32,7 @@ test("the wizard asks name, prefix, then instructions, in that order, with the r
   expect(calls).toEqual([
     ["text", "Project name", "quest-cli"],
     ["text", "Task ID prefix", "T"],
-    ["confirm", "Write CLAUDE.md/AGENTS.md instructions?", true],
+    ["confirm", "Write the managed AGENTS.md instructions block?", true],
   ]);
   expect(answers).toEqual({
     name: "quest-cli",

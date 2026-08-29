@@ -53,7 +53,7 @@ read, edit or complete tracker state, so writes stay attributed and consistent.
 - \`decision list/view/create/edit/delete\`    Decision-record lifecycle
 - \`search [--all]\`              Search tasks, or tasks + milestones + decisions together
 - \`overview\` / \`board\` / \`doctor\`   Project overview, kanban-style board, or consistency check
-- \`cleanup\`                     Archive or delete completed tasks past their retention window
+- \`cleanup\`                     Remove closed, unreferenced milestones and superseded decisions
 - \`migration backlog preview/apply/status/rollback\`   Backlog.md-to-Quest migration lifecycle
 - \`browser\`                     Start a local read-only web server showing the overview and board
 - \`completion bash\`             Print a shell completion script
@@ -167,19 +167,24 @@ it stops anyone else from looking.
 
 ## Then summarize and close
 
-The final summary is for someone deciding whether to trust this work: what
+Record what someone deciding whether to trust this work would need: what
 changed, why, and how it was verified.
 
 \`\`\`
-quest task edit <id> --final-summary "<what changed, why, how it was verified>" \\
+quest task edit <id> --add-note "<what changed, why, how it was verified>" \\
   --actor <id> --actor-kind human --json
 quest task complete <id> --actor <id> --actor-kind human --json
 \`\`\`
 
+\`--final-summary\` is currently accepted only by \`task create\`, so on an existing
+task the closing summary goes in a note.
+
 \`quest task complete\` moves the record to its terminal status; \`quest task
 archive\` retires it afterwards, and \`quest task demote\` walks it back if closing
-turns out to be wrong. Retirement never destroys a record — that is what
-\`cleanup\` is for, past the retention window.
+turns out to be wrong. None of the three destroys a task: an archived task stays
+readable, and nothing in Quest deletes tasks on its own. (\`quest cleanup\` is
+unrelated to tasks — it removes closed, unreferenced milestones and superseded
+decisions.)
 `;
 
 const workspace = `# Workspace setup
@@ -198,9 +203,9 @@ files by hand.
 ## Managed agent instructions
 
 \`quest agents --update-instructions\` writes a small versioned block into
-CLAUDE.md and AGENTS.md, and installs this skill. The block is delimited and
-merged into surrounding content; the skill file is Quest-owned in full, so any
-edit to it reads as drift.
+AGENTS.md and installs the Quest skill at \`.claude/skills/quest/SKILL.md\`. The
+block is delimited and merged into surrounding content; the skill file is
+Quest-owned in full, so any edit to it reads as drift.
 
 \`quest agents --check\` exits 0 when the block is current and 6 when it is
 missing, drifted or malformed. Add \`--require-installed\` and run it in CI to

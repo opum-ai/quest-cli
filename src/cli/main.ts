@@ -535,7 +535,7 @@ export async function runInitWizard(
   const taskIdPrefix =
     (await prompts.text("Task ID prefix", "T")).trim() || "T";
   const writeInstructions = await prompts.confirm(
-    "Write CLAUDE.md/AGENTS.md instructions?",
+    "Write the managed AGENTS.md instructions block?",
     true,
   );
   return { name, taskIdPrefix, writeInstructions };
@@ -724,7 +724,9 @@ export async function runQuest(
       );
     }
     if (arguments_[0] === "instructions") {
-      const requested = arguments_[1]?.startsWith("--")
+      // Any leading dash is a flag, not a guide name: `-x` must be a usage
+      // error like every other malformed flag, not "unknown guide -x".
+      const requested = arguments_[1]?.startsWith("-")
         ? undefined
         : arguments_[1];
       const parsed = flags(arguments_.slice(requested ? 2 : 1));

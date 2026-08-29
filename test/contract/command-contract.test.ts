@@ -750,20 +750,30 @@ test("the overview guide lists every lifecycle verb the manifest declares", () =
 
 test("the skill and the guides never restate the same guidance (QCLI-141)", () => {
   // AC4/AC5: guidance lives in the guides, and the skill points at them. Two
-  // copies of a sentence drift, and the drift is invisible because both
-  // surfaces look authoritative. A shared substantive sentence is the signal.
-  const sentences = (text: string) =>
-    text
-      .replace(/```[\s\S]*?```/g, " ")
+  // copies drift, and the drift is invisible because both surfaces look
+  // authoritative. Overlap is measured in eight-word shingles rather than
+  // whole sentences, so a reworded copy, a bullet list with no terminal
+  // punctuation, or a block lifted into a code fence all still trip it.
+  const shingles = (text: string) => {
+    const words = text
       .replace(/[`*#>|-]/g, " ")
-      .split(/(?<=[.!?])\s+|\n{2,}/)
-      .map((sentence) => sentence.replace(/\s+/g, " ").trim().toLowerCase())
-      .filter((sentence) => sentence.split(" ").length >= 8);
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      .split(" ")
+      .filter(Boolean);
+    const result = new Map<string, string>();
+    for (let index = 0; index + 8 <= words.length; index += 1) {
+      const window = words.slice(index, index + 8);
+      result.set(window.join(" "), window.join(" "));
+    }
+    return result;
+  };
 
-  const skill = new Set(sentences(questSkillContent));
+  const skill = shingles(questSkillContent);
   for (const guide of questGuides) {
-    const shared = sentences(guide.content).filter((sentence) =>
-      skill.has(sentence),
+    const shared = [...shingles(guide.content).keys()].filter((phrase) =>
+      skill.has(phrase),
     );
     expect({ guide: guide.name, shared }).toEqual({
       guide: guide.name,
