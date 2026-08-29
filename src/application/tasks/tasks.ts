@@ -232,8 +232,8 @@ function taskListSortValue(task: TaskState, field: string): string | number {
       return fold(task.type);
     case "ordinal":
       return task.ordinal ?? 0;
-    // A record written before timestamps existed has no time, which is
-    // unknown rather than oldest, so it sorts after every stamped task the
+    // A record with no time is unknown rather than oldest, so it sorts after
+    // every stamped task ascending — and therefore first when reversed, the
     // same way an unrecognized priority does.
     case "createdAt":
       return task.createdAt ?? "\uffff";
@@ -675,16 +675,21 @@ export class TaskService {
     const allTasks = this.taskRecords(snapshot);
     if (allTasks.some((record) => record.task.id === taskId))
       throw new RecordValidationError("task_already_exists");
-    const task = createTask(
-      taskId,
-      {
-        title: current.draft.title,
-        description: current.draft.description,
-        labels: current.draft.labels,
-        documentation: current.draft.documentation,
-        source: current.draft.source,
-      },
-      this.lifecycle,
+    // Promotion creates a task, so it stamps like `create` does. Without
+    // this the record could never acquire a createdAt: nothing backfills.
+    const task = this.stamped(
+      createTask(
+        taskId,
+        {
+          title: current.draft.title,
+          description: current.draft.description,
+          labels: current.draft.labels,
+          documentation: current.draft.documentation,
+          source: current.draft.source,
+        },
+        this.lifecycle,
+      ),
+      true,
     );
     const result = await this.lifecycleRepository().writeLifecycle({
       expectedRevision: snapshot.revision,
@@ -758,6 +763,10 @@ export class TaskService {
     const unsafe = patch as Partial<TaskState>;
     if ("gates" in unsafe || "gateEvents" in unsafe)
       throw new RecordValidationError("task_gate_events_managed");
+    // Timestamps are stamped by the service on every write, so a patch that
+    // sets them would be silently overwritten. Reject rather than no-op.
+    if ("createdAt" in unsafe || "updatedAt" in unsafe)
+      throw new RecordValidationError("task_timestamps_managed");
     const authorizedPatch = unsafe;
     if (
       authorizedPatch.status !== undefined &&

@@ -62,6 +62,8 @@ export class GateService {
       ...task,
       gateEvents: events,
       gates: projectedGates(events),
+      // A gate change mutates the task, so its updatedAt advances (QCLI-137).
+      updatedAt: new Date().toISOString(),
     });
     const result = await this.repository.write({
       task: next,

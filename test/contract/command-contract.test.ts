@@ -806,3 +806,25 @@ test("every guide is discoverable and none of them is an aggregate (QCLI-141)", 
   }
   expect(findQuestGuide("all")).toBeUndefined();
 });
+
+test("the CLI and application sort vocabularies stay in sync (QCLI-137)", async () => {
+  // The list is written twice — the CLI parses and error-messages from its
+  // copy, the application layer sorts from its own. Nothing but this keeps
+  // them equal, and a field in one but not the other is either an accepted
+  // flag that cannot sort or a sort that cannot be asked for.
+  const cli = await Bun.file(
+    new URL("../../src/cli/main.ts", import.meta.url),
+  ).text();
+  const application = await Bun.file(
+    new URL("../../src/application/tasks/tasks.ts", import.meta.url),
+  ).text();
+  const fields = (source: string) => {
+    const block = source.slice(source.indexOf("TASK_LIST_SORT_FIELDS"));
+    return [...block.slice(0, block.indexOf("]")).matchAll(/"([a-zA-Z]+)"/g)]
+      .map((match) => match[1])
+      .sort();
+  };
+  const cliFields = fields(cli);
+  expect(cliFields.length).toBeGreaterThan(0);
+  expect(cliFields).toEqual(fields(application));
+});

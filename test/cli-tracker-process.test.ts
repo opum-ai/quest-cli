@@ -2060,7 +2060,7 @@ test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI
       ).stdout,
     ).data;
     expect(edited.createdAt).toBe(created.createdAt);
-    expect(edited.updatedAt >= created.updatedAt).toBe(true);
+    expect(edited.updatedAt > created.updatedAt).toBe(true);
     expect(edited.updatedAt).toMatch(iso);
 
     // A status transition is a write. Note the envelope: task.completed nests
@@ -2068,14 +2068,14 @@ test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI
     const completed = JSON.parse(
       (await quest(store, ["task", "complete", "T-1", ...human])).stdout,
     ).data.task;
-    expect(completed.updatedAt >= edited.updatedAt).toBe(true);
+    expect(completed.updatedAt > edited.updatedAt).toBe(true);
     expect(completed.createdAt).toBe(created.createdAt);
 
     // So is a lifecycle move, which takes a different write path entirely.
     const archived = JSON.parse(
       (await quest(store, ["task", "archive", "T-1", ...human])).stdout,
     ).data.task;
-    expect(archived.updatedAt >= completed.updatedAt).toBe(true);
+    expect(archived.updatedAt > completed.updatedAt).toBe(true);
     expect(archived.createdAt).toBe(created.createdAt);
 
     // And the sort fields QCLI-139 had to drop are back. T-1 is archived by
@@ -2109,16 +2109,25 @@ test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI
       "T-2",
       "T-3",
     ]);
+
+    // Promotion creates a task, so it stamps like create does. Without this
+    // the record could never acquire a createdAt at all.
+    await quest(store, ["draft", "create", "An idea", ...human]);
+    const promoted = JSON.parse(
+      (await quest(store, ["draft", "promote", "D-1", ...human])).stdout,
+    ).data.task;
+    expect(promoted.createdAt).toMatch(iso);
+    expect(promoted.updatedAt).toBe(promoted.createdAt);
   } finally {
     await rm(store, { recursive: true, force: true });
   }
 });
 
 test("every task field the manifest declares is a field the CLI emits (QCLI-137)", async () => {
-  // The defect this closes was a manifest promising createdAt/updatedAt that
-  // nothing ever wrote. This is that class, generalized: a task with every
-  // settable field must carry every field the manifest declares for the three
-  // task-shaped commands.
+  // The defect this closes was a manifest promising createdAt/updatedAt on
+  // `task list`, `task view` and `search` that nothing ever wrote. This is
+  // that class, generalized: a task with every settable field must carry
+  // every field those three read surfaces declare.
   const store = await mkdtemp(join(tmpdir(), "quest-manifest-fields-"));
   const human = ["--actor", "h", "--actor-kind", "human", "--json"];
   try {
@@ -2183,10 +2192,18 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
       (await quest(store, ["task", "list", "--json"])).stdout,
     ).data.find((task: { id: string }) => task.id === created.id);
 
+    const searched = JSON.parse(
+      (await quest(store, ["search", "Fully", "--json"])).stdout,
+    ).data.find((task: { id: string }) => task.id === created.id);
+
+    // Only the read surfaces. `task create` and `task edit` also carry a
+    // `fields` list, but theirs is the settable-input vocabulary — it holds
+    // `addLabels` and `clearParent` and omits `id` and `status` — so an
+    // output-presence assertion does not apply to it.
     for (const [name, payload] of [
-      ["task create", created],
       ["task view", viewed],
       ["task list", listed],
+      ["search", searched],
     ] as const) {
       const declared = manifest.find((entry) => entry.name === name)?.fields;
       expect({ name, declared: declared !== undefined }).toEqual({
