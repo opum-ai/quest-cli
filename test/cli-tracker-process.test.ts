@@ -2492,6 +2492,11 @@ test("final summary can be cleared and appended, not only replaced (QCLI-149)", 
         patch,
         exitCode: 2,
       });
+      // Assert which rejection: exit 2 alone would also pass for "unknown
+      // patch key", i.e. if the manifest entry had been dropped.
+      expect(JSON.parse(rejected.stderr).message).toMatch(
+        /must be a boolean|Invalid list value/,
+      );
     }
   } finally {
     await rm(store, { recursive: true, force: true });

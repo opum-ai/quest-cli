@@ -12,10 +12,17 @@ export interface EditPatchVocabulary {
   readonly description?: string;
   readonly finalSummary?: string;
   /**
-   * Final-summary retirement and extension (QCLI-149), mirroring
-   * `clearAcceptanceCriteria` and `addPlan`. Appending joins with a blank
-   * line: a summary extended after review reads as a second paragraph, not a
-   * run-on sentence.
+   * Final-summary retirement and extension (QCLI-149).
+   *
+   * `clearFinalSummary` is exactly `clearAcceptanceCriteria`'s shape: exclusive
+   * with any value. Note it leaves `""` rather than removing the field, unlike
+   * `clearParent` and `clearMilestone` which set it undefined — that matches
+   * `--final-summary ""`, which already produced this state.
+   *
+   * `appendFinalSummary` is named after Backlog's `--append-final-summary`,
+   * which is what this is parity with; Quest spells its list equivalents
+   * `addPlan`/`addNotes`. It also behaves differently from them, deliberately:
+   * see {@link foldFinalSummary}.
    */
   readonly clearFinalSummary?: boolean;
   readonly appendFinalSummary?: readonly string[];
@@ -313,10 +320,19 @@ function positions(
  * Folds the final-summary replacement, clear and append into one value, or
  * `undefined` when the patch touches none of them.
  *
- * `clear` is exclusive for the same reason it is on a checklist: combining it
- * with a value asks for two different outcomes at once. A replacement and an
- * append do compose, in that order, so one command can rewrite a summary and
- * extend it.
+ * A replacement and an append COMPOSE, in that order, so one command can
+ * rewrite a summary and extend it. That is deliberately unlike the list fields
+ * above, where a replacement short-circuits and any add is dropped — silently
+ * discarding what the caller asked for is a lost-update shape, and there is no
+ * reason to repeat it here. It is also unlike {@link foldCheckList}, which
+ * rejects the combination outright because an index operation against a list
+ * the same command replaced addresses positions the caller never saw.
+ *
+ * Appending joins with a blank line: a summary extended after review reads as
+ * a second paragraph, not a run-on sentence.
+ *
+ * `clear` stays exclusive, for {@link foldCheckList}'s reason — combining it
+ * with a value asks for two different outcomes at once.
  */
 function foldFinalSummary(
   current: string | undefined,
@@ -324,12 +340,19 @@ function foldFinalSummary(
   clear: boolean | undefined,
   appended: readonly string[] | undefined,
 ): string | undefined {
+  // Empty appends contribute nothing, so drop them before deciding whether
+  // this patch touches the field at all.
+  const additions = (appended ?? []).filter((part) => part.length > 0);
   if (clear === true) {
     if (replacement !== undefined || (appended?.length ?? 0) > 0)
       throw new RecordValidationError("final_summary_operation_conflict");
     return "";
   }
-  if (!appended?.length) return replacement;
-  const base = replacement ?? current ?? "";
-  return [base, ...appended].filter((part) => part.length > 0).join("\n\n");
+  if (additions.length === 0) return replacement;
+  // trimEnd so a stored summary already ending in a newline does not turn one
+  // blank line into two.
+  const base = (replacement ?? current ?? "").trimEnd();
+  return base.length === 0
+    ? additions.join("\n\n")
+    : [base, ...additions].join("\n\n");
 }
