@@ -31,7 +31,7 @@ read, edit or complete tracker state, so writes stay attributed and consistent.
    is missing, see \`quest instructions workspace\`.
 2. Search before you create, and read before you change. \`quest search "<query>"\`
    and \`quest task view <id> --json\` cost far less than a duplicate record.
-3. Every write needs \`--actor <id> --actor-kind human\`, or \`delegated-agent\` with
+3. Every write needs \`--actor <actor> --actor-kind human\`, or \`delegated-agent\` with
    \`--accountable-human <id>\`.
 4. Run \`quest doctor\` when the workspace looks inconsistent, rather than working
    around it by hand.
@@ -100,7 +100,7 @@ what lets the next agent pick work safely.
 ## Create it
 
 \`\`\`
-quest task create "<title>" --actor <id> --actor-kind human --json \\
+quest task create "<title>" --actor <actor> --actor-kind human --json \\
   --description "<why this exists>" \\
   --acceptance-criteria '["<observable outcome>"]' \\
   --label <label> --dependency <id>
@@ -125,8 +125,8 @@ trust an approach proposed when the task was filed; the code has moved since.
 Claim it, then record the plan you actually intend to follow:
 
 \`\`\`
-quest task edit <id> --status "In Progress" --actor <id> --actor-kind human --json
-quest task edit <id> --plan '["1. ...", "2. ..."]' --actor <id> --actor-kind human --json
+quest task edit <id> --status "In Progress" --actor <actor> --actor-kind human --json
+quest task edit <id> --plan '["1. ...", "2. ..."]' --actor <actor> --actor-kind human --json
 \`\`\`
 
 ## While you work
@@ -136,7 +136,7 @@ what a later reader would need and could not reconstruct from the diff — a
 decision and its reason, a blocker, a validation result:
 
 \`\`\`
-quest task edit <id> --add-note "<what changed and why>" --actor <id> --actor-kind human --json
+quest task edit <id> --add-note "<what changed and why>" --actor <actor> --actor-kind human --json
 \`\`\`
 
 Checkbox edits are index-addressed, so two editors do not overwrite each other:
@@ -158,7 +158,7 @@ that fails without the change, command output, an observed result. Code being
 present is not evidence, and neither is intent.
 
 \`\`\`
-quest task edit <id> --check-ac 1 --check-ac 2 --actor <id> --actor-kind human --json
+quest task edit <id> --check-ac 1 --check-ac 2 --actor <actor> --actor-kind human --json
 \`\`\`
 
 An acceptance criterion you cannot prove stays unchecked, and the reason belongs
@@ -172,8 +172,8 @@ changed, why, and how it was verified.
 
 \`\`\`
 quest task edit <id> --final-summary "<what changed, why, how it was verified>" \\
-  --actor <id> --actor-kind human --json
-quest task complete <id> --actor <id> --actor-kind human --json
+  --actor <actor> --actor-kind human --json
+quest task complete <id> --actor <actor> --actor-kind human --json
 \`\`\`
 
 \`quest task complete\` moves the record to its terminal status; \`quest task
