@@ -288,6 +288,10 @@ test("create accepts the full advertised field set and stores it losslessly", as
       assignees: ["person-2"],
       blockers: [],
       comments: [],
+      // QCLI-137: stamped at write time, so the value moves; the guard that
+      // the field is emitted at all lives in manifest-field-coverage.test.ts.
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
       definitionOfDone: [{ index: 0, text: "shipped", checked: false }],
       dependencies: ["T-1"],
       documentation: [],
@@ -450,6 +454,8 @@ test("edit replace add remove clear operations keep deterministic ordering", asy
       assignees: ["person-2", "person-4"],
       blockers: [],
       comments: [],
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
       definitionOfDone: [{ index: 0, text: "done-check", checked: false }],
       dependencies: [],
       documentation: [],

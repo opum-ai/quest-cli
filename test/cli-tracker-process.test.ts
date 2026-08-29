@@ -1656,7 +1656,7 @@ test("task list rejects invalid --sort and --limit values (QCLI-139)", async () 
     for (const [argv, message] of [
       [
         ["task", "list", "--sort", "bogus", "--json"],
-        "--sort must be one of id, title, status, priority, type, ordinal, optionally suffixed with :asc or :desc.",
+        "--sort must be one of id, title, status, priority, type, ordinal, createdAt, updatedAt, optionally suffixed with :asc or :desc.",
       ],
       [
         ["task", "list", "--limit", "0", "--json"],

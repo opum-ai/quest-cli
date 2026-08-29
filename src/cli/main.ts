@@ -346,8 +346,6 @@ function ordinalValue(value: string | undefined): number | undefined {
   return Number(value);
 }
 
-// createdAt/updatedAt are deliberately absent: Quest never stores task
-// timestamps (QCLI-137), so offering them would advertise a silent no-op.
 const TASK_LIST_SORT_FIELDS = [
   "id",
   "title",
@@ -355,6 +353,8 @@ const TASK_LIST_SORT_FIELDS = [
   "priority",
   "type",
   "ordinal",
+  "createdAt",
+  "updatedAt",
 ] as const;
 
 /**

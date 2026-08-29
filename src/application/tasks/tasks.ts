@@ -186,8 +186,6 @@ export interface TaskListQuery {
   };
 }
 
-// createdAt/updatedAt are deliberately absent: Quest never stores task
-// timestamps (QCLI-137), so offering them would advertise a silent no-op.
 const TASK_LIST_SORT_FIELDS = new Set([
   "id",
   "title",
@@ -195,7 +193,17 @@ const TASK_LIST_SORT_FIELDS = new Set([
   "priority",
   "type",
   "ordinal",
+  "createdAt",
+  "updatedAt",
 ]);
+
+/**
+ * Sort key for a record written before QCLI-137 stamped timestamps. It is
+ * greater than every ISO-8601 string, whose characters are all ASCII, so an
+ * absent timestamp sorts LAST ascending — "unknown", not "oldest" — matching
+ * the unknown-priority rule above.
+ */
+const TASK_LIST_ABSENT_TIMESTAMP = "\uffff";
 
 /**
  * Priority is a free-form authored string, so ranking is by the conventional
@@ -232,6 +240,10 @@ function taskListSortValue(task: TaskState, field: string): string | number {
       return fold(task.type);
     case "ordinal":
       return task.ordinal ?? 0;
+    case "createdAt":
+      return task.createdAt ?? TASK_LIST_ABSENT_TIMESTAMP;
+    case "updatedAt":
+      return task.updatedAt ?? TASK_LIST_ABSENT_TIMESTAMP;
     default:
       throw new RecordValidationError("task_list_sort_field_invalid");
   }
@@ -264,11 +276,26 @@ export class TaskService {
       `.quest/tasks/${task.id}.md`,
     planning?: PlanningRepository,
     batchRepository?: BatchTaskRepository,
+    /**
+     * Injected clock for the record timestamps (QCLI-137), matching how
+     * `ready()` and `claimState()` already take `now` explicitly. Tests
+     * override it to assert an exact stamp instead of a moving one.
+     */
+    private readonly now: () => Date = () => new Date(),
   ) {
     // Blocker #4 (fourth pass): the batch port is injected as a real typed
     // constructor argument; no structural `as unknown` casting anywhere.
     this.batchRepository = batchRepository;
     this.planning = planning;
+  }
+
+  /**
+   * The single source of record timestamps. ISO-8601 UTC, so `createdAt` and
+   * `updatedAt` sort lexicographically in chronological order and `--sort`
+   * needs no date parsing.
+   */
+  private timestamp(): string {
+    return this.now().toISOString();
   }
 
   private readonly planning?: PlanningRepository | undefined;
@@ -373,7 +400,14 @@ export class TaskService {
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
     const tasks = snapshot.tasks;
-    const task = createTask(id, input, this.lifecycle);
+    const at = this.timestamp();
+    // A new record is created and last-updated at the same instant, so both
+    // stamps land here rather than only on the next edit.
+    const task = taskState({
+      ...createTask(id, input, this.lifecycle),
+      createdAt: at,
+      updatedAt: at,
+    });
     // Validation before persistence makes bad references and alias conflicts non-mutating.
     const canonical = canonicalizeTaskLinks([...tasks, task]);
     const persisted = canonical.at(-1);
@@ -512,7 +546,12 @@ export class TaskService {
     );
     const current = records.find((record) => record.task.id === selected.id);
     if (!current) throw new RecordValidationError("task_not_found");
-    const task = transform(current.task);
+    // complete/archive/demote rewrite the record, so they are edits and
+    // advance `updatedAt` like any other write.
+    const task = taskState({
+      ...transform(current.task),
+      updatedAt: this.timestamp(),
+    });
     if (current.location === destination)
       throw new RecordValidationError("task_lifecycle_already_at_destination");
     const result = await this.lifecycleRepository().writeLifecycle({
@@ -741,7 +780,12 @@ export class TaskService {
       authorizedPatch.status !== task.status
     )
       transitionTask(task, authorizedPatch.status, this.lifecycle);
-    const next = taskState({ ...task, ...authorizedPatch, id: task.id });
+    const next = taskState({
+      ...task,
+      ...authorizedPatch,
+      id: task.id,
+      updatedAt: this.timestamp(),
+    });
     const canonical = canonicalizeTaskLinks(
       tasks.map((item) => (item.id === task.id ? next : item)),
     );
@@ -924,7 +968,12 @@ export class TaskService {
             throw new RecordValidationError("task_gate_events_managed");
           if (unsafe.status !== undefined && unsafe.status !== current.status)
             transitionTask(current, unsafe.status, this.lifecycle);
-          const rawNext = taskState({ ...current, ...unsafe, id: current.id });
+          const rawNext = taskState({
+            ...current,
+            ...unsafe,
+            id: current.id,
+            updatedAt: this.timestamp(),
+          });
           if (rawNext.milestoneId !== current.milestoneId) {
             // Fifth-pass blocker #3 (public JSDoc contract): milestone
             // transitions are rejected AT THEIR EXACT INDEX with the

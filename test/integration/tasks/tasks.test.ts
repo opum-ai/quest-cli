@@ -524,3 +524,42 @@ test("configured statuses match case-insensitively and store the canonical spell
     "Illegal task transition",
   );
 });
+
+test("the injected clock stamps createdAt once and advances updatedAt on every edit (QCLI-137)", async () => {
+  const store = new MemoryTasks();
+  // A controlled clock, so the assertion is on exact stamps rather than on
+  // "some later time" — the wall clock could read the same millisecond twice.
+  const ticks = [
+    "2026-01-01T00:00:00.000Z",
+    "2026-02-02T00:00:00.000Z",
+    "2026-03-03T00:00:00.000Z",
+  ];
+  let tick = 0;
+  const tasks = new TaskService(
+    store,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    () => new Date(ticks[Math.min(tick++, ticks.length - 1)] as string),
+  );
+
+  const created = await tasks.create("T-1", { title: "Clocked" }, "op-1");
+  expect(created.kind).toBe("success");
+  if (created.kind !== "success") return;
+  expect(created.task.createdAt).toBe(ticks[0]);
+  expect(created.task.updatedAt).toBe(ticks[0]);
+
+  const edited = await tasks.edit("T-1", { summary: "first" }, "op-2");
+  expect(edited.kind).toBe("success");
+  if (edited.kind !== "success") return;
+  // createdAt is written once and never rewritten.
+  expect(edited.task.createdAt).toBe(ticks[0]);
+  expect(edited.task.updatedAt).toBe(ticks[1]);
+
+  const again = await tasks.edit("T-1", { summary: "second" }, "op-3");
+  expect(again.kind).toBe("success");
+  if (again.kind !== "success") return;
+  expect(again.task.createdAt).toBe(ticks[0]);
+  expect(again.task.updatedAt).toBe(ticks[2]);
+});
