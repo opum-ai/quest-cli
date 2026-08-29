@@ -165,6 +165,8 @@ function flags(
     "--clear-milestone",
     "--clear-ac",
     "--clear-dod",
+    "--ready",
+    "--unassigned",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -341,6 +343,62 @@ function ordinalValue(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
   if (!/^-?\d+$/.test(value) || !Number.isSafeInteger(Number(value)))
     throw new FlagUsageError("--ordinal must be an integer.");
+  return Number(value);
+}
+
+// createdAt/updatedAt are deliberately absent: Quest never stores task
+// timestamps (QCLI-137), so offering them would advertise a silent no-op.
+const TASK_LIST_SORT_FIELDS = [
+  "id",
+  "title",
+  "status",
+  "priority",
+  "type",
+  "ordinal",
+] as const;
+
+/**
+ * Splits a repeatable selection flag that also accepts one comma-separated
+ * value, matching the tracker Quest is at parity with. Blank members are
+ * dropped so a trailing comma is not a filter for the empty string.
+ */
+function csvValues(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): string[] | undefined {
+  const values = parsed.values.get(name);
+  if (values === undefined) return undefined;
+  const members = values
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  if (members.length === 0)
+    throw new FlagUsageError(`${name} requires at least one value.`);
+  return members;
+}
+
+/** Parses `--sort <field>[:asc|desc]`; default direction is ascending. */
+function sortValue(
+  value: string | undefined,
+): { readonly field: string; readonly direction: "asc" | "desc" } | undefined {
+  if (value === undefined) return undefined;
+  const [field, direction, ...rest] = value.split(":");
+  if (
+    rest.length > 0 ||
+    !field ||
+    !(TASK_LIST_SORT_FIELDS as readonly string[]).includes(field) ||
+    (direction !== undefined && direction !== "asc" && direction !== "desc")
+  )
+    throw new FlagUsageError(
+      `--sort must be one of ${TASK_LIST_SORT_FIELDS.join(", ")}, optionally suffixed with :asc or :desc.`,
+    );
+  return { field, direction: direction === "desc" ? "desc" : "asc" };
+}
+
+function limitValue(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(Number(value)))
+    throw new FlagUsageError("--limit must be a positive integer.");
   return Number(value);
 }
 
@@ -1377,14 +1435,52 @@ export async function runQuest(
       );
     }
     if (command === "list") {
-      const parsed = flags(rest, ["--label"]);
-      if (!parsed || !only(parsed, ["--status", "--label"]))
+      const parsed = flags(rest, [
+        "--label",
+        "--exclude-status",
+        "--assignee",
+        "--type",
+      ]);
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--status",
+          "--label",
+          "--ready",
+          "--exclude-status",
+          "--assignee",
+          "--unassigned",
+          "--milestone",
+          "--parent",
+          "--priority",
+          "--type",
+          "--search",
+          "--limit",
+          "--sort",
+        ])
+      )
         return failure("usage", "task list received invalid arguments.");
+      if (parsed.values.has("--assignee") && parsed.values.has("--unassigned"))
+        return failure(
+          "usage",
+          "task list --assignee and --unassigned cannot be combined.",
+        );
       return output(
         await dispatchTrackerTaskCommand(await taskService(), {
           command,
           status: one(parsed, "--status"),
           labels: parsed.values.get("--label"),
+          ready: parsed.values.has("--ready") || undefined,
+          excludeStatuses: csvValues(parsed, "--exclude-status"),
+          assignees: csvValues(parsed, "--assignee"),
+          unassigned: parsed.values.has("--unassigned") || undefined,
+          milestoneId: one(parsed, "--milestone"),
+          parentId: one(parsed, "--parent"),
+          priority: one(parsed, "--priority"),
+          types: csvValues(parsed, "--type"),
+          search: one(parsed, "--search"),
+          limit: limitValue(one(parsed, "--limit")),
+          sort: sortValue(one(parsed, "--sort")),
         }),
         modeFor(parsed),
       );

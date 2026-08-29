@@ -1303,3 +1303,488 @@ test("the published manifest advertises the four newly editable fields (QCLI-133
     await rm(store, { recursive: true, force: true });
   }
 });
+
+test("the published manifest advertises every task list filter (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-manifest-"));
+  try {
+    const manifest = await quest(store, ["manifest", "--json"]);
+    const registry = JSON.parse(manifest.stdout);
+    const entry = registry.data.commands.find(
+      (command: { name: string }) => command.name === "task list",
+    );
+    expect([...entry.filters].sort()).toEqual([
+      "assignee",
+      "exclude-status",
+      "label",
+      "limit",
+      "milestone",
+      "parent",
+      "priority",
+      "ready",
+      "search",
+      "sort",
+      "status",
+      "type",
+      "unassigned",
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --ready returns only dependency-unblocked tasks (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-ready-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Blocker", ...human]);
+    await quest(store, [
+      "task",
+      "create",
+      "Blocked",
+      "--dependency",
+      "T-1",
+      ...human,
+    ]);
+    const listed = await quest(store, ["task", "list", "--ready", "--json"]);
+    expect(listed).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(listed.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...human,
+    ]);
+    await quest(store, ["task", "edit", "T-1", "--status", "Done", ...human]);
+    const readyAfterCompletion = await quest(store, [
+      "task",
+      "list",
+      "--ready",
+      "--json",
+    ]);
+    expect(JSON.parse(readyAfterCompletion.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --ready composes with --label (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-ready-label-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Ready backend",
+      "--label",
+      "backend",
+      ...human,
+    ]);
+    // Depends on the backend task, which the frontend label filter excludes.
+    await quest(store, [
+      "task",
+      "create",
+      "Blocked frontend",
+      "--label",
+      "frontend",
+      "--dependency",
+      "T-1",
+      ...human,
+    ]);
+    const listed = await quest(store, [
+      "task",
+      "list",
+      "--ready",
+      "--label",
+      "backend",
+      "--json",
+    ]);
+    expect(JSON.parse(listed.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+    // Readiness is computed over the whole collection before the label filter
+    // runs. Computing it after would drop the T-1 edge and call T-2 ready.
+    const blocked = await quest(store, [
+      "task",
+      "list",
+      "--ready",
+      "--label",
+      "frontend",
+      "--json",
+    ]);
+    expect(JSON.parse(blocked.stdout).data).toEqual([]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list selection filters compose: exclude-status, assignee, unassigned, milestone, parent, priority, type, search (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-filters-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Alpha",
+      "--priority",
+      "high",
+      "--type",
+      "feature",
+      "--assignee",
+      "person-1",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Beta",
+      "--priority",
+      "low",
+      "--type",
+      "bug",
+      "--parent",
+      "T-1",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...human,
+    ]);
+    await quest(store, ["task", "edit", "T-1", "--status", "Done", ...human]);
+
+    const excludeDone = await quest(store, [
+      "task",
+      "list",
+      "--exclude-status",
+      "Done",
+      "--json",
+    ]);
+    expect(JSON.parse(excludeDone.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const byAssignee = await quest(store, [
+      "task",
+      "list",
+      "--assignee",
+      "person-1",
+      "--json",
+    ]);
+    expect(JSON.parse(byAssignee.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+
+    const unassigned = await quest(store, [
+      "task",
+      "list",
+      "--unassigned",
+      "--json",
+    ]);
+    expect(JSON.parse(unassigned.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const byParent = await quest(store, [
+      "task",
+      "list",
+      "--parent",
+      "T-1",
+      "--json",
+    ]);
+    expect(JSON.parse(byParent.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const byPriority = await quest(store, [
+      "task",
+      "list",
+      "--priority",
+      "high",
+      "--json",
+    ]);
+    expect(JSON.parse(byPriority.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+
+    const byType = await quest(store, [
+      "task",
+      "list",
+      "--type",
+      "bug",
+      "--json",
+    ]);
+    expect(JSON.parse(byType.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const bySearch = await quest(store, [
+      "task",
+      "list",
+      "--search",
+      "Alpha",
+      "--json",
+    ]);
+    expect(JSON.parse(bySearch.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+
+    const assigneeAndUnassigned = await quest(store, [
+      "task",
+      "list",
+      "--assignee",
+      "person-1",
+      "--unassigned",
+      "--json",
+    ]);
+    expect(assigneeAndUnassigned).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(assigneeAndUnassigned.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "task list --assignee and --unassigned cannot be combined.",
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --sort and --limit apply after every other filter (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-sort-limit-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Alpha",
+      "--priority",
+      "low",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Beta",
+      "--priority",
+      "high",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Gamma",
+      "--priority",
+      "high",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Delta",
+      "--priority",
+      "medium",
+      ...human,
+    ]);
+    // T-1 low, T-2 high, T-3 high, T-4 medium. Priority sorts by rank, not
+    // alphabetically: as strings the order is high, high, low, medium, which
+    // puts the lowest priority ahead of medium. Ties break by ascending id.
+    const ascending = await quest(store, [
+      "task",
+      "list",
+      "--sort",
+      "priority",
+      "--json",
+    ]);
+    expect(
+      JSON.parse(ascending.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["T-2", "T-3", "T-4", "T-1"]);
+    const sorted = await quest(store, [
+      "task",
+      "list",
+      "--sort",
+      "priority:desc",
+      "--json",
+    ]);
+    expect(
+      JSON.parse(sorted.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["T-1", "T-4", "T-2", "T-3"]);
+    // Limit truncates the sorted ordering, not the id ordering.
+    const limited = await quest(store, [
+      "task",
+      "list",
+      "--sort",
+      "priority:asc",
+      "--limit",
+      "1",
+      "--json",
+    ]);
+    expect(JSON.parse(limited.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list rejects invalid --sort and --limit values (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-sort-invalid-"));
+  try {
+    for (const [argv, message] of [
+      [
+        ["task", "list", "--sort", "bogus", "--json"],
+        "--sort must be one of id, title, status, priority, type, ordinal, optionally suffixed with :asc or :desc.",
+      ],
+      [
+        ["task", "list", "--limit", "0", "--json"],
+        "--limit must be a positive integer.",
+      ],
+      [
+        ["task", "list", "--limit", "abc", "--json"],
+        "--limit must be a positive integer.",
+      ],
+    ] as const) {
+      const result = await quest(store, argv);
+      expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        error_type: "usage",
+        message,
+      });
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --status and --label behave exactly as before (QCLI-139 regression)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-regression-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Alpha",
+      "--label",
+      "backend",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Beta",
+      "--label",
+      "frontend",
+      ...human,
+    ]);
+    const byStatus = await quest(store, [
+      "task",
+      "list",
+      "--status",
+      "To Do",
+      "--json",
+    ]);
+    expect(
+      JSON.parse(byStatus.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["T-1", "T-2"]);
+    const byLabel = await quest(store, [
+      "task",
+      "list",
+      "--label",
+      "backend",
+      "--json",
+    ]);
+    expect(JSON.parse(byLabel.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list selection flags fold case, accept comma lists, and union repeats (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-selection-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Parent",
+      "--alias",
+      "PARENT-ALIAS",
+      "--priority",
+      "High",
+      "--type",
+      "Feature",
+      "--assignee",
+      "Person-1",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Child",
+      "--parent",
+      "T-1",
+      "--priority",
+      "Low",
+      "--type",
+      "bug",
+      "--assignee",
+      "person-2",
+      ...human,
+    ]);
+    const ids = async (argv: readonly string[]) =>
+      JSON.parse((await quest(store, [...argv, "--json"])).stdout).data.map(
+        (task: { id: string }) => task.id,
+      );
+
+    // Priority and type are free-form authored strings; a case mismatch used
+    // to return a silent empty list.
+    expect(await ids(["task", "list", "--priority", "high"])).toEqual(["T-1"]);
+    expect(await ids(["task", "list", "--type", "FEATURE"])).toEqual(["T-1"]);
+
+    // Repeatable or comma-separated, like the tracker Quest is at parity with.
+    expect(await ids(["task", "list", "--type", "bug,feature"])).toEqual([
+      "T-1",
+      "T-2",
+    ]);
+    expect(
+      await ids(["task", "list", "--type", "bug", "--type", "feature"]),
+    ).toEqual(["T-1", "T-2"]);
+    expect(
+      await ids(["task", "list", "--exclude-status", "In Progress,Done"]),
+    ).toEqual(["T-1", "T-2"]);
+
+    // A repeated --assignee is a union, not an intersection.
+    expect(
+      await ids([
+        "task",
+        "list",
+        "--assignee",
+        "person-1",
+        "--assignee",
+        "person-2",
+      ]),
+    ).toEqual(["T-1", "T-2"]);
+
+    // --parent folds case and aliases, like every other task reference.
+    for (const reference of ["T-1", "t-1", "parent-alias"])
+      expect(await ids(["task", "list", "--parent", reference])).toEqual([
+        "T-2",
+      ]);
+
+    const empty = await quest(store, ["task", "list", "--type", ",", "--json"]);
+    expect(empty).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(empty.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--type requires at least one value.",
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
