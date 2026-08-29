@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 
+import { commandHelp } from "../../src/application/command-help.ts";
 import { runQuest } from "../../src/cli/main.ts";
 
 test("the executable keeps successful JSON on stdout and diagnostics on stderr", async () => {
@@ -435,4 +436,34 @@ test("duplicate actor and boolean flags report the offending flag as usage", asy
       message: `${flag} may only be provided once.`,
     });
   }
+});
+
+test("every flag `task edit` documents is a flag `task edit` accepts", async () => {
+  // The published help list and the parser's allowlist are hand-synced. This
+  // binds them: a flag documented but not allowed (or renamed on one side
+  // only) is rejected here as an invalid argument.
+  const booleanFlags = new Set([
+    "--clear-parent",
+    "--clear-milestone",
+    "--clear-ac",
+    "--clear-dod",
+  ]);
+  const rejected = "task edit received invalid arguments.";
+  for (const flag of commandHelp["task edit"]?.flags ?? []) {
+    const argv = booleanFlags.has(flag) ? [flag] : [`${flag}=1`];
+    const result = await runQuest(["task", "edit", "T-1", ...argv], false);
+    expect({
+      flag,
+      message: (JSON.parse(result.stderr) as { message?: string }).message,
+    }).not.toEqual({ flag, message: rejected });
+  }
+
+  const unknown = await runQuest(
+    ["task", "edit", "T-1", "--not-a-flag=1"],
+    false,
+  );
+  expect(JSON.parse(unknown.stderr)).toMatchObject({
+    error_type: "usage",
+    message: rejected,
+  });
 });

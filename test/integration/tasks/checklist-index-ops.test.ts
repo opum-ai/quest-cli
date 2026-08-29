@@ -34,6 +34,12 @@ function diagnostic(result: { stderr: string }): Record<string, unknown> {
   return JSON.parse(result.stderr) as Record<string, unknown>;
 }
 
+async function view(run: Run, id: string): Promise<Record<string, unknown>> {
+  const result = await run(["task", "view", id, "--json"]);
+  expect(result.exitCode).toBe(0);
+  return data(result);
+}
+
 function item(text: string, checked: boolean, index: number) {
   return { index, text, checked };
 }
@@ -159,74 +165,69 @@ test("the same operations address definition of done independently", async () =>
   });
 });
 
-test("two editors working from one stale read both keep their checkmarks", async () => {
+test("an edit computed from a stale read keeps checkmarks a wholesale replace loses", async () => {
   await withStore(async (run) => {
-    const id = await seed(run, ["first", "second"]);
+    // Two tasks seeded identically, so the two transports face the same start
+    // state and only the payload shape differs.
+    const viaReplace = await seed(run, ["first", "second"]);
+    const viaIndex = await seed(run, ["first", "second"]);
 
-    // The read both editors share. Neither sees the other's write.
-    const stale = data(await run(["task", "view", id, "--json"]))
-      .acceptanceCriteria as {
-      index: number;
-      text: string;
-      checked: boolean;
-    }[];
-    expect(stale).toEqual([item("first", false, 0), item("second", false, 1)]);
+    // The one read both editors work from. Neither sees the other's write.
+    const stale = async (id: string) =>
+      (await view(run, id)).acceptanceCriteria as readonly {
+        index: number;
+        text: string;
+        checked: boolean;
+      }[];
+    const staleReplace = await stale(viaReplace);
+    const staleIndex = await stale(viaIndex);
+    expect(staleReplace).toEqual([
+      item("first", false, 0),
+      item("second", false, 1),
+    ]);
 
-    const wholesale = (position: number) =>
+    // Editor A checks its box, then editor B checks a different one. Both
+    // derive their argument from the same stale read; the writes are applied
+    // in order, so neither loses a compare-and-set.
+    const wholesale = (
+      snapshot: readonly { index: number; text: string; checked: boolean }[],
+      position: number,
+    ) =>
       JSON.stringify(
-        stale.map((entry, offset) =>
-          offset === position ? { ...entry, checked: true } : entry,
+        snapshot.map((entry, offset) =>
+          offset === position - 1 ? { ...entry, checked: true } : entry,
         ),
       );
 
-    // Wholesale replacement is read-modify-write: the second writer ships the
-    // whole list it computed from the stale read, so the first check is gone.
-    await run([
-      "task",
-      "edit",
-      id,
-      "--acceptance-criteria",
-      wholesale(0),
-      ...actor,
-      "--json",
-    ]);
-    const lost = await run([
-      "task",
-      "edit",
-      id,
-      "--acceptance-criteria",
-      wholesale(1),
-      ...actor,
-      "--json",
-    ]);
-    expect(data(lost).acceptanceCriteria).toEqual([
+    for (const position of [1, 2])
+      await run([
+        "task",
+        "edit",
+        viaReplace,
+        "--acceptance-criteria",
+        wholesale(staleReplace, position),
+        ...actor,
+        "--json",
+      ]);
+    // Editor B carried the whole list, including its stale view of entry 1, so
+    // editor A's checkmark is gone.
+    expect((await view(run, viaReplace)).acceptanceCriteria).toEqual([
       item("first", false, 0),
       item("second", true, 1),
     ]);
 
-    // Index-addressed edits carry only the position each editor touched, so
-    // both survive even though both were computed from the same stale read.
-    await run(["task", "edit", id, "--clear-ac", ...actor, "--json"]);
-    await run([
-      "task",
-      "edit",
-      id,
-      "--acceptance-criteria",
-      JSON.stringify(["first", "second"]),
-      ...actor,
-      "--json",
-    ]);
-    await run(["task", "edit", id, "--check-ac", "1", ...actor, "--json"]);
-    const kept = await run([
-      "task",
-      "edit",
-      id,
-      "--check-ac",
-      "2",
-      ...actor,
-      "--json",
-    ]);
-    expect(data(kept).acceptanceCriteria).toEqual([
+    // The same two editors, addressing only the position each one touched.
+    for (const position of staleIndex.map((entry) => entry.index + 1))
+      await run([
+        "task",
+        "edit",
+        viaIndex,
+        "--check-ac",
+        String(position),
+        ...actor,
+        "--json",
+      ]);
+    expect((await view(run, viaIndex)).acceptanceCriteria).toEqual([
       item("first", true, 0),
       item("second", true, 1),
     ]);
@@ -305,52 +306,50 @@ test("index operations reject out-of-range positions, bad values, and conflictin
       expect(diagnostic(rejected)).toMatchObject({ error_type: "usage" });
     }
 
-    const bothWays = await run([
-      "task",
-      "edit",
-      id,
-      "--check-ac",
-      "1",
-      "--uncheck-ac",
-      "1",
-      ...actor,
-      "--json",
-    ]);
-    expect(bothWays.exitCode).toBe(6);
-    expect(diagnostic(bothWays)).toMatchObject({
-      message: "check_index_conflict",
-    });
+    // Contradictory instructions about one position are decidable from argv,
+    // so they are usage errors that name the corrective combination.
+    for (const argv of [
+      ["--check-ac", "1", "--uncheck-ac", "1"],
+      ["--remove-ac", "1", "--check-ac", "1"],
+      ["--remove-ac", "1", "--uncheck-ac", "1"],
+    ]) {
+      const conflicting = await run([
+        "task",
+        "edit",
+        id,
+        ...argv,
+        ...actor,
+        "--json",
+      ]);
+      expect(conflicting.exitCode).toBe(2);
+      expect(diagnostic(conflicting)).toMatchObject({
+        error_type: "usage",
+        message: "One checklist position was given contradictory operations.",
+      });
+      expect(diagnostic(conflicting).hint).toContain("Address each position");
+    }
 
-    const mixed = await run([
-      "task",
-      "edit",
-      id,
-      "--check-ac",
-      "1",
-      "--acceptance-criteria",
-      '["replacement"]',
-      ...actor,
-      "--json",
-    ]);
-    expect(mixed.exitCode).toBe(6);
-    expect(diagnostic(mixed)).toMatchObject({
-      message: "check_operation_conflict",
-    });
-
-    const clearAndCheck = await run([
-      "task",
-      "edit",
-      id,
-      "--clear-ac",
-      "--check-ac",
-      "1",
-      ...actor,
-      "--json",
-    ]);
-    expect(clearAndCheck.exitCode).toBe(6);
-    expect(diagnostic(clearAndCheck)).toMatchObject({
-      message: "check_operation_conflict",
-    });
+    for (const argv of [
+      ["--check-ac", "1", "--acceptance-criteria", '["replacement"]'],
+      ["--clear-ac", "--check-ac", "1"],
+      ["--clear-ac", "--acceptance-criteria", '["replacement"]'],
+      ["--clear-dod", "--definition-of-done", '["replacement"]'],
+    ]) {
+      const mixed = await run([
+        "task",
+        "edit",
+        id,
+        ...argv,
+        ...actor,
+        "--json",
+      ]);
+      expect(mixed.exitCode).toBe(2);
+      expect(diagnostic(mixed)).toMatchObject({
+        error_type: "usage",
+        message:
+          "Checklist replacement, --clear-ac/--clear-dod, and the index-addressed operations cannot be combined.",
+      });
+    }
 
     // The task survived every rejection untouched.
     expect(
@@ -410,28 +409,36 @@ test("edit-batch rejects malformed index positions before any mutation", async (
   await withStore(async (run, store) => {
     const id = await seed(run, ["a"]);
     const operations = join(store, "bad.jsonl");
-    await writeFile(
-      operations,
-      JSON.stringify({
-        reference: id,
-        operationId: "op-1",
-        patch: { checkAcceptanceCriteria: ["1"] },
-      }),
-    );
+    // The batch grammar holds the same predicate the flag parser does: a
+    // quoted digit, a non-integer, and an unsafe integer are all usage errors
+    // before any mutation, not later validation failures.
+    for (const value of ["1", 0, 1.5, 1e21]) {
+      await writeFile(
+        operations,
+        JSON.stringify({
+          reference: id,
+          operationId: "op-1",
+          patch: { checkAcceptanceCriteria: [value] },
+        }),
+      );
 
-    const batch = await run([
-      "task",
-      "edit-batch",
-      "--file",
-      operations,
-      ...actor,
-      "--json",
-    ]);
-    expect(batch.exitCode).toBe(2);
-    expect(diagnostic(batch)).toMatchObject({ error_type: "usage" });
-    expect(diagnostic(batch).message as string).toContain(
-      "checkAcceptanceCriteria",
-    );
+      const batch = await run([
+        "task",
+        "edit-batch",
+        "--file",
+        operations,
+        ...actor,
+        "--json",
+      ]);
+      expect({ value, exitCode: batch.exitCode }).toEqual({
+        value,
+        exitCode: 2,
+      });
+      expect(diagnostic(batch)).toMatchObject({ error_type: "usage" });
+      expect(diagnostic(batch).message as string).toContain(
+        "checkAcceptanceCriteria",
+      );
+    }
 
     expect(
       data(await run(["task", "view", id, "--json"])).acceptanceCriteria,

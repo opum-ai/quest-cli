@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { commandManifest } from "../../../src/application/command-contract.ts";
+import { runQuest } from "../../../src/cli/main.ts";
 import {
   trackerConformanceFixtures,
+  trackerManifestFixture,
   trackerTaskFixture,
 } from "../../../src/contract/tracker/fixtures.ts";
 import {
@@ -370,4 +376,46 @@ test("create emits structured field argv", async () => {
     "--milestone",
     "M-1",
   ]);
+});
+
+test("probe accepts the manifest Quest actually publishes, and the fixture mirrors it", async () => {
+  // The contract compares advertised fields by exact sorted equality, so a
+  // vocabulary added to `commandManifest` without the contract and the
+  // conformance fixture silently breaks every real tracker probe. These two
+  // assertions are what makes that fail at test time instead.
+  const store = await mkdtemp(join(tmpdir(), "quest-tracker-probe-"));
+  const previous = process.env.QUEST_TASK_STORE;
+  process.env.QUEST_TASK_STORE = store;
+  try {
+    const runner: TrackerProcessRunner = {
+      async run(argv) {
+        const result = await runQuest([...argv], false);
+        return {
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      },
+    };
+    await expect(new QuestTrackerClient(runner).probe()).resolves.toMatchObject(
+      { manifest: { commands: expect.any(Array) } },
+    );
+  } finally {
+    if (previous === undefined) delete process.env.QUEST_TASK_STORE;
+    else process.env.QUEST_TASK_STORE = previous;
+    await rm(store, { recursive: true, force: true });
+  }
+
+  for (const fixture of trackerManifestFixture.commands) {
+    const published = commandManifest.commands.find(
+      (entry: { name: string }) => entry.name === fixture.name,
+    ) as { fields?: readonly string[]; filters?: readonly string[] };
+    expect(published).toBeDefined();
+    expect([...(fixture.fields ?? [])].sort()).toEqual(
+      [...(published.fields ?? [])].sort(),
+    );
+    expect([...(fixture.filters ?? [])].sort()).toEqual(
+      [...(published.filters ?? [])].sort(),
+    );
+  }
 });

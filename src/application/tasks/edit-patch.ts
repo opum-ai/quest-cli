@@ -209,10 +209,13 @@ function mergeComments(
  * Folds the wholesale replacement and the index-addressed checklist operations
  * into one checklist value, or `undefined` when the patch touches neither.
  *
- * Index operations address the task's current list, read under the same write
- * lock that persists the result, at its 1-based positions. Removals, checks and
- * unchecks all resolve against that one snapshot, so the outcome never depends
- * on operation order, and the survivors are re-indexed exactly once at the end.
+ * Index operations address the task's current list at its 1-based positions.
+ * Removals, checks and unchecks all resolve against that one snapshot, so the
+ * outcome never depends on operation order, and the survivors are re-indexed
+ * exactly once at the end. The snapshot is the state the caller is about to
+ * write against — the batch session's locked read, or the revision the single
+ * `task edit` path passes to its compare-and-set write — so a racing writer
+ * loses the CAS rather than silently reverting an entry it never addressed.
  * A wholesale replacement is passed through untouched so its authored indexes
  * still face the domain's own validation.
  */
@@ -246,6 +249,12 @@ function foldCheckList(
   const uncheck = positions(unchecked, base.length);
   for (const position of check)
     if (uncheck.has(position))
+      throw new RecordValidationError("check_index_conflict");
+  // Removing a position and also (un)checking it are contradictory requests
+  // about the same entry; applying removal and discarding the checkmark would
+  // silently honour only one of them.
+  for (const position of [...check, ...uncheck])
+    if (drop.has(position))
       throw new RecordValidationError("check_index_conflict");
   return reindex(
     base

@@ -1834,7 +1834,8 @@ export async function runQuest(
             if (
               !Array.isArray(fieldValue) ||
               fieldValue.some(
-                (entry) => !Number.isInteger(entry) || (entry as number) < 1,
+                (entry) =>
+                  !Number.isSafeInteger(entry) || (entry as number) < 1,
               )
             )
               return failure(
@@ -2106,6 +2107,25 @@ export async function runQuest(
         "No Git repository was found here. Run `git init` to create one, then re-run `quest init`.",
         {
           hint: "Quest requires an existing Git worktree; it does not create one for you.",
+        },
+      );
+    // Decidable from argv alone, so they belong with the other flag-combination
+    // usage errors rather than the post-read validation failures. The fold
+    // still owns the rule, so `task edit-batch` reports it per item.
+    if (message === "check_operation_conflict")
+      return failure(
+        "usage",
+        "Checklist replacement, --clear-ac/--clear-dod, and the index-addressed operations cannot be combined.",
+        {
+          hint: "Use --clear-ac or --clear-dod on its own, and keep --acceptance-criteria/--definition-of-done in a separate edit from --check-*/--uncheck-*/--remove-*.",
+        },
+      );
+    if (message === "check_index_conflict")
+      return failure(
+        "usage",
+        "One checklist position was given contradictory operations.",
+        {
+          hint: "Address each position once: do not check and uncheck it, or remove and check it, in the same edit.",
         },
       );
     if (
