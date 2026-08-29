@@ -1036,7 +1036,8 @@ export async function runQuest(
           action === "create" ||
             action === "view" ||
             action === "edit" ||
-            action === "delete"
+            action === "delete" ||
+            action === "archive"
             ? 1
             : 0,
         ),
@@ -1049,9 +1050,14 @@ export async function runQuest(
       if (!action || !parsed)
         return failure("usage", `${group} requires a valid action.`);
       const planning = await planningService();
-      if (action === "list" && only(parsed, [])) {
+      if (
+        action === "list" &&
+        only(parsed, isMilestone ? ["--include-archived"] : [])
+      ) {
         const data = isMilestone
-          ? await planning.listMilestones()
+          ? await planning.listMilestones(
+              parsed.values.has("--include-archived"),
+            )
           : await planning.listDecisions();
         return output(
           {
@@ -1233,6 +1239,27 @@ export async function runQuest(
             schemaVersion: 1,
             kind: isMilestone ? "milestone.updated" : "decision.updated",
             data,
+          },
+          modeFor(parsed),
+        );
+      }
+      if (
+        action === "archive" &&
+        isMilestone &&
+        rest[0] &&
+        only(parsed, ["--actor", "--actor-kind", "--accountable-human"])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            `${group} writes require an explicit actor declaration.`,
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "milestone.archived",
+            data: await planning.archiveMilestone(rest[0], crypto.randomUUID()),
           },
           modeFor(parsed),
         );

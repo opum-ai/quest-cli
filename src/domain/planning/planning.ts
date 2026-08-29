@@ -13,6 +13,12 @@ export interface Milestone {
   readonly description?: string;
   readonly status: MilestoneStatus;
   readonly taskIds: readonly string[];
+  /**
+   * Retirement, deliberately orthogonal to {@link MilestoneStatus}: a
+   * milestone is archived whether it closed or was abandoned, and archiving
+   * preserves the record and its task references where deleting destroys them.
+   */
+  readonly archived?: boolean;
 }
 
 export interface Decision {
@@ -29,6 +35,7 @@ const milestoneSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["open", "closed"]),
   taskIds: z.array(z.string().min(1)),
+  archived: z.boolean().optional(),
 });
 const decisionSchema = z.object({
   id: z.string().regex(/^DEC-[1-9][0-9]*$/),

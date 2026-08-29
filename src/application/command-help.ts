@@ -258,9 +258,9 @@ export const commandHelp: Record<
     flags: [...ACTOR_FLAGS],
   },
   "milestone list": {
-    summary: "List milestones.",
-    usage: "quest milestone list",
-    flags: [],
+    summary: "List milestones, excluding archived ones by default.",
+    usage: "quest milestone list [--include-archived]",
+    flags: ["--include-archived"],
   },
   "milestone view": {
     summary: "View one milestone by id.",
@@ -288,8 +288,14 @@ export const commandHelp: Record<
     ],
   },
   "milestone delete": {
-    summary: "Delete a milestone.",
+    summary: "Delete a milestone, destroying its record.",
     usage: "quest milestone delete <id> --actor <name> --actor-kind human",
+    flags: [...ACTOR_FLAGS],
+  },
+  "milestone archive": {
+    summary:
+      "Retire a milestone, preserving its record and its task references.",
+    usage: "quest milestone archive <id> --actor <name> --actor-kind human",
     flags: [...ACTOR_FLAGS],
   },
   "decision list": {

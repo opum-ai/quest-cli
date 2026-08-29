@@ -832,6 +832,17 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ])
       ).stdout,
     ).data.record.id as string;
+    const milestoneToArchive = JSON.parse(
+      (
+        await quest(store, [
+          "milestone",
+          "create",
+          "Archived milestone",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.record.id as string;
     const milestoneToDelete = JSON.parse(
       (
         await quest(store, [
@@ -1072,6 +1083,13 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         "milestone",
         "delete",
         milestoneToDelete,
+        ...actor,
+        "--plain",
+      ],
+      "milestone archive": [
+        "milestone",
+        "archive",
+        milestoneToArchive,
         ...actor,
         "--plain",
       ],
@@ -1784,6 +1802,102 @@ test("task list selection flags fold case, accept comma lists, and union repeats
       error_type: "usage",
       message: "--type requires at least one value.",
     });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("milestone archive retires a milestone and list hides it by default (QCLI-140)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-milestone-archive-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Shipped work", ...human]);
+    await quest(store, [
+      "milestone",
+      "create",
+      "Release 1",
+      "--status",
+      "closed",
+      "--task",
+      "T-1",
+      ...human,
+    ]);
+    await quest(store, ["milestone", "create", "Release 2", ...human]);
+
+    const archived = await quest(store, [
+      "milestone",
+      "archive",
+      "M-1",
+      ...human,
+    ]);
+    expect(archived.exitCode).toBe(0);
+    const envelope = JSON.parse(archived.stdout);
+    expect(envelope.kind).toBe("milestone.archived");
+    // The task reference survives; that is the difference from delete.
+    expect(envelope.data.record).toMatchObject({
+      id: "M-1",
+      status: "closed",
+      taskIds: ["T-1"],
+      archived: true,
+    });
+
+    const ids = async (argv: readonly string[]) =>
+      JSON.parse((await quest(store, [...argv, "--json"])).stdout).data.map(
+        (item: { id: string }) => item.id,
+      );
+    expect(await ids(["milestone", "list"])).toEqual(["M-2"]);
+    expect(await ids(["milestone", "list", "--include-archived"])).toEqual([
+      "M-1",
+      "M-2",
+    ]);
+    expect(
+      JSON.parse(
+        (await quest(store, ["milestone", "view", "M-1", "--json"])).stdout,
+      ).data,
+    ).toMatchObject({ archived: true, taskIds: ["T-1"] });
+
+    // AC3: delete keeps its destructive behaviour and its reference guard.
+    const deleted = await quest(store, [
+      "milestone",
+      "delete",
+      "M-1",
+      ...human,
+    ]);
+    expect(deleted.exitCode).toBe(6);
+    expect(JSON.parse(deleted.stderr)).toMatchObject({
+      message: "milestone_has_task_references",
+    });
+    const deletedEmpty = await quest(store, [
+      "milestone",
+      "delete",
+      "M-2",
+      ...human,
+    ]);
+    expect(deletedEmpty.exitCode).toBe(0);
+    expect(await ids(["milestone", "list", "--include-archived"])).toEqual([
+      "M-1",
+    ]);
+
+    // Archiving twice, and archiving a decision, are both rejected.
+    const again = await quest(store, ["milestone", "archive", "M-1", ...human]);
+    expect(again.exitCode).toBe(6);
+    expect(JSON.parse(again.stderr)).toMatchObject({
+      message: "milestone_lifecycle_already_at_destination",
+    });
+    const missingActor = await quest(store, [
+      "milestone",
+      "archive",
+      "M-1",
+      "--json",
+    ]);
+    expect(missingActor.exitCode).toBe(4);
+    const decisionArchive = await quest(store, [
+      "decision",
+      "archive",
+      "DEC-1",
+      ...human,
+    ]);
+    expect(decisionArchive.exitCode).toBe(2);
   } finally {
     await rm(store, { recursive: true, force: true });
   }

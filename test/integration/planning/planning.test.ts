@@ -217,3 +217,51 @@ test("local planning repository persists validated snapshots and reports stale w
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("milestone archive retires a milestone without destroying it (QCLI-140)", async () => {
+  const service = new PlanningService(new MemoryPlanning());
+  await service.createMilestone(
+    { id: "M-1", title: "Shipped", status: "closed", taskIds: ["T-1", "T-2"] },
+    "create-m1",
+  );
+  await service.createMilestone(
+    { id: "M-2", title: "Current", status: "open", taskIds: [] },
+    "create-m2",
+  );
+
+  // delete refuses a milestone that still carries task references; archive is
+  // the retirement path precisely because it keeps them.
+  await expect(service.deleteMilestone("M-1", "delete-m1")).rejects.toThrow(
+    "milestone_has_task_references",
+  );
+  expect(await service.archiveMilestone("M-1", "archive-m1")).toMatchObject({
+    record: {
+      id: "M-1",
+      title: "Shipped",
+      status: "closed",
+      taskIds: ["T-1", "T-2"],
+      archived: true,
+    },
+    result: { kind: "success" },
+  });
+
+  // Hidden from the default listing, still retrievable two ways.
+  expect((await service.listMilestones()).map((item) => item.id)).toEqual([
+    "M-2",
+  ]);
+  expect((await service.listMilestones(true)).map((item) => item.id)).toEqual([
+    "M-1",
+    "M-2",
+  ]);
+  expect(await service.viewMilestone("M-1")).toMatchObject({
+    archived: true,
+    taskIds: ["T-1", "T-2"],
+  });
+
+  await expect(
+    service.archiveMilestone("M-1", "archive-m1-again"),
+  ).rejects.toThrow("milestone_lifecycle_already_at_destination");
+  await expect(
+    service.archiveMilestone("M-404", "archive-missing"),
+  ).rejects.toThrow("milestone_not_found");
+});

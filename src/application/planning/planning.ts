@@ -97,8 +97,10 @@ function sortedCounts(
 export class PlanningService {
   constructor(private readonly repository: PlanningRepository) {}
 
-  async listMilestones(): Promise<readonly Milestone[]> {
-    return [...(await this.repository.read()).milestones].sort(byIdentifier);
+  async listMilestones(includeArchived = false): Promise<readonly Milestone[]> {
+    return [...(await this.repository.read()).milestones]
+      .filter((item) => includeArchived || item.archived !== true)
+      .sort(byIdentifier);
   }
   async listDecisions(): Promise<readonly Decision[]> {
     return [...(await this.repository.read()).decisions].sort(byIdentifier);
@@ -177,6 +179,32 @@ export class PlanningService {
         decisions: snapshot.decisions.map((item) =>
           item.id === record.id ? record : item,
         ),
+        operationId,
+      }),
+    );
+  }
+  /**
+   * Retires a milestone without destroying it. Unlike {@link deleteMilestone}
+   * this deliberately accepts a milestone that still carries task references:
+   * preserving them is the reason to archive rather than delete.
+   */
+  async archiveMilestone(id: string, operationId: string) {
+    const snapshot = await this.repository.read();
+    const existing = snapshot.milestones.find((item) => item.id === id);
+    if (!existing) throw new RecordValidationError("milestone_not_found");
+    if (existing.archived === true)
+      throw new RecordValidationError(
+        "milestone_lifecycle_already_at_destination",
+      );
+    const record = milestone({ ...existing, archived: true });
+    return persistedPlanningRecord(
+      record,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: snapshot.milestones.map((item) =>
+          item.id === record.id ? record : item,
+        ),
+        decisions: snapshot.decisions,
         operationId,
       }),
     );
