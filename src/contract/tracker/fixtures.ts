@@ -151,6 +151,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "definitionOfDone",
         "description",
         "documentation",
+        "finalSummary",
         "implementationNotes",
         "labels",
         "milestoneId",

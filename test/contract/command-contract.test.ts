@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { commandHelp } from "../../src/application/command-help.ts";
 import { questSkillContent } from "../../src/application/agents/agent-instructions.ts";
 import {
   findQuestGuide,
@@ -352,6 +354,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "definitionOfDone",
         "description",
         "documentation",
+        "finalSummary",
         "implementationNotes",
         "labels",
         "milestoneId",
@@ -402,6 +405,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "definitionOfDone",
         "description",
         "documentation",
+        "finalSummary",
         "implementationNotes",
         "labels",
         "milestoneId",
@@ -827,4 +831,30 @@ test("the CLI and application sort vocabularies stay in sync (QCLI-137)", async 
   const cliFields = fields(cli);
   expect(cliFields.length).toBeGreaterThan(0);
   expect(cliFields).toEqual(fields(application));
+});
+
+test("`task edit` documents every flag it accepts (QCLI-147)", () => {
+  // test/contract/cli-process.test.ts already runs documented => accepted.
+  // This is the other direction, which nothing covered: a flag the parser
+  // takes but the help omits is invisible to anyone reading `quest help`.
+  // Both halves are needed — each catches a different way the two drift.
+  const source = readFileSync(
+    new URL("../../src/cli/main.ts", import.meta.url),
+    "utf8",
+  );
+  const branch = source.slice(
+    source.indexOf('if (command === "edit" && rest[0])'),
+  );
+  // The repeatable-flag list passed to flags() also ends in "])", so anchor on
+  // the allowlist itself before looking for its close.
+  const start = branch.indexOf("!only(parsed, [");
+  const allowlist = branch.slice(start, branch.indexOf("])", start));
+  const accepted = [...allowlist.matchAll(/"(--[a-z-]+)"/g)]
+    .map((match) => match[1])
+    .sort();
+  expect(accepted.length).toBeGreaterThan(20);
+  const documented = new Set(commandHelp["task edit"]?.flags ?? []);
+  expect({
+    undocumented: accepted.filter((flag) => !documented.has(flag as string)),
+  }).toEqual({ undocumented: [] });
 });

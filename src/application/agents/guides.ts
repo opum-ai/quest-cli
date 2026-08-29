@@ -167,17 +167,14 @@ it stops anyone else from looking.
 
 ## Then summarize and close
 
-Record what someone deciding whether to trust this work would need: what
+The final summary is for someone deciding whether to trust this work: what
 changed, why, and how it was verified.
 
 \`\`\`
-quest task edit <id> --add-note "<what changed, why, how it was verified>" \\
+quest task edit <id> --final-summary "<what changed, why, how it was verified>" \\
   --actor <id> --actor-kind human --json
 quest task complete <id> --actor <id> --actor-kind human --json
 \`\`\`
-
-\`--final-summary\` is currently accepted only by \`task create\`, so on an existing
-task the closing summary goes in a note.
 
 \`quest task complete\` moves the record to its terminal status; \`quest task
 archive\` retires it afterwards, and \`quest task demote\` walks it back if closing
