@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-28 21:31'
-updated_date: '2026-08-29 00:33'
+updated_date: '2026-08-29 13:54'
 labels:
   - parity
   - audit
@@ -54,10 +54,10 @@ Evidence: opum-cli-e2e baselines/v0.2.9 (407 rows), surface parity/backlog. Ever
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Each of the nine gaps is triaged to one of: accepted as a deliberate exclusion with its rationale recorded, or converted into a sharp implementation task with its own acceptance criteria
-- [ ] #2 The acceptance-criteria checkbox gap (item 2) is decided on its correctness merits, not only ergonomics: either index-addressed operations land, or the read-modify-write race under concurrent editors is documented as accepted
+- [x] #1 Each of the nine gaps is triaged to one of: accepted as a deliberate exclusion with its rationale recorded, or converted into a sharp implementation task with its own acceptance criteria
+- [x] #2 The acceptance-criteria checkbox gap (item 2) is decided on its correctness merits, not only ergonomics: either index-addressed operations land, or the read-modify-write race under concurrent editors is documented as accepted
 - [ ] #3 The declared exclusions are written down in the repository as product policy — doc (Lore owns documentation), config, mcp — so downstream qualification can cite a source rather than inferring intent
-- [ ] #4 The structural divergences are recorded as intentional, in particular whether the Quest and Backlog output envelopes are ever meant to converge
+- [x] #4 The structural divergences are recorded as intentional, in particular whether the Quest and Backlog output envelopes are ever meant to converge
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -107,4 +107,12 @@ Still open on this task: AC3 (write the doc/config/mcp exclusions down as produc
 policy in the repository) and AC4 (record whether the Quest and Backlog output
 envelopes are ever meant to converge). Both are documentation of settled product
 policy and were not taken up in this triage pass.
+
+OWNER DECISION 2026-08-29 on AC4, the envelope question:
+
+The Quest and Backlog output envelopes are separate contracts and are not meant to converge. Quest is our own tool, not a Backlog fork; its envelope is the frozen Opum wire shape and it stays that way. Backlog is the reference we built from, so shape ALIGNMENT is expected - the same concepts, the same field names, comparable command surfaces - but that is parity of design, not a shared serialization contract. A difference in envelope structure is therefore a design fact to record, not a defect to file; a difference in the concepts or field names underneath it still is a defect.
+
+That settles AC4. AC1 and AC2 were settled by the same owner triage earlier on 2026-08-29: all nine gaps were dispositioned individually (QCLI-138/139/140/141 implemented, QCLI-142..145 deferred as future-not-scheduled), and item 2 was decided on its correctness merits in favour of index-addressed operations, which shipped as QCLI-138.
+
+AC3 remains: the doc/config/mcp exclusions still need writing down as product policy that downstream qualification can cite. Lore owns documentation, so that record belongs in the consolidated namespace rather than here.
 <!-- SECTION:NOTES:END -->

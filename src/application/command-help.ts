@@ -31,16 +31,16 @@ export const commandHelp: Record<
   },
   init: {
     summary:
-      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write CLAUDE.md/AGENTS.md instead of doing nothing.",
+      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing.",
     usage:
       'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
     flags: ["--name", "--task-id-prefix", "--agent-instructions"],
   },
   instructions: {
     summary:
-      "Print the managed agent-instructions block Quest maintains in CLAUDE.md/AGENTS.md.",
-    usage: "quest instructions",
-    flags: [],
+      "Print the managed AGENTS.md agent-instructions block, one workflow guide, or the guide index.",
+    usage: "quest instructions [<guide>] [--list]",
+    flags: ["--list"],
   },
   agents: {
     summary: "Check or update the managed agent-instructions block.",
@@ -348,7 +348,7 @@ export const commandHelp: Record<
     flags: [],
   },
   cleanup: {
-    summary: "Archive or delete completed tasks past their retention window.",
+    summary: "Remove closed, unreferenced milestones and superseded decisions.",
     usage: "quest cleanup --confirm --actor <name> --actor-kind human",
     flags: ["--dry-run", "--confirm", ...ACTOR_FLAGS],
   },

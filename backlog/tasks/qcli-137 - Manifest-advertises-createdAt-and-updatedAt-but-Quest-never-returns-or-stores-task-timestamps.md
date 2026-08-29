@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-29 00:06'
+updated_date: '2026-08-29 13:54'
 labels:
   - cli
   - contract
@@ -43,4 +44,15 @@ Deciding whether Quest should carry timestamps at all, or whether the manifest s
 - [ ] #2 If timestamps are implemented: quest task view and quest task list return createdAt and updatedAt for a newly created task, and updatedAt advances on a task edit.
 - [ ] #3 If they are dropped instead: the manifest no longer declares them, and the removal is recorded as deliberate so downstream qualification can cite a source.
 - [ ] #4 Either way the manifest and the CLI agree, verified by a test that fails if the manifest declares a task field the CLI never emits.
+- [ ] #5 task list --sort createdAt and --sort updatedAt are restored to the sort vocabulary that QCLI-139 removed, and order by the stored values.
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+OWNER DECISION 2026-08-29: implement the timestamps, and reverse QCLI-139's removal of the two sort fields.
+
+QCLI-139 dropped --sort createdAt and --sort updatedAt from TASK_LIST_SORT_FIELDS (src/cli/main.ts and src/application/tasks/tasks.ts) precisely because Quest stores neither, so they would have sorted every task on an empty string. Restoring them is part of this task's scope, not a follow-up: the fields exist in the manifest, in TaskState, and in the task view field list, so the only missing pieces are storage, population and the sort surface.
+
+AC1 is therefore settled in favour of implementing rather than de-advertising.
+<!-- SECTION:NOTES:END -->

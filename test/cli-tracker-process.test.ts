@@ -1934,3 +1934,92 @@ test("milestone archive retires a milestone and list hides it by default (QCLI-1
     await rm(store, { recursive: true, force: true });
   }
 });
+
+test("instructions serves guides and --list without changing the bare form (QCLI-141)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-instructions-guides-"));
+  try {
+    // AC2: the bare form is still the managed block, byte for byte. Every
+    // existing caller and `agents --check` depend on it.
+    const bare = await quest(store, ["instructions", "--json"]);
+    expect(bare.exitCode).toBe(0);
+    const bareEnvelope = JSON.parse(bare.stdout);
+    expect(bareEnvelope.kind).toBe("agent.instructions");
+    expect(bareEnvelope.data.content).toContain(
+      "<!-- quest:agent-instructions:begin -->",
+    );
+
+    const listed = await quest(store, ["instructions", "--list", "--json"]);
+    expect(listed.exitCode).toBe(0);
+    const listEnvelope = JSON.parse(listed.stdout);
+    expect(listEnvelope.kind).toBe("agent.guides");
+    expect(
+      listEnvelope.data.guides.map((guide: { name: string }) => guide.name),
+    ).toEqual([
+      "overview",
+      "task-creation",
+      "task-execution",
+      "task-finalization",
+      "workspace",
+    ]);
+    // AC1: every entry carries a one-line purpose.
+    for (const guide of listEnvelope.data.guides) {
+      expect(guide.summary.length).toBeGreaterThan(0);
+      expect(guide.summary).not.toContain("\n");
+    }
+
+    // Each guide is distinct content, not the same block five times.
+    const bodies = new Set<string>();
+    for (const name of listEnvelope.data.guides.map(
+      (guide: { name: string }) => guide.name,
+    )) {
+      const served = await quest(store, ["instructions", name, "--json"]);
+      expect({ name, exitCode: served.exitCode }).toEqual({
+        name,
+        exitCode: 0,
+      });
+      const envelope = JSON.parse(served.stdout);
+      expect(envelope.kind).toBe("agent.guide");
+      expect(envelope.data.name).toBe(name);
+      bodies.add(envelope.data.content);
+    }
+    expect(bodies.size).toBe(5);
+
+    // AC3: no "all" guide, and the error says what to do instead.
+    const all = await quest(store, ["instructions", "all", "--json"]);
+    expect(all.exitCode).toBe(3);
+    const diagnostic = JSON.parse(all.stderr);
+    expect(diagnostic).toMatchObject({ error_type: "not_found" });
+    expect(diagnostic.hint).toContain("--list");
+    expect(diagnostic.hint).toContain('no "all" guide');
+
+    const both = await quest(store, [
+      "instructions",
+      "overview",
+      "--list",
+      "--json",
+    ]);
+    expect(both.exitCode).toBe(2);
+    expect(JSON.parse(both.stderr)).toMatchObject({ error_type: "usage" });
+
+    // A malformed flag is a usage error, not "unknown guide -x": a leading
+    // dash is a flag however many dashes it has.
+    for (const flag of ["--nope", "-x", "-l"]) {
+      const bogus = await quest(store, ["instructions", flag, "--json"]);
+      expect({ flag, exitCode: bogus.exitCode }).toEqual({ flag, exitCode: 2 });
+      expect(JSON.parse(bogus.stderr)).toMatchObject({ error_type: "usage" });
+    }
+
+    // The guide argument is positional and may precede or follow --json.
+    const flagFirst = await quest(store, [
+      "instructions",
+      "--json",
+      "overview",
+    ]);
+    expect(flagFirst.exitCode).toBe(0);
+    expect(JSON.parse(flagFirst.stdout).data.name).toBe("overview");
+    const trailing = await quest(store, ["instructions", "overview", "extra"]);
+    expect(trailing.exitCode).toBe(2);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
