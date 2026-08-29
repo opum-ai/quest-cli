@@ -267,6 +267,10 @@ export class BacklogImportService {
       for (const entry of imported)
         if (entry.milestoneId === id) members.add(entry.id);
       milestones.set(id, {
+        // Spread first so a reused milestone keeps every field this import
+        // does not own -- `archived` above all, which a field-by-field
+        // rebuild would silently clear.
+        ...existing,
         id: id as Milestone["id"],
         title: name,
         description: existing?.description,

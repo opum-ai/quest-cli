@@ -1898,6 +1898,38 @@ test("milestone archive retires a milestone and list hides it by default (QCLI-1
       ...human,
     ]);
     expect(decisionArchive.exitCode).toBe(2);
+    expect(JSON.parse(decisionArchive.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "decision action is invalid or missing required arguments.",
+    });
+
+    // Only the archived M-1 remains at this point. Archived milestones keep
+    // their ids, so auto-id allocation must still see them: allocating from
+    // the visible list alone finds nothing, reuses M-1, and every subsequent
+    // create fails with milestone_already_exists.
+    const afterArchive = await quest(store, [
+      "milestone",
+      "create",
+      "Release 3",
+      ...human,
+    ]);
+    expect(afterArchive.exitCode).toBe(0);
+    expect(JSON.parse(afterArchive.stdout).data.record.id).toBe("M-2");
+
+    // Editing an archived milestone does not quietly un-archive it.
+    await quest(store, [
+      "milestone",
+      "edit",
+      "M-1",
+      "--title",
+      "Release 1, retired",
+      ...human,
+    ]);
+    expect(
+      JSON.parse(
+        (await quest(store, ["milestone", "view", "M-1", "--json"])).stdout,
+      ).data,
+    ).toMatchObject({ title: "Release 1, retired", archived: true });
   } finally {
     await rm(store, { recursive: true, force: true });
   }

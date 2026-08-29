@@ -256,10 +256,13 @@ export class PlanningService {
         byStatus: sortedCounts(byStatus),
       },
       milestones: {
-        open: planning.milestones.filter((item) => item.status === "open")
-          .length,
-        closed: planning.milestones.filter((item) => item.status === "closed")
-          .length,
+        // Archived milestones are retired, so they count as neither.
+        open: planning.milestones.filter(
+          (item) => item.archived !== true && item.status === "open",
+        ).length,
+        closed: planning.milestones.filter(
+          (item) => item.archived !== true && item.status === "closed",
+        ).length,
       },
       decisions: sortedCounts(decisions),
     };
@@ -357,8 +360,15 @@ export class PlanningService {
     operationId: string,
   ): Promise<PlanningCleanupPlan | PlanningMutationResult> {
     const snapshot = await this.repository.read();
+    // Archiving exists to preserve the record, so cleanup is not its reaper:
+    // an archived milestone is retired deliberately and stays retrievable.
     const milestoneIds = snapshot.milestones
-      .filter((item) => item.status === "closed" && item.taskIds.length === 0)
+      .filter(
+        (item) =>
+          item.archived !== true &&
+          item.status === "closed" &&
+          item.taskIds.length === 0,
+      )
       .map((item) => item.id)
       .sort();
     const decisionIds = snapshot.decisions

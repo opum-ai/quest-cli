@@ -543,9 +543,11 @@ async function nextPlanningId(
   planning: PlanningService,
   prefix: "M" | "DEC",
 ): Promise<string> {
+  // Archived milestones keep their ids, so allocation must see them: listing
+  // only the live ones would hand out an id that already exists.
   const records =
     prefix === "M"
-      ? await planning.listMilestones()
+      ? await planning.listMilestones(true)
       : await planning.listDecisions();
   const highest = records.reduce((maximum, record) => {
     const numeric = Number(record.id.slice(prefix.length + 1));
