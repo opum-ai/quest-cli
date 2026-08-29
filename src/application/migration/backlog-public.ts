@@ -93,6 +93,11 @@ function importedTask(
     priority: record.priority,
     type: record.type,
     ordinal: record.ordinal,
+    // Carry the source dates onto the record itself (QCLI-137), not only into
+    // the provenance blob. An imported task with no createdAt would sort last
+    // forever with its real date sitting two layers away in the same record.
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
     acceptanceCriteria: record.acceptanceCriteria.map((item) => item.text),
     definitionOfDone: record.definitionOfDone.map((item) => item.text),
     plan: record.implementationPlan ? [record.implementationPlan] : [],

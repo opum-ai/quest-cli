@@ -1656,7 +1656,7 @@ test("task list rejects invalid --sort and --limit values (QCLI-139)", async () 
     for (const [argv, message] of [
       [
         ["task", "list", "--sort", "bogus", "--json"],
-        "--sort must be one of id, title, status, priority, type, ordinal, optionally suffixed with :asc or :desc.",
+        "--sort must be one of id, title, status, priority, type, ordinal, createdAt, updatedAt, optionally suffixed with :asc or :desc.",
       ],
       [
         ["task", "list", "--limit", "0", "--json"],
@@ -2019,6 +2019,202 @@ test("instructions serves guides and --list without changing the bare form (QCLI
     expect(JSON.parse(flagFirst.stdout).data.name).toBe("overview");
     const trailing = await quest(store, ["instructions", "overview", "extra"]);
     expect(trailing.exitCode).toBe(2);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI-137)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-timestamps-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+  try {
+    const created = JSON.parse(
+      (await quest(store, ["task", "create", "Stamped", ...human])).stdout,
+    ).data;
+    expect(created.createdAt).toMatch(iso);
+    expect(created.updatedAt).toBe(created.createdAt);
+
+    // Both surfaces the manifest declares them on return them.
+    const viewed = JSON.parse(
+      (await quest(store, ["task", "view", "T-1", "--json"])).stdout,
+    ).data;
+    expect(viewed.createdAt).toBe(created.createdAt);
+    const [listed] = JSON.parse(
+      (await quest(store, ["task", "list", "--json"])).stdout,
+    ).data;
+    expect(listed.createdAt).toBe(created.createdAt);
+
+    const edited = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--title",
+          "Restamped",
+          "--status",
+          "In Progress",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(edited.createdAt).toBe(created.createdAt);
+    expect(edited.updatedAt > created.updatedAt).toBe(true);
+    expect(edited.updatedAt).toMatch(iso);
+
+    // A status transition is a write. Note the envelope: task.completed nests
+    // the record under data.task, unlike task.updated.
+    const completed = JSON.parse(
+      (await quest(store, ["task", "complete", "T-1", ...human])).stdout,
+    ).data.task;
+    expect(completed.updatedAt > edited.updatedAt).toBe(true);
+    expect(completed.createdAt).toBe(created.createdAt);
+
+    // So is a lifecycle move, which takes a different write path entirely.
+    const archived = JSON.parse(
+      (await quest(store, ["task", "archive", "T-1", ...human])).stdout,
+    ).data.task;
+    expect(archived.updatedAt > completed.updatedAt).toBe(true);
+    expect(archived.createdAt).toBe(created.createdAt);
+
+    // And the sort fields QCLI-139 had to drop are back. T-1 is archived by
+    // now, so order these on two fresh records.
+    await quest(store, ["task", "create", "Second", ...human]);
+    await quest(store, ["task", "create", "Third", ...human]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-2",
+      "--summary",
+      "touched last",
+      ...human,
+    ]);
+    const ids = async (argv: readonly string[]) =>
+      JSON.parse((await quest(store, [...argv, "--json"])).stdout).data.map(
+        (task: { id: string }) => task.id,
+      );
+    expect(await ids(["task", "list", "--sort", "createdAt"])).toEqual([
+      "T-2",
+      "T-3",
+    ]);
+    expect(await ids(["task", "list", "--sort", "createdAt:desc"])).toEqual([
+      "T-3",
+      "T-2",
+    ]);
+    // T-2 was created first but edited last, so the two orderings differ --
+    // which is what makes this assertion prove updatedAt is a real field and
+    // not an alias for createdAt.
+    expect(await ids(["task", "list", "--sort", "updatedAt:desc"])).toEqual([
+      "T-2",
+      "T-3",
+    ]);
+
+    // Promotion creates a task, so it stamps like create does. Without this
+    // the record could never acquire a createdAt at all.
+    await quest(store, ["draft", "create", "An idea", ...human]);
+    const promoted = JSON.parse(
+      (await quest(store, ["draft", "promote", "D-1", ...human])).stdout,
+    ).data.task;
+    expect(promoted.createdAt).toMatch(iso);
+    expect(promoted.updatedAt).toBe(promoted.createdAt);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("every task field the manifest declares is a field the CLI emits (QCLI-137)", async () => {
+  // The defect this closes was a manifest promising createdAt/updatedAt on
+  // `task list`, `task view` and `search` that nothing ever wrote. This is
+  // that class, generalized: a task with every settable field must carry
+  // every field those three read surfaces declare.
+  const store = await mkdtemp(join(tmpdir(), "quest-manifest-fields-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Dependency", ...human]);
+    await quest(store, ["milestone", "create", "Release", ...human]);
+    const created = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "create",
+          "Fully populated",
+          "--summary",
+          "s",
+          "--description",
+          "d",
+          "--priority",
+          "high",
+          "--type",
+          "feature",
+          "--ordinal",
+          "7",
+          "--alias",
+          "FULL",
+          "--label",
+          "l",
+          "--doc",
+          "docs/x.md",
+          "--acceptance-criteria",
+          '["ac"]',
+          "--definition-of-done",
+          '["dod"]',
+          "--plan",
+          '["p"]',
+          "--implementation-notes",
+          '["n"]',
+          "--assignee",
+          "person-1",
+          "--reference",
+          "src/x.ts",
+          "--modified-file",
+          "src/y.ts",
+          "--dependency",
+          "T-1",
+          "--parent",
+          "T-1",
+          "--milestone",
+          "M-1",
+          "--final-summary",
+          "done",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+
+    const manifest = JSON.parse(
+      (await quest(store, ["manifest", "--json"])).stdout,
+    ).data.commands as { name: string; fields?: string[] }[];
+    const viewed = JSON.parse(
+      (await quest(store, ["task", "view", created.id, "--json"])).stdout,
+    ).data;
+    const listed = JSON.parse(
+      (await quest(store, ["task", "list", "--json"])).stdout,
+    ).data.find((task: { id: string }) => task.id === created.id);
+
+    const searched = JSON.parse(
+      (await quest(store, ["search", "Fully", "--json"])).stdout,
+    ).data.find((task: { id: string }) => task.id === created.id);
+
+    // Only the read surfaces. `task create` and `task edit` also carry a
+    // `fields` list, but theirs is the settable-input vocabulary — it holds
+    // `addLabels` and `clearParent` and omits `id` and `status` — so an
+    // output-presence assertion does not apply to it.
+    for (const [name, payload] of [
+      ["task view", viewed],
+      ["task list", listed],
+      ["search", searched],
+    ] as const) {
+      const declared = manifest.find((entry) => entry.name === name)?.fields;
+      expect({ name, declared: declared !== undefined }).toEqual({
+        name,
+        declared: true,
+      });
+      const missing = (declared ?? []).filter(
+        (field) => !Object.hasOwn(payload as object, field),
+      );
+      expect({ name, missing }).toEqual({ name, missing: [] });
+    }
   } finally {
     await rm(store, { recursive: true, force: true });
   }

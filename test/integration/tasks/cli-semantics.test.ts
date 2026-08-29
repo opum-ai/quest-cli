@@ -283,6 +283,9 @@ test("create accepts the full advertised field set and stores it losslessly", as
     ]);
     expect(full.exitCode).toBe(0);
     expect(json(full).data).toEqual({
+      // QCLI-137 stamps every write; the values are clock-dependent.
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
       acceptanceCriteria: [{ index: 0, text: "works", checked: false }],
       aliases: ["FULL"],
       assignees: ["person-2"],
@@ -445,6 +448,9 @@ test("edit replace add remove clear operations keep deterministic ordering", asy
     ]);
     expect(applied.exitCode).toBe(0);
     expect(json(applied).data).toEqual({
+      // QCLI-137 stamps every write; the values are clock-dependent.
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
       acceptanceCriteria: [{ index: 0, text: "ac", checked: true }],
       aliases: [],
       assignees: ["person-2", "person-4"],

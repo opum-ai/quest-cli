@@ -524,3 +524,38 @@ test("configured statuses match case-insensitively and store the canonical spell
     "Illegal task transition",
   );
 });
+
+test("the injected clock pins every stamp (QCLI-137)", async () => {
+  const store = new MemoryTasks();
+  const ticks = [
+    new Date("2026-01-01T00:00:00.000Z"),
+    new Date("2026-02-02T00:00:00.000Z"),
+    new Date("2026-03-03T00:00:00.000Z"),
+  ];
+  let tick = 0;
+  const service = new TaskService(
+    store,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    () => ticks[Math.min(tick++, ticks.length - 1)] as Date,
+  );
+
+  const created = await service.create("T-1", { title: "Pinned" }, "op-create");
+  if (created.kind !== "success") throw new Error(created.kind);
+  // One clock read per create, so the two stamps are identical rather than
+  // merely close.
+  expect(created.task.createdAt).toBe("2026-01-01T00:00:00.000Z");
+  expect(created.task.updatedAt).toBe(created.task.createdAt);
+
+  const edited = await service.edit("T-1", { title: "Repinned" }, "op-edit");
+  if (edited.kind !== "success") throw new Error(edited.kind);
+  expect(edited.task.createdAt).toBe("2026-01-01T00:00:00.000Z");
+  expect(edited.task.updatedAt).toBe("2026-02-02T00:00:00.000Z");
+
+  // A caller cannot set the timestamps itself; the service owns them.
+  await expect(
+    service.edit("T-1", { updatedAt: "1999-01-01T00:00:00.000Z" }, "op-set"),
+  ).rejects.toThrow("task_timestamps_managed");
+});

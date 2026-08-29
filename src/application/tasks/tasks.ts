@@ -186,8 +186,6 @@ export interface TaskListQuery {
   };
 }
 
-// createdAt/updatedAt are deliberately absent: Quest never stores task
-// timestamps (QCLI-137), so offering them would advertise a silent no-op.
 const TASK_LIST_SORT_FIELDS = new Set([
   "id",
   "title",
@@ -195,6 +193,8 @@ const TASK_LIST_SORT_FIELDS = new Set([
   "priority",
   "type",
   "ordinal",
+  "createdAt",
+  "updatedAt",
 ]);
 
 /**
@@ -232,6 +232,13 @@ function taskListSortValue(task: TaskState, field: string): string | number {
       return fold(task.type);
     case "ordinal":
       return task.ordinal ?? 0;
+    // A record with no time is unknown rather than oldest, so it sorts after
+    // every stamped task ascending — and therefore first when reversed, the
+    // same way an unrecognized priority does.
+    case "createdAt":
+      return task.createdAt ?? "\uffff";
+    case "updatedAt":
+      return task.updatedAt ?? "\uffff";
     default:
       throw new RecordValidationError("task_list_sort_field_invalid");
   }
@@ -264,6 +271,8 @@ export class TaskService {
       `.quest/tasks/${task.id}.md`,
     planning?: PlanningRepository,
     batchRepository?: BatchTaskRepository,
+    /** Injected so tests can pin task timestamps (QCLI-137). */
+    private readonly now: () => Date = () => new Date(),
   ) {
     // Blocker #4 (fourth pass): the batch port is injected as a real typed
     // constructor argument; no structural `as unknown` casting anywhere.
@@ -366,6 +375,20 @@ export class TaskService {
           ownedPaths: result.ownedPaths,
         };
   }
+  /**
+   * Stamps a record's mutation time (QCLI-137). `created` also sets
+   * `createdAt`; every other write only advances `updatedAt`.
+   *
+   * Records written before timestamps existed are deliberately not
+   * backfilled: their next edit gains an `updatedAt`, and `createdAt` stays
+   * absent rather than being invented.
+   */
+  private stamped(task: TaskState, created = false): TaskState {
+    const at = this.now().toISOString();
+    return created
+      ? { ...task, createdAt: at, updatedAt: at }
+      : { ...task, updatedAt: at };
+  }
   async create(
     id: string,
     input: TaskInput,
@@ -373,7 +396,7 @@ export class TaskService {
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
     const tasks = snapshot.tasks;
-    const task = createTask(id, input, this.lifecycle);
+    const task = this.stamped(createTask(id, input, this.lifecycle), true);
     // Validation before persistence makes bad references and alias conflicts non-mutating.
     const canonical = canonicalizeTaskLinks([...tasks, task]);
     const persisted = canonical.at(-1);
@@ -512,7 +535,7 @@ export class TaskService {
     );
     const current = records.find((record) => record.task.id === selected.id);
     if (!current) throw new RecordValidationError("task_not_found");
-    const task = transform(current.task);
+    const task = this.stamped(transform(current.task));
     if (current.location === destination)
       throw new RecordValidationError("task_lifecycle_already_at_destination");
     const result = await this.lifecycleRepository().writeLifecycle({
@@ -652,16 +675,21 @@ export class TaskService {
     const allTasks = this.taskRecords(snapshot);
     if (allTasks.some((record) => record.task.id === taskId))
       throw new RecordValidationError("task_already_exists");
-    const task = createTask(
-      taskId,
-      {
-        title: current.draft.title,
-        description: current.draft.description,
-        labels: current.draft.labels,
-        documentation: current.draft.documentation,
-        source: current.draft.source,
-      },
-      this.lifecycle,
+    // Promotion creates a task, so it stamps like `create` does. Without
+    // this the record could never acquire a createdAt: nothing backfills.
+    const task = this.stamped(
+      createTask(
+        taskId,
+        {
+          title: current.draft.title,
+          description: current.draft.description,
+          labels: current.draft.labels,
+          documentation: current.draft.documentation,
+          source: current.draft.source,
+        },
+        this.lifecycle,
+      ),
+      true,
     );
     const result = await this.lifecycleRepository().writeLifecycle({
       expectedRevision: snapshot.revision,
@@ -735,13 +763,19 @@ export class TaskService {
     const unsafe = patch as Partial<TaskState>;
     if ("gates" in unsafe || "gateEvents" in unsafe)
       throw new RecordValidationError("task_gate_events_managed");
+    // Timestamps are stamped by the service on every write, so a patch that
+    // sets them would be silently overwritten. Reject rather than no-op.
+    if ("createdAt" in unsafe || "updatedAt" in unsafe)
+      throw new RecordValidationError("task_timestamps_managed");
     const authorizedPatch = unsafe;
     if (
       authorizedPatch.status !== undefined &&
       authorizedPatch.status !== task.status
     )
       transitionTask(task, authorizedPatch.status, this.lifecycle);
-    const next = taskState({ ...task, ...authorizedPatch, id: task.id });
+    const next = this.stamped(
+      taskState({ ...task, ...authorizedPatch, id: task.id }),
+    );
     const canonical = canonicalizeTaskLinks(
       tasks.map((item) => (item.id === task.id ? next : item)),
     );
@@ -924,7 +958,9 @@ export class TaskService {
             throw new RecordValidationError("task_gate_events_managed");
           if (unsafe.status !== undefined && unsafe.status !== current.status)
             transitionTask(current, unsafe.status, this.lifecycle);
-          const rawNext = taskState({ ...current, ...unsafe, id: current.id });
+          const rawNext = this.stamped(
+            taskState({ ...current, ...unsafe, id: current.id }),
+          );
           if (rawNext.milestoneId !== current.milestoneId) {
             // Fifth-pass blocker #3 (public JSDoc contract): milestone
             // transitions are rejected AT THEIR EXACT INDEX with the
