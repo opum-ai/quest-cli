@@ -3,7 +3,7 @@ id: doc-22
 title: 'Backlog campaign tracker — Quest CLI parity, release, and onboarding'
 type: other
 created_date: '2026-08-19 03:32'
-updated_date: '2026-08-28 23:51'
+updated_date: '2026-08-29 00:33'
 ---
 # Backlog campaign — Quest CLI parity, release, and onboarding
 
@@ -17,56 +17,59 @@ updated_date: '2026-08-28 23:51'
 ## Repositories and routing
 | Repository | Task ids | Mutation owner/FMC identity | AGENTS authority | Integration branch and pinned base | Required gates |
 | --- | --- | --- | --- | --- | --- |
-| quest-cli | QCLI-97.x, QCLI-134..136 | quest-cli (FMC Worker) | autonomous-docs, dev only | dev @ 3852c3c62de3bce3d15952a6fe0955bd2b9bf05d | source-gates + 6 platform jobs, typecheck/lint/layer/format, Lore strict gates |
+| quest-cli | QCLI-97.x, QCLI-134..145 | quest-cli (FMC Worker) | autonomous-docs, dev only | dev @ 384df4fa1edf8ef717b3f8009365925adb0e342e | source-gates + 6 platform jobs, typecheck/lint/layer/format, Lore strict gates |
 
 ## Frontier
-Resolved 9 this session (QCLI-125..133). In flight 2 (QCLI-97.5, QCLI-97.11), both blocked. Ready 0: every remaining item needs an owner decision, a release action, or a cross-repo contract.
+Resolved 9 (QCLI-125..133). In flight 2 (QCLI-97.5, QCLI-97.11), both blocked. Ready 4 and newly actionable: QCLI-138, 139, 140, 141 — all filed from the QCLI-134 triage the owner completed 2026-08-29. QCLI-137 is also ready but carries a product question inside it.
 
 ## Queue
 | Order | Task | Repository/owner | Dependencies | State | Wave | Likely paths |
 | --- | --- | --- | --- | --- | --- | --- |
-| — | QCLI-134 | quest-cli | QCLI-133 (Done) | blocked — every AC is a product decision | 4 | docs/ policy record |
-| — | QCLI-135 | quest-cli | none | blocked — release artifact + CI wiring, owner-authorized | 4 | .github/workflows, release process |
-| — | QCLI-136 | quest-cli | QCLI-126, QCLI-132 (both Done) | blocked on AC5 only — needs a release stating the version floor | 4 | release notes |
-| — | QCLI-97.5 | quest-cli | QCLI-97.2 (Done) | blocked — cross-repo Lore adapter contract, open since 2026-08-19 | carried | src/ports, Lore adapter |
-| — | QCLI-97.6 | quest-cli | QCLI-97.5 | blocked behind QCLI-97.5 | carried | — |
-| — | QCLI-97, 97.11, 97.11.4, 97.11.5 | quest-cli | ODOC-63.2 chain | carried, not triaged this session | carried | — |
+| 1 | QCLI-138 | quest-cli | QCLI-134 | ready — HIGH, only gap with a correctness dimension | 5 | src/application/tasks/edit-patch.ts, command-contract.ts |
+| 2 | QCLI-139 | quest-cli | QCLI-134 | ready — --ready first, then remaining filters | 5 | src/cli/main.ts, src/domain/tasks/tasks.ts |
+| 3 | QCLI-140 | quest-cli | QCLI-134 | ready — data-integrity, mirrors task/draft archive | 5 | src/cli/main.ts |
+| 4 | QCLI-141 | quest-cli | QCLI-134, QCLI-129 | ready — must reconcile the Quest skill, no "all" guide | 5 | agent-instructions.ts, .claude/skills/quest/SKILL.md |
+| 5 | QCLI-137 | quest-cli | none | ready, but AC1 is a product call (implement timestamps vs stop advertising them) | 5 | command-contract.ts, src/domain/tasks/tasks.ts |
+| — | QCLI-134 | quest-cli | — | 8 of 8 gaps triaged; AC3/AC4 (exclusions-as-policy, envelope convergence) still open | 4 | docs/ policy record |
+| — | QCLI-142..145 | quest-cli | QCLI-134 | FUTURE, explicitly not scheduled by the owner | — | — |
+| — | QCLI-135, QCLI-136 | quest-cli | — | blocked — need an authorized release; owner deferred 2026-08-29 | — | release process |
+| — | QCLI-97.5, 97.6 | quest-cli | cross-repo | blocked — Lore-side adapter contract, open since 2026-08-19 | carried | src/ports |
+| — | QCLI-97, 97.11, 97.11.4, 97.11.5 | quest-cli | ODOC-63.2 chain | carried, not triaged | carried | — |
 
 ## FMC coordination
 | Message/approval id | Sender | Recipient | Status | Next action |
 | --- | --- | --- | --- | --- |
-| (history in .codex/handovers/active.md) | opum-doc | quest-cli | 10 delivered/closed through 2026-08-28 | none outstanding; no reply owed |
+| history retained in prior handovers | opum-doc | quest-cli | 10 correlations delivered/closed through 2026-08-28 | none outstanding; no reply owed |
 | approvals | none | none | 0 pending | none |
 
 ## Worktrees and retained artifacts
 | Repository/path/ref | Owner | Lease/status | Disposition | Cleanup condition |
 | --- | --- | --- | --- | --- |
-| /Volumes/external/repos/quest-cli / dev | quest-cli | primary, not leased | clean, == origin/dev @ 3852c3c | none; owner-local |
-| pool slot 1, slot 3 | quest-cli | available | all campaign leases returned this session | reusable |
+| /Volumes/external/repos/quest-cli / dev | quest-cli | primary, not leased | clean, == origin/dev | none; owner-local |
+| pool slots 1 and 3 | quest-cli | available | all campaign leases returned | reusable |
 | pool slot 2 — lease 2ee86dc2783cc2e01a588f3a15317948, branch quest/odoc-71.8-stdin-transport | foreign holder | leased, untouched | possible unlanded foreign work | owner-managed |
 | local retention/primary-dirty-estate-20260828 @ e74f2b7 | quest-cli | local-only, never push | predecessor dirty estate, byte-preserved | never; restore paths on demand |
 
 ## Resolved
 | Task | Wave | Disposition | Evidence pointer |
 | --- | --- | --- | --- |
-| QCLI-125 | 2 | Done — actionable no-git-repo message | PR #162 |
-| QCLI-127 | 2 | Done — human-readable quest help | PR #162 |
+| QCLI-125, QCLI-127 | 2 | Done — actionable no-git-repo error; human-readable quest help | PR #162 |
 | QCLI-131 | 2 | Done — bun.lock drift that was failing CI for every src PR | PR #163 |
 | QCLI-130 | 2 | Done — false alarm, local bun 1.2.23 vs CI-pinned 1.3.14 | task record |
-| QCLI-126 | 3 | Done — init wizard (name + prefix + instructions) | PRs #165, #170 |
-| QCLI-128 | 3 | Done — quest instructions reviewed, zero discrepancies | task record |
-| QCLI-129 | 3 | Done — Quest skill scaffolded and auto-installed by agents/init | PR #166 |
+| QCLI-126, QCLI-128, QCLI-129 | 3 | Done — init wizard; instructions reviewed; Quest skill scaffolded and auto-installed | PRs #165, #166, #170 |
 | QCLI-132 | 4 | Done — canonical task-ID prefix made workspace-configurable | PR #170 |
 | QCLI-133 | 4 | Done — task edit can mutate title/priority/type/ordinal | PR #172 |
 
 ## Human decisions and blockers
-- QCLI-134: all four ACs are product judgments (implement vs accept-as-exclusion for 8 remaining gaps, the AC-checkbox correctness call, writing exclusions down as policy, envelope convergence). Gap 1 of 9 closed by QCLI-133.
-- QCLI-135 / QCLI-136 AC5: need a published release. Registry writes and dev→main promotion are never standing Worker authority per AGENTS.md.
-- QCLI-97.5: needs an owner-approved Lore-side Quest adapter contract; Lore owns that side. Blocks QCLI-97.6.
-- NEW, unfiled: manifest declares createdAt/updatedAt on task list/view/create, but the CLI never returns them and the store never holds them. Same class as QCLI-133. Recorded on QCLI-134; owner to decide whether to file.
+- RESOLVED 2026-08-29: QCLI-134's 8-gap triage. Owner decided each individually — implement QCLI-138/139/140/141; defer QCLI-142/143/144/145 as future-not-scheduled. No "all" instructions guide. QCLI-141 must reconcile the QCLI-129 skill rather than fork guidance.
+- RESOLVED 2026-08-29: the createdAt/updatedAt contract gap is filed as QCLI-137.
+- OPEN — release authority: QCLI-135 and QCLI-136 AC5 need a published release. Owner deferred; registry writes and dev→main are never standing Worker authority.
+- OPEN — cross-repo: QCLI-97.5 needs an owner-approved Lore-side Quest adapter contract. Blocks QCLI-97.6.
+- OPEN — QCLI-134 AC3/AC4: write the doc/config/mcp exclusions down as product policy, and record whether the Quest and Backlog envelopes are ever meant to converge.
 
 ## Wave log
 - Wave 1 (2026-08-17..19): QCLI-123, QCLI-124 settled.
-- Wave 2 (2026-08-28): reconciled a stale tracker pointer and the release-truth doc against live npm/GitHub state; removed the forbidden repo-level backlog-handover shadow; QCLI-125/127/130/131 settled. Found and fixed bun.lock drift that was silently failing source-gates for any src-touching PR.
-- Wave 3 (2026-08-28): QCLI-126/128/129 settled. Reconciled a real divergence with a concurrent operator session (unpushed QCLI-136 commit merged rather than stranded, PR #168); persisted its QCLI-133..135 findings.
-- Wave 4 (2026-08-28): QCLI-132 unblocked QCLI-126's last AC and most of QCLI-136; QCLI-133 closed the edit-field gap and its AC4 re-verification surfaced the createdAt/updatedAt contract gap. Queue then reached zero agent-resolvable items.
+- Wave 2 (2026-08-28): reconciled a stale tracker pointer and the release-truth doc against live npm/GitHub state; removed the forbidden repo-level backlog-handover shadow; QCLI-125/127/130/131 settled. Found and fixed bun.lock drift silently failing source-gates for any src-touching PR.
+- Wave 3 (2026-08-28): QCLI-126/128/129 settled. Reconciled a real divergence with a concurrent operator session (unpushed QCLI-136 commit merged rather than stranded, PR #168).
+- Wave 4 (2026-08-28): QCLI-132 unblocked QCLI-126's last AC and most of QCLI-136; QCLI-133 closed the edit-field gap and its AC4 re-verification surfaced the createdAt/updatedAt contract gap.
+- Wave 4 settlement (2026-08-29): owner triaged all 8 remaining parity gaps individually; filed QCLI-137..145. Verified against Lore 0.3.4's shipped binary that no parity gap blocks Lore. Queue reopened with 4 ready implementation tasks.

@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-28 21:31'
-updated_date: '2026-08-28 23:51'
+updated_date: '2026-08-29 00:33'
 labels:
   - parity
   - audit
@@ -68,4 +68,43 @@ Gap 1 of the nine (task edit --title/--priority/--type/--ordinal) is CLOSED as o
 Also relevant to this triage, found while re-verifying QCLI-97.10 under QCLI-133 AC4 and not currently in the nine: the manifest declares createdAt and updatedAt on task list, task view and task create, but the CLI never returns them and .quest/tasks/<id>.json never stores them. Isolated from ordinary unset-field omission by setting summary/description/assignee/reference/modified-file - all appeared, the timestamps did not. That is a contract-vs-implementation gap of the same class as gap 1 and may belong in this register; recorded here rather than filed, pending the owner's call.
 
 No triage decisions taken by this session: every remaining AC requires a product judgment (implement vs accept-as-deliberate-exclusion, the AC-checkbox correctness call, writing declared exclusions down as policy, and whether the envelopes are ever meant to converge). Those are owner decisions under AGENTS.md, not agent-resolvable.
+
+TRIAGE COMPLETE 2026-08-29 — owner decided each of the 8 remaining gaps individually.
+
+| Gap | Decision | Task |
+| --- | --- | --- |
+| 1. task edit title/priority/type/ordinal | already implemented | QCLI-133 (Done, PR #172) |
+| 2. Index-addressed AC/DoD checkbox ops | implement | QCLI-138 (High) |
+| 3. task list --ready + selection filters | implement | QCLI-139 |
+| 4. search filters | future, not scheduled | QCLI-142 |
+| 5. board export | future, not scheduled | QCLI-143 |
+| 6. milestone archive | implement | QCLI-140 |
+| 7. doctor --fix | future, design pass first | QCLI-144 |
+| 8. instructions <guide> + --list | implement now | QCLI-141 |
+| 9. completion (flat namespace + shells) | future, not scheduled | QCLI-145 |
+
+AC2 (the acceptance-criteria checkbox correctness call) resolved by choosing to
+implement index-addressed operations, not by accepting the race: QCLI-138 requires
+a concurrent-editor test proving two sequential index-addressed edits both survive
+where two wholesale replaces would not.
+
+Owner design decision recorded on QCLI-141: NO "all" guide. Neither reference
+implementation has one — Backlog exposes [guide] plus --list, Lore exposes
+[<topic>] and describes itself as task-scoped guidance "on demand". Splitting
+guides exists to keep agent context small; an "all" defeats that, and --list
+already covers discovery. QCLI-141 also carries the owner's requirement that the
+QCLI-129 Quest skill be reconciled against the guides rather than becoming a third
+divergent copy.
+
+DOWNSTREAM DEPENDENCY EVIDENCE (asked for during triage, gaps 4 and 5): Lore 0.3.4
+depends on none of these. Its shipped 85MB darwin-arm64 binary contains zero
+occurrences of --exclude-status, --unassigned, --ready, --sort, --modified-file,
+--task-type, or "board export". Its README pins the coupling to exactly three read
+commands — backlog task list --json, task view --json, search --json — with no
+--plain fallback and no filter flags. So no parity gap here blocks Lore today.
+
+Still open on this task: AC3 (write the doc/config/mcp exclusions down as product
+policy in the repository) and AC4 (record whether the Quest and Backlog output
+envelopes are ever meant to converge). Both are documentation of settled product
+policy and were not taken up in this triage pass.
 <!-- SECTION:NOTES:END -->
