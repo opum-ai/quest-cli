@@ -10,6 +10,7 @@ export interface EditPatchVocabulary {
   readonly ordinal?: number;
   readonly summary?: string;
   readonly description?: string;
+  readonly finalSummary?: string;
   readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
@@ -92,6 +93,7 @@ export function foldEditPatch(
   if (patch.ordinal !== undefined) next.ordinal = patch.ordinal;
   if (patch.summary !== undefined) next.summary = patch.summary;
   if (patch.description !== undefined) next.description = patch.description;
+  if (patch.finalSummary !== undefined) next.finalSummary = patch.finalSummary;
   if (patch.labels !== undefined) next.labels = [...patch.labels];
   else if (patch.addLabels?.length || patch.removeLabels?.length)
     next.labels = mergeList(

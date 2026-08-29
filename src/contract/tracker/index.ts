@@ -194,6 +194,7 @@ export interface TrackerEditPatch {
   readonly ordinal?: number;
   readonly summary?: string;
   readonly description?: string;
+  readonly finalSummary?: string;
   readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
@@ -656,6 +657,7 @@ export class QuestTrackerClient {
           "definitionOfDone",
           "description",
           "documentation",
+          "finalSummary",
           "implementationNotes",
           "labels",
           "milestoneId",
@@ -810,6 +812,8 @@ export class QuestTrackerClient {
     if (patch.summary !== undefined) argv.push("--summary", patch.summary);
     if (patch.description !== undefined)
       argv.push("--description", patch.description);
+    if (patch.finalSummary !== undefined)
+      argv.push("--final-summary", patch.finalSummary);
     if (patch.labels !== undefined)
       argv.push("--labels", JSON.stringify(patch.labels));
     appendRepeated(argv, "--add-label", patch.addLabels);

@@ -577,10 +577,17 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
     expect(clearedAc.acceptanceCriteria).toEqual([]);
     expect(clearedAc.definitionOfDone).toEqual([]);
 
-    // The four scalars QCLI-133 added to the vocabulary reach the CLI too.
+    // The four scalars QCLI-133 added to the vocabulary reach the CLI too,
+    // and so does the final summary QCLI-147 added.
     const rescoped = await client.edit(
       created.id,
-      { title: "Renamed", priority: "high", type: "bug", ordinal: 42 },
+      {
+        title: "Renamed",
+        priority: "high",
+        type: "bug",
+        ordinal: 42,
+        finalSummary: "closed out",
+      },
       actor,
     );
     expect(rescoped).toMatchObject({
@@ -588,6 +595,7 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       priority: "high",
       type: "bug",
       ordinal: 42,
+      finalSummary: "closed out",
     });
 
     // The CLI owns the collision rules; the adapter surfaces them rather than

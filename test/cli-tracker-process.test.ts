@@ -2219,3 +2219,72 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
     await rm(store, { recursive: true, force: true });
   }
 });
+
+test("task edit can set a final summary on an existing task (QCLI-147)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-final-summary-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Needs closing", ...human]);
+    const edited = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--final-summary",
+          "Fixed the fold; 14 tests cover it.",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(edited.finalSummary).toBe("Fixed the fold; 14 tests cover it.");
+
+    // It persists, and a later edit that does not mention it leaves it alone.
+    await quest(store, ["task", "edit", "T-1", "--summary", "s", ...human]);
+    const viewed = JSON.parse(
+      (await quest(store, ["task", "view", "T-1", "--json"])).stdout,
+    ).data;
+    expect(viewed.finalSummary).toBe("Fixed the fold; 14 tests cover it.");
+
+    // Replacing it works, which is the whole point: create-only meant a
+    // summary written once could never be corrected.
+    const rewritten = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--final-summary",
+          "Corrected.",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(rewritten.finalSummary).toBe("Corrected.");
+
+    // And through the batch transport, which shares the same fold.
+    const operations = join(store, "ops.jsonl");
+    await writeFile(
+      operations,
+      JSON.stringify({
+        reference: "T-1",
+        operationId: "op-1",
+        patch: { finalSummary: "From the batch." },
+      }),
+    );
+    const batch = await quest(store, [
+      "task",
+      "edit-batch",
+      "--file",
+      operations,
+      ...human,
+    ]);
+    expect(batch.exitCode).toBe(0);
+    expect(
+      JSON.parse((await quest(store, ["task", "view", "T-1", "--json"])).stdout)
+        .data.finalSummary,
+    ).toBe("From the batch.");
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});

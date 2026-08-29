@@ -173,6 +173,7 @@ export const commandHelp: Record<
       "--ordinal",
       "--summary",
       "--description",
+      "--final-summary",
       "--labels",
       "--add-label",
       "--remove-label",
