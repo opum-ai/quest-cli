@@ -1,0 +1,12 @@
+{
+  "id": "task-1",
+  "title": "Scan repository for TODO comments and generate report",
+  "status": "in_progress",
+  "depends_on": [],
+  "created_at": "2026-08-29T13:25:10.650Z",
+  "updated_at": "2026-08-29T13:25:10.668Z",
+  "attempt_count": 1,
+  "started_at": "2026-08-29T13:25:10.659Z",
+  "base_commit": "4fdb72bf5eab4a5d7bb5b66d1f745fb01087a27c",
+  "assigned_to": "SwiftXenon"
+}

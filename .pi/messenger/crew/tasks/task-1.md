@@ -1,0 +1,3 @@
+# Scan repository for TODO comments and generate report
+
+Scan the quest-cli repository for all TODO-like comments (TODO, FIXME, HACK, XXX, NOTE patterns, case-insensitive) in source and documentation files (src/**/*.ts, test/**/*.ts, docs/**/*.md, scripts/**/*.ts, bin/**/*.ts). Exclude node_modules, .git, .pi, archive, npm, and hidden config directories. Use ripgrep (rg) to search, capturing file path, line number, and full comment text. Count findings by category. Generate a summary report (TODO_REPORT.md) grouped by file with counts of each comment type. If no comments found, clearly state that in the report.

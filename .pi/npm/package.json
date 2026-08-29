@@ -1,0 +1,10 @@
+{
+  "name": "pi-extensions",
+  "private": true,
+  "dependencies": {
+    "@tintinweb/pi-subagents": "^0.19.0",
+    "cc-safety-net": "^2.2.2",
+    "pi-messenger": "^0.15.2",
+    "pi-web-access": "^0.27.0"
+  }
+}

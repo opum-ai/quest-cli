@@ -1,0 +1,10 @@
+{
+  "runId": "1f6d36a3",
+  "agent": "crew-planner",
+  "index": 0,
+  "exitCode": 1,
+  "durationMs": 231,
+  "tokens": 0,
+  "truncated": false,
+  "error": "No API key found for anthropic.\n\nUse /login to log into a provider via OAuth or API key. See:\n  /Users/jdnewhouse/.nvm/versions/node/v24.20.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md\n  /Users/jdnewhouse/.nvm/versions/node/v24.20.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/models.md\n"
+}

@@ -1,0 +1,7 @@
+{
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-messenger",
+    "npm:cc-safety-net"
+  ]
+}
