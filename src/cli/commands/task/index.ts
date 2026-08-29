@@ -2,7 +2,10 @@ import {
   foldEditPatch,
   type EditPatchVocabulary as TrackerEditPatch,
 } from "../../../application/tasks/edit-patch.ts";
-import type { TaskService } from "../../../application/tasks/tasks.ts";
+import type {
+  TaskListQuery,
+  TaskService,
+} from "../../../application/tasks/tasks.ts";
 
 type TrackerTask = Awaited<ReturnType<TaskService["view"]>>;
 type TrackerTaskInput = Parameters<TaskService["create"]>[1];
@@ -15,11 +18,7 @@ export interface TaskCommandActor {
 
 export type TaskCommandRequest =
   | { readonly command: "status-flow" }
-  | {
-      readonly command: "list";
-      readonly status?: string;
-      readonly labels?: readonly string[];
-    }
+  | ({ readonly command: "list" } & TaskListQuery)
   | { readonly command: "view"; readonly reference: string }
   | { readonly command: "search"; readonly query: string }
   | {
@@ -132,19 +131,11 @@ export async function dispatchTrackerTaskCommand(
         },
       };
     case "list": {
-      const status = request.status
-        ? tasks.resolveStatus(request.status)
-        : undefined;
-      const listed = await tasks.list();
+      const { command: _command, ...query } = request;
       return {
         schemaVersion: 1,
         kind: "task.list",
-        data: listed.filter(
-          (task) =>
-            (!status || task.status === status) &&
-            (!request.labels?.length ||
-              request.labels.every((label) => task.labels.includes(label))),
-        ),
+        data: await tasks.listFiltered(query),
       };
     }
     case "view":

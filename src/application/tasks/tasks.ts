@@ -164,6 +164,78 @@ function rebuildSlot(
 /** Application-level default so CLI composition never imports the domain layer directly. */
 export const defaultTaskLifecyclePolicy = defaultLifecyclePolicy;
 
+/** The complete `task list` selection vocabulary; the CLI layer only parses argv into this. */
+export interface TaskListQuery {
+  readonly status?: string;
+  readonly labels?: readonly string[];
+  readonly ready?: boolean;
+  readonly now?: Date;
+  readonly excludeStatuses?: readonly string[];
+  readonly assignees?: readonly string[];
+  readonly unassigned?: boolean;
+  readonly milestoneId?: string;
+  readonly parentId?: string;
+  readonly priority?: string;
+  readonly type?: string;
+  readonly search?: string;
+  readonly limit?: number;
+  readonly sort?: {
+    readonly field: string;
+    readonly direction: "asc" | "desc";
+  };
+}
+
+const TASK_LIST_SORT_FIELDS = new Set([
+  "id",
+  "title",
+  "status",
+  "priority",
+  "type",
+  "ordinal",
+  "createdAt",
+  "updatedAt",
+]);
+
+function taskListSortValue(task: TaskState, field: string): string | number {
+  switch (field) {
+    case "id":
+      return task.id;
+    case "title":
+      return task.title;
+    case "status":
+      return task.status;
+    case "priority":
+      return task.priority ?? "";
+    case "type":
+      return task.type ?? "";
+    case "ordinal":
+      return task.ordinal ?? 0;
+    case "createdAt":
+      return task.createdAt ?? "";
+    case "updatedAt":
+      return task.updatedAt ?? "";
+    default:
+      throw new RecordValidationError("task_list_sort_field_invalid");
+  }
+}
+
+function sortTasksBy(
+  tasks: readonly TaskState[],
+  sort: NonNullable<TaskListQuery["sort"]>,
+): readonly TaskState[] {
+  if (!TASK_LIST_SORT_FIELDS.has(sort.field))
+    throw new RecordValidationError("task_list_sort_field_invalid");
+  const direction = sort.direction === "desc" ? -1 : 1;
+  return [...tasks].sort((a, b) => {
+    const left = taskListSortValue(a, sort.field);
+    const right = taskListSortValue(b, sort.field);
+    if (left < right) return -1 * direction;
+    if (left > right) return 1 * direction;
+    // Ties always break by ascending id, independent of sort direction.
+    return a.id.localeCompare(b.id);
+  });
+}
+
 export class TaskService {
   private readonly batchRepository: BatchTaskRepository | undefined;
 
@@ -316,6 +388,46 @@ export class TaskService {
     return [...(await this.repository.readAll()).tasks].sort((a, b) =>
       a.id.localeCompare(b.id),
     );
+  }
+  /**
+   * The full `task list` selection contract in one place: readiness delegates
+   * to {@link evaluateReadySet}, search delegates to {@link searchTasks}, and
+   * every other filter composes as a plain predicate. Sort and limit apply
+   * last, after every filter, so `--limit` truncates the final ordering.
+   */
+  async listFiltered(query: TaskListQuery): Promise<readonly TaskState[]> {
+    const status = query.status ? this.resolveStatus(query.status) : undefined;
+    const excludeStatuses = query.excludeStatuses?.length
+      ? new Set(query.excludeStatuses.map((value) => this.resolveStatus(value)))
+      : undefined;
+    const listed = await this.list();
+    const readyIds = query.ready
+      ? new Set((await this.ready(query.now ?? new Date())).ready)
+      : undefined;
+    const searched = query.search
+      ? new Set(searchTasks(listed, query.search).map((task) => task.id))
+      : undefined;
+    const filtered = listed.filter(
+      (task) =>
+        (!status || task.status === status) &&
+        !excludeStatuses?.has(task.status) &&
+        (!query.labels?.length ||
+          query.labels.every((label) => task.labels.includes(label))) &&
+        (!query.assignees?.length ||
+          query.assignees.every((assignee) =>
+            task.assignees?.includes(assignee),
+          )) &&
+        (!query.unassigned || !task.assignees?.length) &&
+        (query.milestoneId === undefined ||
+          task.milestoneId === query.milestoneId) &&
+        (query.parentId === undefined || task.parentId === query.parentId) &&
+        (query.priority === undefined || task.priority === query.priority) &&
+        (query.type === undefined || task.type === query.type) &&
+        (!readyIds || readyIds.has(task.id)) &&
+        (!searched || searched.has(task.id)),
+    );
+    const sorted = query.sort ? sortTasksBy(filtered, query.sort) : filtered;
+    return query.limit === undefined ? sorted : sorted.slice(0, query.limit);
   }
   /** Lists every canonical task, including retained lifecycle records. */
   async listIncludingRetained(): Promise<readonly TaskState[]> {

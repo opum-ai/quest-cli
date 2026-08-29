@@ -246,10 +246,15 @@ beforeEach(async () => {
   fixtureDirectory = await mkdtemp(join(tmpdir(), "quest-projection-"));
 });
 
+// The installed bun runtime's afterEach does not accept a per-hook timeout
+// (bun-types 1.3.14 advertises one, but bun 1.2.23 rejects any second
+// argument); fixtureTeardownTimeoutMs remains as the documented budget this
+// cleanup is expected to fit inside, folded into the tests' own timeouts
+// below instead.
 afterEach(async () => {
   if (fixtureDirectory) await removeFixtureDirectory(fixtureDirectory);
   fixtureDirectory = undefined;
-}, fixtureTeardownTimeoutMs);
+});
 
 function databasePath(): string {
   if (!fixtureDirectory)

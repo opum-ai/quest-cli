@@ -71,3 +71,174 @@ test("task command mapping preserves read records and requires actor declaration
     data: { documentation: ["docs/stories/replaced.md"] },
   });
 });
+
+test("task list composes --ready with every other selection filter", async () => {
+  const service = new TaskService(new MemoryTasks());
+  const actor = { id: "person-1", kind: "human" as const };
+  async function create(
+    id: string,
+    overrides: Partial<Parameters<TaskService["create"]>[1]> = {},
+  ) {
+    await dispatchTrackerTaskCommand(service, {
+      command: "create",
+      id,
+      operationId: `op-${id}`,
+      actor,
+      input: {
+        title: id,
+        labels: [],
+        documentation: [],
+        ...overrides,
+      },
+    });
+  }
+  await create("T-1", {
+    labels: ["backend"],
+    priority: "high",
+    type: "feature",
+    assignees: ["person-2"],
+    milestoneId: undefined,
+  });
+  await create("T-2", {
+    labels: ["frontend"],
+    priority: "low",
+    type: "bug",
+    dependencies: ["T-1"],
+  });
+  await create("T-3", { labels: ["backend"], priority: "high" });
+  await dispatchTrackerTaskCommand(service, {
+    command: "edit",
+    reference: "T-1",
+    operationId: "op-t1-parent",
+    actor,
+    patch: {},
+  });
+
+  // --ready: T-2 depends on T-1 (still "To Do"), so only T-1 and T-3 are ready.
+  await expect(
+    dispatchTrackerTaskCommand(service, { command: "list", ready: true }),
+  ).resolves.toMatchObject({
+    kind: "task.list",
+    data: [{ id: "T-1" }, { id: "T-3" }],
+  });
+
+  // --ready composed with --label narrows further.
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      ready: true,
+      labels: ["backend"],
+    }),
+  ).resolves.toMatchObject({
+    kind: "task.list",
+    data: [{ id: "T-1" }, { id: "T-3" }],
+  });
+
+  // --exclude-status drops Done/etc; here nothing is Done yet so all remain,
+  // but composed with --priority it narrows to the high-priority tasks.
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      priority: "high",
+    }),
+  ).resolves.toMatchObject({
+    kind: "task.list",
+    data: [{ id: "T-1" }, { id: "T-3" }],
+  });
+
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      type: "bug",
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-2" }] });
+
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      assignees: ["person-2"],
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-1" }] });
+
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      unassigned: true,
+    }),
+  ).resolves.toMatchObject({
+    kind: "task.list",
+    data: [{ id: "T-2" }, { id: "T-3" }],
+  });
+
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      search: "T-2",
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-2" }] });
+
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      excludeStatuses: ["To Do"],
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [] });
+
+  // Lexicographic descending on the string "priority" field: "low" sorts
+  // after "high" alphabetically, so it comes first in descending order;
+  // ties ("high"/"high") always break by ascending id, regardless of
+  // sort direction.
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      sort: { field: "priority", direction: "desc" },
+    }),
+  ).resolves.toMatchObject({
+    kind: "task.list",
+    data: [{ id: "T-2" }, { id: "T-1" }, { id: "T-3" }],
+  });
+
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      limit: 1,
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-1" }] });
+});
+
+test("task list --milestone and --parent filter on the exact reference", async () => {
+  const service = new TaskService(new MemoryTasks());
+  const actor = { id: "person-1", kind: "human" as const };
+  await dispatchTrackerTaskCommand(service, {
+    command: "create",
+    id: "T-1",
+    operationId: "op-1",
+    actor,
+    input: { title: "Parent", labels: [], documentation: [] },
+  });
+  await dispatchTrackerTaskCommand(service, {
+    command: "create",
+    id: "T-2",
+    operationId: "op-2",
+    actor,
+    input: {
+      title: "Child",
+      labels: [],
+      documentation: [],
+      parentId: "T-1",
+      milestoneId: undefined,
+    },
+  });
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      parentId: "T-1",
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [{ id: "T-2" }] });
+  await expect(
+    dispatchTrackerTaskCommand(service, {
+      command: "list",
+      milestoneId: "M-1",
+    }),
+  ).resolves.toMatchObject({ kind: "task.list", data: [] });
+});

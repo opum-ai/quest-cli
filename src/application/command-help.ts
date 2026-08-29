@@ -97,9 +97,25 @@ export const commandHelp: Record<
     ],
   },
   "task list": {
-    summary: "List tasks, optionally filtered by status or label.",
-    usage: 'quest task list [--status "To Do"] [--label backend]',
-    flags: ["--status", "--label"],
+    summary:
+      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, or a search term.",
+    usage:
+      'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--search text] [--sort id[:asc|desc]] [--limit 20]',
+    flags: [
+      "--status",
+      "--exclude-status",
+      "--label",
+      "--ready",
+      "--assignee",
+      "--unassigned",
+      "--milestone",
+      "--parent",
+      "--priority",
+      "--type",
+      "--search",
+      "--sort",
+      "--limit",
+    ],
   },
   "task view": {
     summary: "View one task by id or alias.",
