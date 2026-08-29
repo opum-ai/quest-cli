@@ -189,6 +189,8 @@ export const commandHelp: Record<
       "--summary",
       "--description",
       "--final-summary",
+      "--clear-final-summary",
+      "--append-final-summary",
       "--labels",
       "--add-label",
       "--remove-label",

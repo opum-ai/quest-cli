@@ -166,6 +166,7 @@ function flags(
     "--clear-milestone",
     "--clear-ac",
     "--clear-dod",
+    "--clear-final-summary",
     "--list",
     "--ready",
     "--unassigned",
@@ -1984,6 +1985,7 @@ export async function runQuest(
             (/^(add|remove)[A-Z]/.test(patchKey) &&
               !indexListFields.has(patchKey)) ||
             [
+              "appendFinalSummary",
               "labels",
               "documentation",
               "plan",
@@ -1998,6 +2000,7 @@ export async function runQuest(
             "clearMilestone",
             "clearAcceptanceCriteria",
             "clearDefinitionOfDone",
+            "clearFinalSummary",
           ]);
           const checklistFields = new Set([
             "acceptanceCriteria",
@@ -2127,6 +2130,7 @@ export async function runQuest(
         "--remove-plan",
         "--add-note",
         "--remove-note",
+        "--append-final-summary",
         "--add-comment",
         "--remove-comment",
         "--add-dependency",
@@ -2155,6 +2159,8 @@ export async function runQuest(
           "--summary",
           "--description",
           "--final-summary",
+          "--clear-final-summary",
+          "--append-final-summary",
           "--labels",
           "--add-label",
           "--remove-label",
@@ -2218,6 +2224,9 @@ export async function runQuest(
             summary: one(parsed, "--summary"),
             description: one(parsed, "--description"),
             finalSummary: one(parsed, "--final-summary"),
+            clearFinalSummary:
+              parsed.values.has("--clear-final-summary") || undefined,
+            appendFinalSummary: parsed.values.get("--append-final-summary"),
             labels: stringValue(parsed, "--labels"),
             addLabels: parsed.values.get("--add-label"),
             removeLabels: parsed.values.get("--remove-label"),
@@ -2300,6 +2309,14 @@ export async function runQuest(
         "A checklist position does not exist on this task.",
         {
           hint: "Positions are 1-based. Read the task and count from 1, or use --clear-ac/--clear-dod to empty the list.",
+        },
+      );
+    if (message === "final_summary_operation_conflict")
+      return failure(
+        "usage",
+        "--clear-final-summary cannot be combined with a final summary value.",
+        {
+          hint: "Use --clear-final-summary on its own, or --final-summary/--append-final-summary without it.",
         },
       );
     if (message === "check_operation_conflict")

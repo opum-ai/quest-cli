@@ -2345,3 +2345,155 @@ test("task edit can set a final summary on an existing task (QCLI-147)", async (
     await rm(store, { recursive: true, force: true });
   }
 });
+
+test("final summary can be cleared and appended, not only replaced (QCLI-149)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-final-summary-ops-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  const summary = async () =>
+    JSON.parse((await quest(store, ["task", "view", "T-1", "--json"])).stdout)
+      .data.finalSummary;
+  try {
+    await quest(store, ["task", "create", "Closing", ...human]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--final-summary",
+      "First pass.",
+      ...human,
+    ]);
+
+    // Appending extends rather than replaces, and joins as a paragraph: a
+    // summary extended after review reads as a second paragraph.
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--append-final-summary",
+      "Review found two things.",
+      ...human,
+    ]);
+    expect(await summary()).toBe("First pass.\n\nReview found two things.");
+
+    // Repeatable, and appends in CLI order after a replacement in the same
+    // command, matching --append-plan and --append-notes.
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--final-summary",
+      "Rewritten.",
+      "--append-final-summary",
+      "Then this.",
+      "--append-final-summary",
+      "And this.",
+      ...human,
+    ]);
+    expect(await summary()).toBe("Rewritten.\n\nThen this.\n\nAnd this.");
+
+    // Appending to a task that never had one does not lead with a blank line.
+    await quest(store, ["task", "create", "Fresh", ...human]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-2",
+      "--append-final-summary",
+      "Only paragraph.",
+      ...human,
+    ]);
+    expect(
+      JSON.parse((await quest(store, ["task", "view", "T-2", "--json"])).stdout)
+        .data.finalSummary,
+    ).toBe("Only paragraph.");
+
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--clear-final-summary",
+      ...human,
+    ]);
+    expect(await summary()).toBe("");
+
+    // Clear is exclusive, and the error names the corrective combination.
+    for (const argv of [
+      ["--clear-final-summary", "--final-summary", "x"],
+      ["--clear-final-summary", "--append-final-summary", "x"],
+    ]) {
+      const conflicting = await quest(store, [
+        "task",
+        "edit",
+        "T-1",
+        ...argv,
+        ...human,
+      ]);
+      expect(conflicting.exitCode).toBe(2);
+      expect(JSON.parse(conflicting.stderr)).toMatchObject({
+        error_type: "usage",
+        message:
+          "--clear-final-summary cannot be combined with a final summary value.",
+      });
+    }
+
+    // Both reach edit-batch through the shared fold.
+    const operations = join(store, "ops.jsonl");
+    await writeFile(
+      operations,
+      [
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "op-1",
+          patch: {
+            finalSummary: "Batched.",
+            appendFinalSummary: ["Extended."],
+          },
+        }),
+        JSON.stringify({
+          reference: "T-2",
+          operationId: "op-2",
+          patch: { clearFinalSummary: true },
+        }),
+      ].join("\n"),
+    );
+    expect(
+      (
+        await quest(store, [
+          "task",
+          "edit-batch",
+          "--file",
+          operations,
+          ...human,
+        ])
+      ).exitCode,
+    ).toBe(0);
+    expect(await summary()).toBe("Batched.\n\nExtended.");
+    expect(
+      JSON.parse((await quest(store, ["task", "view", "T-2", "--json"])).stdout)
+        .data.finalSummary,
+    ).toBe("");
+
+    // The batch grammar types both: a list for append, a boolean for clear.
+    for (const patch of [
+      { appendFinalSummary: "not a list" },
+      { clearFinalSummary: "yes" },
+    ]) {
+      await writeFile(
+        operations,
+        JSON.stringify({ reference: "T-1", operationId: "op-x", patch }),
+      );
+      const rejected = await quest(store, [
+        "task",
+        "edit-batch",
+        "--file",
+        operations,
+        ...human,
+      ]);
+      expect({ patch, exitCode: rejected.exitCode }).toEqual({
+        patch,
+        exitCode: 2,
+      });
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});

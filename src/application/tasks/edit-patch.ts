@@ -11,6 +11,14 @@ export interface EditPatchVocabulary {
   readonly summary?: string;
   readonly description?: string;
   readonly finalSummary?: string;
+  /**
+   * Final-summary retirement and extension (QCLI-149), mirroring
+   * `clearAcceptanceCriteria` and `addPlan`. Appending joins with a blank
+   * line: a summary extended after review reads as a second paragraph, not a
+   * run-on sentence.
+   */
+  readonly clearFinalSummary?: boolean;
+  readonly appendFinalSummary?: readonly string[];
   readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
@@ -93,7 +101,13 @@ export function foldEditPatch(
   if (patch.ordinal !== undefined) next.ordinal = patch.ordinal;
   if (patch.summary !== undefined) next.summary = patch.summary;
   if (patch.description !== undefined) next.description = patch.description;
-  if (patch.finalSummary !== undefined) next.finalSummary = patch.finalSummary;
+  const finalSummary = foldFinalSummary(
+    current.finalSummary,
+    patch.finalSummary,
+    patch.clearFinalSummary,
+    patch.appendFinalSummary,
+  );
+  if (finalSummary !== undefined) next.finalSummary = finalSummary;
   if (patch.labels !== undefined) next.labels = [...patch.labels];
   else if (patch.addLabels?.length || patch.removeLabels?.length)
     next.labels = mergeList(
@@ -293,4 +307,29 @@ function positions(
     result.add(value);
   }
   return result;
+}
+
+/**
+ * Folds the final-summary replacement, clear and append into one value, or
+ * `undefined` when the patch touches none of them.
+ *
+ * `clear` is exclusive for the same reason it is on a checklist: combining it
+ * with a value asks for two different outcomes at once. A replacement and an
+ * append do compose, in that order, so one command can rewrite a summary and
+ * extend it.
+ */
+function foldFinalSummary(
+  current: string | undefined,
+  replacement: string | undefined,
+  clear: boolean | undefined,
+  appended: readonly string[] | undefined,
+): string | undefined {
+  if (clear === true) {
+    if (replacement !== undefined || (appended?.length ?? 0) > 0)
+      throw new RecordValidationError("final_summary_operation_conflict");
+    return "";
+  }
+  if (!appended?.length) return replacement;
+  const base = replacement ?? current ?? "";
+  return [base, ...appended].filter((part) => part.length > 0).join("\n\n");
 }
