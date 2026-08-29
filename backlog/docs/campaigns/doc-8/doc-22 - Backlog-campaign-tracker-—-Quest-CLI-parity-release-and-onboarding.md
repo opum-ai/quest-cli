@@ -3,7 +3,7 @@ id: doc-22
 title: 'Backlog campaign tracker — Quest CLI parity, release, and onboarding'
 type: other
 created_date: '2026-08-19 03:32'
-updated_date: '2026-08-29 15:23'
+updated_date: '2026-08-29 17:36'
 ---
 # Backlog campaign — Quest CLI parity, release, and onboarding
 
@@ -23,19 +23,18 @@ updated_date: '2026-08-29 15:23'
 ## Repositories and routing
 | Repository | Task ids | Mutation owner/FMC identity | AGENTS authority | Integration branch and pinned base | Required gates |
 | --- | --- | --- | --- | --- | --- |
-| quest-cli | QCLI-97.x, QCLI-134..149 | quest-cli (FMC Worker) | autonomous-docs, dev only | dev @ 2799d0e17c2f19a9e9dc9c0bbbecc2ec1e5c9e04 | source-gates + 6 platform jobs, typecheck/lint/layer/format, Lore strict gates |
+| quest-cli | QCLI-97.x, QCLI-134..149 | quest-cli (FMC Worker) | autonomous-docs, dev only | dev @ 2c30f5f | source-gates + 6 platform jobs, typecheck/lint/layer/format, Lore strict gates |
 
 ## Frontier
-The owner-approved queue is EMPTY. Resolved 16 (QCLI-125..133, 137..141, 146, 147). In flight 2,
-both blocked cross-repo. Nothing remaining is authorized: QCLI-148 and QCLI-149 were filed from
-this session's reviews and have no owner ruling; QCLI-142..145 are explicitly not scheduled;
-QCLI-134 AC3 is Lore-owned; QCLI-135/136 need a release the owner deferred.
+The owner-approved queue is EMPTY. Resolved 17 (QCLI-125..133, 137..141, 146, 147, 148). In flight 2, both blocked cross-repo.
+Nothing remaining is authorized. The owner took QCLI-148 and declined QCLI-149 on 2026-08-29;
+QCLI-142..145 are explicitly not scheduled; QCLI-134 AC3 is Lore-owned; QCLI-135/136 need a
+release the owner deferred twice.
 
 ## Queue
 | Order | Task | Repository/owner | Dependencies | State | Wave | Likely paths |
 | --- | --- | --- | --- | --- | --- | --- |
-| — | QCLI-148 | quest-cli | QCLI-141 | filed from review, awaiting an owner ruling | — | test/, guides.ts |
-| — | QCLI-149 | quest-cli | QCLI-147 | filed from review, awaiting an owner ruling | — | edit-patch.ts, main.ts |
+| — | QCLI-149 | quest-cli | QCLI-147 | filed from review; owner declined to schedule it 2026-08-29 | — | edit-patch.ts, main.ts |
 | — | QCLI-134 | quest-cli | — | AC1/AC2/AC4 closed; AC3 is the Lore-owned exclusions policy | 4 | consolidated Lore namespace |
 | — | QCLI-142..145 | quest-cli | QCLI-134 | FUTURE, explicitly not scheduled by the owner | — | — |
 | — | QCLI-135, QCLI-136 | quest-cli | — | blocked — release deferred by the owner 2026-08-29 and reaffirmed | — | release process |
@@ -52,7 +51,7 @@ QCLI-134 AC3 is Lore-owned; QCLI-135/136 need a release the owner deferred.
 | Repository/path/ref | Owner | Lease/status | Disposition | Cleanup condition |
 | --- | --- | --- | --- | --- |
 | /Volumes/external/repos/quest-cli | quest-cli | primary, not leased | local `dev` diverged by pi commits; ignored per standing instruction | none; do not reset |
-| pool slot 1 — lease d419d980c3c913f6327486b295b98602, branch quest/settle-campaign-wave6 | quest-cli | leased | this settlement | return after delivery |
+| pool slot 1 — lease 78c3729bcbff911ac319319645193642, branch quest/settle-campaign-handover | quest-cli | leased | this settlement | return after delivery |
 | pool slot 3 | quest-cli | available | every campaign lease taken this session was returned | reusable |
 | pool slot 2 — lease 2ee86dc2783cc2e01a588f3a15317948, branch quest/odoc-71.8-stdin-transport | foreign holder | leased, untouched | possible unlanded foreign work | owner-managed |
 | local retention/primary-dirty-estate-20260828 @ e74f2b7 | quest-cli | local-only, never push | predecessor dirty estate, byte-preserved | never; restore paths on demand |
@@ -73,11 +72,11 @@ QCLI-134 AC3 is Lore-owned; QCLI-135/136 need a release the owner deferred.
 | QCLI-146 | 6 | Done — tracker adapter reaches the index ops; vocabulary parity now compile-time | PR #180 |
 | QCLI-137 | 6 | Done — task timestamps stored and returned; sort fields restored | PR #181 |
 | QCLI-147 | 6 | Done — task edit --final-summary; reverted QCLI-141's caveat | PR #182 |
+| QCLI-148 | 6 | Done — the guides' own commands now run in a test; unrecognized fenced input fails rather than being skipped | PR #184 |
 
 ## Human decisions and blockers
-- OPEN — QCLI-148 and QCLI-149 were filed from this session's reviews and are the only unblocked
-  work left. They are new capability rather than completion of shipped work, so they need an owner
-  ruling before a wave takes them.
+- RESOLVED 2026-08-29: the owner took QCLI-148 (it completes the guard set) and declined to
+  schedule QCLI-149. QCLI-149 stays filed and unscheduled alongside QCLI-142..145.
 - OPEN — release authority: QCLI-135 and QCLI-136 AC5 need a published release. Owner deferred
   2026-08-29 and reaffirmed later the same day; eight PRs have landed since 0.2.9 with no soak.
 - OPEN — cross-repo: QCLI-97.5 needs an owner-approved Lore-side Quest adapter contract. Blocks QCLI-97.6.
