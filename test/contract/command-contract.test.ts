@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { questSkillContent } from "../../src/application/agents/agent-instructions.ts";
 import {
   readQuestConfiguration,
   validateQuestConfiguration,
@@ -476,34 +477,42 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "milestone.list",
       mutates: false,
-      fields: ["description", "status", "taskIds", "title"],
+      filters: ["include-archived"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone view",
       schemaVersion: 1,
       kind: "milestone.view",
       mutates: false,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone create",
       schemaVersion: 1,
       kind: "milestone.created",
       mutates: true,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone edit",
       schemaVersion: 1,
       kind: "milestone.updated",
       mutates: true,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone delete",
       schemaVersion: 1,
       kind: "milestone.deleted",
       mutates: true,
+    },
+    {
+      name: "milestone archive",
+      schemaVersion: 1,
+      kind: "milestone.archived",
+      mutates: true,
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "decision list",
@@ -694,4 +703,37 @@ test("migration capabilities advertise exact kinds and mutability", () => {
     expect(/^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/.test(kind)).toBe(true);
   expect(new Set(kinds).size).toBe(kinds.length);
   expect(validateCommandManifest(commandManifest)).toBe(true);
+});
+
+test("the published Quest skill lists every lifecycle verb the manifest declares", () => {
+  // The skill content is what `quest init --agent-instructions` writes to
+  // .claude/skills/quest/SKILL.md and `quest agents --check` diffs, so a verb
+  // added to a lifecycle group without touching it ships an agent-facing list
+  // that is quietly wrong. Prose spellings vary ("create/list/view", or the
+  // group named once and the verbs after it), so this reads every backticked
+  // span on a line that mentions the group rather than matching one shape.
+  for (const group of ["task", "draft", "milestone", "decision"]) {
+    const mentioned = new Set<string>();
+    for (const line of questSkillContent.split("\n")) {
+      const spans = [...line.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+      if (
+        !spans.some((span) => span === group || span?.startsWith(`${group} `))
+      )
+        continue;
+      for (const span of spans)
+        for (const token of (span ?? "")
+          .replace(new RegExp(`^${group}\\s+`), "")
+          .split(/[/\s]+/))
+          if (token) mentioned.add(token);
+    }
+    const declared = commandManifest.commands
+      .map((entry: { name: string }) => entry.name)
+      .filter((name: string) => name.startsWith(`${group} `))
+      .map((name: string) => name.slice(group.length + 1));
+    expect(declared.length).toBeGreaterThan(0);
+    expect({
+      group,
+      missing: declared.filter((verb: string) => !mentioned.has(verb)),
+    }).toEqual({ group, missing: [] });
+  }
 });

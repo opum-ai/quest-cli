@@ -145,7 +145,7 @@ Run \`quest doctor\` if something in the workspace looks inconsistent before wor
 - \`task status-flow\`            Print the configured task status set and terminal statuses
 - \`task binding\`                Bind an agent to a task under the Opum workflow contract
 - \`draft create/list/view/promote/archive\`   Draft lifecycle (an idea not yet promoted to a task)
-- \`milestone list/view/create/edit/delete\`   Milestone lifecycle
+- \`milestone list/view/create/edit/archive/delete\`   Milestone lifecycle
 - \`decision list/view/create/edit/delete\`    Decision-record lifecycle
 - \`search [--all]\`              Search tasks, or tasks + milestones + decisions together
 - \`overview\` / \`board\` / \`doctor\`   Project overview, kanban-style board, or consistency check
