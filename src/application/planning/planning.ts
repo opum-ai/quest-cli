@@ -324,6 +324,62 @@ export class PlanningService {
       })),
     };
   }
+  /**
+   * The board as a standalone Markdown artifact (QCLI-143).
+   *
+   * `board --json` serves machines and `quest browser` serves a live view;
+   * what neither gives you is something to paste into a pull request. Titles
+   * are joined here because {@link board} returns bare ids, and a column of
+   * ids is not a board anyone can read.
+   *
+   * Statuses are emitted in the configured lifecycle order rather than
+   * alphabetically, because a board reads To Do, In Progress, Done.
+   */
+  async boardMarkdown(
+    tasks: TaskReader,
+    statuses: readonly string[],
+  ): Promise<string> {
+    const [rendered, snapshot] = await Promise.all([
+      this.board(tasks),
+      tasks.readAll(),
+    ]);
+    const titles = new Map(
+      snapshot.tasks.map((task) => [String(task.id), task.title]),
+    );
+    // Every configured status gets a column, including empty ones: a board
+    // with a column missing reads as though that state does not exist.
+    const byStatus = new Map(
+      rendered.columns.map((column) => [column.status, column.taskIds]),
+    );
+    const extra = rendered.columns
+      .map((column) => column.status)
+      .filter((status) => !statuses.includes(status))
+      .sort((left, right) => left.localeCompare(right));
+    const columns = [...statuses, ...extra].map((status) => ({
+      status,
+      taskIds: byStatus.get(status) ?? [],
+    }));
+    const lines = ["# Board", ""];
+    for (const column of columns) {
+      lines.push(`## ${column.status} (${column.taskIds.length})`, "");
+      if (column.taskIds.length === 0) lines.push("_No tasks._", "");
+      for (const id of column.taskIds)
+        lines.push(`- **${id}** ${titles.get(id) ?? ""}`.trimEnd());
+      if (column.taskIds.length > 0) lines.push("");
+    }
+    if (rendered.milestones.length > 0) {
+      lines.push("## Milestones", "");
+      for (const milestone of rendered.milestones)
+        lines.push(
+          `- **${milestone.id}** ${milestone.title} — ${milestone.status}` +
+            (milestone.taskIds.length > 0
+              ? ` (${milestone.taskIds.join(", ")})`
+              : ""),
+        );
+      lines.push("");
+    }
+    return `${lines.join("\n").trimEnd()}\n`;
+  }
   async doctor(tasks: TaskReader): Promise<PlanningDoctorReport> {
     const [planning, taskSnapshot] = await Promise.all([
       this.repository.read(),

@@ -99,6 +99,7 @@ export interface CommandManifestEntry {
     | "decision delete"
     | "overview"
     | "board"
+    | "board export"
     | "doctor"
     | "cleanup"
     | "browser";
@@ -590,6 +591,16 @@ export const commandManifest = {
       mutates: false,
     },
     { name: "board", schemaVersion: 1, kind: "project.board", mutates: false },
+    {
+      name: "board export",
+      schemaVersion: 1,
+      kind: "project.board-export",
+      // Writes a file outside the task store; no tracker record changes, so
+      // no actor is required, matching every other read command.
+      mutates: false,
+      filters: ["force"],
+      fields: ["bytes", "path"],
+    },
     {
       name: "doctor",
       schemaVersion: 1,

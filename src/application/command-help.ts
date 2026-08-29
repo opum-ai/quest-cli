@@ -360,6 +360,12 @@ export const commandHelp: Record<
     usage: "quest board",
     flags: [],
   },
+  "board export": {
+    summary:
+      "Write the board to a Markdown file, for pasting into a pull request or doc.",
+    usage: "quest board export <file> [--force]",
+    flags: ["--force"],
+  },
   doctor: {
     summary: "Check the workspace for consistency problems.",
     usage: "quest doctor",

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { Database } from "bun:sqlite";
-import { readFile } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { Command } from "commander";
 import {
@@ -167,6 +167,7 @@ function flags(
     "--clear-ac",
     "--clear-dod",
     "--clear-final-summary",
+    "--force",
     "--list",
     "--ready",
     "--unassigned",
@@ -997,6 +998,49 @@ export async function runQuest(
       if (!parsed || !only(parsed, []))
         return failure("usage", "manifest accepts only --json and --plain.");
       return output(manifestResult(), modeFor(parsed));
+    }
+    if (arguments_[0] === "board" && arguments_[1] === "export") {
+      const target = arguments_[2];
+      const parsed = flags(arguments_.slice(target ? 3 : 2));
+      if (!target || !parsed || !only(parsed, ["--force"]))
+        return failure(
+          "usage",
+          "board export requires a target file and accepts only --force, --json, and --plain.",
+        );
+      // This writes outside .quest/, so it never clobbers silently.
+      const alreadyThere = await stat(target).then(
+        () => true,
+        () => false,
+      );
+      if (!parsed.values.has("--force") && alreadyThere)
+        return failure("conflict", `${target} already exists.`, {
+          hint: "Pass --force to overwrite it.",
+        });
+      const planning = await planningService();
+      const tasks = await taskService();
+      const content = await planning.boardMarkdown(
+        await taskReader(),
+        tasks.lifecycle.statuses,
+      );
+      try {
+        await writeFile(target, content, "utf8");
+      } catch (error) {
+        return failure(
+          "validation",
+          `Quest could not write ${target}: ${
+            error instanceof Error ? error.message : "unknown error"
+          }`,
+          { hint: "Check that the parent directory exists and is writable." },
+        );
+      }
+      return output(
+        {
+          schemaVersion: 1,
+          kind: "project.board-export",
+          data: { path: target, bytes: Buffer.byteLength(content, "utf8") },
+        },
+        modeFor(parsed),
+      );
     }
     if (["overview", "board", "doctor"].includes(arguments_[0] ?? "")) {
       const parsed = flags(arguments_.slice(1));
