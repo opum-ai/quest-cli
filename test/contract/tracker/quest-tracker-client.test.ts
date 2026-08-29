@@ -419,3 +419,134 @@ test("probe accepts the manifest Quest actually publishes, and the fixture mirro
     );
   }
 });
+
+test("edit projects index-addressed checklist operations to the CLI flags (QCLI-146)", async () => {
+  const calls: string[][] = [];
+  const runner: TrackerProcessRunner = {
+    async run(argv) {
+      calls.push([...argv]);
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify(trackerConformanceFixtures.updated),
+        stderr: "",
+      };
+    },
+  };
+  await new QuestTrackerClient(runner).edit(
+    "T-1",
+    {
+      checkAcceptanceCriteria: [1, 3],
+      uncheckAcceptanceCriteria: [2],
+      removeAcceptanceCriteria: [4],
+      checkDefinitionOfDone: [1],
+      uncheckDefinitionOfDone: [2],
+      removeDefinitionOfDone: [3],
+    },
+    { id: "person-1", kind: "human" },
+  );
+  const argv = calls[0] ?? [];
+  expect(argv.slice(argv.indexOf("--check-ac"))).toEqual([
+    "--check-ac",
+    "1",
+    "--check-ac",
+    "3",
+    "--uncheck-ac",
+    "2",
+    "--remove-ac",
+    "4",
+    "--check-dod",
+    "1",
+    "--uncheck-dod",
+    "2",
+    "--remove-dod",
+    "3",
+  ]);
+
+  // The two clears are bare boolean flags, and false must emit nothing.
+  calls.length = 0;
+  await new QuestTrackerClient(runner).edit(
+    "T-1",
+    { clearAcceptanceCriteria: true, clearDefinitionOfDone: false },
+    { id: "person-1", kind: "human" },
+  );
+  expect(calls[0]).toContain("--clear-ac");
+  expect(calls[0]).not.toContain("--clear-dod");
+});
+
+test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async () => {
+  // An argv-shape assertion alone would pass against a misspelled flag, so
+  // this drives the adapter against the real CLI end to end.
+  const store = await mkdtemp(join(tmpdir(), "quest-tracker-checklist-"));
+  const previous = process.env.QUEST_TASK_STORE;
+  process.env.QUEST_TASK_STORE = store;
+  try {
+    const runner: TrackerProcessRunner = {
+      async run(argv) {
+        const result = await runQuest([...argv], false);
+        return {
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      },
+    };
+    const client = new QuestTrackerClient(runner);
+    const actor = { id: "person-1", kind: "human" } as const;
+    const created = await client.create(
+      {
+        title: "Checklist round trip",
+        acceptanceCriteria: ["first", "second", "third"],
+        definitionOfDone: ["reviewed", "shipped"],
+      },
+      actor,
+    );
+
+    const checked = await client.edit(
+      created.id,
+      { checkAcceptanceCriteria: [1, 3], checkDefinitionOfDone: [2] },
+      actor,
+    );
+    expect(checked.acceptanceCriteria).toEqual([
+      { index: 0, text: "first", checked: true },
+      { index: 1, text: "second", checked: false },
+      { index: 2, text: "third", checked: true },
+    ]);
+    expect(checked.definitionOfDone).toEqual([
+      { index: 0, text: "reviewed", checked: false },
+      { index: 1, text: "shipped", checked: true },
+    ]);
+
+    // Removing re-indexes the survivors and leaves an untouched checkmark.
+    const removed = await client.edit(
+      created.id,
+      { removeAcceptanceCriteria: [2] },
+      actor,
+    );
+    expect(removed.acceptanceCriteria).toEqual([
+      { index: 0, text: "first", checked: true },
+      { index: 1, text: "third", checked: true },
+    ]);
+
+    const cleared = await client.edit(
+      created.id,
+      { clearDefinitionOfDone: true },
+      actor,
+    );
+    expect(cleared.definitionOfDone).toEqual([]);
+    expect(cleared.acceptanceCriteria).toHaveLength(2);
+
+    // The CLI owns the collision rules; the adapter surfaces them rather than
+    // reimplementing them.
+    await expect(
+      client.edit(
+        created.id,
+        { checkAcceptanceCriteria: [1], acceptanceCriteria: ["replacement"] },
+        actor,
+      ),
+    ).rejects.toMatchObject({ error_type: "usage" });
+  } finally {
+    if (previous === undefined) delete process.env.QUEST_TASK_STORE;
+    else process.env.QUEST_TASK_STORE = previous;
+    await rm(store, { recursive: true, force: true });
+  }
+});

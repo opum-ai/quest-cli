@@ -200,6 +200,23 @@ export interface TrackerEditPatch {
   readonly definitionOfDone?:
     | readonly (string | TrackerCheckItem)[]
     | undefined;
+  /**
+   * Index-addressed checklist operations (QCLI-138, exposed here by QCLI-146).
+   * Positions are 1-based, as on the CLI. Addressing one entry leaves the rest
+   * byte-identical, so an adapter no longer has to read-modify-write a whole
+   * checklist to tick one box. The CLI owns the collision rules: a replacement
+   * combined with these, `clear` combined with anything, or one position given
+   * contradictory operations are all usage errors from `quest`, and are
+   * deliberately not second-guessed here.
+   */
+  readonly checkAcceptanceCriteria?: readonly number[];
+  readonly uncheckAcceptanceCriteria?: readonly number[];
+  readonly removeAcceptanceCriteria?: readonly number[];
+  readonly clearAcceptanceCriteria?: boolean;
+  readonly checkDefinitionOfDone?: readonly number[];
+  readonly uncheckDefinitionOfDone?: readonly number[];
+  readonly removeDefinitionOfDone?: readonly number[];
+  readonly clearDefinitionOfDone?: boolean;
   readonly addDependencies?: readonly string[];
   readonly removeDependencies?: readonly string[];
   readonly parentId?: string;
@@ -797,6 +814,14 @@ export class QuestTrackerClient {
       );
     if (patch.definitionOfDone !== undefined)
       argv.push("--definition-of-done", JSON.stringify(patch.definitionOfDone));
+    appendRepeated(argv, "--check-ac", patch.checkAcceptanceCriteria);
+    appendRepeated(argv, "--uncheck-ac", patch.uncheckAcceptanceCriteria);
+    appendRepeated(argv, "--remove-ac", patch.removeAcceptanceCriteria);
+    if (patch.clearAcceptanceCriteria === true) argv.push("--clear-ac");
+    appendRepeated(argv, "--check-dod", patch.checkDefinitionOfDone);
+    appendRepeated(argv, "--uncheck-dod", patch.uncheckDefinitionOfDone);
+    appendRepeated(argv, "--remove-dod", patch.removeDefinitionOfDone);
+    if (patch.clearDefinitionOfDone === true) argv.push("--clear-dod");
     appendRepeated(argv, "--add-dependency", patch.addDependencies);
     appendRepeated(argv, "--remove-dependency", patch.removeDependencies);
     if (patch.parentId !== undefined) argv.push("--parent", patch.parentId);
