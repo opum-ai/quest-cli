@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { questSkillContent } from "../../src/application/agents/agent-instructions.ts";
 import {
+  findQuestGuide,
+  questGuides,
+} from "../../src/application/agents/guides.ts";
+import {
   readQuestConfiguration,
   validateQuestConfiguration,
 } from "../../src/adapters/toml-configuration.ts";
@@ -129,6 +133,8 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "agent.instructions",
       mutates: false,
+      filters: ["guide", "list"],
+      fields: ["content", "guides", "name", "summary", "version"],
     },
     {
       name: "agents",
@@ -705,16 +711,20 @@ test("migration capabilities advertise exact kinds and mutability", () => {
   expect(validateCommandManifest(commandManifest)).toBe(true);
 });
 
-test("the published Quest skill lists every lifecycle verb the manifest declares", () => {
-  // The skill content is what `quest init --agent-instructions` writes to
-  // .claude/skills/quest/SKILL.md and `quest agents --check` diffs, so a verb
-  // added to a lifecycle group without touching it ships an agent-facing list
-  // that is quietly wrong. Prose spellings vary ("create/list/view", or the
-  // group named once and the verbs after it), so this reads every backticked
-  // span on a line that mentions the group rather than matching one shape.
+test("the overview guide lists every lifecycle verb the manifest declares", () => {
+  // The overview guide holds the agent-facing command list (QCLI-141 moved it
+  // out of the skill so the two cannot drift), so a verb added to a lifecycle
+  // group without touching it ships a list that is quietly wrong. Prose
+  // spellings vary ("create/list/view", or the group named once and the verbs
+  // after it), so this reads every backticked span on a line that mentions the
+  // group rather than matching one shape.
+  const commandList = questGuides.find(
+    (guide) => guide.name === "overview",
+  )?.content;
+  expect(commandList).toBeDefined();
   for (const group of ["task", "draft", "milestone", "decision"]) {
     const mentioned = new Set<string>();
-    for (const line of questSkillContent.split("\n")) {
+    for (const line of (commandList ?? "").split("\n")) {
       const spans = [...line.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
       if (
         !spans.some((span) => span === group || span?.startsWith(`${group} `))
@@ -736,4 +746,53 @@ test("the published Quest skill lists every lifecycle verb the manifest declares
       missing: declared.filter((verb: string) => !mentioned.has(verb)),
     }).toEqual({ group, missing: [] });
   }
+});
+
+test("the skill and the guides never restate the same guidance (QCLI-141)", () => {
+  // AC4/AC5: guidance lives in the guides, and the skill points at them. Two
+  // copies of a sentence drift, and the drift is invisible because both
+  // surfaces look authoritative. A shared substantive sentence is the signal.
+  const sentences = (text: string) =>
+    text
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/[`*#>|-]/g, " ")
+      .split(/(?<=[.!?])\s+|\n{2,}/)
+      .map((sentence) => sentence.replace(/\s+/g, " ").trim().toLowerCase())
+      .filter((sentence) => sentence.split(" ").length >= 8);
+
+  const skill = new Set(sentences(questSkillContent));
+  for (const guide of questGuides) {
+    const shared = sentences(guide.content).filter((sentence) =>
+      skill.has(sentence),
+    );
+    expect({ guide: guide.name, shared }).toEqual({
+      guide: guide.name,
+      shared: [],
+    });
+  }
+
+  // The skill must stay a pointer: it names the CLI entry points and little
+  // else. A skill that grows past this has started restating a guide.
+  expect(questSkillContent.split("\n").length).toBeLessThan(30);
+  expect(questSkillContent).toContain("quest instructions --list");
+});
+
+test("every guide is discoverable and none of them is an aggregate (QCLI-141)", () => {
+  expect(questGuides.map((guide) => guide.name)).toEqual([
+    "overview",
+    "task-creation",
+    "task-execution",
+    "task-finalization",
+    "workspace",
+  ]);
+  // The recorded decision: no "all" guide. Guides exist to be loaded one at a
+  // time, and bundling them defeats that.
+  expect(questGuides.some((guide) => guide.name === "all")).toBe(false);
+  for (const guide of questGuides) {
+    expect(guide.summary.length).toBeGreaterThan(0);
+    expect(guide.summary).not.toContain("\n");
+    expect(guide.content).toContain("# ");
+    expect(findQuestGuide(guide.name)).toBe(guide);
+  }
+  expect(findQuestGuide("all")).toBeUndefined();
 });

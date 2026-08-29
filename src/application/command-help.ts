@@ -38,9 +38,9 @@ export const commandHelp: Record<
   },
   instructions: {
     summary:
-      "Print the managed agent-instructions block Quest maintains in CLAUDE.md/AGENTS.md.",
-    usage: "quest instructions",
-    flags: [],
+      "Print the managed agent-instructions block, one workflow guide, or the guide index.",
+    usage: "quest instructions [<guide>] [--list]",
+    flags: ["--list"],
   },
   agents: {
     summary: "Check or update the managed agent-instructions block.",

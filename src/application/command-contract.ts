@@ -133,6 +133,10 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "agent.instructions",
       mutates: false,
+      // Bare: the managed block. With a guide name: that guide. With --list:
+      // the guide index. There is deliberately no "all" (QCLI-141).
+      filters: ["guide", "list"],
+      fields: ["content", "guides", "name", "summary", "version"],
     },
     {
       name: "agents",

@@ -11,6 +11,7 @@ import {
   updateQuestAgentInstructions,
   updateQuestSkillFile,
 } from "../application/agents/agent-instructions.ts";
+import { findQuestGuide, questGuides } from "../application/agents/guides.ts";
 import { startBrowserServer } from "../application/browser/browser.ts";
 import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
 import {
@@ -165,6 +166,7 @@ function flags(
     "--clear-milestone",
     "--clear-ac",
     "--clear-dod",
+    "--list",
     "--ready",
     "--unassigned",
   ]);
@@ -722,12 +724,63 @@ export async function runQuest(
       );
     }
     if (arguments_[0] === "instructions") {
-      const parsed = flags(arguments_.slice(1));
-      if (!parsed || !only(parsed, []))
+      const requested = arguments_[1]?.startsWith("--")
+        ? undefined
+        : arguments_[1];
+      const parsed = flags(arguments_.slice(requested ? 2 : 1));
+      if (!parsed || !only(parsed, ["--list"]))
         return failure(
           "usage",
-          "instructions accepts only --json and --plain.",
+          "instructions accepts one guide name, --list, --json, and --plain.",
         );
+      if (requested && parsed.values.has("--list"))
+        return failure(
+          "usage",
+          "instructions takes a guide name or --list, not both.",
+        );
+      if (parsed.values.has("--list"))
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "agent.guides",
+            data: {
+              version: VERSION,
+              guides: questGuides.map(({ name, summary }) => ({
+                name,
+                summary,
+              })),
+            },
+          },
+          modeFor(parsed),
+        );
+      if (requested) {
+        const guide = findQuestGuide(requested);
+        if (!guide)
+          return failure(
+            "not_found",
+            `Unknown guide ${requested}.`,
+            // Deliberately no "all" guide (QCLI-141): guides exist to be
+            // loaded one at a time, and --list already covers discovery.
+            {
+              hint: `Run \`quest instructions --list\` to see the guides. There is no "all" guide; read the one that matches the work.`,
+            },
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "agent.guide",
+            data: {
+              version: VERSION,
+              name: guide.name,
+              summary: guide.summary,
+              content: guide.content,
+            },
+          },
+          modeFor(parsed),
+        );
+      }
+      // Bare `instructions` keeps returning the managed block: `agents
+      // --check` and every existing caller depend on it byte for byte.
       return output(
         {
           schemaVersion: 1,
