@@ -163,6 +163,8 @@ function flags(
     "--all",
     "--clear-parent",
     "--clear-milestone",
+    "--clear-ac",
+    "--clear-dod",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -275,6 +277,27 @@ function checkListValue(
       `${name} must be a JSON array of strings or {index,text,checked} items.`,
     );
   }
+}
+
+/**
+ * Parses repeatable 1-based checklist positions (QCLI-138). Anything that is
+ * not a positive integer is a usage error here rather than a silent no-op, so
+ * `--check-ac 0` or `--check-ac two` never quietly leaves the box unchecked.
+ */
+function indexListValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): number[] | undefined {
+  const values = parsed.values.get(name);
+  if (values === undefined) return undefined;
+  return values.map((value) => {
+    if (!/^[1-9][0-9]*$/.test(value))
+      throw new FlagUsageError(`${name} must be a 1-based positive integer.`);
+    const parsedValue = Number(value);
+    if (!Number.isSafeInteger(parsedValue))
+      throw new FlagUsageError(`${name} must be a 1-based positive integer.`);
+    return parsedValue;
+  });
 }
 
 function commentsValue(
@@ -1766,8 +1789,20 @@ export async function runQuest(
           // vocabulary — a string never silently char-iterates into a list.
           // QCLI-122 fourth pass #5: complete field grammar — scalar vs
           // list vs checklist-object vs boolean, validated atomically.
+          // QCLI-138: index-addressed checklist positions are a number list,
+          // so they must be classified before the add|remove string-list rule
+          // that removeAcceptanceCriteria would otherwise match.
+          const indexListFields = new Set([
+            "checkAcceptanceCriteria",
+            "uncheckAcceptanceCriteria",
+            "removeAcceptanceCriteria",
+            "checkDefinitionOfDone",
+            "uncheckDefinitionOfDone",
+            "removeDefinitionOfDone",
+          ]);
           const isListField =
-            /^(add|remove)[A-Z]/.test(patchKey) ||
+            (/^(add|remove)[A-Z]/.test(patchKey) &&
+              !indexListFields.has(patchKey)) ||
             [
               "labels",
               "documentation",
@@ -1778,7 +1813,12 @@ export async function runQuest(
               "modifiedFiles",
               "dependencies",
             ].includes(patchKey);
-          const booleanFields = new Set(["clearParent", "clearMilestone"]);
+          const booleanFields = new Set([
+            "clearParent",
+            "clearMilestone",
+            "clearAcceptanceCriteria",
+            "clearDefinitionOfDone",
+          ]);
           const checklistFields = new Set([
             "acceptanceCriteria",
             "definitionOfDone",
@@ -1789,6 +1829,17 @@ export async function runQuest(
               return failure(
                 "usage",
                 `Patch key ${patchKey} must be a boolean in operations item at line ${index + 1}.`,
+              );
+          } else if (indexListFields.has(patchKey)) {
+            if (
+              !Array.isArray(fieldValue) ||
+              fieldValue.some(
+                (entry) => !Number.isInteger(entry) || (entry as number) < 1,
+              )
+            )
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a list of 1-based positive integers in operations item at line ${index + 1}.`,
               );
           } else if (checklistFields.has(patchKey)) {
             if (
@@ -1905,6 +1956,12 @@ export async function runQuest(
         "--remove-reference",
         "--add-modified-file",
         "--remove-modified-file",
+        "--check-ac",
+        "--uncheck-ac",
+        "--remove-ac",
+        "--check-dod",
+        "--uncheck-dod",
+        "--remove-dod",
       ]);
       if (
         !parsed ||
@@ -1931,6 +1988,14 @@ export async function runQuest(
           "--remove-comment",
           "--acceptance-criteria",
           "--definition-of-done",
+          "--check-ac",
+          "--uncheck-ac",
+          "--remove-ac",
+          "--clear-ac",
+          "--check-dod",
+          "--uncheck-dod",
+          "--remove-dod",
+          "--clear-dod",
           "--add-dependency",
           "--remove-dependency",
           "--parent",
@@ -1985,6 +2050,16 @@ export async function runQuest(
             removeComments: parsed.values.get("--remove-comment"),
             acceptanceCriteria: checkListValue(parsed, "--acceptance-criteria"),
             definitionOfDone: checkListValue(parsed, "--definition-of-done"),
+            checkAcceptanceCriteria: indexListValue(parsed, "--check-ac"),
+            uncheckAcceptanceCriteria: indexListValue(parsed, "--uncheck-ac"),
+            removeAcceptanceCriteria: indexListValue(parsed, "--remove-ac"),
+            clearAcceptanceCriteria:
+              parsed.values.has("--clear-ac") || undefined,
+            checkDefinitionOfDone: indexListValue(parsed, "--check-dod"),
+            uncheckDefinitionOfDone: indexListValue(parsed, "--uncheck-dod"),
+            removeDefinitionOfDone: indexListValue(parsed, "--remove-dod"),
+            clearDefinitionOfDone:
+              parsed.values.has("--clear-dod") || undefined,
             addDependencies: parsed.values.get("--add-dependency"),
             removeDependencies: parsed.values.get("--remove-dependency"),
             parentId: one(parsed, "--parent"),

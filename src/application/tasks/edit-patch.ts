@@ -1,4 +1,5 @@
-import type { TaskState } from "../../domain/tasks/tasks.ts";
+import { RecordValidationError } from "../../domain/records.ts";
+import type { TaskCheckItem, TaskState } from "../../domain/tasks/tasks.ts";
 
 /** Public tracker edit vocabulary (QCLI-97.11.6) owned by the application layer. */
 export interface EditPatchVocabulary {
@@ -38,6 +39,22 @@ export interface EditPatchVocabulary {
         readonly checked: boolean;
       }
   )[];
+  /**
+   * Index-addressed checklist operations (QCLI-138). Positions are 1-based on
+   * this public surface, matching the tracker vocabulary Quest is at parity
+   * with; the domain {@link TaskCheckItem} index stays 0-based. Addressing one
+   * entry keeps the other entries byte-identical, so two editors checking
+   * different boxes no longer overwrite each other the way two wholesale
+   * `acceptanceCriteria` replacements do.
+   */
+  readonly checkAcceptanceCriteria?: readonly number[];
+  readonly uncheckAcceptanceCriteria?: readonly number[];
+  readonly removeAcceptanceCriteria?: readonly number[];
+  readonly clearAcceptanceCriteria?: boolean;
+  readonly checkDefinitionOfDone?: readonly number[];
+  readonly uncheckDefinitionOfDone?: readonly number[];
+  readonly removeDefinitionOfDone?: readonly number[];
+  readonly clearDefinitionOfDone?: boolean;
   readonly addDependencies?: readonly string[];
   readonly removeDependencies?: readonly string[];
   readonly parentId?: string;
@@ -102,10 +119,25 @@ export function foldEditPatch(
       patch.addComments,
       patch.removeComments,
     );
-  if (patch.acceptanceCriteria !== undefined)
-    next.acceptanceCriteria = patch.acceptanceCriteria;
-  if (patch.definitionOfDone !== undefined)
-    next.definitionOfDone = patch.definitionOfDone;
+  const acceptanceCriteria = foldCheckList(
+    current.acceptanceCriteria,
+    patch.acceptanceCriteria,
+    patch.clearAcceptanceCriteria,
+    patch.removeAcceptanceCriteria,
+    patch.checkAcceptanceCriteria,
+    patch.uncheckAcceptanceCriteria,
+  );
+  if (acceptanceCriteria !== undefined)
+    next.acceptanceCriteria = acceptanceCriteria;
+  const definitionOfDone = foldCheckList(
+    current.definitionOfDone,
+    patch.definitionOfDone,
+    patch.clearDefinitionOfDone,
+    patch.removeDefinitionOfDone,
+    patch.checkDefinitionOfDone,
+    patch.uncheckDefinitionOfDone,
+  );
+  if (definitionOfDone !== undefined) next.definitionOfDone = definitionOfDone;
   if (patch.addDependencies?.length || patch.removeDependencies?.length)
     next.dependencies = mergeList(
       current.dependencies,
@@ -170,5 +202,84 @@ function mergeComments(
   });
   for (const comment of added ?? [])
     if (!result.includes(comment)) result.push(comment);
+  return result;
+}
+
+/**
+ * Folds the wholesale replacement and the index-addressed checklist operations
+ * into one checklist value, or `undefined` when the patch touches neither.
+ *
+ * Index operations address the task's current list, read under the same write
+ * lock that persists the result, at its 1-based positions. Removals, checks and
+ * unchecks all resolve against that one snapshot, so the outcome never depends
+ * on operation order, and the survivors are re-indexed exactly once at the end.
+ * A wholesale replacement is passed through untouched so its authored indexes
+ * still face the domain's own validation.
+ */
+function foldCheckList(
+  current: readonly (string | TaskCheckItem)[],
+  replacement: readonly (string | TaskCheckItem)[] | undefined,
+  clear: boolean | undefined,
+  removed: readonly number[] | undefined,
+  checked: readonly number[] | undefined,
+  unchecked: readonly number[] | undefined,
+): readonly (string | TaskCheckItem)[] | undefined {
+  const addressed =
+    (removed?.length ?? 0) > 0 ||
+    (checked?.length ?? 0) > 0 ||
+    (unchecked?.length ?? 0) > 0;
+  // The three families are mutually exclusive: silently merging a wholesale
+  // replacement with index operations would hand back a list neither editor
+  // asked for, which is exactly the lost-update shape this vocabulary exists
+  // to remove.
+  if (clear === true) {
+    if (addressed || replacement !== undefined)
+      throw new RecordValidationError("check_operation_conflict");
+    return [];
+  }
+  if (!addressed) return replacement;
+  if (replacement !== undefined)
+    throw new RecordValidationError("check_operation_conflict");
+  const base = reindex(current);
+  const drop = positions(removed, base.length);
+  const check = positions(checked, base.length);
+  const uncheck = positions(unchecked, base.length);
+  for (const position of check)
+    if (uncheck.has(position))
+      throw new RecordValidationError("check_index_conflict");
+  return reindex(
+    base
+      .map((item, offset) => ({ item, position: offset + 1 }))
+      .filter(({ position }) => !drop.has(position))
+      .map(({ item, position }) => {
+        if (check.has(position)) return { ...item, checked: true };
+        if (uncheck.has(position)) return { ...item, checked: false };
+        return item;
+      }),
+  );
+}
+
+/** Normalizes a legacy-or-item checklist to positionally indexed items. */
+function reindex(
+  list: readonly (string | TaskCheckItem)[],
+): readonly TaskCheckItem[] {
+  return list.map((entry, index) =>
+    typeof entry === "string"
+      ? { index, text: entry, checked: false }
+      : { index, text: entry.text, checked: entry.checked },
+  );
+}
+
+/** Validates 1-based public positions against the base list length. */
+function positions(
+  values: readonly number[] | undefined,
+  length: number,
+): ReadonlySet<number> {
+  const result = new Set<number>();
+  for (const value of values ?? []) {
+    if (!Number.isInteger(value) || value < 1 || value > length)
+      throw new RecordValidationError("check_index_out_of_range");
+    result.add(value);
+  }
   return result;
 }
