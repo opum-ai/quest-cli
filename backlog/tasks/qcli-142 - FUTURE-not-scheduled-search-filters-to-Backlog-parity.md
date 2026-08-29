@@ -1,9 +1,10 @@
 ---
 id: QCLI-142
 title: 'FUTURE (not scheduled): search filters to Backlog parity'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-29 00:32'
+updated_date: '2026-08-29 20:47'
 labels:
   - cli
   - parity
@@ -31,6 +32,24 @@ Note the overlap with QCLI-139: task list is the primary filtering surface and g
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Before any implementation, confirm this is still wanted given what QCLI-139 delivered on task list.
+- [x] #1 Before any implementation, confirm this is still wanted given what QCLI-139 delivered on task list.
 - [ ] #2 If implemented: search accepts the Backlog filter set, filters compose, and the manifest filters list declares them.
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+OWNER DECISION 2026-08-29: closed as not needed. AC1 asked whether search still wants the Backlog filter set now that QCLI-139 has landed, and the answer is no.
+
+QCLI-139 gave task list eleven filters - --ready, --exclude-status, --assignee, --unassigned, --milestone, --parent, --priority, --type, --search, --limit and --sort - so task list is the filtering surface. Duplicating that set onto search would spread the same capability across two commands whose distinctive value is different: search's is cross-record reach, and 'search --all' already spans tasks, milestones and decisions, which Backlog has no answer for at all.
+
+Downstream impact remains none, as recorded when this was filed: Lore 0.3.4 consumes 'search --json' with no filter flags, and its shipped binary contains zero references to any of them.
+
+AC2 is conditional on implementing and does not apply.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed without code. The owner answered AC1: search does not need its own copy of the Backlog filter set now that QCLI-139 has made task list the filtering surface. search keeps what Backlog cannot do - '--all' spanning tasks, milestones and decisions - rather than duplicating what task list now does better. No downstream consumer is affected; Lore uses search --json with no flags.
+<!-- SECTION:FINAL_SUMMARY:END -->
