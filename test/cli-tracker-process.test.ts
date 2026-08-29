@@ -2280,10 +2280,64 @@ test("task edit can set a final summary on an existing task (QCLI-147)", async (
       ...human,
     ]);
     expect(batch.exitCode).toBe(0);
+    expect(JSON.parse(batch.stdout).data.items).toEqual([
+      expect.objectContaining({ kind: "updated", reference: "T-1" }),
+    ]);
     expect(
       JSON.parse((await quest(store, ["task", "view", "T-1", "--json"])).stdout)
         .data.finalSummary,
     ).toBe("From the batch.");
+
+    // A non-string is a parse-time usage error, not a coerced write.
+    await writeFile(
+      operations,
+      JSON.stringify({
+        reference: "T-1",
+        operationId: "op-2",
+        patch: { finalSummary: 42 },
+      }),
+    );
+    const rejected = await quest(store, [
+      "task",
+      "edit-batch",
+      "--file",
+      operations,
+      ...human,
+    ]);
+    expect(rejected.exitCode).toBe(2);
+    expect(JSON.parse(rejected.stderr).message).toContain("finalSummary");
+
+    // Single-value, like every other scalar replace.
+    const repeated = await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--final-summary",
+      "a",
+      "--final-summary",
+      "b",
+      ...human,
+    ]);
+    expect(repeated.exitCode).toBe(2);
+    expect(JSON.parse(repeated.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--final-summary may only be provided once.",
+    });
+
+    // An empty value stores an empty summary, exactly as --summary does.
+    // There is no --clear-final-summary; Backlog has one, Quest does not.
+    const emptied = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--final-summary=",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(emptied.finalSummary).toBe("");
   } finally {
     await rm(store, { recursive: true, force: true });
   }
