@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 00:06'
+updated_date: '2026-08-30 00:22'
 labels:
   - release
   - provenance
@@ -85,4 +85,19 @@ Verified end to end, not by inspection:
 - bun run check exits 0; lore check reports 63 files, 0 errors, 0 warnings.
 
 AC1, AC2 and AC4 name 0.2.9 specifically and stay OPEN. They need a CI run at commit cb33551, which does not exist, and the owner deferred this release twice on 2026-08-29. The machinery above closes all three automatically for the next cut. Recommend re-targeting them at that release rather than back-filling 0.2.9 by hand - it is an owner call, not mine.
+
+Independent review (high effort) of the branch found seven findings. Five were in this task's scope and are fixed; two were out of scope and are filed as QCLI-151 and QCLI-152.
+
+FIXED HERE:
+1. HIGH - the module header still described a downstream rule that no longer exists (opum-cli-e2e's extraJobs rejection, removed in their b16cbab), and coverageClaim[0] asserted that EVERY listed job ran prepublish.mjs, which became false the moment the emitter started recording extra jobs. The claim now names the seven required jobs explicitly and says plainly that it makes no claim about any further job recorded.
+2. MEDIUM - the success requirement spanned every recorded job, so a sibling job that had not concluded (null) or was conditionally skipped would abort receipt emission and block a tagged release. That directly contradicted the comment beside it saying a workflow may legitimately grow a job. Reordered into two rules: a red job throws FIRST, whether required or not, so nothing below can drop an inconvenient failure; then only successful jobs are recorded, so unconcluded and skipped ones are omitted rather than fatal.
+3. MEDIUM, and the worst of the seven - the entrypoint used import.meta.main, which only exists on Node >= 22.18. On anything older it is undefined, main() never runs, and the process exits 0. This file IS the publication gate: it failed OPEN. A maintainer following runbook step 5 on a Node 20 machine would have got a silent pass. Replaced with a process.argv[1] comparison. package.json declares engines.node >=18 and neither CI job pins Node, so this was reachable.
+5. LOW - --verify-published defaulted its receipt path to receipt.json, a name nothing produces, so omitting --receipt threw an ENOENT stack instead of a usage error. There is now no default.
+6. LOW - a missing flag value silently consumed the next flag, so '--verify-published --receipt r.json' read '--receipt' as the version and reported all six platforms as unpublished. On the mode whose job is to distinguish 'not published' from 'wrong invocation' that is the worst possible failure. Flags now reject a value that begins with --, and the entrypoint prints the message and exits 2 rather than a stack.
+
+FILED OUT OF SCOPE:
+- QCLI-151: quest instructions emits kinds agent.guides and agent.guide that the manifest never declares. Same contract-vs-implementation class as QCLI-133/137, inverted.
+- QCLI-152: imported Backlog timestamps are copied verbatim and never normalised, so the date sort QCLI-137 restored compares '2025-06-02 14:23' against ISO-8601 lexicographically, and new Date() parses the two forms in different timezones.
+
+Re-verified after every fix: the emitted document still returns ok:true from the real downstream validator, and bun run check exits 0.
 <!-- SECTION:NOTES:END -->
