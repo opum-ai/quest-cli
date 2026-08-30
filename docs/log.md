@@ -218,6 +218,7 @@
 - 2026-08-29T20:39:53-05:00 dc37bf1eb717291b4aa108323de8369c13547e5e docs(release): record the six-platform CI constraint and the candidate-bundle flow
 - 2026-08-29T21:01:19-05:00 adfdfd0b90d5476472c025eb22924be2b91c22e3 chore(backlog): record the QCLI-135 candidate bundle delivery
 - 2026-08-29T21:37:07-05:00 1286d9ab20bf616802c21f08f8b190ac2e8b597a chore(backlog): record the 0.3.0 native-execution receipt and the npm credential wall
+- 2026-08-29T22:22:23-05:00 58022a018e56411f0ff5ed314e43ea47b81e3bee feat(release): publish through trusted publishing, not a stored token
 
 ## docs/adr
 
