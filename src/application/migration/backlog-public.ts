@@ -5,9 +5,14 @@ import type { Milestone } from "../../domain/planning/planning.ts";
 import {
   type Alias,
   alias,
+  type CanonicalId,
   assertAliasesAvailable,
 } from "../../domain/records.ts";
-import { type TaskState, taskState } from "../../domain/tasks/tasks.ts";
+import {
+  canonicalizeTaskLinks,
+  type TaskState,
+  taskState,
+} from "../../domain/tasks/tasks.ts";
 import type {
   BacklogImportRecord,
   BacklogImportSource,
@@ -112,7 +117,7 @@ function importedTask(
   milestoneId?: string,
 ): TaskState {
   return taskState({
-    id: id as `T-${number}`,
+    id: id as CanonicalId,
     aliases: record.aliases,
     title: record.title,
     status: record.status ?? "To Do",
@@ -141,8 +146,19 @@ function importedTask(
     // the raw source form, so source fidelity is not traded for sortability.
     createdAt: isoTimestamp(record.createdAt),
     updatedAt: isoTimestamp(record.updatedAt),
-    acceptanceCriteria: record.acceptanceCriteria.map((item) => item.text),
-    definitionOfDone: record.definitionOfDone.map((item) => item.text),
+    // Reindexed positionally (not by the source's own #N marker) because
+    // normalizeCheckList requires each item's index to equal its array
+    // position; preserving `checked` here is the whole point (QCLI-157).
+    acceptanceCriteria: record.acceptanceCriteria.map((item, index) => ({
+      index,
+      text: item.text,
+      checked: item.checked,
+    })),
+    definitionOfDone: record.definitionOfDone.map((item, index) => ({
+      index,
+      text: item.text,
+      checked: item.checked,
+    })),
     plan: record.implementationPlan ? [record.implementationPlan] : [],
     implementationNotes: [
       ...(record.implementationNotes ? [record.implementationNotes] : []),
@@ -169,6 +185,7 @@ function importedTask(
 async function previewInternal(
   source: BacklogImportSource,
   repository: PublicTaskRepository,
+  taskIdPrefix: string,
 ): Promise<{
   preview: BacklogPreview;
   records: readonly BacklogImportRecord[];
@@ -181,14 +198,19 @@ async function previewInternal(
     alias(entry.task.id),
     ...entry.task.aliases.map(alias),
   ]);
+  // Targets the destination workspace's own configured taskIdPrefix (QCLI-157)
+  // instead of a hardcoded "T-": a migration must land in the same id family
+  // native `quest task create` already uses there, not a disconnected island.
+  const marker = `${taskIdPrefix}-`;
   const highest = existing.taskRecords.reduce((maximum, entry) => {
-    const numeric = Number(entry.task.id.slice(2));
+    if (!entry.task.id.startsWith(marker)) return maximum;
+    const numeric = Number(entry.task.id.slice(marker.length));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
   const mappings = snapshot.records.map((record, index) => ({
     sourceIdentifier: record.sourceIdentifier,
     sourceFolder: record.sourceFolder,
-    targetIdentifier: `T-${highest + index + 1}`,
+    targetIdentifier: `${taskIdPrefix}-${highest + index + 1}`,
     aliases: record.aliases,
   }));
   const candidates = mappings.flatMap((mapping) => [
@@ -217,14 +239,17 @@ export class BacklogImportService {
     private readonly source: BacklogImportSource,
     private readonly repository: MigrationTransactionRepository,
     private readonly planning: PlanningRepository,
+    private readonly taskIdPrefix: string = "T",
   ) {}
 
   async preview(): Promise<BacklogPreview> {
-    return (await previewInternal(this.source, this.repository)).preview;
+    return (
+      await previewInternal(this.source, this.repository, this.taskIdPrefix)
+    ).preview;
   }
 
   async apply(digest: string): Promise<Receipt> {
-    const { root, source, repository } = this;
+    const { root, source, repository, taskIdPrefix } = this;
     const path = receiptPath(root, digest);
     const previous = await load(path);
     if (previous?.state === "applied") {
@@ -233,7 +258,11 @@ export class BacklogImportService {
         throw new Error("migration_source_fingerprint_conflict");
       return previous;
     }
-    const { preview, records } = await previewInternal(source, repository);
+    const { preview, records } = await previewInternal(
+      source,
+      repository,
+      taskIdPrefix,
+    );
     if (preview.digest !== digest)
       throw new Error("migration_approval_digest_mismatch");
     const receipt: Receipt = previous ?? {
@@ -279,6 +308,30 @@ export class BacklogImportService {
     }
     // Closure is computed over every mapping (not only non-survivors) so a
     // resumed migration still yields fully closed forward/back references.
+    const rawImports = preview.mappings.map((mapping, index) => {
+      const record = records[index];
+      if (!record) throw new Error("migration_source_record_missing");
+      const name = record.milestone?.trim();
+      const milestoneId = name ? milestoneIdForName.get(name) : undefined;
+      return {
+        task: importedTask(record, mapping.targetIdentifier, milestoneId),
+        milestoneId,
+      };
+    });
+    // A Backlog record's parentId/dependencies are raw pre-migration source
+    // ids (registered above as aliases on the sibling task they name), not
+    // the new canonical ids. Every other write path resolves links through
+    // canonicalizeTaskLinks before persisting; migration must too, or a
+    // migrated child's parentId keeps pointing at a string no current task
+    // actually has as its id, and --parent/--dependency lookups silently
+    // find nothing post-import (QCLI-157).
+    const linkedForImport = await repository.readAll();
+    const canonicalById = new Map(
+      canonicalizeTaskLinks([
+        ...linkedForImport.taskRecords.map((entry) => entry.task),
+        ...rawImports.map((entry) => entry.task),
+      ]).map((task) => [task.id, task]),
+    );
     const taskChanges: {
       readonly task: TaskState;
       readonly location: "tasks";
@@ -286,11 +339,9 @@ export class BacklogImportService {
     const imported: { id: string; milestoneId?: string }[] = [];
     for (let index = 0; index < preview.mappings.length; index++) {
       const mapping = preview.mappings[index];
-      const record = records[index];
-      if (!record) throw new Error("migration_source_record_missing");
-      const name = record.milestone?.trim();
-      const milestoneId = name ? milestoneIdForName.get(name) : undefined;
-      const task = importedTask(record, mapping.targetIdentifier, milestoneId);
+      const { milestoneId } = rawImports[index];
+      const task = canonicalById.get(mapping.targetIdentifier);
+      if (!task) throw new Error("migration_source_record_missing");
       const current = await repository.readAll();
       const existing = current.taskRecords.find(
         (entry) => entry.task.id === task.id,
