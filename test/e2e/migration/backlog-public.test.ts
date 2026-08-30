@@ -311,3 +311,54 @@ test("imported Backlog timestamps are normalised to ISO-8601 UTC (QCLI-152)", as
     await rm(source, { recursive: true, force: true });
   }
 });
+
+test("a case-only id collision with a live task is refused, not silently overwritten (QCLI-155)", async () => {
+  // On a case-insensitive filesystem (the macOS default), a Backlog source
+  // id that differs from a live Quest task's id only by case is exactly the
+  // shape that could silently clobber a file instead of failing loudly.
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-collision-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-collision-src-"));
+  try {
+    const created = await quest(store, [
+      "task",
+      "create",
+      "Existing",
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--id",
+      "QCLI-1",
+      "--json",
+    ]);
+    expect(created.exitCode).toBe(0);
+
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "qcli-1.md"),
+      "---\nid: qcli-1\ntitle: Case-variant collider\nstatus: To Do\n---\n\nBody.\n",
+    );
+
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(5);
+    expect(JSON.parse(preview.stderr)).toMatchObject({
+      error_type: "conflict",
+      message: 'Alias collision: "qcli-1" conflicts with "QCLI-1".',
+    });
+
+    // Refused at preview: nothing was written under the colliding id.
+    const listed = await quest(store, ["task", "list", "--json"]);
+    expect(JSON.parse(listed.stdout).data).toHaveLength(1);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
