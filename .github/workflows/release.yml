@@ -75,6 +75,30 @@ jobs:
       - name: Gate on the receipt
         run: node scripts/qualification/native-execution-receipt.mjs --require --receipt receipt/native-execution-receipt.json
 
+      # Fail on the credential BEFORE touching the registry, and say which
+      # fault it is. npm returns E404 on PUT both for a token that cannot write
+      # to the scope and for one that is not a token at all, so the publish
+      # error alone does not distinguish "rotate the token" from "configure
+      # trusted publishing" — and those are different fixes.
+      - name: Preflight the publish credential
+        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set +e
+          echo "::group::whoami"
+          who=$(npm whoami 2>&1); code=$?
+          echo "$who"
+          echo "::endgroup::"
+          if [ $code -ne 0 ]; then
+            echo "::warning::Stored NPM_TOKEN does not authenticate. If trusted publishing is configured for these packages, OIDC is used instead and this does not matter; if it is not, publication cannot proceed."
+          else
+            echo "::notice::Stored NPM_TOKEN authenticates as ${who}. An E404 on PUT below therefore means the token lacks write access to the @opum-ai scope, not that it is invalid."
+            echo "::group::access"
+            npm access list packages "$who" 2>&1 | head -20
+            echo "::endgroup::"
+          fi
+
       # Platform packages first: the root's optionalDependencies name them, so
       # publishing the root first would briefly advertise versions that do not
       # exist.
