@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-28 21:31'
-updated_date: '2026-08-29 13:54'
+updated_date: '2026-08-30 02:08'
 labels:
   - parity
   - audit
@@ -115,4 +115,21 @@ The Quest and Backlog output envelopes are separate contracts and are not meant 
 That settles AC4. AC1 and AC2 were settled by the same owner triage earlier on 2026-08-29: all nine gaps were dispositioned individually (QCLI-138/139/140/141 implemented, QCLI-142..145 deferred as future-not-scheduled), and item 2 was decided on its correctness merits in favour of index-addressed operations, which shipped as QCLI-138.
 
 AC3 remains: the doc/config/mcp exclusions still need writing down as product policy that downstream qualification can cite. Lore owns documentation, so that record belongs in the consolidated namespace rather than here.
+
+RE-MEASURED AGAINST QUEST 0.3.0, 2026-08-30. Ten of the fourteen gaps in this register are now CLOSED. Evidence: opum-cli-e2e ran suites/45-parity-backlog.mjs against the digest-pinned 0.3.0 candidate bundle (sourceCommit 5ef5e578, CI run 33286602773), and rewrote the ten absence-guard rows into behavioural equivalence rows (their commit e8c5c4b). Parity suite is now 39/39 against 0.3.0.
+
+The measurement method matters and is theirs, not mine: each closure was verified BEHAVIOURALLY - drive the edit, then re-read the record - rather than by exit code, because 'exits 0' cannot distinguish a real implementation from a flag that is accepted and ignored.
+
+CLOSED (register item -> delivering task):
+1. task edit --title/--priority/--type/--ordinal -> QCLI-133. All four persist; task view reports the renamed title.
+2. Index-addressed AC/DoD checkbox operations -> QCLI-138. --check-ac 1 ticks criterion 0 and leaves criterion 1 untouched with both texts intact, so this is a genuine index-addressed edit rather than 0.2.9's whole-array rewrite. This was the one gap in the register with a correctness dimension - the old read-modify-write raced under concurrent editors.
+3. task list filters, including --ready -> QCLI-139. --ready/--sort/--limit accepted, task.list envelope.
+6. milestone archive -> QCLI-140. Retires a milestone without the destructive delete.
+8. instructions <guide> and --list -> QCLI-141.
+
+STILL ABSENT, still guarded as classified absences: board export (item 5, QCLI-143), doctor --fix (item 7, QCLI-144), search filters (item 4, QCLI-142), and non-bash completion (item 9, QCLI-145). Four, down from fourteen. All four are the FUTURE tasks the owner explicitly declined to schedule, so the remaining register is exactly the deliberately-unscheduled set.
+
+AC3 is unchanged and stays Lore-owned: the doc/config/mcp exclusions policy is not this repository's to settle.
+
+The structural divergences section still stands in full - envelope shape, the attribution axis, value encoding, the two meanings of 'task complete', and the non-interactive agents bridge. None of those were gaps and none were closed; they remain the reason a caller cannot be retargeted by swapping the binary name.
 <!-- SECTION:NOTES:END -->
