@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 07:11'
+updated_date: '2026-08-30 07:29'
 labels:
   - release
   - provenance
@@ -198,4 +198,16 @@ Three wrong diagnoses preceded this, and each was a real defect worth fixing on 
 All three produce E404 on PUT, identically, and so does a missing trust relationship. That is why this took six attempts: npm returns one error for at least four distinct causes, and the only way to reach the fourth was to eliminate the other three in the run log.
 
 The lore-cli session published 0.3.5 successfully through the same mechanism, and their trust relationship turned out to have been configured all along - which is what made 'quest's simply is not' the remaining explanation rather than a guess.
+
+ELIMINATION COMPLETE. Both environment permutations tested against a verified npm 11.19.1:
+  environment: release, npm 11.19.1  -> E404  (run 33298452455)
+  no environment,       npm 11.19.1  -> E404  (run 33299187110)
+
+So the environment claim is not the discriminator. Combined with the earlier eliminations - no NODE_AUTH_TOKEN in the way, id-token: write scoped to the job, node 24, npm floor asserted rather than assumed - every cause of an E404 on PUT other than a missing trust relationship has now been ruled out in a run log.
+
+The comparison against lore-cli's release.yml is controlled rather than inferred. Their publish job contains NO NODE_AUTH_TOKEN or NPM_TOKEN anywhere, uses setup-node with registry-url, node 24, npm pinned to ^11 with the floor asserted, id-token: write, and environment: release. Quest now matches on every one of those. Lore publishes; quest returns E404. The only remaining difference is npm-side configuration.
+
+Conclusion: quest's seven package names have no trusted-publisher configured. Lore's do - the lore-cli session found theirs had been configured all along, which is why theirs published on the first correct dispatch and quest's does not.
+
+Left declaring environment: release, matching lore, so the npm-side configuration must name 'release'.
 <!-- SECTION:NOTES:END -->

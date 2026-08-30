@@ -222,6 +222,7 @@
 - 2026-08-29T22:39:28-05:00 ee4449d8af882f37d6d4db23977b6f05c17fa206 chore(backlog): record the npm publish wall and the two artifact defects it surfaced
 - 2026-08-29T22:47:23-05:00 ef2ac9dfbbf9d6b59664d8063d68730216722c71 chore(backlog): record the release approval position, the rebuild sweep, and QCLI-153
 - 2026-08-29T23:01:44-05:00 d96a2ed0109ffcc7d7e2144a5c5ada0ae133ae6c chore(backlog): record the definitive credential diagnosis and 0.3.0's final state
+- 2026-08-30T02:11:15-05:00 de563079c7b77827241d2f281466618ef461f6f2 chore(backlog): record the OIDC elimination chain
 
 ## docs/adr
 
