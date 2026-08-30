@@ -212,6 +212,8 @@
 - 2026-08-25T02:29:52-05:00 ca52c3c85f9323116ef34659842bae01587f529f chore(docs): sync lore log after QCLI-97.5.2 settlement
 - 2026-08-25T03:10:40-05:00 57e56b6d505139f28dfe04bbf97ccf9a9f93fecb Revert "chore(docs): sync lore log after QCLI-97.5.2 settlement"
 - 2026-08-28T05:26:43-05:00 0aa256cd6d8c8c1914807f9f01e0c7be6ee17c8a chore(backlog): settle QCLI-124 — Done with 0.2.9 candidate and install proof (QCLI-124)
+- 2026-08-28T14:10:01-05:00 c802cb1e4d801d8fce825f4247ea227cae184815 chore(campaign): reconcile stale tracker, release-truth, and skill shadow
+- 2026-08-29T19:06:01-05:00 6df68ba35d4395f9c6c128e9181282eb3fcc9bab docs(release): require the native-execution receipt in the runbook (QCLI-135)
 
 ## docs/adr
 
@@ -240,6 +242,7 @@
 ## docs/runbooks
 
 - 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
+- 2026-08-29T19:12:58-05:00 03da8e5fb5cf8522d27a0ef712fff53c1fd58388 fix(release): record the run's jobs faithfully, not a curated list (QCLI-135)
 
 ## docs/specs
 
