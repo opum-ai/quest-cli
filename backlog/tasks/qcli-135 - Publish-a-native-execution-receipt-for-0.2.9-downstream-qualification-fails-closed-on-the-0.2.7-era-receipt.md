@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 00:22'
+updated_date: '2026-08-30 00:37'
 labels:
   - release
   - provenance
@@ -100,4 +100,8 @@ FILED OUT OF SCOPE:
 - QCLI-152: imported Backlog timestamps are copied verbatim and never normalised, so the date sort QCLI-137 restored compares '2025-06-02 14:23' against ISO-8601 lexicographically, and new Date() parses the two forms in different timezones.
 
 Re-verified after every fix: the emitted document still returns ok:true from the real downstream validator, and bun run check exits 0.
+
+Merged to dev as 2be4c98 (PR #187). CI green on the final commit: all six platform jobs plus source-gates pass, and the native-execution-receipt job correctly reports 'skipping' on a non-tag ref, which is the release gate behaving as designed. Verified again against merged dev: bun run check exits 0 and --verify-published 0.2.9 still matches all six published platform packages.
+
+Task stays In Progress: AC3 is closed, AC1/AC2/AC4 need a release.
 <!-- SECTION:NOTES:END -->
