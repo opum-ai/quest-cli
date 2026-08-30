@@ -73,12 +73,14 @@ export function verifyPublished(
   version: string,
 ): Promise<ValidationResult>;
 
-export function verifyReproduction(
+export function verifyCommitted(
   target: string,
   options?: { directory?: string },
 ): Promise<{
   readonly ok: boolean;
-  readonly committed: string;
-  readonly built: string;
   readonly target: string;
+  readonly committedBlob: string;
+  readonly workingBlob: string;
+  readonly declared: string;
+  readonly digest: string;
 }>;

@@ -87,9 +87,12 @@ release does not complete.
    does, and sets `github.ref` to `refs/tags/v<version>`, which is what the
    release-only jobs key off.
 
-   On a tag ref each platform job additionally proves its rebuild reproduces
-   the digest committed at that ref, and an aggregation job emits the receipt
-   from the run's own metadata and uploads it as the
+   On a tag ref each platform job executes the **committed** artifact rather
+   than rebuilding it, having first attested that the binary on disk is
+   byte-identical to the blob at that ref. Rebuilding would defeat the receipt:
+   Bun's `--compile` output is not byte-reproducible, so a rebuilt binary is a
+   different artifact from the one being published. An aggregation job then
+   emits the receipt from the run's own metadata and uploads it as the
    `native-execution-receipt` artifact. Download it and run the gate:
 
    ```sh

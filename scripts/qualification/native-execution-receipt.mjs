@@ -193,7 +193,7 @@ export async function buildReceipt({
     coverageClaim: [
       `each of the ${REQUIRED_JOBS.length} required jobs (${REQUIRED_JOBS.join(", ")}) executed bun scripts/qualification/prepublish.mjs against the pinned commit on its own target and reported success;`,
       "any further job recorded above succeeded in the same run, but this receipt makes no claim about what it did;",
-      "on a release ref each platform job additionally reproduced the digest committed at that ref, so the executed bytes are the bytes this receipt names;",
+      "on a release ref each platform job executed the COMMITTED artifact rather than a rebuild, attested byte-identical to the blob at this ref before running, so the executed bytes are the bytes this receipt names;",
       "every executableSha256 below was re-derived from the tracked binary beside its manifest, not copied from the manifest alone.",
     ],
     notClaimed: [
@@ -354,36 +354,52 @@ export async function validateReceipt(
 }
 
 /**
- * The release-ref reproduction gate.
+ * The release-ref attestation gate.
  *
- * Without this the receipt's execution claim does not reach the published
- * bytes. Each platform job runs `bun run build:packages`, which REBUILDS the
- * binary and overwrites the tracked one, so a green run otherwise proves only
- * "a binary built from this source executes on this target" — not "the bytes
- * we are about to publish execute on this target". Comparing the rebuild
- * against the digest committed at this ref closes that gap, and it is enforced
- * only on a release ref because ordinary development pushes legitimately carry
- * a stale committed digest.
+ * This replaces a reproduction check that could never pass, and the reason is
+ * worth keeping: Bun's `--compile` output is NOT byte-reproducible. The same
+ * source, at the same Bun version, produces a different binary on a different
+ * machine — measured, not assumed, when six platform jobs all reported a
+ * mismatch against binaries built locally minutes earlier.
+ *
+ * So "rebuild and check it matches" was the wrong question. A native-execution
+ * receipt attests that the bytes being PUBLISHED ran on their target, and the
+ * published bytes are the ones committed at the release ref. Rebuilding them
+ * first destroys the very thing the receipt is about.
+ *
+ * On a release ref the platform job therefore skips the rebuild and executes
+ * the committed artifact, and this gate is the precondition that makes that
+ * attestation mean anything: the binary about to be executed is byte-identical
+ * to the one committed at this ref, not a rebuild and not a local edit.
  */
-export async function verifyReproduction(target, { directory = root } = {}) {
+export async function verifyCommitted(target, { directory = root } = {}) {
   if (!REQUIRED_PLATFORMS.includes(target))
     throw new Error(`unknown platform target: ${target}`);
-  const { stdout } = await execFile(
-    "git",
-    ["show", `HEAD:npm/quest-${target}/package.json`],
-    { cwd: directory },
-  );
-  const committed = JSON.parse(stdout).questBinarySha256;
-  const built = sha256(
+  const relative = `npm/quest-${target}/bin/${executableFor(target)}`;
+  const { stdout } = await execFile("git", ["rev-parse", `HEAD:${relative}`], {
+    cwd: directory,
+  });
+  const committedBlob = stdout.trim();
+  const onDisk = await execFile("git", ["hash-object", relative], {
+    cwd: directory,
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  const workingBlob = onDisk.stdout.trim();
+
+  const manifest = JSON.parse(
     await readFile(
-      join(directory, "npm", `quest-${target}`, "bin", executableFor(target)),
+      join(directory, "npm", `quest-${target}`, "package.json"),
+      "utf8",
     ),
   );
+  const digest = sha256(await readFile(join(directory, relative)));
   return {
-    ok: committed === built,
-    committed,
-    built,
+    ok: committedBlob === workingBlob && manifest.questBinarySha256 === digest,
     target,
+    committedBlob,
+    workingBlob,
+    declared: manifest.questBinarySha256,
+    digest,
   };
 }
 
@@ -400,22 +416,28 @@ async function main(argv) {
     return value;
   };
 
-  if (argv.includes("--verify-reproduction")) {
-    const target = flag("--verify-reproduction");
-    const result = await verifyReproduction(target);
+  if (argv.includes("--verify-committed")) {
+    const target = flag("--verify-committed");
+    const result = await verifyCommitted(target);
     if (!result.ok) {
       console.error(
-        `${target}: this build does not reproduce the digest committed at this ref.`,
+        `${target}: the binary about to be executed is not the one committed at this ref.`,
       );
-      console.error(`  committed: ${result.committed}`);
-      console.error(`  built:     ${result.built}`);
-      console.error(
-        "  A receipt built on this run would claim the published bytes were executed when they were not.",
-      );
+      if (result.committedBlob !== result.workingBlob) {
+        console.error(`  committed blob: ${result.committedBlob}`);
+        console.error(`  on disk blob:   ${result.workingBlob}`);
+        console.error(
+          "  A rebuild or a local edit replaced it. Bun's --compile output is not byte-reproducible, so a rebuilt binary is a DIFFERENT artifact from the one being published — and a receipt naming it would attest bytes nobody ships.",
+        );
+      }
+      if (result.declared !== result.digest) {
+        console.error(`  manifest declares: ${result.declared}`);
+        console.error(`  binary is:         ${result.digest}`);
+      }
       process.exit(1);
     }
     console.log(
-      `${target}: build reproduces the committed digest ${result.built}.`,
+      `${target}: executing the committed artifact ${result.digest}, unmodified.`,
     );
     return;
   }
