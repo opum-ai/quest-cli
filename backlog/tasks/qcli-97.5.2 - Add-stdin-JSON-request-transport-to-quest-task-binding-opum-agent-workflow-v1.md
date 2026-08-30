@@ -7,7 +7,7 @@ status: Done
 assignee:
   - '@quest-cli'
 created_date: '2026-08-25 01:41'
-updated_date: '2026-08-25 07:28'
+updated_date: '2026-08-30 16:39'
 labels:
   - quest-0.1
   - parity
@@ -61,6 +61,8 @@ Build takeover of review-diagnostic patch (replacement correlation f270442d67a54
 Fresh Codex final-review corrections (correlation a1373e015a0e43d39861f8487462bbf5, base 3f816f1): (1) parseStrictJson now skips insignificant JSON whitespace before every value and after object-key colons, so pretty-printed/multiline exact envelopes and whitespace-padded nested values parse while decoded recursive duplicate-key, strict escape/literal, trailing-content, and closed-envelope refusals are preserved; added pretty-printed + padded process coverage. (2) relationshipForTask classifies claim-record state BEFORE CAS liveness: terminal/superseded/done claim records can never be promoted live by a task-level lease; terminal claim + one live correlation now selects the correlation successfully; terminal claim alone surfaces stable STATE; genuine multi-live ambiguity refusal retained; corrupt-evidence fail-closed behavior unchanged. Full gates green (256 tests), lore check clean, diff check clean, DBG scan clean.
 
 Finalization (successor session 8da36de3, pane wS:p5, ses_fc83c0e72ffeGwDCuOwvnGcIru, openrouter/stealth/ox-alpha, generation opencode-openrouter-ox-alpha-2026-08-23-v1): exact head e34dd33 revalidated clean; PR #142 OPEN/MERGEABLE then merged; exact-head CI run 32819628493 completed/success 7/7; local gates rerun green in worktree: bun run check 256 tests pass, lore check --strict clean, git diff --check clean, DBG scan clean. Malformed AC #6 value '5' removed via backlog CLI (--remove-ac 6); no acceptance invented. AC #5 checked on evidence: stdin negotiation/error/duplicate-key/mixed-transport/claim-liveness/state-freshness coverage in test/contract/opum-agent-workflow-process.test.ts within the 256-test suite.
+
+2026-08-30 housekeeping (quest-cli-27): the pooled worktree branch quest/odoc-71.8-stdin-transport held seven post-#142 correction commits that were never merged by that route. Verified against origin/dev at 95887e5 that all of them are already on dev in identical form, so this task's Done status is correct and no work was lost. Evidence: the two claims source files differ from the branch only in biome import ordering; TERMINAL_RELATIONSHIP_STATES, the claim-state-first classification in GitSnapshotEvidence.relationshipForTask, and parseStrictJson's whitespace tolerance are all present verbatim; every branch-only line in src/cli/main.ts is pre-refactor code including VERSION 0.2.7 against dev's 0.3.0; and zero test names exist on the branch but not on dev (dev carries 19 vs 15 and 26 vs 10 in the two affected test files). The branch was merged into dev with -s ours to record the supersession without changing the tree, then deleted, and its pooled lease returned.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
