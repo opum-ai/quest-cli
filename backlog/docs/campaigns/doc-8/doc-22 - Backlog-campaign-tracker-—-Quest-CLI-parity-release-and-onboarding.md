@@ -3,7 +3,7 @@ id: doc-22
 title: 'Backlog campaign tracker — Quest CLI parity, release, and onboarding'
 type: other
 created_date: '2026-08-19 03:32'
-updated_date: '2026-08-29 17:36'
+updated_date: '2026-08-30 14:20'
 ---
 # Backlog campaign — Quest CLI parity, release, and onboarding
 
@@ -23,13 +23,16 @@ updated_date: '2026-08-29 17:36'
 ## Repositories and routing
 | Repository | Task ids | Mutation owner/FMC identity | AGENTS authority | Integration branch and pinned base | Required gates |
 | --- | --- | --- | --- | --- | --- |
-| quest-cli | QCLI-97.x, QCLI-134..149 | quest-cli (FMC Worker) | autonomous-docs, dev only | dev @ 2c30f5f | source-gates + 6 platform jobs, typecheck/lint/layer/format, Lore strict gates |
+| quest-cli | QCLI-97.x, QCLI-134..149 | quest-cli (FMC Worker) | autonomous-docs, dev only | dev @ v0.3.0 (5a3e409) | source-gates + 6 platform jobs, typecheck/lint/layer/format, Lore strict gates |
 
 ## Frontier
-The owner-approved queue is EMPTY. Resolved 17 (QCLI-125..133, 137..141, 146, 147, 148). In flight 2, both blocked cross-repo.
-Nothing remaining is authorized. The owner took QCLI-148 and declined QCLI-149 on 2026-08-29;
-QCLI-142..145 are explicitly not scheduled; QCLI-134 AC3 is Lore-owned; QCLI-135/136 need a
-release the owner deferred twice.
+THE CAMPAIGN IS COMPLETE. Quest 0.3.0 and Lore 0.3.5 are both published, and every task this
+campaign owned is settled. Resolved 21 (QCLI-125..133, 135..141, 146..148, 151..153) plus
+QCLI-97.6 and QCLI-97.5 AC3.
+
+Nothing is in flight. What remains open is open by owner decision, not by blockage:
+QCLI-142..145 and QCLI-149 are explicitly not scheduled; QCLI-134 AC3 is Lore-owned;
+QCLI-153 AC3 asks the owner whether quest-cli and lore-cli being public is intended.
 
 ## Queue
 | Order | Task | Repository/owner | Dependencies | State | Wave | Likely paths |
@@ -105,3 +108,37 @@ release the owner deferred twice.
   parity (compile-time), CLI-vs-application sort fields, and help-vs-parser flags in both
   directions. QCLI-147's own review mutation-tested all ten publishing surfaces to find the last
   unguarded one.
+
+## Release record — Quest 0.3.0, 2026-08-30
+
+Published through npm OIDC trusted publishing. Provenance attestations confirm the mechanism:
+present on 0.3.0, absent on 0.2.9.
+
+| | |
+| --- | --- |
+| Tag | `v0.3.0` -> `5a3e409d54d45eed9535cade239ad6a67d19231c` |
+| Release run | 33315067738 |
+| Qualification | quest 0.3.0 + lore 0.3.5, both registry installs: 403 rows, 403 PASS, 0 FAIL |
+| Provenance chain | committed == bundled == attested == installed == published, every link recomputed |
+
+Parity: ten of QCLI-134's fourteen Backlog tracker gaps closed, verified behaviourally rather
+than by exit code. The four remaining are exactly the unscheduled FUTURE set.
+
+### What this release cost, recorded so it is not paid twice
+
+Five gate defects were found across three repositories, every one the same shape — a check that
+verified a claim ABOUT a thing rather than the thing itself. Three were quest's:
+
+- A reproduction gate that could never pass, because Bun's `--compile` output is not
+  byte-reproducible across machines. Rebuilding an artifact destroys what a receipt attests.
+- A candidate bundle that named a source commit whose bytes it did not carry, caught downstream
+  by digest comparison after 402 rows had been qualified against artifacts that would never ship.
+- A publish job whose "harmless" dead token, written into `.npmrc` by `setup-node`, made npm
+  authenticate with it and never attempt OIDC at all.
+
+The rule they all argue for is now in the release runbook: anchor every artifact claim to bytes
+that are STORED, never to bytes that can be regenerated, and re-derive at check time rather than
+reading a digest from a document that asserts it.
+
+Also recorded there: npm returns E404 on PUT for at least four indistinguishable causes, and a
+provenance attestation is the only readable evidence of how a version was published.

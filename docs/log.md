@@ -225,6 +225,7 @@
 - 2026-08-30T02:11:15-05:00 de563079c7b77827241d2f281466618ef461f6f2 chore(backlog): record the OIDC elimination chain
 - 2026-08-30T02:29:54-05:00 54ea3c80cc3841fce9a017c5b96d95a61bc0cf48 chore(release): restore the release environment and record the completed elimination
 - 2026-08-30T08:57:22-05:00 70d694fe7e6137ebc9b8457291e28547c26d4284 fix(release): wait for CDN propagation before verifying, and record what shipped
+- 2026-08-30T09:03:42-05:00 d61607ef651ed91b0c366e8b28d343390095662e chore(backlog): settle QCLI-135 Done and close QCLI-97.5 AC3 on the published pair
 
 ## docs/adr
 

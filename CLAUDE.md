@@ -49,7 +49,43 @@ record may preserve its dated observations and state only what quest-cli consume
 current gate result and criteria belong to the Lore owner. If local evidence disagrees
 with either consolidated namespace, record the drift and route it to that owner.
 
-All estate repositories are private. GitHub links are access-gated; a 404 is not path
-evidence. Cite moving authority by path and branch, not a guessed current SHA. Historical
-`quest-doc`, `lore-doc`, or `salient-data/*` mentions in dated provenance stay historical
-and must not be promoted into active instructions.
+Repository visibility is mixed and must be checked rather than assumed: `quest-cli` and
+`lore-cli` are public; `opum-cli-e2e` and the doc repositories are private. For a private
+repository a 404 on a GitHub link is access-gating, not path evidence; for a public one it
+is real evidence the path is wrong. Verify with `gh api repos/<org>/<name> --jq .visibility`
+before relying on either reading. Cite moving authority by path and branch, not a guessed
+current SHA. Historical `quest-doc`, `lore-doc`, or `salient-data/*` mentions in dated
+provenance stay historical and must not be promoted into active instructions.
+
+## Sibling sessions
+
+Quest is developed alongside two sibling repositories, each usually driven by its own
+Claude Code session. They are peers, not subordinates: none can commit in another's
+repository, and each owns its own evidence.
+
+| Repository | Owns | Reach it |
+| --- | --- | --- |
+| `lore-cli` | The `lore` CLI and the Lore-side tracker adapter, including `MIN_QUEST_VERSION` and the manifest handshake | `herdr agent prompt wR:pD "…"` |
+| `opum-cli-e2e` | The cross-product qualification harness: the row matrix, digest binding, scale evidence, and the native-receipt validator | `herdr agent prompt wK:pR "…"` |
+
+Pane ids move between sessions. Confirm with `herdr agent read <pane>` before trusting one,
+or discover peers with `ListAgents` / `list_sessions`.
+
+**Quest and Lore release as a pair.** A Quest release that changes the tracker surface is
+qualified against a published Lore, and vice versa. Before cutting a release, tell `lore-cli`
+what is landing — in particular any change to `TRACKER_CONTRACT_VERSION`, an envelope `kind`,
+or the required command set, which are the three things that break their adapter. Additive
+manifest growth is invisible to them, because their `verifyManifest` is a per-command subset
+check.
+
+**Working rules that came out of doing it.** Each was learned by getting it wrong:
+
+- Re-derive, do not relay. A claim from a sibling session about its own repository is
+  evidence to check, not a fact to act on — a wrong one has already caused work in both
+  directions. Read their code or ask for the command that proves it.
+- Report failures as failures. Siblings ask for errors rather than diagnoses, because the
+  session that owns the code is better placed to read its own error than the one guessing at it.
+- Correct against a working reference. When one repository's pipeline works and another's
+  does not, a controlled field-by-field comparison beats reasoning about either in isolation.
+- Say what a number does not cover. Qualification runs measure one host and one moment;
+  they are not soak, and scope limits belong next to the result rather than in a follow-up.
