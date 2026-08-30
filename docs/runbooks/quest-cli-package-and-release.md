@@ -23,6 +23,11 @@ release does not complete.
 
 - A reviewed source commit and the exact root plus six platform tarballs:
   darwin/linux/win32 on x64 and arm64.
+- CI, not a workstation, for any build that must cover all six platforms. Bun
+  refuses `bun-windows-aarch64` outright — `error: Unsupported compile target`
+  — so no single machine can produce the full set, which is why the win32-arm64
+  binary comes off a `windows-11-arm` runner. A local `bun run build:packages`
+  gets four of six and then stops, leaving the working tree half-built.
 - Package checks that prove root/platform version and SHA-256 agreement,
   platform constraints, license, repository identity, and published-file
   contents.
@@ -117,6 +122,35 @@ release does not complete.
    to the receipt. Publish the receipt to the consuming harness only after it
    passes; a receipt that describes a build nobody published is the exact
    failure this step exists to prevent.
+
+## Exercising a build before it is published
+
+To qualify changes that have not been released, dispatch the qualification
+workflow against the branch and collect the `quest-candidate-bundle` artifact:
+
+```sh
+gh workflow run prepublication-qualification.yml --ref <branch>
+gh run download <run-id> --name quest-candidate-bundle --dir candidate
+```
+
+The bundle is digest-pinned and reaches no registry. A consumer binds it with
+`--quest-candidate` and installs Quest from the exact tarballs inside it,
+recomputing every executable digest from those bytes.
+
+State what it does and does not establish, rather than reporting the verdict
+alone. Binding a candidate replaces per-platform CI-receipt rows with
+candidate-byte rows: it gains live digest re-derivation and binds the binary
+that actually runs the behavioural rows, and it loses execution attestation for
+the platforms the running host cannot execute. Six targets attested becomes one
+target executed plus six artifacts digest-bound. The native-execution receipt
+covers the second, so the two are complementary rather than substitutes, and
+neither is soak.
+
+The consuming harness may also read the platform and root `package.json` from a
+sibling source checkout rather than from the bundle. Tell the consumer which
+checkout and which version to expect, and leave it there for the duration of
+the run; a working tree that moves mid-run fails those rows on a mismatch that
+has nothing to do with the candidate.
 
 ## Rollback
 

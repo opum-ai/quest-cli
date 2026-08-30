@@ -214,6 +214,7 @@
 - 2026-08-28T05:26:43-05:00 0aa256cd6d8c8c1914807f9f01e0c7be6ee17c8a chore(backlog): settle QCLI-124 — Done with 0.2.9 candidate and install proof (QCLI-124)
 - 2026-08-28T14:10:01-05:00 c802cb1e4d801d8fce825f4247ea227cae184815 chore(campaign): reconcile stale tracker, release-truth, and skill shadow
 - 2026-08-29T19:33:47-05:00 2be4c98afc3857646d5fcc737cef43fa15940813 feat(release): generate the native-execution receipt in CI (QCLI-135 AC3) (#187)
+- 2026-08-29T20:03:38-05:00 443bc0e760672d025ad390988404b4f0d3306ac0 fix: close two contract defects found by review (QCLI-151, QCLI-152)
 
 ## docs/adr
 
