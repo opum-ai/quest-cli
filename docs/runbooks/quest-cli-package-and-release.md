@@ -26,6 +26,10 @@ release does not complete.
 - Package checks that prove root/platform version and SHA-256 agreement,
   platform constraints, license, repository identity, and published-file
   contents.
+- A native-execution receipt emitted by the tagged CI run, binding that exact
+  commit and version. A receipt made by hand after the fact is not acceptable
+  evidence: the one that existed before QCLI-135 outlived the release it
+  described, and downstream qualification then failed closed against it.
 - Explicit owner authorization immediately before publication. This task does
   not reserve a name, alter registry access, or publish on its own.
 
@@ -61,15 +65,44 @@ release does not complete.
    checks. Attach each command, result, candidate checksum, and skipped-gate
    reason to the release evidence.
 
-5. Immediately before a separately authorized publish, recheck the registry
+5. Require the native-execution receipt for this exact commit and version.
+   Push the release tag so the qualification workflow runs; on a tag each
+   platform job additionally proves its rebuild reproduces the digest
+   committed at that ref, and an aggregation job emits the receipt from the
+   run's own metadata and uploads it as the `native-execution-receipt`
+   artifact. Download it and run the gate:
+
+   ```sh
+   bun run receipt:require -- --receipt native-execution-receipt.json
+   ```
+
+   The gate re-derives every digest from the artifacts on disk rather than
+   trusting the document, and refuses a receipt bound to any other commit or
+   version. A failure here is publication-blocking: without it the run proves
+   only that a binary built from this source executes on each target, not that
+   the bytes about to be published do.
+
+6. Immediately before a separately authorized publish, recheck the registry
    name and conflicts, the repository identity, current Lore release gate, and
    package metadata. If any fact changed, stop for an owner decision; do not
    substitute a package name or artifact.
 
-6. Publish the exact reviewed immutable artifacts only after the owner grants
+7. Publish the exact reviewed immutable artifacts only after the owner grants
    that authorization. Then clean-install from the registry and repeat the
    public version, manifest, task, projection, and migration smokes. Only this
    successful verification permits availability or install documentation.
+
+8. Confirm the receipt describes what the registry actually serves, then hand
+   it to downstream qualification:
+
+   ```sh
+   bun run receipt:verify-published -- <version> --receipt native-execution-receipt.json
+   ```
+
+   This downloads all six platform tarballs and compares each binary's digest
+   to the receipt. Publish the receipt to the consuming harness only after it
+   passes; a receipt that describes a build nobody published is the exact
+   failure this step exists to prevent.
 
 ## Rollback
 
