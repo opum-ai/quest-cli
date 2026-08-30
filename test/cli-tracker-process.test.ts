@@ -953,6 +953,8 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       help: ["--help", "--plain"],
       init: ["init", "--plain"],
       instructions: ["instructions", "--plain"],
+      "instructions --list": ["instructions", "--list", "--plain"],
+      "instructions <guide>": ["instructions", "overview", "--plain"],
       agents: ["agents", "--update-instructions", "--plain"],
       completion: ["completion", "bash", "--plain"],
       "migration backlog preview": [

@@ -61,6 +61,8 @@ export interface CommandManifestEntry {
     | "help"
     | "init"
     | "instructions"
+    | "instructions --list"
+    | "instructions <guide>"
     | "agents"
     | "completion"
     | "migration backlog preview"
@@ -128,6 +130,11 @@ export const commandManifest = {
       kind: "workspace.initialized",
       mutates: true,
     },
+    // Three entries rather than one, following `search` / `search --all`: the
+    // three forms emit three different envelope kinds, and a consumer reading
+    // the registry to learn which envelope to expect must be able to find the
+    // one that matches the invocation it is about to make. Declaring only the
+    // bare form's kind made the other two undiscoverable (QCLI-151).
     {
       name: "instructions",
       schemaVersion: 1,
@@ -136,7 +143,21 @@ export const commandManifest = {
       // Bare: the managed block. With a guide name: that guide. With --list:
       // the guide index. There is deliberately no "all" (QCLI-141).
       filters: ["guide", "list"],
-      fields: ["content", "guides", "name", "summary", "version"],
+      fields: ["content", "version"],
+    },
+    {
+      name: "instructions --list",
+      schemaVersion: 1,
+      kind: "agent.guides",
+      mutates: false,
+      fields: ["guides", "version"],
+    },
+    {
+      name: "instructions <guide>",
+      schemaVersion: 1,
+      kind: "agent.guide",
+      mutates: false,
+      fields: ["content", "name", "summary", "version"],
     },
     {
       name: "agents",

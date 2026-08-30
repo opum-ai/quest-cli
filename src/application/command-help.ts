@@ -36,11 +36,26 @@ export const commandHelp: Record<
       'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
     flags: ["--name", "--task-id-prefix", "--agent-instructions"],
   },
+  // The human-facing entry stays whole: `--list` is a flag of `quest
+  // instructions`, and splitting it out would make `quest help instructions`
+  // stop mentioning it. The two entries below exist so a MACHINE reading the
+  // registry can find the envelope kind for each form (QCLI-151); they are not
+  // separate commands.
   instructions: {
     summary:
       "Print the managed AGENTS.md agent-instructions block, one workflow guide, or the guide index.",
     usage: "quest instructions [<guide>] [--list]",
     flags: ["--list"],
+  },
+  "instructions --list": {
+    summary: "List the workflow guides with a one-line purpose each.",
+    usage: "quest instructions --list",
+    flags: ["--list"],
+  },
+  "instructions <guide>": {
+    summary: "Print one workflow guide.",
+    usage: "quest instructions <guide>",
+    flags: [],
   },
   agents: {
     summary: "Check or update the managed agent-instructions block.",
