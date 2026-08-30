@@ -174,21 +174,36 @@ test("a platform package left at the previous version is refused", async () => {
   }
 });
 
-test("the root package's platform digests are re-derived, not carried over", async () => {
+test("the packed root carries re-derived digests, and the working tree is left untouched", async () => {
   const directory = await fixture();
   const out = await mkdtemp(join(tmpdir(), "quest-candidate-out-"));
   try {
+    const before = await readFile(join(directory, "package.json"), "utf8");
     await buildCandidateBundle({ commit: COMMIT, out, directory });
-    const rootPackage = JSON.parse(
-      await readFile(join(directory, "package.json"), "utf8"),
+
+    // The digests must be re-derived from the binaries actually present, or a
+    // bundle assembled from separately-built artifacts advertises the previous
+    // release's values.
+    const packed = join(out, "tarballs", "opum-ai-quest-9.9.9.tgz");
+    const extracted = join(out, "root");
+    await mkdir(extracted, { recursive: true });
+    await execFile("tar", ["xzf", packed, "-C", extracted]);
+    const shipped = JSON.parse(
+      await readFile(join(extracted, "package", "package.json"), "utf8"),
     );
-    // The fixture seeds a deliberately wrong value; the bundle must replace it
-    // with digests computed from the binaries actually present.
-    expect(rootPackage.questPlatformPackages.stale).toBeUndefined();
     for (const platform of REQUIRED_PLATFORMS)
-      expect(
-        rootPackage.questPlatformPackages[`@opum-ai/quest-${platform}`],
-      ).toBe(sha256(`binary for ${platform}`));
+      expect(shipped.questPlatformPackages[`@opum-ai/quest-${platform}`]).toBe(
+        sha256(`binary for ${platform}`),
+      );
+    expect(shipped.questPlatformPackages.stale).toBeUndefined();
+
+    // And the repository is left exactly as it was found. A build step that
+    // mutates the working tree eventually has that mutation swept into an
+    // unrelated commit — which happened: a red-case test's tampered digest
+    // reached dev inside another change and failed CI there.
+    expect(await readFile(join(directory, "package.json"), "utf8")).toBe(
+      before,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
     await rm(out, { recursive: true, force: true });

@@ -137,6 +137,12 @@ export async function buildCandidateBundle({
       );
     platformDigests[manifest.name] = digest;
   }
+  // `npm pack` reads package.json from disk, so the corrected digests have to
+  // be written there. The ORIGINAL is kept and restored after packing: a build
+  // step that leaves the working tree mutated will eventually have that
+  // mutation swept into an unrelated commit, which is exactly what happened —
+  // a red-case test's tampered digest reached dev inside another change.
+  const originalRootPackage = await readFile(rootPackagePath, "utf8");
   rootPackage.questPlatformPackages = platformDigests;
   await writeFile(rootPackagePath, `${JSON.stringify(rootPackage, null, 2)}\n`);
 
@@ -221,6 +227,7 @@ export async function buildCandidateBundle({
       2,
     )}\n`,
   );
+  await writeFile(rootPackagePath, originalRootPackage);
   return { version, commit, out, packages, digests, artifactProvenance };
 }
 
