@@ -33,7 +33,10 @@
     "test:package-artifact-delivery": "bun run scripts/test-package-artifact-delivery.mjs",
     "test:repository-check-scope": "node scripts/test-repository-check-scope.mjs",
     "test": "bun run test:repository-check-scope && bun run test:package-artifact-delivery && bun test",
-    "check": "bun run typecheck && bun run lint && bun run format:check && bun run layer:check && bun run test"
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun run layer:check && bun run test",
+    "receipt:emit": "node scripts/qualification/native-execution-receipt.mjs",
+    "receipt:require": "node scripts/qualification/native-execution-receipt.mjs --require",
+    "receipt:verify-published": "node scripts/qualification/native-execution-receipt.mjs --verify-published"
   },
   "optionalDependencies": {
     "@opum-ai/quest-darwin-arm64": "0.2.9",
