@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 04:01'
+updated_date: '2026-08-30 07:11'
 labels:
   - release
   - provenance
@@ -179,4 +179,23 @@ FINAL STATE OF 0.3.0, everything except that step:
   registry   NOT published. Nothing partial landed on any of four attempts.
   publish    one dispatch once trust exists:
              gh workflow run release.yml --ref v0.3.0 -f publish=true
+
+TRUSTED PUBLISHING IS NOT CONFIGURED FOR QUEST'S SEVEN PACKAGES. That is now a supported conclusion rather than an assumption, because every other cause has been eliminated in CI and the eliminations are visible in the run log.
+
+Run 33298452455, publish job:
+  npm 11.19.1          asserted against the 11.5.1 OIDC floor, not assumed
+  node v24.19.0        above the 22.14.0 floor
+  id-token: write      scoped to the publish job
+  environment: release declared, so the OIDC token carries an environment claim
+  NODE_AUTH_TOKEN      NOT set, so npm cannot fall back to token auth
+  result               E404 on PUT, first package, nothing published
+
+Three wrong diagnoses preceded this, and each was a real defect worth fixing on its own:
+1. A dead NPM_TOKEN passed to setup-node's registry-url wrote _authToken into .npmrc, so npm authenticated with a token known to return E401 and NEVER ATTEMPTED OIDC. I had called it a harmless fallback. It was standing in front of the mechanism it was supposed to back up.
+2. No environment was declared, so the OIDC token carried no environment claim and could not match a publisher configured with one.
+3. Node 22 bundles npm 10.x and the upgrade was never verified. An npm below the floor does not announce itself - it silently skips OIDC and falls back to token auth, producing the same opaque E404.
+
+All three produce E404 on PUT, identically, and so does a missing trust relationship. That is why this took six attempts: npm returns one error for at least four distinct causes, and the only way to reach the fourth was to eliminate the other three in the run log.
+
+The lore-cli session published 0.3.5 successfully through the same mechanism, and their trust relationship turned out to have been configured all along - which is what made 'quest's simply is not' the remaining explanation rather than a guess.
 <!-- SECTION:NOTES:END -->
