@@ -36,6 +36,26 @@ release does not complete.
   commit and version. A receipt made by hand after the fact is not acceptable
   evidence: the one that existed before QCLI-135 outlived the release it
   described, and downstream qualification then failed closed against it.
+- Trusted publishing configured for all seven package names. npm restricted
+  classic tokens for direct publishing, so a stored token cannot publish: both a
+  local `npm publish` and the workflow's `NPM_TOKEN` return E404 on PUT, npm's
+  response to a token that cannot write to the scope. Granular tokens are capped
+  at 90 days and must be created on the website, so a token-based release stops
+  working every quarter and surfaces as a stalled release rather than a warning.
+
+  One-time setup per package, at `https://www.npmjs.com/package/<name>/access` —
+  not the account settings page — for `@opum-ai/quest` and each of the six
+  platform packages:
+
+  | Field | Value |
+  | --- | --- |
+  | Organization | `opum-ai` |
+  | Repository | `quest-cli` |
+  | Workflow filename | `release.yml` (filename only, not a path) |
+  | Environment | leave blank; the job declares none |
+
+  Every field is case-sensitive and **npm does not validate them on save**, so a
+  typo appears only as a failed publish. GitHub-hosted runners only.
 - Explicit owner authorization immediately before publication. This task does
   not reserve a name, alter registry access, or publish on its own.
 
@@ -111,7 +131,18 @@ release does not complete.
    substitute a package name or artifact.
 
 7. Publish the exact reviewed immutable artifacts only after the owner grants
-   that authorization. Then clean-install from the registry and repeat the
+   that authorization. Dispatch the release workflow against the tag, dry run
+   first:
+
+   ```sh
+   gh workflow run release.yml --ref v<version> -f publish=false
+   gh workflow run release.yml --ref v<version> -f publish=true
+   ```
+
+   The workflow fetches the receipt from the qualification run for that exact
+   commit rather than accepting one as input, and refuses to publish without
+   it. Platform packages publish before the root, so the root never briefly
+   advertises `optionalDependencies` that do not exist. Then clean-install from the registry and repeat the
    public version, manifest, task, projection, and migration smokes. Only this
    successful verification permits availability or install documentation.
 

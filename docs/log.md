@@ -217,6 +217,7 @@
 - 2026-08-29T20:03:38-05:00 443bc0e760672d025ad390988404b4f0d3306ac0 fix: close two contract defects found by review (QCLI-151, QCLI-152)
 - 2026-08-29T20:39:53-05:00 dc37bf1eb717291b4aa108323de8369c13547e5e docs(release): record the six-platform CI constraint and the candidate-bundle flow
 - 2026-08-29T21:01:19-05:00 adfdfd0b90d5476472c025eb22924be2b91c22e3 chore(backlog): record the QCLI-135 candidate bundle delivery
+- 2026-08-29T21:37:07-05:00 1286d9ab20bf616802c21f08f8b190ac2e8b597a chore(backlog): record the 0.3.0 native-execution receipt and the npm credential wall
 
 ## docs/adr
 
@@ -247,6 +248,7 @@
 - 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
 - 2026-08-29T20:49:32-05:00 c81b4b376982cd81ae400df2e798e75c25fe25e1 docs(release): correct the Bun cross-compile claim
 - 2026-08-29T21:22:34-05:00 fce8a9f970f04735a8bb5d5b8df999255745e131 fix(release): attest the committed artifact instead of rebuilding it
+- 2026-08-29T21:45:23-05:00 b54587a946176da3f04c047dddc94572c62270d5 feat(release): publish from CI, and refuse a bundle that misattributes its bytes
 
 ## docs/specs
 

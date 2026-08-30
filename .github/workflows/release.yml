@@ -26,12 +26,32 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # Trusted publishing (OIDC). npm verifies a short-lived token minted by
+      # GitHub against a trust relationship configured once per package, so
+      # nothing is stored and nothing expires.
+      #
+      # This is not a preference. npm restricted classic tokens for direct
+      # publishing; both a local publish and this workflow's stored NPM_TOKEN
+      # return E404 on PUT, which is what npm returns for a token that cannot
+      # write to the scope. Granular tokens are capped at 90 days and must be
+      # made on the website, so a token-based release stops working every
+      # quarter and surfaces as a stalled release rather than a warning.
+      #
+      # Requires a one-time setup per package at
+      # https://www.npmjs.com/package/<name>/access — all seven names
+      # separately — naming this repository, this workflow filename, and the
+      # publish action. npm does not validate those fields on save, so a typo
+      # shows up only as a failed publish.
+      id-token: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      # OIDC publishing needs npm >= 11.5.1, which is newer than the npm
+      # bundled with any Node 22.
+      - run: npm install --global npm@latest
 
       # The receipt is fetched from the qualification run for this exact
       # commit, not passed in. A receipt supplied by the person publishing is
@@ -60,6 +80,10 @@ jobs:
       # exist.
       - name: Publish
         env:
+          # Kept as a fallback for as long as it might work. When trusted
+          # publishing is configured for a package, npm uses OIDC and ignores
+          # this; when it is not, this is what fails, which is the current
+          # state and the reason the setup above is required.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           DRY: ${{ inputs.publish == true && ' ' || '--dry-run' }}
         run: |
