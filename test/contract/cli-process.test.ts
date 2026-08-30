@@ -99,6 +99,9 @@ test("every help spelling resolves output modes before its optional topic", asyn
       ["help", "task"],
       ["task", "--help"],
       ["task", "-h"],
+      ["help", "task edit"],
+      ["task", "edit", "--help"],
+      ["task", "edit", "-h"],
     ] as const) {
       const result = await runQuest([...invocation, mode], false);
       expect(result.exitCode, `${invocation.join(" ")} ${mode}`).toBe(0);
@@ -121,6 +124,21 @@ test("every help spelling resolves output modes before its optional topic", asyn
     message: "No help is available for unknown-topic.",
     principal: null,
   });
+
+  // A two-word subcommand's --help/-h must resolve that exact command, not
+  // fall through to executing it (the flag lands past the argv positions the
+  // detector used to check).
+  for (const invocation of [
+    ["task", "edit", "--help", "--json"],
+    ["task", "edit", "-h", "--json"],
+    ["help", "task edit", "--json"],
+  ] as const) {
+    const result = await runQuest(invocation, false);
+    expect(result.exitCode, invocation.join(" ")).toBe(0);
+    expect(JSON.parse(result.stdout).data.commands).toEqual([
+      expect.objectContaining({ name: "task edit" }),
+    ]);
+  }
 
   const agentsJson = await runQuest(["help", "agents", "--json"], false);
   expect(agentsJson.exitCode).toBe(0);
@@ -213,6 +231,29 @@ test("migration smoke exercises the compiled migration path and rejects flags", 
   const failure = await runQuest(["migration-smoke", "--unexpected"], false);
   expect(failure.exitCode).toBe(2);
   expect(JSON.parse(failure.stderr)).toMatchObject({ error_type: "usage" });
+});
+
+test("an unrecognized --actor-kind value names itself, not a missing flag", async () => {
+  const result = await runQuest(
+    [
+      "task",
+      "create",
+      "Title",
+      "--actor",
+      "a1",
+      "--actor-kind",
+      "agent",
+      "--json",
+    ],
+    false,
+  );
+  expect(result.exitCode).toBe(2);
+  expect(JSON.parse(result.stderr)).toMatchObject({
+    error_type: "usage",
+    message:
+      '--actor-kind "agent" is not a valid actor kind. Use "human" or "delegated-agent".',
+    principal: null,
+  });
 });
 
 const valueFlagCases = [
