@@ -36,6 +36,23 @@ release does not complete.
   commit and version. A receipt made by hand after the fact is not acceptable
   evidence: the one that existed before QCLI-135 outlived the release it
   described, and downstream qualification then failed closed against it.
+- Trusted publishing configured for all seven package names, **created by hand
+  for each one**. It does not propagate: `@opum-ai/lore` published 0.1.0 through
+  0.3.4 with no trusted publisher and only gained one before 0.3.5, on the same
+  npm account, the same organization and the same scope as Quest.
+
+  To check whether a package has ever published through it, without publishing:
+  npm attaches a provenance attestation automatically on an OIDC publish, so the
+  attestation is a fossil of how each version shipped.
+
+  ```sh
+  curl -s https://registry.npmjs.org/@opum-ai%2Fquest \
+    | python3 -c "import json,sys;d=json.load(sys.stdin);print({v:('attestations' in d['versions'][v].get('dist',{})) for v in d['versions']})"
+  ```
+
+  There is no read path for the configuration itself — no CLI subcommand, and
+  the `/access` page is browser-only — so this is the only way to tell from
+  outside.
 - Trusted publishing configured for all seven package names. npm restricted
   classic tokens for direct publishing, so a stored token cannot publish: both a
   local `npm publish` and the workflow's `NPM_TOKEN` return E404 on PUT, npm's
@@ -52,7 +69,16 @@ release does not complete.
   | Organization | `opum-ai` |
   | Repository | `quest-cli` |
   | Workflow filename | `release.yml` (filename only, not a path) |
-  | Environment | leave blank; the job declares none |
+  | Environment | `release` (the job declares one) |
+
+  **npm returns E404 on PUT for at least four different causes** and gives no
+  way to tell them apart: a token that cannot write to the scope, a token that
+  does not authenticate, an npm below the OIDC floor that silently skipped
+  trusted publishing, and no trust relationship at all. Quest's 0.3.0 release
+  hit three of the four in sequence. The workflow now eliminates the first
+  three before the registry is touched — no token is configured, the npm floor
+  is asserted rather than assumed — so an E404 that survives all of that means
+  the configuration is missing or mistyped.
 
   Every field is case-sensitive and **npm does not validate them on save**, so a
   typo appears only as a failed publish. GitHub-hosted runners only.
