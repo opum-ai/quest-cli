@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 00:37'
+updated_date: '2026-08-30 02:01'
 labels:
   - release
   - provenance
@@ -104,4 +104,19 @@ Re-verified after every fix: the emitted document still returns ok:true from the
 Merged to dev as 2be4c98 (PR #187). CI green on the final commit: all six platform jobs plus source-gates pass, and the native-execution-receipt job correctly reports 'skipping' on a non-tag ref, which is the release gate behaving as designed. Verified again against merged dev: bun run check exits 0 and --verify-published 0.2.9 still matches all six published platform packages.
 
 Task stays In Progress: AC3 is closed, AC1/AC2/AC4 need a release.
+
+Candidate bundle delivered (PR #190, dev dc7c9a5). This is the exit criterion the soak deferral did not have.
+
+scripts/build-candidate-bundle.mjs plus a CI candidate-bundle job assemble a digest-pinned bundle of an UNPUBLISHED build, which opum-cli-e2e binds with --quest-candidate. Nothing reaches a registry. The capability existed on their side and neither repo was using it: bin/opum-e2e.mjs:139, already exercised at 309/309 against an unpublished build.
+
+Delivered: /tmp/quest-candidate-030, sourceCommit 5ef5e578d0e534feb7c1e531287b4e1fb5e1a561, version 0.3.0, CI run 33286602773 with all eight jobs green. Verified independently before handing over: shasum -c passes all seven, tar -tvzf shows -rwxr-xr-x on the non-Windows binaries, root tarball carries package/bin/quest.cjs.
+
+What the run will and will not establish, measured by the consumer rather than predicted: 407 rows -> 402, REMOVED 15 / ADDED 10 (identity 9/8, packaging 6/2). Identity is an UPGRADE - nine rows deriving provenance from whatever commit a sibling worktree sits on, replaced by eight deriving it from digest-pinned tarball bytes, with one genuine loss (the candidate's git identity, which a tarball cannot carry). Packaging narrows: six targets attested becomes one target executed plus six artifacts digest-bound. Neither is soak. This must not be reported as costless.
+
+Three failures on the way, recorded because they recur:
+1. The version bump left bun.lock stale; CI died before any gate ran. Regenerated with bun 1.3.14 specifically - the local 1.2.23 writes a different lockfile shape and fails the frozen check for a second reason.
+2. The bump left all six committed platform manifests at 0.2.9 against a 0.3.0 root, so check:packages failed in source-gates and every downstream job skipped. Fixed by rebuilding all six.
+3. Staging 496MB of binaries in one git add got SIGKILLed. deliver:packages already exists for exactly this - it builds and stages one target at a time with bounded pack memory - and should have been the first choice.
+
+A claim I wrote into the runbook and had to correct: 'Bun cannot cross-compile bun-windows-aarch64.' That is a Bun VERSION constraint, not an absolute one - 1.2.23 refuses it, 1.3.14 compiles it. I recorded a mechanism from one observation. Independently corroborated afterwards by lore-cli, whose DEVELOPMENT.md already had the correct version-scoped form.
 <!-- SECTION:NOTES:END -->
