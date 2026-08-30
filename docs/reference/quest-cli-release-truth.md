@@ -16,10 +16,41 @@ timestamp: 2026-08-17T05:49:03.883Z
 `@opum-ai/quest` 0.1.0 is publicly published on npm. This is the immutable
 release record for the root launcher and its six platform packages; it does
 not claim that a later source tree or a locally rebuilt artifact is released.
+Each dated section below is an immutable record of that publication event;
+later sections record later, additional publications rather than replacing
+earlier ones.
+
+## Current publication state (2026-08-28)
+
+- npm dist-tag `latest` = `0.2.9` on the root package and all six platform
+  packages (verified live via `npm view <package> dist-tags`; root and
+  platform packages spot-checked directly, remainder per Worker evidence
+  below). `release-candidate` is also `0.2.9`.
+- GitHub Release `v0.2.9` ("Quest CLI 0.2.9") is published: non-draft,
+  non-prerelease, published 2026-08-28T18:17:34Z, at
+  https://github.com/opum-ai/quest-cli/releases/tag/v0.2.9. Annotated tag
+  object `cb33551adaa72fbc6ebbca289045cecc8e9d21ca` dereferences to commit
+  `75c214de8f6055e27b30ae43b5a30e3abc2556b1` (PR #158 merge to `dev`), which
+  is an ancestor of `origin/main` at `672e8d07bd5e43ba265bba1278c7d41d3d58c7f2`
+  (PR #160). Tagged by the package owner.
+- The published 0.2.9 artifacts are the same candidate qualified below under
+  "0.2.9 corrective release": same source commit and tarball SHA-256/npm
+  integrity values. That section's superseded "unpublished" framing is kept
+  as a historical qualification record; the current publication facts are
+  recorded here and at the start of that section.
+- `@opum-ai/quest@0.2.8` was also published to npm on 2026-08-28, ahead of
+  0.2.9; it carries the managed-instructions packaging defect described in
+  the 0.2.9 section below (a fresh install wrote `This project uses Quest
+  CLI 0.2.7`) and was superseded within the same day when 0.2.9 became
+  `latest`. No git tag or GitHub Release exists for 0.2.8.
+- Publication authority: the package owner ran the npm one-time-password
+  publish/promotion steps directly; the Worker performed no registry write.
 
 ## Release identity
 
-- npm package: `@opum-ai/quest@0.1.0`, dist-tag `latest` = `0.1.0`.
+- npm package: `@opum-ai/quest@0.1.0` was the initial publication, with
+  dist-tag `latest` = `0.1.0` at that time. `latest` has since moved to
+  `0.2.9` — see "Current publication state" above.
 - Repository: `https://github.com/opum-ai/quest-cli.git`.
 - Reviewed source commit: `f89ad168515b9ae811d2bf0d6a54c2a5a7f58d37`
   (PR #104 merge to `dev`).
@@ -122,11 +153,12 @@ the source commit, artifact commit, tarball hashes, and installed realpaths in
 its evidence. This is installed local-artifact qualification only and does not
 represent npm publication.
 
-## Unpublished 0.2.9 corrective candidate
+## 0.2.9 corrective release
 
-Quest 0.2.9 is a local corrective candidate, not an npm release. Registry
-publication remains unauthorized and 0.2.9 is absent from the registry on all
-seven packages as of 2026-08-28. It corrects the shipped 0.2.8 packaging
+Quest 0.2.9 was qualified as a local corrective candidate and is now
+published on npm as of 2026-08-28 — see "Current publication state" above
+for dist-tag, GitHub Release, and authorization evidence. It corrects the
+shipped 0.2.8 packaging
 defect in which the committed platform bundles carried a hand-synced managed
 instructions template (a fresh registry install of 0.2.8 wrote `This project
 uses Quest CLI 0.2.7`); the managed-instructions template and drift message
@@ -157,5 +189,6 @@ and the native binary all report 0.2.9; `agents --update-instructions`
 writes `This project uses Quest CLI 0.2.9`;
 `agents --check --require-installed` exits 0; `instructions --json` reports
 version 0.2.9; and the launcher's missing-platform diagnostic is intact.
-This is local-artifact qualification only and does not represent npm
-publication.
+This was local-artifact qualification evidence gathered before publication;
+the same artifacts are now the published 0.2.9 packages — see "Current
+publication state" above.

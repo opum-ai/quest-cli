@@ -61,6 +61,32 @@ candidate needed to close them.
 - Registry publication remains a separate owner-authorized action; a local
   release candidate is never described as publicly available.
 
+## Release record — 0.3.0, 2026-08-30
+
+This Story's release acceptance criteria are met. `@opum-ai/quest` 0.3.0 is published to npm
+through OIDC trusted publishing, qualified from a registry install against the published
+`@opum-ai/lore` 0.3.5: 403 rows, 403 pass, 0 fail.
+
+Release evidence identifies the exact source and artifacts, as the criteria require, and does so
+in a form a consumer can re-derive rather than a claim it must accept: a native-execution receipt
+naming the source commit, CI run and per-platform executable digests, with an explicit
+`notClaimed` list; a digest-pinned candidate bundle carrying an `artifactProvenance` field; and a
+downstream corroboration row comparing bundle, receipt and published tarballs, each digest
+recomputed from bytes. The chain `committed == bundled == attested == installed == published` holds
+with every link recomputed.
+
+Publication remained a separate owner-authorized action throughout. No candidate was described as
+available before it was.
+
+### What the Story does not yet close
+
+QCLI-97.5 retains three open criteria — the owner-approved adapter contract, explicit workspace
+selection, and the managed-region separation — and QCLI-97.11 is unfinished. The 0.3.0
+qualification closes AC3 of that task only: real cross-product conformance against supported
+published releases of both products.
+
+Nothing in this record is soak. It measures one host at one moment.
+
 ## Tasks
 
 <!-- lore:tasks:begin -->
@@ -72,7 +98,7 @@ candidate needed to close them.
 | [QCLI-97.3](../../backlog/tasks/qcli-97.3%20-%20Restore-Quest-planning-and-operations-parity-commands.md) | Restore Quest planning and operations parity commands | Done |
 | [QCLI-97.4](../../backlog/tasks/qcli-97.4%20-%20Restore-Quest-task-lifecycle-and-draft-parity.md) | Restore Quest task lifecycle and draft parity | Done |
 | [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | In Progress |
-| [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | To Do |
+| [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | Done |
 | [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | Done |
 | [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | Done |
 | [QCLI-99](../../backlog/tasks/qcli-99%20-%20Declare-the-reserved-principal-field-on-success-envelopes.md) | Declare the reserved principal field on success envelopes | Done |

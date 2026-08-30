@@ -61,6 +61,8 @@ export interface CommandManifestEntry {
     | "help"
     | "init"
     | "instructions"
+    | "instructions --list"
+    | "instructions <guide>"
     | "agents"
     | "completion"
     | "migration backlog preview"
@@ -89,6 +91,7 @@ export interface CommandManifestEntry {
     | "milestone create"
     | "milestone edit"
     | "milestone delete"
+    | "milestone archive"
     | "decision list"
     | "decision view"
     | "decision create"
@@ -127,11 +130,34 @@ export const commandManifest = {
       kind: "workspace.initialized",
       mutates: true,
     },
+    // Three entries rather than one, following `search` / `search --all`: the
+    // three forms emit three different envelope kinds, and a consumer reading
+    // the registry to learn which envelope to expect must be able to find the
+    // one that matches the invocation it is about to make. Declaring only the
+    // bare form's kind made the other two undiscoverable (QCLI-151).
     {
       name: "instructions",
       schemaVersion: 1,
       kind: "agent.instructions",
       mutates: false,
+      // Bare: the managed block. With a guide name: that guide. With --list:
+      // the guide index. There is deliberately no "all" (QCLI-141).
+      filters: ["guide", "list"],
+      fields: ["content", "version"],
+    },
+    {
+      name: "instructions --list",
+      schemaVersion: 1,
+      kind: "agent.guides",
+      mutates: false,
+      fields: ["guides", "version"],
+    },
+    {
+      name: "instructions <guide>",
+      schemaVersion: 1,
+      kind: "agent.guide",
+      mutates: false,
+      fields: ["content", "name", "summary", "version"],
     },
     {
       name: "agents",
@@ -207,7 +233,21 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "task.list",
       mutates: false,
-      filters: ["label", "status"],
+      filters: [
+        "assignee",
+        "exclude-status",
+        "label",
+        "limit",
+        "milestone",
+        "parent",
+        "priority",
+        "ready",
+        "search",
+        "sort",
+        "status",
+        "type",
+        "unassigned",
+      ],
       fields: [
         "assignees",
         "createdAt",
@@ -325,19 +365,28 @@ export const commandManifest = {
         "addNotes",
         "addPlan",
         "addReferences",
+        "checkAcceptanceCriteria",
+        "checkDefinitionOfDone",
+        "clearAcceptanceCriteria",
+        "clearDefinitionOfDone",
         "clearMilestone",
         "clearParent",
         "comments",
         "definitionOfDone",
         "description",
         "documentation",
+        "finalSummary",
         "implementationNotes",
         "labels",
         "milestoneId",
+        "ordinal",
         "parentId",
         "plan",
+        "priority",
+        "removeAcceptanceCriteria",
         "removeAssignees",
         "removeComments",
+        "removeDefinitionOfDone",
         "removeDependencies",
         "removeLabels",
         "removeModifiedFiles",
@@ -346,6 +395,10 @@ export const commandManifest = {
         "removeReferences",
         "status",
         "summary",
+        "title",
+        "type",
+        "uncheckAcceptanceCriteria",
+        "uncheckDefinitionOfDone",
       ],
     },
     {
@@ -363,19 +416,28 @@ export const commandManifest = {
         "addNotes",
         "addPlan",
         "addReferences",
+        "checkAcceptanceCriteria",
+        "checkDefinitionOfDone",
+        "clearAcceptanceCriteria",
+        "clearDefinitionOfDone",
         "clearMilestone",
         "clearParent",
         "comments",
         "definitionOfDone",
         "description",
         "documentation",
+        "finalSummary",
         "implementationNotes",
         "labels",
         "milestoneId",
+        "ordinal",
         "parentId",
         "plan",
+        "priority",
+        "removeAcceptanceCriteria",
         "removeAssignees",
         "removeComments",
+        "removeDefinitionOfDone",
         "removeDependencies",
         "removeLabels",
         "removeModifiedFiles",
@@ -384,6 +446,10 @@ export const commandManifest = {
         "removeReferences",
         "status",
         "summary",
+        "title",
+        "type",
+        "uncheckAcceptanceCriteria",
+        "uncheckDefinitionOfDone",
       ],
     },
     {
@@ -442,34 +508,42 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "milestone.list",
       mutates: false,
-      fields: ["description", "status", "taskIds", "title"],
+      filters: ["include-archived"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone view",
       schemaVersion: 1,
       kind: "milestone.view",
       mutates: false,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone create",
       schemaVersion: 1,
       kind: "milestone.created",
       mutates: true,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone edit",
       schemaVersion: 1,
       kind: "milestone.updated",
       mutates: true,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone delete",
       schemaVersion: 1,
       kind: "milestone.deleted",
       mutates: true,
+    },
+    {
+      name: "milestone archive",
+      schemaVersion: 1,
+      kind: "milestone.archived",
+      mutates: true,
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "decision list",

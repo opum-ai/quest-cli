@@ -16,6 +16,14 @@
         "@types/bun": "1.3.14",
         "typescript": "7.0.2",
       },
+      "optionalDependencies": {
+        "@opum-ai/quest-darwin-arm64": "0.3.0",
+        "@opum-ai/quest-darwin-x64": "0.3.0",
+        "@opum-ai/quest-linux-arm64": "0.3.0",
+        "@opum-ai/quest-linux-x64": "0.3.0",
+        "@opum-ai/quest-win32-arm64": "0.3.0",
+        "@opum-ai/quest-win32-x64": "0.3.0",
+      },
     },
   },
   "packages": {

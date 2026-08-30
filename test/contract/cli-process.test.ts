@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 
+import { commandHelp } from "../../src/application/command-help.ts";
 import { runQuest } from "../../src/cli/main.ts";
+import { QUEST_VERSION } from "../../src/application/version.ts";
 
 test("the executable keeps successful JSON on stdout and diagnostics on stderr", async () => {
   const success = await runQuest(["manifest", "--json"], false);
@@ -24,7 +26,7 @@ test("the executable keeps successful JSON on stdout and diagnostics on stderr",
 
 test("version is bare semver and JSON takes precedence over plain", async () => {
   const expected = {
-    stdout: "0.2.9\n",
+    stdout: `${QUEST_VERSION}\n`,
     stderr: "",
     exitCode: 0,
   };
@@ -83,7 +85,7 @@ test("help, instructions, and completion expose the versioned public discovery s
     JSON.parse((await runQuest(["instructions", "--json"], false)).stdout),
   ).toMatchObject({
     kind: "agent.instructions",
-    data: { version: "0.2.9" },
+    data: { version: QUEST_VERSION },
   });
 });
 
@@ -151,6 +153,46 @@ test("human output renders payload fields while JSON remains byte-identical", as
     expect(result.stdout).toContain("commands:");
     expect(result.stdout).toContain("name: help");
   }
+});
+
+test("quest help prints human-readable summary and usage prose, and manifest stays unchanged", async () => {
+  const helpPlain = await runQuest(["help", "--plain"], false);
+  expect(helpPlain.stdout).toContain(
+    "summary: Initialize a Quest workspace in the current Git worktree.",
+  );
+  expect(helpPlain.stdout).toContain(
+    'usage: quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
+  );
+  expect(helpPlain.stdout).toContain("summary: Create a task.");
+
+  const helpJson = JSON.parse(
+    (await runQuest(["help", "init", "--json"], false)).stdout,
+  );
+  expect(helpJson.data.commands).toEqual([
+    expect.objectContaining({
+      name: "init",
+      kind: "workspace.initialized",
+      mutates: true,
+      usage:
+        'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
+      flags: ["--name", "--task-id-prefix", "--agent-instructions"],
+    }),
+  ]);
+
+  const manifestJson = JSON.parse(
+    (await runQuest(["manifest", "--json"], false)).stdout,
+  );
+  const manifestInit = manifestJson.data.commands.find(
+    (entry: { name: string }) => entry.name === "init",
+  );
+  expect(manifestInit).toEqual({
+    name: "init",
+    schemaVersion: 1,
+    kind: "workspace.initialized",
+    mutates: true,
+  });
+  expect(manifestInit.summary).toBeUndefined();
+  expect(manifestInit.usage).toBeUndefined();
 });
 
 test("pretty output is readable without ANSI escapes when color is disabled", async () => {
@@ -226,6 +268,12 @@ const valueFlagCases = [
   { flag: "--remove-reference", argv: ["task", "edit", "T-1"] },
   { flag: "--add-modified-file", argv: ["task", "edit", "T-1"] },
   { flag: "--remove-modified-file", argv: ["task", "edit", "T-1"] },
+  { flag: "--check-ac", argv: ["task", "edit", "T-1"] },
+  { flag: "--uncheck-ac", argv: ["task", "edit", "T-1"] },
+  { flag: "--remove-ac", argv: ["task", "edit", "T-1"] },
+  { flag: "--check-dod", argv: ["task", "edit", "T-1"] },
+  { flag: "--uncheck-dod", argv: ["task", "edit", "T-1"] },
+  { flag: "--remove-dod", argv: ["task", "edit", "T-1"] },
   {
     flag: "--source",
     argv: ["migration", "backlog", "preview"],
@@ -340,6 +388,12 @@ test("every single-value flag rejects repeats with a precise usage diagnostic", 
         "--remove-reference",
         "--add-modified-file",
         "--remove-modified-file",
+        "--check-ac",
+        "--uncheck-ac",
+        "--remove-ac",
+        "--check-dod",
+        "--uncheck-dod",
+        "--remove-dod",
       ].includes(flag),
   )) {
     const result = await runQuest(
@@ -383,4 +437,34 @@ test("duplicate actor and boolean flags report the offending flag as usage", asy
       message: `${flag} may only be provided once.`,
     });
   }
+});
+
+test("every flag `task edit` documents is a flag `task edit` accepts", async () => {
+  // The published help list and the parser's allowlist are hand-synced. This
+  // binds them: a flag documented but not allowed (or renamed on one side
+  // only) is rejected here as an invalid argument.
+  const booleanFlags = new Set([
+    "--clear-parent",
+    "--clear-milestone",
+    "--clear-ac",
+    "--clear-dod",
+  ]);
+  const rejected = "task edit received invalid arguments.";
+  for (const flag of commandHelp["task edit"]?.flags ?? []) {
+    const argv = booleanFlags.has(flag) ? [flag] : [`${flag}=1`];
+    const result = await runQuest(["task", "edit", "T-1", ...argv], false);
+    expect({
+      flag,
+      message: (JSON.parse(result.stderr) as { message?: string }).message,
+    }).not.toEqual({ flag, message: rejected });
+  }
+
+  const unknown = await runQuest(
+    ["task", "edit", "T-1", "--not-a-flag=1"],
+    false,
+  );
+  expect(JSON.parse(unknown.stderr)).toMatchObject({
+    error_type: "usage",
+    message: rejected,
+  });
 });

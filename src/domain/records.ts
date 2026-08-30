@@ -11,11 +11,20 @@ export class RecordValidationError extends Error {
   readonly kind = "validation" as const;
 }
 
-const canonicalIdPattern = /^T-[1-9][0-9]*$/;
+/** ASCII-only `<prefix>-<sequence>`. The prefix is workspace-configurable and
+ * deliberately excludes `-`, so the split into prefix and sequence stays
+ * unambiguous; the sequence keeps its no-leading-zero, one-or-greater rule.
+ * This validates structural well-formedness only: which prefix a given
+ * workspace *generates* is a workspace-configuration concern (see
+ * `.quest/workspace.toml`'s `taskIdPrefix`), never a domain-replay concern. */
+const canonicalIdPattern = /^[A-Za-z][A-Za-z0-9]*-[1-9][0-9]*$/;
 export const canonicalIdSchema = z.string().regex(canonicalIdPattern);
 export type CanonicalId = z.infer<typeof canonicalIdSchema>;
 
-/** Validates the one fixed, ASCII-only canonical identifier spelling. */
+/** The same rule applied to a bare prefix, for validation at an input boundary. */
+export const canonicalIdPrefixPattern = /^[A-Za-z][A-Za-z0-9]*$/;
+
+/** Validates the ASCII-only canonical identifier spelling. */
 export function canonicalId(value: string): CanonicalId {
   if (!canonicalIdPattern.test(value)) {
     throw new RecordValidationError(`Invalid canonical id: ${value}`);
@@ -45,6 +54,7 @@ export interface GitGlobalCounterStore {
 export function allocateCanonicalId(
   counter: GlobalCounter,
   expectedRevision: string,
+  prefix = "T",
 ): { readonly id: CanonicalId; readonly replacement: GlobalCounter } {
   if (counter.revision !== expectedRevision) {
     throw new RecordConflictError("Global counter changed before allocation.");
@@ -52,9 +62,12 @@ export function allocateCanonicalId(
   if (!/^[1-9][0-9]*$/.test(counter.nextSequence)) {
     throw new RecordValidationError("Global counter sequence is invalid.");
   }
+  if (!canonicalIdPrefixPattern.test(prefix)) {
+    throw new RecordValidationError(`Invalid canonical id prefix: ${prefix}`);
+  }
   const sequence = BigInt(counter.nextSequence);
   return {
-    id: canonicalId(`T-${sequence}`),
+    id: canonicalId(`${prefix}-${sequence}`),
     replacement: { ...counter, nextSequence: String(sequence + 1n) },
   };
 }
@@ -62,9 +75,10 @@ export function allocateCanonicalId(
 /** Allocate from the Git-backed namespace counter in one compare-and-swap attempt. */
 export async function allocateCanonicalIdFromGit(
   store: GitGlobalCounterStore,
+  prefix = "T",
 ): Promise<{ readonly id: CanonicalId; readonly revision: string }> {
   const counter = await store.read();
-  const allocation = allocateCanonicalId(counter, counter.revision);
+  const allocation = allocateCanonicalId(counter, counter.revision, prefix);
   const committed = await store.compareAndSwap(
     counter.revision,
     allocation.replacement,

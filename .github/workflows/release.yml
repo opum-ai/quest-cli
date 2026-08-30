@@ -1,0 +1,190 @@
+name: Release
+
+# Publication is never automatic. This runs only when a human dispatches it
+# against a release tag, and it refuses to publish anything unless a
+# native-execution receipt binds that exact commit and version (QCLI-135).
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Actually publish. Leave false for a dry run."
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    # Dispatch this against the tag, not a branch: the artifacts published are
+    # the ones committed at the release ref, and nothing here rebuilds them.
+    # Bun's --compile output is not byte-reproducible, so a rebuild would
+    # publish different bytes from the ones CI attested.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    # Both permutations were tested against npm 11.19.1 and both returned the
+    # same E404: with `environment: release` (run 33298452455) and with no
+    # environment at all (run 33299187110). So the environment claim is not the
+    # discriminator, and no trust relationship exists for these packages.
+    #
+    # Kept declared rather than dropped, matching lore-cli's working job, and
+    # because an environment is the hook for the second-party review recorded
+    # as missing on QCLI-97.6. The npm-side configuration must name `release`
+    # to match.
+    environment: release
+    permissions:
+      contents: read
+      actions: read
+      # Trusted publishing (OIDC). npm verifies a short-lived token minted by
+      # GitHub against a trust relationship configured once per package, so
+      # nothing is stored and nothing expires.
+      #
+      # This is not a preference. npm restricted classic tokens for direct
+      # publishing; both a local publish and this workflow's stored NPM_TOKEN
+      # return E404 on PUT, which is what npm returns for a token that cannot
+      # write to the scope. Granular tokens are capped at 90 days and must be
+      # made on the website, so a token-based release stops working every
+      # quarter and surfaces as a stalled release rather than a warning.
+      #
+      # Requires a one-time setup per package at
+      # https://www.npmjs.com/package/<name>/access — all seven names
+      # separately — naming this repository, this workflow filename, and the
+      # publish action. npm does not validate those fields on save, so a typo
+      # shows up only as a failed publish.
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm >= 11.5.1 and Node >= 22.14.0. Pinned to
+      # the ^11 major rather than @latest: this is the only job with
+      # `id-token: write`, so an unpinned global install of npm's own CLI would
+      # run a brand-new npm release with publish capability the moment it ships.
+      - run: npm install --global npm@^11
+      # Assert the floor rather than assume the upgrade took. An npm below the
+      # floor does not announce itself — it simply never attempts OIDC and
+      # falls back to token auth, which surfaces as an opaque E404 from the
+      # registry. That is indistinguishable from "no trust relationship", and
+      # cost several publish attempts before it was suspected.
+      - name: Assert the npm OIDC floor
+        run: |
+          set -euo pipefail
+          version=$(npm --version)
+          echo "npm ${version}, node $(node --version)"
+          node -e '
+            const [major, minor, patch] = process.argv[1].split("-")[0].split(".").map(Number);
+            const ok =
+              major > 11 ||
+              (major === 11 &&
+                (minor > 5 || (minor === 5 && patch >= 1)));
+            if (!ok) {
+              console.error(`npm ${process.argv[1]} is older than the 11.5.1 trusted-publishing floor`);
+              process.exit(1);
+            }
+          ' "$version"
+
+      # The receipt is fetched from the qualification run for this exact
+      # commit, not passed in. A receipt supplied by the person publishing is
+      # not evidence.
+      - name: Fetch the native-execution receipt for this commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          run_id=$(gh run list \
+            --workflow prepublication-qualification.yml \
+            --commit "${GITHUB_SHA}" \
+            --status success \
+            --limit 20 \
+            --json databaseId,conclusion \
+            --jq '[.[] | select(.conclusion=="success")][0].databaseId')
+          test -n "$run_id" || { echo "No successful qualification run for ${GITHUB_SHA}"; exit 1; }
+          echo "Receipt comes from qualification run ${run_id}"
+          gh run download "$run_id" --name native-execution-receipt --dir receipt
+
+      - name: Gate on the receipt
+        run: node scripts/qualification/native-execution-receipt.mjs --require --receipt receipt/native-execution-receipt.json
+
+      # Fail on the credential BEFORE touching the registry, and say which
+      # fault it is. npm returns E404 on PUT both for a token that cannot write
+      # to the scope and for one that is not a token at all, so the publish
+      # error alone does not distinguish "rotate the token" from "configure
+      # trusted publishing" — and those are different fixes.
+      - name: Preflight the publish credential
+        continue-on-error: true
+        run: |
+          set +e
+          echo "::group::whoami"
+          who=$(npm whoami 2>&1); code=$?
+          echo "$who"
+          echo "::endgroup::"
+          if [ $code -ne 0 ]; then
+            echo "::warning::Stored NPM_TOKEN does not authenticate. If trusted publishing is configured for these packages, OIDC is used instead and this does not matter; if it is not, publication cannot proceed."
+          else
+            echo "::notice::Stored NPM_TOKEN authenticates as ${who}. An E404 on PUT below therefore means the token lacks write access to the @opum-ai scope, not that it is invalid."
+            echo "::group::access"
+            npm access list packages "$who" 2>&1 | head -20
+            echo "::endgroup::"
+          fi
+
+      # Platform packages first: the root's optionalDependencies name them, so
+      # publishing the root first would briefly advertise versions that do not
+      # exist.
+      - name: Publish
+        env:
+          # NO NODE_AUTH_TOKEN, deliberately. `setup-node` with `registry-url`
+          # writes `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into
+          # .npmrc, so supplying a token makes npm authenticate with it and
+          # NEVER ATTEMPT OIDC. Keeping the dead NPM_TOKEN here "as a fallback"
+          # is what produced five E404s that were read as a missing trust
+          # relationship: the trust may have been there all along, and the
+          # fallback was standing in front of it.
+          #
+          # With no token configured, npm falls through to trusted publishing.
+          DRY: ${{ inputs.publish == true && ' ' || '--dry-run' }}
+        run: |
+          set -euo pipefail
+          for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64; do
+            echo "::group::@opum-ai/quest-${target}"
+            (cd "npm/quest-${target}" && npm publish --access public $DRY)
+            echo "::endgroup::"
+          done
+          echo "::group::@opum-ai/quest"
+          npm publish --access public $DRY
+          echo "::endgroup::"
+
+      # Retries, because npm's CDN does not serve a version the instant the
+      # publish returns. The first run of this step failed with "E404 No match
+      # found for version 0.3.0" SECONDS AFTER a successful publish, marking a
+      # completed release as a failed one. A red run on a successful publish is
+      # how a real failure gets ignored later, so this waits for propagation
+      # rather than reporting the lag as a defect.
+      - name: Verify the registry serves what was published
+        if: ${{ inputs.publish == true }}
+        run: |
+          set -uo pipefail
+          version=$(node -p "require('./package.json').version")
+          names="quest quest-darwin-arm64 quest-darwin-x64 quest-linux-arm64 quest-linux-x64 quest-win32-arm64 quest-win32-x64"
+          for attempt in $(seq 1 10); do
+            missing=""
+            for name in $names; do
+              npm view "@opum-ai/${name}@${version}" version >/dev/null 2>&1 || missing="${missing} ${name}"
+            done
+            if [ -z "$missing" ]; then
+              echo "all seven packages serving ${version} (after ${attempt} checks)"
+              break
+            fi
+            if [ "$attempt" -eq 10 ]; then
+              echo "::error::still not served after 10 checks:${missing}"
+              exit 1
+            fi
+            echo "waiting for CDN propagation, still missing:${missing}"
+            sleep 30
+          done
+          set -e
+          # The receipt claims specific bytes. Prove the registry serves them.
+          node scripts/qualification/native-execution-receipt.mjs \
+            --verify-published "$version" --receipt receipt/native-execution-receipt.json

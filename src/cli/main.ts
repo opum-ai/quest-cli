@@ -1,13 +1,17 @@
 #!/usr/bin/env bun
 import { Database } from "bun:sqlite";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { Command } from "commander";
 import {
+  type AgentInstructionCheck,
   inspectQuestAgentInstructions,
+  inspectQuestSkillFile,
   questAgentInstructions,
   updateQuestAgentInstructions,
+  updateQuestSkillFile,
 } from "../application/agents/agent-instructions.ts";
+import { findQuestGuide, questGuides } from "../application/agents/guides.ts";
 import { startBrowserServer } from "../application/browser/browser.ts";
 import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
 import {
@@ -24,12 +28,16 @@ import {
   type OutputMode,
   selectOutputMode,
 } from "../application/command-contract.ts";
+import { commandHelp } from "../application/command-help.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import type { TaskService } from "../application/tasks/tasks.ts";
 import {
   initializeWorkspace,
+  isValidTaskIdPrefix,
   resolveInitializedWorkspace,
+  resolveWorkspaceConfiguration,
+  WorkspaceError,
 } from "../application/workspaces/workspaces.ts";
 import { QUEST_VERSION } from "../application/version.ts";
 import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
@@ -98,6 +106,15 @@ function output(
   };
 }
 
+/** Merges human help content into manifest entries for `quest help` output
+ * only; `commandManifest`/`quest manifest` are never touched. */
+function withHelp(entries: typeof commandManifest.commands) {
+  return entries.map((entry) => ({
+    ...entry,
+    ...commandHelp[entry.name],
+  }));
+}
+
 class FlagUsageError extends Error {}
 
 function resolveOutputModes(argv: readonly string[]): {
@@ -147,6 +164,11 @@ function flags(
     "--all",
     "--clear-parent",
     "--clear-milestone",
+    "--clear-ac",
+    "--clear-dod",
+    "--list",
+    "--ready",
+    "--unassigned",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -261,6 +283,27 @@ function checkListValue(
   }
 }
 
+/**
+ * Parses repeatable 1-based checklist positions (QCLI-138). Anything that is
+ * not a positive integer is a usage error here rather than a silent no-op, so
+ * `--check-ac 0` or `--check-ac two` never quietly leaves the box unchecked.
+ */
+function indexListValue(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): number[] | undefined {
+  const values = parsed.values.get(name);
+  if (values === undefined) return undefined;
+  return values.map((value) => {
+    if (!/^[1-9][0-9]*$/.test(value))
+      throw new FlagUsageError(`${name} must be a 1-based positive integer.`);
+    const parsedValue = Number(value);
+    if (!Number.isSafeInteger(parsedValue))
+      throw new FlagUsageError(`${name} must be a 1-based positive integer.`);
+    return parsedValue;
+  });
+}
+
 function commentsValue(
   parsed: NonNullable<ReturnType<typeof flags>>,
   name: string,
@@ -302,6 +345,62 @@ function ordinalValue(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
   if (!/^-?\d+$/.test(value) || !Number.isSafeInteger(Number(value)))
     throw new FlagUsageError("--ordinal must be an integer.");
+  return Number(value);
+}
+
+const TASK_LIST_SORT_FIELDS = [
+  "id",
+  "title",
+  "status",
+  "priority",
+  "type",
+  "ordinal",
+  "createdAt",
+  "updatedAt",
+] as const;
+
+/**
+ * Splits a repeatable selection flag that also accepts one comma-separated
+ * value, matching the tracker Quest is at parity with. Blank members are
+ * dropped so a trailing comma is not a filter for the empty string.
+ */
+function csvValues(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  name: string,
+): string[] | undefined {
+  const values = parsed.values.get(name);
+  if (values === undefined) return undefined;
+  const members = values
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  if (members.length === 0)
+    throw new FlagUsageError(`${name} requires at least one value.`);
+  return members;
+}
+
+/** Parses `--sort <field>[:asc|desc]`; default direction is ascending. */
+function sortValue(
+  value: string | undefined,
+): { readonly field: string; readonly direction: "asc" | "desc" } | undefined {
+  if (value === undefined) return undefined;
+  const [field, direction, ...rest] = value.split(":");
+  if (
+    rest.length > 0 ||
+    !field ||
+    !(TASK_LIST_SORT_FIELDS as readonly string[]).includes(field) ||
+    (direction !== undefined && direction !== "asc" && direction !== "desc")
+  )
+    throw new FlagUsageError(
+      `--sort must be one of ${TASK_LIST_SORT_FIELDS.join(", ")}, optionally suffixed with :asc or :desc.`,
+    );
+  return { field, direction: direction === "desc" ? "desc" : "asc" };
+}
+
+function limitValue(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(Number(value)))
+    throw new FlagUsageError("--limit must be a positive integer.");
   return Number(value);
 }
 
@@ -358,13 +457,18 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   } as const;
 }
 
-async function nextTaskId(tasks: TaskService): Promise<string> {
+async function nextTaskId(tasks: TaskService, prefix: string): Promise<string> {
   const ids = await tasks.listIncludingRetained();
+  // Only this prefix's own family can advance the counter: a foreign-prefixed
+  // id (an imported record, or a workspace whose prefix changed) must never
+  // perturb the sequence.
+  const marker = `${prefix}-`;
   const highest = ids.reduce((maximum, task) => {
-    const numeric = Number(task.id.slice(2));
+    if (!task.id.startsWith(marker)) return maximum;
+    const numeric = Number(task.id.slice(marker.length));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
-  return `T-${highest + 1}`;
+  return `${prefix}-${highest + 1}`;
 }
 
 async function nextDraftId(tasks: TaskService): Promise<string> {
@@ -376,13 +480,76 @@ async function nextDraftId(tasks: TaskService): Promise<string> {
   return `D-${highest + 1}`;
 }
 
+/** Asks one question on the real terminal and returns the trimmed answer, or
+ * defaultValue when the answer is empty. Swapped out in tests. */
+async function readlinePrompt(
+  question: string,
+  defaultValue: string,
+): Promise<string> {
+  const { createInterface } = await import("node:readline/promises");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question} [${defaultValue}]: `);
+    return answer.trim() || defaultValue;
+  } finally {
+    rl.close();
+  }
+}
+
+async function readlineConfirm(
+  question: string,
+  defaultYes: boolean,
+): Promise<boolean> {
+  const { createInterface } = await import("node:readline/promises");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(
+      `${question} [${defaultYes ? "Y/n" : "y/N"}]: `,
+    );
+    const trimmed = answer.trim();
+    if (!trimmed) return defaultYes;
+    return /^y/i.test(trimmed);
+  } finally {
+    rl.close();
+  }
+}
+
+export interface InitWizardPrompts {
+  readonly text: (question: string, defaultValue: string) => Promise<string>;
+  readonly confirm: (question: string, defaultYes: boolean) => Promise<boolean>;
+}
+
+export interface InitWizardAnswers {
+  readonly name: string;
+  readonly taskIdPrefix: string;
+  readonly writeInstructions: boolean;
+}
+
+/** The interactive quest init question set, isolated from real readline/TTY
+ * so it can run against a fake prompt in tests. */
+export async function runInitWizard(
+  defaultName: string,
+  prompts: InitWizardPrompts,
+): Promise<InitWizardAnswers> {
+  const name = await prompts.text("Project name", defaultName);
+  const taskIdPrefix =
+    (await prompts.text("Task ID prefix", "T")).trim() || "T";
+  const writeInstructions = await prompts.confirm(
+    "Write the managed AGENTS.md instructions block?",
+    true,
+  );
+  return { name, taskIdPrefix, writeInstructions };
+}
+
 async function nextPlanningId(
   planning: PlanningService,
   prefix: "M" | "DEC",
 ): Promise<string> {
+  // Archived milestones keep their ids, so allocation must see them: listing
+  // only the live ones would hand out an id that already exists.
   const records =
     prefix === "M"
-      ? await planning.listMilestones()
+      ? await planning.listMilestones(true)
       : await planning.listDecisions();
   const highest = records.reduce((maximum, record) => {
     const numeric = Number(record.id.slice(prefix.length + 1));
@@ -417,12 +584,26 @@ export async function runQuest(
     const taskReader = async () => createTaskReader(await resolvedRoot());
     const planningService = async () =>
       createPlanningService(await resolvedRoot());
+    let taskIdPrefix: Promise<string> | undefined;
+    const configuredTaskIdPrefix = () =>
+      (taskIdPrefix ??= (async () => {
+        if (process.env.QUEST_TASK_STORE !== undefined) return "T";
+        try {
+          const configuration = await resolveWorkspaceConfiguration(
+            createWorkspacePort(),
+            process.cwd(),
+          );
+          return configuration.taskIdPrefix ?? "T";
+        } catch {
+          return "T";
+        }
+      })());
     if (arguments_.length === 0) {
       return output(
         {
           schemaVersion: 1,
           kind: "help.commands",
-          data: { commands: commandManifest.commands },
+          data: { commands: withHelp(commandManifest.commands) },
         },
         modeFor(),
       );
@@ -444,15 +625,16 @@ export async function runQuest(
       const parsed = flags([]);
       if (!parsed || !only(parsed, []))
         return failure("usage", "help accepts only --json and --plain.");
-      const commands = helpTarget
+      const matched = helpTarget
         ? commandManifest.commands.filter(
             (entry) =>
               entry.name === helpTarget ||
               entry.name.startsWith(`${helpTarget} `),
           )
         : commandManifest.commands;
-      if (helpTarget && commands.length === 0)
+      if (helpTarget && matched.length === 0)
         return failure("not_found", `No help is available for ${helpTarget}.`);
+      const commands = withHelp(matched);
       const details = {
         valueSyntax:
           "Use --flag=<value> to pass a value that begins with --; the value is preserved exactly after the first =.",
@@ -477,36 +659,130 @@ export async function runQuest(
     }
     if (arguments_[0] === "init") {
       const parsed = flags(arguments_.slice(1));
-      if (!parsed || !only(parsed, ["--agent-instructions"]))
+      if (
+        !parsed ||
+        !only(parsed, ["--agent-instructions", "--name", "--task-id-prefix"])
+      )
         return failure(
           "usage",
-          "init accepts only --agent-instructions, --json, and --plain.",
+          "init accepts only --name, --task-id-prefix, --agent-instructions, --json, and --plain.",
+        );
+      const explicitFlagsGiven =
+        parsed.values.has("--agent-instructions") ||
+        parsed.values.has("--name") ||
+        parsed.values.has("--task-id-prefix");
+      const explicitOutputMode =
+        resolvedModes.json ||
+        resolvedModes.plain ||
+        parsed.json ||
+        parsed.plain;
+      const interactive =
+        stdoutIsTty && stdinIsTty && !explicitOutputMode && !explicitFlagsGiven;
+      let name = one(parsed, "--name");
+      let taskIdPrefix = one(parsed, "--task-id-prefix");
+      let writeInstructions = parsed.values.has("--agent-instructions");
+      if (interactive) {
+        const answers = await runInitWizard(basename(process.cwd()), {
+          text: readlinePrompt,
+          confirm: readlineConfirm,
+        });
+        name = answers.name;
+        taskIdPrefix = answers.taskIdPrefix;
+        writeInstructions = answers.writeInstructions;
+      }
+      // Fail at init rather than at the first task write, which is where an
+      // unusable prefix would otherwise surface.
+      if (taskIdPrefix !== undefined && !isValidTaskIdPrefix(taskIdPrefix))
+        return failure(
+          "usage",
+          `Task ID prefix must start with a letter and contain only letters and digits: ${taskIdPrefix}`,
         );
       const workspace = await initializeWorkspace(
         createWorkspacePort(),
         process.cwd(),
+        { name, taskIdPrefix },
       );
-      const instructions = parsed.values.has("--agent-instructions")
-        ? await updateQuestAgentInstructions(
-            createAgentInstructionPort(process.cwd()),
-          )
-        : undefined;
+      let instructions: AgentInstructionCheck | undefined;
+      let skill: AgentInstructionCheck | undefined;
+      if (writeInstructions) {
+        const agentInstructionPort = createAgentInstructionPort(process.cwd());
+        instructions = await updateQuestAgentInstructions(agentInstructionPort);
+        skill = await updateQuestSkillFile(agentInstructionPort);
+      }
       return output(
         {
           schemaVersion: 1,
           kind: "workspace.initialized",
-          data: { workspace, instructions },
+          data: {
+            workspace,
+            configuration: { name, taskIdPrefix },
+            instructions,
+            skill,
+          },
         },
         modeFor(parsed),
       );
     }
     if (arguments_[0] === "instructions") {
-      const parsed = flags(arguments_.slice(1));
-      if (!parsed || !only(parsed, []))
+      // Any leading dash is a flag, not a guide name: `-x` must be a usage
+      // error like every other malformed flag, not "unknown guide -x".
+      const requested = arguments_[1]?.startsWith("-")
+        ? undefined
+        : arguments_[1];
+      const parsed = flags(arguments_.slice(requested ? 2 : 1));
+      if (!parsed || !only(parsed, ["--list"]))
         return failure(
           "usage",
-          "instructions accepts only --json and --plain.",
+          "instructions accepts one guide name, --list, --json, and --plain.",
         );
+      if (requested && parsed.values.has("--list"))
+        return failure(
+          "usage",
+          "instructions takes a guide name or --list, not both.",
+        );
+      if (parsed.values.has("--list"))
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "agent.guides",
+            data: {
+              version: VERSION,
+              guides: questGuides.map(({ name, summary }) => ({
+                name,
+                summary,
+              })),
+            },
+          },
+          modeFor(parsed),
+        );
+      if (requested) {
+        const guide = findQuestGuide(requested);
+        if (!guide)
+          return failure(
+            "not_found",
+            `Unknown guide ${requested}.`,
+            // Deliberately no "all" guide (QCLI-141): guides exist to be
+            // loaded one at a time, and --list already covers discovery.
+            {
+              hint: `Run \`quest instructions --list\` to see the guides. There is no "all" guide; read the one that matches the work.`,
+            },
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "agent.guide",
+            data: {
+              version: VERSION,
+              name: guide.name,
+              summary: guide.summary,
+              content: guide.content,
+            },
+          },
+          modeFor(parsed),
+        );
+      }
+      // Bare `instructions` keeps returning the managed block: `agents
+      // --check` and every existing caller depend on it byte for byte.
       return output(
         {
           schemaVersion: 1,
@@ -537,22 +813,34 @@ export async function runQuest(
         return failure("usage", "agents requires exactly one action.");
       if (requireInstalled && !check)
         return failure("usage", "--require-installed requires --check.");
-      const result = check
-        ? await inspectQuestAgentInstructions(
-            createAgentInstructionPort(process.cwd()),
-          )
-        : await updateQuestAgentInstructions(
-            createAgentInstructionPort(process.cwd()),
+      const agentInstructionPort = createAgentInstructionPort(process.cwd());
+      const instructionsResult = check
+        ? await inspectQuestAgentInstructions(agentInstructionPort)
+        : await updateQuestAgentInstructions(agentInstructionPort);
+      const skillResult = check
+        ? await inspectQuestSkillFile(agentInstructionPort)
+        : await updateQuestSkillFile(agentInstructionPort);
+      if (check) {
+        if (instructionsResult.state === "drift")
+          return failure("drift", instructionsResult.message);
+        if (skillResult.state === "drift")
+          return failure("drift", skillResult.message);
+        if (
+          requireInstalled &&
+          (instructionsResult.state === "missing" ||
+            skillResult.state === "missing")
+        )
+          return failure(
+            "validation",
+            "Quest agent instruction block is missing. Run quest agents --update-instructions.",
           );
-      if (check && result.state === "drift")
-        return failure("drift", result.message);
-      if (check && requireInstalled && result.state === "missing")
-        return failure(
-          "validation",
-          "Quest agent instruction block is missing. Run quest agents --update-instructions.",
-        );
+      }
       return output(
-        { schemaVersion: 1, kind: "agent.instructions-status", data: result },
+        {
+          schemaVersion: 1,
+          kind: "agent.instructions-status",
+          data: { ...instructionsResult, skill: skillResult },
+        },
         modeFor(parsed),
       );
     }
@@ -805,7 +1093,8 @@ export async function runQuest(
           action === "create" ||
             action === "view" ||
             action === "edit" ||
-            action === "delete"
+            action === "delete" ||
+            action === "archive"
             ? 1
             : 0,
         ),
@@ -818,9 +1107,14 @@ export async function runQuest(
       if (!action || !parsed)
         return failure("usage", `${group} requires a valid action.`);
       const planning = await planningService();
-      if (action === "list" && only(parsed, [])) {
+      if (
+        action === "list" &&
+        only(parsed, isMilestone ? ["--include-archived"] : [])
+      ) {
         const data = isMilestone
-          ? await planning.listMilestones()
+          ? await planning.listMilestones(
+              parsed.values.has("--include-archived"),
+            )
           : await planning.listDecisions();
         return output(
           {
@@ -1006,6 +1300,27 @@ export async function runQuest(
           modeFor(parsed),
         );
       }
+      if (
+        action === "archive" &&
+        isMilestone &&
+        rest[0] &&
+        only(parsed, ["--actor", "--actor-kind", "--accountable-human"])
+      ) {
+        const writeActor = actor(parsed);
+        if (!writeActor)
+          return failure(
+            "denied",
+            `${group} writes require an explicit actor declaration.`,
+          );
+        return output(
+          {
+            schemaVersion: 1,
+            kind: "milestone.archived",
+            data: await planning.archiveMilestone(rest[0], crypto.randomUUID()),
+          },
+          modeFor(parsed),
+        );
+      }
       return failure(
         "usage",
         `${group} action is invalid or missing required arguments.`,
@@ -1128,7 +1443,8 @@ export async function runQuest(
           );
         const data = await tasks.promoteDraft(
           rest[0],
-          one(parsed, "--task-id") ?? (await nextTaskId(tasks)),
+          one(parsed, "--task-id") ??
+            (await nextTaskId(tasks, await configuredTaskIdPrefix())),
           crypto.randomUUID(),
         );
         return output(
@@ -1203,14 +1519,52 @@ export async function runQuest(
       );
     }
     if (command === "list") {
-      const parsed = flags(rest, ["--label"]);
-      if (!parsed || !only(parsed, ["--status", "--label"]))
+      const parsed = flags(rest, [
+        "--label",
+        "--exclude-status",
+        "--assignee",
+        "--type",
+      ]);
+      if (
+        !parsed ||
+        !only(parsed, [
+          "--status",
+          "--label",
+          "--ready",
+          "--exclude-status",
+          "--assignee",
+          "--unassigned",
+          "--milestone",
+          "--parent",
+          "--priority",
+          "--type",
+          "--search",
+          "--limit",
+          "--sort",
+        ])
+      )
         return failure("usage", "task list received invalid arguments.");
+      if (parsed.values.has("--assignee") && parsed.values.has("--unassigned"))
+        return failure(
+          "usage",
+          "task list --assignee and --unassigned cannot be combined.",
+        );
       return output(
         await dispatchTrackerTaskCommand(await taskService(), {
           command,
           status: one(parsed, "--status"),
           labels: parsed.values.get("--label"),
+          ready: parsed.values.has("--ready") || undefined,
+          excludeStatuses: csvValues(parsed, "--exclude-status"),
+          assignees: csvValues(parsed, "--assignee"),
+          unassigned: parsed.values.has("--unassigned") || undefined,
+          milestoneId: one(parsed, "--milestone"),
+          parentId: one(parsed, "--parent"),
+          priority: one(parsed, "--priority"),
+          types: csvValues(parsed, "--type"),
+          search: one(parsed, "--search"),
+          limit: limitValue(one(parsed, "--limit")),
+          sort: sortValue(one(parsed, "--sort")),
         }),
         modeFor(parsed),
       );
@@ -1436,7 +1790,9 @@ export async function runQuest(
       return output(
         await dispatchTrackerTaskCommand(tasks, {
           command,
-          id: one(parsed, "--id") ?? (await nextTaskId(tasks)),
+          id:
+            one(parsed, "--id") ??
+            (await nextTaskId(tasks, await configuredTaskIdPrefix())),
           operationId: crypto.randomUUID(),
           actor: writeActor,
           input: {
@@ -1613,8 +1969,20 @@ export async function runQuest(
           // vocabulary — a string never silently char-iterates into a list.
           // QCLI-122 fourth pass #5: complete field grammar — scalar vs
           // list vs checklist-object vs boolean, validated atomically.
+          // QCLI-138: index-addressed checklist positions are a number list,
+          // so they must be classified before the add|remove string-list rule
+          // that removeAcceptanceCriteria would otherwise match.
+          const indexListFields = new Set([
+            "checkAcceptanceCriteria",
+            "uncheckAcceptanceCriteria",
+            "removeAcceptanceCriteria",
+            "checkDefinitionOfDone",
+            "uncheckDefinitionOfDone",
+            "removeDefinitionOfDone",
+          ]);
           const isListField =
-            /^(add|remove)[A-Z]/.test(patchKey) ||
+            (/^(add|remove)[A-Z]/.test(patchKey) &&
+              !indexListFields.has(patchKey)) ||
             [
               "labels",
               "documentation",
@@ -1625,7 +1993,12 @@ export async function runQuest(
               "modifiedFiles",
               "dependencies",
             ].includes(patchKey);
-          const booleanFields = new Set(["clearParent", "clearMilestone"]);
+          const booleanFields = new Set([
+            "clearParent",
+            "clearMilestone",
+            "clearAcceptanceCriteria",
+            "clearDefinitionOfDone",
+          ]);
           const checklistFields = new Set([
             "acceptanceCriteria",
             "definitionOfDone",
@@ -1636,6 +2009,18 @@ export async function runQuest(
               return failure(
                 "usage",
                 `Patch key ${patchKey} must be a boolean in operations item at line ${index + 1}.`,
+              );
+          } else if (indexListFields.has(patchKey)) {
+            if (
+              !Array.isArray(fieldValue) ||
+              fieldValue.some(
+                (entry) =>
+                  !Number.isSafeInteger(entry) || (entry as number) < 1,
+              )
+            )
+              return failure(
+                "usage",
+                `Patch key ${patchKey} must be a list of 1-based positive integers in operations item at line ${index + 1}.`,
               );
           } else if (checklistFields.has(patchKey)) {
             if (
@@ -1752,13 +2137,24 @@ export async function runQuest(
         "--remove-reference",
         "--add-modified-file",
         "--remove-modified-file",
+        "--check-ac",
+        "--uncheck-ac",
+        "--remove-ac",
+        "--check-dod",
+        "--uncheck-dod",
+        "--remove-dod",
       ]);
       if (
         !parsed ||
         !only(parsed, [
           "--status",
+          "--title",
+          "--priority",
+          "--type",
+          "--ordinal",
           "--summary",
           "--description",
+          "--final-summary",
           "--labels",
           "--add-label",
           "--remove-label",
@@ -1774,6 +2170,14 @@ export async function runQuest(
           "--remove-comment",
           "--acceptance-criteria",
           "--definition-of-done",
+          "--check-ac",
+          "--uncheck-ac",
+          "--remove-ac",
+          "--clear-ac",
+          "--check-dod",
+          "--uncheck-dod",
+          "--remove-dod",
+          "--clear-dod",
           "--add-dependency",
           "--remove-dependency",
           "--parent",
@@ -1806,8 +2210,14 @@ export async function runQuest(
           actor: writeActor,
           patch: {
             status: one(parsed, "--status"),
+            title: one(parsed, "--title"),
+            priority: one(parsed, "--priority"),
+            type: one(parsed, "--type"),
+            // Same parser create uses, so the two paths cannot diverge.
+            ordinal: ordinalValue(one(parsed, "--ordinal")),
             summary: one(parsed, "--summary"),
             description: one(parsed, "--description"),
+            finalSummary: one(parsed, "--final-summary"),
             labels: stringValue(parsed, "--labels"),
             addLabels: parsed.values.get("--add-label"),
             removeLabels: parsed.values.get("--remove-label"),
@@ -1823,6 +2233,16 @@ export async function runQuest(
             removeComments: parsed.values.get("--remove-comment"),
             acceptanceCriteria: checkListValue(parsed, "--acceptance-criteria"),
             definitionOfDone: checkListValue(parsed, "--definition-of-done"),
+            checkAcceptanceCriteria: indexListValue(parsed, "--check-ac"),
+            uncheckAcceptanceCriteria: indexListValue(parsed, "--uncheck-ac"),
+            removeAcceptanceCriteria: indexListValue(parsed, "--remove-ac"),
+            clearAcceptanceCriteria:
+              parsed.values.has("--clear-ac") || undefined,
+            checkDefinitionOfDone: indexListValue(parsed, "--check-dod"),
+            uncheckDefinitionOfDone: indexListValue(parsed, "--uncheck-dod"),
+            removeDefinitionOfDone: indexListValue(parsed, "--remove-dod"),
+            clearDefinitionOfDone:
+              parsed.values.has("--clear-dod") || undefined,
             addDependencies: parsed.values.get("--add-dependency"),
             removeDependencies: parsed.values.get("--remove-dependency"),
             parentId: one(parsed, "--parent"),
@@ -1861,6 +2281,41 @@ export async function runQuest(
         `Quest cannot access required storage: ${message}`,
         {
           hint: "Check the task-store filesystem permissions and retry.",
+        },
+      );
+    if (error instanceof WorkspaceError && error.code === "not_git_worktree")
+      return failure(
+        "validation",
+        "No Git repository was found here. Run `git init` to create one, then re-run `quest init`.",
+        {
+          hint: "Quest requires an existing Git worktree; it does not create one for you.",
+        },
+      );
+    // Decidable from argv alone, so they belong with the other flag-combination
+    // usage errors rather than the post-read validation failures. The fold
+    // still owns the rule, so `task edit-batch` reports it per item.
+    if (message === "check_index_out_of_range")
+      return failure(
+        "validation",
+        "A checklist position does not exist on this task.",
+        {
+          hint: "Positions are 1-based. Read the task and count from 1, or use --clear-ac/--clear-dod to empty the list.",
+        },
+      );
+    if (message === "check_operation_conflict")
+      return failure(
+        "usage",
+        "Checklist replacement, --clear-ac/--clear-dod, and the index-addressed operations cannot be combined.",
+        {
+          hint: "Use --clear-ac or --clear-dod on its own, and keep --acceptance-criteria/--definition-of-done in a separate edit from --check-*/--uncheck-*/--remove-*.",
+        },
+      );
+    if (message === "check_index_conflict")
+      return failure(
+        "usage",
+        "One checklist position was given contradictory operations.",
+        {
+          hint: "Address each position once: do not check and uncheck it, or remove and check it, in the same edit.",
         },
       );
     if (

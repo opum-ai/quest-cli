@@ -1,4 +1,11 @@
 import { expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { commandHelp } from "../../src/application/command-help.ts";
+import { questSkillContent } from "../../src/application/agents/agent-instructions.ts";
+import {
+  findQuestGuide,
+  questGuides,
+} from "../../src/application/agents/guides.ts";
 import {
   readQuestConfiguration,
   validateQuestConfiguration,
@@ -128,6 +135,22 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "agent.instructions",
       mutates: false,
+      filters: ["guide", "list"],
+      fields: ["content", "version"],
+    },
+    {
+      name: "instructions --list",
+      schemaVersion: 1,
+      kind: "agent.guides",
+      mutates: false,
+      fields: ["guides", "version"],
+    },
+    {
+      name: "instructions <guide>",
+      schemaVersion: 1,
+      kind: "agent.guide",
+      mutates: false,
+      fields: ["content", "name", "summary", "version"],
     },
     {
       name: "agents",
@@ -203,7 +226,21 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "task.list",
       mutates: false,
-      filters: ["label", "status"],
+      filters: [
+        "assignee",
+        "exclude-status",
+        "label",
+        "limit",
+        "milestone",
+        "parent",
+        "priority",
+        "ready",
+        "search",
+        "sort",
+        "status",
+        "type",
+        "unassigned",
+      ],
       fields: [
         "assignees",
         "createdAt",
@@ -321,19 +358,28 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "addNotes",
         "addPlan",
         "addReferences",
+        "checkAcceptanceCriteria",
+        "checkDefinitionOfDone",
+        "clearAcceptanceCriteria",
+        "clearDefinitionOfDone",
         "clearMilestone",
         "clearParent",
         "comments",
         "definitionOfDone",
         "description",
         "documentation",
+        "finalSummary",
         "implementationNotes",
         "labels",
         "milestoneId",
+        "ordinal",
         "parentId",
         "plan",
+        "priority",
+        "removeAcceptanceCriteria",
         "removeAssignees",
         "removeComments",
+        "removeDefinitionOfDone",
         "removeDependencies",
         "removeLabels",
         "removeModifiedFiles",
@@ -342,6 +388,10 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "removeReferences",
         "status",
         "summary",
+        "title",
+        "type",
+        "uncheckAcceptanceCriteria",
+        "uncheckDefinitionOfDone",
       ],
     },
     {
@@ -359,19 +409,28 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "addNotes",
         "addPlan",
         "addReferences",
+        "checkAcceptanceCriteria",
+        "checkDefinitionOfDone",
+        "clearAcceptanceCriteria",
+        "clearDefinitionOfDone",
         "clearMilestone",
         "clearParent",
         "comments",
         "definitionOfDone",
         "description",
         "documentation",
+        "finalSummary",
         "implementationNotes",
         "labels",
         "milestoneId",
+        "ordinal",
         "parentId",
         "plan",
+        "priority",
+        "removeAcceptanceCriteria",
         "removeAssignees",
         "removeComments",
+        "removeDefinitionOfDone",
         "removeDependencies",
         "removeLabels",
         "removeModifiedFiles",
@@ -380,6 +439,10 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "removeReferences",
         "status",
         "summary",
+        "title",
+        "type",
+        "uncheckAcceptanceCriteria",
+        "uncheckDefinitionOfDone",
       ],
     },
     {
@@ -438,34 +501,42 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "milestone.list",
       mutates: false,
-      fields: ["description", "status", "taskIds", "title"],
+      filters: ["include-archived"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone view",
       schemaVersion: 1,
       kind: "milestone.view",
       mutates: false,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone create",
       schemaVersion: 1,
       kind: "milestone.created",
       mutates: true,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone edit",
       schemaVersion: 1,
       kind: "milestone.updated",
       mutates: true,
-      fields: ["description", "status", "taskIds", "title"],
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "milestone delete",
       schemaVersion: 1,
       kind: "milestone.deleted",
       mutates: true,
+    },
+    {
+      name: "milestone archive",
+      schemaVersion: 1,
+      kind: "milestone.archived",
+      mutates: true,
+      fields: ["archived", "description", "status", "taskIds", "title"],
     },
     {
       name: "decision list",
@@ -656,4 +727,148 @@ test("migration capabilities advertise exact kinds and mutability", () => {
     expect(/^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/.test(kind)).toBe(true);
   expect(new Set(kinds).size).toBe(kinds.length);
   expect(validateCommandManifest(commandManifest)).toBe(true);
+});
+
+test("the overview guide lists every lifecycle verb the manifest declares", () => {
+  // The overview guide holds the agent-facing command list (QCLI-141 moved it
+  // out of the skill so the two cannot drift), so a verb added to a lifecycle
+  // group without touching it ships a list that is quietly wrong. Prose
+  // spellings vary ("create/list/view", or the group named once and the verbs
+  // after it), so this reads every backticked span on a line that mentions the
+  // group rather than matching one shape.
+  const commandList = questGuides.find(
+    (guide) => guide.name === "overview",
+  )?.content;
+  expect(commandList).toBeDefined();
+  for (const group of ["task", "draft", "milestone", "decision"]) {
+    const mentioned = new Set<string>();
+    for (const line of (commandList ?? "").split("\n")) {
+      const spans = [...line.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+      if (
+        !spans.some((span) => span === group || span?.startsWith(`${group} `))
+      )
+        continue;
+      for (const span of spans)
+        for (const token of (span ?? "")
+          .replace(new RegExp(`^${group}\\s+`), "")
+          .split(/[/\s]+/))
+          if (token) mentioned.add(token);
+    }
+    const declared = commandManifest.commands
+      .map((entry: { name: string }) => entry.name)
+      .filter((name: string) => name.startsWith(`${group} `))
+      .map((name: string) => name.slice(group.length + 1));
+    expect(declared.length).toBeGreaterThan(0);
+    expect({
+      group,
+      missing: declared.filter((verb: string) => !mentioned.has(verb)),
+    }).toEqual({ group, missing: [] });
+  }
+});
+
+test("the skill and the guides never restate the same guidance (QCLI-141)", () => {
+  // AC4/AC5: guidance lives in the guides, and the skill points at them. Two
+  // copies drift, and the drift is invisible because both surfaces look
+  // authoritative. Overlap is measured in eight-word shingles rather than
+  // whole sentences, so a reworded copy, a bullet list with no terminal
+  // punctuation, or a block lifted into a code fence all still trip it.
+  const shingles = (text: string) => {
+    const words = text
+      .replace(/[`*#>|-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      .split(" ")
+      .filter(Boolean);
+    const result = new Map<string, string>();
+    for (let index = 0; index + 8 <= words.length; index += 1) {
+      const window = words.slice(index, index + 8);
+      result.set(window.join(" "), window.join(" "));
+    }
+    return result;
+  };
+
+  const skill = shingles(questSkillContent);
+  for (const guide of questGuides) {
+    const shared = [...shingles(guide.content).keys()].filter((phrase) =>
+      skill.has(phrase),
+    );
+    expect({ guide: guide.name, shared }).toEqual({
+      guide: guide.name,
+      shared: [],
+    });
+  }
+
+  // The skill must stay a pointer: it names the CLI entry points and little
+  // else. A skill that grows past this has started restating a guide.
+  expect(questSkillContent.split("\n").length).toBeLessThan(30);
+  expect(questSkillContent).toContain("quest instructions --list");
+});
+
+test("every guide is discoverable and none of them is an aggregate (QCLI-141)", () => {
+  expect(questGuides.map((guide) => guide.name)).toEqual([
+    "overview",
+    "task-creation",
+    "task-execution",
+    "task-finalization",
+    "workspace",
+  ]);
+  // The recorded decision: no "all" guide. Guides exist to be loaded one at a
+  // time, and bundling them defeats that.
+  expect(questGuides.some((guide) => guide.name === "all")).toBe(false);
+  for (const guide of questGuides) {
+    expect(guide.summary.length).toBeGreaterThan(0);
+    expect(guide.summary).not.toContain("\n");
+    expect(guide.content).toContain("# ");
+    expect(findQuestGuide(guide.name)).toBe(guide);
+  }
+  expect(findQuestGuide("all")).toBeUndefined();
+});
+
+test("the CLI and application sort vocabularies stay in sync (QCLI-137)", async () => {
+  // The list is written twice — the CLI parses and error-messages from its
+  // copy, the application layer sorts from its own. Nothing but this keeps
+  // them equal, and a field in one but not the other is either an accepted
+  // flag that cannot sort or a sort that cannot be asked for.
+  const cli = await Bun.file(
+    new URL("../../src/cli/main.ts", import.meta.url),
+  ).text();
+  const application = await Bun.file(
+    new URL("../../src/application/tasks/tasks.ts", import.meta.url),
+  ).text();
+  const fields = (source: string) => {
+    const block = source.slice(source.indexOf("TASK_LIST_SORT_FIELDS"));
+    return [...block.slice(0, block.indexOf("]")).matchAll(/"([a-zA-Z]+)"/g)]
+      .map((match) => match[1])
+      .sort();
+  };
+  const cliFields = fields(cli);
+  expect(cliFields.length).toBeGreaterThan(0);
+  expect(cliFields).toEqual(fields(application));
+});
+
+test("`task edit` documents every flag it accepts (QCLI-147)", () => {
+  // test/contract/cli-process.test.ts already runs documented => accepted.
+  // This is the other direction, which nothing covered: a flag the parser
+  // takes but the help omits is invisible to anyone reading `quest help`.
+  // Both halves are needed — each catches a different way the two drift.
+  const source = readFileSync(
+    new URL("../../src/cli/main.ts", import.meta.url),
+    "utf8",
+  );
+  const branch = source.slice(
+    source.indexOf('if (command === "edit" && rest[0])'),
+  );
+  // The repeatable-flag list passed to flags() also ends in "])", so anchor on
+  // the allowlist itself before looking for its close.
+  const start = branch.indexOf("!only(parsed, [");
+  const allowlist = branch.slice(start, branch.indexOf("])", start));
+  const accepted = [...allowlist.matchAll(/"(--[a-z-]+)"/g)]
+    .map((match) => match[1])
+    .sort();
+  expect(accepted.length).toBeGreaterThan(20);
+  const documented = new Set(commandHelp["task edit"]?.flags ?? []);
+  expect({
+    undocumented: accepted.filter((flag) => !documented.has(flag as string)),
+  }).toEqual({ undocumented: [] });
 });

@@ -216,3 +216,98 @@ test("migration closes milestone references transactionally and rollback keeps c
     await rm(source, { recursive: true, force: true });
   }
 });
+
+test("imported Backlog timestamps are normalised to ISO-8601 UTC (QCLI-152)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-timestamps-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-ts-source-"));
+  try {
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    // Backlog's three real shapes, plus one that is not a date at all.
+    const fixtures: readonly (readonly [string, string, string])[] = [
+      ["TASK-1", "2024-03-04 05:06", "2024-05-06 07:08"],
+      ["TASK-2", "2024-03-05", "2024-03-05"],
+      ["TASK-3", "2024-03-06T07:08:09.123Z", "2024-03-06T07:08:09.123Z"],
+      ["TASK-4", "not a date", "also not a date"],
+    ];
+    for (const [id, created, updated] of fixtures)
+      await writeFile(
+        join(tasks, `${id}.md`),
+        `---\nid: ${id}\ntitle: Dated ${id}\nstatus: To Do\ncreated_date: '${created}'\nupdated_date: '${updated}'\n---\n\nDated fixture.\n`,
+      );
+
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const applied = await quest(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    if (applied.exitCode !== 0) console.error(applied.stderr);
+    expect(applied.exitCode).toBe(0);
+
+    const read = async (reference: string) => {
+      const viewed = await quest(store, ["task", "view", reference, "--json"]);
+      expect(viewed.exitCode).toBe(0);
+      return JSON.parse(viewed.stdout).data;
+    };
+
+    // Zone-less input reads as UTC, so the same file imports to the same
+    // instant on every machine rather than following the host's chair.
+    expect((await read("TASK-1")).createdAt).toBe("2024-03-04T05:06:00.000Z");
+    expect((await read("TASK-1")).updatedAt).toBe("2024-05-06T07:08:00.000Z");
+    // A bare date becomes midnight UTC: the canonical instant for that day.
+    expect((await read("TASK-2")).createdAt).toBe("2024-03-05T00:00:00.000Z");
+    // An already-canonical value survives unchanged.
+    expect((await read("TASK-3")).createdAt).toBe("2024-03-06T07:08:09.123Z");
+
+    // Unparseable input is dropped rather than becoming a wrong date — and is
+    // not lost: the raw source form is still in the provenance blob.
+    const unparseable = await read("TASK-4");
+    expect(unparseable.createdAt).toBeUndefined();
+    expect(unparseable.updatedAt).toBeUndefined();
+    expect(JSON.parse(unparseable.summary).backlog.createdAt).toBe(
+      "not a date",
+    );
+
+    // The point of all of the above: a mixed corpus sorts by time, not by
+    // format. Ascending, the unparseable record sorts last as unknown.
+    const listed = await quest(store, [
+      "task",
+      "list",
+      "--sort",
+      "createdAt:asc",
+      "--json",
+    ]);
+    expect(listed.exitCode).toBe(0);
+    const order = JSON.parse(listed.stdout).data.map(
+      (task: { title: string }) => task.title,
+    );
+    expect(order).toEqual([
+      "Dated TASK-1",
+      "Dated TASK-2",
+      "Dated TASK-3",
+      "Dated TASK-4",
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});

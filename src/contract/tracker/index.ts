@@ -9,12 +9,18 @@ export const MIN_QUEST_VERSION = "0.1.0";
 export const DEFAULT_TIMEOUT_MS = 5_000;
 
 /**
- * Exact Quest package version pinned by Lore's versioned tracker-adapter
- * boundary (Lore `docs/reference/backlog-cli-contract.md`,
- * "Tracker adapter boundary" / "Quest CLI 0.2.9 package"). Consumers cache
- * this pin at probe time and fail loud on any other version.
+ * The Quest package version this adapter boundary describes. It is a literal
+ * rather than an import because this module is deliberately dependency-free —
+ * see the file header — so a test asserts it equals QUEST_VERSION instead, and
+ * it must be bumped with every release.
+ *
+ * Lore's gate is no longer an exact-match allowlist: as of lore 0.3.5 it
+ * applies MIN_QUEST_VERSION with a `>=` floor plus selection-time gating, so a
+ * newer Quest is accepted without a paired Lore release. This constant states
+ * what the boundary was built and qualified against; it is not a version
+ * consumers are required to match.
  */
-export const QUEST_ADAPTER_PINNED_VERSION = "0.2.9" as const;
+export const QUEST_ADAPTER_PINNED_VERSION = "0.3.0" as const;
 
 /**
  * The schema-1 manifest descriptors the adapter boundary requires from the
@@ -62,12 +68,21 @@ export const ADAPTER_REQUIRED_MANIFEST_COMMANDS = [
   },
 ] as const;
 
+/**
+ * Every diagnostic Quest can emit, matching the canonical DiagnosticEnvelope.
+ * `usage` and `uncaught` are reachable through this adapter: the checklist
+ * collision rules deliberately live in the CLI (QCLI-146), so a caller that
+ * combines a replacement with an index operation gets `usage` back from
+ * `quest` rather than a client-side guess.
+ */
 export type TrackerOutcome =
+  | "usage"
   | "not_found"
   | "denied"
   | "conflict"
   | "validation"
-  | "drift";
+  | "drift"
+  | "uncaught";
 
 export interface TrackerDiagnostic {
   readonly error_type: TrackerOutcome;
@@ -179,8 +194,13 @@ export interface TrackerCreateInput {
  */
 export interface TrackerEditPatch {
   readonly status?: string;
+  readonly title?: string;
+  readonly priority?: string;
+  readonly type?: string;
+  readonly ordinal?: number;
   readonly summary?: string;
   readonly description?: string;
+  readonly finalSummary?: string;
   readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
@@ -200,6 +220,25 @@ export interface TrackerEditPatch {
   readonly definitionOfDone?:
     | readonly (string | TrackerCheckItem)[]
     | undefined;
+  /**
+   * Index-addressed checklist operations (QCLI-138, exposed here by QCLI-146).
+   * Positions are 1-based, as on the CLI — note that {@link TrackerCheckItem}
+   * `index` is 0-based on read, so addressing the item you just read means
+   * passing `index + 1`, not `index`. Addressing one entry leaves the rest
+   * byte-identical, so an adapter no longer has to read-modify-write a whole
+   * checklist to tick one box. The CLI owns the collision rules: a replacement
+   * combined with these, `clear` combined with anything, or one position given
+   * contradictory operations are all usage errors from `quest`, and are
+   * deliberately not second-guessed here.
+   */
+  readonly checkAcceptanceCriteria?: readonly number[];
+  readonly uncheckAcceptanceCriteria?: readonly number[];
+  readonly removeAcceptanceCriteria?: readonly number[];
+  readonly clearAcceptanceCriteria?: boolean;
+  readonly checkDefinitionOfDone?: readonly number[];
+  readonly uncheckDefinitionOfDone?: readonly number[];
+  readonly removeDefinitionOfDone?: readonly number[];
+  readonly clearDefinitionOfDone?: boolean;
   readonly addDependencies?: readonly string[];
   readonly removeDependencies?: readonly string[];
   readonly parentId?: string;
@@ -493,7 +532,21 @@ export class QuestTrackerClient {
         name: "task list",
         kind: "task.list",
         mutates: false,
-        filters: ["label", "status"],
+        filters: [
+          "assignee",
+          "exclude-status",
+          "label",
+          "limit",
+          "milestone",
+          "parent",
+          "priority",
+          "ready",
+          "search",
+          "sort",
+          "status",
+          "type",
+          "unassigned",
+        ],
         fields: [
           "assignees",
           "createdAt",
@@ -600,19 +653,28 @@ export class QuestTrackerClient {
           "addNotes",
           "addPlan",
           "addReferences",
+          "checkAcceptanceCriteria",
+          "checkDefinitionOfDone",
+          "clearAcceptanceCriteria",
+          "clearDefinitionOfDone",
           "clearMilestone",
           "clearParent",
           "comments",
           "definitionOfDone",
           "description",
           "documentation",
+          "finalSummary",
           "implementationNotes",
           "labels",
           "milestoneId",
+          "ordinal",
           "parentId",
           "plan",
+          "priority",
+          "removeAcceptanceCriteria",
           "removeAssignees",
           "removeComments",
+          "removeDefinitionOfDone",
           "removeDependencies",
           "removeLabels",
           "removeModifiedFiles",
@@ -621,6 +683,10 @@ export class QuestTrackerClient {
           "removeReferences",
           "status",
           "summary",
+          "title",
+          "type",
+          "uncheckAcceptanceCriteria",
+          "uncheckDefinitionOfDone",
         ],
       },
     ];
@@ -744,9 +810,16 @@ export class QuestTrackerClient {
     const declared = requireActor(actor);
     const argv = ["task", "edit", id, "--json", ...actorArguments(declared)];
     if (patch.status !== undefined) argv.push("--status", patch.status);
+    if (patch.title !== undefined) argv.push("--title", patch.title);
+    if (patch.priority !== undefined) argv.push("--priority", patch.priority);
+    if (patch.type !== undefined) argv.push("--type", patch.type);
+    if (patch.ordinal !== undefined)
+      argv.push("--ordinal", String(patch.ordinal));
     if (patch.summary !== undefined) argv.push("--summary", patch.summary);
     if (patch.description !== undefined)
       argv.push("--description", patch.description);
+    if (patch.finalSummary !== undefined)
+      argv.push("--final-summary", patch.finalSummary);
     if (patch.labels !== undefined)
       argv.push("--labels", JSON.stringify(patch.labels));
     appendRepeated(argv, "--add-label", patch.addLabels);
@@ -771,6 +844,14 @@ export class QuestTrackerClient {
       );
     if (patch.definitionOfDone !== undefined)
       argv.push("--definition-of-done", JSON.stringify(patch.definitionOfDone));
+    appendRepeated(argv, "--check-ac", patch.checkAcceptanceCriteria);
+    appendRepeated(argv, "--uncheck-ac", patch.uncheckAcceptanceCriteria);
+    appendRepeated(argv, "--remove-ac", patch.removeAcceptanceCriteria);
+    if (patch.clearAcceptanceCriteria === true) argv.push("--clear-ac");
+    appendRepeated(argv, "--check-dod", patch.checkDefinitionOfDone);
+    appendRepeated(argv, "--uncheck-dod", patch.uncheckDefinitionOfDone);
+    appendRepeated(argv, "--remove-dod", patch.removeDefinitionOfDone);
+    if (patch.clearDefinitionOfDone === true) argv.push("--clear-dod");
     appendRepeated(argv, "--add-dependency", patch.addDependencies);
     appendRepeated(argv, "--remove-dependency", patch.removeDependencies);
     if (patch.parentId !== undefined) argv.push("--parent", patch.parentId);

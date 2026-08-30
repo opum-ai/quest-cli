@@ -183,3 +183,56 @@ test("record codec fails closed on corrupt bytes and schemas without mutating ca
     ),
   ).toThrow(RecordValidationError);
 });
+
+test("canonical ids accept any well-formed prefix while keeping every prior rejection", () => {
+  // Structural validity only: which prefix a workspace *generates* is
+  // configuration (taskIdPrefix), not a domain-replay concern.
+  for (const accepted of [
+    "T-1",
+    "T-42",
+    "T-9007199254740991",
+    "QCLI-125",
+    "DEMO-7",
+    "A1-3",
+    "lower-5",
+  ]) {
+    expect(canonicalId(accepted)).toBe(accepted);
+  }
+
+  // Everything the fixed T- pattern rejected for structural reasons still throws.
+  for (const rejected of [
+    "",
+    "T",
+    "T-",
+    "-1",
+    "T-0",
+    "T-01",
+    "t-042",
+    "T-1.4",
+    "T-1a",
+    "1T-1",
+    "-T-1",
+    "T--1",
+    "A-B-1",
+    "T 1",
+    "T-١",
+  ]) {
+    expect(() => canonicalId(rejected)).toThrow(RecordValidationError);
+  }
+});
+
+test("allocation honours a configured prefix and rejects a malformed one", () => {
+  const counter = {
+    schemaVersion: 1,
+    revision: "abc",
+    nextSequence: "7",
+  } as const;
+  expect(allocateCanonicalId(counter, "abc", "QCLI").id).toBe("QCLI-7");
+  // Default stays T-, so an existing caller is byte-identical.
+  expect(allocateCanonicalId(counter, "abc").id).toBe("T-7");
+  for (const bad of ["", "-", "1ABC", "A-B", "A B"]) {
+    expect(() => allocateCanonicalId(counter, "abc", bad)).toThrow(
+      RecordValidationError,
+    );
+  }
+});

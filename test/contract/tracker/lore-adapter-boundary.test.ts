@@ -30,7 +30,6 @@ async function quest(
 }
 
 test("the adapter boundary pins the exact authorized Quest package version", () => {
-  expect(QUEST_ADAPTER_PINNED_VERSION).toBe("0.2.9");
   expect(QUEST_ADAPTER_PINNED_VERSION).toBe(QUEST_VERSION);
 });
 

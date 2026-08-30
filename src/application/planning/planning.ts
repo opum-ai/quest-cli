@@ -97,8 +97,10 @@ function sortedCounts(
 export class PlanningService {
   constructor(private readonly repository: PlanningRepository) {}
 
-  async listMilestones(): Promise<readonly Milestone[]> {
-    return [...(await this.repository.read()).milestones].sort(byIdentifier);
+  async listMilestones(includeArchived = false): Promise<readonly Milestone[]> {
+    return [...(await this.repository.read()).milestones]
+      .filter((item) => includeArchived || item.archived !== true)
+      .sort(byIdentifier);
   }
   async listDecisions(): Promise<readonly Decision[]> {
     return [...(await this.repository.read()).decisions].sort(byIdentifier);
@@ -181,6 +183,32 @@ export class PlanningService {
       }),
     );
   }
+  /**
+   * Retires a milestone without destroying it. Unlike {@link deleteMilestone}
+   * this deliberately accepts a milestone that still carries task references:
+   * preserving them is the reason to archive rather than delete.
+   */
+  async archiveMilestone(id: string, operationId: string) {
+    const snapshot = await this.repository.read();
+    const existing = snapshot.milestones.find((item) => item.id === id);
+    if (!existing) throw new RecordValidationError("milestone_not_found");
+    if (existing.archived === true)
+      throw new RecordValidationError(
+        "milestone_lifecycle_already_at_destination",
+      );
+    const record = milestone({ ...existing, archived: true });
+    return persistedPlanningRecord(
+      record,
+      this.repository.write({
+        expectedRevision: snapshot.revision,
+        milestones: snapshot.milestones.map((item) =>
+          item.id === record.id ? record : item,
+        ),
+        decisions: snapshot.decisions,
+        operationId,
+      }),
+    );
+  }
   async deleteMilestone(id: string, operationId: string) {
     const snapshot = await this.repository.read();
     const existing = snapshot.milestones.find((item) => item.id === id);
@@ -228,10 +256,13 @@ export class PlanningService {
         byStatus: sortedCounts(byStatus),
       },
       milestones: {
-        open: planning.milestones.filter((item) => item.status === "open")
-          .length,
-        closed: planning.milestones.filter((item) => item.status === "closed")
-          .length,
+        // Archived milestones are retired, so they count as neither.
+        open: planning.milestones.filter(
+          (item) => item.archived !== true && item.status === "open",
+        ).length,
+        closed: planning.milestones.filter(
+          (item) => item.archived !== true && item.status === "closed",
+        ).length,
       },
       decisions: sortedCounts(decisions),
     };
@@ -329,8 +360,15 @@ export class PlanningService {
     operationId: string,
   ): Promise<PlanningCleanupPlan | PlanningMutationResult> {
     const snapshot = await this.repository.read();
+    // Archiving exists to preserve the record, so cleanup is not its reaper:
+    // an archived milestone is retired deliberately and stays retrievable.
     const milestoneIds = snapshot.milestones
-      .filter((item) => item.status === "closed" && item.taskIds.length === 0)
+      .filter(
+        (item) =>
+          item.archived !== true &&
+          item.status === "closed" &&
+          item.taskIds.length === 0,
+      )
       .map((item) => item.id)
       .sort();
     const decisionIds = snapshot.decisions

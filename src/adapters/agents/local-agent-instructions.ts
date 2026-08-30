@@ -1,5 +1,5 @@
-import { lstat, readFile, realpath, writeFile } from "node:fs/promises";
-import { isAbsolute, relative, resolve } from "node:path";
+import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
   AgentInstructionError,
@@ -10,8 +10,34 @@ function isContained(root: string, target: string): boolean {
   const path = relative(root, target);
   return (
     path === "" ||
-    (!path.startsWith("../") && path !== ".." && !isAbsolute(path))
+    (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path))
   );
+}
+
+/** Rejects a relative path that reaches its target through a symlinked
+ * intermediate directory; the leaf's own symlink-ness is checked separately. */
+async function assertNoSymlinkEscape(
+  root: string,
+  target: string,
+): Promise<void> {
+  let current = root;
+  for (const part of relative(root, target).split(sep)) {
+    if (!part) continue;
+    current = join(current, part);
+    try {
+      if (
+        (await lstat(current)).isSymbolicLink() &&
+        !isContained(root, await realpath(current))
+      ) {
+        throw new AgentInstructionError(
+          "Agent instruction path escapes through a symlink.",
+        );
+      }
+    } catch (error) {
+      if (error instanceof AgentInstructionError) throw error;
+      break; // the remaining leaf will be created only after its parents are checked
+    }
+  }
 }
 
 /** Repository-local instruction storage which never follows a file symlink. */
@@ -19,13 +45,7 @@ export class LocalAgentInstructionPort implements AgentInstructionPort {
   constructor(private readonly root: string) {}
 
   private async target(path: string): Promise<string> {
-    if (
-      !path ||
-      path.includes("\0") ||
-      isAbsolute(path) ||
-      path.includes("/") ||
-      path.includes("\\")
-    ) {
+    if (!path || path.includes("\0") || isAbsolute(path)) {
       throw new AgentInstructionError(
         "Agent instruction path is not supported.",
       );
@@ -36,6 +56,7 @@ export class LocalAgentInstructionPort implements AgentInstructionPort {
       throw new AgentInstructionError(
         "Agent instruction path escapes its workspace.",
       );
+    await assertNoSymlinkEscape(root, target);
     return target;
   }
 
@@ -63,6 +84,7 @@ export class LocalAgentInstructionPort implements AgentInstructionPort {
     } catch (error) {
       if ((error as { code?: string }).code !== "ENOENT") throw error;
     }
+    await mkdir(dirname(target), { recursive: true });
     await writeFile(target, content, "utf8");
   }
 }

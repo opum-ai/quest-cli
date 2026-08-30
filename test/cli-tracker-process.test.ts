@@ -4,6 +4,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
+import { QUEST_VERSION } from "../src/application/version.ts";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
 const compiled = join(
@@ -114,7 +115,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.9\n",
+      stdout: `${QUEST_VERSION}\n`,
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);
@@ -832,6 +833,17 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ])
       ).stdout,
     ).data.record.id as string;
+    const milestoneToArchive = JSON.parse(
+      (
+        await quest(store, [
+          "milestone",
+          "create",
+          "Archived milestone",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.record.id as string;
     const milestoneToDelete = JSON.parse(
       (
         await quest(store, [
@@ -942,6 +954,8 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       help: ["--help", "--plain"],
       init: ["init", "--plain"],
       instructions: ["instructions", "--plain"],
+      "instructions --list": ["instructions", "--list", "--plain"],
+      "instructions <guide>": ["instructions", "overview", "--plain"],
       agents: ["agents", "--update-instructions", "--plain"],
       completion: ["completion", "bash", "--plain"],
       "migration backlog preview": [
@@ -1075,6 +1089,13 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ...actor,
         "--plain",
       ],
+      "milestone archive": [
+        "milestone",
+        "archive",
+        milestoneToArchive,
+        ...actor,
+        "--plain",
+      ],
       "decision list": ["decision", "list", "--plain"],
       "decision view": ["decision", "view", decision, "--plain"],
       "decision create": [
@@ -1185,3 +1206,1142 @@ test("every manifest payload command declares principal null as its last JSON ke
     expect(Object.keys(envelope).at(-1), entry.name).toBe("principal");
   }
 }, 15_000);
+
+test("task edit can mutate title, priority, type and ordinal (QCLI-133)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-edit-fields-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    const created = await quest(store, [
+      "task",
+      "create",
+      "Typo titel",
+      "--priority",
+      "High",
+      "--type",
+      "bug",
+      "--ordinal",
+      "5",
+      ...human,
+    ]);
+    expect(created.exitCode).toBe(0);
+    expect(JSON.parse(created.stdout).data).toMatchObject({
+      id: "T-1",
+      title: "Typo titel",
+      priority: "High",
+      type: "bug",
+      ordinal: 5,
+    });
+
+    // All four previously exited 2 with "task edit received invalid arguments".
+    const edited = await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--title",
+      "Fixed title",
+      "--priority",
+      "Low",
+      "--type",
+      "feature",
+      "--ordinal",
+      "10",
+      ...human,
+    ]);
+    expect(edited.exitCode).toBe(0);
+    expect(JSON.parse(edited.stdout).data).toMatchObject({
+      id: "T-1",
+      title: "Fixed title",
+      priority: "Low",
+      type: "feature",
+      ordinal: 10,
+    });
+
+    // The rename keeps the record's identity rather than forcing a replacement.
+    const viewed = await quest(store, ["task", "view", "T-1", "--json"]);
+    expect(JSON.parse(viewed.stdout).data).toMatchObject({
+      id: "T-1",
+      title: "Fixed title",
+      aliases: [],
+    });
+
+    // Each field is independently settable, not all-or-nothing.
+    const titleOnly = await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--title",
+      "Third title",
+      ...human,
+    ]);
+    expect(titleOnly.exitCode).toBe(0);
+    expect(JSON.parse(titleOnly.stdout).data).toMatchObject({
+      title: "Third title",
+      priority: "Low",
+      type: "feature",
+      ordinal: 10,
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task edit --ordinal rejects a non-integer exactly as create does (QCLI-133)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-edit-ordinal-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "T", ...human]);
+    for (const argv of [
+      ["task", "create", "Other", "--ordinal", "1.5", ...human],
+      ["task", "edit", "T-1", "--ordinal", "1.5", ...human],
+    ]) {
+      const result = await quest(store, argv);
+      expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        error_type: "usage",
+        message: "--ordinal must be an integer.",
+      });
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("the published manifest advertises the four newly editable fields (QCLI-133)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-edit-manifest-"));
+  try {
+    const manifest = await quest(store, ["manifest", "--json"]);
+    const registry = JSON.parse(manifest.stdout);
+    // Both edit transports share one fold, so both must advertise the fields.
+    for (const name of ["task edit", "task edit-batch"]) {
+      const entry = registry.data.commands.find(
+        (command: { name: string }) => command.name === name,
+      );
+      for (const field of ["title", "priority", "type", "ordinal"]) {
+        expect(entry.fields, `${name} advertises ${field}`).toContain(field);
+      }
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("the published manifest advertises every task list filter (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-manifest-"));
+  try {
+    const manifest = await quest(store, ["manifest", "--json"]);
+    const registry = JSON.parse(manifest.stdout);
+    const entry = registry.data.commands.find(
+      (command: { name: string }) => command.name === "task list",
+    );
+    expect([...entry.filters].sort()).toEqual([
+      "assignee",
+      "exclude-status",
+      "label",
+      "limit",
+      "milestone",
+      "parent",
+      "priority",
+      "ready",
+      "search",
+      "sort",
+      "status",
+      "type",
+      "unassigned",
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --ready returns only dependency-unblocked tasks (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-ready-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Blocker", ...human]);
+    await quest(store, [
+      "task",
+      "create",
+      "Blocked",
+      "--dependency",
+      "T-1",
+      ...human,
+    ]);
+    const listed = await quest(store, ["task", "list", "--ready", "--json"]);
+    expect(listed).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(listed.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...human,
+    ]);
+    await quest(store, ["task", "edit", "T-1", "--status", "Done", ...human]);
+    const readyAfterCompletion = await quest(store, [
+      "task",
+      "list",
+      "--ready",
+      "--json",
+    ]);
+    expect(JSON.parse(readyAfterCompletion.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --ready composes with --label (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-ready-label-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Ready backend",
+      "--label",
+      "backend",
+      ...human,
+    ]);
+    // Depends on the backend task, which the frontend label filter excludes.
+    await quest(store, [
+      "task",
+      "create",
+      "Blocked frontend",
+      "--label",
+      "frontend",
+      "--dependency",
+      "T-1",
+      ...human,
+    ]);
+    const listed = await quest(store, [
+      "task",
+      "list",
+      "--ready",
+      "--label",
+      "backend",
+      "--json",
+    ]);
+    expect(JSON.parse(listed.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+    // Readiness is computed over the whole collection before the label filter
+    // runs. Computing it after would drop the T-1 edge and call T-2 ready.
+    const blocked = await quest(store, [
+      "task",
+      "list",
+      "--ready",
+      "--label",
+      "frontend",
+      "--json",
+    ]);
+    expect(JSON.parse(blocked.stdout).data).toEqual([]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list selection filters compose: exclude-status, assignee, unassigned, milestone, parent, priority, type, search (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-filters-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Alpha",
+      "--priority",
+      "high",
+      "--type",
+      "feature",
+      "--assignee",
+      "person-1",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Beta",
+      "--priority",
+      "low",
+      "--type",
+      "bug",
+      "--parent",
+      "T-1",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...human,
+    ]);
+    await quest(store, ["task", "edit", "T-1", "--status", "Done", ...human]);
+
+    const excludeDone = await quest(store, [
+      "task",
+      "list",
+      "--exclude-status",
+      "Done",
+      "--json",
+    ]);
+    expect(JSON.parse(excludeDone.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const byAssignee = await quest(store, [
+      "task",
+      "list",
+      "--assignee",
+      "person-1",
+      "--json",
+    ]);
+    expect(JSON.parse(byAssignee.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+
+    const unassigned = await quest(store, [
+      "task",
+      "list",
+      "--unassigned",
+      "--json",
+    ]);
+    expect(JSON.parse(unassigned.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const byParent = await quest(store, [
+      "task",
+      "list",
+      "--parent",
+      "T-1",
+      "--json",
+    ]);
+    expect(JSON.parse(byParent.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const byPriority = await quest(store, [
+      "task",
+      "list",
+      "--priority",
+      "high",
+      "--json",
+    ]);
+    expect(JSON.parse(byPriority.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+
+    const byType = await quest(store, [
+      "task",
+      "list",
+      "--type",
+      "bug",
+      "--json",
+    ]);
+    expect(JSON.parse(byType.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+
+    const bySearch = await quest(store, [
+      "task",
+      "list",
+      "--search",
+      "Alpha",
+      "--json",
+    ]);
+    expect(JSON.parse(bySearch.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+
+    const assigneeAndUnassigned = await quest(store, [
+      "task",
+      "list",
+      "--assignee",
+      "person-1",
+      "--unassigned",
+      "--json",
+    ]);
+    expect(assigneeAndUnassigned).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(assigneeAndUnassigned.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "task list --assignee and --unassigned cannot be combined.",
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --sort and --limit apply after every other filter (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-sort-limit-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Alpha",
+      "--priority",
+      "low",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Beta",
+      "--priority",
+      "high",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Gamma",
+      "--priority",
+      "high",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Delta",
+      "--priority",
+      "medium",
+      ...human,
+    ]);
+    // T-1 low, T-2 high, T-3 high, T-4 medium. Priority sorts by rank, not
+    // alphabetically: as strings the order is high, high, low, medium, which
+    // puts the lowest priority ahead of medium. Ties break by ascending id.
+    const ascending = await quest(store, [
+      "task",
+      "list",
+      "--sort",
+      "priority",
+      "--json",
+    ]);
+    expect(
+      JSON.parse(ascending.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["T-2", "T-3", "T-4", "T-1"]);
+    const sorted = await quest(store, [
+      "task",
+      "list",
+      "--sort",
+      "priority:desc",
+      "--json",
+    ]);
+    expect(
+      JSON.parse(sorted.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["T-1", "T-4", "T-2", "T-3"]);
+    // Limit truncates the sorted ordering, not the id ordering.
+    const limited = await quest(store, [
+      "task",
+      "list",
+      "--sort",
+      "priority:asc",
+      "--limit",
+      "1",
+      "--json",
+    ]);
+    expect(JSON.parse(limited.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-2" }),
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list rejects invalid --sort and --limit values (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-sort-invalid-"));
+  try {
+    for (const [argv, message] of [
+      [
+        ["task", "list", "--sort", "bogus", "--json"],
+        "--sort must be one of id, title, status, priority, type, ordinal, createdAt, updatedAt, optionally suffixed with :asc or :desc.",
+      ],
+      [
+        ["task", "list", "--limit", "0", "--json"],
+        "--limit must be a positive integer.",
+      ],
+      [
+        ["task", "list", "--limit", "abc", "--json"],
+        "--limit must be a positive integer.",
+      ],
+    ] as const) {
+      const result = await quest(store, argv);
+      expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        error_type: "usage",
+        message,
+      });
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list --status and --label behave exactly as before (QCLI-139 regression)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-regression-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Alpha",
+      "--label",
+      "backend",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Beta",
+      "--label",
+      "frontend",
+      ...human,
+    ]);
+    const byStatus = await quest(store, [
+      "task",
+      "list",
+      "--status",
+      "To Do",
+      "--json",
+    ]);
+    expect(
+      JSON.parse(byStatus.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["T-1", "T-2"]);
+    const byLabel = await quest(store, [
+      "task",
+      "list",
+      "--label",
+      "backend",
+      "--json",
+    ]);
+    expect(JSON.parse(byLabel.stdout).data).toEqual([
+      expect.objectContaining({ id: "T-1" }),
+    ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task list selection flags fold case, accept comma lists, and union repeats (QCLI-139)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-list-selection-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, [
+      "task",
+      "create",
+      "Parent",
+      "--alias",
+      "PARENT-ALIAS",
+      "--priority",
+      "High",
+      "--type",
+      "Feature",
+      "--assignee",
+      "Person-1",
+      ...human,
+    ]);
+    await quest(store, [
+      "task",
+      "create",
+      "Child",
+      "--parent",
+      "T-1",
+      "--priority",
+      "Low",
+      "--type",
+      "bug",
+      "--assignee",
+      "person-2",
+      ...human,
+    ]);
+    const ids = async (argv: readonly string[]) =>
+      JSON.parse((await quest(store, [...argv, "--json"])).stdout).data.map(
+        (task: { id: string }) => task.id,
+      );
+
+    // Priority and type are free-form authored strings; a case mismatch used
+    // to return a silent empty list.
+    expect(await ids(["task", "list", "--priority", "high"])).toEqual(["T-1"]);
+    expect(await ids(["task", "list", "--type", "FEATURE"])).toEqual(["T-1"]);
+
+    // Repeatable or comma-separated, like the tracker Quest is at parity with.
+    expect(await ids(["task", "list", "--type", "bug,feature"])).toEqual([
+      "T-1",
+      "T-2",
+    ]);
+    expect(
+      await ids(["task", "list", "--type", "bug", "--type", "feature"]),
+    ).toEqual(["T-1", "T-2"]);
+    expect(
+      await ids(["task", "list", "--exclude-status", "In Progress,Done"]),
+    ).toEqual(["T-1", "T-2"]);
+
+    // A repeated --assignee is a union, not an intersection.
+    expect(
+      await ids([
+        "task",
+        "list",
+        "--assignee",
+        "person-1",
+        "--assignee",
+        "person-2",
+      ]),
+    ).toEqual(["T-1", "T-2"]);
+
+    // --parent folds case and aliases, like every other task reference.
+    for (const reference of ["T-1", "t-1", "parent-alias"])
+      expect(await ids(["task", "list", "--parent", reference])).toEqual([
+        "T-2",
+      ]);
+
+    const empty = await quest(store, ["task", "list", "--type", ",", "--json"]);
+    expect(empty).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(empty.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--type requires at least one value.",
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("milestone archive retires a milestone and list hides it by default (QCLI-140)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-milestone-archive-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Shipped work", ...human]);
+    await quest(store, [
+      "milestone",
+      "create",
+      "Release 1",
+      "--status",
+      "closed",
+      "--task",
+      "T-1",
+      ...human,
+    ]);
+    await quest(store, ["milestone", "create", "Release 2", ...human]);
+
+    const archived = await quest(store, [
+      "milestone",
+      "archive",
+      "M-1",
+      ...human,
+    ]);
+    expect(archived.exitCode).toBe(0);
+    const envelope = JSON.parse(archived.stdout);
+    expect(envelope.kind).toBe("milestone.archived");
+    // The task reference survives; that is the difference from delete.
+    expect(envelope.data.record).toMatchObject({
+      id: "M-1",
+      status: "closed",
+      taskIds: ["T-1"],
+      archived: true,
+    });
+
+    const ids = async (argv: readonly string[]) =>
+      JSON.parse((await quest(store, [...argv, "--json"])).stdout).data.map(
+        (item: { id: string }) => item.id,
+      );
+    expect(await ids(["milestone", "list"])).toEqual(["M-2"]);
+    expect(await ids(["milestone", "list", "--include-archived"])).toEqual([
+      "M-1",
+      "M-2",
+    ]);
+    expect(
+      JSON.parse(
+        (await quest(store, ["milestone", "view", "M-1", "--json"])).stdout,
+      ).data,
+    ).toMatchObject({ archived: true, taskIds: ["T-1"] });
+
+    // AC3: delete keeps its destructive behaviour and its reference guard.
+    const deleted = await quest(store, [
+      "milestone",
+      "delete",
+      "M-1",
+      ...human,
+    ]);
+    expect(deleted.exitCode).toBe(6);
+    expect(JSON.parse(deleted.stderr)).toMatchObject({
+      message: "milestone_has_task_references",
+    });
+    const deletedEmpty = await quest(store, [
+      "milestone",
+      "delete",
+      "M-2",
+      ...human,
+    ]);
+    expect(deletedEmpty.exitCode).toBe(0);
+    expect(await ids(["milestone", "list", "--include-archived"])).toEqual([
+      "M-1",
+    ]);
+
+    // Archiving twice, and archiving a decision, are both rejected.
+    const again = await quest(store, ["milestone", "archive", "M-1", ...human]);
+    expect(again.exitCode).toBe(6);
+    expect(JSON.parse(again.stderr)).toMatchObject({
+      message: "milestone_lifecycle_already_at_destination",
+    });
+    const missingActor = await quest(store, [
+      "milestone",
+      "archive",
+      "M-1",
+      "--json",
+    ]);
+    expect(missingActor.exitCode).toBe(4);
+    const decisionArchive = await quest(store, [
+      "decision",
+      "archive",
+      "DEC-1",
+      ...human,
+    ]);
+    expect(decisionArchive.exitCode).toBe(2);
+    expect(JSON.parse(decisionArchive.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "decision action is invalid or missing required arguments.",
+    });
+
+    // Only the archived M-1 remains at this point. Archived milestones keep
+    // their ids, so auto-id allocation must still see them: allocating from
+    // the visible list alone finds nothing, reuses M-1, and every subsequent
+    // create fails with milestone_already_exists.
+    const afterArchive = await quest(store, [
+      "milestone",
+      "create",
+      "Release 3",
+      ...human,
+    ]);
+    expect(afterArchive.exitCode).toBe(0);
+    expect(JSON.parse(afterArchive.stdout).data.record.id).toBe("M-2");
+
+    // Editing an archived milestone does not quietly un-archive it.
+    await quest(store, [
+      "milestone",
+      "edit",
+      "M-1",
+      "--title",
+      "Release 1, retired",
+      ...human,
+    ]);
+    expect(
+      JSON.parse(
+        (await quest(store, ["milestone", "view", "M-1", "--json"])).stdout,
+      ).data,
+    ).toMatchObject({ title: "Release 1, retired", archived: true });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("instructions serves guides and --list without changing the bare form (QCLI-141)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-instructions-guides-"));
+  try {
+    // AC2: the bare form is still the managed block, byte for byte. Every
+    // existing caller and `agents --check` depend on it.
+    const bare = await quest(store, ["instructions", "--json"]);
+    expect(bare.exitCode).toBe(0);
+    const bareEnvelope = JSON.parse(bare.stdout);
+    expect(bareEnvelope.kind).toBe("agent.instructions");
+    expect(bareEnvelope.data.content).toContain(
+      "<!-- quest:agent-instructions:begin -->",
+    );
+
+    const listed = await quest(store, ["instructions", "--list", "--json"]);
+    expect(listed.exitCode).toBe(0);
+    const listEnvelope = JSON.parse(listed.stdout);
+    expect(listEnvelope.kind).toBe("agent.guides");
+    expect(
+      listEnvelope.data.guides.map((guide: { name: string }) => guide.name),
+    ).toEqual([
+      "overview",
+      "task-creation",
+      "task-execution",
+      "task-finalization",
+      "workspace",
+    ]);
+    // AC1: every entry carries a one-line purpose.
+    for (const guide of listEnvelope.data.guides) {
+      expect(guide.summary.length).toBeGreaterThan(0);
+      expect(guide.summary).not.toContain("\n");
+    }
+
+    // Each guide is distinct content, not the same block five times.
+    const bodies = new Set<string>();
+    for (const name of listEnvelope.data.guides.map(
+      (guide: { name: string }) => guide.name,
+    )) {
+      const served = await quest(store, ["instructions", name, "--json"]);
+      expect({ name, exitCode: served.exitCode }).toEqual({
+        name,
+        exitCode: 0,
+      });
+      const envelope = JSON.parse(served.stdout);
+      expect(envelope.kind).toBe("agent.guide");
+      expect(envelope.data.name).toBe(name);
+      bodies.add(envelope.data.content);
+    }
+    expect(bodies.size).toBe(5);
+
+    // AC3: no "all" guide, and the error says what to do instead.
+    const all = await quest(store, ["instructions", "all", "--json"]);
+    expect(all.exitCode).toBe(3);
+    const diagnostic = JSON.parse(all.stderr);
+    expect(diagnostic).toMatchObject({ error_type: "not_found" });
+    expect(diagnostic.hint).toContain("--list");
+    expect(diagnostic.hint).toContain('no "all" guide');
+
+    const both = await quest(store, [
+      "instructions",
+      "overview",
+      "--list",
+      "--json",
+    ]);
+    expect(both.exitCode).toBe(2);
+    expect(JSON.parse(both.stderr)).toMatchObject({ error_type: "usage" });
+
+    // A malformed flag is a usage error, not "unknown guide -x": a leading
+    // dash is a flag however many dashes it has.
+    for (const flag of ["--nope", "-x", "-l"]) {
+      const bogus = await quest(store, ["instructions", flag, "--json"]);
+      expect({ flag, exitCode: bogus.exitCode }).toEqual({ flag, exitCode: 2 });
+      expect(JSON.parse(bogus.stderr)).toMatchObject({ error_type: "usage" });
+    }
+
+    // The guide argument is positional and may precede or follow --json.
+    const flagFirst = await quest(store, [
+      "instructions",
+      "--json",
+      "overview",
+    ]);
+    expect(flagFirst.exitCode).toBe(0);
+    expect(JSON.parse(flagFirst.stdout).data.name).toBe("overview");
+    const trailing = await quest(store, ["instructions", "overview", "extra"]);
+    expect(trailing.exitCode).toBe(2);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI-137)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-timestamps-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+  try {
+    const created = JSON.parse(
+      (await quest(store, ["task", "create", "Stamped", ...human])).stdout,
+    ).data;
+    expect(created.createdAt).toMatch(iso);
+    expect(created.updatedAt).toBe(created.createdAt);
+
+    // Both surfaces the manifest declares them on return them.
+    const viewed = JSON.parse(
+      (await quest(store, ["task", "view", "T-1", "--json"])).stdout,
+    ).data;
+    expect(viewed.createdAt).toBe(created.createdAt);
+    const [listed] = JSON.parse(
+      (await quest(store, ["task", "list", "--json"])).stdout,
+    ).data;
+    expect(listed.createdAt).toBe(created.createdAt);
+
+    const edited = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--title",
+          "Restamped",
+          "--status",
+          "In Progress",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(edited.createdAt).toBe(created.createdAt);
+    expect(edited.updatedAt > created.updatedAt).toBe(true);
+    expect(edited.updatedAt).toMatch(iso);
+
+    // A status transition is a write. Note the envelope: task.completed nests
+    // the record under data.task, unlike task.updated.
+    const completed = JSON.parse(
+      (await quest(store, ["task", "complete", "T-1", ...human])).stdout,
+    ).data.task;
+    expect(completed.updatedAt > edited.updatedAt).toBe(true);
+    expect(completed.createdAt).toBe(created.createdAt);
+
+    // So is a lifecycle move, which takes a different write path entirely.
+    const archived = JSON.parse(
+      (await quest(store, ["task", "archive", "T-1", ...human])).stdout,
+    ).data.task;
+    expect(archived.updatedAt > completed.updatedAt).toBe(true);
+    expect(archived.createdAt).toBe(created.createdAt);
+
+    // And the sort fields QCLI-139 had to drop are back. T-1 is archived by
+    // now, so order these on two fresh records.
+    await quest(store, ["task", "create", "Second", ...human]);
+    await quest(store, ["task", "create", "Third", ...human]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-2",
+      "--summary",
+      "touched last",
+      ...human,
+    ]);
+    const ids = async (argv: readonly string[]) =>
+      JSON.parse((await quest(store, [...argv, "--json"])).stdout).data.map(
+        (task: { id: string }) => task.id,
+      );
+    expect(await ids(["task", "list", "--sort", "createdAt"])).toEqual([
+      "T-2",
+      "T-3",
+    ]);
+    expect(await ids(["task", "list", "--sort", "createdAt:desc"])).toEqual([
+      "T-3",
+      "T-2",
+    ]);
+    // T-2 was created first but edited last, so the two orderings differ --
+    // which is what makes this assertion prove updatedAt is a real field and
+    // not an alias for createdAt.
+    expect(await ids(["task", "list", "--sort", "updatedAt:desc"])).toEqual([
+      "T-2",
+      "T-3",
+    ]);
+
+    // Promotion creates a task, so it stamps like create does. Without this
+    // the record could never acquire a createdAt at all.
+    await quest(store, ["draft", "create", "An idea", ...human]);
+    const promoted = JSON.parse(
+      (await quest(store, ["draft", "promote", "D-1", ...human])).stdout,
+    ).data.task;
+    expect(promoted.createdAt).toMatch(iso);
+    expect(promoted.updatedAt).toBe(promoted.createdAt);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("every task field the manifest declares is a field the CLI emits (QCLI-137)", async () => {
+  // The defect this closes was a manifest promising createdAt/updatedAt on
+  // `task list`, `task view` and `search` that nothing ever wrote. This is
+  // that class, generalized: a task with every settable field must carry
+  // every field those three read surfaces declare.
+  const store = await mkdtemp(join(tmpdir(), "quest-manifest-fields-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Dependency", ...human]);
+    await quest(store, ["milestone", "create", "Release", ...human]);
+    const created = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "create",
+          "Fully populated",
+          "--summary",
+          "s",
+          "--description",
+          "d",
+          "--priority",
+          "high",
+          "--type",
+          "feature",
+          "--ordinal",
+          "7",
+          "--alias",
+          "FULL",
+          "--label",
+          "l",
+          "--doc",
+          "docs/x.md",
+          "--acceptance-criteria",
+          '["ac"]',
+          "--definition-of-done",
+          '["dod"]',
+          "--plan",
+          '["p"]',
+          "--implementation-notes",
+          '["n"]',
+          "--assignee",
+          "person-1",
+          "--reference",
+          "src/x.ts",
+          "--modified-file",
+          "src/y.ts",
+          "--dependency",
+          "T-1",
+          "--parent",
+          "T-1",
+          "--milestone",
+          "M-1",
+          "--final-summary",
+          "done",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+
+    const manifest = JSON.parse(
+      (await quest(store, ["manifest", "--json"])).stdout,
+    ).data.commands as { name: string; fields?: string[] }[];
+    const viewed = JSON.parse(
+      (await quest(store, ["task", "view", created.id, "--json"])).stdout,
+    ).data;
+    const listed = JSON.parse(
+      (await quest(store, ["task", "list", "--json"])).stdout,
+    ).data.find((task: { id: string }) => task.id === created.id);
+
+    const searched = JSON.parse(
+      (await quest(store, ["search", "Fully", "--json"])).stdout,
+    ).data.find((task: { id: string }) => task.id === created.id);
+
+    // Only the read surfaces. `task create` and `task edit` also carry a
+    // `fields` list, but theirs is the settable-input vocabulary — it holds
+    // `addLabels` and `clearParent` and omits `id` and `status` — so an
+    // output-presence assertion does not apply to it.
+    for (const [name, payload] of [
+      ["task view", viewed],
+      ["task list", listed],
+      ["search", searched],
+    ] as const) {
+      const declared = manifest.find((entry) => entry.name === name)?.fields;
+      expect({ name, declared: declared !== undefined }).toEqual({
+        name,
+        declared: true,
+      });
+      const missing = (declared ?? []).filter(
+        (field) => !Object.hasOwn(payload as object, field),
+      );
+      expect({ name, missing }).toEqual({ name, missing: [] });
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("task edit can set a final summary on an existing task (QCLI-147)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-final-summary-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  try {
+    await quest(store, ["task", "create", "Needs closing", ...human]);
+    const edited = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--final-summary",
+          "Fixed the fold; 14 tests cover it.",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(edited.finalSummary).toBe("Fixed the fold; 14 tests cover it.");
+
+    // It persists, and a later edit that does not mention it leaves it alone.
+    await quest(store, ["task", "edit", "T-1", "--summary", "s", ...human]);
+    const viewed = JSON.parse(
+      (await quest(store, ["task", "view", "T-1", "--json"])).stdout,
+    ).data;
+    expect(viewed.finalSummary).toBe("Fixed the fold; 14 tests cover it.");
+
+    // Replacing it works, which is the whole point: create-only meant a
+    // summary written once could never be corrected.
+    const rewritten = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--final-summary",
+          "Corrected.",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(rewritten.finalSummary).toBe("Corrected.");
+
+    // And through the batch transport, which shares the same fold.
+    const operations = join(store, "ops.jsonl");
+    await writeFile(
+      operations,
+      JSON.stringify({
+        reference: "T-1",
+        operationId: "op-1",
+        patch: { finalSummary: "From the batch." },
+      }),
+    );
+    const batch = await quest(store, [
+      "task",
+      "edit-batch",
+      "--file",
+      operations,
+      ...human,
+    ]);
+    expect(batch.exitCode).toBe(0);
+    expect(JSON.parse(batch.stdout).data.items).toEqual([
+      expect.objectContaining({ kind: "updated", reference: "T-1" }),
+    ]);
+    expect(
+      JSON.parse((await quest(store, ["task", "view", "T-1", "--json"])).stdout)
+        .data.finalSummary,
+    ).toBe("From the batch.");
+
+    // A non-string is a parse-time usage error, not a coerced write.
+    await writeFile(
+      operations,
+      JSON.stringify({
+        reference: "T-1",
+        operationId: "op-2",
+        patch: { finalSummary: 42 },
+      }),
+    );
+    const rejected = await quest(store, [
+      "task",
+      "edit-batch",
+      "--file",
+      operations,
+      ...human,
+    ]);
+    expect(rejected.exitCode).toBe(2);
+    expect(JSON.parse(rejected.stderr).message).toContain("finalSummary");
+
+    // Single-value, like every other scalar replace.
+    const repeated = await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--final-summary",
+      "a",
+      "--final-summary",
+      "b",
+      ...human,
+    ]);
+    expect(repeated.exitCode).toBe(2);
+    expect(JSON.parse(repeated.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--final-summary may only be provided once.",
+    });
+
+    // An empty value stores an empty summary, exactly as --summary does.
+    // There is no --clear-final-summary; Backlog has one, Quest does not.
+    const emptied = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "edit",
+          "T-1",
+          "--final-summary=",
+          ...human,
+        ])
+      ).stdout,
+    ).data;
+    expect(emptied.finalSummary).toBe("");
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});

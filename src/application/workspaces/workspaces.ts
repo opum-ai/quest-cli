@@ -1,23 +1,51 @@
 import { join } from "node:path";
 
+import { canonicalIdPrefixPattern } from "../../domain/records.ts";
 import {
   WorkspaceError,
+  type WorkspaceConfiguration,
   type WorkspaceIdentity,
   type WorkspacePort,
 } from "../../ports/workspaces.ts";
 
 export {
   WorkspaceError,
+  type WorkspaceConfiguration,
   type WorkspaceIdentity,
   type WorkspacePort,
 } from "../../ports/workspaces.ts";
+
+/** Re-exported for the CLI boundary, which may not reach into the domain
+ * layer directly (see scripts/check-layers.mjs). */
+export function isValidTaskIdPrefix(value: string): boolean {
+  return canonicalIdPrefixPattern.test(value);
+}
 
 export interface WorkspaceEntry extends WorkspaceIdentity {
   readonly state: "present" | "missing" | "invalid";
 }
 
+export interface WorkspaceInitializationInput {
+  readonly name?: string;
+  readonly taskIdPrefix?: string;
+}
+
 export const workspaceConfigurationPath = ".quest/workspace.toml";
-const configuration = "schemaVersion = 1\n";
+
+/** Escapes exactly the two TOML basic-string metacharacters; the values
+ * Quest writes here are short operator-declared names, never raw input from
+ * an external boundary. */
+function tomlStringLiteral(value: string): string {
+  return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+function serializeConfiguration(input: WorkspaceInitializationInput): string {
+  const lines = ["schemaVersion = 1"];
+  if (input.name) lines.push(`name = ${tomlStringLiteral(input.name)}`);
+  if (input.taskIdPrefix)
+    lines.push(`taskIdPrefix = ${tomlStringLiteral(input.taskIdPrefix)}`);
+  return `${lines.join("\n")}\n`;
+}
 
 /** Validates an operator-supplied relative Quest path before any write. */
 export function assertSafeWorkspaceRelativePath(path: string): void {
@@ -48,10 +76,14 @@ export function assertSafeWorkspaceRelativePath(path: string): void {
 export async function initializeWorkspace(
   port: WorkspacePort,
   path: string,
+  input: WorkspaceInitializationInput = {},
 ): Promise<WorkspaceIdentity> {
   assertSafeWorkspaceRelativePath(workspaceConfigurationPath);
   const identity = await port.inspect(path);
-  await port.writeInitialization(identity.worktreePath, configuration);
+  await port.writeInitialization(
+    identity.worktreePath,
+    serializeConfiguration(input),
+  );
   return identity;
 }
 
@@ -72,6 +104,17 @@ export async function resolveInitializedWorkspace(
     );
   }
   return identity;
+}
+
+/** Reads the initialized workspace's declared configuration. name and
+ * taskIdPrefix are absent for every workspace initialized before they
+ * existed; callers apply their own default. */
+export async function resolveWorkspaceConfiguration(
+  port: WorkspacePort,
+  path: string,
+): Promise<WorkspaceConfiguration> {
+  const identity = await resolveInitializedWorkspace(port, path);
+  return port.readConfiguration(identity.worktreePath);
 }
 
 /** Explicit local enrollment.  A common Git directory may have many worktrees. */

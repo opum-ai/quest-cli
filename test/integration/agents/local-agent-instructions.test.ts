@@ -9,8 +9,12 @@ import {
   checkQuestAgentInstructions,
   codexInstructionPath,
   inspectQuestAgentInstructions,
+  inspectQuestSkillFile,
   questAgentInstructions,
+  questSkillContent,
+  questSkillPath,
   updateQuestAgentInstructions,
+  updateQuestSkillFile,
 } from "../../../src/application/agents/agent-instructions.ts";
 import { QUEST_VERSION } from "../../../src/application/version.ts";
 
@@ -71,6 +75,64 @@ test("drift inspection is read-only and update replaces only a complete managed 
     expect(await readFile(file, "utf8")).toBe(
       `before\n${questAgentInstructions.trimEnd()}\nafter\n`,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the skill file is installed at its nested path, exact-match idempotent, and drift-detected wholesale", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-skill-"));
+  try {
+    const port = new LocalAgentInstructionPort(root);
+    const file = join(root, questSkillPath);
+
+    expect(await inspectQuestSkillFile(port)).toEqual({ state: "missing" });
+    expect(await updateQuestSkillFile(port)).toEqual({ state: "current" });
+    expect(await readFile(file, "utf8")).toBe(questSkillContent);
+    expect(await inspectQuestSkillFile(port)).toEqual({ state: "current" });
+
+    expect(await updateQuestSkillFile(port)).toEqual({ state: "current" });
+    expect(await readFile(file, "utf8")).toBe(questSkillContent);
+
+    await writeFile(file, "hand-edited\n");
+    expect(await inspectQuestSkillFile(port)).toEqual({
+      state: "drift",
+      message: "Quest skill file differs from the bundled version.",
+    });
+    await updateQuestSkillFile(port);
+    expect(await readFile(file, "utf8")).toBe(questSkillContent);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the skill file write rejects escaping through a symlinked intermediate directory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-skill-escape-"));
+  const outside = await mkdtemp(join(tmpdir(), "quest-skill-outside-"));
+  try {
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(root, ".claude"), { recursive: true });
+    await symlink(outside, join(root, ".claude", "skills"));
+    const port = new LocalAgentInstructionPort(root);
+    await expect(updateQuestSkillFile(port)).rejects.toBeInstanceOf(
+      AgentInstructionError,
+    );
+    await expect(
+      readFile(join(outside, "quest", "SKILL.md"), "utf8"),
+    ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("the existing AGENTS.md path is unaffected by nested-path support", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-agents-flat-"));
+  try {
+    const port = new LocalAgentInstructionPort(root);
+    expect(await port.read("AGENTS.md")).toBeUndefined();
+    await port.write("AGENTS.md", "content\n");
+    expect(await port.read("AGENTS.md")).toBe("content\n");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

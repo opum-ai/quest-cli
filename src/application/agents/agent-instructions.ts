@@ -93,3 +93,59 @@ export async function inspectQuestAgentInstructions(
 ): Promise<AgentInstructionCheck> {
   return checkQuestAgentInstructions(await port.read(path));
 }
+
+export const questSkillPath = ".claude/skills/quest/SKILL.md";
+
+/** The bundled Quest skill, installed opt-in alongside the managed AGENTS.md
+ * block. Entirely Quest-owned: unlike the managed block, the whole file is
+ * either an exact match or drifted, never merged into surrounding content. */
+export const questSkillContent = `---
+name: quest
+description: "Drive this repo's task tracker with the quest CLI instead of editing backlog/tracker state directly. Use whenever creating, listing, viewing, editing, completing, or archiving tasks, drafts, milestones, or decisions in a Quest-initialized workspace. Run \`quest instructions --list\` for the workflow guides and \`quest help [command]\` for full usage."
+---
+
+# quest — tracker CLI
+
+This skill is a pointer, not a manual. The guidance ships inside the CLI, so it cannot
+drift from the release you have installed:
+
+- \`quest instructions --list\` — the workflow guides, one line each.
+- \`quest instructions overview\` — start here.
+- \`quest instructions\` — the versioned protocol block Quest manages in AGENTS.md.
+- \`quest help [command]\` — exact flags; \`quest manifest --json\` for the machine registry.
+
+Drive tracker state through \`quest\`, never by editing \`.quest/\` by hand.
+`;
+
+/** Whole-file check: the skill is entirely Quest-owned, so any content other
+ * than an exact match is drift, not something to merge. */
+export function checkQuestSkillFile(
+  content: string | undefined,
+): AgentInstructionCheck {
+  if (content === undefined) return { state: "missing" };
+  if (content === questSkillContent) return { state: "current" };
+  return {
+    state: "drift",
+    message: "Quest skill file differs from the bundled version.",
+  };
+}
+
+/** Writes the bundled skill file only when it differs from what is installed. */
+export async function updateQuestSkillFile(
+  port: AgentInstructionPort,
+  path = questSkillPath,
+): Promise<AgentInstructionCheck> {
+  const current = await port.read(path);
+  const check = checkQuestSkillFile(current);
+  if (check.state === "current") return check;
+  await port.write(path, questSkillContent);
+  return { state: "current" };
+}
+
+/** Reads the installed skill file for a non-mutating drift check. */
+export async function inspectQuestSkillFile(
+  port: AgentInstructionPort,
+  path = questSkillPath,
+): Promise<AgentInstructionCheck> {
+  return checkQuestSkillFile(await port.read(path));
+}
