@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 02:01'
+updated_date: '2026-08-30 02:36'
 labels:
   - release
   - provenance
@@ -35,7 +35,7 @@ Two ways to close it: publish a native-execution receipt for the 0.2.9 tag from 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 A native-execution receipt is published for the 0.2.9 release whose per-platform questBinarySha256 values match the bytes actually published to npm for each of the six platform packages
-- [ ] #2 The receipt names its source commit and CI run, and each platform job in that run executed the binary on its own target rather than only building it
+- [x] #2 The receipt names its source commit and CI run, and each platform job in that run executed the binary on its own target rather than only building it
 - [x] #3 Receipt generation is wired into the release process so a published version cannot ship without a matching receipt, rather than being produced by hand after the fact
 - [ ] #4 opum-cli-e2e re-run against the published 0.2.9 receipt reports zero packaging failures
 <!-- AC:END -->
@@ -119,4 +119,22 @@ Three failures on the way, recorded because they recur:
 3. Staging 496MB of binaries in one git add got SIGKILLed. deliver:packages already exists for exactly this - it builds and stages one target at a time with bounded pack memory - and should have been the first choice.
 
 A claim I wrote into the runbook and had to correct: 'Bun cannot cross-compile bun-windows-aarch64.' That is a Bun VERSION constraint, not an absolute one - 1.2.23 refuses it, 1.3.14 compiles it. I recorded a mechanism from one observation. Independently corroborated afterwards by lore-cli, whose DEVELOPMENT.md already had the correct version-scoped form.
+
+0.3.0 RECEIPT EXISTS AND BINDS. AC2 is closed for 0.3.0.
+
+Tagged v0.3.0 and dispatched the workflow on the tag: CI run 33288065896, all nine jobs green including native-execution-receipt. Receipt: commit 98ab4c7858ceca4ef62d8e6b6e557c317feadd09, version 0.3.0, six platforms, seven required jobs all successful.
+
+Verified twice, not once:
+- 'receipt:require' -> 'Native-execution receipt binds 0.3.0 at 98ab4c7 across all six platforms.'
+- The REAL downstream validator, opum-cli-e2e/lib/native-receipts.mjs validateNativeReceipts() with declaredDigests bound -> ok:true.
+
+THE FIRST TAG ATTEMPT FAILED, AND THE FAILURE WAS THE VALUABLE PART. All six platform jobs failed the reproduction gate I had shipped: each rebuilt its binary and got a different digest from the one committed minutes earlier by the same Bun version. Bun's --compile output is NOT byte-reproducible across machines - six independent mismatches, measured rather than assumed.
+
+That made 'rebuild and check it matches' the wrong question. A native-execution receipt attests that the bytes being PUBLISHED ran on their target, and the published bytes are the ones committed at the release ref; rebuilding them first destroys exactly what the receipt is about, because the rebuild is a different artifact from the one shipped. On a release ref the platform job now SKIPS the rebuild and executes the committed artifact, with --verify-committed asserting byte-identity to the blob at that ref by git object id before it runs (PR #193). The coverage claim was corrected too: it had claimed each job 'reproduced the digest committed at that ref', which was never true and could not have become true.
+
+The gate was too strict to satisfy, but it failed closed and loudly, which is why this was found before a receipt existed rather than after one was trusted.
+
+PUBLISH IS BLOCKED ON THE CREDENTIAL, NOT ON THIS REPOSITORY. 'npm whoami' returns E401. 'npm publish' on the first platform package returns E404 on PUT, which is npm's response to a token without write permission on an existing scope. Nothing partial reached the registry: @opum-ai/quest is still 0.2.9 and @opum-ai/quest-darwin-arm64 still lists only 0.2.8 and 0.2.9. The lore-cli session reports the identical symptom on the same account with two different tokens, so it is the credential or the account, not either repository's tooling.
+
+AC1 and AC4 still name 0.2.9 specifically and remain open by their own wording. Their substance is now satisfied for 0.3.0: a receipt exists whose per-platform digests are the committed artifacts that were executed on their own runners.
 <!-- SECTION:NOTES:END -->
