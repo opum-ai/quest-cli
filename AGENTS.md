@@ -34,6 +34,10 @@ Controller or any sibling repository.
   `opum-worktrees` under `/Users/jdnewhouse/.agents/skills/{codex-worker,backlog-handover,opum-worktrees}`.
   Do not allow repository copies of those skills to shadow the user-level procedures.
 - Authority marker (immutable): opum-agent shared skill source: /Volumes/external/.opum-worktrees/opum-agent-fb33aefbfb36/64/opum-agent/tooling/codex-skills
+  This exact line is read by opum-agent's own migration-launch-fence gate
+  (`assertFinalizedInstructionMarkers`, tooling/agent-skills/src/source-migration.mjs) as a
+  substring check on `origin/dev`. Do not remove or reword it — even as part of retiring the
+  rest of this FMC Worker section — without confirming with opum-agent first; verified 2026-08-30.
 - Announce as `quest-cli`, consume interrupts between work orders, and long-poll only its addressed
   inbox. Accept addressed Controller work orders one at a time, execute their repository-local
   scope under these instructions, and always reply with outcome, validation, delivery, worktree,
@@ -91,5 +95,5 @@ coupling, managed blocks, and cross-links stay coherent.
 
 - **Skill:** `.codex/skills/lore/SKILL.md` — how to drive lore.
 - **Just-in-time detail:** run `lore instructions` for the canonical agent loop, then
-  `lore instructions <topic>` (`linking`, `sync`, `check`, `validation`).
+  `lore instructions <topic>` (`linking`, `sync`, `check`, `validation`, `workspace`).
 <!-- lore:agents:end -->

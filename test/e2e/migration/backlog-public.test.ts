@@ -19,6 +19,26 @@ async function quest(store: string, argv: readonly string[]) {
   };
 }
 
+// QUEST_TASK_STORE short-circuits configuredTaskIdPrefix() to "T" (see
+// runQuest), so exercising a real configured taskIdPrefix needs a genuine
+// discovered workspace instead: a real `git init` + `quest init`, no env
+// override.
+async function questNative(cwd: string, argv: readonly string[]) {
+  const env = { ...Bun.env };
+  delete env.QUEST_TASK_STORE;
+  const child = Bun.spawn(["bun", executable, ...argv], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    env,
+  });
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
 async function sourceFixture(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "quest-lore-backlog-source-"));
   const tasks = join(root, "backlog", "tasks");
@@ -306,6 +326,418 @@ test("imported Backlog timestamps are normalised to ISO-8601 UTC (QCLI-152)", as
       "Dated TASK-3",
       "Dated TASK-4",
     ]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("imported acceptance criteria and definition-of-done keep their checked state (QCLI-157)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-ac-checked-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-ac-source-"));
+  try {
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "TASK-1.md"),
+      `---\nid: TASK-1\ntitle: Fix crash on empty import\nstatus: In Progress\n---\n\n<!-- AC:BEGIN -->\n- [x] #1 Reproduce with empty CSV\n- [ ] #2 Add regression test\n<!-- AC:END -->\n\n<!-- DOD:BEGIN -->\n- [x] #1 Code reviewed\n<!-- DOD:END -->\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "TASK-2.md"),
+      `---\nid: TASK-2\ntitle: Write API reference docs\nstatus: Done\n---\n\n<!-- AC:BEGIN -->\n- [x] #1 Cover all public endpoints\n- [x] #2 Include auth examples\n<!-- AC:END -->\n\nBody.\n`,
+    );
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const applied = await quest(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(applied.exitCode).toBe(0);
+
+    const partial = JSON.parse(
+      (await quest(store, ["task", "view", "TASK-1", "--json"])).stdout,
+    ).data;
+    // Before the fix this came back checked:false on every item -- the parsed
+    // checkbox state never reached the structured field, only `item.text` did.
+    expect(partial.acceptanceCriteria).toEqual([
+      { index: 0, text: "Reproduce with empty CSV", checked: true },
+      { index: 1, text: "Add regression test", checked: false },
+    ]);
+    expect(partial.definitionOfDone).toEqual([
+      { index: 0, text: "Code reviewed", checked: true },
+    ]);
+
+    const done = JSON.parse(
+      (await quest(store, ["task", "view", "TASK-2", "--json"])).stdout,
+    ).data;
+    expect(
+      done.acceptanceCriteria.every(
+        (item: { checked: boolean }) => item.checked,
+      ),
+    ).toBe(true);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("migration targets the workspace's configured taskIdPrefix and still guards organic numbering (QCLI-157)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-prefix-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-prefix-src-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd: store }).exited;
+    const init = await questNative(store, [
+      "init",
+      "--task-id-prefix",
+      "FX",
+      "--json",
+    ]);
+    expect(init.exitCode).toBe(0);
+    // An organic (never-imported) task already occupies FX-1: the allocator
+    // must count past it, and the preview-time collision guard must still
+    // cover this prefix, not only a hardcoded "T-".
+    const native = await questNative(store, [
+      "task",
+      "create",
+      "Organic task",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(JSON.parse(native.stdout)).toMatchObject({ data: { id: "FX-1" } });
+
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "TASK-1.md"),
+      `---\nid: TASK-1\ntitle: Migrated task\nstatus: To Do\n---\n\nBody.\n`,
+    );
+    const preview = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    // Before the fix this landed at T-1 -- a namespace disconnected from the
+    // workspace's own FX- sequence -- regardless of --task-id-prefix.
+    expect(JSON.parse(preview.stdout).data.mappings).toEqual([
+      expect.objectContaining({
+        sourceIdentifier: "TASK-1",
+        targetIdentifier: "FX-2",
+      }),
+    ]);
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const applied = await questNative(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(applied.exitCode).toBe(0);
+    expect(JSON.parse(applied.stdout).data.survivors).toEqual(["FX-2"]);
+
+    // The collision guard must still refuse a real conflict under the
+    // configured prefix, case-insensitively, before any write.
+    await writeFile(
+      join(tasks, "TASK-2.md"),
+      `---\nid: fx-1\ntitle: Collides with the organic task\nstatus: To Do\n---\n\nBody.\n`,
+    );
+    const collision = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(collision.exitCode).toBe(5);
+    expect(JSON.parse(collision.stderr)).toMatchObject({
+      error_type: "conflict",
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("migration into a fresh same-prefix workspace does not self-collide on its own minted id (QCLI-157)", async () => {
+  // A completely fresh workspace, taskIdPrefix matching the Backlog source's
+  // own display prefix, zero pre-existing tasks: the realistic day-one
+  // cutover shape. The first migrated task's newly minted canonical id
+  // ("FX-1") is now the SAME string as the bare Backlog-source alias being
+  // registered for that very task -- not a conflict with a different task,
+  // just that task's id and its own alias coinciding.
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-self-collide-"));
+  const source = await mkdtemp(
+    join(tmpdir(), "quest-backlog-self-collide-src-"),
+  );
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd: store }).exited;
+    const init = await questNative(store, [
+      "init",
+      "--task-id-prefix",
+      "FX",
+      "--json",
+    ]);
+    expect(init.exitCode).toBe(0);
+
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "FX-1.md"),
+      `---\nid: FX-1\ntitle: Migrate reporting pipeline\nstatus: In Progress\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "FX-1.1.md"),
+      `---\nid: FX-1.1\ntitle: Extract schema\nstatus: Done\nparent: FX-1\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "FX-1.2.md"),
+      `---\nid: FX-1.2\ntitle: Backfill rows\nstatus: Done\nparent: FX-1\n---\n\nBody.\n`,
+    );
+
+    const preview = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    // Before the fix this threw exit 5 "Alias collision: \"FX-1\" conflicts
+    // with \"FX-1\"" -- the new id colliding with its own alias, not a real
+    // conflict with a different task.
+    if (preview.exitCode !== 0) console.error(preview.stderr);
+    expect(preview.exitCode).toBe(0);
+    expect(JSON.parse(preview.stdout).data.mappings).toEqual([
+      expect.objectContaining({
+        sourceIdentifier: "FX-1",
+        targetIdentifier: "FX-1",
+      }),
+      expect.objectContaining({
+        sourceIdentifier: "FX-1.1",
+        targetIdentifier: "FX-2",
+      }),
+      expect.objectContaining({
+        sourceIdentifier: "FX-1.2",
+        targetIdentifier: "FX-3",
+      }),
+    ]);
+
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const applied = await questNative(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    if (applied.exitCode !== 0) console.error(applied.stderr);
+    expect(applied.exitCode).toBe(0);
+    expect(JSON.parse(applied.stdout).data.survivors).toEqual([
+      "FX-1",
+      "FX-2",
+      "FX-3",
+    ]);
+
+    // A genuine cross-task collision must still refuse: a second migration
+    // batch deliberately colliding with the first migrated task's real id.
+    const secondSource = await mkdtemp(
+      join(tmpdir(), "quest-backlog-self-collide-src2-"),
+    );
+    const secondTasks = join(secondSource, "backlog", "tasks");
+    await mkdir(secondTasks, { recursive: true });
+    await writeFile(
+      join(secondTasks, "OTHER-1.md"),
+      `---\nid: fx-1\ntitle: Deliberately collides with the migrated FX-1\nstatus: To Do\n---\n\nBody.\n`,
+    );
+    const stillGuarded = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      secondSource,
+      "--json",
+    ]);
+    expect(stillGuarded.exitCode).toBe(5);
+    expect(JSON.parse(stillGuarded.stderr)).toMatchObject({
+      error_type: "conflict",
+    });
+    await rm(secondSource, { recursive: true, force: true });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("a migrated subtask's parentId resolves to the parent's real new id, not the pre-migration source id (QCLI-157)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-parent-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-parent-src-"));
+  try {
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "TASK-1.md"),
+      `---\nid: TASK-1\ntitle: Migrate reporting pipeline\nstatus: In Progress\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "TASK-1.1.md"),
+      `---\nid: TASK-1.1\ntitle: Extract and map legacy schema\nstatus: Done\nparent: TASK-1\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "TASK-1.2.md"),
+      `---\nid: TASK-1.2\ntitle: Backfill and validate rows\nstatus: Done\nparent: TASK-1\n---\n\nBody.\n`,
+    );
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    const mappings = JSON.parse(preview.stdout).data.mappings as {
+      sourceIdentifier: string;
+      targetIdentifier: string;
+    }[];
+    const parentNewId = mappings.find(
+      (m) => m.sourceIdentifier === "TASK-1",
+    )?.targetIdentifier;
+    expect(parentNewId).toBeDefined();
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const applied = await quest(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(applied.exitCode).toBe(0);
+
+    const child = JSON.parse(
+      (await quest(store, ["task", "view", "TASK-1.1", "--json"])).stdout,
+    ).data;
+    // Before the fix this stayed "TASK-1" -- the raw pre-migration source id
+    // -- even though TASK-1 is a registered alias of the parent's real id.
+    expect(child.parentId).toBe(parentNewId);
+    expect(child.parentId).not.toBe("TASK-1");
+
+    // The point of resolving it: --parent lookups must actually find the
+    // migrated children, not just carry a plausible-looking string.
+    const byParent = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "list",
+          "--parent",
+          parentNewId as string,
+          "--json",
+        ])
+      ).stdout,
+    ).data as { id: string }[];
+    expect(byParent.map((t) => t.id).sort()).toEqual(
+      mappings
+        .filter((m) => m.sourceIdentifier !== "TASK-1")
+        .map((m) => m.targetIdentifier)
+        .sort(),
+    );
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("a case-only id collision with a live task is refused, not silently overwritten (QCLI-155)", async () => {
+  // On a case-insensitive filesystem (the macOS default), a Backlog source
+  // id that differs from a live Quest task's id only by case is exactly the
+  // shape that could silently clobber a file instead of failing loudly.
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-collision-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-collision-src-"));
+  try {
+    const created = await quest(store, [
+      "task",
+      "create",
+      "Existing",
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--id",
+      "QCLI-1",
+      "--json",
+    ]);
+    expect(created.exitCode).toBe(0);
+
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "qcli-1.md"),
+      "---\nid: qcli-1\ntitle: Case-variant collider\nstatus: To Do\n---\n\nBody.\n",
+    );
+
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).toBe(5);
+    expect(JSON.parse(preview.stderr)).toMatchObject({
+      error_type: "conflict",
+      message: 'Alias collision: "qcli-1" conflicts with "QCLI-1".',
+    });
+
+    // Refused at preview: nothing was written under the colliding id.
+    const listed = await quest(store, ["task", "list", "--json"]);
+    expect(JSON.parse(listed.stdout).data).toHaveLength(1);
   } finally {
     await rm(store, { recursive: true, force: true });
     await rm(source, { recursive: true, force: true });

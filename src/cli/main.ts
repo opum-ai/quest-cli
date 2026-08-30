@@ -449,7 +449,11 @@ async function taskStoreRoot(): Promise<string> {
 function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   const id = one(parsed, "--actor");
   const kind = one(parsed, "--actor-kind");
-  if (!id || (kind !== "human" && kind !== "delegated-agent")) return undefined;
+  if (kind !== undefined && kind !== "human" && kind !== "delegated-agent")
+    throw new FlagUsageError(
+      `--actor-kind "${kind}" is not a valid actor kind. Use "human" or "delegated-agent".`,
+    );
+  if (!id || kind === undefined) return undefined;
   const accountableHumanId = one(parsed, "--accountable-human");
   if (kind === "delegated-agent" && !accountableHumanId) return undefined;
   return {
@@ -610,20 +614,22 @@ export async function runQuest(
         modeFor(),
       );
     }
-    if (
-      ["--help", "-h", "help"].includes(arguments_[0] ?? "") ||
-      ["--help", "-h"].includes(arguments_[1] ?? "")
-    ) {
+    const helpFlagIndex = arguments_.findIndex(
+      (argument) => argument === "--help" || argument === "-h",
+    );
+    const helpWordLeading = arguments_[0] === "help";
+    if (helpWordLeading || helpFlagIndex !== -1) {
       const helpArguments = arguments_;
-      if (helpArguments.length > 2)
+      const topicWords = helpWordLeading
+        ? helpArguments.slice(1)
+        : helpArguments.slice(0, helpFlagIndex);
+      const extraWords = helpWordLeading
+        ? []
+        : helpArguments.slice(helpFlagIndex + 1);
+      if (extraWords.length > 0)
         return failure("usage", "help accepts at most one topic.");
-      const helpTarget = ["help", "--help", "-h"].includes(
-        helpArguments[0] ?? "",
-      )
-        ? helpArguments[1]
-        : ["--help", "-h"].includes(helpArguments[1] ?? "")
-          ? helpArguments[0]
-          : undefined;
+      const helpTarget =
+        topicWords.length > 0 ? topicWords.join(" ") : undefined;
       const parsed = flags([]);
       if (!parsed || !only(parsed, []))
         return failure("usage", "help accepts only --json and --plain.");
@@ -920,6 +926,7 @@ export async function runQuest(
               root,
               source,
               backlogDirectory,
+              await configuredTaskIdPrefix(),
             ).preview(),
           },
           modeFor(parsed),
@@ -950,6 +957,7 @@ export async function runQuest(
               root,
               source,
               backlogDirectory,
+              await configuredTaskIdPrefix(),
             ).apply(digest),
           },
           modeFor(parsed),

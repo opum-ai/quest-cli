@@ -28,6 +28,7 @@ export function createBacklogImportService(
   root: string,
   source: string,
   backlogDirectory?: string,
+  taskIdPrefix?: string,
 ) {
   return new BacklogImportService(
     root,
@@ -37,6 +38,7 @@ export function createBacklogImportService(
       new LocalPlanningRepository(root),
     ),
     new LocalPlanningRepository(root),
+    taskIdPrefix,
   );
 }
 
