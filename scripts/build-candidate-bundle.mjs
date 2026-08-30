@@ -89,6 +89,7 @@ async function pack(directory, into, expectedMember) {
 export async function buildCandidateBundle({
   commit,
   out,
+  releaseRef = false,
   directory = root,
 } = {}) {
   if (!COMMIT_HEX.test(String(commit ?? "")))
@@ -139,6 +140,40 @@ export async function buildCandidateBundle({
   rootPackage.questPlatformPackages = platformDigests;
   await writeFile(rootPackagePath, `${JSON.stringify(rootPackage, null, 2)}\n`);
 
+  // A bundle names a sourceCommit. Whether it actually CARRIES that commit's
+  // bytes is a separate question, and nothing here used to ask it.
+  //
+  // It matters because Bun's --compile output is not byte-reproducible: a
+  // rebuilt binary can never equal the committed one, so a bundle assembled
+  // from fresh builds names a commit whose bytes it does not contain. A
+  // consumer then qualifies an artifact nobody will ship — which happened, and
+  // was caught downstream by digest comparison rather than here.
+  const rebuilt = [];
+  for (const platform of REQUIRED_PLATFORMS) {
+    const relative = `npm/quest-${platform}/bin/${executableFor(platform)}`;
+    try {
+      // `git diff --quiet` rather than hashing: these binaries are 60-95MB and
+      // `git hash-object` on them gets SIGKILLed under the memory this runs in.
+      // The comparison is the same one, done by git without materialising the
+      // content anywhere.
+      await execFile("git", ["diff", "--quiet", commit, "--", relative], {
+        cwd: directory,
+      });
+    } catch (error) {
+      // Exit 1 is "differs". Anything else — an unknown commit, a path that
+      // does not exist at it — is not evidence of a rebuild, so it is ignored
+      // rather than reported as one.
+      if (error.code === 1) rebuilt.push(platform);
+    }
+  }
+  // On a release ref this is fatal: the artifacts published are the committed
+  // ones, so a bundle of rebuilds describes something else entirely.
+  if (rebuilt.length && releaseRef)
+    throw new Error(
+      `refusing to build a release bundle from rebuilt artifacts; these are not the bytes committed at ${commit.slice(0, 7)}: ${rebuilt.join(", ")}`,
+    );
+  const artifactProvenance = rebuilt.length ? "rebuilt" : "committed";
+
   const tarballs = join(out, "tarballs");
   await rm(out, { recursive: true, force: true });
   await mkdir(tarballs, { recursive: true });
@@ -171,9 +206,22 @@ export async function buildCandidateBundle({
   );
   await writeFile(
     join(out, "evidence", "package-metadata.json"),
-    `${JSON.stringify({ sourceCommit: commit, version, packages }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        sourceCommit: commit,
+        version,
+        // "committed" means every binary here is byte-identical to the blob at
+        // sourceCommit — the bytes that publish. "rebuilt" means they are not,
+        // and a consumer must not present the run as qualifying that commit.
+        artifactProvenance,
+        ...(rebuilt.length ? { rebuiltPlatforms: rebuilt } : {}),
+        packages,
+      },
+      null,
+      2,
+    )}\n`,
   );
-  return { version, commit, out, packages, digests };
+  return { version, commit, out, packages, digests, artifactProvenance };
 }
 
 async function main(argv) {
@@ -190,7 +238,11 @@ async function main(argv) {
     process.env.GITHUB_SHA ??
     (await execFile("git", ["rev-parse", "HEAD"], { cwd: root })).stdout.trim();
   const out = resolve(flag("--out") ?? join(root, "candidate"));
-  const built = await buildCandidateBundle({ commit, out });
+  const built = await buildCandidateBundle({
+    commit,
+    out,
+    releaseRef: (process.env.GITHUB_REF ?? "").startsWith("refs/tags/v"),
+  });
   console.log(
     `Candidate bundle for ${built.version} at ${commit.slice(0, 7)}: ${built.digests.length} archives in ${out}`,
   );

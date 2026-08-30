@@ -1,0 +1,87 @@
+name: Release
+
+# Publication is never automatic. This runs only when a human dispatches it
+# against a release tag, and it refuses to publish anything unless a
+# native-execution receipt binds that exact commit and version (QCLI-135).
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Actually publish. Leave false for a dry run."
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    # Dispatch this against the tag, not a branch: the artifacts published are
+    # the ones committed at the release ref, and nothing here rebuilds them.
+    # Bun's --compile output is not byte-reproducible, so a rebuild would
+    # publish different bytes from the ones CI attested.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # The receipt is fetched from the qualification run for this exact
+      # commit, not passed in. A receipt supplied by the person publishing is
+      # not evidence.
+      - name: Fetch the native-execution receipt for this commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          run_id=$(gh run list \
+            --workflow prepublication-qualification.yml \
+            --commit "${GITHUB_SHA}" \
+            --status success \
+            --limit 20 \
+            --json databaseId,conclusion \
+            --jq '[.[] | select(.conclusion=="success")][0].databaseId')
+          test -n "$run_id" || { echo "No successful qualification run for ${GITHUB_SHA}"; exit 1; }
+          echo "Receipt comes from qualification run ${run_id}"
+          gh run download "$run_id" --name native-execution-receipt --dir receipt
+
+      - name: Gate on the receipt
+        run: node scripts/qualification/native-execution-receipt.mjs --require --receipt receipt/native-execution-receipt.json
+
+      # Platform packages first: the root's optionalDependencies name them, so
+      # publishing the root first would briefly advertise versions that do not
+      # exist.
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY: ${{ inputs.publish == true && ' ' || '--dry-run' }}
+        run: |
+          set -euo pipefail
+          for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64; do
+            echo "::group::@opum-ai/quest-${target}"
+            (cd "npm/quest-${target}" && npm publish --access public $DRY)
+            echo "::endgroup::"
+          done
+          echo "::group::@opum-ai/quest"
+          npm publish --access public $DRY
+          echo "::endgroup::"
+
+      - name: Verify the registry serves what was published
+        if: ${{ inputs.publish == true }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          for name in quest quest-darwin-arm64 quest-darwin-x64 quest-linux-arm64 quest-linux-x64 quest-win32-arm64 quest-win32-x64; do
+            printf '%s: ' "@opum-ai/${name}"
+            npm view "@opum-ai/${name}@${version}" version
+          done
+          # The receipt claims specific bytes. Prove the registry serves them.
+          node scripts/qualification/native-execution-receipt.mjs \
+            --verify-published "$version" --receipt receipt/native-execution-receipt.json

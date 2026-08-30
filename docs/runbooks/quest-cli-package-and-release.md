@@ -127,6 +127,20 @@ release does not complete.
    passes; a receipt that describes a build nobody published is the exact
    failure this step exists to prevent.
 
+## Anchor every artifact claim to stored bytes
+
+Bun's `--compile` output is **not byte-reproducible**: the same source at the
+same Bun version produces a different binary on a different machine. Measured,
+not assumed — six platform jobs each reported a mismatch against binaries built
+locally minutes earlier.
+
+So *rebuild and compare* is not available as a verification technique anywhere
+in this pipeline. Every claim about an artifact must anchor to bytes that are
+**stored** — the blob committed at the release ref — never to bytes that can be
+regenerated. Two mistakes have already come from ignoring this: a reproduction
+gate that could never pass, and a candidate bundle that named a commit whose
+bytes it did not carry.
+
 ## Exercising a build before it is published
 
 To qualify changes that have not been released, dispatch the qualification
