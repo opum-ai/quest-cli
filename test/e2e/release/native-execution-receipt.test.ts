@@ -46,26 +46,45 @@ const successfulJobs = REQUIRED_JOBS.map((name: string) => ({
   conclusion: "success",
 }));
 
-test("the emitter drops the emitting job, which would otherwise make every receipt invalid", async () => {
+test("the receipt records the run faithfully, excluding only the job writing it", async () => {
   const directory = await fixture();
   try {
     const receipt = await buildReceipt({
       commit: COMMIT,
       version: "9.9.9",
       runId: 1234,
-      // The aggregation job that emits the receipt is part of the same run, so
-      // the raw job list always contains a name the downstream validator
-      // rejects as unexpected. Recording it verbatim would produce a document
-      // that can never bind.
+      // The emitting job has not concluded at the moment it writes this
+      // document, so recording it as successful would be an assertion about
+      // the future. Any OTHER job the workflow grows is recorded as it was.
       jobs: [
         ...successfulJobs,
-        { name: "native-execution-receipt", conclusion: "success" },
+        { name: "native-execution-receipt", conclusion: null },
+        { name: "some-later-job", conclusion: "success" },
       ],
       directory,
     });
     expect(receipt.ciRun.jobs.map((job: { name: string }) => job.name)).toEqual(
-      [...REQUIRED_JOBS],
+      [...REQUIRED_JOBS, "some-later-job"],
     );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("a receipt cannot be padded with an unrelated job that did not pass", async () => {
+  const directory = await fixture();
+  try {
+    await expect(
+      buildReceipt({
+        commit: COMMIT,
+        runId: 1,
+        jobs: [
+          ...successfulJobs,
+          { name: "flaky-extra", conclusion: "failure" },
+        ],
+        directory,
+      }),
+    ).rejects.toThrow(/did not succeed: flaky-extra/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

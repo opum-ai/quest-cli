@@ -11,7 +11,8 @@ export interface PlatformEvidence {
 
 export interface CiJob {
   readonly name: string;
-  readonly conclusion: string;
+  /** null while a job is still running — the GitHub API's own shape. */
+  readonly conclusion: string | null;
 }
 
 export interface NativeExecutionReceipt {
@@ -58,6 +59,7 @@ export function buildReceipt(options: {
   runUrl?: string;
   runEvent?: string;
   jobs: readonly CiJob[];
+  selfJobName?: string;
   directory?: string;
 }): Promise<NativeExecutionReceipt>;
 

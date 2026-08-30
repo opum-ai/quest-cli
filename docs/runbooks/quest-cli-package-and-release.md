@@ -66,11 +66,25 @@ release does not complete.
    reason to the release evidence.
 
 5. Require the native-execution receipt for this exact commit and version.
-   Push the release tag so the qualification workflow runs; on a tag each
-   platform job additionally proves its rebuild reproduces the digest
-   committed at that ref, and an aggregation job emits the receipt from the
-   run's own metadata and uploads it as the `native-execution-receipt`
-   artifact. Download it and run the gate:
+   Create the release tag, then dispatch the qualification workflow **against
+   that tag**:
+
+   ```sh
+   git tag v<version> && git push origin v<version>
+   gh workflow run prepublication-qualification.yml --ref v<version>
+   ```
+
+   Dispatch explicitly rather than relying on the tag push to trigger it. The
+   workflow's `push` trigger carries a `paths` filter, which is evaluated
+   against the tagged commit's own diff, so tagging a commit that did not
+   touch those paths starts no run at all. A dispatch against the tag always
+   does, and sets `github.ref` to `refs/tags/v<version>`, which is what the
+   release-only jobs key off.
+
+   On a tag ref each platform job additionally proves its rebuild reproduces
+   the digest committed at that ref, and an aggregation job emits the receipt
+   from the run's own metadata and uploads it as the
+   `native-execution-receipt` artifact. Download it and run the gate:
 
    ```sh
    bun run receipt:require -- --receipt native-execution-receipt.json

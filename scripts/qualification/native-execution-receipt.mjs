@@ -42,11 +42,14 @@ export const REQUIRED_PLATFORMS = Object.freeze([
 ]);
 
 /**
- * The source-gates job plus one job per platform. The emitted receipt records
- * ONLY these names: the downstream validator rejects a receipt carrying any
- * other job, and the aggregation job that emits the receipt is itself part of
- * the same workflow run. Recording the run's raw job list would therefore
- * produce a document that can never validate.
+ * The source-gates job plus one job per platform. Every one of these must be
+ * present and successful before a receipt can exist.
+ *
+ * The receipt records the run's jobs faithfully, with exactly one exclusion:
+ * the job that emits it. That job cannot honestly appear in a document it is
+ * itself writing — at the moment of writing it has not concluded, so recording
+ * it as successful would be an assertion about the future rather than a record
+ * of the past. Everything else in the run is recorded as it actually was.
  */
 export const REQUIRED_JOBS = Object.freeze([
   "source-gates",
@@ -108,6 +111,7 @@ export async function buildReceipt({
   runUrl,
   runEvent,
   jobs,
+  selfJobName = "native-execution-receipt",
   directory = root,
 }) {
   if (!COMMIT_HEX.test(String(commit ?? "")))
@@ -115,15 +119,19 @@ export async function buildReceipt({
   if (!Number.isInteger(runId))
     throw new Error(`CI run id must be an integer, got ${runId}`);
 
-  const byName = new Map((jobs ?? []).map((job) => [job.name, job]));
+  // Exclude only this job, for the reason given on REQUIRED_JOBS.
+  const recorded = (jobs ?? []).filter((job) => job.name !== selfJobName);
+  const byName = new Map(recorded.map((job) => [job.name, job]));
   const missing = REQUIRED_JOBS.filter((name) => !byName.has(name));
   if (missing.length)
     throw new Error(
       `the run did not execute every required job; missing: ${missing.join(", ")}`,
     );
-  const failed = REQUIRED_JOBS.filter(
-    (name) => byName.get(name).conclusion !== "success",
-  );
+  // Every recorded job, not merely the required ones: the list must not be
+  // padded with a job that did not pass.
+  const failed = recorded
+    .filter((job) => job.conclusion !== "success")
+    .map((job) => job.name);
   if (failed.length)
     throw new Error(
       `a receipt cannot describe a failed run; these jobs did not succeed: ${failed.join(", ")}`,
@@ -151,7 +159,10 @@ export async function buildReceipt({
       // concluded successfully by the time this runs. The run's own conclusion
       // is still pending here precisely because the emitting job is part of it.
       conclusion: "success",
-      jobs: REQUIRED_JOBS.map((name) => ({ name, conclusion: "success" })),
+      jobs: recorded.map((job) => ({
+        name: job.name,
+        conclusion: job.conclusion,
+      })),
     },
     platforms,
     coverageClaim: [
@@ -287,9 +298,8 @@ export async function validateReceipt(
       problems.push(
         `no CI job named "${name}" — that target was never executed`,
       );
-  const extra = recorded.filter((name) => !REQUIRED_JOBS.includes(name));
-  if (extra.length)
-    problems.push(`unexpected extra jobs recorded: ${extra.join(", ")}`);
+  // Extra jobs are allowed — a workflow may legitimately grow one — but every
+  // recorded job must have succeeded, so the list cannot be padded.
   for (const job of doc.ciRun?.jobs ?? [])
     if (job?.conclusion !== "success")
       problems.push(`CI job "${job?.name}" did not succeed`);
@@ -454,6 +464,7 @@ async function main(argv) {
       : undefined,
     runEvent: process.env.GITHUB_EVENT_NAME,
     jobs,
+    selfJobName: process.env.GITHUB_JOB ?? "native-execution-receipt",
   });
   const out =
     flag("--out") ??
