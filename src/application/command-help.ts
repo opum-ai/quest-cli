@@ -189,6 +189,8 @@ export const commandHelp: Record<
       "--summary",
       "--description",
       "--final-summary",
+      "--clear-final-summary",
+      "--append-final-summary",
       "--labels",
       "--add-label",
       "--remove-label",
@@ -357,6 +359,12 @@ export const commandHelp: Record<
     summary: "Print tasks grouped by status, like a kanban board.",
     usage: "quest board",
     flags: [],
+  },
+  "board export": {
+    summary:
+      "Write the board to a Markdown file, for pasting into a pull request or doc.",
+    usage: "quest board export <file> [--force]",
+    flags: ["--force"],
   },
   doctor: {
     summary: "Check the workspace for consistency problems.",

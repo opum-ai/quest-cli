@@ -201,6 +201,8 @@ export interface TrackerEditPatch {
   readonly summary?: string;
   readonly description?: string;
   readonly finalSummary?: string;
+  readonly clearFinalSummary?: boolean;
+  readonly appendFinalSummary?: readonly string[];
   readonly labels?: readonly string[];
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
@@ -653,10 +655,12 @@ export class QuestTrackerClient {
           "addNotes",
           "addPlan",
           "addReferences",
+          "appendFinalSummary",
           "checkAcceptanceCriteria",
           "checkDefinitionOfDone",
           "clearAcceptanceCriteria",
           "clearDefinitionOfDone",
+          "clearFinalSummary",
           "clearMilestone",
           "clearParent",
           "comments",
@@ -820,6 +824,8 @@ export class QuestTrackerClient {
       argv.push("--description", patch.description);
     if (patch.finalSummary !== undefined)
       argv.push("--final-summary", patch.finalSummary);
+    if (patch.clearFinalSummary === true) argv.push("--clear-final-summary");
+    appendRepeated(argv, "--append-final-summary", patch.appendFinalSummary);
     if (patch.labels !== undefined)
       argv.push("--labels", JSON.stringify(patch.labels));
     appendRepeated(argv, "--add-label", patch.addLabels);
