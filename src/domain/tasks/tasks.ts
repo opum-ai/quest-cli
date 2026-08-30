@@ -493,7 +493,14 @@ function resolver(tasks: readonly TaskState[]): Map<string, CanonicalId> {
   for (const task of tasks) {
     for (const value of [task.id, ...task.aliases]) {
       const key = aliasKey(value);
-      if (resolved.has(key))
+      // Only a DIFFERENT task already claiming this key is ambiguous; a
+      // task's own id legitimately reappearing among its own aliases (e.g.
+      // a migrated task's bare source-id alias equaling its own newly
+      // minted canonical id) is redundant, not a collision. This mirrors
+      // createTaskLinkSession's indexIdentity below, which already gets
+      // this right (QCLI-157).
+      const claimedBy = resolved.get(key);
+      if (claimedBy !== undefined && claimedBy !== task.id)
         throw new RecordValidationError("dependency_target_ambiguous");
       resolved.set(key, task.id);
     }

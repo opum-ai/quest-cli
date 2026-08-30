@@ -213,10 +213,23 @@ async function previewInternal(
     targetIdentifier: `${taskIdPrefix}-${highest + index + 1}`,
     aliases: record.aliases,
   }));
-  const candidates = mappings.flatMap((mapping) => [
-    mapping.targetIdentifier,
-    ...mapping.aliases,
-  ]);
+  // Deduped per mapping, not globally: a task's own newly minted canonical
+  // id and its own registered aliases legitimately coincide (most visibly
+  // when the destination taskIdPrefix matches the source's own display
+  // prefix, so e.g. "FX-1" is both the new id and the bare source alias for
+  // that SAME task) -- that is not a collision. assertAliasesAvailable has
+  // no per-record grouping of its own, so it cannot tell "claimed by this
+  // exact task, about to receive that string as its own alias" apart from
+  // "claimed by a different task"; only the caller knows which candidates
+  // belong to the same mapping (QCLI-157).
+  const candidates = mappings.flatMap((mapping) => {
+    const perTask = new Map<string, string>();
+    for (const candidate of [mapping.targetIdentifier, ...mapping.aliases]) {
+      const key = alias(candidate).key;
+      if (!perTask.has(key)) perTask.set(key, candidate);
+    }
+    return [...perTask.values()];
+  });
   assertAliasesAvailable(candidates, occupied);
   const digest = fingerprint({
     sourceFingerprint: snapshot.fingerprint,

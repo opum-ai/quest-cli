@@ -4,7 +4,7 @@ title: Fix three Backlog-migration silent-data-loss/inconsistency bugs
 status: Done
 assignee: []
 created_date: '2026-08-30 17:52'
-updated_date: '2026-08-30 17:53'
+updated_date: '2026-08-30 18:05'
 labels: []
 dependencies: []
 ordinal: 186000
@@ -41,6 +41,11 @@ RED-GREEN evidence captured for all three bugs by stashing just the fix (src/app
 Bug B design: honoring the workspace's configured taskIdPrefix (opag's ruling) rather than a reserved T- namespace, because it matches every other id-allocation path (nextTaskId in src/cli/main.ts already does this) and needs no new documented carve-out. The preview-time assertAliasesAvailable collision guard is untouched -- it already covers whichever prefix mappings now use -- and a new test proves it still refuses a case-only collision (fx-1 vs an organic FX-1) under a configured prefix, at preview time, before any write.
 Bug C uses the existing domain/tasks/tasks.ts canonicalizeTaskLinks() (already the mechanism task create/edit use) rather than a bespoke resolver, so migrated links get exactly the same alias-resolution and graph validation (cycles, self-edges, dependency_target_not_found) as every native write.
 Full suite: bun run check green, 379/379 tests (up from 376 on dev), typecheck/lint/format/layer clean except 2 pre-existing unrelated lint warnings (src/application/tasks/tasks.ts:928, test/qcli122-fourth-pass.test.ts:374) predating this change.
+
+REGRESSION FOUND AND FIXED (e2e-qualify-lore-quest, post-PR #223 re-verification): Bug A and Bug C confirmed fixed on first pass. Bug B's fix introduced a false-positive self-collision: when the destination workspace's configured taskIdPrefix matches the Backlog source's own display prefix (the realistic day-one cutover shape, e.g. quest init --task-id-prefix FX against an FX-*-numbered backlog project), the first migrated task's newly minted canonical id (e.g. FX-1) is now the identical string as the bare source-id alias being registered for that SAME task. Two separate call sites treated that self-identity as ambiguous:
+1. assertAliasesAvailable's candidate list in previewInternal (src/application/migration/backlog-public.ts) flattened a mapping's [targetIdentifier, ...aliases] without deduping, so the same string appeared twice in the flat candidate list and self-collided against itself.
+2. resolver() in src/domain/tasks/tasks.ts (used by canonicalizeTaskLinks, wired in for Bug C) threw dependency_target_ambiguous whenever an alias key was already claimed by ANY task -- including the exact same task -- unlike its sibling createTaskLinkSession.indexIdentity() in the same file, which already correctly compares 'claimed by a DIFFERENT task'.
+Fixed both: previewInternal dedupes each mapping's own candidates by alias key before flattening; resolver() now only throws when the key is claimed by a task id different from the one currently registering it (matching indexIdentity's existing, correct pattern). Added a new RED-then-GREEN test reproducing e2e's exact fresh-FX-workspace-same-prefix case (git init + quest init --task-id-prefix FX + FX-1/FX-1.1/FX-1.2 backlog source, zero pre-existing tasks) that fails with the exact reported error before the fix and passes after, plus a same-test assertion that a genuine cross-task case-only collision (a second migration batch's fx-1 against the first batch's real FX-1) still refuses at preview time, exit 5. Full suite: 380/380, bun run check clean.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

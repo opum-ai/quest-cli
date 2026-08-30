@@ -491,6 +491,123 @@ test("migration targets the workspace's configured taskIdPrefix and still guards
   }
 });
 
+test("migration into a fresh same-prefix workspace does not self-collide on its own minted id (QCLI-157)", async () => {
+  // A completely fresh workspace, taskIdPrefix matching the Backlog source's
+  // own display prefix, zero pre-existing tasks: the realistic day-one
+  // cutover shape. The first migrated task's newly minted canonical id
+  // ("FX-1") is now the SAME string as the bare Backlog-source alias being
+  // registered for that very task -- not a conflict with a different task,
+  // just that task's id and its own alias coinciding.
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-self-collide-"));
+  const source = await mkdtemp(
+    join(tmpdir(), "quest-backlog-self-collide-src-"),
+  );
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd: store }).exited;
+    const init = await questNative(store, [
+      "init",
+      "--task-id-prefix",
+      "FX",
+      "--json",
+    ]);
+    expect(init.exitCode).toBe(0);
+
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "FX-1.md"),
+      `---\nid: FX-1\ntitle: Migrate reporting pipeline\nstatus: In Progress\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "FX-1.1.md"),
+      `---\nid: FX-1.1\ntitle: Extract schema\nstatus: Done\nparent: FX-1\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "FX-1.2.md"),
+      `---\nid: FX-1.2\ntitle: Backfill rows\nstatus: Done\nparent: FX-1\n---\n\nBody.\n`,
+    );
+
+    const preview = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    // Before the fix this threw exit 5 "Alias collision: \"FX-1\" conflicts
+    // with \"FX-1\"" -- the new id colliding with its own alias, not a real
+    // conflict with a different task.
+    if (preview.exitCode !== 0) console.error(preview.stderr);
+    expect(preview.exitCode).toBe(0);
+    expect(JSON.parse(preview.stdout).data.mappings).toEqual([
+      expect.objectContaining({
+        sourceIdentifier: "FX-1",
+        targetIdentifier: "FX-1",
+      }),
+      expect.objectContaining({
+        sourceIdentifier: "FX-1.1",
+        targetIdentifier: "FX-2",
+      }),
+      expect.objectContaining({
+        sourceIdentifier: "FX-1.2",
+        targetIdentifier: "FX-3",
+      }),
+    ]);
+
+    const digest = JSON.parse(preview.stdout).data.digest;
+    const applied = await questNative(store, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      digest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    if (applied.exitCode !== 0) console.error(applied.stderr);
+    expect(applied.exitCode).toBe(0);
+    expect(JSON.parse(applied.stdout).data.survivors).toEqual([
+      "FX-1",
+      "FX-2",
+      "FX-3",
+    ]);
+
+    // A genuine cross-task collision must still refuse: a second migration
+    // batch deliberately colliding with the first migrated task's real id.
+    const secondSource = await mkdtemp(
+      join(tmpdir(), "quest-backlog-self-collide-src2-"),
+    );
+    const secondTasks = join(secondSource, "backlog", "tasks");
+    await mkdir(secondTasks, { recursive: true });
+    await writeFile(
+      join(secondTasks, "OTHER-1.md"),
+      `---\nid: fx-1\ntitle: Deliberately collides with the migrated FX-1\nstatus: To Do\n---\n\nBody.\n`,
+    );
+    const stillGuarded = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      secondSource,
+      "--json",
+    ]);
+    expect(stillGuarded.exitCode).toBe(5);
+    expect(JSON.parse(stillGuarded.stderr)).toMatchObject({
+      error_type: "conflict",
+    });
+    await rm(secondSource, { recursive: true, force: true });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
 test("a migrated subtask's parentId resolves to the parent's real new id, not the pre-migration source id (QCLI-157)", async () => {
   const store = await mkdtemp(join(tmpdir(), "quest-backlog-parent-"));
   const source = await mkdtemp(join(tmpdir(), "quest-backlog-parent-src-"));
