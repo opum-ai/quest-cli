@@ -220,6 +220,7 @@
 - 2026-08-29T21:37:07-05:00 1286d9ab20bf616802c21f08f8b190ac2e8b597a chore(backlog): record the 0.3.0 native-execution receipt and the npm credential wall
 - 2026-08-29T22:22:23-05:00 58022a018e56411f0ff5ed314e43ea47b81e3bee feat(release): publish through trusted publishing, not a stored token
 - 2026-08-29T22:39:28-05:00 ee4449d8af882f37d6d4db23977b6f05c17fa206 chore(backlog): record the npm publish wall and the two artifact defects it surfaced
+- 2026-08-29T22:47:23-05:00 ef2ac9dfbbf9d6b59664d8063d68730216722c71 chore(backlog): record the release approval position, the rebuild sweep, and QCLI-153
 
 ## docs/adr
 
