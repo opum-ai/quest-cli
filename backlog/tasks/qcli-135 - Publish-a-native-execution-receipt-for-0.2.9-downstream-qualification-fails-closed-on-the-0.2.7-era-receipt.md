@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 03:39'
+updated_date: '2026-08-30 04:01'
 labels:
   - release
   - provenance
@@ -159,4 +159,24 @@ TWO DEFECTS FOUND AND FIXED WHILE GETTING HERE, both the same class and both cau
 2. That check then refused its own first tag run, on the two win32 packages, over FILE MODE. The .exe files are committed 100755 and artifact upload does not preserve modes; only the four POSIX binaries had +x restored. Not a false positive - the bundle would have shipped Windows tarballs whose mode differs from the attested artifact.
 
 The generalisation is now in the runbook: because Bun's --compile output is not byte-reproducible, 'rebuild and compare' is not available as a verification technique anywhere in this pipeline. Every artifact claim must anchor to bytes that are STORED, never to bytes that can be regenerated. Both of the above, and the earlier reproduction-gate mistake, are instances of ignoring that.
+
+DEFINITIVE CREDENTIAL DIAGNOSIS, 2026-08-30. The preflight added to release.yml answers the question three opaque E404s could not.
+
+'npm whoami' with the repository's NPM_TOKEN returns E401. The token DOES NOT AUTHENTICATE AT ALL - it is not a valid-but-unscoped token. That distinction matters because the two faults have different fixes and the publish error alone could not tell them apart: npm returns E404 on PUT both for a token that cannot write to a scope and for one that is not recognised.
+
+So all three credentials tried today - the local one, the repository secret, and the OIDC path before npm-side trust exists - fail for the same reason: there is no working credential, and npm has restricted the kind that used to be stored. Consistent with the lore-cli session's research and with their identical symptom on a different package.
+
+The only remaining path is trusted publishing, which requires a per-package website step no automation can perform.
+
+FINAL STATE OF 0.3.0, everything except that step:
+  tag        v0.3.0 -> 870d76ef89697ab90411af175156be00f99c0b8c
+  CI         all nine jobs green; receipt emitted and bound by the release gate
+  bundle     provenance-checked; refuses rebuilt artifacts on a release ref
+  qualified  quest 0.3.0 + lore 0.3.5: 402 rows, 402 PASS, 0 FAIL, 0 BLOCKED.
+             The first fully qualified run opum-cli-e2e has produced. Scale bound
+             BY DIGEST over 10,000 tasks and 100,001 mutating operations.
+  provenance committed == bundled == attested == installed, verified four ways
+  registry   NOT published. Nothing partial landed on any of four attempts.
+  publish    one dispatch once trust exists:
+             gh workflow run release.yml --ref v0.3.0 -f publish=true
 <!-- SECTION:NOTES:END -->
