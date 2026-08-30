@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-29 23:57'
+updated_date: '2026-08-30 00:06'
 labels:
   - release
   - provenance
@@ -36,7 +36,7 @@ Two ways to close it: publish a native-execution receipt for the 0.2.9 tag from 
 <!-- AC:BEGIN -->
 - [ ] #1 A native-execution receipt is published for the 0.2.9 release whose per-platform questBinarySha256 values match the bytes actually published to npm for each of the six platform packages
 - [ ] #2 The receipt names its source commit and CI run, and each platform job in that run executed the binary on its own target rather than only building it
-- [ ] #3 Receipt generation is wired into the release process so a published version cannot ship without a matching receipt, rather than being produced by hand after the fact
+- [x] #3 Receipt generation is wired into the release process so a published version cannot ship without a matching receipt, rather than being produced by hand after the fact
 - [ ] #4 opum-cli-e2e re-run against the published 0.2.9 receipt reports zero packaging failures
 <!-- AC:END -->
 
@@ -61,3 +61,28 @@ Plan:
 
 AC1/AC2/AC4 as written name 0.2.9 specifically and stay open pending the owner's release decision; the machinery above closes them automatically for the next cut.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+AC3 delivered on branch quest/qcli-135-native-receipt (3462cb0, 6df68ba).
+
+scripts/qualification/native-execution-receipt.mjs, four modes: --emit (assemble from the run's real jobs), --require (the release gate), --verify-reproduction (release-ref only), --verify-published (assert the digests are the bytes npm serves). CI gains a native-execution-receipt aggregation job gated on the six platform jobs and on a tag ref; each platform job gains a reproduction check on a release ref. The runbook now names the receipt as a prerequisite, adds the gate as a publication-blocking step, and adds a post-publish registry comparison.
+
+Three design points, each of which is a trap the previous hand-made receipt did not have to face:
+
+1. The emitting job is part of the run it describes. The downstream validator rejects ANY job name outside source-gates plus the six platforms, so recording the run's raw job list would produce a document that can never bind. The emitter records only the seven required names and separately asserts each succeeded. Covered by a test.
+
+2. Every digest is re-derived from the tracked binary rather than copied from the manifest beside it, and the gate re-derives again from disk rather than trusting the document. A receipt that agrees only with itself proves nothing.
+
+3. The platform jobs run build:packages, which REBUILDS and overwrites the tracked binary. Without the reproduction gate a green run proves only that a binary built from this source executes on the target - not that the bytes being published do. The receipt states those two claims separately and names what it does not claim, rather than merging them into a certificate it did not earn.
+
+Verified end to end, not by inspection:
+- The emitted document is accepted by the REAL downstream validator: opum-cli-e2e/lib/native-receipts.mjs validateNativeReceipts() with declaredDigests bound returns ok:true.
+- --verify-published confirms the tracked binaries are byte-identical to all six platform packages npm serves for 0.2.9.
+- The gate's refusal paths were exercised: wrong commit, wrong version, a failed platform job, a missing platform job, a manifest disagreeing with its own binary, and an artifact swapped after emission. All refuse.
+- Both runbook commands were run before being written down, including the refusal path.
+- bun run check exits 0; lore check reports 63 files, 0 errors, 0 warnings.
+
+AC1, AC2 and AC4 name 0.2.9 specifically and stay OPEN. They need a CI run at commit cb33551, which does not exist, and the owner deferred this release twice on 2026-08-29. The machinery above closes all three automatically for the next cut. Recommend re-targeting them at that release rather than back-filling 0.2.9 by hand - it is an owner call, not mine.
+<!-- SECTION:NOTES:END -->
