@@ -124,7 +124,14 @@ jobs:
           # Artifact upload does not preserve the executable bit, and npm pack
           # records the mode it finds. Without this the published binary would
           # install unrunnable.
-          chmod +x npm/quest-darwin-arm64/bin/quest npm/quest-darwin-x64/bin/quest                    npm/quest-linux-arm64/bin/quest npm/quest-linux-x64/bin/quest
+          # ALL SIX, including the .exe files: they are committed 100755, so
+          # restoring only the four POSIX ones leaves the Windows packages
+          # differing from the committed artifact by MODE. The release
+          # provenance check refuses that, correctly — it would otherwise
+          # ship a tarball that is not the one attested.
+          chmod +x npm/quest-darwin-arm64/bin/quest npm/quest-darwin-x64/bin/quest \
+                   npm/quest-linux-arm64/bin/quest npm/quest-linux-x64/bin/quest \
+                   npm/quest-win32-arm64/bin/quest.exe npm/quest-win32-x64/bin/quest.exe
       - run: node scripts/build-candidate-bundle.mjs --out candidate
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
