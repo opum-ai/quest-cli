@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@quest-cli'
 created_date: '2026-08-28 21:32'
-updated_date: '2026-08-30 02:36'
+updated_date: '2026-08-30 03:39'
 labels:
   - release
   - provenance
@@ -137,4 +137,26 @@ The gate was too strict to satisfy, but it failed closed and loudly, which is wh
 PUBLISH IS BLOCKED ON THE CREDENTIAL, NOT ON THIS REPOSITORY. 'npm whoami' returns E401. 'npm publish' on the first platform package returns E404 on PUT, which is npm's response to a token without write permission on an existing scope. Nothing partial reached the registry: @opum-ai/quest is still 0.2.9 and @opum-ai/quest-darwin-arm64 still lists only 0.2.8 and 0.2.9. The lore-cli session reports the identical symptom on the same account with two different tokens, so it is the credential or the account, not either repository's tooling.
 
 AC1 and AC4 still name 0.2.9 specifically and remain open by their own wording. Their substance is now satisfied for 0.3.0: a receipt exists whose per-platform digests are the committed artifacts that were executed on their own runners.
+
+PUBLISH IS BLOCKED BY AN NPM ACCOUNT CONFIGURATION NEITHER REPOSITORY CAN CHANGE. Tested three ways rather than assumed:
+1. Local 'npm publish' -> E404 on PUT.
+2. CI with the repository's own NPM_TOKEN secret (created 2026-08-06, previously unused) -> E404 on PUT. The dry run was perfect: receipt fetched from the qualification run, gate bound, all seven packages in order.
+3. CI with trusted publishing wired (id-token: write, npm upgraded past the 11.5.1 OIDC floor) -> still E404, as expected, because OIDC needs a trust relationship configured on npm's side first.
+
+Three credentials, two repositories, two execution environments, all E404 on PUT. Nothing partial landed on any attempt; the registry is still 0.2.9 and quest-darwin-arm64 still lists only 0.2.9.
+
+Root cause, researched by the lore-cli session and confirmed here independently: npm restricted classic tokens for direct publishing. Granular tokens are capped at 90 days and must be created on the website, so a token-based release stops working every quarter and surfaces as a stalled release rather than a warning. The fix is trusted publishing, which needs one website step per package that no automation can perform. The runbook now carries the exact field values for all seven names.
+
+QUEST 0.3.0 IS OTHERWISE COMPLETE:
+  tag        v0.3.0 -> d803bcb3636c102736e3614550a22a783be1c83b
+  CI         all nine jobs green; receipt emitted, bound by the release gate
+  bundle     provenance-checked, byte-identical to the receipt's six digests
+  qualified  quest 0.3.0 + lore 0.3.5, 402 rows, 401 PASS 0 FAIL
+  publish    one command once trust exists
+
+TWO DEFECTS FOUND AND FIXED WHILE GETTING HERE, both the same class and both caught by evidence rather than reasoning:
+1. The candidate bundle was MISATTRIBUTED - it declared a sourceCommit whose bytes it did not carry, because it packed rebuilt artifacts. opum-cli-e2e caught it by digest comparison after qualifying 402 rows against bytes that will never ship. Now closed: the bundle compares each binary against the committed blob and refuses rebuilt artifacts on a release ref.
+2. That check then refused its own first tag run, on the two win32 packages, over FILE MODE. The .exe files are committed 100755 and artifact upload does not preserve modes; only the four POSIX binaries had +x restored. Not a false positive - the bundle would have shipped Windows tarballs whose mode differs from the attested artifact.
+
+The generalisation is now in the runbook: because Bun's --compile output is not byte-reproducible, 'rebuild and compare' is not available as a verification technique anywhere in this pipeline. Every artifact claim must anchor to bytes that are STORED, never to bytes that can be regenerated. Both of the above, and the earlier reproduction-gate mistake, are instances of ignoring that.
 <!-- SECTION:NOTES:END -->
