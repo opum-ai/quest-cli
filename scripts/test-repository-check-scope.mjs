@@ -46,11 +46,11 @@ try {
   await run("lint");
   await run("format:check");
 
-  await mkdir(join(fixture, ".treehouse", "pooled-worktree"), {
+  await mkdir(join(fixture, ".pooled-worktrees", "pooled-worktree"), {
     recursive: true,
   });
   await writeFile(
-    join(fixture, ".treehouse", "pooled-worktree", "biome.json"),
+    join(fixture, ".pooled-worktrees", "pooled-worktree", "biome.json"),
     '{ "files": { "includes": ["**/*.js"] } }\n',
   );
 

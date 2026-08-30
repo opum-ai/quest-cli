@@ -590,6 +590,18 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       },
       actor,
     );
+    const extended = await client.edit(
+      created.id,
+      { appendFinalSummary: ["and then some"] },
+      actor,
+    );
+    expect(extended.finalSummary).toBe("closed out\n\nand then some");
+    const wiped = await client.edit(
+      created.id,
+      { clearFinalSummary: true },
+      actor,
+    );
+    expect(wiped.finalSummary).toBe("");
     expect(rescoped).toMatchObject({
       title: "Renamed",
       priority: "high",

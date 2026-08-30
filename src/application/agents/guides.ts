@@ -173,6 +173,14 @@ changed, why, and how it was verified.
 \`\`\`
 quest task edit <id> --final-summary "<what changed, why, how it was verified>" \\
   --actor <actor> --actor-kind human --json
+\`\`\`
+
+If review then changes the picture, extend the summary rather than retyping it,
+and close only once it is right:
+
+\`\`\`
+quest task edit <id> --append-final-summary "<what review changed>" \\
+  --actor <actor> --actor-kind human --json
 quest task complete <id> --actor <actor> --actor-kind human --json
 \`\`\`
 

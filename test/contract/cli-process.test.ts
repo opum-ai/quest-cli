@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 
 import { commandHelp } from "../../src/application/command-help.ts";
 import { runQuest } from "../../src/cli/main.ts";
@@ -443,12 +444,25 @@ test("every flag `task edit` documents is a flag `task edit` accepts", async () 
   // The published help list and the parser's allowlist are hand-synced. This
   // binds them: a flag documented but not allowed (or renamed on one side
   // only) is rejected here as an invalid argument.
-  const booleanFlags = new Set([
-    "--clear-parent",
-    "--clear-milestone",
-    "--clear-ac",
-    "--clear-dod",
-  ]);
+  // Derived, not copied. A hand-kept list here goes stale silently: a boolean
+  // flag missing from it gets probed as `--flag=1`, which the parser rejects
+  // for taking a value before `only()` is ever consulted, so the guard passes
+  // without testing anything.
+  const source = readFileSync(
+    new URL("../../src/cli/main.ts", import.meta.url),
+    "utf8",
+  );
+  const declaration = source.slice(
+    source.indexOf("const booleanFlags = new Set(["),
+  );
+  const booleanFlags = new Set(
+    [
+      ...declaration
+        .slice(0, declaration.indexOf("]"))
+        .matchAll(/"(--[a-z-]+)"/g),
+    ].map((match) => match[1]),
+  );
+  expect(booleanFlags.size).toBeGreaterThan(5);
   const rejected = "task edit received invalid arguments.";
   for (const flag of commandHelp["task edit"]?.flags ?? []) {
     const argv = booleanFlags.has(flag) ? [flag] : [`${flag}=1`];

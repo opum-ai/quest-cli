@@ -1,7 +1,5 @@
 .claude/handovers/
 .codex/handovers/
-.treehouse/
-/.treehouse/.treehouse
 node_modules/
 npm/quest-*/bin/quest*
 .quest/

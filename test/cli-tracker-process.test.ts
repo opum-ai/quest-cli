@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test";
 import { realpathSync, writeFileSync } from "node:fs";
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
@@ -1123,6 +1130,12 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       ],
       overview: ["overview", "--plain"],
       board: ["board", "--plain"],
+      "board export": [
+        "board",
+        "export",
+        join(store, "board-export.md"),
+        "--plain",
+      ],
       doctor: ["doctor", "--plain"],
       cleanup: ["cleanup", "--dry-run", ...actor, "--plain"],
       browser: ["browser", "--plain"],
@@ -2341,6 +2354,253 @@ test("task edit can set a final summary on an existing task (QCLI-147)", async (
       ).stdout,
     ).data;
     expect(emptied.finalSummary).toBe("");
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("final summary can be cleared and appended, not only replaced (QCLI-149)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-final-summary-ops-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  const summary = async () =>
+    JSON.parse((await quest(store, ["task", "view", "T-1", "--json"])).stdout)
+      .data.finalSummary;
+  try {
+    await quest(store, ["task", "create", "Closing", ...human]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--final-summary",
+      "First pass.",
+      ...human,
+    ]);
+
+    // Appending extends rather than replaces, and joins as a paragraph: a
+    // summary extended after review reads as a second paragraph.
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--append-final-summary",
+      "Review found two things.",
+      ...human,
+    ]);
+    expect(await summary()).toBe("First pass.\n\nReview found two things.");
+
+    // Repeatable, and appends in CLI order after a replacement in the same
+    // command, matching --append-plan and --append-notes.
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--final-summary",
+      "Rewritten.",
+      "--append-final-summary",
+      "Then this.",
+      "--append-final-summary",
+      "And this.",
+      ...human,
+    ]);
+    expect(await summary()).toBe("Rewritten.\n\nThen this.\n\nAnd this.");
+
+    // Appending to a task that never had one does not lead with a blank line.
+    await quest(store, ["task", "create", "Fresh", ...human]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-2",
+      "--append-final-summary",
+      "Only paragraph.",
+      ...human,
+    ]);
+    expect(
+      JSON.parse((await quest(store, ["task", "view", "T-2", "--json"])).stdout)
+        .data.finalSummary,
+    ).toBe("Only paragraph.");
+
+    await quest(store, [
+      "task",
+      "edit",
+      "T-1",
+      "--clear-final-summary",
+      ...human,
+    ]);
+    expect(await summary()).toBe("");
+
+    // Clear is exclusive, and the error names the corrective combination.
+    for (const argv of [
+      ["--clear-final-summary", "--final-summary", "x"],
+      ["--clear-final-summary", "--append-final-summary", "x"],
+    ]) {
+      const conflicting = await quest(store, [
+        "task",
+        "edit",
+        "T-1",
+        ...argv,
+        ...human,
+      ]);
+      expect(conflicting.exitCode).toBe(2);
+      expect(JSON.parse(conflicting.stderr)).toMatchObject({
+        error_type: "usage",
+        message:
+          "--clear-final-summary cannot be combined with a final summary value.",
+      });
+    }
+
+    // Both reach edit-batch through the shared fold.
+    const operations = join(store, "ops.jsonl");
+    await writeFile(
+      operations,
+      [
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "op-1",
+          patch: {
+            finalSummary: "Batched.",
+            appendFinalSummary: ["Extended."],
+          },
+        }),
+        JSON.stringify({
+          reference: "T-2",
+          operationId: "op-2",
+          patch: { clearFinalSummary: true },
+        }),
+      ].join("\n"),
+    );
+    expect(
+      (
+        await quest(store, [
+          "task",
+          "edit-batch",
+          "--file",
+          operations,
+          ...human,
+        ])
+      ).exitCode,
+    ).toBe(0);
+    expect(await summary()).toBe("Batched.\n\nExtended.");
+    expect(
+      JSON.parse((await quest(store, ["task", "view", "T-2", "--json"])).stdout)
+        .data.finalSummary,
+    ).toBe("");
+
+    // The batch grammar types both: a list for append, a boolean for clear.
+    for (const patch of [
+      { appendFinalSummary: "not a list" },
+      { clearFinalSummary: "yes" },
+    ]) {
+      await writeFile(
+        operations,
+        JSON.stringify({ reference: "T-1", operationId: "op-x", patch }),
+      );
+      const rejected = await quest(store, [
+        "task",
+        "edit-batch",
+        "--file",
+        operations,
+        ...human,
+      ]);
+      expect({ patch, exitCode: rejected.exitCode }).toEqual({
+        patch,
+        exitCode: 2,
+      });
+      // Assert which rejection: exit 2 alone would also pass for "unknown
+      // patch key", i.e. if the manifest entry had been dropped.
+      expect(JSON.parse(rejected.stderr).message).toMatch(
+        /must be a boolean|Invalid list value/,
+      );
+    }
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("board export writes a readable Markdown artifact (QCLI-143)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-board-export-"));
+  const human = ["--actor", "h", "--actor-kind", "human", "--json"];
+  const target = join(store, "board.md");
+  try {
+    await quest(store, ["task", "create", "First task", ...human]);
+    await quest(store, ["task", "create", "Second task", ...human]);
+    await quest(store, [
+      "task",
+      "edit",
+      "T-2",
+      "--status",
+      "In Progress",
+      ...human,
+    ]);
+    await quest(store, [
+      "milestone",
+      "create",
+      "Release 1",
+      "--task",
+      "T-1",
+      ...human,
+    ]);
+
+    const exported = await quest(store, ["board", "export", target, "--json"]);
+    expect(exported.exitCode).toBe(0);
+    expect(JSON.parse(exported.stdout)).toMatchObject({
+      kind: "project.board-export",
+      data: { path: target },
+    });
+
+    const markdown = await readFile(target, "utf8");
+    // Titles, not bare ids: board --json already gives ids, and a column of
+    // ids is not something a reader can use.
+    expect(markdown).toContain("- **T-1** First task");
+    expect(markdown).toContain("- **T-2** Second task");
+    expect(markdown).toContain("- **M-1** Release 1 — open (T-1)");
+    // Lifecycle order, not alphabetical: a board reads To Do, In Progress.
+    expect(markdown.indexOf("## To Do")).toBeLessThan(
+      markdown.indexOf("## In Progress"),
+    );
+    expect(markdown.indexOf("## In Progress")).toBeLessThan(
+      markdown.indexOf("## Done"),
+    );
+    expect(markdown).toContain("## Done (0)");
+    expect(markdown).toContain("_No tasks._");
+
+    // It writes outside the task store, so it never clobbers silently.
+    const refused = await quest(store, ["board", "export", target, "--json"]);
+    expect(refused.exitCode).toBe(5);
+    expect(JSON.parse(refused.stderr)).toMatchObject({
+      error_type: "conflict",
+    });
+    expect(JSON.parse(refused.stderr).hint).toContain("--force");
+
+    await quest(store, ["task", "create", "Third task", ...human]);
+    const forced = await quest(store, [
+      "board",
+      "export",
+      target,
+      "--force",
+      "--json",
+    ]);
+    expect(forced.exitCode).toBe(0);
+    expect(await readFile(target, "utf8")).toContain("Third task");
+
+    // A missing parent directory is a clean diagnostic, not a stack trace.
+    const nested = await quest(store, [
+      "board",
+      "export",
+      join(store, "no-such-dir", "board.md"),
+      "--json",
+    ]);
+    expect(nested.exitCode).toBe(6);
+    expect(JSON.parse(nested.stderr)).toMatchObject({
+      error_type: "validation",
+    });
+
+    const noTarget = await quest(store, ["board", "export", "--json"]);
+    expect(noTarget.exitCode).toBe(2);
+
+    // Plain `board` is unchanged.
+    const board = await quest(store, ["board", "--json"]);
+    expect(board.exitCode).toBe(0);
+    expect(JSON.parse(board.stdout).kind).toBe("project.board");
   } finally {
     await rm(store, { recursive: true, force: true });
   }

@@ -226,6 +226,9 @@
 - 2026-08-30T02:29:54-05:00 54ea3c80cc3841fce9a017c5b96d95a61bc0cf48 chore(release): restore the release environment and record the completed elimination
 - 2026-08-30T08:57:22-05:00 70d694fe7e6137ebc9b8457291e28547c26d4284 fix(release): wait for CDN propagation before verifying, and record what shipped
 - 2026-08-30T09:03:42-05:00 d61607ef651ed91b0c366e8b28d343390095662e chore(backlog): settle QCLI-135 Done and close QCLI-97.5 AC3 on the published pair
+- 2026-08-30T09:12:36-05:00 15ed130fd8ea8e60639695556940ff58f15873d3 docs: record the 0.3.0 release and the sibling-session working agreement
+- 2026-08-30T10:18:21-05:00 92856b428fc1e5e44f3e2615bb7b93e26602fd56 chore: retire Treehouse from the repository surface
+- 2026-08-30T11:39:14-05:00 3a921aa895c9b7785ef04d8285d6622b2558cb4d chore(backlog): record the QCLI-97.5.2 supersession evidence
 
 ## docs/adr
 

@@ -32,6 +32,7 @@ const PLACEHOLDERS: Readonly<Record<string, string>> = {
   "<observable outcome>": "the outcome is observable",
   "<what changed and why>": "changed the thing, and why",
   "<what changed, why, how it was verified>": "changed it; tests verify it",
+  "<what review changed>": "review found one more thing",
 };
 
 /** How many fenced recipes each guide is expected to carry. */
@@ -39,7 +40,7 @@ const EXPECTED_RECIPES: Readonly<Record<string, number>> = {
   overview: 0,
   "task-creation": 1,
   "task-execution": 3,
-  "task-finalization": 3,
+  "task-finalization": 4,
   workspace: 0,
 };
 
@@ -183,7 +184,7 @@ test("every quest command the guides show actually runs (QCLI-148)", async () =>
     expect(task).toMatchObject({
       status: "Done",
       plan: ["1. ...", "2. ..."],
-      finalSummary: PLACEHOLDERS["<what changed, why, how it was verified>"],
+      finalSummary: `${PLACEHOLDERS["<what changed, why, how it was verified>"]}\n\n${PLACEHOLDERS["<what review changed>"]}`,
       acceptanceCriteria: [
         { index: 0, text: "first", checked: true },
         { index: 1, text: "second", checked: true },
