@@ -9,12 +9,18 @@ export const MIN_QUEST_VERSION = "0.1.0";
 export const DEFAULT_TIMEOUT_MS = 5_000;
 
 /**
- * Exact Quest package version pinned by Lore's versioned tracker-adapter
- * boundary (Lore `docs/reference/backlog-cli-contract.md`,
- * "Tracker adapter boundary" / "Quest CLI 0.2.9 package"). Consumers cache
- * this pin at probe time and fail loud on any other version.
+ * The Quest package version this adapter boundary describes. It is a literal
+ * rather than an import because this module is deliberately dependency-free —
+ * see the file header — so a test asserts it equals QUEST_VERSION instead, and
+ * it must be bumped with every release.
+ *
+ * Lore's gate is no longer an exact-match allowlist: as of lore 0.3.5 it
+ * applies MIN_QUEST_VERSION with a `>=` floor plus selection-time gating, so a
+ * newer Quest is accepted without a paired Lore release. This constant states
+ * what the boundary was built and qualified against; it is not a version
+ * consumers are required to match.
  */
-export const QUEST_ADAPTER_PINNED_VERSION = "0.2.9" as const;
+export const QUEST_ADAPTER_PINNED_VERSION = "0.3.0" as const;
 
 /**
  * The schema-1 manifest descriptors the adapter boundary requires from the

@@ -4,6 +4,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { safeStorageName } from "../src/adapters/claims/local-claim-evidence.ts";
+import { QUEST_VERSION } from "../src/application/version.ts";
 
 const source = join(import.meta.dir, "..", "src", "cli", "main.ts");
 const compiled = join(
@@ -114,7 +115,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
   try {
     expect(await quest(store, ["--version"])).toMatchObject({
       exitCode: 0,
-      stdout: "0.2.9\n",
+      stdout: `${QUEST_VERSION}\n`,
       stderr: "",
     });
     const manifest = await quest(store, ["manifest", "--json"]);

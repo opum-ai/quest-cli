@@ -9,6 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { QUEST_VERSION } from "../../src/application/version.ts";
 
 const source = resolve(import.meta.dir, "../../src/cli/main.ts");
 
@@ -114,7 +115,7 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
 
     await writeFile(
       join(root, "AGENTS.md"),
-      currentInstructions.replace("0.2.9", "0.0.0"),
+      currentInstructions.replace(QUEST_VERSION, "0.0.0"),
     );
     const drift = await run(root, "agents", "--check", "--json");
     expect(drift).toMatchObject({ exitCode: 6, stdout: "" });
@@ -267,7 +268,7 @@ test("agents strict checks pin missing, current, drift, and malformed exit seman
       data: { state: "current" },
     });
 
-    const drifted = currentContent.replace("0.2.9", "0.0.0");
+    const drifted = currentContent.replace(QUEST_VERSION, "0.0.0");
     await writeFile(file, drifted);
     const drift = await run(
       root,

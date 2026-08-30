@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 
 import { commandHelp } from "../../src/application/command-help.ts";
 import { runQuest } from "../../src/cli/main.ts";
+import { QUEST_VERSION } from "../../src/application/version.ts";
 
 test("the executable keeps successful JSON on stdout and diagnostics on stderr", async () => {
   const success = await runQuest(["manifest", "--json"], false);
@@ -25,7 +26,7 @@ test("the executable keeps successful JSON on stdout and diagnostics on stderr",
 
 test("version is bare semver and JSON takes precedence over plain", async () => {
   const expected = {
-    stdout: "0.2.9\n",
+    stdout: `${QUEST_VERSION}\n`,
     stderr: "",
     exitCode: 0,
   };
@@ -84,7 +85,7 @@ test("help, instructions, and completion expose the versioned public discovery s
     JSON.parse((await runQuest(["instructions", "--json"], false)).stdout),
   ).toMatchObject({
     kind: "agent.instructions",
-    data: { version: "0.2.9" },
+    data: { version: QUEST_VERSION },
   });
 });
 
