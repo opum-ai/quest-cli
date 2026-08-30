@@ -82,8 +82,6 @@ jobs:
       # trusted publishing" — and those are different fixes.
       - name: Preflight the publish credential
         continue-on-error: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set +e
           echo "::group::whoami"
@@ -104,11 +102,15 @@ jobs:
       # exist.
       - name: Publish
         env:
-          # Kept as a fallback for as long as it might work. When trusted
-          # publishing is configured for a package, npm uses OIDC and ignores
-          # this; when it is not, this is what fails, which is the current
-          # state and the reason the setup above is required.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # NO NODE_AUTH_TOKEN, deliberately. `setup-node` with `registry-url`
+          # writes `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into
+          # .npmrc, so supplying a token makes npm authenticate with it and
+          # NEVER ATTEMPT OIDC. Keeping the dead NPM_TOKEN here "as a fallback"
+          # is what produced five E404s that were read as a missing trust
+          # relationship: the trust may have been there all along, and the
+          # fallback was standing in front of it.
+          #
+          # With no token configured, npm falls through to trusted publishing.
           DRY: ${{ inputs.publish == true && ' ' || '--dry-run' }}
         run: |
           set -euo pipefail
