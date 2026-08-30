@@ -4,8 +4,15 @@
 // when it needs to attest that a published Quest release was EXECUTED on every
 // platform it claims to support, not merely built for them. Its consumer is
 // opum-cli-e2e, whose validator is fail-closed: a stale commit, a missing or
-// failed platform job, an unexpected extra job, or a digest that disagrees with
-// the package manifest all refuse the binding.
+// failed job, or a digest that disagrees with the package manifest all refuse
+// the binding.
+//
+// That consumer USED to reject any job name outside the seven required ones.
+// It no longer does (opum-cli-e2e@b16cbab): extra jobs are permitted and each
+// must have succeeded. The rule was simultaneously too strict for any honest
+// emitter to satisfy and near-vacuous. This file must not drift back into
+// assuming it, because doing so would make the receipt a curated assertion
+// about a run rather than a record of one.
 //
 // The reason this file exists rather than a hand-written JSON blob: a receipt
 // produced by hand after the fact describes whatever its author believed at the
@@ -25,7 +32,7 @@ import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -58,6 +65,17 @@ export const REQUIRED_JOBS = Object.freeze([
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 const COMMIT_HEX = /^[0-9a-f]{40}$/;
+
+/** Conclusions that mean a job went red. `null` and "skipped" are neither. */
+const FAILING_CONCLUSIONS = new Set([
+  "failure",
+  "cancelled",
+  "timed_out",
+  "action_required",
+  "startup_failure",
+  "stale",
+  "neutral",
+]);
 
 export function executableFor(platform) {
   return platform.startsWith("win32-") ? "quest.exe" : "quest";
@@ -119,22 +137,29 @@ export async function buildReceipt({
   if (!Number.isInteger(runId))
     throw new Error(`CI run id must be an integer, got ${runId}`);
 
-  // Exclude only this job, for the reason given on REQUIRED_JOBS.
-  const recorded = (jobs ?? []).filter((job) => job.name !== selfJobName);
+  const present = (jobs ?? []).filter((job) => job.name !== selfJobName);
+
+  // A red job is never hidden, whether or not it is one of the required seven.
+  // This throw comes FIRST, so nothing below can drop an inconvenient failure.
+  const failed = present
+    .filter((job) => FAILING_CONCLUSIONS.has(job.conclusion))
+    .map((job) => `${job.name} (${job.conclusion})`);
+  if (failed.length)
+    throw new Error(
+      `a receipt cannot describe a failed run; these jobs did not succeed: ${failed.join(", ")}`,
+    );
+
+  // Only successful jobs are recorded. A job still running reports a null
+  // conclusion and a conditionally-skipped one reports "skipped"; neither is a
+  // failure, and neither can honestly be written down as a success. The
+  // workflow may legitimately grow such a job — a docs lint, a code scan — and
+  // that must not block a release, so they are omitted rather than fatal.
+  const recorded = present.filter((job) => job.conclusion === "success");
   const byName = new Map(recorded.map((job) => [job.name, job]));
   const missing = REQUIRED_JOBS.filter((name) => !byName.has(name));
   if (missing.length)
     throw new Error(
-      `the run did not execute every required job; missing: ${missing.join(", ")}`,
-    );
-  // Every recorded job, not merely the required ones: the list must not be
-  // padded with a job that did not pass.
-  const failed = recorded
-    .filter((job) => job.conclusion !== "success")
-    .map((job) => job.name);
-  if (failed.length)
-    throw new Error(
-      `a receipt cannot describe a failed run; these jobs did not succeed: ${failed.join(", ")}`,
+      `the run did not execute every required job successfully; missing: ${missing.join(", ")}`,
     );
 
   const platforms = [];
@@ -166,7 +191,8 @@ export async function buildReceipt({
     },
     platforms,
     coverageClaim: [
-      "each listed GitHub Actions runner executed bun scripts/qualification/prepublish.mjs against the pinned commit on its own target and reported success;",
+      `each of the ${REQUIRED_JOBS.length} required jobs (${REQUIRED_JOBS.join(", ")}) executed bun scripts/qualification/prepublish.mjs against the pinned commit on its own target and reported success;`,
+      "any further job recorded above succeeded in the same run, but this receipt makes no claim about what it did;",
       "on a release ref each platform job additionally reproduced the digest committed at that ref, so the executed bytes are the bytes this receipt names;",
       "every executableSha256 below was re-derived from the tracked binary beside its manifest, not copied from the manifest alone.",
     ],
@@ -362,9 +388,16 @@ export async function verifyReproduction(target, { directory = root } = {}) {
 }
 
 async function main(argv) {
+  // A missing value must not silently consume the next flag: on the mode whose
+  // whole job is to distinguish "not published" from "wrong invocation", that
+  // turns a usage error into six misleading failures.
   const flag = (name) => {
     const index = argv.indexOf(name);
-    return index === -1 ? undefined : argv[index + 1];
+    if (index === -1) return undefined;
+    const value = argv[index + 1];
+    if (value === undefined || value.startsWith("--"))
+      throw new Error(`${name} requires a value`);
+    return value;
   };
 
   if (argv.includes("--verify-reproduction")) {
@@ -425,9 +458,12 @@ async function main(argv) {
 
   if (argv.includes("--verify-published")) {
     const version = flag("--verify-published");
-    const receipt = JSON.parse(
-      await readFile(flag("--receipt") ?? "receipt.json", "utf8"),
-    );
+    const receiptPath = flag("--receipt");
+    if (!receiptPath)
+      throw new Error(
+        "--verify-published requires --receipt <path>; there is no default, because a default that names no file anyone produces fails as an unreadable-file stack rather than as a usage error",
+      );
+    const receipt = JSON.parse(await readFile(receiptPath, "utf8"));
     const result = await verifyPublished(receipt, version);
     if (!result.ok) {
       console.error(
@@ -475,4 +511,20 @@ async function main(argv) {
   );
 }
 
-if (import.meta.main) await main(process.argv.slice(2));
+// NOT `import.meta.main`: that property only exists on Node >= 22.18, and on
+// anything older it is undefined, so main() would never run and the process
+// would exit 0. This file IS the publication gate — failing open here means a
+// release passes its own receipt check by doing nothing at all.
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  try {
+    await main(process.argv.slice(2));
+  } catch (error) {
+    // A stack trace on a release gate tells the operator nothing about what to
+    // do next. The message does.
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(2);
+  }
+}

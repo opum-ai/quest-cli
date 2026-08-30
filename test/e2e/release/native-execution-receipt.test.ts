@@ -71,7 +71,7 @@ test("the receipt records the run faithfully, excluding only the job writing it"
   }
 });
 
-test("a receipt cannot be padded with an unrelated job that did not pass", async () => {
+test("a red job is never hidden, required or not", async () => {
   const directory = await fixture();
   try {
     await expect(
@@ -84,7 +84,32 @@ test("a receipt cannot be padded with an unrelated job that did not pass", async
         ],
         directory,
       }),
-    ).rejects.toThrow(/did not succeed: flaky-extra/);
+    ).rejects.toThrow(/did not succeed: flaky-extra \(failure\)/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("an unconcluded or skipped sibling job does not block the release", async () => {
+  const directory = await fixture();
+  try {
+    // A workflow may legitimately grow a docs lint or a code scan that is still
+    // running, or skipped by a condition, when the receipt job polls the API.
+    // Neither is a failure, neither can honestly be recorded as a success, and
+    // neither is a reason to refuse to emit a receipt for a green matrix.
+    const receipt = await buildReceipt({
+      commit: COMMIT,
+      runId: 1,
+      jobs: [
+        ...successfulJobs,
+        { name: "docs-lint", conclusion: null },
+        { name: "code-scan", conclusion: "skipped" },
+      ],
+      directory,
+    });
+    expect(receipt.ciRun.jobs.map((job: { name: string }) => job.name)).toEqual(
+      [...REQUIRED_JOBS],
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
