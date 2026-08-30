@@ -59,11 +59,34 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
-      # OIDC publishing needs npm >= 11.5.1, which is newer than the npm
-      # bundled with any Node 22.
-      - run: npm install --global npm@latest
+      # Trusted publishing needs npm >= 11.5.1 and Node >= 22.14.0. Pinned to
+      # the ^11 major rather than @latest: this is the only job with
+      # `id-token: write`, so an unpinned global install of npm's own CLI would
+      # run a brand-new npm release with publish capability the moment it ships.
+      - run: npm install --global npm@^11
+      # Assert the floor rather than assume the upgrade took. An npm below the
+      # floor does not announce itself — it simply never attempts OIDC and
+      # falls back to token auth, which surfaces as an opaque E404 from the
+      # registry. That is indistinguishable from "no trust relationship", and
+      # cost several publish attempts before it was suspected.
+      - name: Assert the npm OIDC floor
+        run: |
+          set -euo pipefail
+          version=$(npm --version)
+          echo "npm ${version}, node $(node --version)"
+          node -e '
+            const [major, minor, patch] = process.argv[1].split("-")[0].split(".").map(Number);
+            const ok =
+              major > 11 ||
+              (major === 11 &&
+                (minor > 5 || (minor === 5 && patch >= 1)));
+            if (!ok) {
+              console.error(`npm ${process.argv[1]} is older than the 11.5.1 trusted-publishing floor`);
+              process.exit(1);
+            }
+          ' "$version"
 
       # The receipt is fetched from the qualification run for this exact
       # commit, not passed in. A receipt supplied by the person publishing is
