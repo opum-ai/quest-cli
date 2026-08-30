@@ -37,7 +37,8 @@
     "receipt:emit": "node scripts/qualification/native-execution-receipt.mjs",
     "receipt:require": "node scripts/qualification/native-execution-receipt.mjs --require",
     "receipt:verify-published": "node scripts/qualification/native-execution-receipt.mjs --verify-published",
-    "build:candidate": "node scripts/build-candidate-bundle.mjs"
+    "build:candidate": "node scripts/build-candidate-bundle.mjs",
+    "publish:release": "node scripts/publish-release.mjs"
   },
   "optionalDependencies": {
     "@opum-ai/quest-darwin-arm64": "0.3.0",
@@ -50,7 +51,7 @@
   "questPlatformPackages": {
     "@opum-ai/quest-darwin-arm64": "6a6267dfaa77fd43b0d96db3c4fdfd003eb4b52ec25cb34c969e22c26b9caee2",
     "@opum-ai/quest-darwin-x64": "f29f92e89bb1c5619ffb7043af40384fda7760bc5294345336337844080a8095",
-    "@opum-ai/quest-linux-arm64": "b4c8949f3ea02e2e829e16f43d8c306d5851e62bae295941a0ec27110f3c48c3",
+    "@opum-ai/quest-linux-arm64": "911c07e5685a8e0674418587dc45d70e54170044c8452764fef4ed9fd816271a",
     "@opum-ai/quest-linux-x64": "f9757eca1928c4cf84ffa2e5af9c7461c05f30db5df8b82e19d162c2cbd7bd7a",
     "@opum-ai/quest-win32-arm64": "c0ccccfe43a3fb82a9b4b2aab7e72b869737fb67b2f85e20485a7a697a120bdb",
     "@opum-ai/quest-win32-x64": "e8f3f6a2246350c0f8ce643f6a36808496b61f78d13c869cb816650ed1bf1a88"
