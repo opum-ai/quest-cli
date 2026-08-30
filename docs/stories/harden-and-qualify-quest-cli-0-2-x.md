@@ -55,7 +55,7 @@ candidate needed to close them.
 - Every QCLI-98 through QCLI-107 qualification finding is fixed and verified,
   or remains explicitly open with its owning task and release impact visible.
 - Repository type, lint, format, architecture, test, and package gates pass in
-  the same Treehouse-enabled environment used for parallel work.
+  the same pooled-worktree environment used for parallel work.
 - Release evidence identifies the exact 0.2.x source, root package, native
   artifacts, checksums, and clean-install results.
 - Registry publication remains a separate owner-authorized action; a local
