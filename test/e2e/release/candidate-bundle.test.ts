@@ -1,6 +1,19 @@
 import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
+import { promisify } from "node:util";
+
+const execFile = promisify(execFileCallback);
+
+async function run(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+): Promise<string> {
+  const { stdout } = await execFile(command, [...args], { cwd });
+  return stdout;
+}
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -189,6 +202,68 @@ test("a bundle without a real source commit is refused", async () => {
     await expect(
       buildCandidateBundle({ commit: "not-a-commit", out, directory }),
     ).rejects.toThrow(/not a 40-hex commit id/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+    await rm(out, { recursive: true, force: true });
+  }
+});
+
+test("a bundle records whether it carries the committed bytes, and refuses rebuilds on a release ref", async () => {
+  // Bun's --compile output is not byte-reproducible, so a bundle assembled
+  // from fresh builds names a commit whose bytes it does not contain. That
+  // happened, and was caught downstream by digest comparison rather than here.
+  const directory = await fixture();
+  const out = await mkdtemp(join(tmpdir(), "quest-candidate-out-"));
+  try {
+    await run("git", ["init", "-q"], directory);
+    await run("git", ["config", "user.email", "t@example.com"], directory);
+    await run("git", ["config", "user.name", "t"], directory);
+    await run("git", ["add", "-A"], directory);
+    await run("git", ["commit", "-qm", "fixture"], directory);
+    const commit = (await run("git", ["rev-parse", "HEAD"], directory)).trim();
+
+    const committed = await buildCandidateBundle({ commit, out, directory });
+    expect(committed.artifactProvenance).toBe("committed");
+    const metadata = JSON.parse(
+      await readFile(join(out, "evidence", "package-metadata.json"), "utf8"),
+    );
+    expect(metadata.artifactProvenance).toBe("committed");
+    expect(metadata.rebuiltPlatforms).toBeUndefined();
+
+    // A real rebuild regenerates the manifest too, so the manifest check
+    // cannot catch it. Only the comparison against the committed blob can.
+    const bytes = "a genuinely rebuilt binary";
+    await writeFile(
+      join(directory, "npm", "quest-linux-arm64", "bin", "quest"),
+      bytes,
+    );
+    const manifestPath = join(
+      directory,
+      "npm",
+      "quest-linux-arm64",
+      "package.json",
+    );
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        ...JSON.parse(await readFile(manifestPath, "utf8")),
+        questBinarySha256: sha256(bytes),
+      }),
+    );
+
+    const rebuilt = await buildCandidateBundle({ commit, out, directory });
+    expect(rebuilt.artifactProvenance).toBe("rebuilt");
+    expect(
+      JSON.parse(
+        await readFile(join(out, "evidence", "package-metadata.json"), "utf8"),
+      ).rebuiltPlatforms,
+    ).toEqual(["linux-arm64"]);
+
+    // On a release ref it is fatal: a release publishes the committed bytes,
+    // so a bundle of rebuilds describes something else entirely.
+    await expect(
+      buildCandidateBundle({ commit, out, directory, releaseRef: true }),
+    ).rejects.toThrow(/rebuilt artifacts.*linux-arm64/s);
   } finally {
     await rm(directory, { recursive: true, force: true });
     await rm(out, { recursive: true, force: true });
