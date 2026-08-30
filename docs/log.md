@@ -215,6 +215,7 @@
 - 2026-08-28T14:10:01-05:00 c802cb1e4d801d8fce825f4247ea227cae184815 chore(campaign): reconcile stale tracker, release-truth, and skill shadow
 - 2026-08-29T19:33:47-05:00 2be4c98afc3857646d5fcc737cef43fa15940813 feat(release): generate the native-execution receipt in CI (QCLI-135 AC3) (#187)
 - 2026-08-29T20:03:38-05:00 443bc0e760672d025ad390988404b4f0d3306ac0 fix: close two contract defects found by review (QCLI-151, QCLI-152)
+- 2026-08-29T20:39:53-05:00 dc37bf1eb717291b4aa108323de8369c13547e5e docs(release): record the six-platform CI constraint and the candidate-bundle flow
 
 ## docs/adr
 
@@ -243,6 +244,7 @@
 ## docs/runbooks
 
 - 2026-08-04T11:39:26-05:00 aed386a1d38818616cef5131d0b5d328a2659617 docs: fix stale quest-cli remote reference in research handover runbook
+- 2026-08-29T20:49:32-05:00 c81b4b376982cd81ae400df2e798e75c25fe25e1 docs(release): correct the Bun cross-compile claim
 
 ## docs/specs
 
