@@ -65,6 +65,47 @@ async function load(path: string): Promise<Receipt | undefined> {
   }
 }
 
+/**
+ * Backlog writes its dates in three shapes: a bare date (`2025-06-01`), a
+ * zone-less local datetime (`2025-06-02 14:23`), and occasionally full
+ * ISO-8601. Quest's own stamps are always ISO-8601 UTC, and QCLI-137 made
+ * `createdAt`/`updatedAt` sortable. Promoting the source form verbatim made
+ * that sort compare mixed formats lexicographically — a space sorts before
+ * `T`, so same-instant records interleaved by format rather than by time — and
+ * made `new Date(value)` parse imported records in the host's timezone while
+ * parsing native ones in UTC.
+ *
+ * Two decisions this encodes (QCLI-152):
+ *
+ * Zone-less input is read as UTC, not as local time. The source states no
+ * offset, and reading it as local would make the same file import to different
+ * instants on different machines — the import would stop being deterministic,
+ * which matters more here than guessing the author's chair correctly.
+ *
+ * A bare date normalises to midnight UTC. That is the canonical instant for
+ * "that day", not a claim about the hour; the alternative, refusing to promote
+ * it, would leave a whole Backlog corpus unsortable, which is the defect this
+ * closes.
+ *
+ * Anything that does not parse is dropped rather than turned into a wrong
+ * date. Nothing is lost by that: the raw source value is retained verbatim in
+ * the provenance blob above, so a reader can always recover what Backlog
+ * actually wrote.
+ */
+function isoTimestamp(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
+  const zoneless = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/;
+  const candidate = dateOnly.test(trimmed)
+    ? `${trimmed}T00:00:00.000Z`
+    : zoneless.test(trimmed)
+      ? `${trimmed.replace(" ", "T")}Z`
+      : trimmed;
+  const parsed = Date.parse(candidate);
+  return Number.isNaN(parsed) ? undefined : new Date(parsed).toISOString();
+}
+
 function importedTask(
   record: BacklogImportRecord,
   id: string,
@@ -96,8 +137,10 @@ function importedTask(
     // Carry the source dates onto the record itself (QCLI-137), not only into
     // the provenance blob. An imported task with no createdAt would sort last
     // forever with its real date sitting two layers away in the same record.
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
+    // Normalised, not copied: see isoTimestamp above (QCLI-152). The blob keeps
+    // the raw source form, so source fidelity is not traded for sortability.
+    createdAt: isoTimestamp(record.createdAt),
+    updatedAt: isoTimestamp(record.updatedAt),
     acceptanceCriteria: record.acceptanceCriteria.map((item) => item.text),
     definitionOfDone: record.definitionOfDone.map((item) => item.text),
     plan: record.implementationPlan ? [record.implementationPlan] : [],

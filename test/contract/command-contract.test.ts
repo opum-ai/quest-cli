@@ -136,7 +136,21 @@ test("the live manifest is non-empty and matches its result golden", () => {
       kind: "agent.instructions",
       mutates: false,
       filters: ["guide", "list"],
-      fields: ["content", "guides", "name", "summary", "version"],
+      fields: ["content", "version"],
+    },
+    {
+      name: "instructions --list",
+      schemaVersion: 1,
+      kind: "agent.guides",
+      mutates: false,
+      fields: ["guides", "version"],
+    },
+    {
+      name: "instructions <guide>",
+      schemaVersion: 1,
+      kind: "agent.guide",
+      mutates: false,
+      fields: ["content", "name", "summary", "version"],
     },
     {
       name: "agents",
