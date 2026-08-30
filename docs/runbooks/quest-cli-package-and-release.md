@@ -23,11 +23,12 @@ release does not complete.
 
 - A reviewed source commit and the exact root plus six platform tarballs:
   darwin/linux/win32 on x64 and arm64.
-- CI, not a workstation, for any build that must cover all six platforms. Bun
-  refuses `bun-windows-aarch64` outright — `error: Unsupported compile target`
-  — so no single machine can produce the full set, which is why the win32-arm64
-  binary comes off a `windows-11-arm` runner. A local `bun run build:packages`
-  gets four of six and then stops, leaving the working tree half-built.
+- The Bun version this repository pins, for any build covering all six
+  platforms. Cross-compiling `bun-windows-aarch64` requires a recent Bun: 1.2.x
+  refuses it outright with `error: Unsupported compile target`, and
+  `build:packages` then stops after four of six, leaving the tree half-built.
+  1.3.14, the version CI pins, compiles all six. Check `bun --version` against
+  the workflow's `bun-version` before building rather than after.
 - Package checks that prove root/platform version and SHA-256 agreement,
   platform constraints, license, repository identity, and published-file
   contents.
