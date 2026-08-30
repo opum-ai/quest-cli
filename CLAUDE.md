@@ -32,6 +32,22 @@ coupling, managed blocks, and cross-links stay coherent.
   `lore instructions <topic>` (`linking`, `sync`, `check`, `validation`, `workspace`).
 <!-- lore:agents:end -->
 
+## Repository role
+
+`quest-cli` is the Quest tracker CLI: the deterministic, LLM-free task record layer
+(package `@opum-ai/quest`, binary `quest`). This repository owns the CLI's implementation,
+component contracts, formats, Git/filesystem behavior, tests, migration, packaging,
+releases, and local operations — see "Consolidated authority routing" below for what
+routes elsewhere.
+
+## Approval routing
+
+`opum-agent` (`opag`) is the user's designated approval proxy for this repository. When
+work here is directed by `opag`, or by a peer acting under its authorization, route
+requests that would otherwise need interactive confirmation to `opag` rather than
+blocking on approval in this session. This does not relax care around destructive or
+hard-to-reverse actions — it changes who is asked, not whether asking still matters.
+
 ## Consolidated authority routing
 
 `quest-cli` owns the `quest` package and command, component contracts, formats,
