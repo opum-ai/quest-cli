@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "Quest CLI tracker subprocess contract.",
   "license": "MIT",
   "type": "module",
@@ -36,15 +36,16 @@
     "check": "bun run typecheck && bun run lint && bun run format:check && bun run layer:check && bun run test",
     "receipt:emit": "node scripts/qualification/native-execution-receipt.mjs",
     "receipt:require": "node scripts/qualification/native-execution-receipt.mjs --require",
-    "receipt:verify-published": "node scripts/qualification/native-execution-receipt.mjs --verify-published"
+    "receipt:verify-published": "node scripts/qualification/native-execution-receipt.mjs --verify-published",
+    "build:candidate": "node scripts/build-candidate-bundle.mjs"
   },
   "optionalDependencies": {
-    "@opum-ai/quest-darwin-arm64": "0.2.9",
-    "@opum-ai/quest-darwin-x64": "0.2.9",
-    "@opum-ai/quest-linux-arm64": "0.2.9",
-    "@opum-ai/quest-linux-x64": "0.2.9",
-    "@opum-ai/quest-win32-arm64": "0.2.9",
-    "@opum-ai/quest-win32-x64": "0.2.9"
+    "@opum-ai/quest-darwin-arm64": "0.3.0",
+    "@opum-ai/quest-darwin-x64": "0.3.0",
+    "@opum-ai/quest-linux-arm64": "0.3.0",
+    "@opum-ai/quest-linux-x64": "0.3.0",
+    "@opum-ai/quest-win32-arm64": "0.3.0",
+    "@opum-ai/quest-win32-x64": "0.3.0"
   },
   "questPlatformPackages": {
     "@opum-ai/quest-darwin-arm64": "cf10a0fe3ad42fbb2eb1b59d493ee96e1181cddb068d50c964152c5beea1c8e3",
