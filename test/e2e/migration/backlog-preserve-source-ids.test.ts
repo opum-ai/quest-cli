@@ -39,6 +39,34 @@ async function sourceWith(
   return root;
 }
 
+/** Writes into two lifecycle folders so the same id is a genuine
+ * cross-folder duplicate, the same defect shape as the frozen QCLI-66
+ * archive/tasks copy resolved earlier in this repo's own history. */
+async function sourceWithCrossFolderDuplicate(
+  duplicateId: string,
+  clean: Readonly<Record<string, { readonly title: string }>>,
+): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "quest-preserve-dup-source-"));
+  const tasks = join(root, "backlog", "tasks");
+  const archived = join(root, "backlog", "archive", "tasks");
+  await mkdir(tasks, { recursive: true });
+  await mkdir(archived, { recursive: true });
+  await writeFile(
+    join(tasks, `${duplicateId}.md`),
+    `---\nid: ${duplicateId}\ntitle: Live copy\nstatus: To Do\n---\n\nBody.\n`,
+  );
+  await writeFile(
+    join(archived, `${duplicateId}.md`),
+    `---\nid: ${duplicateId}\ntitle: Stray archived copy\nstatus: Done\n---\n\nBody.\n`,
+  );
+  for (const [id, record] of Object.entries(clean))
+    await writeFile(
+      join(tasks, `${id}.md`),
+      `---\nid: ${id}\ntitle: ${record.title}\nstatus: To Do\n---\n\nBody.\n`,
+    );
+  return root;
+}
+
 async function previewAndApply(
   store: string,
   source: string,
@@ -291,6 +319,82 @@ test("--preserve-source-ids and --source-family must be given together, and --so
     ]);
     expect(badFamily.exitCode).not.toBe(0);
     expect(JSON.parse(badFamily.stderr).error_type).toBe("usage");
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("QCLI-162: a cross-folder duplicate in a family the run is not importing does not block preservation of the selected family", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-preserve-dup-other-"));
+  const source = await sourceWithCrossFolderDuplicate("OCLI-5", {
+    "ODOC-1": { title: "Clean, in the selected family" },
+  });
+  try {
+    const { preview, apply } = await previewAndApply(store, source, [
+      "--preserve-source-ids",
+      "--source-family",
+      "ODOC",
+    ]);
+    expect(preview.exitCode).toBe(0);
+    expect(apply?.exitCode).toBe(0);
+    const previewData = JSON.parse(preview.stdout).data;
+    expect(
+      previewData.mappings.map(
+        (m: { sourceIdentifier: string }) => m.sourceIdentifier,
+      ),
+    ).toEqual(["ODOC-1"]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("QCLI-162: a cross-folder duplicate inside the selected family still refuses", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-preserve-dup-same-"));
+  const source = await sourceWithCrossFolderDuplicate("ODOC-5", {
+    "ODOC-1": { title: "Clean, same family as the duplicate" },
+  });
+  try {
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--preserve-source-ids",
+      "--source-family",
+      "ODOC",
+      "--json",
+    ]);
+    expect(preview.exitCode).not.toBe(0);
+    expect(JSON.parse(preview.stderr).message).toBe(
+      "backlog_cross_folder_duplicate_id",
+    );
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("QCLI-162: without --preserve-source-ids the blanket cross-folder duplicate check is unchanged", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-preserve-dup-blanket-"));
+  const source = await sourceWithCrossFolderDuplicate("OCLI-5", {
+    "ODOC-1": { title: "Clean, but positional mode imports everything" },
+  });
+  try {
+    const preview = await quest(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(preview.exitCode).not.toBe(0);
+    expect(JSON.parse(preview.stderr).message).toBe(
+      "backlog_cross_folder_duplicate_id",
+    );
   } finally {
     await rm(store, { recursive: true, force: true });
     await rm(source, { recursive: true, force: true });
