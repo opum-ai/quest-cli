@@ -27,6 +27,26 @@ permissions:
   contents: read
 
 jobs:
+  operating-block:
+    name: operating block digest
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_DIGEST: f4f86992e7321116
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: CLAUDE.md operating block matches the fleet digest
+        run: |
+          set -euo pipefail
+          block=$(awk '/opum:fleet-operating:begin/,/opum:fleet-operating:end/' CLAUDE.md)
+          if [ -z "$block" ]; then echo "::error::no opum:fleet-operating block in CLAUDE.md"; exit 1; fi
+          actual=$(printf '%s\n' "$block" | sha256sum | cut -c1-16)
+          echo "expected $EXPECTED_DIGEST"
+          echo "actual   $actual"
+          if [ "$actual" != "$EXPECTED_DIGEST" ]; then
+            echo "::error::operating block has drifted. It is byte-identical in all five repos by design; a local edit here is a defect. To change it deliberately: update the canonical doc in opum-doc, propagate to all five CLAUDE.md files, then update EXPECTED_DIGEST in all five workflows."
+            exit 1
+          fi
+
   source-gates:
     runs-on: ubuntu-24.04
     steps:
