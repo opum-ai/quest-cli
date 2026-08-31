@@ -6,7 +6,6 @@ tags:
   - operations
   - campaigns
   - backlog
-  - codex
   - automation
   - performance
 summary: Records the Quest CLI-local fast operating profile for autonomous Backlog-driven documentation campaigns, including authority, bounded parallelism, delivery, validation reuse, and measurable targets.
@@ -21,8 +20,9 @@ routine approval pauses. This is an operating profile, not authority to build th
 future `quest` product or to decide product, security, publication, or release policy.
 
 [`AGENTS.md`](../../AGENTS.md#autonomous-documentation-campaigns) is the normative
-authorization; the project [`backlog-handover` skill](../../.codex/skills/backlog-handover/SKILL.md)
-implements it. [QCLI-71](../../backlog/tasks/qcli-71%20-%20Adopt-the-autonomous-documentation-campaign-fast-lane.md)
+authorization; the canonical user-level `backlog-handover` skill (moved out of this
+repository to `/Users/jdnewhouse/.agents/skills/backlog-handover` — see "Worktree and
+cleanup hygiene," below) implements it. [QCLI-71](../../backlog/tasks/qcli-71%20-%20Adopt-the-autonomous-documentation-campaign-fast-lane.md)
 established this record; [QCLI-96](../../backlog/tasks/qcli-96%20-%20Make-autonomous-campaigns-loop-until-a-true-pause.md)
 owns its continuous-loop and session-renewal amendments.
 
@@ -39,9 +39,9 @@ authority; a cross-repository request is a new scope boundary.
 One coordinator owns every Backlog task and tracker mutation, handover, Lore-generated
 surface, integration branch, and remote action. Up to three agents may explore, sweep,
 write, review, or test in parallel only from one pinned base and with explicit
-non-overlapping path budgets. The project default and all four repository-local agent
-profiles use Codex `gpt-5.6-terra` at medium reasoning. Workers return evidence rather
-than mutate shared state.
+non-overlapping path budgets. The coordinator dispatches workers as this session's own
+Claude Code subagents; Codex is retired as a dispatch target for this fleet. Workers
+return evidence rather than mutate shared state.
 
 The loop pauses only for a material product, security, publication, release, or
 repository-admin decision; missing credentials; unresolved merge conflict; unrelated
@@ -83,10 +83,11 @@ available to restore.
 ### Worktree and cleanup hygiene
 
 The canonical user-level skills give the coordinator its fenced lease workflow and worker
-procedures: `opum-worktrees` for reusable agent worktrees, with `codex-worker` and
-`backlog-handover` alongside, all under `/Users/jdnewhouse/.agents/skills/` (outside this
-bundle by authority of the opum-agent shared skill source record). Clean detached pool
-entries are infrastructure, not debris; workers never release their own leases.
+procedures: `opum-worktrees` for reusable agent worktrees, with `backlog-handover`
+alongside, both under `/Users/jdnewhouse/.agents/skills/` (outside this bundle by
+authority of the opum-agent shared skill source record). `codex-worker` is retired along
+with Codex as a dispatch target. Clean detached pool entries are infrastructure, not
+debris; workers never release their own leases.
 
 Dirty campaign work is classified by content, not by `git status` alone. Work already
 represented on `dev` may be cleaned under merged-artifact authority. Unique in-scope work
@@ -101,10 +102,11 @@ the standing authority and a delivery decision require it.
 
 ### Compact state and validation economy
 
-Codex keeps its sole executable cursor at `.codex/handovers/active.md`; it does not load
-`.claude/skills/**`. A legacy `.claude/handovers/active.md` is migration input only: ground it
-against live Backlog and Git state, preserve any incomplete campaign in the Codex cursor, then
-remove the legacy executable file and audit that directory as complete.
+The coordinator's session keeps its sole executable cursor at `.claude/handovers/active.md`.
+Codex is retired as a dispatch target for this fleet; a leftover `.codex/handovers/active.md`
+from before that retirement is migration input only: ground it against live Backlog and Git
+state, preserve any incomplete campaign in the current cursor, then remove the legacy
+executable file and audit that directory as complete.
 
 Each tracker stays below 200 lines and 32 KiB; the one executable `active.md` cursor
 stays below 120 lines and 16 KiB. Historical handovers are non-executable. Commands,

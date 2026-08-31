@@ -229,6 +229,7 @@
 - 2026-08-30T09:12:36-05:00 15ed130fd8ea8e60639695556940ff58f15873d3 docs: record the 0.3.0 release and the sibling-session working agreement
 - 2026-08-30T10:18:21-05:00 92856b428fc1e5e44f3e2615bb7b93e26602fd56 chore: retire Treehouse from the repository surface
 - 2026-08-30T11:39:14-05:00 3a921aa895c9b7785ef04d8285d6622b2558cb4d chore(backlog): record the QCLI-97.5.2 supersession evidence
+- 2026-08-30T11:44:51-05:00 e681b7426e70cae997618e4cdbffe2d7a659d43c chore(backlog): finalize QCLI-143 board export with verification evidence
 
 ## docs/adr
 

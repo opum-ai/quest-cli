@@ -243,10 +243,11 @@ The divergence is deliberate: Backlog.md promises that every supplied task appea
 for presentation, while Quest must ensure that no malformed or currently unavailable task
 is silently presented to an autonomous scheduler as executable.
 
-The repository's
-[backlog-handover wave loop](../../.claude/skills/backlog-handover/reference/wave-loop.md)
-is also an input, but it coordinates a human-visible Backlog campaign rather than defining
-Quest's product API. Its current policy halts and labels cycle members while continuing
+The repository's backlog-handover wave loop — the canonical user-level `backlog-handover`
+skill's `reference/wave-loop.md` (moved out of this repository to
+`/Users/jdnewhouse/.agents/skills/backlog-handover/`, commit `c802cb1`) — is also an
+input, but it coordinates a human-visible Backlog campaign rather than defining Quest's
+product API. Its current policy halts and labels cycle members while continuing
 over the acyclic campaign remainder, and its ready test combines `To Do`, `Done`
 dependencies, labels, and file conflicts. That is a deliberate orchestration policy over a
 curated queue. It does not weaken this Spec: while that coordinator operates directly on
