@@ -1,10 +1,11 @@
 ---
 id: QCLI-160
 title: Backlog->Quest migration cannot preserve source ids (ODOC-N -> ODOC-N)
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@jeremy'
 created_date: '2026-08-31 13:26'
-updated_date: '2026-08-31 13:26'
+updated_date: '2026-08-31 15:14'
 labels: []
 dependencies: []
 priority: high
@@ -32,9 +33,43 @@ Tangential context, worth a skim during design: QCLI-66 (this repo) is about opu
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A migration mode exists where the destination task id is the source id verbatim when the source id's prefix is available/selected in the destination, instead of always positional renumbering
-- [ ] #2 Design states what happens when a preserved source id collides with an unrelated existing destination id/alias (see opum-agent OPAG-1 case): documented resolution, not a silent overwrite and not an unexplained hard failure
-- [ ] #3 Design states how a single migration run represents a source backlog with more than one id family/prefix (see lore-cli LCLI+LORE, opum-doc ODOC+OCLI) -- current API takes exactly one taskIdPrefix per run
-- [ ] #4 Behavior for records whose source id is unavailable for preservation (prefix not selected, or collision unresolved) is explicit: falls back to positional allocation, or refuses, per the design -- not left implicit
-- [ ] #5 Per-repo collision counts are reverified against each backlog live at implementation time rather than trusted from the 2026-08-31 simulation
+- [x] #1 A migration mode exists where the destination task id is the source id verbatim when the source id's prefix is available/selected in the destination, instead of always positional renumbering
+- [x] #2 Design states what happens when a preserved source id collides with an unrelated existing destination id/alias (see opum-agent OPAG-1 case): documented resolution, not a silent overwrite and not an unexplained hard failure
+- [x] #3 Design states how a single migration run represents a source backlog with more than one id family/prefix (see lore-cli LCLI+LORE, opum-doc ODOC+OCLI) -- current API takes exactly one taskIdPrefix per run
+- [x] #4 Behavior for records whose source id is unavailable for preservation (prefix not selected, or collision unresolved) is explicit: falls back to positional allocation, or refuses, per the design -- not left implicit
+- [x] #5 Per-repo collision counts are reverified against each backlog live at implementation time rather than trusted from the 2026-08-31 simulation
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Research complete on current mechanism (previewInternal/backlog-public.ts, BacklogImporter/adapters/migration/backlog/importer.ts, CLI wiring in main.ts:907-1003). Got opag's rulings on ACs 2-4 (fail-closed with full conflict list on collision; family SELECTION not merge for AC3, driven by lore-cli/opum-doc's own data rulings -- LORE frozen/all-superseded-by-LCLI, OCLI all historical/superseded-by-ODOC; explicit per-run refusal for unpreservable ids). AC1/mode-vs-default left to me.
+
+BLOCKER found before writing allocation logic: Quest's canonicalIdPattern (src/domain/records.ts:20) is strictly <prefix>-<int>, no dots -- cannot represent a dotted Backlog subtask id (e.g. QCLI-97.5.2) at all. 45/206 (~22%) of this repo's own backlog ids are dotted. Read literally, AC4's 'run stops' as whole-batch refusal would make id-preserving migration refuse against any backlog with subtasks, i.e. every real fleet backlog. Escalated to opag for a ruling on whether refusal should be per-record (exclude + itemize, rest of batch proceeds) rather than whole-batch; recommended per-record as the only version that's usable against real data, and flagged full dotted-subtask-id support in Quest's own schema as a separate, larger follow-up rather than folding it into this task. Holding on control-flow implementation until this is settled; proceeding with decision-independent groundwork (family/prefix detection, CLI flag surface) in the meantime.
+
+Opag amended AC4 (2026-08-31): dotted ids are TRANSLATED (fresh flat id + parentId + alias), not refused -- whole-batch refusal on any dotted id would make the feature unusable against real data. True refusal is now scoped to genuinely unpreservable records: a malformed id, or a parent (explicit parent_task_id, or derived by stripping the id's last dotted segment) that cannot be found anywhere in the destination or the same batch. Multi-level dotted chains resolve transitively through the existing alias mechanism canonicalizeTaskLinks already uses for every other migrated cross-reference -- no new resolution machinery needed, only wiring parentTaskId through when the frontmatter lacked one.
+
+Implemented: --preserve-source-ids/--source-family on migration backlog preview/apply (src/cli/main.ts), previewWithPreservedIds + BacklogMigrationRefusedError (src/application/migration/backlog-public.ts), collectAliasCollisions domain helper (src/domain/records.ts) that reports every collision instead of throwing on the first. Refusal surfaces as error_type=conflict with input.collisions and input.unpreservable, both fully itemized in one report.
+
+Verified: typecheck/lint/format:check/layer:check clean; full bun test suite 386 pass/0 fail; new unit test for collectAliasCollisions; new e2e suite (test/e2e/migration/backlog-preserve-source-ids.test.ts) covering flat preservation, dotted translation (explicit and derived parent, two-level chain), family exclusion reporting, id-collision refusal (itemized, batch-scope -- neither record written even though only one would have collided alone), unresolvable-parent/malformed-id refusal (itemized), and CLI usage validation. Preview-only dry run against this repo's own live 206-task backlog (throwaway destination, no writes): 161 flat + 45 dotted translated cleanly, 0 collisions, 0 unresolved parents -- independently reconfirms opag's simulated 45/206 quest-cli figure against live data.
+
+AC5 (reverify per-repo collision counts against live backlogs) is satisfied for quest-cli's own repo above. The other four repos (opum-doc, lore-cli, opum-cli-e2e, opum-agent) were opag's simulation and were not reverified here -- each owning session should run this against its own live backlog, per the fleet convention that each repo owns its own evidence.
+
+Delivered via PR opum-ai/quest-cli#232, source-gates green (pull_request-triggered, 2m31s), merged to dev as b4ba2a9.
+
+AC5 completed with full fleet reverification (2026-08-31), read-only dry preview (no apply, no writes to any sibling repo -- BacklogImporter.readSnapshot never writes; destination was a throwaway temp QUEST_TASK_STORE per repo), run directly against each sibling's live checkout on this machine:
+- opum-doc (family ODOC): 131 in-family (71 flat + 60 translated), 32 excluded (31 OCLI + 1 DRAFT-prefixed record found in the wild), 0 collisions, 0 unresolved parents. 131+32=163 matches opag's total exactly.
+- opum-cli-e2e (family TASK): 22 flat, 0 translated, 0 excluded, 0 refusals -- matches opag's simulation exactly.
+- opum-agent (family OPAG): 4 total, 1 flat + 3 translated, 0 refusals -- matches opag's simulation exactly.
+- lore-cli (family LCLI): preview FAILS CLOSED with backlog_cross_folder_duplicate_id before family filtering ever runs -- pre-existing, unrelated to this feature. Identified the exact cause: LORE-195 and LORE-53 each exist as two DIFFERENT tasks (different titles) in archive/tasks/ vs completed/, the same class of stray-duplicate defect as this repo's own QCLI-66. Both ids are in the LORE family (already ruled frozen/superseded by LCLI), but the check is blanket over the whole snapshot before family selection, so it blocks previewing LCLI too until lore-cli's own session resolves the duplicate. Reported to opag/lore-cli rather than touched -- not this repo's data to edit.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added --preserve-source-ids/--source-family to migration backlog preview/apply. Flat in-family ids preserve verbatim; dotted subtask ids (no equivalent in Quest's strictly <prefix>-<int> canonical id) are translated -- fresh flat id, dotted spelling kept as an alias, parent (explicit or derived) threaded through so the existing canonicalizeTaskLinks machinery resolves it, multi-level chains included. One id family per run; other families reported as excluded, not dropped silently. Refuses at BATCH scope on any id collision or genuinely unpreservable record (malformed id, unresolved parent), naming every one in a single itemized report -- amended from the original AC4 wording after finding dotted ids are ~8-75% of every real fleet backlog, so whole-batch refusal on any dotted id would have shipped an unusable feature; ruling and amendment are opag's, recorded above.
+
+Verified: full local check suite green (typecheck/lint/format/layer-check/386 tests); new domain unit test for the all-collisions collector; new e2e suite covering every success and refusal path. Reverified against all five fleet repos' live backlogs read-only (no writes): quest-cli (161 flat/45 translated/0 refusals, exactly reconfirms opag's number), opum-doc (71/60/32 excluded/0 refusals, totals to opag's 163), opum-cli-e2e (22/0/0, exact match), opum-agent (1/3/0, exact match), and lore-cli, which surfaced a real pre-existing cross-folder duplicate (LORE-195, LORE-53) blocking its own preview -- reported, not fixed here.
+
+Delivered via PR opum-ai/quest-cli#232, source-gates green in CI (pull_request-triggered), merged to dev as b4ba2a9.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -29,12 +29,14 @@ import {
   selectOutputMode,
 } from "../application/command-contract.ts";
 import { commandHelp } from "../application/command-help.ts";
+import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import type { TaskService } from "../application/tasks/tasks.ts";
 import {
   initializeWorkspace,
   isValidTaskIdPrefix,
+  reconfigureWorkspace,
   resolveInitializedWorkspace,
   resolveWorkspaceConfiguration,
   WorkspaceError,
@@ -168,6 +170,8 @@ function flags(
     "--clear-dod",
     "--clear-final-summary",
     "--force",
+    "--preserve-source-ids",
+    "--reconfigure",
     "--list",
     "--ready",
     "--unassigned",
@@ -669,11 +673,26 @@ export async function runQuest(
       const parsed = flags(arguments_.slice(1));
       if (
         !parsed ||
-        !only(parsed, ["--agent-instructions", "--name", "--task-id-prefix"])
+        !only(parsed, [
+          "--agent-instructions",
+          "--name",
+          "--task-id-prefix",
+          "--reconfigure",
+        ])
       )
         return failure(
           "usage",
-          "init accepts only --name, --task-id-prefix, --agent-instructions, --json, and --plain.",
+          "init accepts only --name, --task-id-prefix, --agent-instructions, --reconfigure, --json, and --plain.",
+        );
+      const reconfigure = parsed.values.has("--reconfigure");
+      if (
+        reconfigure &&
+        !parsed.values.has("--name") &&
+        !parsed.values.has("--task-id-prefix")
+      )
+        return failure(
+          "usage",
+          "--reconfigure requires --name and/or --task-id-prefix.",
         );
       const explicitFlagsGiven =
         parsed.values.has("--agent-instructions") ||
@@ -684,8 +703,15 @@ export async function runQuest(
         resolvedModes.plain ||
         parsed.json ||
         parsed.plain;
+      // --reconfigure updates an existing workspace; the interactive wizard
+      // is shaped around a fresh workspace's three questions and does not
+      // fit that, so it never applies here regardless of TTY state.
       const interactive =
-        stdoutIsTty && stdinIsTty && !explicitOutputMode && !explicitFlagsGiven;
+        !reconfigure &&
+        stdoutIsTty &&
+        stdinIsTty &&
+        !explicitOutputMode &&
+        !explicitFlagsGiven;
       let name = one(parsed, "--name");
       let taskIdPrefix = one(parsed, "--task-id-prefix");
       let writeInstructions = parsed.values.has("--agent-instructions");
@@ -705,11 +731,15 @@ export async function runQuest(
           "usage",
           `Task ID prefix must start with a letter and contain only letters and digits: ${taskIdPrefix}`,
         );
-      const workspace = await initializeWorkspace(
-        createWorkspacePort(),
-        process.cwd(),
-        { name, taskIdPrefix },
-      );
+      const workspace = reconfigure
+        ? await reconfigureWorkspace(createWorkspacePort(), process.cwd(), {
+            name,
+            taskIdPrefix,
+          })
+        : await initializeWorkspace(createWorkspacePort(), process.cwd(), {
+            name,
+            taskIdPrefix,
+          });
       let instructions: AgentInstructionCheck | undefined;
       let skill: AgentInstructionCheck | undefined;
       if (writeInstructions) {
@@ -720,7 +750,9 @@ export async function runQuest(
       return output(
         {
           schemaVersion: 1,
-          kind: "workspace.initialized",
+          kind: reconfigure
+            ? "workspace.reconfigured"
+            : "workspace.initialized",
           data: {
             workspace,
             configuration: { name, taskIdPrefix },
@@ -912,11 +944,31 @@ export async function runQuest(
       const source = one(parsed, "--source");
       const digest = one(parsed, "--digest");
       const backlogDirectory = one(parsed, "--backlog-dir");
+      const preserveSourceIds = parsed.values.has("--preserve-source-ids");
+      const sourceFamily = one(parsed, "--source-family");
       const root = await resolvedRoot();
+      if (preserveSourceIds !== Boolean(sourceFamily))
+        return failure(
+          "usage",
+          "--preserve-source-ids and --source-family must be given together.",
+        );
+      if (sourceFamily !== undefined && !isValidTaskIdPrefix(sourceFamily))
+        return failure(
+          "usage",
+          `--source-family must start with a letter and contain only letters and digits: ${sourceFamily}`,
+        );
+      const preservation = preserveSourceIds
+        ? { family: sourceFamily as string }
+        : undefined;
       if (
         action === "preview" &&
         source &&
-        only(parsed, ["--source", "--backlog-dir"])
+        only(parsed, [
+          "--source",
+          "--backlog-dir",
+          "--preserve-source-ids",
+          "--source-family",
+        ])
       )
         return output(
           {
@@ -927,7 +979,7 @@ export async function runQuest(
               source,
               backlogDirectory,
               await configuredTaskIdPrefix(),
-            ).preview(),
+            ).preview(preservation),
           },
           modeFor(parsed),
         );
@@ -939,6 +991,8 @@ export async function runQuest(
           "--source",
           "--digest",
           "--backlog-dir",
+          "--preserve-source-ids",
+          "--source-family",
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -958,7 +1012,7 @@ export async function runQuest(
               source,
               backlogDirectory,
               await configuredTaskIdPrefix(),
-            ).apply(digest),
+            ).apply(digest, preservation),
           },
           modeFor(parsed),
         );
@@ -2352,6 +2406,19 @@ export async function runQuest(
           hint: "Quest requires an existing Git worktree; it does not create one for you.",
         },
       );
+    if (error instanceof WorkspaceError && error.code === "already_initialized")
+      return failure("validation", error.message, {
+        hint: "To change name or task-id-prefix on an existing workspace, use `quest init --reconfigure` -- do not delete .quest/ and re-run init, which discards every task record it is not tracked in git.",
+      });
+    if (error instanceof WorkspaceError && error.code === "stray_content")
+      return failure("validation", error.message, {
+        hint: "Use `quest init --reconfigure` to adopt this directory's existing task records under a new configuration, or remove .quest/ yourself if you are certain you want to discard them.",
+      });
+    // Carries the itemized collision/unpreservable-record report; the
+    // generic `kind === "conflict"` fallback below would keep only the
+    // summary message and drop the list the operator needs to act on it.
+    if (error instanceof BacklogMigrationRefusedError)
+      return failure("conflict", error.message, { input: error.details });
     // Decidable from argv alone, so they belong with the other flag-combination
     // usage errors rather than the post-read validation failures. The fold
     // still owns the rule, so `task edit-batch` reports it per item.

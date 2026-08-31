@@ -5,8 +5,12 @@ import type { Milestone } from "../../domain/planning/planning.ts";
 import {
   type Alias,
   alias,
+  type AliasCollision,
+  canonicalIdPrefixPattern,
   type CanonicalId,
   assertAliasesAvailable,
+  collectAliasCollisions,
+  RecordValidationError,
 } from "../../domain/records.ts";
 import {
   canonicalizeTaskLinks,
@@ -28,6 +32,45 @@ export interface BacklogImportMapping {
   readonly aliases: readonly string[];
 }
 
+/** Selects one id family (Backlog display prefix) to import with its source
+ * ids preserved verbatim, instead of the default positional renumbering.
+ * A source backlog holding more than one family (QCLI-160: lore-cli's
+ * LCLI+LORE, opum-doc's ODOC+OCLI) is imported one family per run, on
+ * purpose -- merging two families into one target namespace was ruled out
+ * as inventing a scheme the source data does not itself have. */
+export interface BacklogPreservationOptions {
+  readonly family: string;
+}
+
+export interface BacklogExcludedRecord {
+  readonly sourceIdentifier: string;
+  readonly family?: string;
+}
+
+export interface BacklogUnpreservableRecord {
+  readonly sourceIdentifier: string;
+  readonly reason: "malformed_source_id" | "parent_not_found";
+  readonly detail?: string;
+}
+
+/**
+ * Thrown instead of failing on the first problem, so the operator sees every
+ * id collision and every unpreservable record in one report and can resolve
+ * them together rather than rediscovering the next one on a second preview.
+ */
+export class BacklogMigrationRefusedError extends Error {
+  readonly kind = "conflict" as const;
+  constructor(
+    message: string,
+    readonly details: {
+      readonly collisions: readonly AliasCollision[];
+      readonly unpreservable: readonly BacklogUnpreservableRecord[];
+    },
+  ) {
+    super(message);
+  }
+}
+
 interface Receipt {
   readonly schemaVersion: 1;
   readonly kind: "migration.backlog.receipt";
@@ -44,6 +87,9 @@ export interface BacklogPreview {
   readonly digest: string;
   readonly mappings: readonly BacklogImportMapping[];
   readonly requiresApproval: true;
+  /** Records left behind because they belong to a different id family than
+   * the one selected for preservation. Only present in preservation mode. */
+  readonly excluded?: readonly BacklogExcludedRecord[];
 }
 
 function fingerprint(value: unknown): string {
@@ -182,22 +228,214 @@ function importedTask(
   });
 }
 
+/** A Backlog display prefix, e.g. "ODOC" from "ODOC-63.2". */
+function sourceFamily(sourceIdentifier: string): string | undefined {
+  return sourceIdentifier.match(/^([A-Za-z][A-Za-z0-9]*)-/)?.[1];
+}
+
+/** The immediate parent implied by dotted subtask numbering: the id with its
+ * last ".N" segment stripped ("ODOC-63.2" -> "ODOC-63", "QCLI-97.5.2" ->
+ * "QCLI-97.5"). Only a fallback -- an explicit parentTaskId from the source
+ * frontmatter always takes precedence. */
+function derivedParentId(sourceIdentifier: string): string {
+  return sourceIdentifier.replace(/\.[1-9][0-9]*$/, "");
+}
+
+/**
+ * Backlog's dotted subtask numbering (QCLI-97.5.2) has no equivalent in
+ * Quest's canonical id, which is strictly `<prefix>-<int>` (QCLI-160):
+ * allocateCanonicalId and canonicalId() both reject a dot. Quest already has
+ * the model for "child of" -- a flat id plus parentId, exactly what native
+ * subtask creation (nextTaskId) already does -- so a dotted source id is
+ * translated rather than refused or dropped: it gets a freshly minted flat
+ * id in the selected family, its dotted spelling survives as an alias (every
+ * existing reference to it still resolves), and its parent is threaded
+ * through so canonicalizeTaskLinks resolves the link at apply time the same
+ * way it already resolves every other migrated cross-reference.
+ *
+ * A record whose id is neither flat nor dotted in the selected family, or
+ * whose parent cannot be found anywhere in the destination or this same
+ * batch, is refused at BATCH scope (opag ruling, QCLI-160): the run stops
+ * and reports every such record together with every id collision, rather
+ * than silently excluding it or shipping a tracker with a dangling link.
+ */
+function previewWithPreservedIds(
+  snapshot: {
+    readonly fingerprint: string;
+    readonly records: readonly BacklogImportRecord[];
+  },
+  occupied: readonly Alias[],
+  existingTaskRecords: readonly { readonly task: { readonly id: string } }[],
+  options: BacklogPreservationOptions,
+): { preview: BacklogPreview; records: readonly BacklogImportRecord[] } {
+  const { family } = options;
+  if (!canonicalIdPrefixPattern.test(family))
+    throw new RecordValidationError("backlog_source_family_invalid");
+  const marker = `${family}-`;
+  const flatPattern = new RegExp(`^${family}-[1-9][0-9]*$`);
+  const dottedPattern = new RegExp(`^${family}-[1-9][0-9]*(\\.[1-9][0-9]*)+$`);
+
+  const inFamily = snapshot.records.filter(
+    (record) => sourceFamily(record.sourceIdentifier) === family,
+  );
+  const excluded: BacklogExcludedRecord[] = snapshot.records
+    .filter((record) => sourceFamily(record.sourceIdentifier) !== family)
+    .map((record) => ({
+      sourceIdentifier: record.sourceIdentifier,
+      family: sourceFamily(record.sourceIdentifier),
+    }));
+
+  // Flat ids reserve their numbers into the mint ceiling before any dotted
+  // id is minted, so a freshly minted id can never land on one a later
+  // record in the batch preserves verbatim.
+  let mintCounter = existingTaskRecords.reduce((maximum, entry) => {
+    if (!entry.task.id.startsWith(marker)) return maximum;
+    const numeric = Number(entry.task.id.slice(marker.length));
+    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
+  }, 0);
+  for (const record of inFamily)
+    if (flatPattern.test(record.sourceIdentifier)) {
+      const numeric = Number(record.sourceIdentifier.slice(marker.length));
+      if (Number.isSafeInteger(numeric))
+        mintCounter = Math.max(mintCounter, numeric);
+    }
+
+  const unpreservable: BacklogUnpreservableRecord[] = [];
+  const assigned: {
+    readonly record: BacklogImportRecord;
+    readonly targetIdentifier: string;
+    readonly parentSourceId?: string;
+  }[] = [];
+  for (const record of inFamily) {
+    if (flatPattern.test(record.sourceIdentifier)) {
+      assigned.push({ record, targetIdentifier: record.sourceIdentifier });
+    } else if (dottedPattern.test(record.sourceIdentifier)) {
+      mintCounter += 1;
+      assigned.push({
+        record,
+        targetIdentifier: `${family}-${mintCounter}`,
+        parentSourceId:
+          record.parentTaskId ?? derivedParentId(record.sourceIdentifier),
+      });
+    } else {
+      unpreservable.push({
+        sourceIdentifier: record.sourceIdentifier,
+        reason: "malformed_source_id",
+      });
+    }
+  }
+
+  // A parent reference resolves against the existing destination (already
+  // occupied) or any in-family record's own id/aliases -- whether that
+  // record preserves its id verbatim or was itself just minted a flat one.
+  // Multi-level dotted chains resolve transitively through the same alias
+  // mechanism canonicalizeTaskLinks already uses for every other migrated
+  // cross-reference.
+  const knownAliasKeys = new Set(occupied.map((entry) => entry.key));
+  for (const record of inFamily)
+    for (const candidate of [record.sourceIdentifier, ...record.aliases])
+      knownAliasKeys.add(alias(candidate).key);
+  for (const entry of assigned) {
+    if (entry.parentSourceId === undefined) continue;
+    if (!knownAliasKeys.has(alias(entry.parentSourceId).key))
+      unpreservable.push({
+        sourceIdentifier: entry.record.sourceIdentifier,
+        reason: "parent_not_found",
+        detail: entry.parentSourceId,
+      });
+  }
+
+  const unpreservableIds = new Set(
+    unpreservable.map((entry) => entry.sourceIdentifier),
+  );
+  const preservable = assigned.filter(
+    (entry) => !unpreservableIds.has(entry.record.sourceIdentifier),
+  );
+  // Same per-mapping dedup as the positional path (QCLI-157): a task's own
+  // id and its own registered aliases legitimately coincide.
+  const candidates = preservable.flatMap((entry) => {
+    const perTask = new Map<string, string>();
+    for (const candidate of [entry.targetIdentifier, ...entry.record.aliases]) {
+      const key = alias(candidate).key;
+      if (!perTask.has(key)) perTask.set(key, candidate);
+    }
+    return [...perTask.values()];
+  });
+  const collisions = collectAliasCollisions(candidates, occupied);
+
+  if (unpreservable.length > 0 || collisions.length > 0) {
+    const parts: string[] = [];
+    if (collisions.length) parts.push(`${collisions.length} id collision(s)`);
+    if (unpreservable.length)
+      parts.push(`${unpreservable.length} unpreservable record(s)`);
+    throw new BacklogMigrationRefusedError(
+      `Backlog id preservation refused: ${parts.join(", ")}. See the itemized report for detail.`,
+      { collisions, unpreservable },
+    );
+  }
+
+  const mappings: BacklogImportMapping[] = preservable.map((entry) => ({
+    sourceIdentifier: entry.record.sourceIdentifier,
+    sourceFolder: entry.record.sourceFolder,
+    targetIdentifier: entry.targetIdentifier,
+    aliases: entry.record.aliases,
+  }));
+  const records = preservable.map((entry) =>
+    entry.parentSourceId !== undefined
+      ? { ...entry.record, parentTaskId: entry.parentSourceId }
+      : entry.record,
+  );
+  const digest = fingerprint({
+    sourceFingerprint: snapshot.fingerprint,
+    mappings,
+    family,
+    excluded,
+  });
+  return {
+    preview: {
+      sourceFingerprint: snapshot.fingerprint,
+      digest,
+      mappings,
+      requiresApproval: true,
+      excluded,
+    },
+    records,
+  };
+}
+
 async function previewInternal(
   source: BacklogImportSource,
   repository: PublicTaskRepository,
   taskIdPrefix: string,
+  preserveSourceIds?: BacklogPreservationOptions,
 ): Promise<{
   preview: BacklogPreview;
   records: readonly BacklogImportRecord[];
 }> {
   const snapshot = await source.readSnapshot();
-  if (snapshot.crossFolderDuplicateIds.length)
+  // Scoped to the selected family when one is given (QCLI-162): a legacy
+  // duplicate inside a family this run is not importing is not this run's
+  // problem to refuse on. Without a family, the whole snapshot is what gets
+  // imported, so every record's integrity stays load-bearing -- unchanged.
+  const relevantDuplicateIds = preserveSourceIds
+    ? snapshot.crossFolderDuplicateIds.filter(
+        (id) => sourceFamily(id) === preserveSourceIds.family,
+      )
+    : snapshot.crossFolderDuplicateIds;
+  if (relevantDuplicateIds.length)
     throw new Error("backlog_cross_folder_duplicate_id");
   const existing = await repository.readAll();
   const occupied: Alias[] = existing.taskRecords.flatMap((entry) => [
     alias(entry.task.id),
     ...entry.task.aliases.map(alias),
   ]);
+  if (preserveSourceIds)
+    return previewWithPreservedIds(
+      snapshot,
+      occupied,
+      existing.taskRecords,
+      preserveSourceIds,
+    );
   // Targets the destination workspace's own configured taskIdPrefix (QCLI-157)
   // instead of a hardcoded "T-": a migration must land in the same id family
   // native `quest task create` already uses there, not a disconnected island.
@@ -255,13 +493,23 @@ export class BacklogImportService {
     private readonly taskIdPrefix: string = "T",
   ) {}
 
-  async preview(): Promise<BacklogPreview> {
+  async preview(
+    preserveSourceIds?: BacklogPreservationOptions,
+  ): Promise<BacklogPreview> {
     return (
-      await previewInternal(this.source, this.repository, this.taskIdPrefix)
+      await previewInternal(
+        this.source,
+        this.repository,
+        this.taskIdPrefix,
+        preserveSourceIds,
+      )
     ).preview;
   }
 
-  async apply(digest: string): Promise<Receipt> {
+  async apply(
+    digest: string,
+    preserveSourceIds?: BacklogPreservationOptions,
+  ): Promise<Receipt> {
     const { root, source, repository, taskIdPrefix } = this;
     const path = receiptPath(root, digest);
     const previous = await load(path);
@@ -275,6 +523,7 @@ export class BacklogImportService {
       source,
       repository,
       taskIdPrefix,
+      preserveSourceIds,
     );
     if (preview.digest !== digest)
       throw new Error("migration_approval_digest_mismatch");

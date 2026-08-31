@@ -31,10 +31,17 @@ export const commandHelp: Record<
   },
   init: {
     summary:
-      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing.",
+      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing. Refuses if already initialized -- use `quest init --reconfigure` to change name/task-id-prefix on an existing workspace instead of deleting .quest/ and starting over.",
     usage:
       'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
     flags: ["--name", "--task-id-prefix", "--agent-instructions"],
+  },
+  "init --reconfigure": {
+    summary:
+      "Change the declared name and/or task ID prefix on an existing workspace without deleting .quest/. The supported alternative to `rm -rf .quest && quest init`, which discards every task record --.quest/ is not always tracked in git. Fields not given keep their current value.",
+    usage:
+      'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC]',
+    flags: ["--name", "--task-id-prefix", "--reconfigure"],
   },
   // The human-facing entry stays whole: `--list` is a flag of `quest
   // instructions`, and splitting it out would make `quest help instructions`
@@ -69,16 +76,39 @@ export const commandHelp: Record<
   },
   "migration backlog preview": {
     summary:
-      "Preview a Backlog.md-to-Quest migration without writing anything.",
+      "Preview a Backlog.md-to-Quest migration without writing anything. " +
+      "--preserve-source-ids keeps each record's own Backlog id instead of " +
+      "renumbering positionally: it requires --source-family to select one " +
+      "id family from the source (a backlog holding more than one, e.g. " +
+      "LCLI and LORE, imports one family per run). A dotted subtask id " +
+      "(ODOC-63.2) has no equivalent in Quest's flat canonical id, so it is " +
+      "translated -- a fresh flat id in the family, its dotted spelling kept " +
+      "as an alias, its parent threaded through -- rather than preserved " +
+      "verbatim; the run refuses on an id collision or an unresolvable " +
+      "parent, reporting every one in a single report.",
     usage:
-      "quest migration backlog preview --source <project> [--backlog-dir <path>]",
-    flags: ["--source", "--backlog-dir"],
+      "quest migration backlog preview --source <project> [--backlog-dir <path>] [--preserve-source-ids --source-family <PREFIX>]",
+    flags: [
+      "--source",
+      "--backlog-dir",
+      "--preserve-source-ids",
+      "--source-family",
+    ],
   },
   "migration backlog apply": {
-    summary: "Apply a previously previewed Backlog.md migration.",
+    summary:
+      "Apply a previously previewed Backlog.md migration. Re-supply " +
+      "--preserve-source-ids/--source-family exactly as given to preview.",
     usage:
-      "quest migration backlog apply --source <project> --digest <digest> --actor <name> --actor-kind human",
-    flags: ["--source", "--digest", "--backlog-dir", ...ACTOR_FLAGS],
+      "quest migration backlog apply --source <project> --digest <digest> --actor <name> --actor-kind human [--backlog-dir <path>] [--preserve-source-ids --source-family <PREFIX>]",
+    flags: [
+      "--source",
+      "--digest",
+      "--backlog-dir",
+      "--preserve-source-ids",
+      "--source-family",
+      ...ACTOR_FLAGS,
+    ],
   },
   "migration backlog status": {
     summary: "Report the status of a Backlog.md migration by digest.",

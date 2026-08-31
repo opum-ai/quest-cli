@@ -187,6 +187,8 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
   const helpJson = JSON.parse(
     (await runQuest(["help", "init", "--json"], false)).stdout,
   );
+  // "init --reconfigure" is a second variant of the "init" topic, following
+  // the same "instructions" / "instructions --list" pattern.
   expect(helpJson.data.commands).toEqual([
     expect.objectContaining({
       name: "init",
@@ -195,6 +197,14 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
       usage:
         'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
       flags: ["--name", "--task-id-prefix", "--agent-instructions"],
+    }),
+    expect.objectContaining({
+      name: "init --reconfigure",
+      kind: "workspace.reconfigured",
+      mutates: true,
+      usage:
+        'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC]',
+      flags: ["--name", "--task-id-prefix", "--reconfigure"],
     }),
   ]);
 

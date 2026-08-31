@@ -131,6 +131,12 @@ test("the live manifest is non-empty and matches its result golden", () => {
       mutates: true,
     },
     {
+      name: "init --reconfigure",
+      schemaVersion: 1,
+      kind: "workspace.reconfigured",
+      mutates: true,
+    },
+    {
       name: "instructions",
       schemaVersion: 1,
       kind: "agent.instructions",
