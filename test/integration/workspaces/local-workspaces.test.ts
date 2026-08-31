@@ -15,6 +15,7 @@ import {
   discoverWorkspaces,
   enrollWorkspace,
   initializeWorkspace,
+  reconfigureWorkspace,
   resolveInitializedWorkspace,
   resolveWorkspaceConfiguration,
   WorkspaceError,
@@ -187,6 +188,94 @@ test("a workspace initialized before name/taskIdPrefix existed reads back with n
     expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
       schemaVersion: 1,
     });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("reconfigureWorkspace changes a declared field without touching an existing task record (QCLI-161)", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root, { name: "Old", taskIdPrefix: "OLD" });
+    const taskPath = join(root, ".quest", "tasks", "OLD-1.json");
+    await mkdir(join(root, ".quest", "tasks"), { recursive: true });
+    await writeFile(taskPath, '{"id":"OLD-1"}\n');
+
+    await reconfigureWorkspace(port, root, { taskIdPrefix: "NEW" });
+
+    // The field not given (name) survives, unspecified fields are not wiped.
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+      name: "Old",
+      taskIdPrefix: "NEW",
+    });
+    expect(await readFile(taskPath, "utf8")).toBe('{"id":"OLD-1"}\n');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("reconfigureWorkspace refuses when there is nothing to reconfigure", async () => {
+  const root = await repository();
+  try {
+    await expect(
+      reconfigureWorkspace(new LocalWorkspacePort(), root, {
+        taskIdPrefix: "NEW",
+      }),
+    ).rejects.toMatchObject({ code: "not_initialized" });
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
+    ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("reconfigureWorkspace adopts a workspace whose config file alone went missing, recovering its task records without loss (QCLI-161)", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root, { taskIdPrefix: "OLD" });
+    const taskPath = join(root, ".quest", "tasks", "OLD-1.json");
+    await mkdir(join(root, ".quest", "tasks"), { recursive: true });
+    await writeFile(taskPath, '{"id":"OLD-1"}\n');
+    // Simulate the config file alone being removed -- not the whole
+    // directory -- leaving real content behind with no workspace.toml.
+    await rm(join(root, ".quest", "workspace.toml"));
+
+    await reconfigureWorkspace(port, root, { taskIdPrefix: "NEW" });
+
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+      taskIdPrefix: "NEW",
+    });
+    expect(await readFile(taskPath, "utf8")).toBe('{"id":"OLD-1"}\n');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("initializeWorkspace refuses a directory holding task records but no workspace.toml, rather than treating it as fresh (QCLI-161)", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root, { taskIdPrefix: "OLD" });
+    const taskPath = join(root, ".quest", "tasks", "OLD-1.json");
+    await mkdir(join(root, ".quest", "tasks"), { recursive: true });
+    await writeFile(taskPath, '{"id":"OLD-1"}\n');
+    await rm(join(root, ".quest", "workspace.toml"));
+
+    await expect(
+      initializeWorkspace(port, root, { taskIdPrefix: "NEW" }),
+    ).rejects.toMatchObject({ code: "stray_content" });
+
+    // Refused, not silently reinitialized: the record is untouched and
+    // still no config exists to claim otherwise.
+    expect(await readFile(taskPath, "utf8")).toBe('{"id":"OLD-1"}\n');
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
+    ).rejects.toThrow();
   } finally {
     await rm(root, { recursive: true, force: true });
   }

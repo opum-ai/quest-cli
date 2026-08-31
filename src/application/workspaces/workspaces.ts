@@ -80,9 +80,62 @@ export async function initializeWorkspace(
 ): Promise<WorkspaceIdentity> {
   assertSafeWorkspaceRelativePath(workspaceConfigurationPath);
   const identity = await port.inspect(path);
+  const configured = await port.exists(
+    join(identity.worktreePath, workspaceConfigurationPath),
+  );
+  // A directory can hold real task records with no workspace.toml -- e.g.
+  // something removed only the config file, or a caller is re-running init
+  // against a directory `rm -rf .quest && quest init` already emptied of
+  // config but not (yet) of content (QCLI-161). Absent config is not the
+  // same fact as "nothing here": refuse rather than silently treat it as a
+  // fresh workspace and orphan whatever is already on disk.
+  if (!configured && (await port.hasOwnedContent(identity.worktreePath)))
+    throw new WorkspaceError(
+      "stray_content",
+      "This directory holds Quest task records but no workspace.toml. Refusing to treat it as a fresh workspace.",
+    );
   await port.writeInitialization(
     identity.worktreePath,
     serializeConfiguration(input),
+  );
+  return identity;
+}
+
+/**
+ * Updates an existing workspace's declared name/taskIdPrefix without
+ * deleting and recreating .quest/ -- the supported alternative to the
+ * `rm -rf .quest && quest init` workaround that emptied opum-agent's
+ * workspace of 26 tracked task records (QCLI-161). Fields not given keep
+ * their current value. Also the recovery path for a workspace.toml that
+ * went missing while its task records survived: it adopts them under the
+ * newly declared configuration instead of requiring `quest init` to refuse.
+ * A directory with neither existing config nor any owned content has
+ * nothing to reconfigure -- that is what plain `quest init` is for.
+ */
+export async function reconfigureWorkspace(
+  port: WorkspacePort,
+  path: string,
+  input: WorkspaceInitializationInput,
+): Promise<WorkspaceIdentity> {
+  assertSafeWorkspaceRelativePath(workspaceConfigurationPath);
+  const identity = await port.inspect(path);
+  const configured = await port.exists(
+    join(identity.worktreePath, workspaceConfigurationPath),
+  );
+  if (!configured && !(await port.hasOwnedContent(identity.worktreePath)))
+    throw new WorkspaceError(
+      "not_initialized",
+      "Workspace is not initialized. Run quest init (without --reconfigure) from a Git worktree.",
+    );
+  const current = configured
+    ? await port.readConfiguration(identity.worktreePath)
+    : ({ schemaVersion: 1 } as const);
+  await port.writeConfiguration(
+    identity.worktreePath,
+    serializeConfiguration({
+      name: input.name ?? current.name,
+      taskIdPrefix: input.taskIdPrefix ?? current.taskIdPrefix,
+    }),
   );
   return identity;
 }
