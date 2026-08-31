@@ -413,7 +413,16 @@ async function previewInternal(
   records: readonly BacklogImportRecord[];
 }> {
   const snapshot = await source.readSnapshot();
-  if (snapshot.crossFolderDuplicateIds.length)
+  // Scoped to the selected family when one is given (QCLI-162): a legacy
+  // duplicate inside a family this run is not importing is not this run's
+  // problem to refuse on. Without a family, the whole snapshot is what gets
+  // imported, so every record's integrity stays load-bearing -- unchanged.
+  const relevantDuplicateIds = preserveSourceIds
+    ? snapshot.crossFolderDuplicateIds.filter(
+        (id) => sourceFamily(id) === preserveSourceIds.family,
+      )
+    : snapshot.crossFolderDuplicateIds;
+  if (relevantDuplicateIds.length)
     throw new Error("backlog_cross_folder_duplicate_id");
   const existing = await repository.readAll();
   const occupied: Alias[] = existing.taskRecords.flatMap((entry) => [
