@@ -200,7 +200,7 @@ no legacy implementation source was, or may be, inspected regardless.
 | 3 | Git CAS-backed claim records | `OCLI-3.2` AC3 | Adapted | Charter owns "dependency readiness, claims, leases, gates, lifecycle, and evidence" and "safe filesystem and operation-owned Git behavior"; no admitted legacy implementation may inform the mechanism (Backlog.md internals Excluded, opum-engine Deferred) |
 | 4 | TTL leases | `OCLI-3.2` AC3 | Adapted | Same charter line as #3; concrete lease/heartbeat semantics are `QCLI-2.4`'s and `QCLI-2.6`'s scope, not fixed here |
 | 5 | Human/plan/review gates (mechanism: block-until-satisfied, evidence recorded) | `OCLI-3.2` AC3 | Adapted | Charter owns "claims, leases, gates, lifecycle, and evidence" as a CLI mechanism; the gate *mechanism* is a quest-cli candidate — see #6 for the actor semantics this excludes |
-| 6 | Accountable-human delegation / actor responsibilities (who is accountable, delegate, reviewer/approver) | `OCLI-3.2` AC3 | **Routed to quest-doc — not classified here** | The charter names the **product-wide** actor model explicitly as Quest-wide; see AC3 routing below — not a quest-cli-normative candidate in *this* document. This does not foreclose the **component-level** actor-responsibility mapping `QCLI-2.4`'s own AC2 owns as quest-cli's to make |
+| 6 | Accountable-human delegation / actor responsibilities (who is accountable, delegate, reviewer/approver) | `OCLI-3.2` AC3 | **Routed to opum-doc — not classified here** | The charter names the **product-wide** actor model explicitly as Quest-wide; see AC3 routing below — not a quest-cli-normative candidate in *this* document. This does not foreclose the **component-level** actor-responsibility mapping `QCLI-2.4`'s own AC2 owns as quest-cli's to make |
 | 7 | Deterministic JSON output and defined exit behavior | `OCLI-3.2` AC3 | Reusable | Charter already owns "command vocabulary, deterministic JSON, human output, and exit behavior" outright as current, independently-reached quest-cli scope; the legacy narrative corroborates the category, no legacy schema is reused |
 | 8 | Read-only purity (a read-only command performs zero worktree mutation) | `OCLI-3.2` AC3 | Adapted | Charter owns "safe filesystem and operation-owned Git behavior"; concrete invariant enumeration is `QCLI-2.6`'s threat-model scope, not duplicated here — recorded only as a reconciliation disposition |
 | 9 | Operation-owned commits (writes staged/committed only by their owning operation) | `OCLI-3.2` AC3 | Reusable | Matches the charter's own phrase "operation-owned Git behavior" directly |
@@ -212,12 +212,13 @@ no legacy implementation source was, or may be, inspected regardless.
 | 15 | `jeremy-newhouse/opum-engine` prototype PR surfaces (PR heads `182421e`/`7b0ec48`) and the stdio MCP smoke-boundary gap (scenario seed 10) | Dated fleet and prior-art inventory (prototype review) | Deferred | Register classifies this Deferred with permitted use "preserve the open question... do not design or scaffold against it now"; no design was extracted from it here, consistent with that exclusion |
 | 16 | ADR-042, SPEC-FEAT-011, legacy usage guide/research digest, OPUM-328, OPUM-338–342 | `OCLI-3.2` AC1; located via the register's Git recovery commits `7b82afc`/`d42c016` slice (Allowed) | Rejected (not admitted as a requirements source) | See the finding above — the artifacts are located, but the only admitted source naming them permits "audit and citation only," and that same slice's exclusion bars it as "a live source of current Quest requirements"; the recovered table corroborates candidates #1–#6, #7, and #11–#14 without supplying design for any of them |
 
-### Quest-wide proposals routed to quest-doc (AC3)
+### Quest-wide proposals routed to opum-doc (AC3)
 
 The component charter states plainly: "Any research result that would change
 the Quest-wide vocabulary, actor model, architecture, or roadmap is a
-proposal to `quest-doc`. It is not normative merely because a QCLI task
-produced it." Exactly one candidate above crosses that line:
+proposal to the consolidated Quest namespace. It is not normative merely
+because a QCLI task produced it." Exactly one candidate above crosses that
+line:
 
 - **Candidate #6, accountable-human delegation and actor responsibilities**
   (who counts as an accountable human, a delegated agent, a reviewer or
@@ -225,8 +226,8 @@ produced it." Exactly one candidate above crosses that line:
   model**, not a quest-cli-local mechanism. This document does not classify
   it reusable/adapted/superseded/deferred/rejected against quest-cli's
   boundary, and does not treat it as a settled quest-cli decision. If a
-  later task pursues it, the proposal belongs in `quest-doc`'s own
-  repository, not authored here and not authored into `quest-doc` by this
+  later task pursues it, the proposal belongs in `opum-doc`'s consolidated
+  Quest namespace, not authored here and not authored into it by this
   quest-cli task (this document has no mutation rights there and does not
   claim any). This routing is scoped to the **product-wide** actor model
   only; it is distinct from the **component-level** actor-responsibility
@@ -240,9 +241,9 @@ produced it." Exactly one candidate above crosses that line:
   asset/workflow-platform scope, and the `opum-engine` prototype surfaces)
   touch roadmap only in the sense of staying **outside** it — this document
   preserves that deferral and does not propose bringing any of it into
-  scope; a future decision to do so would itself need to go to `quest-doc`
-  and/or a component-charter revision, per the charter's own reclassification
-  language.
+  scope; a future decision to do so would itself need to go to `opum-doc`'s
+  consolidated Quest namespace and/or a component-charter revision, per the
+  charter's own reclassification language.
 - `#12`'s disposition (Python/`opum-engine` as product home, Superseded) is
   scoped to repository/product-home identity only, not the runtime engineering
   choice; the runtime remains explicitly open per the research program spec's
@@ -294,3 +295,19 @@ existence and disposition. It made no repository, package, release, or
 remote mutation, and it did not edit the source register (owned this wave by
 `QCLI-2.7`) or any file outside this task's own new document and its Backlog
 task record.
+
+**2026-08-31 correction pass:** retargeted this document's "routed to
+quest-doc" language at `opum-doc`'s consolidated Quest namespace, this
+repository's current routing authority per `CLAUDE.md`'s "Consolidated
+authority routing." The standalone `quest-doc` repository this document
+named is no longer live; `opum-doc` has since frozen it as historical
+provenance (see the [component glossary](quest-cli-component-glossary-actors-and-workflows.md)'s
+"Recheck clause for the Quest-wide vocabulary citation" and the
+[research source register](quest-cli-research-source-register.md#opum-doc-consolidated-quest-namespace)'s
+matching correction, both fixed the same pass). Also fixed this document's
+own quote of the component charter, which had drifted from the charter's
+current "Sources of truth" wording ("the consolidated Quest namespace," not
+`quest-doc`) — the glossary had independently copied this document's stale
+quote, misattributed to the charter; that is fixed there too. Candidate #6's
+disposition (Routed, not classified) is unchanged in substance — only the
+routing target's name changed.
