@@ -1,4 +1,5 @@
 .claude/handovers/
+.claude/settings.local.json
 .codex/handovers/
 node_modules/
 npm/quest-*/bin/quest*
