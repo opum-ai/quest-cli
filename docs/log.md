@@ -231,6 +231,7 @@
 - 2026-08-30T11:39:14-05:00 3a921aa895c9b7785ef04d8285d6622b2558cb4d chore(backlog): record the QCLI-97.5.2 supersession evidence
 - 2026-08-30T11:44:51-05:00 e681b7426e70cae997618e4cdbffe2d7a659d43c chore(backlog): finalize QCLI-143 board export with verification evidence
 - 2026-08-31T11:51:41-05:00 90cb03f9ea92cd623c94fced57b46b6c09714849 docs: retire Codex-dispatch pattern, fix two dead backlog-handover links
+- 2026-08-31T11:59:09-05:00 84616c189c51500a0ab5f195582e1092c5cfa7e5 docs: repoint glossary's quest-doc citation at opum-doc's consolidated Quest namespace
 
 ## docs/adr
 

@@ -44,7 +44,7 @@ adapter abstraction exists today). It also cites the
 [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
 in `opum-doc` — this repository's own current routing authority for
 product-wide Quest strategy, architecture, and vocabulary (superseding the
-[research source register](quest-cli-research-source-register.md#quest-doc-canonical-product-records)'s
+[research source register](quest-cli-research-source-register.md#opum-doc-consolidated-quest-namespace)'s
 now-stale framing of a standalone, live `quest-doc` clone as that authority;
 see "Notes," below) — as the authority for which vocabulary is *already*
 Quest-wide versus what remains component-scoped candidate language this
