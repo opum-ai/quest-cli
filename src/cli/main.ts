@@ -29,6 +29,7 @@ import {
   selectOutputMode,
 } from "../application/command-contract.ts";
 import { commandHelp } from "../application/command-help.ts";
+import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import type { TaskService } from "../application/tasks/tasks.ts";
@@ -168,6 +169,7 @@ function flags(
     "--clear-dod",
     "--clear-final-summary",
     "--force",
+    "--preserve-source-ids",
     "--list",
     "--ready",
     "--unassigned",
@@ -912,11 +914,31 @@ export async function runQuest(
       const source = one(parsed, "--source");
       const digest = one(parsed, "--digest");
       const backlogDirectory = one(parsed, "--backlog-dir");
+      const preserveSourceIds = parsed.values.has("--preserve-source-ids");
+      const sourceFamily = one(parsed, "--source-family");
       const root = await resolvedRoot();
+      if (preserveSourceIds !== Boolean(sourceFamily))
+        return failure(
+          "usage",
+          "--preserve-source-ids and --source-family must be given together.",
+        );
+      if (sourceFamily !== undefined && !isValidTaskIdPrefix(sourceFamily))
+        return failure(
+          "usage",
+          `--source-family must start with a letter and contain only letters and digits: ${sourceFamily}`,
+        );
+      const preservation = preserveSourceIds
+        ? { family: sourceFamily as string }
+        : undefined;
       if (
         action === "preview" &&
         source &&
-        only(parsed, ["--source", "--backlog-dir"])
+        only(parsed, [
+          "--source",
+          "--backlog-dir",
+          "--preserve-source-ids",
+          "--source-family",
+        ])
       )
         return output(
           {
@@ -927,7 +949,7 @@ export async function runQuest(
               source,
               backlogDirectory,
               await configuredTaskIdPrefix(),
-            ).preview(),
+            ).preview(preservation),
           },
           modeFor(parsed),
         );
@@ -939,6 +961,8 @@ export async function runQuest(
           "--source",
           "--digest",
           "--backlog-dir",
+          "--preserve-source-ids",
+          "--source-family",
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -958,7 +982,7 @@ export async function runQuest(
               source,
               backlogDirectory,
               await configuredTaskIdPrefix(),
-            ).apply(digest),
+            ).apply(digest, preservation),
           },
           modeFor(parsed),
         );
@@ -2352,6 +2376,11 @@ export async function runQuest(
           hint: "Quest requires an existing Git worktree; it does not create one for you.",
         },
       );
+    // Carries the itemized collision/unpreservable-record report; the
+    // generic `kind === "conflict"` fallback below would keep only the
+    // summary message and drop the list the operator needs to act on it.
+    if (error instanceof BacklogMigrationRefusedError)
+      return failure("conflict", error.message, { input: error.details });
     // Decidable from argv alone, so they belong with the other flag-combination
     // usage errors rather than the post-read validation failures. The fold
     // still owns the rule, so `task edit-batch` reports it per item.

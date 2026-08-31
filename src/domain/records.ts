@@ -123,6 +123,36 @@ export function assertAliasesAvailable(
   return result;
 }
 
+export interface AliasCollision {
+  readonly candidate: string;
+  readonly conflictsWith: string;
+}
+
+/**
+ * Like {@link assertAliasesAvailable}, but collects every collision instead
+ * of throwing at the first one. For a caller that must report the complete
+ * conflict set in a single pass (a batch migration, for example) rather than
+ * fail fast at write time and force the operator to rediscover the next
+ * collision on a second attempt.
+ */
+export function collectAliasCollisions(
+  candidates: readonly string[],
+  existing: readonly Alias[],
+): readonly AliasCollision[] {
+  const seen = new Map(existing.map((entry) => [entry.key, entry.display]));
+  const collisions: AliasCollision[] = [];
+  for (const display of candidates) {
+    const entry = alias(display);
+    const collision = seen.get(entry.key);
+    if (collision !== undefined) {
+      collisions.push({ candidate: display, conflictsWith: collision });
+      continue;
+    }
+    seen.set(entry.key, entry.display);
+  }
+  return collisions;
+}
+
 const actorSchema = z.discriminatedUnion("kind", [
   z.object({
     id: z.string().min(1),

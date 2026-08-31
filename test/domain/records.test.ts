@@ -11,6 +11,7 @@ import {
   assertAliasesAvailable,
   assertReplayMatches,
   canonicalId,
+  collectAliasCollisions,
   declareActor,
   declareActors,
   materializeTask,
@@ -86,6 +87,25 @@ test("aliases preserve display spelling while NFC/default-fold collisions stop b
   expect(() => assertAliasesAvailable(["ι"], [alias("\u0345")])).toThrow(
     RecordConflictError,
   );
+});
+
+test("collectAliasCollisions reports every collision instead of stopping at the first", () => {
+  expect(collectAliasCollisions(["ODOC-1", "ODOC-2"], [])).toEqual([]);
+  expect(
+    collectAliasCollisions(
+      ["ODOC-1", "ODOC-2", "ODOC-3"],
+      [alias("ODOC-1"), alias("ODOC-3")],
+    ),
+  ).toEqual([
+    { candidate: "ODOC-1", conflictsWith: "ODOC-1" },
+    { candidate: "ODOC-3", conflictsWith: "ODOC-3" },
+  ]);
+  // A duplicate WITHIN the candidate list itself is also a collision, caught
+  // against the first occurrence -- the same fold-aware key as everywhere
+  // else in this module.
+  expect(collectAliasCollisions(["STRASSE", "straße"], [])).toEqual([
+    { candidate: "straße", conflictsWith: "STRASSE" },
+  ]);
 });
 
 test("actors are opaque, distinguish kinds, and require accountable humans for delegation", () => {
