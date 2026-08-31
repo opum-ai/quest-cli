@@ -22,7 +22,7 @@ as the admission authority for Quest research (the inventory itself remains
 Allowed for citation, see below): no source slice
 informs a QCLI requirement unless it is listed here as **Allowed**, and then
 only for the exact permitted use recorded against it. It stays consistent
-with, and does not restate or override, `quest-doc`'s canonical
+with, and does not restate or override, `opum-doc`'s canonical
 [consolidated Quest namespace](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
 and the [former OCLI to QCLI migration ledger](former-ocli-to-qcli-migration-ledger.md),
 which remains the normative task-by-task mapping. Every fact below was
@@ -65,8 +65,10 @@ named slice, never to every file in its repository.
   superseded by `bee848a`/`7b512d9` later the same day).
 - **Ownership rationale:** the repository-rename decision recorded in the
   accepted ADR [Use quest-cli for the Quest package and command](../adr/use-quest-cli-for-the-quest-package-and-command.md)
-  and in `quest-doc`'s canonical provenance ledger; `opum-doc` is the owner of
-  Opum SaaS/portfolio policy and retained OCLI historical records.
+  and in the historical `quest-doc` provenance ledger (frozen, now routed
+  through `opum-doc`'s consolidated Quest namespace — see the `opum-doc`
+  consolidated Quest namespace slice below); `opum-doc` is the owner of Opum
+  SaaS/portfolio policy and retained OCLI historical records.
 - **Permitted use:** cite specific admitted `opum-doc` Story/Spec/ADR/Runbook/
   Reference/task records as OCLI research provenance, one artifact at a time,
   with its own exact revision.
@@ -151,8 +153,8 @@ named slice, never to every file in its repository.
   beyond that observation (see the dated Opum fleet and prior-art inventory
   slice above, which records `d7ca18f` as already superseded the same day).
 - **Ownership rationale:** `opum-doc` is the retained owner of OCLI
-  historical Backlog/Lore records per the migration ledger and `quest-doc`'s
-  provenance ledger.
+  historical Backlog/Lore records per the migration ledger and the historical
+  `quest-doc` provenance ledger it now routes.
 - **Permitted use:** cite the exact OCLI task/document/commit when adopting
   evidence, per the migration ledger's preservation rules — for example
   OCLI-1's backlog-handover skill supersession (`QCLI-4`, commit `287c2b8`).
@@ -721,62 +723,76 @@ named slice, never to every file in its repository.
 
 ### Quest-wide and Lore-owned authorities
 
-#### `quest-doc` canonical product records
+#### `opum-doc` consolidated Quest namespace
 
-- **Classification:** Allowed (the `quest-doc` half of "quest-doc and
-  lore-doc canonical records: Allowed/Contextual respectively" — quest-doc is
-  Allowed).
-- **Repository or URL:** `github.com/opum-ai/quest-doc`, notably
+**Retargeted 2026-08-31** (formerly "`quest-doc` canonical product
+records" — renamed because that name now names the wrong repository, not
+because the slice itself is new; the anchor below is the new name, update
+any inbound link accordingly). The standalone `quest-doc` repository this
+slice used to name live-cite is no longer the live product-wide authority:
+`opum-doc` has since frozen it as non-executable historical provenance,
+pinned at [`opum-ai/quest-doc` `964033f`](https://github.com/opum-ai/quest-doc/tree/964033f4d385dff77addec1c1983054e19406442)
+per `opum-doc`'s own
+[routing-and-provenance record](https://github.com/opum-ai/opum-doc/blob/dev/docs/quest/quest-external-routing-and-provenance.md)
+(settled under ODOC-55.3/ODOC-55.1). The live Allowed source is now
+`opum-doc`'s consolidated Quest namespace itself.
+
+- **Classification:** Allowed (unchanged in kind; the paired lore-doc entry
+  below still describes itself against the old "quest-doc and lore-doc
+  canonical records" phrasing — see that entry for its own status).
+- **Repository or URL:** `github.com/opum-ai/opum-doc`, `docs/quest/` (two
+  files as of 2026-08-31: `index.md` and
+  `quest-external-routing-and-provenance.md`), and its provenance capsule at
+  `docs/provenance/quest/quest-clean-room-execution-graph.md`. The frozen
+  historical source remains citable only through that routing, at
+  `github.com/opum-ai/quest-doc` commit `964033f`, notably
   `docs/reference/quest-provenance-and-migration-ledger.md` and
   `docs/specs/quest-clean-room-execution-graph.md`.
-- **Exact revision or retrieval date:** local checkout at
-  `/Volumes/external/repos/quest-doc`, re-read live 2026-08-04 (`git status`
-  reports a clean tree, no local modifications).
-- **Ownership rationale:** `quest-doc` owns Quest promise, roadmap,
-  cross-repository architecture, and provenance policy per the component
-  charter's routing table.
-- **Permitted use:** **clarified 2026-08-04 by `QCLI-2.12`; corrected
-  2026-08-04 in the same task's review-driven follow-up, after an
-  independent reviewer found the first clarification's "Two admissible
-  uses" count excluded uses this register's own dependents already relied
-  on** — this slice's Allowed classification governs citation of the
-  records enumerated above by *any* QCLI deliverable, not only this
-  register's own text; the original wording below was phrased in this
-  register's own first person and did not say so explicitly. At least the
-  following four admissible uses are already relied on by merged work, none
-  narrowing any other — this enumeration is a floor already exercised, not
-  asserted exhaustive: (1) **this register's own use**, unchanged — align
-  this register's terms and boundary statements with `quest-doc`'s
-  canonical clean-room provenance and migration-ledger sections; cite when
-  a rule here implements a `quest-doc`-level rule; (2)
-  `docs/specs/quest-clean-room-execution-graph.md`'s "Core behavioral
-  contract" vocabulary section (task, event, repository, workspace, actor,
-  and related terms; that document's lines 58–74) — a different document
-  section and use than (1) — as `QCLI-2.4`'s [component glossary, actors,
-  and workflows](quest-cli-component-glossary-actors-and-workflows.md)
-  cites it (that document's lines 86–91), to ground quest-cli's own
-  component-level vocabulary against `quest-doc`'s existing canonical terms
-  before proposing anything new to `quest-doc`; (3) the same execution
-  graph's "Runtime authority and product boundary" section (its lines
-  39–57, distinct from use (2)'s "Core behavioral contract" section) — as
-  the same component glossary cites it for "Execution records... tasks,"
-  "lifecycle events," the "Knowledge records... Lore" vs. "Execution
-  records... Quest" distinction, and "Rebuildable local projection" (that
-  document's lines 114, 128, 141, and 143 respectively); and (4)
-  `quest-doc`'s [repository and authority
-  map](https://github.com/opum-ai/opum-doc/tree/dev/docs/quest)
-  Reference — cited by the same component glossary both directly (its
-  "Recheck clause," lines 247–274, and Notes, lines 275–295) and as the
-  document grounding that glossary's negative-existence claim that
-  `quest-doc`'s own repository has no actor-model glossary, as of the
-  2026-08-04 observed commit (that document's lines 54 and 250).
-- **Exclusions:** this register does not restate or override `quest-doc`'s
-  canonical policy. No finding in this register proposes a change to
-  Quest-wide vocabulary, architecture, or roadmap; if one arose it would be a
-  proposal to `quest-doc`, not normative here — none is claimed by this
-  revalidation.
-- **Reclassification triggers:** `quest-doc` changing its canonical
-  provenance or clean-room text — re-check consistency on the next
+- **Exact revision or retrieval date:** local worktree
+  `/Volumes/external/repos/opum-doc`, re-read live 2026-08-31. The frozen
+  `quest-doc` commit (`964033f`) does not move by definition; no local
+  `quest-doc` clone re-read is required going forward, unlike the
+  2026-08-04 observation this slice previously depended on.
+- **Ownership rationale:** `opum-doc` is this repository's current routing
+  authority for Quest promise, roadmap, cross-repository architecture, and
+  provenance policy, per this repository's own `CLAUDE.md` "Consolidated
+  authority routing" — superseding the standalone `quest-doc` repository's
+  former direct ownership of the same concerns.
+- **Permitted use:** the four admissible uses below are the same four the
+  2026-08-04 `QCLI-2.12` clarification recorded, retargeted from the
+  standalone `quest-doc` clone to `opum-doc`'s routing, not renumbered or
+  narrowed: (1) **this register's own use**, unchanged — align this
+  register's terms and boundary statements with `opum-doc`'s consolidated
+  Quest namespace, citing the frozen `quest-doc` historical text through it
+  where the underlying vocabulary still traces there; (2) the frozen
+  execution graph's "Core behavioral contract" vocabulary section (task,
+  event, repository, workspace, actor, and related terms) — as `QCLI-2.4`'s
+  [component glossary, actors, and workflows](quest-cli-component-glossary-actors-and-workflows.md)
+  cites it in its "Scope and authorship boundary" section, to ground
+  quest-cli's own component-level vocabulary before proposing anything new
+  to `opum-doc`; (3) the same frozen execution graph's "Runtime authority
+  and product boundary" section — as the same component glossary cites it
+  for "Execution records... tasks," "lifecycle events," the "Knowledge
+  records... Lore" vs. "Execution records... Quest" distinction, and
+  "Rebuildable local projection" (its Task, Lifecycle stage, Lore, and
+  Derived local projection glossary rows, each marked "historical,
+  `opum-doc`-routed"); and (4) the same glossary's "Recheck clause for the
+  Quest-wide vocabulary citation" section, which grounds its
+  negative-existence claim directly in `opum-doc`'s own
+  `docs/quest/index.md` — not the former repository-and-authority-map
+  document, which `opum-doc`'s routing record says was condensed into
+  Opum-owned catalog material rather than carried forward as its own
+  citable record — confirming `opum-doc`'s namespace holds no actor-model
+  glossary as of 2026-08-31.
+- **Exclusions:** this register does not restate or override `opum-doc`'s
+  canonical policy, nor the frozen `quest-doc` historical text it routes to.
+  No finding in this register proposes a change to Quest-wide vocabulary,
+  architecture, or roadmap; if one arose it would be a proposal to
+  `opum-doc`'s consolidated Quest namespace, not normative here — none is
+  claimed by this revalidation.
+- **Reclassification triggers:** `opum-doc`'s consolidated Quest namespace
+  changing its canonical provenance or clean-room text, or growing its own
+  live actor-model glossary — re-check consistency on the next
   revalidation.
 
 #### `lore-doc` Lore-owned release gate
