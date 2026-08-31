@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-31 13:35'
+updated_date: '2026-08-31 13:36'
 labels: []
 dependencies: []
 priority: high
@@ -34,3 +35,9 @@ Two related gaps to design against, scope as the implementer sees fit:
 - [ ] #3 Design states whether init detects and warns/refuses when the target directory holds task/archive content but no workspace.toml (the state rm -rf .quest followed by quest init leaves behind for anyone re-running it against a directory that still has stray Quest-owned files), or explicitly rules that out of scope with a reason
 - [ ] #4 Regression test proves a workspace with existing tasks cannot be silently reinitialized by any documented command path
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Corroborating evidence (opag, 2026-08-31): .quest/workspace.toml mtimes across the fleet cluster in a single 5-minute window -- opum-doc 08:15:00, lore-cli 08:18:25, quest-cli 08:18:56, opum-agent 08:20:02 (the wipe), opum-cli-e2e 08:27:02 (separately explained, a deliberate reinit after a prefix ruling). The opum-agent 26-record wipe falls inside that same window, so the incident that motivated this task most likely already fired once, live, rather than being a hypothetical. Likely origin: the user running quest init directly in each checkout (opag's read, not proven) -- not opag, which only ran read-only greps/seds plus a migration preview that fails closed on an uninitialized workspace.
+<!-- SECTION:NOTES:END -->
