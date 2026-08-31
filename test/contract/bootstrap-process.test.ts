@@ -108,6 +108,7 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
     expect(JSON.parse(repeated.stderr)).toMatchObject({
       error_type: "validation",
       message: "Workspace is already initialized.",
+      hint: expect.stringContaining("--reconfigure"),
     });
     expect(await readFile(join(root, ".quest", "workspace.toml"), "utf8")).toBe(
       "schemaVersion = 1\n",
@@ -132,6 +133,108 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
     expect(await readFile(join(root, "AGENTS.md"), "utf8")).toBe(
       currentInstructions,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("quest init --reconfigure changes the declared task-id-prefix without touching an existing task, and the new prefix takes effect immediately (QCLI-161)", async () => {
+  const root = await repository();
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    expect(
+      await run(root, "init", "--task-id-prefix", "OLD", "--json"),
+    ).toMatchObject({ exitCode: 0 });
+    const created = await run(root, "task", "create", "First", ...human);
+    expect(JSON.parse(created.stdout).data).toMatchObject({ id: "OLD-1" });
+
+    const reconfigured = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--task-id-prefix",
+      "NEW",
+      "--json",
+    );
+    expect(reconfigured).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(reconfigured.stdout)).toMatchObject({
+      kind: "workspace.reconfigured",
+      data: { configuration: { taskIdPrefix: "NEW" } },
+    });
+
+    const second = await run(root, "task", "create", "Second", ...human);
+    expect(JSON.parse(second.stdout).data).toMatchObject({ id: "NEW-1" });
+
+    const original = await run(root, "task", "view", "OLD-1", "--json");
+    expect(original.exitCode).toBe(0);
+    expect(JSON.parse(original.stdout).data).toMatchObject({ id: "OLD-1" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("quest init --reconfigure requires --name and/or --task-id-prefix, and refuses on a directory that was never initialized (QCLI-161)", async () => {
+  const root = await repository();
+  try {
+    const bare = await run(root, "init", "--reconfigure", "--json");
+    expect(bare).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(bare.stderr)).toMatchObject({ error_type: "usage" });
+
+    const neverInitialized = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--task-id-prefix",
+      "NEW",
+      "--json",
+    );
+    expect(neverInitialized.exitCode).not.toBe(0);
+    expect(JSON.parse(neverInitialized.stderr).error_type).toBe("validation");
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
+    ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a directory left with task records but no workspace.toml refuses plain init and is only recoverable via --reconfigure (QCLI-161)", async () => {
+  const root = await repository();
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    expect(
+      await run(root, "init", "--task-id-prefix", "OLD", "--json"),
+    ).toMatchObject({ exitCode: 0 });
+    const created = await run(root, "task", "create", "Survivor", ...human);
+    expect(JSON.parse(created.stdout).data).toMatchObject({ id: "OLD-1" });
+
+    // The state a partial `rm` (or a raw `rm -rf .quest` that only got as
+    // far as the config file) leaves behind: real content, no config.
+    await rm(join(root, ".quest", "workspace.toml"));
+
+    const plain = await run(root, "init", "--json");
+    expect(plain).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(plain.stderr)).toMatchObject({
+      error_type: "validation",
+      hint: expect.stringContaining("--reconfigure"),
+    });
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
+    ).rejects.toThrow();
+
+    const recovered = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--task-id-prefix",
+      "NEW",
+      "--json",
+    );
+    expect(recovered).toMatchObject({ exitCode: 0, stderr: "" });
+
+    const survivor = await run(root, "task", "view", "OLD-1", "--json");
+    expect(survivor.exitCode).toBe(0);
+    expect(JSON.parse(survivor.stdout).data).toMatchObject({ id: "OLD-1" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

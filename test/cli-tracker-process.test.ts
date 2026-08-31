@@ -793,10 +793,17 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
 
 async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
   const store = await mkdtemp(join(tmpdir(), "quest-human-output-"));
+  // A directory of its own: `init`/`init --reconfigure` need a worktree
+  // whose Quest content state they actually control, and `store` already
+  // carries task/draft/etc fixtures from QUEST_TASK_STORE writes below that
+  // never went through `quest init` -- exactly the "content, no config"
+  // state `init` now (correctly) refuses to treat as fresh (QCLI-161).
+  const freshWorkspace = await mkdtemp(join(tmpdir(), "quest-fresh-init-"));
   const backlogSource = await backlogSourceFixture();
   const actor = ["--actor", "person-1", "--actor-kind", "human"];
   try {
     await initializeGitWorktree(store);
+    await initializeGitWorktree(freshWorkspace);
     const manifest = JSON.parse(
       (await quest(store, ["manifest", "--json"])).stdout,
     ).data.commands as readonly {
@@ -960,6 +967,13 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
       version: ["version"],
       help: ["--help", "--plain"],
       init: ["init", "--plain"],
+      "init --reconfigure": [
+        "init",
+        "--reconfigure",
+        "--task-id-prefix",
+        "T",
+        "--plain",
+      ],
       instructions: ["instructions", "--plain"],
       "instructions --list": ["instructions", "--list", "--plain"],
       "instructions <guide>": ["instructions", "overview", "--plain"],
@@ -1167,7 +1181,11 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
                 }),
               )
             : await (async () => {
-                const invocation = await quest(store, argv ?? []);
+                const cwd =
+                  entry.name === "init" || entry.name === "init --reconfigure"
+                    ? freshWorkspace
+                    : store;
+                const invocation = await quest(cwd, argv ?? []);
                 if (invocation.exitCode !== 0)
                   throw new Error(`${entry.name}: ${invocation.stderr}`);
                 expect(invocation.exitCode, entry.name).toBe(0);
@@ -1182,6 +1200,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
     return { manifest, outputs };
   } finally {
     await rm(store, { recursive: true, force: true });
+    await rm(freshWorkspace, { recursive: true, force: true });
     await rm(backlogSource, { recursive: true, force: true });
   }
 }

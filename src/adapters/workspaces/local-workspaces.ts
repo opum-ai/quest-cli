@@ -1,6 +1,7 @@
 import {
   lstat,
   mkdir,
+  readdir,
   readFile,
   realpath,
   stat,
@@ -119,6 +120,41 @@ export class LocalWorkspacePort implements WorkspacePort {
     await mkdir(parent, { recursive: true });
     await assertNoSymlinkEscape(root, target);
     await writeFile(target, content, { encoding: "utf8", flag: "wx" });
+  }
+
+  async writeConfiguration(path: string, content: string): Promise<void> {
+    const root = await realpath(path);
+    const target = resolve(root, ".quest", "workspace.toml");
+    if (!contained(root, target))
+      throw new WorkspaceError(
+        "unsafe_path",
+        "Workspace path escapes its root.",
+      );
+    await assertNoSymlinkEscape(root, target);
+    const parent = dirname(target);
+    await mkdir(parent, { recursive: true });
+    await assertNoSymlinkEscape(root, target);
+    await writeFile(target, content, "utf8");
+  }
+
+  async hasOwnedContent(path: string): Promise<boolean> {
+    const root = await realpath(path);
+    const questRoot = join(root, ".quest");
+    if (await this.exists(join(questRoot, "planning.json"))) return true;
+    for (const sub of [
+      "tasks",
+      "completed",
+      "drafts",
+      join("archive", "tasks"),
+      join("archive", "drafts"),
+    ]) {
+      try {
+        if ((await readdir(join(questRoot, sub))).length > 0) return true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
+    return false;
   }
 
   async readConfiguration(path: string): Promise<WorkspaceConfiguration> {

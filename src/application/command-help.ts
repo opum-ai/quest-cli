@@ -31,10 +31,17 @@ export const commandHelp: Record<
   },
   init: {
     summary:
-      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing.",
+      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing. Refuses if already initialized -- use `quest init --reconfigure` to change name/task-id-prefix on an existing workspace instead of deleting .quest/ and starting over.",
     usage:
       'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
     flags: ["--name", "--task-id-prefix", "--agent-instructions"],
+  },
+  "init --reconfigure": {
+    summary:
+      "Change the declared name and/or task ID prefix on an existing workspace without deleting .quest/. The supported alternative to `rm -rf .quest && quest init`, which discards every task record --.quest/ is not always tracked in git. Fields not given keep their current value.",
+    usage:
+      'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC]',
+    flags: ["--name", "--task-id-prefix", "--reconfigure"],
   },
   // The human-facing entry stays whole: `--list` is a flag of `quest
   // instructions`, and splitting it out would make `quest help instructions`

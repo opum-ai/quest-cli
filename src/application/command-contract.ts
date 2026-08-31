@@ -60,6 +60,7 @@ export interface CommandManifestEntry {
     | "version"
     | "help"
     | "init"
+    | "init --reconfigure"
     | "instructions"
     | "instructions --list"
     | "instructions <guide>"
@@ -129,6 +130,16 @@ export const commandManifest = {
       name: "init",
       schemaVersion: 1,
       kind: "workspace.initialized",
+      mutates: true,
+    },
+    // A separate entry rather than reusing "init": --reconfigure emits a
+    // different envelope kind because it is a different event -- updating
+    // declared config on an existing workspace, never creating one -- not a
+    // second spelling of initialization (QCLI-161).
+    {
+      name: "init --reconfigure",
+      schemaVersion: 1,
+      kind: "workspace.reconfigured",
       mutates: true,
     },
     // Three entries rather than one, following `search` / `search --all`: the
