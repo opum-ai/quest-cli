@@ -230,6 +230,7 @@
 - 2026-08-30T10:18:21-05:00 92856b428fc1e5e44f3e2615bb7b93e26602fd56 chore: retire Treehouse from the repository surface
 - 2026-08-30T11:39:14-05:00 3a921aa895c9b7785ef04d8285d6622b2558cb4d chore(backlog): record the QCLI-97.5.2 supersession evidence
 - 2026-08-30T11:44:51-05:00 e681b7426e70cae997618e4cdbffe2d7a659d43c chore(backlog): finalize QCLI-143 board export with verification evidence
+- 2026-08-31T11:51:41-05:00 90cb03f9ea92cd623c94fced57b46b6c09714849 docs: retire Codex-dispatch pattern, fix two dead backlog-handover links
 
 ## docs/adr
 
