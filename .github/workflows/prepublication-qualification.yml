@@ -2,6 +2,10 @@ name: Prepublication qualification
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - dev
   push:
     paths:
       - ".github/workflows/prepublication-qualification.yml"
@@ -38,9 +42,14 @@ jobs:
           QUEST_QUALIFICATION_SKIP_CANDIDATE: "1"
           QUEST_QUALIFICATION_STRICT: "1"
 
+  # The six-platform release matrix is too slow and too expensive to run on
+  # every PR. source-gates alone (typecheck, lint, format, layer boundaries,
+  # and the full test suite) is the required PR check; this job stays scoped
+  # to push/workflow_dispatch/tag builds, matching its existing behavior.
   immutable-candidates:
     name: ${{ matrix.target }}
     needs: source-gates
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
