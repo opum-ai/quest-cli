@@ -1,10 +1,11 @@
 ---
 id: QCLI-160
 title: Backlog->Quest migration cannot preserve source ids (ODOC-N -> ODOC-N)
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@jeremy'
 created_date: '2026-08-31 13:26'
-updated_date: '2026-08-31 13:26'
+updated_date: '2026-08-31 14:54'
 labels: []
 dependencies: []
 priority: high
@@ -38,3 +39,11 @@ Tangential context, worth a skim during design: QCLI-66 (this repo) is about opu
 - [ ] #4 Behavior for records whose source id is unavailable for preservation (prefix not selected, or collision unresolved) is explicit: falls back to positional allocation, or refuses, per the design -- not left implicit
 - [ ] #5 Per-repo collision counts are reverified against each backlog live at implementation time rather than trusted from the 2026-08-31 simulation
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Research complete on current mechanism (previewInternal/backlog-public.ts, BacklogImporter/adapters/migration/backlog/importer.ts, CLI wiring in main.ts:907-1003). Got opag's rulings on ACs 2-4 (fail-closed with full conflict list on collision; family SELECTION not merge for AC3, driven by lore-cli/opum-doc's own data rulings -- LORE frozen/all-superseded-by-LCLI, OCLI all historical/superseded-by-ODOC; explicit per-run refusal for unpreservable ids). AC1/mode-vs-default left to me.
+
+BLOCKER found before writing allocation logic: Quest's canonicalIdPattern (src/domain/records.ts:20) is strictly <prefix>-<int>, no dots -- cannot represent a dotted Backlog subtask id (e.g. QCLI-97.5.2) at all. 45/206 (~22%) of this repo's own backlog ids are dotted. Read literally, AC4's 'run stops' as whole-batch refusal would make id-preserving migration refuse against any backlog with subtasks, i.e. every real fleet backlog. Escalated to opag for a ruling on whether refusal should be per-record (exclude + itemize, rest of batch proceeds) rather than whole-batch; recommended per-record as the only version that's usable against real data, and flagged full dotted-subtask-id support in Quest's own schema as a separate, larger follow-up rather than folding it into this task. Holding on control-flow implementation until this is settled; proceeding with decision-independent groundwork (family/prefix detection, CLI flag surface) in the meantime.
+<!-- SECTION:NOTES:END -->
