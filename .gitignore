@@ -2,4 +2,3 @@
 .codex/handovers/
 node_modules/
 npm/quest-*/bin/quest*
-.quest/
