@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Quest CLI tracker subprocess contract.",
   "license": "MIT",
   "type": "module",
@@ -41,20 +41,20 @@
     "publish:release": "node scripts/publish-release.mjs"
   },
   "optionalDependencies": {
-    "@opum-ai/quest-darwin-arm64": "0.3.0",
-    "@opum-ai/quest-darwin-x64": "0.3.0",
-    "@opum-ai/quest-linux-arm64": "0.3.0",
-    "@opum-ai/quest-linux-x64": "0.3.0",
-    "@opum-ai/quest-win32-arm64": "0.3.0",
-    "@opum-ai/quest-win32-x64": "0.3.0"
+    "@opum-ai/quest-darwin-arm64": "0.3.1",
+    "@opum-ai/quest-darwin-x64": "0.3.1",
+    "@opum-ai/quest-linux-arm64": "0.3.1",
+    "@opum-ai/quest-linux-x64": "0.3.1",
+    "@opum-ai/quest-win32-arm64": "0.3.1",
+    "@opum-ai/quest-win32-x64": "0.3.1"
   },
   "questPlatformPackages": {
-    "@opum-ai/quest-darwin-arm64": "6a6267dfaa77fd43b0d96db3c4fdfd003eb4b52ec25cb34c969e22c26b9caee2",
-    "@opum-ai/quest-darwin-x64": "f29f92e89bb1c5619ffb7043af40384fda7760bc5294345336337844080a8095",
-    "@opum-ai/quest-linux-arm64": "b4c8949f3ea02e2e829e16f43d8c306d5851e62bae295941a0ec27110f3c48c3",
-    "@opum-ai/quest-linux-x64": "f9757eca1928c4cf84ffa2e5af9c7461c05f30db5df8b82e19d162c2cbd7bd7a",
-    "@opum-ai/quest-win32-arm64": "c0ccccfe43a3fb82a9b4b2aab7e72b869737fb67b2f85e20485a7a697a120bdb",
-    "@opum-ai/quest-win32-x64": "e8f3f6a2246350c0f8ce643f6a36808496b61f78d13c869cb816650ed1bf1a88"
+    "@opum-ai/quest-darwin-arm64": "aa308074b669571409c9fea9e2bf9f86f21343697d95aeb80114437a4d49cd09",
+    "@opum-ai/quest-darwin-x64": "c3162058f9b343ec502b5aa6cc07381ab260c86eecfe18cc7d2e53508b74e44e",
+    "@opum-ai/quest-linux-arm64": "7cd4aee37cdb50f16d3aaa7b4a4ca2cae73c9dd40dd621b6bcc0d7b40d07156a",
+    "@opum-ai/quest-linux-x64": "4e5cbd29bdd5b8e295d9feae7e4ab3d804f98f9706e117caed2a99533b57068f",
+    "@opum-ai/quest-win32-arm64": "b4cf350d6971c8adca2153d11a56a8aad5166a8ab93479b7593f1afbe8ccca7c",
+    "@opum-ai/quest-win32-x64": "0d14395ad9db81f7ac9369e24078aa44e176a5ce17a75968ba0169b37f6d66dc"
   },
   "dependencies": {
     "commander": "15.0.0",
