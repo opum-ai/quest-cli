@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest-linux-arm64",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Quest CLI binary for linux-arm64.",
   "license": "MIT",
   "repository": {
@@ -16,5 +16,5 @@
   "files": [
     "bin/quest"
   ],
-  "questBinarySha256": "b4c8949f3ea02e2e829e16f43d8c306d5851e62bae295941a0ec27110f3c48c3"
+  "questBinarySha256": "7cd4aee37cdb50f16d3aaa7b4a4ca2cae73c9dd40dd621b6bcc0d7b40d07156a"
 }
