@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Quest CLI tracker subprocess contract.",
   "license": "MIT",
   "type": "module",
@@ -41,12 +41,12 @@
     "publish:release": "node scripts/publish-release.mjs"
   },
   "optionalDependencies": {
-    "@opum-ai/quest-darwin-arm64": "0.3.0",
-    "@opum-ai/quest-darwin-x64": "0.3.0",
-    "@opum-ai/quest-linux-arm64": "0.3.0",
-    "@opum-ai/quest-linux-x64": "0.3.0",
-    "@opum-ai/quest-win32-arm64": "0.3.0",
-    "@opum-ai/quest-win32-x64": "0.3.0"
+    "@opum-ai/quest-darwin-arm64": "0.3.1",
+    "@opum-ai/quest-darwin-x64": "0.3.1",
+    "@opum-ai/quest-linux-arm64": "0.3.1",
+    "@opum-ai/quest-linux-x64": "0.3.1",
+    "@opum-ai/quest-win32-arm64": "0.3.1",
+    "@opum-ai/quest-win32-x64": "0.3.1"
   },
   "questPlatformPackages": {
     "@opum-ai/quest-darwin-arm64": "6a6267dfaa77fd43b0d96db3c4fdfd003eb4b52ec25cb34c969e22c26b9caee2",
