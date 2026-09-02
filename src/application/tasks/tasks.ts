@@ -184,6 +184,14 @@ export interface TaskListQuery {
     /** Ascending when omitted, matching the CLI's bare `--sort <field>`. */
     readonly direction?: "asc" | "desc";
   };
+  /**
+   * Includes archived tasks in the selection (QCLI-165). Completed tasks are
+   * always included -- Done is an ordinary terminal status, filterable like
+   * any other via --status/--exclude-status -- matching `milestone list
+   * --include-archived`'s existing default-excluded convention for the
+   * archive location specifically.
+   */
+  readonly includeArchived?: boolean;
 }
 
 const TASK_LIST_SORT_FIELDS = new Set([
@@ -448,7 +456,18 @@ export class TaskService {
     // One snapshot feeds both the listing and the ready set, so readiness can
     // never describe a different revision than the rows it selects.
     const snapshot = await this.repository.readAll();
-    const listed = [...snapshot.tasks].sort((a, b) => a.id.localeCompare(b.id));
+    // QCLI-165: snapshot.tasks only holds the "tasks" location, so a
+    // completed task was invisible to every list query -- including an
+    // explicit --status Done -- because it never reached the filter at all.
+    // Source from every location instead, matching view()'s and
+    // listIncludingRetained()'s existing all-locations resolution; archived
+    // stays opt-in via includeArchived, matching milestone list's convention.
+    const located = this.taskRecords(snapshot).filter(
+      (record) => record.location !== "archive/tasks" || query.includeArchived,
+    );
+    const listed = located
+      .map((record) => record.task)
+      .sort((a, b) => a.id.localeCompare(b.id));
     // Readiness is evaluated over the whole collection before any filter: a
     // dependency excluded by --label must still count against its dependent.
     const readyIds = query.ready

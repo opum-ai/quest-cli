@@ -1648,6 +1648,7 @@ export async function runQuest(
           "--search",
           "--limit",
           "--sort",
+          "--include-archived",
         ])
       )
         return failure("usage", "task list received invalid arguments.");
@@ -1672,6 +1673,7 @@ export async function runQuest(
           search: one(parsed, "--search"),
           limit: limitValue(one(parsed, "--limit")),
           sort: sortValue(one(parsed, "--sort")),
+          includeArchived: parsed.values.has("--include-archived") || undefined,
         }),
         modeFor(parsed),
       );

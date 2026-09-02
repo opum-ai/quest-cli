@@ -235,6 +235,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
       filters: [
         "assignee",
         "exclude-status",
+        "include-archived",
         "label",
         "limit",
         "milestone",

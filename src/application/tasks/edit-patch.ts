@@ -115,30 +115,49 @@ export function foldEditPatch(
     patch.appendFinalSummary,
   );
   if (finalSummary !== undefined) next.finalSummary = finalSummary;
-  if (patch.labels !== undefined) next.labels = [...patch.labels];
-  else if (patch.addLabels?.length || patch.removeLabels?.length)
+  // Replace-plus-add COMPOSES for these four list families (QCLI-150): a
+  // wholesale replacement supplies the base in place of `current`, and any
+  // add/remove given in the same patch still applies on top of it. See
+  // mergeList's own doc comment for the exact rule.
+  if (
+    patch.labels !== undefined ||
+    patch.addLabels?.length ||
+    patch.removeLabels?.length
+  )
     next.labels = mergeList(
-      current.labels,
+      patch.labels ?? current.labels,
       patch.addLabels,
       patch.removeLabels,
     );
   if (patch.documentation !== undefined)
     next.documentation = patch.documentation;
-  if (patch.plan !== undefined) next.plan = [...patch.plan];
-  else if (patch.addPlan?.length || patch.removePlan?.length)
-    next.plan = mergeList(current.plan, patch.addPlan, patch.removePlan);
-  if (patch.implementationNotes !== undefined)
-    next.implementationNotes = [...patch.implementationNotes];
-  else if (patch.addNotes?.length || patch.removeNotes?.length)
+  if (
+    patch.plan !== undefined ||
+    patch.addPlan?.length ||
+    patch.removePlan?.length
+  )
+    next.plan = mergeList(
+      patch.plan ?? current.plan,
+      patch.addPlan,
+      patch.removePlan,
+    );
+  if (
+    patch.implementationNotes !== undefined ||
+    patch.addNotes?.length ||
+    patch.removeNotes?.length
+  )
     next.implementationNotes = mergeList(
-      current.implementationNotes,
+      patch.implementationNotes ?? current.implementationNotes,
       patch.addNotes,
       patch.removeNotes,
     );
-  if (patch.comments !== undefined) next.comments = [...patch.comments];
-  else if (patch.addComments?.length || patch.removeComments?.length)
+  if (
+    patch.comments !== undefined ||
+    patch.addComments?.length ||
+    patch.removeComments?.length
+  )
     next.comments = mergeComments(
-      current.comments,
+      patch.comments ?? current.comments,
       patch.addComments,
       patch.removeComments,
     );
@@ -194,7 +213,16 @@ export function foldEditPatch(
 
 /**
  * Folds the public replace/add/remove/clear vocabulary into one deterministic
- * list value: current minus removed, then new entries not already present.
+ * list value: `current` minus removed, then new entries not already present.
+ *
+ * For labels, plan, implementationNotes and comments, `current` here may
+ * already be a same-patch wholesale replacement rather than the task's prior
+ * value (QCLI-150) — the caller substitutes the replacement in before
+ * calling, so replace-plus-add COMPOSES exactly like {@link foldFinalSummary}
+ * rather than silently dropping the add. This differs from
+ * {@link foldCheckList}, which rejects replacement combined with an index
+ * operation outright because an index addresses positions the caller never
+ * saw the replacement assign.
  */
 function mergeList(
   current: readonly string[],
