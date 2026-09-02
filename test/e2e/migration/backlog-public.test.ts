@@ -732,12 +732,97 @@ test("a case-only id collision with a live task is refused, not silently overwri
     expect(preview.exitCode).toBe(5);
     expect(JSON.parse(preview.stderr)).toMatchObject({
       error_type: "conflict",
-      message: 'Alias collision: "qcli-1" conflicts with "QCLI-1".',
+      message:
+        'Alias collision: "qcli-1" conflicts with "QCLI-1". If this is from positional renumbering (for example a dotted subtask flattening and shifting a later allocation), --preserve-source-ids --source-family <PREFIX> avoids it by keeping each record\'s own source id instead.',
     });
 
     // Refused at preview: nothing was written under the colliding id.
     const listed = await quest(store, ["task", "list", "--json"]);
     expect(JSON.parse(listed.stdout).data).toHaveLength(1);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("a dotted subtask shifts positional allocation into a same-prefix collision, and the refusal points at --preserve-source-ids (QCLI-166)", async () => {
+  // Reproduces opag's 2026-09-02 report against a real opum-agent backlog:
+  // flattening OPAG-1.1 consumes a number and shifts every later allocation,
+  // so the target minted for it can land on an id a different record's own
+  // alias already occupies. This is the same-prefix case (QCLI-157's "does
+  // not self-collide on its own minted id" test covers the collision-free
+  // shape); adding one dotted subtask is what turns it into a real collision.
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-shift-"));
+  const source = await mkdtemp(join(tmpdir(), "quest-backlog-shift-src-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd: store }).exited;
+    const init = await questNative(store, [
+      "init",
+      "--task-id-prefix",
+      "OPAG",
+      "--json",
+    ]);
+    expect(init.exitCode).toBe(0);
+
+    const tasks = join(source, "backlog", "tasks");
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, "OPAG-1.md"),
+      `---\nid: OPAG-1\ntitle: Parent\nstatus: To Do\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "OPAG-1.1.md"),
+      `---\nid: OPAG-1.1\ntitle: Subtask\nstatus: To Do\nparent: OPAG-1\n---\n\nBody.\n`,
+    );
+    await writeFile(
+      join(tasks, "OPAG-2.md"),
+      `---\nid: OPAG-2\ntitle: Unrelated sibling\nstatus: To Do\n---\n\nBody.\n`,
+    );
+
+    const positional = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]);
+    expect(positional.exitCode).toBe(5);
+    const positionalError = JSON.parse(positional.stderr);
+    expect(positionalError.error_type).toBe("conflict");
+    expect(positionalError.message).toStartWith("Alias collision:");
+    expect(positionalError.message).toContain("--preserve-source-ids");
+    expect(positionalError.message).toContain("--source-family <PREFIX>");
+
+    const preserved = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--preserve-source-ids",
+      "--source-family",
+      "OPAG",
+      "--json",
+    ]);
+    expect(preserved.exitCode).toBe(0);
+    const mappings = JSON.parse(preserved.stdout).data.mappings as {
+      sourceIdentifier: string;
+      targetIdentifier: string;
+      aliases: readonly string[];
+    }[];
+    expect(
+      mappings.find((m) => m.sourceIdentifier === "OPAG-1")?.targetIdentifier,
+    ).toBe("OPAG-1");
+    expect(
+      mappings.find((m) => m.sourceIdentifier === "OPAG-2")?.targetIdentifier,
+    ).toBe("OPAG-2");
+    // Dotted subtasks still translate to a fresh flat id even under
+    // preservation -- Quest has no dotted canonical id -- with the dotted
+    // spelling kept as an alias.
+    const subtask = mappings.find((m) => m.sourceIdentifier === "OPAG-1.1");
+    expect(subtask?.targetIdentifier).not.toBe("OPAG-1.1");
+    expect(subtask?.aliases).toContain("OPAG-1.1");
   } finally {
     await rm(store, { recursive: true, force: true });
     await rm(source, { recursive: true, force: true });

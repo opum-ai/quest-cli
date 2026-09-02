@@ -10,6 +10,7 @@ import {
   type CanonicalId,
   assertAliasesAvailable,
   collectAliasCollisions,
+  RecordConflictError,
   RecordValidationError,
 } from "../../domain/records.ts";
 import {
@@ -468,7 +469,23 @@ async function previewInternal(
     }
     return [...perTask.values()];
   });
-  assertAliasesAvailable(candidates, occupied);
+  try {
+    assertAliasesAvailable(candidates, occupied);
+  } catch (error) {
+    // Deliberately cause-agnostic: this collision can be a genuine id clash
+    // with a live task (QCLI-155) as easily as positional renumbering
+    // shifting an allocation when a dotted subtask flattens, and the two
+    // look identical from here. Naming --preserve-source-ids as an escape
+    // hatch is correct either way -- it stops renumbering entirely -- but
+    // claiming it caused THIS collision would be a diagnosis this code
+    // cannot make (QCLI-166, opag's 2026-09-02 opum-agent migration-preview
+    // report).
+    if (error instanceof RecordConflictError)
+      throw new RecordConflictError(
+        `${error.message} If this is from positional renumbering (for example a dotted subtask flattening and shifting a later allocation), --preserve-source-ids --source-family <PREFIX> avoids it by keeping each record's own source id instead.`,
+      );
+    throw error;
+  }
   const digest = fingerprint({
     sourceFingerprint: snapshot.fingerprint,
     mappings,
