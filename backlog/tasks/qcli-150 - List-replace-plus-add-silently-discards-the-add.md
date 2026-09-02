@@ -1,9 +1,10 @@
 ---
 id: QCLI-150
 title: List replace plus add silently discards the add
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-29 23:12'
+updated_date: '2026-09-02 21:34'
 labels:
   - task-edit
   - correctness
@@ -32,7 +33,13 @@ Preference, not yet decided: compose, matching finalSummary and mergeList's own 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Combining a list replacement with an add in one edit either composes or errors; it never silently discards the add.
-- [ ] #2 The chosen rule is applied consistently across labels, plan, implementationNotes and comments, and stated in foldEditPatch's documentation alongside the checklist and finalSummary rules.
-- [ ] #3 A test covers replace-plus-add for each of the four families, and was confirmed red against the current behaviour.
+- [x] #1 Combining a list replacement with an add in one edit either composes or errors; it never silently discards the add.
+- [x] #2 The chosen rule is applied consistently across labels, plan, implementationNotes and comments, and stated in foldEditPatch's documentation alongside the checklist and finalSummary rules.
+- [x] #3 A test covers replace-plus-add for each of the four families, and was confirmed red against the current behaviour.
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+foldEditPatch's replace-plus-add now composes for labels, plan, implementationNotes, and comments: the wholesale replacement supplies mergeList's base in place of current, so an add/remove in the same patch still applies (matching finalSummary's existing replace-then-append contract). Documented on mergeList's own doc comment alongside the checklist/finalSummary rules. New regression test confirmed red against pre-fix code (git-verified: temporarily restored the old edit-patch.ts, the new test failed exactly as expected -- labels came back ["fresh"] not ["fresh","extra"]), then green after restoring the fix. Merged via PR #242 (squash, dev), bun test 398/398, typecheck/lint/format/layer all clean.
+<!-- SECTION:FINAL_SUMMARY:END -->

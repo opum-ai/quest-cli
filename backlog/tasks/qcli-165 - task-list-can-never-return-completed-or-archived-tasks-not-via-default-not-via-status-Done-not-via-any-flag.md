@@ -3,9 +3,10 @@ id: QCLI-165
 title: >-
   task list can never return completed or archived tasks -- not via default, not
   via --status Done, not via any flag
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-09-02 20:26'
+updated_date: '2026-09-02 21:34'
 labels:
   - cli
   - tasks
@@ -36,8 +37,14 @@ Downstream impact confirmed real: this is the actual root cause feeding lore-cli
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 task list --status "Done" (and any configured terminal status) returns completed tasks; task list --status <archived-equivalent> or an explicit flag returns archived tasks
-- [ ] #2 Unfiltered task list's default scope (active-only vs. everything) is decided explicitly and documented in command-help.ts's usage line, rather than left as an accidental all-locations-except-tasks exclusion
-- [ ] #3 task view already resolves completed/archived tasks correctly (confirmed working) -- list gains parity with view's location-agnostic lookup rather than view losing it
-- [ ] #4 A regression test covers: list with no filter, list --status <terminal>, and list --exclude-status <terminal>, each against a task in tasks/, completed/, and archive/tasks/
+- [x] #1 task list --status "Done" (and any configured terminal status) returns completed tasks; task list --status <archived-equivalent> or an explicit flag returns archived tasks
+- [x] #2 Unfiltered task list's default scope (active-only vs. everything) is decided explicitly and documented in command-help.ts's usage line, rather than left as an accidental all-locations-except-tasks exclusion
+- [x] #3 task view already resolves completed/archived tasks correctly (confirmed working) -- list gains parity with view's location-agnostic lookup rather than view losing it
+- [x] #4 A regression test covers: list with no filter, list --status <terminal>, and list --exclude-status <terminal>, each against a task in tasks/, completed/, and archive/tasks/
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+listFiltered now sources from every task-record location (tasks/completed/archive/tasks) via the existing taskRecords() helper, matching task view's and listIncludingRetained's already-correct all-locations resolution -- readAll().tasks had silently stripped everything but the active tasks/ location before any --status filter ran. Completed tasks are visible by default (an ordinary terminal status); archived tasks stay opt-in behind a new --include-archived flag, mirroring milestone list's existing convention, documented in command-help.ts's usage line. Updated 3 separate contract-golden sources (command-contract.ts, contract/tracker/fixtures.ts, contract/tracker/index.ts's own probe() required-list) for the additive include-archived filter, plus one existing test whose assertion had encoded the bug as intended behavior. New regression test covers default/--status/--exclude-status/--include-archived across all three storage locations, confirmed red against pre-fix code before restoring the fix. Merged via PR #242 (squash, dev), bun test 398/398, typecheck/lint/format/layer all clean. Confirms the root cause behind lore-cli's LCLI-375 orphans false-positive; task view (the reference behavior AC3 asks to preserve) was untouched by this change.
+<!-- SECTION:FINAL_SUMMARY:END -->
