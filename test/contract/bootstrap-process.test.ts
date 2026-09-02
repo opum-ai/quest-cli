@@ -660,11 +660,12 @@ test("a configured task ID prefix round-trips through create, view, edit and com
     const completed = await run(cwd, "task", "complete", "QCLI-1", ...human);
     expect(completed.exitCode).toBe(0);
 
-    // list() reports active tasks, so the completed one is retained, not shown.
+    // list() includes completed tasks by default (QCLI-165); the completed
+    // one is retained AND shown, alongside the still-active one.
     const listed = await run(cwd, "task", "list", "--json");
     expect(
       JSON.parse(listed.stdout).data.map((t: { id: string }) => t.id),
-    ).toEqual(["QCLI-2"]);
+    ).toEqual(["QCLI-1", "QCLI-2"]);
 
     // The retained record still reserves its number: allocation never reuses it.
     const third = await run(cwd, "task", "create", "Third", ...human);

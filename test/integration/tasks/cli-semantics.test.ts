@@ -476,6 +476,149 @@ test("edit replace add remove clear operations keep deterministic ordering", asy
   });
 });
 
+test("edit composes a wholesale list replacement with an add in the same command instead of discarding the add (QCLI-150)", async () => {
+  await withStore(async (run) => {
+    const seeded = await run([
+      "task",
+      "create",
+      "Compose task",
+      "--label",
+      "stale",
+      "--plan",
+      '["stale-step"]',
+      "--implementation-notes",
+      '["stale-note"]',
+      "--comments",
+      '[{"id":"c-1","authorId":"person-1","body":"stale comment","createdAt":"2026-01-01T00:00:00.000Z"}]',
+      ...actor,
+      "--json",
+    ]);
+    expect(seeded.exitCode).toBe(0);
+    const id = (json(seeded).data as { id: string }).id;
+
+    const updated = await run([
+      "task",
+      "edit",
+      id,
+      "--labels",
+      '["fresh"]',
+      "--add-label",
+      "extra",
+      "--plan",
+      '["fresh-step"]',
+      "--add-plan",
+      "extra-step",
+      "--notes",
+      '["fresh-note"]',
+      "--add-note",
+      "extra-note",
+      "--comments",
+      '[{"id":"c-2","authorId":"person-1","body":"fresh comment","createdAt":"2026-01-02T00:00:00.000Z"}]',
+      "--add-comment",
+      '[{"id":"c-3","authorId":"person-1","body":"extra comment","createdAt":"2026-01-03T00:00:00.000Z"}]',
+      ...actor,
+      "--json",
+    ]);
+    expect(updated.exitCode).toBe(0);
+    const data = json(updated).data as Record<string, unknown>;
+    // Each family composes: the replacement supplies the base, and the add
+    // in the same command still lands on top of it rather than being
+    // silently discarded.
+    expect(data.labels).toEqual(["fresh", "extra"]);
+    expect(data.plan).toEqual(["fresh-step", "extra-step"]);
+    expect(data.implementationNotes).toEqual(["fresh-note", "extra-note"]);
+    expect(
+      (data.comments as { id: string }[]).map((comment) => comment.id),
+    ).toEqual(["c-2", "c-3"]);
+  });
+});
+
+test("list sees completed tasks by default and archived tasks behind --include-archived (QCLI-165)", async () => {
+  await withStore(async (run) => {
+    const active = await run(["task", "create", "Active", ...actor, "--json"]);
+    const activeId = (json(active).data as { id: string }).id;
+
+    const completed = await run([
+      "task",
+      "create",
+      "Completed",
+      ...actor,
+      "--json",
+    ]);
+    const completedId = (json(completed).data as { id: string }).id;
+    await run([
+      "task",
+      "edit",
+      completedId,
+      "--status",
+      "In Progress",
+      ...actor,
+      "--json",
+    ]);
+    const completeResult = await run([
+      "task",
+      "complete",
+      completedId,
+      ...actor,
+      "--json",
+    ]);
+    expect(completeResult.exitCode).toBe(0);
+
+    const archived = await run([
+      "task",
+      "create",
+      "Archived",
+      ...actor,
+      "--json",
+    ]);
+    const archivedId = (json(archived).data as { id: string }).id;
+    const archiveResult = await run([
+      "task",
+      "archive",
+      archivedId,
+      ...actor,
+      "--json",
+    ]);
+    expect(archiveResult.exitCode).toBe(0);
+
+    // view already resolves any location; confirms the fixtures landed where expected.
+    expect(
+      (
+        json(await run(["task", "view", completedId, "--json"])).data as {
+          status: string;
+        }
+      ).status,
+    ).toBe("Done");
+    expect(
+      (
+        json(await run(["task", "view", archivedId, "--json"])).data as {
+          status: string;
+        }
+      ).status,
+    ).toBe("To Do");
+
+    const ids = (result: { stdout: string }): string[] =>
+      (json(result).data as { id: string }[]).map((task) => task.id).sort();
+
+    // Default: active + completed, never archived.
+    expect(ids(await run(["task", "list", "--json"]))).toEqual(
+      [activeId, completedId].sort(),
+    );
+    // Explicit terminal-status filter reaches the completed task.
+    expect(
+      ids(await run(["task", "list", "--status", "Done", "--json"])),
+    ).toEqual([completedId]);
+    // Excluding Done leaves only the still-active task.
+    expect(
+      ids(await run(["task", "list", "--exclude-status", "Done", "--json"])),
+    ).toEqual([activeId]);
+    // --include-archived adds the archived task on top of the default set.
+    expect(
+      ids(await run(["task", "list", "--include-archived", "--json"])),
+    ).toEqual([activeId, archivedId, completedId].sort());
+  });
+});
+
 test("writes without an actor are denied and unknown flags fail loud as usage", async () => {
   await withStore(async (run) => {
     const noActor = await run(["task", "create", "No actor", "--json"]);

@@ -143,9 +143,9 @@ export const commandHelp: Record<
   },
   "task list": {
     summary:
-      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, or a search term.",
+      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived.",
     usage:
-      'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--search text] [--sort id[:asc|desc]] [--limit 20]',
+      'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--search text] [--sort id[:asc|desc]] [--limit 20] [--include-archived]',
     flags: [
       "--status",
       "--exclude-status",
@@ -160,6 +160,7 @@ export const commandHelp: Record<
       "--search",
       "--sort",
       "--limit",
+      "--include-archived",
     ],
   },
   "task view": {

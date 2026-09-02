@@ -537,6 +537,7 @@ export class QuestTrackerClient {
         filters: [
           "assignee",
           "exclude-status",
+          "include-archived",
           "label",
           "limit",
           "milestone",
