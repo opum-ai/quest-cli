@@ -1,0 +1,38 @@
+---
+id: QCLI-167
+title: >-
+  migration backlog preview: positional-renumbering collision points at
+  --preserve-source-ids
+status: Done
+assignee: []
+created_date: '2026-09-02 22:28'
+updated_date: '2026-09-02 22:28'
+labels:
+  - migration
+  - dx
+dependencies: []
+references:
+  - src/application/migration/backlog-public.ts
+priority: low
+type: enhancement
+ordinal: 196000
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+opag reported (2026-09-02) that plain migration backlog preview against opum-agent's real backlog refused with a bare 'Alias collision: OPAG-2 conflicts with OPAG-2' -- correct behavior (positional renumbering shifted an allocation when OPAG-1.1 flattened, landing on an id OPAG-2's own alias already occupied), but the message gave no hint that --preserve-source-ids avoids the whole allocation scheme. opag explicitly deferred the UX call to quest-cli as owner rather than filing it as a bug. Decided: worth a small enrichment, cause-agnostic (the same collision shape can be a genuine id clash unrelated to renumbering, QCLI-155's existing test).
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 Preview's alias-collision error, when raised from the positional (non-preserve-source-ids) allocation path, names --preserve-source-ids --source-family <PREFIX> as a way to avoid renumbering-caused collisions
+- [x] #2 The hint is phrased conditionally ("if this is from positional renumbering"), not asserted as the cause, since the same error shape can be a genuine pre-existing id clash (QCLI-155)
+- [x] #3 A regression test reproduces the exact shift mechanism (a dotted subtask consuming a number, shifting a later same-prefix allocation into collision) and confirms --preserve-source-ids resolves it cleanly
+<!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Wrapped assertAliasesAvailable's call in previewInternal's positional-renumbering branch (src/application/migration/backlog-public.ts) with a try/catch that re-throws RecordConflictError with an appended, cause-agnostic hint pointing at --preserve-source-ids --source-family <PREFIX>. Updated the existing QCLI-155 case-collision test's exact-message assertion to match, and added a new regression test reproducing the actual shift mechanism (OPAG-1/OPAG-1.1/OPAG-2, same-prefix target) that confirms both the enriched refusal and the --preserve-source-ids resolution. bun test 399/399, typecheck/lint/format/layer clean.
+<!-- SECTION:FINAL_SUMMARY:END -->
