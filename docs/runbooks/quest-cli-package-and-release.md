@@ -23,15 +23,32 @@ release does not complete.
 
 - A reviewed source commit and the exact root plus six platform tarballs:
   darwin/linux/win32 on x64 and arm64.
-- The Bun version this repository pins, for any build covering all six
-  platforms. Cross-compiling `bun-windows-aarch64` requires a recent Bun: 1.2.x
+- The exact Bun version this repository pins (`packageManager` in
+  `package.json`; the workflows' `bun-version` matches it), for any build
+  covering all six platforms **and any `bun install`/lockfile touch before
+  it**. Cross-compiling `bun-windows-aarch64` requires a recent Bun: 1.2.x
   refuses it outright with `error: Unsupported compile target`, and
-  `build:packages` then stops after four of six, leaving the tree half-built.
-  1.3.14, the version CI pins, compiles all six. Check `bun --version` against
-  the workflow's `bun-version` before building rather than after.
+  `build:packages` then stops after four of six, leaving the tree
+  half-built. A mismatched Bun is also more dangerous the other way:
+  running `bun install` with 1.2.x against a repo pinned to 1.3.14 silently
+  dropped `bun.lock`'s `configVersion` field — no error, no warning, just a
+  lockfile in a format CI's frozen-lockfile install does not expect. Check
+  `bun --version` against `package.json`'s `packageManager` before touching
+  `bun.lock` or building, not after. `bun upgrade` does not take a version;
+  use `bun update --version <version>`, or
+  `curl -fsSL https://bun.sh/install | bash -s "bun-v<version>"` for an
+  exact pin.
 - Package checks that prove root/platform version and SHA-256 agreement,
   platform constraints, license, repository identity, and published-file
-  contents.
+  contents. This is why platform binaries get built **locally, before any
+  commit**, not via a CI dispatch on the branch: `check:packages` runs as
+  part of `source-gates`, and `immutable-candidates` (the job that actually
+  rebuilds the six platforms) `needs: source-gates` — so a commit whose
+  platform packages don't yet match the bumped root version fails the very
+  gate that would let CI fix it. That is expected, not a runbook gap: build
+  locally with the matched Bun version first (previous bullet), commit
+  root and platform changes together as one reviewed commit, and only then
+  let CI validate it.
 - A native-execution receipt emitted by the tagged CI run, binding that exact
   commit and version. A receipt made by hand after the fact is not acceptable
   evidence: the one that existed before QCLI-135 outlived the release it
