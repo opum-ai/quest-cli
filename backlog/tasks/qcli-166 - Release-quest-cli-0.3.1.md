@@ -1,10 +1,10 @@
 ---
 id: QCLI-166
 title: Release quest-cli 0.3.1
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-02 21:44'
-updated_date: '2026-09-02 21:44'
+updated_date: '2026-09-02 22:17'
 labels:
   - release
   - packaging
@@ -24,10 +24,10 @@ User-authorized release (2026-09-02, relayed by opag with verbatim quote, indepe
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Version bumped (package.json, QUEST_VERSION, regenerated npm/quest-*/package.json) and all 6 platform binaries rebuilt via CI (not locally -- local Bun 1.2.23 can't cross-compile win32-arm64, CI pins 1.3.14) and committed to dev
-- [ ] #2 v0.3.1 tag created, prepublication-qualification.yml dispatched against the tag, native-execution-receipt fetched and gated locally
-- [ ] #3 release.yml dispatched dry-run (publish=false) then real (publish=true) against the tag; registry verified serving all 7 packages; receipt:verify-published passes
-- [ ] #4 Published version and gitHead reported back to opag for oe2e to pin as the fidelity-suite candidate
+- [x] #1 Version bumped (package.json, QUEST_VERSION, regenerated npm/quest-*/package.json) and all 6 platform binaries rebuilt via CI (not locally -- local Bun 1.2.23 can't cross-compile win32-arm64, CI pins 1.3.14) and committed to dev
+- [x] #2 v0.3.1 tag created, prepublication-qualification.yml dispatched against the tag, native-execution-receipt fetched and gated locally
+- [x] #3 release.yml dispatched dry-run (publish=false) then real (publish=true) against the tag; registry verified serving all 7 packages; receipt:verify-published passes
+- [x] #4 Published version and gitHead reported back to opag for oe2e to pin as the fidelity-suite candidate
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -47,3 +47,15 @@ User-authorized release (2026-09-02, relayed by opag with verbatim quote, indepe
 12. Report published version + gitHead to opag for oe2e to pin.
 Stop and report rather than improvise if any step's actual behavior diverges from this plan or the runbook.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Published: @opum-ai/quest@0.3.1, gitHead 8f4d48b0f8c4714eb70213766b19848b7b8e0d91, all 7 packages, npm latest dist-tag now 0.3.1. Receipt bound 0.3.1 at 8f4d48b across all six platforms; verified independently via receipt:verify-published after publish -- registry bytes match receipt digests exactly. OIDC provenance attestation present. Release run: https://github.com/opum-ai/quest-cli/actions/runs/33689352424
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Released @opum-ai/quest 0.3.1 following docs/runbooks/quest-cli-package-and-release.md exactly, after direct user authorization (confirmed in-session, not taken on opag's relay). Version bumped across all 5 source locations (package.json, QUEST_VERSION, QUEST_ADAPTER_PINNED_VERSION, optionalDependencies pins, conformance fixture) via PR #243; caught two would-be-missed test breaks before merge (lore-adapter-boundary version equality, versioned conformance fixture). Rebuilt all 6 platform binaries locally with Bun 1.3.14 (matching CI's pin exactly -- a mismatched 1.2.23 had silently dropped bun.lock's configVersion field, caught before it reached CI) since CI's own build path is gated behind the same check:packages consistency check it would fix, a chicken-and-egg the runbook resolves by building locally first. Tagged v0.3.1, dispatched qualification against the tag, gated the native-execution receipt locally, dry-run then real publish via release.yml, verified published bytes against the receipt. All independently confirmed, not taken on any single source's word.
+<!-- SECTION:FINAL_SUMMARY:END -->
