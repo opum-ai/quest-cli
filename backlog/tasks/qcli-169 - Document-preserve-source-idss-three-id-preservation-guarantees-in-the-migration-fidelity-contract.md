@@ -3,9 +3,11 @@ id: QCLI-169
 title: >-
   Document --preserve-source-ids's three id-preservation guarantees in the
   migration fidelity contract
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@jeremy'
 created_date: '2026-09-03 04:25'
+updated_date: '2026-09-03 04:32'
 labels:
   - migration
   - docs
@@ -29,3 +31,12 @@ The Backlog migration fidelity contract doc (docs/reference/quest-cli-backlog-mi
 - [ ] #4 the section cites QCLI-160 as the origin of the ruling and behavior
 - [ ] #5 the change is made through lore (not a plain editor) and lore check exits 0
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add a dated addendum subsection to docs/reference/quest-cli-backlog-migration-fidelity-contract.md documenting --preserve-source-ids's three guarantees, citing verified source lines and the e2e test.
+2. Run lore sync + lore check.
+3. Run the repo check suite.
+4. Branch, commit, PR, gh pr merge --auto --squash.
+<!-- SECTION:PLAN:END -->
