@@ -232,6 +232,7 @@
 - 2026-08-30T11:44:51-05:00 e681b7426e70cae997618e4cdbffe2d7a659d43c chore(backlog): finalize QCLI-143 board export with verification evidence
 - 2026-08-31T12:20:04-05:00 eb8e1b253e636fe0f6703472113065c52948035b docs: retire Codex-dispatch pattern, fix two dead backlog-handover links (#236)
 - 2026-09-02T17:19:17-05:00 142476621a0336d279c9d22415eeec1c4e68d139 docs: record two 0.3.1 release gotchas in the package-and-release runbook
+- 2026-09-02T23:36:37-05:00 08442e055b8e3dbf33fe8af8384e6ef400929ced docs: document --preserve-source-ids's id-preservation guarantees (QCLI-169) (#245)
 
 ## docs/adr
 
