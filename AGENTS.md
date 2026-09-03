@@ -27,15 +27,18 @@ Do not edit `.quest/` task, draft, document, decision, or milestone JSON files d
 Use the `quest` CLI so metadata, relationships, and history stay consistent. `.quest/` is
 tracked in Git and must never be gitignored.
 
-**`backlog/` is on disk but is not the system of record.** It is the pre-cutover
-Backlog.md export, retained read-only pending a separately governed fleet cleanup
-decision — do not read it as current tracker state, and do not create or edit anything
-under it. Migration renumbered Backlog's dotted subtask ids (e.g. `QCLI-97.11.1`) to flat
-Quest ids; the old dotted spelling survives as a resolving alias (`quest task view
-QCLI-97.11.1` still resolves), so a dotted id in older prose or commit messages is
-pre-cutover history, not a broken reference. A Story's `<!-- lore:tasks -->` block
-rendering bare task ids (`QCLI-1`) instead of hyperlinks into `backlog/` is expected
-post-cutover behavior — already observed and reported to `lore-cli` — not local breakage.
+**`backlog/` no longer exists in this repository.** Every record it held (214 tasks,
+0 excluded) has a counterpart in `.quest/tasks/`; it was removed as pure duplication
+once the migration was verified, not archived elsewhere. Its full pre-removal content
+is still in Git history — `git log -- backlog/` finds it, and the removal itself is a
+single ordinary commit, revertible like any other. Do not recreate `backlog/` or a
+`.backlog/` directory as a tracker; `quest` is the only tracker of record. Migration
+renumbered Backlog's dotted subtask ids (e.g. `QCLI-97.11.1`) to flat Quest ids; the old
+dotted spelling survives as a resolving alias (`quest task view QCLI-97.11.1` still
+resolves), so a dotted id in older prose or commit messages is pre-cutover history, not
+a broken reference. A Story's `<!-- lore:tasks -->` block rendering bare task ids
+(`QCLI-1`) instead of hyperlinks into `backlog/` is expected post-cutover behavior —
+already observed and reported to `lore-cli` — not local breakage.
 
 - **Skill:** `.claude/skills/quest/SKILL.md` — how to drive quest.
 
