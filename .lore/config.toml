@@ -18,7 +18,9 @@
 # parent_page_id = "98765"
 # format         = "storage"   # or "adf"
 
-# This repository still owns live Backlog.md records. Keep the tracker explicit
-# until the separately governed Quest migration is activated.
+# Cut over to Quest (QCLI-160/QCLI-169 preserve-source-ids migration,
+# 2026-09-03): quest-cli's live tracker of record is now the Quest workspace
+# under .quest/, not backlog/. backlog/ is retained, unmodified, pending the
+# fleet's separately governed cleanup decision.
 [tracker]
-backend = "backlog"
+backend = "quest"

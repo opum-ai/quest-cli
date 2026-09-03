@@ -37,13 +37,13 @@ does not authorize implementation beyond their stated scope.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-58](../../backlog/tasks/qcli-58%20-%20Assemble-a-decision-ready-D2-runtime-proposal-for-the-owners-ruling.md) | Assemble a decision-ready D2 runtime proposal for the owner's ruling | Done |
-| [QCLI-59](../../backlog/tasks/qcli-59%20-%20Amend-CLAUDE.mds-pre-activation-prohibition-to-match-the-verified-activation-state.md) | Amend CLAUDE.md's pre-activation prohibition to match the verified activation state | Done |
-| [QCLI-61](../../backlog/tasks/qcli-61%20-%20Guard-CLAUDE.mds-new-product-source-permission-against-silently-closing-D2.md) | Guard CLAUDE.md's new product-source permission against silently closing D2 | Done |
-| [QCLI-62](../../backlog/tasks/qcli-62%20-%20Author-the-Quest-dependency-ready-set-and-blocking-design.md) | Author the Quest dependency, ready-set, and blocking design | Done |
-| [QCLI-63](../../backlog/tasks/qcli-63%20-%20Record-the-Quest-CLI-D2-runtime-owner-ruling.md) | Record the Quest CLI D2 runtime owner ruling | Done |
-| [QCLI-64](../../backlog/tasks/qcli-64%20-%20Record-the-precedence-ruling-and-reconcile-the-Specs-pre-activation-prohibition.md) | Record the precedence ruling and reconcile the Specs' pre-activation prohibition | Done |
-| [QCLI-65](../../backlog/tasks/qcli-65%20-%20Align-the-registers-D2-phase-gating-cell-to-the-delivery-roadmap.md) | Align the register's D2 phase-gating cell to the delivery roadmap | Done |
+| QCLI-58 | Assemble a decision-ready D2 runtime proposal for the owner's ruling | Done |
+| QCLI-59 | Amend CLAUDE.md's pre-activation prohibition to match the verified activation state | Done |
+| QCLI-61 | Guard CLAUDE.md's new product-source permission against silently closing D2 | Done |
+| QCLI-62 | Author the Quest dependency, ready-set, and blocking design | Done |
+| QCLI-63 | Record the Quest CLI D2 runtime owner ruling | Done |
+| QCLI-64 | Record the precedence ruling and reconcile the Specs' pre-activation prohibition | Done |
+| QCLI-65 | Align the register's D2 phase-gating cell to the delivery roadmap | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
