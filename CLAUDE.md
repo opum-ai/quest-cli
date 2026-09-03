@@ -1,26 +1,45 @@
-<!-- BACKLOG.MD GUIDELINES START -->
-<!-- backlog.md-instructions-version: 1.48.0 -->
+<!-- QUEST GUIDELINES START -->
 <CRITICAL_INSTRUCTION>
 
-## Backlog.md Workflow
+## Quest Workflow
 
-This project uses Backlog.md for task and project management.
+This project cut its tracker of record over from Backlog.md to Quest (`quest`,
+`@opum-ai/quest` 0.3.1) on 2026-09-03 (`QCLI-160`/`QCLI-169`).
 
-**For every user request in this project, run `backlog instructions overview` before answering or taking action.**
+**For every user request in this project, run `quest instructions overview` before answering or taking action.**
 
-Use the overview to decide whether to search, read, create, or update Backlog tasks.
+Use the overview to decide whether to search, read, create, or update Quest tasks.
 
 Before task lifecycle actions, read the matching detailed guide:
-- `backlog instructions task-creation` before creating or splitting tasks
-- `backlog instructions task-execution` before planning, changing status or assignee, adding a plan or implementation notes, or implementing task work
-- `backlog instructions task-finalization` before checking acceptance criteria, writing final summaries, or moving tasks to terminal statuses
+- `quest instructions task-creation` before creating or splitting tasks
+- `quest instructions task-execution` before planning, changing status or assignee, adding a plan or implementation notes, or implementing task work
+- `quest instructions task-finalization` before checking acceptance criteria, writing final summaries, or moving tasks to terminal statuses
+- `quest instructions workspace` before workspace initialization or migration work
 
-Use `backlog <command> --help` before running unfamiliar commands. Help shows options, fields, and examples.
+Use `quest help <command>` before running unfamiliar commands. Help shows options, fields, and examples.
 
-Do not edit Backlog task, draft, document, decision, or milestone markdown files directly. Use the `backlog` CLI so metadata, relationships, and history stay consistent.
+Every write needs an explicit actor: `--actor <id> --actor-kind human`, or
+`--actor-kind delegated-agent --accountable-human <id>` when the actor performing the
+write is an agent rather than the human it is accountable to.
+
+Do not edit `.quest/` task, draft, document, decision, or milestone JSON files directly.
+Use the `quest` CLI so metadata, relationships, and history stay consistent. `.quest/` is
+tracked in Git and must never be gitignored.
+
+**`backlog/` is on disk but is not the system of record.** It is the pre-cutover
+Backlog.md export, retained read-only pending a separately governed fleet cleanup
+decision — do not read it as current tracker state, and do not create or edit anything
+under it. Migration renumbered Backlog's dotted subtask ids (e.g. `QCLI-97.11.1`) to flat
+Quest ids; the old dotted spelling survives as a resolving alias (`quest task view
+QCLI-97.11.1` still resolves), so a dotted id in older prose or commit messages is
+pre-cutover history, not a broken reference. A Story's `<!-- lore:tasks -->` block
+rendering bare task ids (`QCLI-1`) instead of hyperlinks into `backlog/` is expected
+post-cutover behavior — already observed and reported to `lore-cli` — not local breakage.
+
+- **Skill:** `.claude/skills/quest/SKILL.md` — how to drive quest.
 
 </CRITICAL_INSTRUCTION>
-<!-- BACKLOG.MD GUIDELINES END -->
+<!-- QUEST GUIDELINES END -->
 
 <!-- lore:agents:begin -->
 This repo uses **lore** — an OKF-native documentation CLI — for the docs bundle under `docs/`.
