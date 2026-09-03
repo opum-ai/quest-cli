@@ -1,3 +1,28 @@
+<!-- What this file is. Read before adding to it. -->
+<!--
+AGENTS.md is NOT where this repository's rules live. CLAUDE.md is: the fleet
+operating block, the repository profile, ownership and the dangerous set.
+
+Two things read this file, and neither is Claude Code, which does not load it:
+
+  1. opum-agent's `assertNoMigrationLaunchFence`, which requires the
+     `opum-agent shared skill source: ...` marker line below. It is a substring
+     check, not a hash -- `lore agents` may reformat around it freely, but
+     hard-wrapping that line mid-string breaks the fleet's launch gate.
+  2. The `backlog-handover` skill, whose step 2 says to read every applicable
+     AGENTS.md and whose SKILL.md:107 calls it "the authority ledger". That is
+     what the autonomous-docs block below is -- a standing campaign grant that
+     NARROWS authority. Do not delete it as boilerplate.
+
+The AUTHORITY LEDGER for this repository is CLAUDE.md's `opum:fleet-operating`
+block, section "Ownership", as narrowed by the autonomous-docs block below.
+
+Because nothing loads this file automatically, prose written here drifts unseen --
+opum-doc's copy claimed `backlog/` still existed on disk for a day while its own
+CLAUDE.md said otherwise. Put new repository rules in CLAUDE.md. Add to this file
+only what one of the two consumers above actually reads.
+-->
+
 
 <!-- QUEST GUIDELINES START -->
 <CRITICAL_INSTRUCTION>
