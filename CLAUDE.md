@@ -220,11 +220,15 @@ signal and a passing one are different facts.
 
 **That push is not "pushing straight to `main`" and does not need your user.**
 The two are easy to conflate and this block used to read as if it forbade the
-thing it requires. The distinction is enforcement, not mechanism: branch
-protection applies required checks to a direct push exactly as it does to a
-merge — opum-cli-e2e's first attempt was rejected with "2 of 3 required status
-checks queued". A fast-forward promotion therefore satisfies the review gates
-rather than bypassing them. Do NOT use GitHub's merge button: it staples a merge
+thing it requires. The distinction is enforcement, not mechanism: the
+required-checks rule is attached to the `main` REF, so it applies to any update
+of that ref regardless of how the update arrives. Verify it in your own repo
+rather than taking it on anyone's word — `gh api repos/opum-ai/<repo>/rules/branches/main`
+lists the `required_status_checks` rule, and `gh api repos/opum-ai/<repo>/rulesets`
+shows whether any bypass actor is configured. As of 2026-09-03 every fleet repo
+has that rule and ZERO bypass actors, so nothing and nobody is exempt. A
+fast-forward promotion therefore satisfies the review gates rather than bypassing
+them. Do NOT use GitHub's merge button: it staples a merge
 commit onto `main` that never reaches `dev`, so `main` stops being an ancestor
 and can never fast-forward again.
 
