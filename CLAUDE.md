@@ -220,15 +220,25 @@ signal and a passing one are different facts.
 
 **That push is not "pushing straight to `main`" and does not need your user.**
 The two are easy to conflate and this block used to read as if it forbade the
-thing it requires. The distinction is enforcement, not mechanism: the
-required-checks rule is attached to the `main` REF, so it applies to any update
-of that ref regardless of how the update arrives. Verify it in your own repo
-rather than taking it on anyone's word — `gh api repos/opum-ai/<repo>/rules/branches/main`
-lists the `required_status_checks` rule, and `gh api repos/opum-ai/<repo>/rulesets`
-shows whether any bypass actor is configured. As of 2026-09-03 every fleet repo
-has that rule and ZERO bypass actors, so nothing and nobody is exempt. A
-fast-forward promotion therefore satisfies the review gates rather than bypassing
-them. Do NOT use GitHub's merge button: it staples a merge
+thing it requires. The distinction is enforcement, not mechanism. The
+invariant that makes it safe is: **`main` only ever receives a fast-forward of a
+`dev` that was itself gated.** A fast-forward promotion therefore satisfies the
+review gates rather than bypassing them.
+
+**Which ref carries the required-checks rule differs per repository, so check
+yours and state what you found rather than repeating a fleet-wide summary.**
+
+```sh
+gh api repos/opum-ai/<repo>/rules/branches/main   # and .../branches/dev
+gh api repos/opum-ai/<repo>/rulesets              # bypass actors
+```
+
+Two earlier revisions of this paragraph asserted a universal, and both were
+wrong: the first cited a ruleset rejection that came from an unverified handover
+note, the second claimed every repo gates `main` when one deliberately gates
+`dev`. **A byte-identical block cannot safely carry per-repository facts** — they
+belong in each repository's own profile below, where they can differ without
+making the shared text false. Record yours there. Do NOT use GitHub's merge button: it staples a merge
 commit onto `main` that never reaches `dev`, so `main` stops being an ancestor
 and can never fast-forward again.
 
@@ -321,4 +331,6 @@ None known as code. The ~72 Treehouse references here are dated historical Backl
 `.pi/` is untracked by standing user instruction. Do not commit, gitignore, or delete it.
 
 The migration importer previously bypassed invariants that native writes maintain — passing bare strings where structured objects were expected, and skipping `canonicalizeTaskLinks`. Three silent-data-loss bugs came from that one shape and were fixed in PR #223. Any other bulk or import path that constructs records directly rather than routing through the shared writers is likely carrying the same defect.
+
+`main`'s branch protection carries `required_status_checks` (`source-gates`, `operating block digest`) directly on the `main` ref, with `bypass_actors: []` — measured 2026-09-03 via `gh api repos/opum-ai/quest-cli/rules/branches/main` and `.../rulesets`, not assumed from another repo. `dev` carries no ruleset of its own. Re-measure rather than trust this note if it predates the ruleset by more than a few weeks.
 <!-- opum:repo-profile:end -->
