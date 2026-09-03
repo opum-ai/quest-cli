@@ -194,19 +194,58 @@ This is a reporting duty, not a routing change. Questions only your own user can
 answer still go to them — but tell the orchestrator you are asking, so the fleet
 knows why you went quiet and nothing sits stalled unnoticed.
 
+**Ask your user with the `AskUserQuestion` tool, not with prose in your final
+message.** A question written as ordinary text ends your turn indistinguishably
+from finishing work: the harness reports both as `idle_prompt`, so the
+orchestrator's notification hook cannot tell a stalled decision from a completed
+one and files it as quiet. Measured on 2026-09-03, 108 of 130 logged
+notifications were `idle_prompt` and not one carried a signal that a human
+decision was pending. `AskUserQuestion` is detectable in the transcript, so the
+hook can route it as a decision and name what you asked about. Use it whenever
+you are genuinely blocked on a person — two options, a recommendation, and the
+trade-off between them.
+
 ### Ownership
 
 You are the sole mutation owner of your own repository. Filesystem access to a
 sibling is not authority over it. Deliver to `origin` `dev`.
 
-Promoting `dev` to `main` by a reviewed PR, with the branch's required checks
-green, is ordinary delivery and an orchestrator decision — you do not need your
-own user for it. A branch with no required checks configured counts as green;
-say "no checks configured" rather than reporting checks passed, because an
-absent signal and a passing one are different facts. What needs your user's DIRECT authority is the dangerous set:
-pushing straight to `main` or otherwise bypassing review, force-push, history
-rewrite, adding or changing remotes, credentials, and destructive cleanup. The
-gate is the nature of the operation, not the name of the branch.
+Promoting `dev` to `main` is ordinary delivery and an orchestrator decision —
+you do not need your own user for it. The shape is: open a PR from `dev`, let the
+required checks go green on that exact SHA, then land it with
+`git push origin dev:main`. GitHub auto-marks the PR MERGED and no merge commit
+is created. A branch with no required checks configured counts as green; say
+"no checks configured" rather than reporting checks passed, because an absent
+signal and a passing one are different facts.
+
+**That push is not "pushing straight to `main`" and does not need your user.**
+The two are easy to conflate and this block used to read as if it forbade the
+thing it requires. The distinction is enforcement, not mechanism. The
+invariant that makes it safe is: **`main` only ever receives a fast-forward of a
+`dev` that was itself gated.** A fast-forward promotion therefore satisfies the
+review gates rather than bypassing them.
+
+**Which ref carries the required-checks rule differs per repository, so check
+yours and state what you found rather than repeating a fleet-wide summary.**
+
+```sh
+gh api repos/opum-ai/<repo>/rules/branches/main   # and .../branches/dev
+gh api repos/opum-ai/<repo>/rulesets              # bypass actors
+```
+
+Two earlier revisions of this paragraph asserted a universal, and both were
+wrong: the first cited a ruleset rejection that came from an unverified handover
+note, the second claimed every repo gates `main` when one deliberately gates
+`dev`. **A byte-identical block cannot safely carry per-repository facts** — they
+belong in each repository's own profile below, where they can differ without
+making the shared text false. Record yours there. Do NOT use GitHub's merge button: it staples a merge
+commit onto `main` that never reaches `dev`, so `main` stops being an ancestor
+and can never fast-forward again.
+
+What needs your user's DIRECT authority is the dangerous set: pushing to `main`
+a ref that is NOT a fast-forward of reviewed `dev`, force-push, history rewrite,
+adding or changing remotes, credentials, and destructive cleanup. The gate is the
+nature of the operation, not the name of the branch.
 
 If a required check cannot pass, or the ruleset wants a human, that part goes to
 your user even though the decision to promote came from the orchestrator.
@@ -277,6 +316,8 @@ a heading that has no entries yet.
 
 The Quest tracker CLI, published as `@opum-ai/quest`. Owns tracker semantics and the Backlog-to-Quest migration path the fleet's cutover depends on.
 
+- **Skill:** `opum-sdlc` — the fleet's development lifecycle (branch naming, PR/merge shape, `dev`→`main` promotion, worktree and estate hygiene). Read it before creating a branch, opening or merging a PR, promoting `dev` to `main`, or auditing the estate.
+
 ### Retirement machinery carried here
 
 None known as code. The ~72 Treehouse references here are dated historical Backlog and docs records, correctly left untouched.
@@ -290,4 +331,6 @@ None known as code. The ~72 Treehouse references here are dated historical Backl
 `.pi/` is untracked by standing user instruction. Do not commit, gitignore, or delete it.
 
 The migration importer previously bypassed invariants that native writes maintain — passing bare strings where structured objects were expected, and skipping `canonicalizeTaskLinks`. Three silent-data-loss bugs came from that one shape and were fixed in PR #223. Any other bulk or import path that constructs records directly rather than routing through the shared writers is likely carrying the same defect.
+
+`main`'s branch protection carries `required_status_checks` (`source-gates`, `operating block digest`) directly on the `main` ref, with `bypass_actors: []` — measured 2026-09-03 via `gh api repos/opum-ai/quest-cli/rules/branches/main` and `.../rulesets`, not assumed from another repo. `dev` carries no ruleset of its own. Re-measure rather than trust this note if it predates the ruleset by more than a few weeks.
 <!-- opum:repo-profile:end -->
