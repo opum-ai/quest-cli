@@ -40,7 +40,7 @@ completed foundation Story, decides which dated source slices are admitted.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-1](../../backlog/tasks/qcli-1%20-%20Establish-the-quest-cli-component-foundation.md) | Establish the quest-cli component foundation | Done |
+| QCLI-1 | Establish the quest-cli component foundation | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

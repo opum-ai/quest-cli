@@ -73,17 +73,17 @@ Three kinds of work, deliberately in one Story because they share a cause:
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-12](../../backlog/tasks/qcli-12%20-%20Fix-the-stale-QCLI-2.8-dependency-order-row-in-the-research-programme-Spec.md) | Fix the stale QCLI-2.8 dependency-order row in the research programme Spec | Done |
-| [QCLI-13](../../backlog/tasks/qcli-13%20-%20Backlink-the-adoption-playbook-from-the-component-charter-and-migration-ledger.md) | Backlink the adoption playbook from the component charter and migration ledger | Done |
-| [QCLI-14](../../backlog/tasks/qcli-14%20-%20Correct-the-bin-path-row-in-the-packaging-contracts-Description-column.md) | Correct the bin-path row in the packaging contract's Description column | Done |
-| [QCLI-15](../../backlog/tasks/qcli-15%20-%20Audit-two-unresolved-register-findings-the-untraceable-Allowed-value-and-QCLI-2.12s-F4-and-F5.md) | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | Done |
-| [QCLI-16](../../backlog/tasks/qcli-16%20-%20Audit-and-correct-the-licensing-source-misattribution-in-the-contracts-and-delivery-graph.md) | Audit and correct the licensing-source misattribution in the contracts and delivery graph | Done |
-| [QCLI-17](../../backlog/tasks/qcli-17%20-%20Correct-the-open-component-decisions-registers-Backlog.md-reclassification-trigger-claim.md) | Correct the open component decisions register's Backlog.md reclassification-trigger claim | Done |
-| [QCLI-18](../../backlog/tasks/qcli-18%20-%20Propose-the-CLI-result-contract-envelope-shape-exit-code-table-not-found-convention-and-anomaly-placement.md) | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | Done |
-| [QCLI-19](../../backlog/tasks/qcli-19%20-%20Propose-the-canonical-identifier-grammar-and-authored-record-layout.md) | Propose the canonical identifier grammar and authored-record layout | Done |
-| [QCLI-20](../../backlog/tasks/qcli-20%20-%20Propose-the-scale-target-and-the-projection-sizing-basis-it-implies.md) | Propose the scale target and the projection sizing basis it implies | Done |
-| [QCLI-21](../../backlog/tasks/qcli-21%20-%20Reconcile-the-open-component-decisions-register-and-contracts-graph-against-the-QCLI-12..17-corrections.md) | Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections | Done |
-| [QCLI-22](../../backlog/tasks/qcli-22%20-%20Re-pin-the-research-source-registers-member-pins-invalidated-by-the-QCLI-12..17-wave.md) | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | Done |
+| QCLI-12 | Fix the stale QCLI-2.8 dependency-order row in the research programme Spec | Done |
+| QCLI-13 | Backlink the adoption playbook from the component charter and migration ledger | Done |
+| QCLI-14 | Correct the bin-path row in the packaging contract's Description column | Done |
+| QCLI-15 | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | Done |
+| QCLI-16 | Audit and correct the licensing-source misattribution in the contracts and delivery graph | Done |
+| QCLI-17 | Correct the open component decisions register's Backlog.md reclassification-trigger claim | Done |
+| QCLI-18 | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | Done |
+| QCLI-19 | Propose the canonical identifier grammar and authored-record layout | Done |
+| QCLI-20 | Propose the scale target and the projection sizing basis it implies | Done |
+| QCLI-21 | Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections | Done |
+| QCLI-22 | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

@@ -92,31 +92,31 @@ Nothing in this record is soak. It measures one host at one moment.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-97](../../backlog/tasks/qcli-97%20-%20Restore-Quest-parity-project-bootstrap-and-Lore-Codex-integration.md) | Restore Quest parity, project bootstrap, and Lore/Codex integration | To Do |
-| [QCLI-97.1](../../backlog/tasks/qcli-97.1%20-%20Audit-Backlog-parity-and-Lore-Codex-onboarding-gaps.md) | Audit Backlog parity and Lore/Codex onboarding gaps | Done |
-| [QCLI-97.2](../../backlog/tasks/qcli-97.2%20-%20Implement-Quest-project-bootstrap-discovery-and-Codex-instructions.md) | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
-| [QCLI-97.3](../../backlog/tasks/qcli-97.3%20-%20Restore-Quest-planning-and-operations-parity-commands.md) | Restore Quest planning and operations parity commands | Done |
-| [QCLI-97.4](../../backlog/tasks/qcli-97.4%20-%20Restore-Quest-task-lifecycle-and-draft-parity.md) | Restore Quest task lifecycle and draft parity | Done |
-| [QCLI-97.5](../../backlog/tasks/qcli-97.5%20-%20Establish-and-qualify-the-Lore-CLI-Quest-tracker-adapter.md) | Establish and qualify the Lore CLI Quest tracker adapter | In Progress |
-| [QCLI-97.6](../../backlog/tasks/qcli-97.6%20-%20Qualify-and-release-the-Quest-parity-surface.md) | Qualify and release the Quest parity surface | Done |
-| [QCLI-97.7](../../backlog/tasks/qcli-97.7%20-%20Restore-the-architecture-layer-gate-after-parity-composition-wiring.md) | Restore the architecture layer gate after parity composition wiring | Done |
-| [QCLI-98](../../backlog/tasks/qcli-98%20-%20Render-human-output-for-plain-and-pretty-modes-instead-of-the-envelope-kind.md) | Render human output for plain and pretty modes instead of the envelope kind | Done |
-| [QCLI-99](../../backlog/tasks/qcli-99%20-%20Declare-the-reserved-principal-field-on-success-envelopes.md) | Declare the reserved principal field on success envelopes | Done |
-| [QCLI-100](../../backlog/tasks/qcli-100%20-%20Stop-consuming-json-and-plain-as-help-targets-in-the-help-spelling.md) | Stop consuming --json and --plain as help targets in the 'help' spelling | Done |
-| [QCLI-101](../../backlog/tasks/qcli-101%20-%20Flag-parser-silently-swallows-mode-flags-and-silently-drops-duplicated-filters.md) | Flag parser silently swallows mode flags and silently drops duplicated filters | Done |
-| [QCLI-102](../../backlog/tasks/qcli-102%20-%20Manifest-advertises-a-version-command-that-is-not-invocable-and-h-is-unsupported.md) | Manifest advertises a 'version' command that is not invocable, and -h is unsupported | Done |
-| [QCLI-103](../../backlog/tasks/qcli-103%20-%20Milestone-and-decision-mutations-return-no-record-and-one-kind-covers-both-lists-and-acks.md) | Milestone and decision mutations return no record, and one kind covers both lists and acks | Done |
-| [QCLI-104](../../backlog/tasks/qcli-104%20-%20milestone-edit-task-silently-replaces-the-whole-task-reference-set.md) | milestone edit --task silently replaces the whole task reference set | Done |
-| [QCLI-105](../../backlog/tasks/qcli-105%20-%20Record-commands-resolve-the-store-from-cwd-so-a-subdirectory-silently-forks-the-tracker.md) | Record commands resolve the store from cwd, so a subdirectory silently forks the tracker | Done |
-| [QCLI-106](../../backlog/tasks/qcli-106%20-%20agents-check-exits-0-when-the-managed-block-is-missing-so-CI-cannot-gate-on-it.md) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | Done |
-| [QCLI-107](../../backlog/tasks/qcli-107%20-%20Error-classification-contention-leaks-dependency_target_ambiguous-and-EACCES-maps-to-validation-not-denied.md) | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | Done |
-| [QCLI-108](../../backlog/tasks/qcli-108%20-%20Keep-repository-checks-from-traversing-pooled-Treehouse-worktrees.md) | Keep repository checks from traversing pooled Treehouse worktrees | Done |
-| [QCLI-109](../../backlog/tasks/qcli-109%20-%20No-way-to-pass-a-flag-value-that-begins-with-two-dashes.md) | No way to pass a flag value that begins with two dashes | Done |
-| [QCLI-110](../../backlog/tasks/qcli-110%20-%20Output-mode-flags-are-only-recognised-after-the-command-unlike-lore.md) | Output mode flags are only recognised after the command, unlike lore | Done |
-| [QCLI-111](../../backlog/tasks/qcli-111%20-%20Diagnose-and-restore-required-Windows-ARM64-SQLite-projection-qualification.md) | Diagnose and restore required Windows ARM64 SQLite projection qualification | Done |
-| [QCLI-112](../../backlog/tasks/qcli-112%20-%20Make-six-target-Bun-artifact-delivery-safe-in-Treehouse-worktrees.md) | Make six-target Bun artifact delivery safe in Treehouse worktrees | Done |
-| [QCLI-113](../../backlog/tasks/qcli-113%20-%20Settle-FMC-worker-ledger-and-delivery.md) | Settle FMC worker ledger and delivery | Done |
-| [QCLI-114](../../backlog/tasks/qcli-114%20-%20Reconcile-completed-0.2.x-delivery-records-into-Lore-ownership.md) | Reconcile completed 0.2.x delivery records into Lore ownership | Done |
+| QCLI-97 | Restore Quest parity, project bootstrap, and Lore/Codex integration | To Do |
+| QCLI-189 | Audit Backlog parity and Lore/Codex onboarding gaps | Done |
+| QCLI-204 | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
+| QCLI-205 | Restore Quest planning and operations parity commands | Done |
+| QCLI-206 | Restore Quest task lifecycle and draft parity | Done |
+| QCLI-207 | Establish and qualify the Lore CLI Quest tracker adapter | In Progress |
+| QCLI-210 | Qualify and release the Quest parity surface | Done |
+| QCLI-211 | Restore the architecture layer gate after parity composition wiring | Done |
+| QCLI-98 | Render human output for plain and pretty modes instead of the envelope kind | Done |
+| QCLI-99 | Declare the reserved principal field on success envelopes | Done |
+| QCLI-100 | Stop consuming --json and --plain as help targets in the 'help' spelling | Done |
+| QCLI-101 | Flag parser silently swallows mode flags and silently drops duplicated filters | Done |
+| QCLI-102 | Manifest advertises a 'version' command that is not invocable, and -h is unsupported | Done |
+| QCLI-103 | Milestone and decision mutations return no record, and one kind covers both lists and acks | Done |
+| QCLI-104 | milestone edit --task silently replaces the whole task reference set | Done |
+| QCLI-105 | Record commands resolve the store from cwd, so a subdirectory silently forks the tracker | Done |
+| QCLI-106 | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | Done |
+| QCLI-107 | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | Done |
+| QCLI-108 | Keep repository checks from traversing pooled Treehouse worktrees | Done |
+| QCLI-109 | No way to pass a flag value that begins with two dashes | Done |
+| QCLI-110 | Output mode flags are only recognised after the command, unlike lore | Done |
+| QCLI-111 | Diagnose and restore required Windows ARM64 SQLite projection qualification | Done |
+| QCLI-112 | Make six-target Bun artifact delivery safe in Treehouse worktrees | Done |
+| QCLI-113 | Settle FMC worker ledger and delivery | Done |
+| QCLI-114 | Reconcile completed 0.2.x delivery records into Lore ownership | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
