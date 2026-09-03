@@ -563,6 +563,56 @@ purely from the commands cited.
     contract per the register's narrower "published documentation /
     `--help` / `--plain`/`--json` output" admissibility list.
 
+### `--preserve-source-ids` id-preservation guarantees (added 2026-09-02 by `QCLI-169`)
+
+Unlike AC1-AC5 above, this subsection documents **shipped implementation**,
+not a pre-implementation design commitment derived solely from Backlog.md's
+public surface — it postdates and falls outside this document's original
+clean-room research scope. It is added here, rather than left as a task
+record, because fleet repositories rely on the property it describes when
+citing dotted Backlog subtask ids in prose after a Quest migration; per
+`CLAUDE.md`'s inline-amendment citation rule, `QCLI-169` is this addendum's
+directing task and `QCLI-160` (opag ruling, 2026-08-31, merged PR #232) is
+the origin of the behavior itself.
+
+`migration backlog preview`/`apply --preserve-source-ids --source-family
+<PREFIX>` is an opt-in alternative to the default positional-renumbering
+path the AC3 contract above governs. It selects one Backlog id family and
+gives three guarantees, each verified directly against this repository's
+own source and locked in by a regression test:
+
+1. **A flat in-family source id is preserved verbatim.** `<family>-<int>`
+   becomes the identical target id.
+2. **A dotted subtask id is translated, not preserved verbatim.** Quest's
+   canonical id grammar (`canonicalIdPattern`, `src/domain/records.ts`) is
+   strictly `<prefix>-<int>` and has no dotted form, so `<family>-<int>.<int>...`
+   is translated to a freshly minted flat id in the same family, with its
+   `parentId` set to the parent's own **target** id — resolved transitively
+   through the same alias mechanism for multi-level chains
+   (`src/application/migration/backlog-public.ts`).
+3. **The dotted spelling survives as a resolving alias.**
+   `src/adapters/migration/backlog/importer.ts:353-360` builds the dotted
+   source id into the record's `aliases[]`; `backlog-public.ts:378-382`
+   carries that array onto the preview mapping alongside `targetIdentifier`;
+   `src/application/tasks/tasks.ts:142`'s `buildReferenceIndex` indexes
+   every alias, flat or dotted, so a lookup by either id resolves to the
+   same task.
+
+**This alias is what lets an existing citation of a dotted id — in prose, in
+another repository, in a cross-link — keep resolving after the id itself
+changes.** Nothing else about this feature does; a change that dropped
+alias construction would silently break every such citation without
+touching `targetIdentifier` at all.
+
+Regression coverage:
+`test/e2e/migration/backlog-preserve-source-ids.test.ts` asserts
+`mapping.aliases` contains the dotted source spelling for a translated
+record, alongside coverage for verbatim flat preservation, derived and
+explicit parent resolution, and multi-level dotted chains. Independent
+cross-repository corroboration (live preview inspection and a real `apply`
+against sibling repositories) is recorded in `QCLI-169`'s own task record,
+not restated here.
+
 ## Notes
 
 This task read the register, the migration ledger, the component charter,
