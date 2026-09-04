@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest-win32-arm64",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Quest CLI binary for win32-arm64.",
   "license": "MIT",
   "repository": {
@@ -16,5 +16,5 @@
   "files": [
     "bin/quest.exe"
   ],
-  "questBinarySha256": "b4cf350d6971c8adca2153d11a56a8aad5166a8ab93479b7593f1afbe8ccca7c"
+  "questBinarySha256": "c4446b0e90cc7194c83a4d258f61cce7ca42b7e3fc183b1a0caa718456027ada"
 }
