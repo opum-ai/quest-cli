@@ -63,16 +63,16 @@ what order; it authorises none of it.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| QCLI-10 | Consolidate QCLI research into an implementation-ready design corpus | Done |
-| QCLI-170 | Author the Quest CLI open component decisions register | Done |
-| QCLI-171 | Promote settled Quest CLI decisions into ADRs | Done |
-| QCLI-172 | Author the Quest CLI functional requirements Spec | Done |
-| QCLI-173 | Author the Quest CLI architecture Spec | Done |
-| QCLI-174 | Author the Quest CLI delivery roadmap Spec | Done |
-| QCLI-11 | Record quest-cli's activation-gate evidence and decision time | Done |
-| QCLI-41 | Record that the pinned lore-doc gate revision moved | Done |
-| QCLI-42 | Record the owner's opened Lore gate in the activation-gate evidence record | Done |
-| QCLI-56 | Discharge the Phase 0 activation recheck and record a new dated evidence capsule | Done |
+| [QCLI-10](../../.quest/tasks/QCLI-10.json) | Consolidate QCLI research into an implementation-ready design corpus | Done |
+| [QCLI-170](../../.quest/tasks/QCLI-170.json) | Author the Quest CLI open component decisions register | Done |
+| [QCLI-171](../../.quest/tasks/QCLI-171.json) | Promote settled Quest CLI decisions into ADRs | Done |
+| [QCLI-172](../../.quest/tasks/QCLI-172.json) | Author the Quest CLI functional requirements Spec | Done |
+| [QCLI-173](../../.quest/tasks/QCLI-173.json) | Author the Quest CLI architecture Spec | Done |
+| [QCLI-174](../../.quest/tasks/QCLI-174.json) | Author the Quest CLI delivery roadmap Spec | Done |
+| [QCLI-11](../../.quest/tasks/QCLI-11.json) | Record quest-cli's activation-gate evidence and decision time | Done |
+| [QCLI-41](../../.quest/tasks/QCLI-41.json) | Record that the pinned lore-doc gate revision moved | Done |
+| [QCLI-42](../../.quest/tasks/QCLI-42.json) | Record the owner's opened Lore gate in the activation-gate evidence record | Done |
+| [QCLI-56](../../.quest/tasks/QCLI-56.json) | Discharge the Phase 0 activation recheck and record a new dated evidence capsule | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
