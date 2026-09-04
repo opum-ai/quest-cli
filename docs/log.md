@@ -234,6 +234,7 @@
 - 2026-09-02T17:19:17-05:00 142476621a0336d279c9d22415eeec1c4e68d139 docs: record two 0.3.1 release gotchas in the package-and-release runbook
 - 2026-09-02T23:36:37-05:00 08442e055b8e3dbf33fe8af8384e6ef400929ced docs: document --preserve-source-ids's id-preservation guarantees (QCLI-169) (#245)
 - 2026-09-02T23:41:19-05:00 72fe937a8bc894dd562871d6a13cec42d162b848 chore(backlog): regenerate docs/log.md after closing QCLI-169
+- 2026-09-03T07:26:04-05:00 c4938dbdc88aebf99922f1c60039f0bfc0d9bfe3 chore: cut quest-cli over to Quest as the tracker of record (QCLI-160/169) (#246)
 
 ## docs/adr
 

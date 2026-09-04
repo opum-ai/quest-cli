@@ -107,23 +107,23 @@ remain outside the amendment.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| QCLI-24 | Author an ADR for the Quest CLI result contract: envelope shape, exit codes, not-found convention, and anomaly placement | Done |
-| QCLI-25 | Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout | Done |
-| QCLI-26 | Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion | Done |
-| QCLI-27 | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | Done |
-| QCLI-28 | Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs | Done |
-| QCLI-68 | Record quest-cli local obligation to the frozen Opum command contract | Done |
-| QCLI-69 | Reconcile the Quest result-contract ADR with the frozen Opum command contract | Done |
-| QCLI-29 | Correct stale 'nothing accepted' prose in three ratified Quest CLI proposal docs | Done |
-| QCLI-30 | Fix three prose/header inconsistencies left by the QCLI-28 reconciliation | Done |
-| QCLI-31 | Reconcile the remaining architecture-Spec passages that still read as open after the Phase 1 ADRs | Done |
-| QCLI-32 | Run a centralized lore sync to reconcile the Phase-1-ratification Story | Done |
-| QCLI-33 | Reconcile architecture-Spec Open Questions bullet 4 against the QCLI-26 ADR | Done |
-| QCLI-34 | Reconcile 'file layout' terminology in the register and delivery-graph contract tables against QCLI-25/D4 | Done |
-| QCLI-37 | Reconcile the stale 'record layout' status cell at register line 167 | Done |
-| QCLI-38 | Determine whether 'naming scheme' is also closed by the QCLI-25 authored-record-layout section | Done |
-| QCLI-40 | Reconcile stale "file layout"/"naming scheme" open-item bundles outside the register and delivery-graph docs | Done |
-| QCLI-57 | Re-verify the Backlog.md v1.49.3 pin before Phase 1 exit | Done |
+| [QCLI-24](../../.quest/tasks/QCLI-24.json) | Author an ADR for the Quest CLI result contract: envelope shape, exit codes, not-found convention, and anomaly placement | Done |
+| [QCLI-25](../../.quest/tasks/QCLI-25.json) | Author an ADR for the Quest CLI canonical identifier grammar and authored-record layout | Done |
+| [QCLI-26](../../.quest/tasks/QCLI-26.json) | Author an ADR for the Quest CLI scale target and rebuild-on-doubt conclusion | Done |
+| [QCLI-27](../../.quest/tasks/QCLI-27.json) | Record the Quest CLI D1 (license, contributor provenance) and D3 (platform matrix, ownership) owner rulings | Done |
+| [QCLI-28](../../.quest/tasks/QCLI-28.json) | Reconcile the Quest CLI open component decisions register, contracts graph, and delivery roadmap against the Phase 1 ADRs | Done |
+| [QCLI-68](../../.quest/tasks/QCLI-68.json) | Record quest-cli local obligation to the frozen Opum command contract | Done |
+| [QCLI-69](../../.quest/tasks/QCLI-69.json) | Reconcile the Quest result-contract ADR with the frozen Opum command contract | Done |
+| [QCLI-29](../../.quest/tasks/QCLI-29.json) | Correct stale 'nothing accepted' prose in three ratified Quest CLI proposal docs | Done |
+| [QCLI-30](../../.quest/tasks/QCLI-30.json) | Fix three prose/header inconsistencies left by the QCLI-28 reconciliation | Done |
+| [QCLI-31](../../.quest/tasks/QCLI-31.json) | Reconcile the remaining architecture-Spec passages that still read as open after the Phase 1 ADRs | Done |
+| [QCLI-32](../../.quest/tasks/QCLI-32.json) | Run a centralized lore sync to reconcile the Phase-1-ratification Story | Done |
+| [QCLI-33](../../.quest/tasks/QCLI-33.json) | Reconcile architecture-Spec Open Questions bullet 4 against the QCLI-26 ADR | Done |
+| [QCLI-34](../../.quest/tasks/QCLI-34.json) | Reconcile 'file layout' terminology in the register and delivery-graph contract tables against QCLI-25/D4 | Done |
+| [QCLI-37](../../.quest/tasks/QCLI-37.json) | Reconcile the stale 'record layout' status cell at register line 167 | Done |
+| [QCLI-38](../../.quest/tasks/QCLI-38.json) | Determine whether 'naming scheme' is also closed by the QCLI-25 authored-record-layout section | Done |
+| [QCLI-40](../../.quest/tasks/QCLI-40.json) | Reconcile stale "file layout"/"naming scheme" open-item bundles outside the register and delivery-graph docs | Done |
+| [QCLI-57](../../.quest/tasks/QCLI-57.json) | Re-verify the Backlog.md v1.49.3 pin before Phase 1 exit | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

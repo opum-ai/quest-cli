@@ -92,31 +92,31 @@ Nothing in this record is soak. It measures one host at one moment.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| QCLI-97 | Restore Quest parity, project bootstrap, and Lore/Codex integration | To Do |
-| QCLI-189 | Audit Backlog parity and Lore/Codex onboarding gaps | Done |
-| QCLI-204 | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
-| QCLI-205 | Restore Quest planning and operations parity commands | Done |
-| QCLI-206 | Restore Quest task lifecycle and draft parity | Done |
-| QCLI-207 | Establish and qualify the Lore CLI Quest tracker adapter | In Progress |
-| QCLI-210 | Qualify and release the Quest parity surface | Done |
-| QCLI-211 | Restore the architecture layer gate after parity composition wiring | Done |
-| QCLI-98 | Render human output for plain and pretty modes instead of the envelope kind | Done |
-| QCLI-99 | Declare the reserved principal field on success envelopes | Done |
-| QCLI-100 | Stop consuming --json and --plain as help targets in the 'help' spelling | Done |
-| QCLI-101 | Flag parser silently swallows mode flags and silently drops duplicated filters | Done |
-| QCLI-102 | Manifest advertises a 'version' command that is not invocable, and -h is unsupported | Done |
-| QCLI-103 | Milestone and decision mutations return no record, and one kind covers both lists and acks | Done |
-| QCLI-104 | milestone edit --task silently replaces the whole task reference set | Done |
-| QCLI-105 | Record commands resolve the store from cwd, so a subdirectory silently forks the tracker | Done |
-| QCLI-106 | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | Done |
-| QCLI-107 | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | Done |
-| QCLI-108 | Keep repository checks from traversing pooled Treehouse worktrees | Done |
-| QCLI-109 | No way to pass a flag value that begins with two dashes | Done |
-| QCLI-110 | Output mode flags are only recognised after the command, unlike lore | Done |
-| QCLI-111 | Diagnose and restore required Windows ARM64 SQLite projection qualification | Done |
-| QCLI-112 | Make six-target Bun artifact delivery safe in Treehouse worktrees | Done |
-| QCLI-113 | Settle FMC worker ledger and delivery | Done |
-| QCLI-114 | Reconcile completed 0.2.x delivery records into Lore ownership | Done |
+| [QCLI-97](../../.quest/tasks/QCLI-97.json) | Restore Quest parity, project bootstrap, and Lore/Codex integration | To Do |
+| [QCLI-189](../../.quest/tasks/QCLI-189.json) | Audit Backlog parity and Lore/Codex onboarding gaps | Done |
+| [QCLI-204](../../.quest/tasks/QCLI-204.json) | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
+| [QCLI-205](../../.quest/tasks/QCLI-205.json) | Restore Quest planning and operations parity commands | Done |
+| [QCLI-206](../../.quest/tasks/QCLI-206.json) | Restore Quest task lifecycle and draft parity | Done |
+| [QCLI-207](../../.quest/tasks/QCLI-207.json) | Establish and qualify the Lore CLI Quest tracker adapter | In Progress |
+| [QCLI-210](../../.quest/tasks/QCLI-210.json) | Qualify and release the Quest parity surface | Done |
+| [QCLI-211](../../.quest/tasks/QCLI-211.json) | Restore the architecture layer gate after parity composition wiring | Done |
+| [QCLI-98](../../.quest/tasks/QCLI-98.json) | Render human output for plain and pretty modes instead of the envelope kind | Done |
+| [QCLI-99](../../.quest/tasks/QCLI-99.json) | Declare the reserved principal field on success envelopes | Done |
+| [QCLI-100](../../.quest/tasks/QCLI-100.json) | Stop consuming --json and --plain as help targets in the 'help' spelling | Done |
+| [QCLI-101](../../.quest/tasks/QCLI-101.json) | Flag parser silently swallows mode flags and silently drops duplicated filters | Done |
+| [QCLI-102](../../.quest/tasks/QCLI-102.json) | Manifest advertises a 'version' command that is not invocable, and -h is unsupported | Done |
+| [QCLI-103](../../.quest/tasks/QCLI-103.json) | Milestone and decision mutations return no record, and one kind covers both lists and acks | Done |
+| [QCLI-104](../../.quest/tasks/QCLI-104.json) | milestone edit --task silently replaces the whole task reference set | Done |
+| [QCLI-105](../../.quest/tasks/QCLI-105.json) | Record commands resolve the store from cwd, so a subdirectory silently forks the tracker | Done |
+| [QCLI-106](../../.quest/tasks/QCLI-106.json) | agents --check exits 0 when the managed block is missing, so CI cannot gate on it | Done |
+| [QCLI-107](../../.quest/tasks/QCLI-107.json) | Error classification: contention leaks dependency_target_ambiguous, and EACCES maps to validation not denied | Done |
+| [QCLI-108](../../.quest/tasks/QCLI-108.json) | Keep repository checks from traversing pooled Treehouse worktrees | Done |
+| [QCLI-109](../../.quest/tasks/QCLI-109.json) | No way to pass a flag value that begins with two dashes | Done |
+| [QCLI-110](../../.quest/tasks/QCLI-110.json) | Output mode flags are only recognised after the command, unlike lore | Done |
+| [QCLI-111](../../.quest/tasks/QCLI-111.json) | Diagnose and restore required Windows ARM64 SQLite projection qualification | Done |
+| [QCLI-112](../../.quest/tasks/QCLI-112.json) | Make six-target Bun artifact delivery safe in Treehouse worktrees | Done |
+| [QCLI-113](../../.quest/tasks/QCLI-113.json) | Settle FMC worker ledger and delivery | Done |
+| [QCLI-114](../../.quest/tasks/QCLI-114.json) | Reconcile completed 0.2.x delivery records into Lore ownership | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

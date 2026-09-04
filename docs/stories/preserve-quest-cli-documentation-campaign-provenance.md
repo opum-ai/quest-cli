@@ -49,24 +49,24 @@ not create, change, or authorize Quest product behavior.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| QCLI-35 | Sync docs/log.md to close pre-existing SHA drift from squash-merge rewrites | Done |
-| QCLI-36 | Fix QCLI-34's task metadata: correct the references field to real paths | Done |
-| QCLI-39 | Sync docs/log.md again to close post-wave-1 SHA drift | Done |
-| QCLI-43 | Fold the lore log sync into campaign settlement to stop recurring docs/log.md SHA drift | Done |
-| QCLI-44 | Settle whether inline supersession amendments must cite the directing task | Done |
-| QCLI-45 | Record the evidence-record amendment ruling and reconcile QCLI-42 in-place replacement | Done |
-| QCLI-46 | Re-derive and reconcile the outstanding inline supersession-citation debt across docs | Done |
-| QCLI-47 | Reconcile the Refs trailer convention with campaign bookkeeping practice | Done |
-| QCLI-48 | Close the squash-merge Refs trailer-loss vector | Done |
-| QCLI-49 | Define the commit step for the orchestrator's dispatch-marking writes | Done |
-| QCLI-50 | Settle whether tense-only edits fall under preserve-and-amend | Done |
-| QCLI-51 | Reconcile the campaign stage-state table with the never-committed reality of in-review and merge-pending | Done |
-| QCLI-52 | Finish the stage-state legibility sweep QCLI-51 started | Done |
-| QCLI-53 | Settle the discard-timing looseness between wave-loop (f) and (g)'s clean-checkout precondition | Done |
-| QCLI-54 | Bind the campaign doc's Stage reached column to a stage scale and settle post-dispatch recording cadence | Done |
-| QCLI-55 | Retire wave-loop.md's not-yet-exercised claim for merge-pending's point of action | Done |
-| QCLI-60 | Push the orchestrator's default-branch bookkeeping commits and fix (g) step 5's failed-fast-forward diagnosis | Done |
-| QCLI-70 | Adopt the Codex backlog-handover skill from lore-cli | Done |
+| [QCLI-35](../../.quest/tasks/QCLI-35.json) | Sync docs/log.md to close pre-existing SHA drift from squash-merge rewrites | Done |
+| [QCLI-36](../../.quest/tasks/QCLI-36.json) | Fix QCLI-34's task metadata: correct the references field to real paths | Done |
+| [QCLI-39](../../.quest/tasks/QCLI-39.json) | Sync docs/log.md again to close post-wave-1 SHA drift | Done |
+| [QCLI-43](../../.quest/tasks/QCLI-43.json) | Fold the lore log sync into campaign settlement to stop recurring docs/log.md SHA drift | Done |
+| [QCLI-44](../../.quest/tasks/QCLI-44.json) | Settle whether inline supersession amendments must cite the directing task | Done |
+| [QCLI-45](../../.quest/tasks/QCLI-45.json) | Record the evidence-record amendment ruling and reconcile QCLI-42 in-place replacement | Done |
+| [QCLI-46](../../.quest/tasks/QCLI-46.json) | Re-derive and reconcile the outstanding inline supersession-citation debt across docs | Done |
+| [QCLI-47](../../.quest/tasks/QCLI-47.json) | Reconcile the Refs trailer convention with campaign bookkeeping practice | Done |
+| [QCLI-48](../../.quest/tasks/QCLI-48.json) | Close the squash-merge Refs trailer-loss vector | Done |
+| [QCLI-49](../../.quest/tasks/QCLI-49.json) | Define the commit step for the orchestrator's dispatch-marking writes | Done |
+| [QCLI-50](../../.quest/tasks/QCLI-50.json) | Settle whether tense-only edits fall under preserve-and-amend | Done |
+| [QCLI-51](../../.quest/tasks/QCLI-51.json) | Reconcile the campaign stage-state table with the never-committed reality of in-review and merge-pending | Done |
+| [QCLI-52](../../.quest/tasks/QCLI-52.json) | Finish the stage-state legibility sweep QCLI-51 started | Done |
+| [QCLI-53](../../.quest/tasks/QCLI-53.json) | Settle the discard-timing looseness between wave-loop (f) and (g)'s clean-checkout precondition | Done |
+| [QCLI-54](../../.quest/tasks/QCLI-54.json) | Bind the campaign doc's Stage reached column to a stage scale and settle post-dispatch recording cadence | Done |
+| [QCLI-55](../../.quest/tasks/QCLI-55.json) | Retire wave-loop.md's not-yet-exercised claim for merge-pending's point of action | Done |
+| [QCLI-60](../../.quest/tasks/QCLI-60.json) | Push the orchestrator's default-branch bookkeeping commits and fix (g) step 5's failed-fast-forward diagnosis | Done |
+| [QCLI-70](../../.quest/tasks/QCLI-70.json) | Adopt the Codex backlog-handover skill from lore-cli | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

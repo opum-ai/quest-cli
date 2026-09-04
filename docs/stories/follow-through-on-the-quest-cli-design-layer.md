@@ -73,17 +73,17 @@ Three kinds of work, deliberately in one Story because they share a cause:
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| QCLI-12 | Fix the stale QCLI-2.8 dependency-order row in the research programme Spec | Done |
-| QCLI-13 | Backlink the adoption playbook from the component charter and migration ledger | Done |
-| QCLI-14 | Correct the bin-path row in the packaging contract's Description column | Done |
-| QCLI-15 | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | Done |
-| QCLI-16 | Audit and correct the licensing-source misattribution in the contracts and delivery graph | Done |
-| QCLI-17 | Correct the open component decisions register's Backlog.md reclassification-trigger claim | Done |
-| QCLI-18 | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | Done |
-| QCLI-19 | Propose the canonical identifier grammar and authored-record layout | Done |
-| QCLI-20 | Propose the scale target and the projection sizing basis it implies | Done |
-| QCLI-21 | Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections | Done |
-| QCLI-22 | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | Done |
+| [QCLI-12](../../.quest/tasks/QCLI-12.json) | Fix the stale QCLI-2.8 dependency-order row in the research programme Spec | Done |
+| [QCLI-13](../../.quest/tasks/QCLI-13.json) | Backlink the adoption playbook from the component charter and migration ledger | Done |
+| [QCLI-14](../../.quest/tasks/QCLI-14.json) | Correct the bin-path row in the packaging contract's Description column | Done |
+| [QCLI-15](../../.quest/tasks/QCLI-15.json) | Audit two unresolved register findings: the untraceable Allowed value and QCLI-2.12's F4 and F5 | Done |
+| [QCLI-16](../../.quest/tasks/QCLI-16.json) | Audit and correct the licensing-source misattribution in the contracts and delivery graph | Done |
+| [QCLI-17](../../.quest/tasks/QCLI-17.json) | Correct the open component decisions register's Backlog.md reclassification-trigger claim | Done |
+| [QCLI-18](../../.quest/tasks/QCLI-18.json) | Propose the CLI result contract: envelope shape, exit-code table, not-found convention, and anomaly placement | Done |
+| [QCLI-19](../../.quest/tasks/QCLI-19.json) | Propose the canonical identifier grammar and authored-record layout | Done |
+| [QCLI-20](../../.quest/tasks/QCLI-20.json) | Propose the scale target and the projection sizing basis it implies | Done |
+| [QCLI-21](../../.quest/tasks/QCLI-21.json) | Reconcile the open component decisions register and contracts graph against the QCLI-12..17 corrections | Done |
+| [QCLI-22](../../.quest/tasks/QCLI-22.json) | Re-pin the research source register's member pins invalidated by the QCLI-12..17 wave | Done |
 <!-- lore:tasks:end -->
 
 ## Notes

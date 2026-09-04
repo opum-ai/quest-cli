@@ -48,13 +48,13 @@ gate through its owner without adding product implementation.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| QCLI-3 | Align Quest CLI provenance and documentation authority | Done |
-| QCLI-4 | Record supersession of OCLI-1 non-adoption for the backlog-handover skill | Done |
-| QCLI-5 | Record the opum-ai identity change across the charter, ADR, and source register | Done |
-| QCLI-67 | Classify and correct superseded salient-data citations | Done |
-| QCLI-71 | Adopt the autonomous documentation campaign fast lane | Done |
-| QCLI-66 | Distinguish frozen OCLI provenance from live ODOC routing in the migration ledger | Done |
-| QCLI-96 | Make autonomous campaigns loop until a true pause | Done |
+| [QCLI-3](../../.quest/tasks/QCLI-3.json) | Align Quest CLI provenance and documentation authority | Done |
+| [QCLI-4](../../.quest/tasks/QCLI-4.json) | Record supersession of OCLI-1 non-adoption for the backlog-handover skill | Done |
+| [QCLI-5](../../.quest/tasks/QCLI-5.json) | Record the opum-ai identity change across the charter, ADR, and source register | Done |
+| [QCLI-67](../../.quest/tasks/QCLI-67.json) | Classify and correct superseded salient-data citations | Done |
+| [QCLI-71](../../.quest/tasks/QCLI-71.json) | Adopt the autonomous documentation campaign fast lane | Done |
+| [QCLI-66](../../.quest/tasks/QCLI-66.json) | Distinguish frozen OCLI provenance from live ODOC routing in the migration ledger | Done |
+| [QCLI-96](../../.quest/tasks/QCLI-96.json) | Make autonomous campaigns loop until a true pause | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
