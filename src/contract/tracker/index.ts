@@ -134,6 +134,14 @@ export interface TrackerSummary {
   readonly ordinal?: number;
   readonly createdAt?: string;
   readonly updatedAt?: string;
+  /**
+   * Repo-relative path to the record's current JSON file (QCLI-220), e.g.
+   * ".quest/tasks/QCLI-1.json". Tracks the task's lifecycle location, so it
+   * moves when a task is completed or archived -- callers that persist it
+   * (a rendered link, say) should expect staleness after such a move rather
+   * than treating it as a stable identifier. The task id is the stable one.
+   */
+  readonly path?: string;
 }
 export interface TrackerTask extends TrackerSummary {
   readonly description?: string;
@@ -309,7 +317,8 @@ function isSummary(value: unknown): value is TrackerSummary {
     (task.assignees === undefined || isStringArray(task.assignees)) &&
     (task.ordinal === undefined || Number.isFinite(task.ordinal)) &&
     (task.createdAt === undefined || typeof task.createdAt === "string") &&
-    (task.updatedAt === undefined || typeof task.updatedAt === "string")
+    (task.updatedAt === undefined || typeof task.updatedAt === "string") &&
+    (task.path === undefined || typeof task.path === "string")
   );
 }
 
@@ -556,6 +565,7 @@ export class QuestTrackerClient {
           "id",
           "labels",
           "ordinal",
+          "path",
           "priority",
           "status",
           "summary",
@@ -586,6 +596,7 @@ export class QuestTrackerClient {
           "modifiedFiles",
           "ordinal",
           "parentId",
+          "path",
           "plan",
           "priority",
           "references",

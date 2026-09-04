@@ -38,6 +38,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "id",
         "labels",
         "ordinal",
+        "path",
         "priority",
         "status",
         "summary",
@@ -69,6 +70,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "modifiedFiles",
         "ordinal",
         "parentId",
+        "path",
         "plan",
         "priority",
         "references",
@@ -207,6 +209,7 @@ export const trackerTaskFixture: TrackerTask = {
   milestoneId: "M-1",
   priority: "high",
   type: "feature",
+  path: ".quest/tasks/T-1.json",
 };
 
 /** Public records only; consumers need no Quest implementation files to run these cases. */

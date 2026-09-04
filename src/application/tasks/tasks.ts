@@ -41,6 +41,14 @@ export interface LocatedTask {
   readonly task: TaskState;
   readonly location: TaskLocation;
 }
+/**
+ * A task enriched with its current repo-relative record path. The path
+ * tracks `location` (QCLI-220): it moves when a task's status crosses a
+ * lifecycle boundary (e.g. archive or complete), so a caller that persists
+ * it must expect staleness after such a transition rather than treating it
+ * as a stable identifier -- the task id is the stable one.
+ */
+export type TaskStateWithPath = TaskState & { readonly path: string };
 export interface LocatedDraft {
   readonly draft: DraftState;
   readonly location: DraftLocation;
@@ -445,6 +453,26 @@ export class TaskService {
    * last, after every filter, so `--limit` truncates the final ordering.
    */
   async listFiltered(query: TaskListQuery): Promise<readonly TaskState[]> {
+    return (await this.listFilteredLocated(query)).tasks;
+  }
+  /**
+   * Presentation-boundary variant of {@link listFiltered} for `task list
+   * --json` (QCLI-220), same reasoning as {@link viewWithPath}.
+   */
+  async listFilteredWithPath(
+    query: TaskListQuery,
+  ): Promise<readonly TaskStateWithPath[]> {
+    const { tasks, locationById } = await this.listFilteredLocated(query);
+    return tasks.map((task) => {
+      const location = locationById.get(task.id);
+      if (!location) throw new RecordValidationError("task_not_found");
+      return { ...task, path: this.ownedPathForLocation(task.id, location) };
+    });
+  }
+  private async listFilteredLocated(query: TaskListQuery): Promise<{
+    readonly tasks: readonly TaskState[];
+    readonly locationById: ReadonlyMap<string, TaskLocation>;
+  }> {
     // The CLI guards this too, but the contract belongs here so a non-CLI
     // caller cannot silently ask for an empty list.
     if (query.unassigned && query.assignees?.length)
@@ -464,6 +492,9 @@ export class TaskService {
     // stays opt-in via includeArchived, matching milestone list's convention.
     const located = this.taskRecords(snapshot).filter(
       (record) => record.location !== "archive/tasks" || query.includeArchived,
+    );
+    const locationById = new Map(
+      located.map((record) => [record.task.id, record.location] as const),
     );
     const listed = located
       .map((record) => record.task)
@@ -516,7 +547,9 @@ export class TaskService {
         (!searched || searched.has(task.id)),
     );
     const sorted = query.sort ? sortTasksBy(filtered, query.sort) : filtered;
-    return query.limit === undefined ? sorted : sorted.slice(0, query.limit);
+    const limited =
+      query.limit === undefined ? sorted : sorted.slice(0, query.limit);
+    return { tasks: limited, locationById };
   }
   /** Lists every canonical task, including retained lifecycle records. */
   async listIncludingRetained(): Promise<readonly TaskState[]> {
@@ -730,6 +763,26 @@ export class TaskService {
       this.taskRecords(snapshot).map((record) => record.task),
       reference,
     );
+  }
+  /**
+   * Presentation-boundary variant of {@link view} for `task view --json`
+   * (QCLI-220). Kept separate from `view` because `view`'s plain TaskState
+   * result flows into write paths elsewhere (e.g. lifecycle journal replay)
+   * that must never see a synthetic, non-persisted `path` property.
+   */
+  async viewWithPath(reference: string): Promise<TaskStateWithPath> {
+    const snapshot = await this.repository.readAll();
+    const records = this.taskRecords(snapshot);
+    const task = findTask(
+      records.map((record) => record.task),
+      reference,
+    );
+    const current = records.find((record) => record.task.id === task.id);
+    if (!current) throw new RecordValidationError("task_not_found");
+    return {
+      ...task,
+      path: this.ownedPathForLocation(task.id, current.location),
+    };
   }
 
   /**
