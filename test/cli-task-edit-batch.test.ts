@@ -140,6 +140,91 @@ test("batch operations file applies distinct mutations with per-item accounting"
   }
 }, 60_000);
 
+test("a graph-touching batch edit resolves a dependency completed out of the active set (QCLI-223)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-edit-batch-graph-"));
+  const humanActor = ["--actor", "human-1", "--actor-kind", "human"];
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd: root }).exited;
+    expect(spawnQuest(root, ["init", "--json"]).exitCode).toBe(0);
+
+    const dependency = spawnQuest(root, [
+      "task",
+      "create",
+      "Dependency",
+      ...humanActor,
+      "--json",
+    ]);
+    const dependencyId = JSON.parse(dependency.stdout).data.id;
+
+    const dependent = spawnQuest(root, [
+      "task",
+      "create",
+      "Dependent",
+      ...humanActor,
+      "--json",
+      "--dependency",
+      dependencyId,
+    ]);
+    const dependentId = JSON.parse(dependent.stdout).data.id;
+
+    const other = spawnQuest(root, [
+      "task",
+      "create",
+      "Other",
+      ...humanActor,
+      "--json",
+    ]);
+    const otherId = JSON.parse(other.stdout).data.id;
+
+    spawnQuest(root, [
+      "task",
+      "edit",
+      dependencyId,
+      "--status",
+      "In Progress",
+      ...humanActor,
+      "--json",
+    ]);
+    expect(
+      spawnQuest(root, [
+        "task",
+        "complete",
+        dependencyId,
+        ...humanActor,
+        "--json",
+      ]).exitCode,
+    ).toBe(0);
+
+    // Before the fix, createTaskLinkSession only ever saw initial.tasks
+    // (active records), so a graph-touching row failed the moment its
+    // session was constructed: `dependent`'s edge to the now-completed
+    // `dependency` could not resolve, with dependency_target_not_found.
+    const ops = [
+      {
+        reference: dependentId,
+        operationId: "op-1",
+        patch: { addDependencies: [otherId] },
+      },
+    ];
+    const file = join(root, "operations.jsonl");
+    await writeFile(file, ops.map((o) => JSON.stringify(o)).join("\n"));
+    const run = spawnQuest(root, [
+      "task",
+      "edit-batch",
+      "--file",
+      file,
+      ...humanActor,
+      "--json",
+    ]);
+    expect(run.exitCode).toBe(0);
+    const envelope = JSON.parse(run.stdout);
+    expect(envelope.data.applied).toBe(1);
+    expect(envelope.data.failed).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
 test("batch rejects missing actor declaration and absent operations file", async () => {
   const root = await seedWorkspace(1);
   try {

@@ -652,6 +652,85 @@ test("list sees completed tasks by default and archived tasks behind --include-a
   });
 });
 
+test("completing a task another active task depends on does not block later creates or edits (QCLI-223)", async () => {
+  await withStore(async (run) => {
+    const dependency = await run([
+      "task",
+      "create",
+      "Dependency",
+      ...actor,
+      "--json",
+    ]);
+    const dependencyId = (json(dependency).data as { id: string }).id;
+
+    const dependent = await run([
+      "task",
+      "create",
+      "Dependent",
+      ...actor,
+      "--json",
+      "--dependency",
+      dependencyId,
+    ]);
+    const dependentId = (json(dependent).data as { id: string }).id;
+
+    await run([
+      "task",
+      "edit",
+      dependencyId,
+      "--status",
+      "In Progress",
+      ...actor,
+      "--json",
+    ]);
+    const completeResult = await run([
+      "task",
+      "complete",
+      dependencyId,
+      ...actor,
+      "--json",
+    ]);
+    expect(completeResult.exitCode).toBe(0);
+
+    // Before the fix, every operation below failed with
+    // dependency_target_not_found: canonicalizeTaskLinks/createTaskLinkSession
+    // were only ever shown snapshot.tasks (active records), so `dependent`'s
+    // now-completed dependency became an unresolvable edge and broke every
+    // subsequent create and edit in the whole workspace, not just this task.
+    const unrelated = await run([
+      "task",
+      "create",
+      "Unrelated",
+      ...actor,
+      "--json",
+    ]);
+    expect(unrelated.exitCode).toBe(0);
+
+    const labelEdit = await run([
+      "task",
+      "edit",
+      dependentId,
+      "--add-label",
+      "probe",
+      ...actor,
+      "--json",
+    ]);
+    expect(labelEdit.exitCode).toBe(0);
+
+    const unrelatedId = (json(unrelated).data as { id: string }).id;
+    const graphEdit = await run([
+      "task",
+      "edit",
+      dependentId,
+      "--add-dependency",
+      unrelatedId,
+      ...actor,
+      "--json",
+    ]);
+    expect(graphEdit.exitCode).toBe(0);
+  });
+});
+
 test("writes without an actor are denied and unknown flags fail loud as usage", async () => {
   await withStore(async (run) => {
     const noActor = await run(["task", "create", "No actor", "--json"]);
