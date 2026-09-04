@@ -597,6 +597,22 @@ test("list sees completed tasks by default and archived tasks behind --include-a
       ).status,
     ).toBe("To Do");
 
+    // path (QCLI-220) reflects the record's current lifecycle location and
+    // moves with it -- this is what lets lore's adapter link a task's file.
+    const pathOf = async (id: string): Promise<string> =>
+      (
+        json(await run(["task", "view", id, "--json"])).data as {
+          path: string;
+        }
+      ).path;
+    expect(await pathOf(activeId)).toBe(`.quest/tasks/${activeId}.json`);
+    expect(await pathOf(completedId)).toBe(
+      `.quest/completed/${completedId}.json`,
+    );
+    expect(await pathOf(archivedId)).toBe(
+      `.quest/archive/tasks/${archivedId}.json`,
+    );
+
     const ids = (result: { stdout: string }): string[] =>
       (json(result).data as { id: string }[]).map((task) => task.id).sort();
 
@@ -613,9 +629,26 @@ test("list sees completed tasks by default and archived tasks behind --include-a
       ids(await run(["task", "list", "--exclude-status", "Done", "--json"])),
     ).toEqual([activeId]);
     // --include-archived adds the archived task on top of the default set.
-    expect(
-      ids(await run(["task", "list", "--include-archived", "--json"])),
-    ).toEqual([activeId, archivedId, completedId].sort());
+    const allListed = await run([
+      "task",
+      "list",
+      "--include-archived",
+      "--json",
+    ]);
+    expect(ids(allListed)).toEqual([activeId, archivedId, completedId].sort());
+    const pathsById = new Map(
+      (json(allListed).data as { id: string; path: string }[]).map((task) => [
+        task.id,
+        task.path,
+      ]),
+    );
+    expect(pathsById.get(activeId)).toBe(`.quest/tasks/${activeId}.json`);
+    expect(pathsById.get(completedId)).toBe(
+      `.quest/completed/${completedId}.json`,
+    );
+    expect(pathsById.get(archivedId)).toBe(
+      `.quest/archive/tasks/${archivedId}.json`,
+    );
   });
 });
 

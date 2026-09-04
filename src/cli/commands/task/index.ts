@@ -8,6 +8,8 @@ import type {
 } from "../../../application/tasks/tasks.ts";
 
 type TrackerTask = Awaited<ReturnType<TaskService["view"]>>;
+/** view/list carry the record's current path (QCLI-220); other kinds don't. */
+type TrackerTaskWithPath = Awaited<ReturnType<TaskService["viewWithPath"]>>;
 type TrackerTaskInput = Parameters<TaskService["create"]>[1];
 
 export interface TaskCommandActor {
@@ -59,11 +61,16 @@ export type TaskCommandResponse =
   | {
       readonly schemaVersion: 1;
       readonly kind: "task.list";
-      readonly data: readonly TrackerTask[];
+      readonly data: readonly TrackerTaskWithPath[];
     }
   | {
       readonly schemaVersion: 1;
-      readonly kind: "task.view" | "task.created" | "task.updated";
+      readonly kind: "task.view";
+      readonly data: TrackerTaskWithPath;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "task.created" | "task.updated";
       readonly data: TrackerTask;
     }
   | {
@@ -135,14 +142,14 @@ export async function dispatchTrackerTaskCommand(
       return {
         schemaVersion: 1,
         kind: "task.list",
-        data: await tasks.listFiltered(query),
+        data: await tasks.listFilteredWithPath(query),
       };
     }
     case "view":
       return {
         schemaVersion: 1,
         kind: "task.view",
-        data: await tasks.view(request.reference),
+        data: await tasks.viewWithPath(request.reference),
       };
     case "search":
       return {
