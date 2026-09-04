@@ -411,18 +411,23 @@ export class TaskService {
     operationId: string,
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
-    const tasks = snapshot.tasks;
+    const located = this.taskRecords(snapshot);
     const task = this.stamped(createTask(id, input, this.lifecycle), true);
+    // Checked before canonicalization so reusing an id retired to
+    // completed/archived storage still reports the specific
+    // task_already_exists rather than the generic duplicate-id rejection
+    // canonicalizeTaskLinks would otherwise throw first.
+    if (located.some((existing) => existing.task.id === task.id))
+      throw new Error("task_already_exists");
+    // Full cross-location universe (QCLI-223): a new task's dependency or
+    // parent can legitimately name a task that has since been completed or
+    // archived. Resolving against snapshot.tasks alone made that edge
+    // unresolvable and broke every subsequent create, not just this one.
+    const tasks = located.map((record) => record.task);
     // Validation before persistence makes bad references and alias conflicts non-mutating.
     const canonical = canonicalizeTaskLinks([...tasks, task]);
     const persisted = canonical.at(-1);
     if (!persisted) throw new Error("task_canonicalization_failed");
-    if (
-      this.taskRecords(snapshot).some(
-        (existing) => existing.task.id === task.id,
-      )
-    )
-      throw new Error("task_already_exists");
     if (persisted.milestoneId !== undefined)
       return this.persistWithMilestoneClosure(
         persisted,
@@ -833,6 +838,13 @@ export class TaskService {
     const tasks = snapshot.tasks;
     const task = findTask(tasks, reference);
     const unsafe = patch as Partial<TaskState>;
+    // Full cross-location universe (QCLI-223) for graph resolution only --
+    // findTask above still scopes what's directly editable to active tasks,
+    // unchanged. The edited task's own dependency/parent can legitimately
+    // name a completed or archived task; resolving against snapshot.tasks
+    // alone made that edge unresolvable and broke every edit, not just ones
+    // touching the graph.
+    const allTasks = this.taskRecords(snapshot).map((record) => record.task);
     if ("gates" in unsafe || "gateEvents" in unsafe)
       throw new RecordValidationError("task_gate_events_managed");
     // Timestamps are stamped by the service on every write, so a patch that
@@ -849,7 +861,7 @@ export class TaskService {
       taskState({ ...task, ...authorizedPatch, id: task.id }),
     );
     const canonical = canonicalizeTaskLinks(
-      tasks.map((item) => (item.id === task.id ? next : item)),
+      allTasks.map((item) => (item.id === task.id ? next : item)),
     );
     const persisted = findTask(canonical, task.id);
     if (persisted.milestoneId !== task.milestoneId) {
@@ -1000,6 +1012,13 @@ export class TaskService {
       const slotsById = new Map<string, number>(
         initial.tasks.map((task, index) => [task.id, index]),
       );
+      // Read-only resolution context (QCLI-223): an active task's
+      // dependency/parent can legitimately name a completed or archived
+      // task. These never change during a batch, so they're captured once
+      // rather than re-derived per graph-touching row.
+      const retiredTasks = this.taskRecords(initial)
+        .filter((record) => record.location !== "tasks")
+        .map((record) => record.task);
       // O(1) alias/reference index over the evolving collection.
       let rowIndex = buildReferenceIndex(workingTasks);
 
@@ -1051,7 +1070,10 @@ export class TaskService {
               JSON.stringify(current.blockers ?? []);
           let persistedRow = rawNext as TaskState;
           if (touchesGraph) {
-            const linkSession = createTaskLinkSession(workingTasks);
+            const linkSession = createTaskLinkSession([
+              ...workingTasks,
+              ...retiredTasks,
+            ]);
             // Blocker #6: ONE canonical record flows to persistence, the
             // result envelope, and the evolving fold for following rows.
             persistedRow = linkSession.apply(rawNext);

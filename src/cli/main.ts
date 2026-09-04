@@ -2458,7 +2458,14 @@ export async function runQuest(
       );
     if (
       message === "tracker_write_conflict" ||
-      message === "dependency_target_ambiguous"
+      message === "dependency_target_ambiguous" ||
+      // An auto-allocated id (nextTaskId) racing another writer for the same
+      // id surfaces here as task_already_exists (QCLI-223): create() now
+      // validates against every location, including one a concurrent
+      // sibling just committed to. That is the same symptom as
+      // dependency_target_ambiguous above, just caught earlier -- retrying
+      // recomputes a fresh id and succeeds.
+      message === "task_already_exists"
     )
       return failure(
         "conflict",
