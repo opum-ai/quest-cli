@@ -328,7 +328,10 @@ None known as code. The ~72 Treehouse references here are dated historical Backl
 
 ### Constraints and couplings to respect
 
-`.pi/` is untracked by standing user instruction. Do not commit, gitignore, or delete it.
+`.pi/` is gitignored as of 2026-09-04, by direct first-party user instruction that supersedes
+the earlier "do not gitignore" note recorded here. Still do not commit or delete its contents.
+The fleet block's "Do not touch `.pi/` anywhere" line above is byte-identical fleet-wide and
+digest-guarded, so it cannot be amended here; this profile entry is the current local rule.
 
 The migration importer previously bypassed invariants that native writes maintain — passing bare strings where structured objects were expected, and skipping `canonicalizeTaskLinks`. Three silent-data-loss bugs came from that one shape and were fixed in PR #223. Any other bulk or import path that constructs records directly rather than routing through the shared writers is likely carrying the same defect.
 
