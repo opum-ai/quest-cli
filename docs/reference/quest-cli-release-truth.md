@@ -20,12 +20,75 @@ Each dated section below is an immutable record of that publication event;
 later sections record later, additional publications rather than replacing
 earlier ones.
 
-## Current publication state (2026-09-05)
+## Current publication state (2026-09-05, updated for 0.3.4)
 
-- npm dist-tag `latest` = `0.3.3` on the root package and all six platform
+- npm dist-tag `latest` = `0.3.4` on the root package and all six platform
   packages (verified live via `npm view @opum-ai/quest version` and
   `npm view <platform-package> version` for all six, immediately after
   publication).
+- Published via `release.yml` `workflow_dispatch` `publish=true` against tag
+  `v0.3.4` (run
+  https://github.com/opum-ai/quest-cli/actions/runs/33987103879), gated on a
+  native-execution receipt fetched by that same workflow for commit
+  `a50da3c`. Unlike 0.3.3, `dev` was promoted to `main` (fast-forward,
+  `git push origin dev:main`) *before* this publish, not after -- the lesson
+  from 0.3.3's post-publish `bun.lock` fix.
+- Publication authority: the package owner explicitly authorized this release
+  in-session (2026-09-05) to carry QCLI-235 (the `opum-quest` Claude Code
+  plugin scaffold) and QCLI-236 (the `skill_source=plugin` opt-out) to a
+  release tag.
+- See "0.3.4 release" below for the qualification, receipt, and
+  post-publish-smoke evidence for this specific version. The
+  2026-08-28-dated section further below remains the last full record before
+  0.3.3/0.3.4 and predates them; no section exists here for 0.3.0-0.3.2
+  either, a pre-existing documentation gap not backfilled by either release.
+
+## 0.3.4 release
+
+Carries QCLI-235 (`.claude-plugin/plugin.json`, `skills/quest/SKILL.md`,
+`evals/` for the `opum-quest` Claude Code plugin) and QCLI-236 (a persisted
+`agents.skillSource` opt-out in `.quest/workspace.toml`, gated by a new
+`--force` flag that only ever removes a byte-exact leftover
+`.claude/skills/quest/SKILL.md`, never a hand-edited one).
+
+Source commit `a50da3c` (PR #273 merge to `dev`, then promoted to `main`
+before publish via PR #274 + `git push origin dev:main` -- a deliberate
+change from 0.3.3's order). Prepublication qualification run
+https://github.com/opum-ai/quest-cli/actions/runs/33985711996 (explicit
+`workflow_dispatch` against the `v0.3.4` tag) passed all six platform jobs
+plus `source-gates` (including `bun install --frozen-lockfile`, confirming
+the lockfile fix applied proactively this time) and the operating-block
+digest check.
+
+The native-execution receipt binds `0.3.4` at `a50da3c` across all six
+platforms (`bun run receipt:require` confirmed this locally before publish).
+
+npm `dist.shasum`/`dist.integrity` observed live immediately after
+publication, for the root package and all six platform packages:
+
+| Package | npm shasum | npm integrity |
+| --- | --- | --- |
+| `@opum-ai/quest@0.3.4` | `c750b2b971e23009491ad198b5a55b339a5341a4` | `sha512-JGmsOeC5+ZTGGtbqSS3imRmjf/OmyCBUDID50pb/ZEIuV7GOMgaJ9ewH3VzIZYLb5vKdW8OBOwyPM3bFUjMH7w==` |
+| `@opum-ai/quest-darwin-arm64@0.3.4` | `099056a73bce5b4674a79cfd976e454f6493c070` | `sha512-cLtAGDk5QESQOss+sBe/VR/XiBpbUd9lwFkkB0xVB411qsoIfodaAp4sukAn4LM605ZLEWKqSz+rafM0Anvapw==` |
+| `@opum-ai/quest-darwin-x64@0.3.4` | `dce1455579563068fc5bf907acfd2a9f91f9dffd` | `sha512-sTPZyVg1INP+nUgk4JJ+gtE9Q8ySCqZBy/ExXI87xtzX2G42xQ+DksDNrVOrlfiQjuuxt7VopNbNoY3DL7HHpQ==` |
+| `@opum-ai/quest-linux-arm64@0.3.4` | `b52d005002c0e7af151801613f7721df108ece99` | `sha512-hvSVSTiRaDvIfxK1tmMgXYuZD8EBdn7UovYK7vvmx8pk8nYf8AvJQy+ipDhVkQRGWZ+eFwHGYdtzTjj/j/XGbQ==` |
+| `@opum-ai/quest-linux-x64@0.3.4` | `343b36a9fdb486dcef13ef9e0191cc55b3152a84` | `sha512-Ro+t8ZPrqnxMfilmPQtnUiib92ejZ2aFHBFWQu4wHMMru+tMEieFO8ia1JNAqbz8i+YXlpZ0YVgGOL/lfPfuKg==` |
+| `@opum-ai/quest-win32-arm64@0.3.4` | `5878c72d30d70a284033d3833a8fc42e51344f51` | `sha512-Arli5vy4deeRTSma4uXecG8EUp7h+xZ14BHLiI5W8qcqO3dbCpxDP4qgePwZujftLEPoRhovoAaYW2+YHcKotA==` |
+| `@opum-ai/quest-win32-x64@0.3.4` | `15c9582bbcd73fbdd21bb35823453109255bac10` | `sha512-3gzo6RYx0Tqe7CEKcO0BVf0IDcdhRxBptBaPQE91Dw5VS9i1YFPGLsiVqae61pT2aZC9ROUVnnopB0tr48dFsw==` |
+
+`bun run receipt:verify-published -- 0.3.4` confirmed the receipt matches
+every published platform package. Post-publish clean-install smoke (a fresh
+`npm install @opum-ai/quest@0.3.4`, isolated from any local checkout) proved
+the full `--skill-source plugin` / `--force` opt-out flow end to end against
+the published bytes: `quest init --agent-instructions --target claude
+--skill-source plugin` persists the config and writes the skill once; a bare
+`quest agents --update-instructions` then reports it `orphaned` rather than
+leaving it alone; `quest agents --check` exits 6; `quest agents
+--update-instructions --force` removes the byte-exact file; `quest agents
+--check --require-installed --target claude` then exits 0. Also confirmed:
+the per-repo skill's own text no longer hardcodes "managed in AGENTS.md"
+(QCLI-236's fix, found independently by quest-web against the pre-fix 0.3.3
+and already resolved here).
 - Published via `release.yml` `workflow_dispatch` `publish=true` against tag
   `v0.3.3` (run
   https://github.com/opum-ai/quest-cli/actions/runs/33955399180), gated on a
