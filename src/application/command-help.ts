@@ -31,10 +31,10 @@ export const commandHelp: Record<
   },
   init: {
     summary:
-      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing. Refuses if already initialized -- use `quest init --reconfigure` to change name/task-id-prefix on an existing workspace instead of deleting .quest/ and starting over.",
+      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing. --target claude writes CLAUDE.md instead (requires --agent-instructions; the default target remains AGENTS.md when --target is omitted, so existing callers are unaffected). Refuses if already initialized -- use `quest init --reconfigure` to change name/task-id-prefix on an existing workspace instead of deleting .quest/ and starting over.",
     usage:
-      'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
-    flags: ["--name", "--task-id-prefix", "--agent-instructions"],
+      'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex]]',
+    flags: ["--name", "--task-id-prefix", "--agent-instructions", "--target"],
   },
   "init --reconfigure": {
     summary:
@@ -50,7 +50,7 @@ export const commandHelp: Record<
   // separate commands.
   instructions: {
     summary:
-      "Print the managed AGENTS.md agent-instructions block, one workflow guide, or the guide index.",
+      "Print the managed agent-instructions block (written to AGENTS.md by default, or CLAUDE.md via `quest agents --update-instructions --target claude`), one workflow guide, or the guide index.",
     usage: "quest instructions [<guide>] [--list]",
     flags: ["--list"],
   },
@@ -65,9 +65,16 @@ export const commandHelp: Record<
     flags: [],
   },
   agents: {
-    summary: "Check or update the managed agent-instructions block.",
-    usage: "quest agents --check [--require-installed] | --update-instructions",
-    flags: ["--check", "--require-installed", "--update-instructions"],
+    summary:
+      "Check or update the managed agent-instructions block. --target selects which file the block targets: codex (AGENTS.md, the default when --target is omitted) or claude (CLAUDE.md). A --check call must pass the same --target the block was written with -- it checks exactly one file per invocation, never both.",
+    usage:
+      "quest agents --check [--require-installed] [--target claude|codex] | --update-instructions [--target claude|codex]",
+    flags: [
+      "--check",
+      "--require-installed",
+      "--update-instructions",
+      "--target",
+    ],
   },
   completion: {
     summary: "Print a shell completion script.",

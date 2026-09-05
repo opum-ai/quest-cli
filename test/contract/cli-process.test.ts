@@ -147,9 +147,10 @@ test("every help spelling resolves output modes before its optional topic", asyn
       details: {
         valueSyntax: expect.stringContaining("--flag=<value>"),
         usage:
-          "quest agents --check [--require-installed] | --update-instructions",
+          "quest agents --check [--require-installed] [--target claude|codex] | --update-instructions [--target claude|codex]",
         check: expect.stringContaining("strict missing exits 6"),
         drift: expect.stringContaining("exit 6"),
+        target: expect.stringContaining("codex"),
       },
     },
   });
@@ -180,7 +181,7 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
     "summary: Initialize a Quest workspace in the current Git worktree.",
   );
   expect(helpPlain.stdout).toContain(
-    'usage: quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
+    'usage: quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex]]',
   );
   expect(helpPlain.stdout).toContain("summary: Create a task.");
 
@@ -195,8 +196,8 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
       kind: "workspace.initialized",
       mutates: true,
       usage:
-        'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions]',
-      flags: ["--name", "--task-id-prefix", "--agent-instructions"],
+        'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex]]',
+      flags: ["--name", "--task-id-prefix", "--agent-instructions", "--target"],
     }),
     expect.objectContaining({
       name: "init --reconfigure",

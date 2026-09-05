@@ -4,7 +4,9 @@ import { readFile, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { Command } from "commander";
 import {
+  agentInstructionPathForTarget,
   type AgentInstructionCheck,
+  type AgentInstructionTarget,
   inspectQuestAgentInstructions,
   inspectQuestSkillFile,
   questAgentInstructions,
@@ -653,10 +655,12 @@ export async function runQuest(
         ...(helpTarget === "agents"
           ? {
               usage:
-                "quest agents --check [--require-installed] | --update-instructions",
+                "quest agents --check [--require-installed] [--target claude|codex] | --update-instructions [--target claude|codex]",
               check:
                 "--check reports missing without failing unless --require-installed is present; strict missing exits 6.",
               drift: "Drift or malformed managed markers exit 6.",
+              target:
+                "--target selects codex (AGENTS.md, the default) or claude (CLAUDE.md); each call checks or updates exactly one file.",
             }
           : {}),
       };
@@ -678,12 +682,29 @@ export async function runQuest(
           "--name",
           "--task-id-prefix",
           "--reconfigure",
+          "--target",
         ])
       )
         return failure(
           "usage",
-          "init accepts only --name, --task-id-prefix, --agent-instructions, --reconfigure, --json, and --plain.",
+          "init accepts only --name, --task-id-prefix, --agent-instructions, --target, --reconfigure, --json, and --plain.",
         );
+      const targetValue = one(parsed, "--target");
+      if (
+        targetValue !== undefined &&
+        targetValue !== "claude" &&
+        targetValue !== "codex"
+      )
+        return failure(
+          "usage",
+          `--target must be "claude" or "codex", got "${targetValue}".`,
+        );
+      if (
+        targetValue !== undefined &&
+        !parsed.values.has("--agent-instructions")
+      )
+        return failure("usage", "--target requires --agent-instructions.");
+      const target = targetValue as AgentInstructionTarget | undefined;
       const reconfigure = parsed.values.has("--reconfigure");
       if (
         reconfigure &&
@@ -744,7 +765,10 @@ export async function runQuest(
       let skill: AgentInstructionCheck | undefined;
       if (writeInstructions) {
         const agentInstructionPort = createAgentInstructionPort(process.cwd());
-        instructions = await updateQuestAgentInstructions(agentInstructionPort);
+        instructions = await updateQuestAgentInstructions(
+          agentInstructionPort,
+          agentInstructionPathForTarget(target),
+        );
         skill = await updateQuestSkillFile(agentInstructionPort);
       }
       return output(
@@ -840,6 +864,7 @@ export async function runQuest(
           "--check",
           "--require-installed",
           "--update-instructions",
+          "--target",
         ])
       )
         return failure(
@@ -853,10 +878,28 @@ export async function runQuest(
         return failure("usage", "agents requires exactly one action.");
       if (requireInstalled && !check)
         return failure("usage", "--require-installed requires --check.");
+      const targetValue = one(parsed, "--target");
+      if (
+        targetValue !== undefined &&
+        targetValue !== "claude" &&
+        targetValue !== "codex"
+      )
+        return failure(
+          "usage",
+          `--target must be "claude" or "codex", got "${targetValue}".`,
+        );
+      const target = targetValue as AgentInstructionTarget | undefined;
+      const instructionsPath = agentInstructionPathForTarget(target);
       const agentInstructionPort = createAgentInstructionPort(process.cwd());
       const instructionsResult = check
-        ? await inspectQuestAgentInstructions(agentInstructionPort)
-        : await updateQuestAgentInstructions(agentInstructionPort);
+        ? await inspectQuestAgentInstructions(
+            agentInstructionPort,
+            instructionsPath,
+          )
+        : await updateQuestAgentInstructions(
+            agentInstructionPort,
+            instructionsPath,
+          );
       const skillResult = check
         ? await inspectQuestSkillFile(agentInstructionPort)
         : await updateQuestSkillFile(agentInstructionPort);
@@ -872,7 +915,7 @@ export async function runQuest(
         )
           return failure(
             "validation",
-            "Quest agent instruction block is missing. Run quest agents --update-instructions.",
+            `Quest agent instruction block is missing. Run quest agents --update-instructions${target ? ` --target ${target}` : ""}.`,
           );
       }
       return output(
