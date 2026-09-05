@@ -1,2 +1,2 @@
 /** The single release-version source of truth for the Quest CLI. */
-export const QUEST_VERSION = "0.3.3" as const;
+export const QUEST_VERSION = "0.3.4" as const;

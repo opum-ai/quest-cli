@@ -17,12 +17,12 @@
         "typescript": "7.0.2",
       },
       "optionalDependencies": {
-        "@opum-ai/quest-darwin-arm64": "0.3.3",
-        "@opum-ai/quest-darwin-x64": "0.3.3",
-        "@opum-ai/quest-linux-arm64": "0.3.3",
-        "@opum-ai/quest-linux-x64": "0.3.3",
-        "@opum-ai/quest-win32-arm64": "0.3.3",
-        "@opum-ai/quest-win32-x64": "0.3.3",
+        "@opum-ai/quest-darwin-arm64": "0.3.4",
+        "@opum-ai/quest-darwin-x64": "0.3.4",
+        "@opum-ai/quest-linux-arm64": "0.3.4",
+        "@opum-ai/quest-linux-x64": "0.3.4",
+        "@opum-ai/quest-win32-arm64": "0.3.4",
+        "@opum-ai/quest-win32-x64": "0.3.4",
       },
     },
   },
@@ -44,18 +44,6 @@
     "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.5.8", "", { "os": "win32", "cpu": "arm64" }, "sha512-nILH0mzm3Hi3iEdd7o7GpB8kBR/mSQwfQG/tyBqyNrY2GFtcgwfV9nV8xLmbtUpMNY/Oi0Ml1XgfR4flOdq+AA=="],
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.5.8", "", { "os": "win32", "cpu": "x64" }, "sha512-I2czzXTY61f3nFJxXoMDq80t7MivxDEnCjE+8sDKoFfcKMaoQdkqhIFQ3KyY0XLzeSpUBYeNAXgD+iOV/BU0VA=="],
-
-    "@opum-ai/quest-darwin-arm64": ["@opum-ai/quest-darwin-arm64@0.3.3", "", { "os": "darwin", "cpu": "arm64" }, "sha512-jqoyENa+n8P4FjiT+GinGeOZl4bwhP8DTZj1/whB6N2mXoXe2ldq1srYe5i1dQfYQG7e2Xps0toWXcLYbsDGaw=="],
-
-    "@opum-ai/quest-darwin-x64": ["@opum-ai/quest-darwin-x64@0.3.3", "", { "os": "darwin", "cpu": "x64" }, "sha512-d7nqGWXn8zCs6QelD9iBvlwWabKyIrvSKfqXa734LGKJR2L1Ik7e+/WoLuNXD+QfvpKH6TwfIDPxEfeMrCYu5Q=="],
-
-    "@opum-ai/quest-linux-arm64": ["@opum-ai/quest-linux-arm64@0.3.3", "", { "os": "linux", "cpu": "arm64" }, "sha512-bmrfrQNR9osYk30Vwzj4WUaMZlMHsrbPXHHYVV5kL3Ava3GEl1iJttIq77+P2SnoTAJEvuTEz8WZoLLJc0dBeA=="],
-
-    "@opum-ai/quest-linux-x64": ["@opum-ai/quest-linux-x64@0.3.3", "", { "os": "linux", "cpu": "x64" }, "sha512-vzF4fBCPr8rIDhG5UtsH0LwSrDYjdgGm7SBQcep8HddIY7r4sh7ukvDZZxxxTj7goCjA6wD2tQKFk7fEO1tCEQ=="],
-
-    "@opum-ai/quest-win32-arm64": ["@opum-ai/quest-win32-arm64@0.3.3", "", { "os": "win32", "cpu": "arm64" }, "sha512-PqZ7LaNo/7NqM61W+iQ7HJ3VpdWZIwOxtTi1BRvjNAIeywMh0IXc9H3Gb/Hr4XLDC4oeN4IKM5iS6hiev8a/Uw=="],
-
-    "@opum-ai/quest-win32-x64": ["@opum-ai/quest-win32-x64@0.3.3", "", { "os": "win32", "cpu": "x64" }, "sha512-1hZa7iPnnfxSOEQZcfI2DFjrZF5l10CStBVpWB17Nhp4oMZRH79vCuse30SE3zR6cskAwMEmlOGyAr5DACUeTQ=="],
 
     "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
