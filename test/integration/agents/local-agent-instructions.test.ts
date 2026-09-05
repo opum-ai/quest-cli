@@ -1,7 +1,14 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { LocalAgentInstructionPort } from "../../../src/adapters/agents/local-agent-instructions.ts";
 import {
@@ -101,6 +108,75 @@ test("the skill file is installed at its nested path, exact-match idempotent, an
     });
     await updateQuestSkillFile(port);
     expect(await readFile(file, "utf8")).toBe(questSkillContent);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("skillSource=plugin: absent skill file is current, a present one is orphaned, and neither write nor propose happens (QCLI-236)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-skill-plugin-"));
+  try {
+    const port = new LocalAgentInstructionPort(root);
+    const file = join(root, questSkillPath);
+
+    // Absent is the healthy state under skillSource=plugin: no write, no
+    // "missing" complaint.
+    expect(await inspectQuestSkillFile(port, questSkillPath, "plugin")).toEqual(
+      { state: "current" },
+    );
+    expect(await updateQuestSkillFile(port, questSkillPath, "plugin")).toEqual({
+      state: "current",
+    });
+    await expect(readFile(file, "utf8")).rejects.toThrow();
+
+    // A byte-exact leftover (as if written before the repo opted in) is
+    // reported orphaned, not silently accepted or removed without --force.
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, questSkillContent);
+    const orphanedExact = await inspectQuestSkillFile(
+      port,
+      questSkillPath,
+      "plugin",
+    );
+    expect(orphanedExact.state).toBe("orphaned");
+    expect((orphanedExact as { message: string }).message).toContain(
+      "opum-quest",
+    );
+    // A non-force update leaves it in place.
+    expect(await updateQuestSkillFile(port, questSkillPath, "plugin")).toEqual(
+      orphanedExact,
+    );
+    expect(await readFile(file, "utf8")).toBe(questSkillContent);
+
+    // --force removes it only because it is byte-identical to the generated
+    // content.
+    expect(
+      await updateQuestSkillFile(port, questSkillPath, "plugin", true),
+    ).toEqual({ state: "current" });
+    await expect(readFile(file, "utf8")).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("skillSource=plugin: --force never removes a hand-edited leftover, even though it still reports orphaned (QCLI-236)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-skill-plugin-force-"));
+  try {
+    const port = new LocalAgentInstructionPort(root);
+    const file = join(root, questSkillPath);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, "hand-edited, not the generated content\n");
+
+    const check = await inspectQuestSkillFile(port, questSkillPath, "plugin");
+    expect(check.state).toBe("orphaned");
+
+    // Force still refuses: the bytes do not match what Quest would generate.
+    expect(
+      await updateQuestSkillFile(port, questSkillPath, "plugin", true),
+    ).toEqual(check);
+    expect(await readFile(file, "utf8")).toBe(
+      "hand-edited, not the generated content\n",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { canonicalIdPrefixPattern } from "../../domain/records.ts";
 import {
   WorkspaceError,
+  type AgentSkillSource,
   type WorkspaceConfiguration,
   type WorkspaceIdentity,
   type WorkspacePort,
@@ -10,6 +11,7 @@ import {
 
 export {
   WorkspaceError,
+  type AgentSkillSource,
   type WorkspaceConfiguration,
   type WorkspaceIdentity,
   type WorkspacePort,
@@ -28,6 +30,7 @@ export interface WorkspaceEntry extends WorkspaceIdentity {
 export interface WorkspaceInitializationInput {
   readonly name?: string;
   readonly taskIdPrefix?: string;
+  readonly agentSkillSource?: AgentSkillSource;
 }
 
 export const workspaceConfigurationPath = ".quest/workspace.toml";
@@ -44,6 +47,12 @@ function serializeConfiguration(input: WorkspaceInitializationInput): string {
   if (input.name) lines.push(`name = ${tomlStringLiteral(input.name)}`);
   if (input.taskIdPrefix)
     lines.push(`taskIdPrefix = ${tomlStringLiteral(input.taskIdPrefix)}`);
+  if (input.agentSkillSource)
+    lines.push(
+      "",
+      "[agents]",
+      `skill_source = ${tomlStringLiteral(input.agentSkillSource)}`,
+    );
   return `${lines.join("\n")}\n`;
 }
 
@@ -135,6 +144,7 @@ export async function reconfigureWorkspace(
     serializeConfiguration({
       name: input.name ?? current.name,
       taskIdPrefix: input.taskIdPrefix ?? current.taskIdPrefix,
+      agentSkillSource: input.agentSkillSource ?? current.agentSkillSource,
     }),
   );
   return identity;

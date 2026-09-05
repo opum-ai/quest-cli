@@ -1,4 +1,11 @@
-import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  readFile,
+  realpath,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
@@ -86,5 +93,19 @@ export class LocalAgentInstructionPort implements AgentInstructionPort {
     }
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, content, "utf8");
+  }
+
+  async remove(path: string): Promise<void> {
+    const target = await this.target(path);
+    try {
+      if ((await lstat(target)).isSymbolicLink())
+        throw new AgentInstructionError(
+          "Agent instruction file must not be a symbolic link.",
+        );
+      await unlink(target);
+    } catch (error) {
+      if ((error as { code?: string }).code === "ENOENT") return;
+      throw error;
+    }
   }
 }

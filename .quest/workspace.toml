@@ -1,3 +1,6 @@
 schemaVersion = 1
 name = "quest-cli"
 taskIdPrefix = "QCLI"
+
+[agents]
+skill_source = "plugin"

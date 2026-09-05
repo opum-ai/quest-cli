@@ -13,7 +13,8 @@ export type WorkspaceFailure =
   | "already_initialized"
   | "stray_content"
   | "registry_conflict"
-  | "registry_invalid";
+  | "registry_invalid"
+  | "invalid_configuration";
 
 export class WorkspaceError extends Error {
   constructor(
@@ -25,12 +26,22 @@ export class WorkspaceError extends Error {
   }
 }
 
+/** Where the quest Claude Code skill for this workspace comes from: "repo"
+ * (default) generates .claude/skills/quest/SKILL.md into this repository;
+ * "plugin" declares it ships instead from the opum-quest Claude Code plugin,
+ * so quest agents stops writing or proposing the per-repo copy. */
+export type AgentSkillSource = "repo" | "plugin";
+
 /** Optional operator-declared identity stored alongside schemaVersion.
- * Both fields are absent on every workspace initialized before this existed. */
+ * All three fields are absent on every workspace initialized before they
+ * existed. agentSkillSource is stored as an `[agents]` TOML table
+ * (`skill_source = "..."`) so an older Quest reading this file simply does
+ * not recognize the table and ignores it, rather than erroring. */
 export interface WorkspaceConfiguration {
   readonly schemaVersion: 1;
   readonly name?: string;
   readonly taskIdPrefix?: string;
+  readonly agentSkillSource?: AgentSkillSource;
 }
 
 export interface WorkspacePort {
