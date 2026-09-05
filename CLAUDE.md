@@ -72,11 +72,13 @@ hard-to-reverse actions — it changes who is asked, not whether asking still ma
 
 ## Cross-repo dependencies (verified)
 
-`AGENTS.md`'s "Authority marker (immutable)" line (`opum-agent shared skill source: ...`) is
-read by opum-agent's own migration-launch-fence gate as a substring check on `origin/dev` —
-confirmed 2026-08-30 by reading `tooling/agent-skills/src/source-migration.mjs` directly, not
-by taking a peer's word for it. Removing or rewording that line breaks another repo's launch
-gate silently; the line itself now carries the same warning inline.
+`AGENTS.md` no longer exists here (deleted under QCLI-230, 2026-09-05): its only load-bearing
+content, an authority-marker line read by opum-agent's migration-launch-fence gate, has zero
+readers left — that gate and the `tooling/agent-skills` directory implementing it were deleted
+from opum-agent on 2026-09-04, confirmed by reading opum-agent's own checkout directly, not by
+taking a peer's word for it. The managed Quest agent-instructions block that used to live in
+AGENTS.md now lives in this file (see the `quest:agent-instructions` block below), written via
+`quest agents --update-instructions --target claude` (QCLI-227).
 
 ## Consolidated authority routing
 
@@ -107,15 +109,14 @@ provenance stay historical and must not be promoted into active instructions.
 
 Quest is developed alongside two sibling repositories, each usually driven by its own
 Claude Code session. They are peers, not subordinates: none can commit in another's
-repository, and each owns its own evidence.
+repository, and each owns its own evidence. Reach a peer with `ListAgents`/`SendMessage`
+per the fleet block above — session names change on every restart, so look one up rather
+than reusing a name or pane id from a prior session.
 
-| Repository | Owns | Reach it |
-| --- | --- | --- |
-| `lore-cli` | The `lore` CLI and the Lore-side tracker adapter, including `MIN_QUEST_VERSION` and the manifest handshake | `herdr agent prompt wR:pD "…"` |
-| `opum-cli-e2e` | The cross-product qualification harness: the row matrix, digest binding, scale evidence, and the native-receipt validator | `herdr agent prompt wK:pR "…"` |
-
-Pane ids move between sessions. Confirm with `herdr agent read <pane>` before trusting one,
-or discover peers with `ListAgents` / `list_sessions`.
+| Repository | Owns |
+| --- | --- |
+| `lore-cli` | The `lore` CLI and the Lore-side tracker adapter, including `MIN_QUEST_VERSION` and the manifest handshake |
+| `opum-cli-e2e` | The cross-product qualification harness: the row matrix, digest binding, scale evidence, and the native-receipt validator |
 
 **Quest and Lore release as a pair.** A Quest release that changes the tracker surface is
 qualified against a published Lore, and vice versa. Before cutting a release, tell `lore-cli`
@@ -325,11 +326,11 @@ The Quest tracker CLI, published as `@opum-ai/quest`. Owns tracker semantics and
 
 ### Retirement machinery carried here
 
-None known as code. The ~72 Treehouse references here are dated historical Backlog and docs records, correctly left untouched.
+None known as code. The ~72 Treehouse references here are dated historical Backlog and docs records, correctly left untouched. `AGENTS.md` itself was retired and deleted under QCLI-230 (2026-09-05): it carried a Codex-era autonomous-docs authorization tied to the now-retired `backlog-handover` skill, plus the migration-launch-fence marker described below — both dead weight once verified.
 
 ### What other repositories read from here
 
-`AGENTS.md` is one of seven consumer migration receipts read by `opum-agent`'s `assertNoMigrationLaunchFence`, and must contain the `opum-agent shared skill source: ...` marker line. It is a substring check, not a hash — `lore agents` may reformat around it freely, but hard-wrapping that line mid-string would break the fleet's launch gate.
+None known. `AGENTS.md` was previously one of seven consumer migration receipts read by `opum-agent`'s `assertNoMigrationLaunchFence`, requiring the `opum-agent shared skill source: ...` marker line; that gate and the `tooling/agent-skills` directory implementing it were deleted from opum-agent on 2026-09-04 (independently verified against opum-agent's own checkout, not taken on a peer's word), so the marker had zero readers by the time this repository's `AGENTS.md` was deleted.
 
 ### Constraints and couplings to respect
 
@@ -342,3 +343,9 @@ The migration importer previously bypassed invariants that native writes maintai
 
 `main`'s branch protection carries `required_status_checks` (`source-gates`, `operating block digest`) directly on the `main` ref, with `bypass_actors: []` — measured 2026-09-03 via `gh api repos/opum-ai/quest-cli/rules/branches/main` and `.../rulesets`, not assumed from another repo. `dev` carries no ruleset of its own. Re-measure rather than trust this note if it predates the ruleset by more than a few weeks.
 <!-- opum:repo-profile:end -->
+
+<!-- quest:agent-instructions:begin -->
+# Quest agent instructions
+
+This project uses Quest CLI 0.3.2 for tracker operations. Run `quest manifest --json` to discover the supported command contract. Use `quest instructions --json` for the current versioned protocol. For Backlog tracker cutover, run `quest migration backlog preview --source <project> --json`, review its digest and mappings, then apply it with `quest migration backlog apply --source <project> --digest <digest> --actor <id> --actor-kind human --json`. Quest writes require an explicit actor declaration; do not edit Quest-authored records directly. CI should run `quest agents --check --require-installed`: current instructions exit 0, while missing, drifted, or malformed managed instructions exit 6. Quest does not retry write conflicts automatically; callers should read the latest task state and perform their own bounded retry when a command returns conflict/exit 5.
+<!-- quest:agent-instructions:end -->

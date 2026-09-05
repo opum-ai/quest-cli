@@ -1,0 +1,6 @@
+{
+  "env": {
+    "OPUM_HOOK_ACTOR": "quest-cli-session",
+    "OPUM_HOOK_ACCOUNTABLE_HUMAN": "jdnewhouse"
+  }
+}
