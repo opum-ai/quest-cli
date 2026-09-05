@@ -768,6 +768,7 @@ export async function runQuest(
         instructions = await updateQuestAgentInstructions(
           agentInstructionPort,
           agentInstructionPathForTarget(target),
+          target,
         );
         skill = await updateQuestSkillFile(agentInstructionPort);
       }
@@ -895,10 +896,12 @@ export async function runQuest(
         ? await inspectQuestAgentInstructions(
             agentInstructionPort,
             instructionsPath,
+            target,
           )
         : await updateQuestAgentInstructions(
             agentInstructionPort,
             instructionsPath,
+            target,
           );
       const skillResult = check
         ? await inspectQuestSkillFile(agentInstructionPort)

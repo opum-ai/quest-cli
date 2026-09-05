@@ -22,12 +22,23 @@ export function agentInstructionPathForTarget(
 const begin = "<!-- quest:agent-instructions:begin -->";
 const end = "<!-- quest:agent-instructions:end -->";
 
-/** The small, versioned contract which agents may rely on after opt-in. */
-export const questAgentInstructions = `${begin}
+/** The small, versioned contract which agents may rely on after opt-in. The
+ * CI hint names the exact --target the reader needs, so a claude-target block
+ * doesn't tell its reader to run the codex-target check. */
+function questAgentInstructionsFor(
+  target: AgentInstructionTarget = "codex",
+): string {
+  const targetFlag = target === "claude" ? " --target claude" : "";
+  return `${begin}
 # Quest agent instructions
 
-This project uses Quest CLI ${QUEST_VERSION} for tracker operations. Run \`quest manifest --json\` to discover the supported command contract. Use \`quest instructions --json\` for the current versioned protocol. For Backlog tracker cutover, run \`quest migration backlog preview --source <project> --json\`, review its digest and mappings, then apply it with \`quest migration backlog apply --source <project> --digest <digest> --actor <id> --actor-kind human --json\`. Quest writes require an explicit actor declaration; do not edit Quest-authored records directly. CI should run \`quest agents --check --require-installed\`: current instructions exit 0, while missing, drifted, or malformed managed instructions exit 6. Quest does not retry write conflicts automatically; callers should read the latest task state and perform their own bounded retry when a command returns conflict/exit 5.
+This project uses Quest CLI ${QUEST_VERSION} for tracker operations. Run \`quest manifest --json\` to discover the supported command contract. Use \`quest instructions --json\` for the current versioned protocol. For Backlog tracker cutover, run \`quest migration backlog preview --source <project> --json\`, review its digest and mappings, then apply it with \`quest migration backlog apply --source <project> --digest <digest> --actor <id> --actor-kind human --json\`. Quest writes require an explicit actor declaration; do not edit Quest-authored records directly. CI should run \`quest agents --check --require-installed${targetFlag}\`: current instructions exit 0, while missing, drifted, or malformed managed instructions exit 6. Quest does not retry write conflicts automatically; callers should read the latest task state and perform their own bounded retry when a command returns conflict/exit 5.
 ${end}\n`;
+}
+
+/** Byte-identical to the pre-QCLI-227 constant, for callers (e.g. the bare
+ * `quest instructions` command) that don't yet know about --target. */
+export const questAgentInstructions = questAgentInstructionsFor("codex");
 
 export type AgentInstructionCheck =
   | { readonly state: "missing" }
@@ -44,6 +55,7 @@ function managedBlocks(content: string): readonly string[] {
 /** Checks the managed region without interpreting or normalizing user-authored text. */
 export function checkQuestAgentInstructions(
   content: string | undefined,
+  target: AgentInstructionTarget = "codex",
 ): AgentInstructionCheck {
   if (content === undefined) return { state: "missing" };
   const begins = content.split(begin).length - 1;
@@ -56,7 +68,7 @@ export function checkQuestAgentInstructions(
       message: "Quest agent instruction markers are malformed or duplicated.",
     };
   }
-  if (`${blocks[0]}\n` !== questAgentInstructions) {
+  if (`${blocks[0]}\n` !== questAgentInstructionsFor(target)) {
     return {
       state: "drift",
       message: `Quest agent instruction block differs from version ${QUEST_VERSION}.`,
@@ -71,29 +83,32 @@ export function checkQuestAgentInstructions(
  */
 export function applyQuestAgentInstructions(
   content: string | undefined,
+  target: AgentInstructionTarget = "codex",
 ): string {
-  const check = checkQuestAgentInstructions(content);
-  if (check.state === "current") return content ?? questAgentInstructions;
+  const expected = questAgentInstructionsFor(target);
+  const check = checkQuestAgentInstructions(content, target);
+  if (check.state === "current") return content ?? expected;
   if (check.state === "drift") {
     const blocks = managedBlocks(content ?? "");
     const [block] = blocks;
     if (blocks.length !== 1 || !block)
       throw new AgentInstructionError(check.message);
-    return (content ?? "").replace(block, questAgentInstructions.trimEnd());
+    return (content ?? "").replace(block, expected.trimEnd());
   }
-  if (!content) return questAgentInstructions;
-  return `${content}${content.endsWith("\n") ? "\n" : "\n\n"}${questAgentInstructions}`;
+  if (!content) return expected;
+  return `${content}${content.endsWith("\n") ? "\n" : "\n\n"}${expected}`;
 }
 
 /** Writes the opt-in instruction file only when its managed block changes. */
 export async function updateQuestAgentInstructions(
   port: AgentInstructionPort,
   path = codexInstructionPath,
+  target: AgentInstructionTarget = "codex",
 ): Promise<AgentInstructionCheck> {
   const current = await port.read(path);
-  const check = checkQuestAgentInstructions(current);
+  const check = checkQuestAgentInstructions(current, target);
   if (check.state === "current") return check;
-  await port.write(path, applyQuestAgentInstructions(current));
+  await port.write(path, applyQuestAgentInstructions(current, target));
   return { state: "current" };
 }
 
@@ -101,8 +116,9 @@ export async function updateQuestAgentInstructions(
 export async function inspectQuestAgentInstructions(
   port: AgentInstructionPort,
   path = codexInstructionPath,
+  target: AgentInstructionTarget = "codex",
 ): Promise<AgentInstructionCheck> {
-  return checkQuestAgentInstructions(await port.read(path));
+  return checkQuestAgentInstructions(await port.read(path), target);
 }
 
 export const questSkillPath = ".claude/skills/quest/SKILL.md";

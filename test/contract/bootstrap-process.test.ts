@@ -260,6 +260,13 @@ test("--agent-instructions also installs the quest skill, and agents --check/--u
     const skillContent = await readFile(skillFile, "utf8");
     expect(skillContent).toContain("name: quest");
     expect(skillContent).toContain("quest instructions");
+    // Default (no --target) CI hint stays untargeted -- no regression from
+    // making the block target-aware for --target claude.
+    const agentsContent = await readFile(join(root, "AGENTS.md"), "utf8");
+    expect(agentsContent).toContain(
+      "quest agents --check --require-installed`:",
+    );
+    expect(agentsContent).not.toContain("--target");
 
     // Both targets already current: check reports current for both, no rewrite.
     const current = await run(root, "agents", "--check", "--json");
@@ -332,8 +339,14 @@ test("--target claude writes and checks CLAUDE.md instead of AGENTS.md, end to e
     expect(JSON.parse(initialized.stdout)).toMatchObject({
       data: { instructions: { state: "current" } },
     });
-    expect(await readFile(claudeFile, "utf8")).toContain(
-      "# Quest agent instructions",
+    const claudeContent = await readFile(claudeFile, "utf8");
+    expect(claudeContent).toContain("# Quest agent instructions");
+    // The block's own CI hint must name the target it was written for, or a
+    // reader following it verbatim checks the wrong file (the bug this
+    // guards against: the claude-target block used to say the codex-target
+    // command).
+    expect(claudeContent).toContain(
+      "quest agents --check --require-installed --target claude",
     );
     await expect(stat(agentsFile)).rejects.toThrow();
 
