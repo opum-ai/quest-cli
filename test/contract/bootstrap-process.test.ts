@@ -419,6 +419,163 @@ test("--target is rejected without --agent-instructions on init, and with an inv
   }
 });
 
+test("--skill-source plugin: init still writes the skill once (explicit beats config), then a bare agents run stops proposing it and flags a leftover as drift (QCLI-236)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    // Explicit request always materializes the file, even while persisting
+    // the opt-out in the same call.
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--skill-source",
+      "plugin",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toMatchObject({
+      data: {
+        configuration: { agentSkillSource: "plugin" },
+        skill: { state: "current" },
+      },
+    });
+    expect(await readFile(skillFile, "utf8")).toContain("name: quest");
+    expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\n\n[agents]\nskill_source = "plugin"\n',
+    );
+
+    // A bare `agents --update-instructions` (no explicit request) now
+    // respects the persisted opt-out: the file already exists, so this
+    // reports it as a leftover rather than silently leaving it alone.
+    const bareUpdate = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--json",
+    );
+    expect(bareUpdate.exitCode).toBe(0);
+    expect(JSON.parse(bareUpdate.stdout)).toMatchObject({
+      data: { skill: { state: "orphaned" } },
+    });
+    expect(await readFile(skillFile, "utf8")).toContain("name: quest"); // untouched, no --force
+
+    const check = await run(root, "agents", "--check", "--json");
+    expect(check.exitCode).toBe(6);
+    expect(JSON.parse(check.stderr)).toMatchObject({ error_type: "drift" });
+
+    // --force removes it because it is byte-identical to the generated skill.
+    const forced = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--force",
+      "--json",
+    );
+    expect(forced.exitCode).toBe(0);
+    expect(JSON.parse(forced.stdout)).toMatchObject({
+      data: { skill: { state: "current" } },
+    });
+    await expect(readFile(skillFile, "utf8")).rejects.toThrow();
+
+    const clean = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(clean.exitCode).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--skill-source plugin: --force never deletes a hand-edited skill file (QCLI-236)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    expect(await run(root, "init", "--json")).toMatchObject({ exitCode: 0 });
+    expect(
+      await run(
+        root,
+        "init",
+        "--reconfigure",
+        "--skill-source",
+        "plugin",
+        "--json",
+      ),
+    ).toMatchObject({ exitCode: 0 });
+    await mkdir(join(root, ".claude", "skills", "quest"), { recursive: true });
+    await writeFile(skillFile, "a human wrote this on purpose\n");
+
+    const forced = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--force",
+      "--json",
+    );
+    expect(forced.exitCode).toBe(0);
+    expect(JSON.parse(forced.stdout)).toMatchObject({
+      data: { skill: { state: "orphaned" } },
+    });
+    expect(await readFile(skillFile, "utf8")).toBe(
+      "a human wrote this on purpose\n",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an invalid --skill-source value is a usage error, and --reconfigure accepts --skill-source alone (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    const invalid = await run(
+      root,
+      "init",
+      "--skill-source",
+      "bogus",
+      "--json",
+    );
+    expect(invalid.exitCode).toBe(2);
+    expect(JSON.parse(invalid.stderr)).toMatchObject({
+      error_type: "usage",
+      message: '--skill-source must be "repo" or "plugin", got "bogus".',
+    });
+
+    await run(root, "init", "--json");
+    const reconfigured = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--skill-source",
+      "plugin",
+      "--json",
+    );
+    expect(reconfigured.exitCode).toBe(0);
+    expect(JSON.parse(reconfigured.stdout)).toMatchObject({
+      data: { configuration: { agentSkillSource: "plugin" } },
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("agents --check in an uninitialized directory still defaults to skillSource repo rather than failing on workspace resolution (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    // No `quest init` at all -- agents --check has never required it.
+    const result = await run(root, "agents", "--check", "--json");
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { state: "missing", skill: { state: "missing" } },
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("agents strict checks pin missing, current, drift, and malformed exit semantics", async () => {
   const root = await repository();
   const file = join(root, "AGENTS.md");

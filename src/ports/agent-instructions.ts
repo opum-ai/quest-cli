@@ -2,6 +2,8 @@
 export interface AgentInstructionPort {
   read(path: string): Promise<string | undefined>;
   write(path: string, content: string): Promise<void>;
+  /** Removes the file if present; a no-op if it is already absent. */
+  remove(path: string): Promise<void>;
 }
 
 /** Stable failure type shared by instruction use cases and filesystem adapters. */

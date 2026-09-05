@@ -180,6 +180,87 @@ test("declared name and taskIdPrefix round-trip through initialization and confi
   }
 });
 
+test("agentSkillSource round-trips as an [agents] table without disturbing the flat fields (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root, {
+      name: "Quest",
+      taskIdPrefix: "QCLI",
+      agentSkillSource: "plugin",
+    });
+    expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\nname = "Quest"\ntaskIdPrefix = "QCLI"\n\n[agents]\nskill_source = "plugin"\n',
+    );
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+      name: "Quest",
+      taskIdPrefix: "QCLI",
+      agentSkillSource: "plugin",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an [agents] table appearing after taskIdPrefix (or absent entirely) is still parsed table-scoped, not confused with an unrelated key (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root);
+    // A skill_source-looking key OUTSIDE any [agents] table must never match.
+    await writeFile(
+      join(root, ".quest/workspace.toml"),
+      'schemaVersion = 1\nskill_source = "plugin"\n',
+    );
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an invalid agents.skill_source value fails loud rather than silently defaulting (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root);
+    await writeFile(
+      join(root, ".quest/workspace.toml"),
+      'schemaVersion = 1\n\n[agents]\nskill_source = "bogus"\n',
+    );
+    await expect(
+      resolveWorkspaceConfiguration(port, root),
+    ).rejects.toMatchObject({ code: "invalid_configuration" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("reconfigureWorkspace changes agentSkillSource independently of name/taskIdPrefix, and a workspace.toml written before this field existed is unaffected until set (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root, { name: "Old", taskIdPrefix: "OLD" });
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+      name: "Old",
+      taskIdPrefix: "OLD",
+    });
+
+    await reconfigureWorkspace(port, root, { agentSkillSource: "plugin" });
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+      name: "Old",
+      taskIdPrefix: "OLD",
+      agentSkillSource: "plugin",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a workspace initialized before name/taskIdPrefix existed reads back with neither field", async () => {
   const root = await repository();
   try {

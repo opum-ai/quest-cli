@@ -10,6 +10,7 @@ import {
   inspectQuestAgentInstructions,
   inspectQuestSkillFile,
   questAgentInstructions,
+  questSkillPath,
   updateQuestAgentInstructions,
   updateQuestSkillFile,
 } from "../application/agents/agent-instructions.ts";
@@ -36,6 +37,7 @@ import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
 import type { TaskService } from "../application/tasks/tasks.ts";
 import {
+  type AgentSkillSource,
   initializeWorkspace,
   isValidTaskIdPrefix,
   reconfigureWorkspace,
@@ -236,6 +238,25 @@ function only(
   allowed: readonly string[],
 ): boolean {
   return [...parsed.values.keys()].every((flag) => allowed.includes(flag));
+}
+
+/** Resolves the bare `quest agents` command's persisted skill-source setting.
+ * An uninitialized workspace (no `quest init` yet) defaults to today's
+ * behavior ("repo") rather than failing `agents --check` outright, since
+ * that command has never required initialization. Any other read failure
+ * (e.g. a malformed agents.skill_source value) still propagates. */
+async function resolveAgentSkillSource(cwd: string): Promise<AgentSkillSource> {
+  try {
+    const configuration = await resolveWorkspaceConfiguration(
+      createWorkspacePort(),
+      cwd,
+    );
+    return configuration.agentSkillSource ?? "repo";
+  } catch (error) {
+    if (error instanceof WorkspaceError && error.code === "not_initialized")
+      return "repo";
+    throw error;
+  }
 }
 
 function stringValue(
@@ -655,12 +676,14 @@ export async function runQuest(
         ...(helpTarget === "agents"
           ? {
               usage:
-                "quest agents --check [--require-installed] [--target claude|codex] | --update-instructions [--target claude|codex]",
+                "quest agents --check [--require-installed] [--target claude|codex] | --update-instructions [--target claude|codex] [--force]",
               check:
                 "--check reports missing without failing unless --require-installed is present; strict missing exits 6.",
               drift: "Drift or malformed managed markers exit 6.",
               target:
                 "--target selects codex (AGENTS.md, the default) or claude (CLAUDE.md); each call checks or updates exactly one file.",
+              force:
+                'When this workspace\'s agents.skill_source is "plugin", a leftover .claude/skills/quest/SKILL.md reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
             }
           : {}),
       };
@@ -683,11 +706,12 @@ export async function runQuest(
           "--task-id-prefix",
           "--reconfigure",
           "--target",
+          "--skill-source",
         ])
       )
         return failure(
           "usage",
-          "init accepts only --name, --task-id-prefix, --agent-instructions, --target, --reconfigure, --json, and --plain.",
+          "init accepts only --name, --task-id-prefix, --agent-instructions, --target, --skill-source, --reconfigure, --json, and --plain.",
         );
       const targetValue = one(parsed, "--target");
       if (
@@ -705,20 +729,33 @@ export async function runQuest(
       )
         return failure("usage", "--target requires --agent-instructions.");
       const target = targetValue as AgentInstructionTarget | undefined;
+      const skillSourceValue = one(parsed, "--skill-source");
+      if (
+        skillSourceValue !== undefined &&
+        skillSourceValue !== "repo" &&
+        skillSourceValue !== "plugin"
+      )
+        return failure(
+          "usage",
+          `--skill-source must be "repo" or "plugin", got "${skillSourceValue}".`,
+        );
+      const agentSkillSource = skillSourceValue as AgentSkillSource | undefined;
       const reconfigure = parsed.values.has("--reconfigure");
       if (
         reconfigure &&
         !parsed.values.has("--name") &&
-        !parsed.values.has("--task-id-prefix")
+        !parsed.values.has("--task-id-prefix") &&
+        !parsed.values.has("--skill-source")
       )
         return failure(
           "usage",
-          "--reconfigure requires --name and/or --task-id-prefix.",
+          "--reconfigure requires --name, --task-id-prefix, and/or --skill-source.",
         );
       const explicitFlagsGiven =
         parsed.values.has("--agent-instructions") ||
         parsed.values.has("--name") ||
-        parsed.values.has("--task-id-prefix");
+        parsed.values.has("--task-id-prefix") ||
+        parsed.values.has("--skill-source");
       const explicitOutputMode =
         resolvedModes.json ||
         resolvedModes.plain ||
@@ -756,10 +793,12 @@ export async function runQuest(
         ? await reconfigureWorkspace(createWorkspacePort(), process.cwd(), {
             name,
             taskIdPrefix,
+            agentSkillSource,
           })
         : await initializeWorkspace(createWorkspacePort(), process.cwd(), {
             name,
             taskIdPrefix,
+            agentSkillSource,
           });
       let instructions: AgentInstructionCheck | undefined;
       let skill: AgentInstructionCheck | undefined;
@@ -770,6 +809,10 @@ export async function runQuest(
           agentInstructionPathForTarget(target),
           target,
         );
+        // Explicit beats config: an explicit --agent-instructions request
+        // always materializes the skill file, regardless of any persisted
+        // agents.skillSource -- the opt-out only governs the bare `quest
+        // agents` command reading the persisted value below.
         skill = await updateQuestSkillFile(agentInstructionPort);
       }
       return output(
@@ -780,7 +823,7 @@ export async function runQuest(
             : "workspace.initialized",
           data: {
             workspace,
-            configuration: { name, taskIdPrefix },
+            configuration: { name, taskIdPrefix, agentSkillSource },
             instructions,
             skill,
           },
@@ -866,6 +909,7 @@ export async function runQuest(
           "--require-installed",
           "--update-instructions",
           "--target",
+          "--force",
         ])
       )
         return failure(
@@ -875,6 +919,7 @@ export async function runQuest(
       const check = parsed.values.has("--check");
       const requireInstalled = parsed.values.has("--require-installed");
       const update = parsed.values.has("--update-instructions");
+      const force = parsed.values.has("--force");
       if (check === update)
         return failure("usage", "agents requires exactly one action.");
       if (requireInstalled && !check)
@@ -892,6 +937,7 @@ export async function runQuest(
       const target = targetValue as AgentInstructionTarget | undefined;
       const instructionsPath = agentInstructionPathForTarget(target);
       const agentInstructionPort = createAgentInstructionPort(process.cwd());
+      const agentSkillSource = await resolveAgentSkillSource(process.cwd());
       const instructionsResult = check
         ? await inspectQuestAgentInstructions(
             agentInstructionPort,
@@ -904,12 +950,21 @@ export async function runQuest(
             target,
           );
       const skillResult = check
-        ? await inspectQuestSkillFile(agentInstructionPort)
-        : await updateQuestSkillFile(agentInstructionPort);
+        ? await inspectQuestSkillFile(
+            agentInstructionPort,
+            questSkillPath,
+            agentSkillSource,
+          )
+        : await updateQuestSkillFile(
+            agentInstructionPort,
+            questSkillPath,
+            agentSkillSource,
+            force,
+          );
       if (check) {
         if (instructionsResult.state === "drift")
           return failure("drift", instructionsResult.message);
-        if (skillResult.state === "drift")
+        if (skillResult.state === "drift" || skillResult.state === "orphaned")
           return failure("drift", skillResult.message);
         if (
           requireInstalled &&

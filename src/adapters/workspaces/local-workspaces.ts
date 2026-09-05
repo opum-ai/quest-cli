@@ -27,6 +27,25 @@ function tomlString(content: string, key: string): string | undefined {
     : undefined;
 }
 
+/** Same as tomlString, scoped to a `[table]` section's body (up to the next
+ * `[...]` header or EOF) so a same-named key outside the table never matches. */
+function tomlTableString(
+  content: string,
+  table: string,
+  key: string,
+): string | undefined {
+  const header = content.match(new RegExp(`^\\[${table}\\]\\s*$`, "mu"));
+  if (!header || header.index === undefined) return undefined;
+  const bodyStart = header.index + header[0].length;
+  const rest = content.slice(bodyStart);
+  const nextHeader = rest.match(/^\[.*\]\s*$/mu);
+  const body =
+    nextHeader && nextHeader.index !== undefined
+      ? rest.slice(0, nextHeader.index)
+      : rest;
+  return tomlString(body, key);
+}
+
 async function git(path: string, args: readonly string[]): Promise<string> {
   const process = Bun.spawn(["git", "-C", path, ...args], {
     stdout: "pipe",
@@ -168,10 +187,25 @@ export class LocalWorkspacePort implements WorkspacePort {
     }
     const name = tomlString(content, "name");
     const taskIdPrefix = tomlString(content, "taskIdPrefix");
+    const agentSkillSourceRaw = tomlTableString(
+      content,
+      "agents",
+      "skill_source",
+    );
+    if (
+      agentSkillSourceRaw !== undefined &&
+      agentSkillSourceRaw !== "repo" &&
+      agentSkillSourceRaw !== "plugin"
+    )
+      throw new WorkspaceError(
+        "invalid_configuration",
+        `.quest/workspace.toml: agents.skill_source must be "repo" or "plugin", got "${agentSkillSourceRaw}".`,
+      );
     return {
       schemaVersion: 1,
       ...(name ? { name } : {}),
       ...(taskIdPrefix ? { taskIdPrefix } : {}),
+      ...(agentSkillSourceRaw ? { agentSkillSource: agentSkillSourceRaw } : {}),
     };
   }
 

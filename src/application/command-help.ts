@@ -31,17 +31,23 @@ export const commandHelp: Record<
   },
   init: {
     summary:
-      "Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing. --target claude writes CLAUDE.md instead (requires --agent-instructions; the default target remains AGENTS.md when --target is omitted, so existing callers are unaffected). Refuses if already initialized -- use `quest init --reconfigure` to change name/task-id-prefix on an existing workspace instead of deleting .quest/ and starting over.",
+      'Initialize a Quest workspace in the current Git worktree. On a real terminal with no flags, prompts for project name, task ID prefix, and whether to write the managed AGENTS.md block instead of doing nothing. --target claude writes CLAUDE.md instead (requires --agent-instructions; the default target remains AGENTS.md when --target is omitted, so existing callers are unaffected). --skill-source plugin persists that this workspace\'s quest Claude Code skill ships from the opum-quest plugin rather than being generated into this repository -- an explicit --agent-instructions request still always writes the skill file this one time regardless ("explicit beats config"); the default ("repo", unset) is unchanged. Refuses if already initialized -- use `quest init --reconfigure` to change name/task-id-prefix on an existing workspace instead of deleting .quest/ and starting over.',
     usage:
-      'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex]]',
-    flags: ["--name", "--task-id-prefix", "--agent-instructions", "--target"],
+      'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex]] [--skill-source repo|plugin]',
+    flags: [
+      "--name",
+      "--task-id-prefix",
+      "--agent-instructions",
+      "--target",
+      "--skill-source",
+    ],
   },
   "init --reconfigure": {
     summary:
-      "Change the declared name and/or task ID prefix on an existing workspace without deleting .quest/. The supported alternative to `rm -rf .quest && quest init`, which discards every task record --.quest/ is not always tracked in git. Fields not given keep their current value.",
+      "Change the declared name, task ID prefix, and/or skill source on an existing workspace without deleting .quest/. The supported alternative to `rm -rf .quest && quest init`, which discards every task record --.quest/ is not always tracked in git. Fields not given keep their current value.",
     usage:
-      'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC]',
-    flags: ["--name", "--task-id-prefix", "--reconfigure"],
+      'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC] [--skill-source repo|plugin]',
+    flags: ["--name", "--task-id-prefix", "--skill-source", "--reconfigure"],
   },
   // The human-facing entry stays whole: `--list` is a flag of `quest
   // instructions`, and splitting it out would make `quest help instructions`
@@ -66,14 +72,15 @@ export const commandHelp: Record<
   },
   agents: {
     summary:
-      "Check or update the managed agent-instructions block. --target selects which file the block targets: codex (AGENTS.md, the default when --target is omitted) or claude (CLAUDE.md). A --check call must pass the same --target the block was written with -- it checks exactly one file per invocation, never both.",
+      'Check or update the managed agent-instructions block and the quest Claude Code skill. --target selects which file the instructions block targets: codex (AGENTS.md, the default when --target is omitted) or claude (CLAUDE.md). A --check call must pass the same --target the block was written with -- it checks exactly one file per invocation, never both. The skill file (.claude/skills/quest/SKILL.md) is separate: when this workspace\'s agents.skill_source is "plugin" (set via `quest init --skill-source plugin`), it is neither written nor proposed -- a leftover reports as drift, and --force removes it only when its bytes exactly match what Quest would generate; a hand-edited file is never removed.',
     usage:
-      "quest agents --check [--require-installed] [--target claude|codex] | --update-instructions [--target claude|codex]",
+      "quest agents --check [--require-installed] [--target claude|codex] | --update-instructions [--target claude|codex] [--force]",
     flags: [
       "--check",
       "--require-installed",
       "--update-instructions",
       "--target",
+      "--force",
     ],
   },
   completion: {
