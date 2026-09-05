@@ -20,6 +20,83 @@ Each dated section below is an immutable record of that publication event;
 later sections record later, additional publications rather than replacing
 earlier ones.
 
+## Current publication state (2026-09-05)
+
+- npm dist-tag `latest` = `0.3.3` on the root package and all six platform
+  packages (verified live via `npm view @opum-ai/quest version` and
+  `npm view <platform-package> version` for all six, immediately after
+  publication).
+- Published via `release.yml` `workflow_dispatch` `publish=true` against tag
+  `v0.3.3` (run
+  https://github.com/opum-ai/quest-cli/actions/runs/33955399180), gated on a
+  native-execution receipt fetched by that same workflow for commit
+  `a700775dd2ef789e94e0db6873b2b86615eeb9f0` — see "0.3.3 release" below.
+- Publication authority: the package owner explicitly authorized this release
+  in-session (2026-09-05) to unblock `opum-agent` and `opum-doc`'s
+  `agents --check --require-installed` CI, which stays broken until they can
+  run `--target claude` against an installed release carrying it (QCLI-227).
+- This doc's "Current publication state" was not updated across 0.3.0, 0.3.1,
+  or 0.3.2 (no section exists for any of them here, though those releases are
+  real and recorded on their own Quest tasks — QCLI-166 for 0.3.1, QCLI-224
+  for 0.3.2). That gap predates this entry and is not backfilled here; treat
+  the absence of a 0.3.0–0.3.2 section as a documentation gap, not evidence
+  those versions were unpublished.
+
+## 0.3.3 release
+
+Quest 0.3.3 adds `--target claude|codex` to `quest agents` and
+`quest init --agent-instructions` (QCLI-227), letting the managed
+`quest:agent-instructions` block target `CLAUDE.md` instead of only
+`AGENTS.md`; omitting the flag keeps the pre-0.3.3 default (`AGENTS.md`)
+byte-identical for existing callers. Same release also fixes the
+`--target claude` block's own CI hint, which briefly told its reader to run
+the codex-target check instead of `--target claude` (QCLI-231).
+
+Source commit `a700775dd2ef789e94e0db6873b2b86615eeb9f0` (PR #268 merge to
+`dev`; `dev` was not yet promoted to `main` at time of publication — the tag
+and the published bytes are independent of that promotion, which is tracked
+separately). Prepublication qualification run
+https://github.com/opum-ai/quest-cli/actions/runs/33950259801 (explicit
+`workflow_dispatch` against the `v0.3.3` tag, not the automatic push-triggered
+run) passed all six platform jobs plus `source-gates` and the operating-block
+digest check.
+
+The native-execution receipt binds `0.3.3` at `a700775` across all six
+platforms (`bun run receipt:require` confirmed this locally before publish).
+Executable SHA-256 values from that receipt:
+
+| Package | Executable SHA-256 |
+| --- | --- |
+| `@opum-ai/quest-darwin-arm64@0.3.3` | `d01d5cf835e0e669ff95d9fd11abddf7afbc86f8dd33560c3ccc6ad683e6877d` |
+| `@opum-ai/quest-darwin-x64@0.3.3` | `7b77de3e441f3c51e569be665f224ce63396598b468af7d28ef388b740d864e5` |
+| `@opum-ai/quest-linux-arm64@0.3.3` | `efdff43144ceb9f3e965e9fd15678fc0fce2385a689e639d1b596acf77472429` |
+| `@opum-ai/quest-linux-x64@0.3.3` | `018134f169cfe8adb9d05ffed530aaefbe909d681a54e529a1d36b2d9eda6bb7` |
+| `@opum-ai/quest-win32-arm64@0.3.3` | `58966f8c3a5552eeef4712f0304180e3592a2f82c991eb2d44e3417a29d17927` |
+| `@opum-ai/quest-win32-x64@0.3.3` | `b6c165816a20ab1b3fcf7eda4e91e9cdffa4dcfa9c1a1b04059a73aca604fdc5` |
+
+npm `dist.shasum`/`dist.integrity` observed live immediately after
+publication, for the root package and all six platform packages:
+
+| Package | npm shasum | npm integrity |
+| --- | --- | --- |
+| `@opum-ai/quest@0.3.3` | `41052e88185b35e7f2202f08f178df517fc5dc57` | `sha512-jJR+G6JkUJ/6Y5O06SrIEzRvSaoZ8D7YdEd2ddWFxoq1luQIfvDzRyIAHb892Cme5kE1GDtKRWF9bONmQ4D87A==` |
+| `@opum-ai/quest-darwin-arm64@0.3.3` | `e60ca0711ef1ebf3b5b9565cc2344d0e4ed464cc` | `sha512-jqoyENa+n8P4FjiT+GinGeOZl4bwhP8DTZj1/whB6N2mXoXe2ldq1srYe5i1dQfYQG7e2Xps0toWXcLYbsDGaw==` |
+| `@opum-ai/quest-darwin-x64@0.3.3` | `810a58643a4cfc97c2339cfa2d48f0a97fcb4f41` | `sha512-d7nqGWXn8zCs6QelD9iBvlwWabKyIrvSKfqXa734LGKJR2L1Ik7e+/WoLuNXD+QfvpKH6TwfIDPxEfeMrCYu5Q==` |
+| `@opum-ai/quest-linux-arm64@0.3.3` | `bd4ae8838a9fb67b2e115ef1255bbe1bf6f89b76` | `sha512-bmrfrQNR9osYk30Vwzj4WUaMZlMHsrbPXHHYVV5kL3Ava3GEl1iJttIq77+P2SnoTAJEvuTEz8WZoLLJc0dBeA==` |
+| `@opum-ai/quest-linux-x64@0.3.3` | `99ca33e2399227af222330fd08d03e19d2ac1552` | `sha512-vzF4fBCPr8rIDhG5UtsH0LwSrDYjdgGm7SBQcep8HddIY7r4sh7ukvDZZxxxTj7goCjA6wD2tQKFk7fEO1tCEQ==` |
+| `@opum-ai/quest-win32-arm64@0.3.3` | `f1dcdac35eb0dbc19bd9d7dd699733b7a8a0211f` | `sha512-PqZ7LaNo/7NqM61W+iQ7HJ3VpdWZIwOxtTi1BRvjNAIeywMh0IXc9H3Gb/Hr4XLDC4oeN4IKM5iS6hiev8a/Uw==` |
+| `@opum-ai/quest-win32-x64@0.3.3` | `b357adad91d3cc51a57bea919d865f94dec215d9` | `sha512-1hZa7iPnnfxSOEQZcfI2DFjrZF5l10CStBVpWB17Nhp4oMZRH79vCuse30SE3zR6cskAwMEmlOGyAr5DACUeTQ==` |
+
+`bun run receipt:verify-published -- 0.3.3` confirmed the receipt matches
+every published platform package. Post-publish clean-install smoke (a fresh
+`npm install @opum-ai/quest@0.3.3`, isolated from any local checkout) proved:
+`quest --version` reports `0.3.3`; `quest manifest --json` lists 48 commands;
+`quest init --agent-instructions --target claude` writes the managed block
+into `CLAUDE.md` with no `AGENTS.md` ever created; `quest agents --check
+--require-installed --target claude` exits 0; the block's own CI-hint prose
+reads `quest agents --check --require-installed --target claude` (not the
+codex-target command); and `task create`/`task list` round-trip normally.
+
 ## Current publication state (2026-08-28)
 
 - npm dist-tag `latest` = `0.2.9` on the root package and all six platform
