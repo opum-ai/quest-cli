@@ -7,6 +7,17 @@ import { QUEST_VERSION } from "../version.ts";
 export { AgentInstructionError } from "../../ports/agent-instructions.ts";
 
 export const codexInstructionPath = "AGENTS.md";
+export const claudeInstructionPath = "CLAUDE.md";
+
+/** Which agent's instruction file the managed block targets. Defaults to
+ * "codex" (AGENTS.md) everywhere so existing callers are unaffected. */
+export type AgentInstructionTarget = "claude" | "codex";
+
+export function agentInstructionPathForTarget(
+  target: AgentInstructionTarget = "codex",
+): string {
+  return target === "claude" ? claudeInstructionPath : codexInstructionPath;
+}
 
 const begin = "<!-- quest:agent-instructions:begin -->";
 const end = "<!-- quest:agent-instructions:end -->";

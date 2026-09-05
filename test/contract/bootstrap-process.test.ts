@@ -315,6 +315,97 @@ test("--agent-instructions also installs the quest skill, and agents --check/--u
   }
 });
 
+test("--target claude writes and checks CLAUDE.md instead of AGENTS.md, end to end with no AGENTS.md ever created (QCLI-227)", async () => {
+  const root = await repository();
+  const claudeFile = join(root, "CLAUDE.md");
+  const agentsFile = join(root, "AGENTS.md");
+  try {
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--target",
+      "claude",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toMatchObject({
+      data: { instructions: { state: "current" } },
+    });
+    expect(await readFile(claudeFile, "utf8")).toContain(
+      "# Quest agent instructions",
+    );
+    await expect(stat(agentsFile)).rejects.toThrow();
+
+    const current = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--target",
+      "claude",
+      "--json",
+    );
+    expect(current).toMatchObject({ exitCode: 0 });
+    expect(JSON.parse(current.stdout)).toMatchObject({
+      data: { state: "current" },
+    });
+
+    // Checking the other target reports missing: each --target checks exactly
+    // one file, never both.
+    const codexMissing = await run(root, "agents", "--check", "--json");
+    expect(JSON.parse(codexMissing.stdout)).toMatchObject({
+      data: { state: "missing" },
+    });
+
+    // Drifting CLAUDE.md's managed block is still caught under --target claude.
+    await writeFile(
+      claudeFile,
+      "<!-- quest:agent-instructions:begin -->\nold\n<!-- quest:agent-instructions:end -->\n",
+    );
+    const drift = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "claude",
+      "--json",
+    );
+    expect(drift.exitCode).toBe(6);
+    expect(JSON.parse(drift.stderr)).toMatchObject({ error_type: "drift" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--target is rejected without --agent-instructions on init, and with an invalid value on agents", async () => {
+  const root = await repository();
+  try {
+    const missingFlag = await run(root, "init", "--target", "claude", "--json");
+    expect(missingFlag.exitCode).toBe(2);
+    expect(JSON.parse(missingFlag.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--target requires --agent-instructions.",
+    });
+
+    const invalidValue = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "pi",
+      "--json",
+    );
+    expect(invalidValue.exitCode).toBe(2);
+    expect(JSON.parse(invalidValue.stderr)).toMatchObject({
+      error_type: "usage",
+      message: '--target must be "claude" or "codex", got "pi".',
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("agents strict checks pin missing, current, drift, and malformed exit semantics", async () => {
   const root = await repository();
   const file = join(root, "AGENTS.md");
