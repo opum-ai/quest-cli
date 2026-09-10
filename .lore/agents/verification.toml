@@ -1,0 +1,17 @@
+schema_version = 1
+name = "verification"
+description = "Retrieves quest-cli acceptance, contract, release-truth, architecture, and operations evidence needed to verify a change without widening its authority."
+kind = "specialist"
+max_tokens = 9000
+pinned = [
+  "runbooks/quest-cli-operations",
+  "reference/quest-cli-release-truth",
+]
+sources = [
+  "stories/harden-and-qualify-quest-cli-0-2-x",
+  "specs/quest-cli-architecture",
+  "adr/keep-lore-optional-and-integrate-only-through-versioned-public-records",
+  "reference/quest-cli-component-contracts-and-delivery-graph",
+  "adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly",
+  "reference/quest-cli-result-contract-proposal-envelope-exit-codes-not-found-and-anomaly-placement",
+]

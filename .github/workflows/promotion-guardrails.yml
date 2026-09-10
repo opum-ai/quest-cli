@@ -1,0 +1,64 @@
+name: Promotion guardrails
+
+# dev -> main promotion in this repository is fast-forward-only, by direct
+# push (git push origin dev:main) after dev's own SHA has gone green on its
+# required checks -- never GitHub's merge button. This workflow is the
+# opum-doc ODOC-73 pattern for backing that with active detection: on
+# 2026-08-31, `gh pr merge --squash` landed a dev-to-main promotion PR in
+# opum-doc, stapling a merge commit onto main that dev never had and
+# breaking the fast-forward ancestor relationship the two-branch model
+# depends on. See CLAUDE.md's Ownership section for the actual procedure.
+#
+# Deliberately NOT wired into main's required_status_checks ruleset:
+# GitHub gates a direct push by the pushed commit's own PRIOR check history,
+# regardless of which event triggered the workflow that produced it. A
+# check scoped to pull_request PRs targeting main never runs in any other
+# context, so dev's tip commit would never carry a passing record for it --
+# requiring it would make `git push origin dev:main`, the one correct
+# promotion path, permanently unpushable. Verified empirically in opum-doc
+# before shipping there; do not add either job name to
+# repos/opum-ai/quest-cli/rules/branches/main without re-verifying that
+# reasoning first.
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-is-manual:
+    name: promotion-is-manual
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: A PR is never how dev reaches main here
+        run: |
+          echo "::error::dev -> main promotion is fast-forward-only in this repository: open this PR to let required checks run on dev's own SHA, then land it with 'git push origin dev:main' -- never the merge button above. Merging this PR would staple a merge commit onto main that dev never had, breaking the fast-forward relationship the two-branch model depends on. See CLAUDE.md's Ownership section."
+          exit 1
+
+  main-is-fast-forward-of-dev:
+    name: main-is-fast-forward-of-dev
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - name: main's new HEAD must already be an ancestor of dev
+        run: |
+          set -euo pipefail
+          git fetch origin dev --quiet
+          if git merge-base --is-ancestor HEAD origin/dev; then
+            echo "main's new HEAD is a fast-forward of dev."
+          else
+            echo "::error::main's new HEAD is NOT an ancestor of dev. Something reached main outside the fast-forward promotion procedure (git push origin dev:main). Do not force-push over it -- find out what happened first. See CLAUDE.md's Ownership section."
+            exit 1
+          fi

@@ -1,0 +1,16 @@
+schema_version = 1
+name = "implementation"
+description = "Grounds quest-cli implementation work in the current architecture, the governing Lore-integration ADR, component contracts, the operations runbook, and the active 0.2.x hardening Story."
+kind = "specialist"
+max_tokens = 12000
+pinned = [
+  "specs/quest-cli-architecture",
+  "adr/keep-lore-optional-and-integrate-only-through-versioned-public-records",
+]
+sources = [
+  "reference/quest-cli-component-contracts-and-delivery-graph",
+  "runbooks/quest-cli-operations",
+  "stories/harden-and-qualify-quest-cli-0-2-x",
+  "adr/ratify-the-quest-cli-result-contract-envelope-exit-codes-not-found-and-anomaly",
+  "reference/quest-cli-component-charter",
+]

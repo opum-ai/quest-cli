@@ -1,0 +1,21 @@
+{
+  "name": "@opum-ai/quest-darwin-x64",
+  "version": "0.6.0",
+  "description": "Quest CLI binary for darwin-x64.",
+  "license": "MIT",
+  "author": "Opum AI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opum-ai/quest-cli.git"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/quest"
+  ],
+  "questBinarySha256": "326c35af460b5af4256f17450bd7110d1bf558511d2b0598a65436dc39de132f"
+}

@@ -1,0 +1,7 @@
+.claude/handovers/
+.claude/settings.json
+.claude/settings.local.json
+CLAUDE.local.md
+node_modules/
+.pi/
+**/evals/results/

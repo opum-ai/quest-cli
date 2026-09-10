@@ -1,0 +1,1188 @@
+import { expect, test } from "bun:test";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { QUEST_VERSION } from "../../src/application/version.ts";
+
+const source = resolve(import.meta.dir, "../../src/cli/main.ts");
+
+interface ProcessResult {
+  readonly exitCode: number;
+  readonly stderr: string;
+  readonly stdout: string;
+}
+
+async function run(
+  cwd: string,
+  ...arguments_: readonly string[]
+): Promise<ProcessResult> {
+  const env = { ...Bun.env };
+  delete env.QUEST_TASK_STORE;
+  const child = Bun.spawn([process.execPath, source, ...arguments_], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    env,
+  });
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
+async function runWithTaskStore(
+  cwd: string,
+  store: string,
+  ...arguments_: readonly string[]
+): Promise<ProcessResult> {
+  const child = Bun.spawn([process.execPath, source, ...arguments_], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...Bun.env, QUEST_TASK_STORE: store },
+  });
+  return {
+    exitCode: await child.exited,
+    stdout: await new Response(child.stdout).text(),
+    stderr: await new Response(child.stderr).text(),
+  };
+}
+
+async function git(
+  path: string,
+  ...arguments_: readonly string[]
+): Promise<void> {
+  const child = Bun.spawn(["git", "-C", path, ...arguments_], {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  expect(await child.exited).toBe(0);
+}
+
+async function repository(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "quest-bootstrap-"));
+  await git(root, "init", "-q");
+  await git(root, "config", "user.email", "quest@example.test");
+  await git(root, "config", "user.name", "Quest Test");
+  await writeFile(join(root, "README.md"), "clean workspace\n");
+  await git(root, "add", "README.md");
+  await git(root, "commit", "-qm", "initial");
+  return root;
+}
+
+test("the executable safely bootstraps a clean worktree and preserves authored Codex guidance", async () => {
+  const root = await repository();
+  try {
+    const authored = "# Local conventions\n\nKeep this content.\n";
+    await writeFile(join(root, "AGENTS.md"), authored);
+
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--json",
+    );
+    expect(initialized).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(initialized.stdout)).toMatchObject({
+      schemaVersion: 1,
+      kind: "workspace.initialized",
+      data: { instructions: { state: "current" } },
+    });
+    expect(await readFile(join(root, ".quest", "workspace.toml"), "utf8")).toBe(
+      "schemaVersion = 1\n",
+    );
+    const currentInstructions = await readFile(join(root, "AGENTS.md"), "utf8");
+    expect(currentInstructions).toStartWith(authored);
+    expect(currentInstructions).toContain("# Quest agent instructions");
+
+    const repeated = await run(root, "init", "--json");
+    expect(repeated).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(repeated.stderr)).toMatchObject({
+      error_type: "validation",
+      message: "Workspace is already initialized.",
+      hint: expect.stringContaining("--reconfigure"),
+    });
+    expect(await readFile(join(root, ".quest", "workspace.toml"), "utf8")).toBe(
+      "schemaVersion = 1\n",
+    );
+
+    // A version-only difference does not gate CI (QCLI-228): agents --check
+    // --require-installed used to fail on this alone, on every patch/minor
+    // bump, until someone re-ran --update-instructions.
+    await writeFile(
+      join(root, "AGENTS.md"),
+      currentInstructions.replace(QUEST_VERSION, "0.0.0"),
+    );
+    const versionSkew = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(versionSkew).toMatchObject({ exitCode: 0 });
+    expect(JSON.parse(versionSkew.stdout)).toMatchObject({
+      data: { state: "version-only" },
+    });
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain("0.0.0");
+
+    // Real content drift, unrelated to the version string, still fails.
+    await writeFile(
+      join(root, "AGENTS.md"),
+      currentInstructions.replace(
+        "Quest writes require an explicit actor declaration",
+        "Quest writes are anonymous",
+      ),
+    );
+    const drift = await run(root, "agents", "--check", "--json");
+    expect(drift).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(drift.stderr)).toMatchObject({ error_type: "drift" });
+
+    await writeFile(
+      join(root, "AGENTS.md"),
+      currentInstructions.replace(QUEST_VERSION, "0.0.0"),
+    );
+    const updated = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--json",
+    );
+    expect(updated).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toBe(
+      currentInstructions,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("quest init --reconfigure changes the declared task-id-prefix without touching an existing task, and the new prefix takes effect immediately (QCLI-161)", async () => {
+  const root = await repository();
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    expect(
+      await run(root, "init", "--task-id-prefix", "OLD", "--json"),
+    ).toMatchObject({ exitCode: 0 });
+    const created = await run(root, "task", "create", "First", ...human);
+    expect(JSON.parse(created.stdout).data).toMatchObject({ id: "OLD-1" });
+
+    const reconfigured = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--task-id-prefix",
+      "NEW",
+      "--json",
+    );
+    expect(reconfigured).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(reconfigured.stdout)).toMatchObject({
+      kind: "workspace.reconfigured",
+      data: { configuration: { taskIdPrefix: "NEW" } },
+    });
+
+    const second = await run(root, "task", "create", "Second", ...human);
+    expect(JSON.parse(second.stdout).data).toMatchObject({ id: "NEW-1" });
+
+    const original = await run(root, "task", "view", "OLD-1", "--json");
+    expect(original.exitCode).toBe(0);
+    expect(JSON.parse(original.stdout).data).toMatchObject({ id: "OLD-1" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("quest init --reconfigure requires --name and/or --task-id-prefix, and refuses on a directory that was never initialized (QCLI-161)", async () => {
+  const root = await repository();
+  try {
+    const bare = await run(root, "init", "--reconfigure", "--json");
+    expect(bare).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(bare.stderr)).toMatchObject({ error_type: "usage" });
+
+    const neverInitialized = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--task-id-prefix",
+      "NEW",
+      "--json",
+    );
+    expect(neverInitialized.exitCode).not.toBe(0);
+    expect(JSON.parse(neverInitialized.stderr).error_type).toBe("validation");
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
+    ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a directory left with task records but no workspace.toml refuses plain init and is only recoverable via --reconfigure (QCLI-161)", async () => {
+  const root = await repository();
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    expect(
+      await run(root, "init", "--task-id-prefix", "OLD", "--json"),
+    ).toMatchObject({ exitCode: 0 });
+    const created = await run(root, "task", "create", "Survivor", ...human);
+    expect(JSON.parse(created.stdout).data).toMatchObject({ id: "OLD-1" });
+
+    // The state a partial `rm` (or a raw `rm -rf .quest` that only got as
+    // far as the config file) leaves behind: real content, no config.
+    await rm(join(root, ".quest", "workspace.toml"));
+
+    const plain = await run(root, "init", "--json");
+    expect(plain).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(plain.stderr)).toMatchObject({
+      error_type: "validation",
+      hint: expect.stringContaining("--reconfigure"),
+    });
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
+    ).rejects.toThrow();
+
+    const recovered = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--task-id-prefix",
+      "NEW",
+      "--json",
+    );
+    expect(recovered).toMatchObject({ exitCode: 0, stderr: "" });
+
+    const survivor = await run(root, "task", "view", "OLD-1", "--json");
+    expect(survivor.exitCode).toBe(0);
+    expect(JSON.parse(survivor.stdout).data).toMatchObject({ id: "OLD-1" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--agent-instructions also installs the quest skill, and agents --check/--update-instructions cover both targets", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toMatchObject({
+      data: {
+        instructions: { state: "current" },
+        skill: { state: "current" },
+      },
+    });
+    const skillContent = await readFile(skillFile, "utf8");
+    expect(skillContent).toContain("name: quest");
+    expect(skillContent).toContain("quest instructions");
+    // Default (no --target) CI hint stays untargeted -- no regression from
+    // making the block target-aware for --target claude.
+    const agentsContent = await readFile(join(root, "AGENTS.md"), "utf8");
+    expect(agentsContent).toContain(
+      "quest agents --check --require-installed`:",
+    );
+    expect(agentsContent).not.toContain("--target");
+
+    // Both targets already current: check reports current for both, no rewrite.
+    const current = await run(root, "agents", "--check", "--json");
+    expect(current.exitCode).toBe(0);
+    expect(JSON.parse(current.stdout)).toMatchObject({
+      data: {
+        state: "current",
+        skill: { state: "current" },
+      },
+    });
+
+    // Drift only the skill file: AGENTS.md stays current, --check fails on skill drift.
+    await writeFile(skillFile, "hand-edited\n");
+    const skillDrift = await run(root, "agents", "--check", "--json");
+    expect(skillDrift.exitCode).toBe(6);
+    expect(JSON.parse(skillDrift.stderr)).toMatchObject({
+      error_type: "drift",
+      message: "Quest skill file differs from the bundled version.",
+    });
+
+    // Missing only the skill file: --require-installed still fails closed.
+    await rm(skillFile);
+    const skillMissing = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(skillMissing.exitCode).toBe(6);
+    expect(JSON.parse(skillMissing.stderr)).toMatchObject({
+      error_type: "validation",
+    });
+
+    // update-instructions restores both from a mixed missing/drifted state.
+    await writeFile(
+      join(root, "AGENTS.md"),
+      "drifted\n<!-- quest:agent-instructions:begin -->\nold\n<!-- quest:agent-instructions:end -->\n",
+    );
+    const restored = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--json",
+    );
+    expect(restored.exitCode).toBe(0);
+    expect(await readFile(skillFile, "utf8")).toContain("name: quest");
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain(
+      "# Quest agent instructions",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--target claude writes and checks CLAUDE.md instead of AGENTS.md, end to end with no AGENTS.md ever created (QCLI-227)", async () => {
+  const root = await repository();
+  const claudeFile = join(root, "CLAUDE.md");
+  const agentsFile = join(root, "AGENTS.md");
+  try {
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--target",
+      "claude",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toMatchObject({
+      data: { instructions: { state: "current" } },
+    });
+    const claudeContent = await readFile(claudeFile, "utf8");
+    expect(claudeContent).toContain("# Quest agent instructions");
+    // The block's own CI hint must name the target it was written for, or a
+    // reader following it verbatim checks the wrong file (the bug this
+    // guards against: the claude-target block used to say the codex-target
+    // command).
+    expect(claudeContent).toContain(
+      "quest agents --check --require-installed --target claude",
+    );
+    await expect(stat(agentsFile)).rejects.toThrow();
+
+    const current = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--target",
+      "claude",
+      "--json",
+    );
+    expect(current).toMatchObject({ exitCode: 0 });
+    expect(JSON.parse(current.stdout)).toMatchObject({
+      data: { state: "current" },
+    });
+
+    // Checking the other target reports missing: each --target checks exactly
+    // one file, never both.
+    const codexMissing = await run(root, "agents", "--check", "--json");
+    expect(JSON.parse(codexMissing.stdout)).toMatchObject({
+      data: { state: "missing" },
+    });
+
+    // Drifting CLAUDE.md's managed block is still caught under --target claude.
+    await writeFile(
+      claudeFile,
+      "<!-- quest:agent-instructions:begin -->\nold\n<!-- quest:agent-instructions:end -->\n",
+    );
+    const drift = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "claude",
+      "--json",
+    );
+    expect(drift.exitCode).toBe(6);
+    expect(JSON.parse(drift.stderr)).toMatchObject({ error_type: "drift" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--target antigravity writes and checks GEMINI.md instead of AGENTS.md, end to end with no AGENTS.md ever created (QCLI-159)", async () => {
+  const root = await repository();
+  const gemFile = join(root, "GEMINI.md");
+  const agentsFile = join(root, "AGENTS.md");
+  try {
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--target",
+      "antigravity",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toMatchObject({
+      data: { instructions: { state: "current" } },
+    });
+    const gemContent = await readFile(gemFile, "utf8");
+    expect(gemContent).toContain("# Quest agent instructions");
+    expect(gemContent).toContain(
+      "quest agents --check --require-installed --target antigravity",
+    );
+    await expect(stat(agentsFile)).rejects.toThrow();
+
+    const current = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--target",
+      "antigravity",
+      "--json",
+    );
+    expect(current).toMatchObject({ exitCode: 0 });
+    expect(JSON.parse(current.stdout)).toMatchObject({
+      data: { state: "current" },
+    });
+
+    // Checking a different target reports missing: each --target checks
+    // exactly one file, never more than one.
+    const codexMissing = await run(root, "agents", "--check", "--json");
+    expect(JSON.parse(codexMissing.stdout)).toMatchObject({
+      data: { state: "missing" },
+    });
+
+    // Drifting GEMINI.md's managed block is still caught under --target
+    // antigravity.
+    await writeFile(
+      gemFile,
+      "<!-- quest:agent-instructions:begin -->\nold\n<!-- quest:agent-instructions:end -->\n",
+    );
+    const drift = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "antigravity",
+      "--json",
+    );
+    expect(drift.exitCode).toBe(6);
+    expect(JSON.parse(drift.stderr)).toMatchObject({ error_type: "drift" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--target is rejected without --agent-instructions on init, and with an invalid value on agents", async () => {
+  const root = await repository();
+  try {
+    const missingFlag = await run(root, "init", "--target", "claude", "--json");
+    expect(missingFlag.exitCode).toBe(2);
+    expect(JSON.parse(missingFlag.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--target requires --agent-instructions.",
+    });
+
+    const invalidValue = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "bogus",
+      "--json",
+    );
+    expect(invalidValue.exitCode).toBe(2);
+    expect(JSON.parse(invalidValue.stderr)).toMatchObject({
+      error_type: "usage",
+      message:
+        '--target must be "claude", "codex", or "antigravity", got "bogus".',
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--skill-source plugin given alongside --agent-instructions on the same call skips the skill write entirely -- explicit versus explicit, not explicit beats config (QCLI-254, superseding QCLI-236's prior expectation)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    // Two explicit instructions on the same command line: "set up agent
+    // instructions" and "do not generate a skill here". The more specific
+    // one wins, so no skill file is ever written -- not written-then-flagged
+    // as drift, never written at all.
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--skill-source",
+      "plugin",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    const initializedBody = JSON.parse(initialized.stdout) as {
+      data: Record<string, unknown>;
+    };
+    expect(initializedBody.data).toMatchObject({
+      configuration: { agentSkillSource: "plugin" },
+    });
+    expect(initializedBody.data.skill).toBeUndefined();
+    await expect(readFile(skillFile, "utf8")).rejects.toThrow();
+    expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\n\n[agents]\nskill_source = "plugin"\n',
+    );
+
+    // Nothing was ever written, so a bare `agents --check` reports clean --
+    // no leftover, no drift, nothing for --force to remove.
+    const clean = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(clean.exitCode).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--skill-source plugin persisted from a prior call still lets a LATER, bare --agent-instructions request materialize the skill once -- explicit beats a PERSISTED config, unlike an explicit --skill-source given in the same breath (QCLI-254)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    expect(await run(root, "init", "--json")).toMatchObject({ exitCode: 0 });
+    expect(
+      await run(
+        root,
+        "init",
+        "--reconfigure",
+        "--skill-source",
+        "plugin",
+        "--json",
+      ),
+    ).toMatchObject({ exitCode: 0 });
+
+    // No --skill-source on THIS call: the opt-out being overridden is the
+    // one persisted from the call above, not one given in the same breath.
+    const laterRequest = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--name",
+      "Renamed",
+      "--agent-instructions",
+      "--json",
+    );
+    expect(laterRequest.exitCode).toBe(0);
+    expect(JSON.parse(laterRequest.stdout)).toMatchObject({
+      data: { skill: { state: "current" } },
+    });
+    expect(await readFile(skillFile, "utf8")).toContain("name: quest");
+
+    // A bare `agents --update-instructions` now respects the persisted
+    // opt-out: the file exists, so this reports it as a leftover.
+    const bareUpdate = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--json",
+    );
+    expect(bareUpdate.exitCode).toBe(0);
+    expect(JSON.parse(bareUpdate.stdout)).toMatchObject({
+      data: { skill: { state: "orphaned" } },
+    });
+    expect(await readFile(skillFile, "utf8")).toContain("name: quest"); // untouched, no --force
+
+    const check = await run(root, "agents", "--check", "--json");
+    expect(check.exitCode).toBe(6);
+    expect(JSON.parse(check.stderr)).toMatchObject({ error_type: "drift" });
+
+    // --force removes it because it is byte-identical to the generated skill.
+    const forced = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--force",
+      "--json",
+    );
+    expect(forced.exitCode).toBe(0);
+    expect(JSON.parse(forced.stdout)).toMatchObject({
+      data: { skill: { state: "current" } },
+    });
+    await expect(readFile(skillFile, "utf8")).rejects.toThrow();
+
+    const clean = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(clean.exitCode).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--skill-source plugin: --force never deletes a hand-edited skill file (QCLI-236)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    expect(await run(root, "init", "--json")).toMatchObject({ exitCode: 0 });
+    expect(
+      await run(
+        root,
+        "init",
+        "--reconfigure",
+        "--skill-source",
+        "plugin",
+        "--json",
+      ),
+    ).toMatchObject({ exitCode: 0 });
+    await mkdir(join(root, ".claude", "skills", "quest"), { recursive: true });
+    await writeFile(skillFile, "a human wrote this on purpose\n");
+
+    const forced = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--force",
+      "--json",
+    );
+    expect(forced.exitCode).toBe(0);
+    expect(JSON.parse(forced.stdout)).toMatchObject({
+      data: { skill: { state: "orphaned" } },
+    });
+    expect(await readFile(skillFile, "utf8")).toBe(
+      "a human wrote this on purpose\n",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an invalid --skill-source value is a usage error, and --reconfigure accepts --skill-source alone (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    const invalid = await run(
+      root,
+      "init",
+      "--skill-source",
+      "bogus",
+      "--json",
+    );
+    expect(invalid.exitCode).toBe(2);
+    expect(JSON.parse(invalid.stderr)).toMatchObject({
+      error_type: "usage",
+      message: '--skill-source must be "repo" or "plugin", got "bogus".',
+    });
+
+    await run(root, "init", "--json");
+    const reconfigured = await run(
+      root,
+      "init",
+      "--reconfigure",
+      "--skill-source",
+      "plugin",
+      "--json",
+    );
+    expect(reconfigured.exitCode).toBe(0);
+    expect(JSON.parse(reconfigured.stdout)).toMatchObject({
+      data: { configuration: { agentSkillSource: "plugin" } },
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("agents --check in an uninitialized directory still defaults to skillSource repo rather than failing on workspace resolution (QCLI-236)", async () => {
+  const root = await repository();
+  try {
+    // No `quest init` at all -- agents --check has never required it.
+    const result = await run(root, "agents", "--check", "--json");
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { state: "missing", skill: { state: "missing" } },
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("agents strict checks pin missing, current, drift, and malformed exit semantics", async () => {
+  const root = await repository();
+  const file = join(root, "AGENTS.md");
+  try {
+    const missing = await run(root, "agents", "--check", "--json");
+    expect(missing).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(missing.stdout)).toMatchObject({
+      kind: "agent.instructions-status",
+      data: { state: "missing" },
+    });
+
+    const strictMissing = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(strictMissing).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(strictMissing.stderr)).toMatchObject({
+      error_type: "validation",
+      message:
+        "Quest agent instruction block is missing. Run quest agents --update-instructions.",
+    });
+    await expect(stat(file)).rejects.toThrow();
+
+    const invalidUpdate = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--require-installed",
+      "--json",
+    );
+    expect(invalidUpdate).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(invalidUpdate.stderr)).toMatchObject({
+      error_type: "usage",
+      message: "--require-installed requires --check.",
+    });
+    await expect(stat(file)).rejects.toThrow();
+
+    expect(
+      await run(root, "agents", "--update-instructions", "--json"),
+    ).toMatchObject({ exitCode: 0, stderr: "" });
+    const currentContent = await readFile(file, "utf8");
+    const current = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(current).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(current.stdout)).toMatchObject({
+      data: { state: "current" },
+    });
+
+    // A version-only difference is not drift (QCLI-228): exit 0, not 6.
+    const versionOnly = currentContent.replace(QUEST_VERSION, "0.0.0");
+    await writeFile(file, versionOnly);
+    const versionSkew = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(versionSkew).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(versionSkew.stdout)).toMatchObject({
+      data: { state: "version-only" },
+    });
+    expect(await readFile(file, "utf8")).toBe(versionOnly);
+
+    const drifted = currentContent.replace(
+      "Quest writes require an explicit actor declaration",
+      "Quest writes are anonymous",
+    );
+    await writeFile(file, drifted);
+    const drift = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(drift).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(drift.stderr)).toMatchObject({ error_type: "drift" });
+    expect(await readFile(file, "utf8")).toBe(drifted);
+
+    const malformed = "<!-- quest:agent-instructions:begin -->\n";
+    await writeFile(file, malformed);
+    const malformedResult = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(malformedResult).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(malformedResult.stderr)).toMatchObject({
+      error_type: "drift",
+      message: "Quest agent instruction markers are malformed or duplicated.",
+    });
+    expect(await readFile(file, "utf8")).toBe(malformed);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("agents --update-instructions removes a leftover Backlog.md guidelines block instead of leaving it beside the Quest block (QCLI-215)", async () => {
+  const root = await repository();
+  const file = join(root, "AGENTS.md");
+  try {
+    // The exact motivating shape: a workspace fresh off a Backlog migration,
+    // carrying the Backlog.md CLI installer's own managed block, with no
+    // Quest block installed yet.
+    const backlogBlock = [
+      "<!-- BACKLOG.MD GUIDELINES START -->",
+      "<!-- backlog.md-instructions-version: 1.48.0 -->",
+      "<CRITICAL_INSTRUCTION>",
+      "",
+      "**For every user request in this project, run `backlog instructions overview` before answering or taking action.**",
+      "",
+      "</CRITICAL_INSTRUCTION>",
+      "<!-- BACKLOG.MD GUIDELINES END -->",
+      "",
+    ].join("\n");
+    await writeFile(file, backlogBlock);
+
+    // A silent contradiction is exactly the bug: --check --require-installed
+    // must not report state: current while a dead tracker's directive still
+    // sits right there.
+    const beforeUpdate = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(beforeUpdate.exitCode).toBe(6);
+
+    const updated = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--json",
+    );
+    expect(updated).toMatchObject({ exitCode: 0, stderr: "" });
+    const content = await readFile(file, "utf8");
+    expect(content).not.toContain("BACKLOG.MD GUIDELINES");
+    expect(content).not.toContain("backlog instructions overview");
+    expect(content).toContain("# Quest agent instructions");
+
+    const afterUpdate = await run(
+      root,
+      "agents",
+      "--check",
+      "--require-installed",
+      "--json",
+    );
+    expect(afterUpdate).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(afterUpdate.stdout)).toMatchObject({
+      data: { state: "current" },
+    });
+
+    // Also drift, not silently current, when the Quest block is already
+    // exact and only the Backlog block remains.
+    await writeFile(file, `${backlogBlock}${content}`);
+    const withBothPresent = await run(root, "agents", "--check", "--json");
+    expect(withBothPresent.exitCode).toBe(6);
+    expect(JSON.parse(withBothPresent.stderr)).toMatchObject({
+      error_type: "drift",
+      message: expect.stringContaining("Backlog.md installer's guidelines"),
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("record and planning commands share the initialized root from a nested directory", async () => {
+  const root = await repository();
+  const nested = join(root, "packages", "example", "deep");
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    await mkdir(nested, { recursive: true });
+    const beforeInitialization = await run(root, "task", "list", "--json");
+    expect(beforeInitialization).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(beforeInitialization.stderr)).toMatchObject({
+      error_type: "validation",
+      message:
+        "Workspace is not initialized. Run quest init from a Git worktree.",
+    });
+    await expect(stat(join(root, ".quest"))).rejects.toThrow();
+
+    expect(await run(root, "init", "--json")).toMatchObject({ exitCode: 0 });
+    const created = await run(root, "task", "create", "Root task", ...human);
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      kind: "task.created",
+      data: { id: "T-1", title: "Root task" },
+    });
+    expect(
+      await run(
+        root,
+        "milestone",
+        "create",
+        "Root milestone",
+        "--task",
+        "T-1",
+        "--task",
+        "T-999",
+        ...human,
+      ),
+    ).toMatchObject({ exitCode: 0 });
+
+    for (const arguments_ of [
+      ["task", "list", "--json"],
+      ["task", "view", "T-1", "--json"],
+      ["overview", "--json"],
+      ["board", "--json"],
+      ["doctor", "--json"],
+      ["search", "Root task", "--json"],
+    ]) {
+      const fromRoot = await run(root, ...arguments_);
+      const fromNested = await run(nested, ...arguments_);
+      expect(fromNested).toEqual(fromRoot);
+      expect(fromNested.exitCode).toBe(0);
+    }
+
+    const nestedWrite = await run(
+      nested,
+      "task",
+      "create",
+      "Nested task",
+      ...human,
+    );
+    expect(JSON.parse(nestedWrite.stdout)).toMatchObject({
+      kind: "task.created",
+      data: { id: "T-2", title: "Nested task" },
+    });
+    expect(
+      JSON.parse((await run(root, "task", "list", "--json")).stdout).data.map(
+        (task: { readonly id: string }) => task.id,
+      ),
+    ).toEqual(["T-1", "T-2"]);
+    await expect(stat(join(nested, ".quest"))).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("implicit storage fails closed while QUEST_TASK_STORE remains an explicit override", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-uninitialized-"));
+  const store = await mkdtemp(join(tmpdir(), "quest-explicit-store-"));
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    const implicit = await run(cwd, "task", "list", "--json");
+    expect(implicit).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(implicit.stderr)).toMatchObject({
+      error_type: "validation",
+      message:
+        "No Git repository was found here. Run `git init` to create one, then re-run `quest init`.",
+      hint: "Quest requires an existing Git worktree; it does not create one for you.",
+    });
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+
+    const explicit = await runWithTaskStore(
+      cwd,
+      store,
+      "task",
+      "create",
+      "Explicit task",
+      ...human,
+    );
+    expect(JSON.parse(explicit.stdout)).toMatchObject({
+      kind: "task.created",
+      data: { id: "T-1", title: "Explicit task" },
+    });
+    expect(
+      JSON.parse(
+        (await runWithTaskStore(cwd, store, "task", "list", "--json")).stdout,
+      ).data,
+    ).toEqual([expect.objectContaining({ id: "T-1" })]);
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+    expect(await stat(join(store, ".quest", "tasks", "T-1.json"))).toBeTruthy();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+    await rm(store, { recursive: true, force: true });
+  }
+});
+
+test("quest init outside a Git repository names the missing repository and names the fix", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-no-git-"));
+  try {
+    const result = await run(cwd, "init", "--json");
+    expect(result).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "validation",
+      message:
+        "No Git repository was found here. Run `git init` to create one, then re-run `quest init`.",
+      hint: "Quest requires an existing Git worktree; it does not create one for you.",
+    });
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("quest init inside a real Git worktree is unaffected by the missing-repository message", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-real-git-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const result = await run(cwd, "init", "--json");
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      kind: "workspace.initialized",
+    });
+    expect(await stat(join(cwd, ".quest", "workspace.toml"))).toBeTruthy();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("--name configures the workspace without changing task ID generation", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-flags-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const init = await run(cwd, "init", "--name", "My Project", "--json");
+    expect(init.exitCode).toBe(0);
+    expect(JSON.parse(init.stdout)).toMatchObject({
+      data: { configuration: { name: "My Project" } },
+    });
+    expect(await readFile(join(cwd, ".quest", "workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\nname = "My Project"\n',
+    );
+
+    const created = await run(
+      cwd,
+      "task",
+      "create",
+      "First task",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    );
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      data: { id: "T-1", title: "First task" },
+    });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("init with no name/agent-instructions flags keeps writing the legacy schemaVersion-only file", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-legacy-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const init = await run(cwd, "init", "--json");
+    expect(init.exitCode).toBe(0);
+    expect(await readFile(join(cwd, ".quest", "workspace.toml"), "utf8")).toBe(
+      "schemaVersion = 1\n",
+    );
+
+    const created = await run(
+      cwd,
+      "task",
+      "create",
+      "Default prefix task",
+      "--actor",
+      "person-1",
+      "--actor-kind",
+      "human",
+      "--json",
+    );
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      data: { id: "T-1" },
+    });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a configured task ID prefix round-trips through create, view, edit and complete", async () => {
+  // The exact scenario QCLI-126 could not ship: before QCLI-132 relaxed the
+  // domain pattern, `task create` here failed with "Invalid canonical id".
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-prefix-"));
+  const human = ["--actor", "person-1", "--actor-kind", "human", "--json"];
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const init = await run(
+      cwd,
+      "init",
+      "--name",
+      "Demo",
+      "--task-id-prefix",
+      "QCLI",
+      "--json",
+    );
+    expect(init.exitCode).toBe(0);
+    expect(JSON.parse(init.stdout)).toMatchObject({
+      data: { configuration: { name: "Demo", taskIdPrefix: "QCLI" } },
+    });
+
+    const created = await run(cwd, "task", "create", "First", ...human);
+    expect(created.exitCode).toBe(0);
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      data: { id: "QCLI-1", title: "First" },
+    });
+
+    // The sequence advances within the configured family.
+    const second = await run(cwd, "task", "create", "Second", ...human);
+    expect(JSON.parse(second.stdout)).toMatchObject({ data: { id: "QCLI-2" } });
+
+    // Read and mutate paths accept the id rather than rejecting it downstream.
+    const viewed = await run(cwd, "task", "view", "QCLI-1", "--json");
+    expect(viewed.exitCode).toBe(0);
+    expect(JSON.parse(viewed.stdout)).toMatchObject({
+      data: { id: "QCLI-1", title: "First" },
+    });
+
+    const edited = await run(
+      cwd,
+      "task",
+      "edit",
+      "QCLI-1",
+      "--status",
+      "In Progress",
+      ...human,
+    );
+    expect(edited.exitCode).toBe(0);
+
+    const completed = await run(cwd, "task", "complete", "QCLI-1", ...human);
+    expect(completed.exitCode).toBe(0);
+
+    // list() includes completed tasks by default (QCLI-165); the completed
+    // one is retained AND shown, alongside the still-active one.
+    const listed = await run(cwd, "task", "list", "--json");
+    expect(
+      JSON.parse(listed.stdout).data.map((t: { id: string }) => t.id),
+    ).toEqual(["QCLI-1", "QCLI-2"]);
+
+    // The retained record still reserves its number: allocation never reuses it.
+    const third = await run(cwd, "task", "create", "Third", ...human);
+    expect(JSON.parse(third.stdout)).toMatchObject({ data: { id: "QCLI-3" } });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("an unusable task ID prefix fails at init rather than at the first write", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "quest-init-bad-prefix-"));
+  try {
+    await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
+    const result = await run(cwd, "init", "--task-id-prefix", "1BAD", "--json");
+    expect(result).toMatchObject({ exitCode: 2, stdout: "" });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error_type: "usage",
+      message:
+        "Task ID prefix must start with a letter and contain only letters and digits: 1BAD",
+    });
+    // Nothing was provisioned by the rejected run.
+    await expect(stat(join(cwd, ".quest"))).rejects.toThrow();
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

@@ -1,0 +1,315 @@
+import { caseFold } from "unicode-case-folding";
+import { z } from "zod";
+
+export const RECORD_SCHEMA_VERSION = 1 as const;
+
+export class RecordConflictError extends Error {
+  readonly kind = "conflict" as const;
+}
+
+export class RecordValidationError extends Error {
+  readonly kind = "validation" as const;
+}
+
+/** ASCII-only `<prefix>-<sequence>`. The prefix is workspace-configurable and
+ * deliberately excludes `-`, so the split into prefix and sequence stays
+ * unambiguous; the sequence keeps its no-leading-zero, one-or-greater rule.
+ * This validates structural well-formedness only: which prefix a given
+ * workspace *generates* is a workspace-configuration concern (see
+ * `.quest/workspace.toml`'s `taskIdPrefix`), never a domain-replay concern. */
+const canonicalIdPattern = /^[A-Za-z][A-Za-z0-9]*-[1-9][0-9]*$/;
+export const canonicalIdSchema = z.string().regex(canonicalIdPattern);
+export type CanonicalId = z.infer<typeof canonicalIdSchema>;
+
+/** The same rule applied to a bare prefix, for validation at an input boundary. */
+export const canonicalIdPrefixPattern = /^[A-Za-z][A-Za-z0-9]*$/;
+
+/** Validates the ASCII-only canonical identifier spelling. */
+export function canonicalId(value: string): CanonicalId {
+  if (!canonicalIdPattern.test(value)) {
+    throw new RecordValidationError(`Invalid canonical id: ${value}`);
+  }
+  return value;
+}
+
+export interface GlobalCounter {
+  readonly schemaVersion: typeof RECORD_SCHEMA_VERSION;
+  readonly revision: string;
+  readonly nextSequence: string;
+}
+
+/** The Git CAS boundary for the one global canonical-id counter. */
+export interface GitGlobalCounterStore {
+  read(): Promise<GlobalCounter>;
+  compareAndSwap(
+    expectedRevision: string,
+    replacement: GlobalCounter,
+  ): Promise<{ readonly revision: string }>;
+}
+
+/**
+ * Produces the CAS precondition and replacement counter record; the Git adapter
+ * owns comparing `expectedRevision` and writing the result atomically.
+ */
+export function allocateCanonicalId(
+  counter: GlobalCounter,
+  expectedRevision: string,
+  prefix = "T",
+): { readonly id: CanonicalId; readonly replacement: GlobalCounter } {
+  if (counter.revision !== expectedRevision) {
+    throw new RecordConflictError("Global counter changed before allocation.");
+  }
+  if (!/^[1-9][0-9]*$/.test(counter.nextSequence)) {
+    throw new RecordValidationError("Global counter sequence is invalid.");
+  }
+  if (!canonicalIdPrefixPattern.test(prefix)) {
+    throw new RecordValidationError(`Invalid canonical id prefix: ${prefix}`);
+  }
+  const sequence = BigInt(counter.nextSequence);
+  return {
+    id: canonicalId(`${prefix}-${sequence}`),
+    replacement: { ...counter, nextSequence: String(sequence + 1n) },
+  };
+}
+
+/** Allocate from the Git-backed namespace counter in one compare-and-swap attempt. */
+export async function allocateCanonicalIdFromGit(
+  store: GitGlobalCounterStore,
+  prefix = "T",
+): Promise<{ readonly id: CanonicalId; readonly revision: string }> {
+  const counter = await store.read();
+  const allocation = allocateCanonicalId(counter, counter.revision, prefix);
+  const committed = await store.compareAndSwap(
+    counter.revision,
+    allocation.replacement,
+  );
+  return { id: allocation.id, revision: committed.revision };
+}
+
+/** NFC plus Unicode default-case-fold comparison key; input spelling is retained. */
+export function aliasKey(alias: string): string {
+  if (alias.length === 0)
+    throw new RecordValidationError("Alias cannot be empty.");
+  return caseFold(alias.normalize("NFC"));
+}
+
+export interface Alias {
+  readonly display: string;
+  readonly key: string;
+}
+
+export function alias(display: string): Alias {
+  return { display, key: aliasKey(display) };
+}
+
+/** Detects every collision before a caller attempts an authored write. */
+export function assertAliasesAvailable(
+  candidates: readonly string[],
+  existing: readonly Alias[],
+): readonly Alias[] {
+  const seen = new Map(existing.map((entry) => [entry.key, entry.display]));
+  const result: Alias[] = [];
+  for (const display of candidates) {
+    const entry = alias(display);
+    const collision = seen.get(entry.key);
+    if (collision !== undefined) {
+      throw new RecordConflictError(
+        `Alias collision: ${JSON.stringify(display)} conflicts with ${JSON.stringify(collision)}.`,
+      );
+    }
+    seen.set(entry.key, entry.display);
+    result.push(entry);
+  }
+  return result;
+}
+
+export interface AliasCollision {
+  readonly candidate: string;
+  readonly conflictsWith: string;
+}
+
+/**
+ * Like {@link assertAliasesAvailable}, but collects every collision instead
+ * of throwing at the first one. For a caller that must report the complete
+ * conflict set in a single pass (a batch migration, for example) rather than
+ * fail fast at write time and force the operator to rediscover the next
+ * collision on a second attempt.
+ */
+export function collectAliasCollisions(
+  candidates: readonly string[],
+  existing: readonly Alias[],
+): readonly AliasCollision[] {
+  const seen = new Map(existing.map((entry) => [entry.key, entry.display]));
+  const collisions: AliasCollision[] = [];
+  for (const display of candidates) {
+    const entry = alias(display);
+    const collision = seen.get(entry.key);
+    if (collision !== undefined) {
+      collisions.push({ candidate: display, conflictsWith: collision });
+      continue;
+    }
+    seen.set(entry.key, entry.display);
+  }
+  return collisions;
+}
+
+const actorSchema = z.discriminatedUnion("kind", [
+  z.object({
+    id: z.string().min(1),
+    kind: z.literal("human"),
+    roles: z.array(z.enum(["reviewer", "maintainer"])).default([]),
+  }),
+  z.object({
+    id: z.string().min(1),
+    kind: z.literal("delegated-agent"),
+    accountableHumanId: z.string().min(1),
+    roles: z.array(z.enum(["reviewer", "maintainer"])).default([]),
+  }),
+]);
+export type Actor = z.infer<typeof actorSchema>;
+
+/** Opaque declarations only: actor IDs deliberately make no authentication claim. */
+export function declareActor(value: unknown): Actor {
+  const parsed = actorSchema.safeParse(value);
+  if (!parsed.success)
+    throw new RecordValidationError("Invalid actor declaration.");
+  if (
+    parsed.data.kind === "delegated-agent" &&
+    parsed.data.id === parsed.data.accountableHumanId
+  ) {
+    throw new RecordValidationError(
+      "A delegated agent must name a distinct accountable human.",
+    );
+  }
+  if (new Set(parsed.data.roles).size !== parsed.data.roles.length) {
+    throw new RecordValidationError("Actor roles cannot be duplicated.");
+  }
+  return parsed.data;
+}
+
+/** Validates a declaration set, including links to declared accountable humans. */
+export function declareActors(values: readonly unknown[]): readonly Actor[] {
+  const actors = values.map(declareActor);
+  const byId = new Map<string, Actor>();
+  for (const actor of actors) {
+    if (byId.has(actor.id))
+      throw new RecordConflictError(`Duplicate actor id: ${actor.id}.`);
+    byId.set(actor.id, actor);
+  }
+  for (const actor of actors) {
+    if (actor.kind !== "delegated-agent") continue;
+    if (byId.get(actor.accountableHumanId)?.kind !== "human") {
+      throw new RecordValidationError(
+        "A delegated agent must link to a declared accountable human.",
+      );
+    }
+  }
+  return actors;
+}
+
+export const taskEventSchema = z.object({
+  schemaVersion: z.literal(RECORD_SCHEMA_VERSION),
+  eventId: z.string().min(1),
+  operationId: z.string().min(1),
+  taskId: canonicalIdSchema,
+  actorId: z.string().min(1),
+  basis: z.string().min(1).nullable(),
+  patch: z.record(z.string(), z.unknown()),
+});
+export type TaskEvent = z.infer<typeof taskEventSchema>;
+
+export interface TaskMaterialization {
+  readonly schemaVersion: typeof RECORD_SCHEMA_VERSION;
+  readonly taskId: CanonicalId;
+  readonly events: readonly string[];
+  readonly state: Readonly<Record<string, unknown>>;
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  const canonicalize = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(canonicalize);
+    if (value !== null && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, entry]) => [key, canonicalize(entry)]),
+      );
+    }
+    return value;
+  };
+  return (
+    JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right))
+  );
+}
+
+/** Append-only and operation-idempotent. Conflicting duplicate IDs fail before mutation. */
+export function appendTaskEvent(
+  events: readonly TaskEvent[],
+  candidate: TaskEvent,
+): readonly TaskEvent[] {
+  const event = taskEventSchema.safeParse(candidate);
+  if (!event.success) throw new RecordValidationError("Invalid task event.");
+  const normalized = event.data;
+  const duplicate = events.find(
+    (item) =>
+      item.eventId === normalized.eventId ||
+      item.operationId === normalized.operationId,
+  );
+  if (duplicate !== undefined) {
+    if (sameJson(duplicate, normalized)) return events;
+    throw new RecordConflictError(
+      "Duplicate event or operation id has different content.",
+    );
+  }
+  if (events.some((item) => item.taskId !== normalized.taskId)) {
+    throw new RecordValidationError(
+      "A task event stream may contain one task only.",
+    );
+  }
+  const expectedBasis = events.at(-1)?.eventId ?? null;
+  if (normalized.basis !== expectedBasis) {
+    throw new RecordConflictError(
+      "Task event basis does not match the current event-stream head.",
+    );
+  }
+  return [...events, normalized];
+}
+
+/** Replays only the authoritative events, in persisted order, with no hidden state. */
+export function materializeTask(
+  events: readonly TaskEvent[],
+): TaskMaterialization {
+  if (events.length === 0)
+    throw new RecordValidationError(
+      "Cannot materialize an empty task event stream.",
+    );
+  let accepted: readonly TaskEvent[] = [];
+  let state: Record<string, unknown> = {};
+  for (const event of events) {
+    const next = appendTaskEvent(accepted, event);
+    if (next === accepted) {
+      throw new RecordConflictError(
+        "Persisted task event stream contains a duplicate event or operation id.",
+      );
+    }
+    accepted = next;
+    state = { ...state, ...event.patch };
+  }
+  return {
+    schemaVersion: RECORD_SCHEMA_VERSION,
+    taskId: events[0].taskId,
+    events: events.map((event) => event.eventId),
+    state,
+  };
+}
+
+export function assertReplayMatches(
+  events: readonly TaskEvent[],
+  persisted: TaskMaterialization,
+): void {
+  if (!sameJson(materializeTask(events), persisted)) {
+    throw new RecordConflictError(
+      "Persisted task materialization drifted from event replay.",
+    );
+  }
+}
