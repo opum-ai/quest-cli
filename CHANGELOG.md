@@ -45,6 +45,28 @@ section carries no version number until that release sets it.
   `archive/drafts`), so `--include-archived` callers filter on it as before
   (QCLI-265).
 
+- `quest help <command>` prints `summary` and `usage` above the fields and
+  flags lists instead of below them, and each flag now carries its value
+  shape: `--label <string, repeatable>`, `--acceptance-criteria <json-array>`,
+  `--comments <json-objects>`, and a boolean flag claims no value at all.
+  Repeatability is per command, so `--type` reads as one scalar on
+  `task create` and as a repeatable filter on `task list`.
+
+  `usage` already documented the positional form before this change -- on line
+  54 of 56, under ~50 lines of alphabetized names, so a pager, a `head`, or a
+  context-budgeted agent never reached it. The fix is placement (QCLI-266).
+
+- `quest manifest --json` gains `parameters` per command: `positional`
+  (name, required, value) and `flags` (value kind, and whether the flag is
+  repeated per item). `fields` lists domain field names and cannot say that
+  `title` is positional rather than `--title`, so a caller generating a
+  command line from the manifest -- which is what a manifest is for -- wrote
+  `--title` and got a usage error. Additive: every existing key, `fields`
+  included, is unchanged (QCLI-266).
+
+  Both surfaces and the argv parser now read one table, so what help reports,
+  what the manifest declares, and what the CLI accepts cannot drift apart.
+
 ### Fixed
 
 - A write conflict on `task complete`/`archive`/`pause`/`start`/`demote` and

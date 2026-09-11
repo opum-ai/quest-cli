@@ -32,6 +32,14 @@ import {
   selectOutputMode,
 } from "../application/command-contract.ts";
 import { commandHelp } from "../application/command-help.ts";
+import {
+  BOOLEAN_FLAGS,
+  describeFlag,
+  REPEATABLE_CREATE_FLAGS,
+  REPEATABLE_EDIT_BATCH_FLAGS,
+  REPEATABLE_EDIT_FLAGS,
+  REPEATABLE_LIST_FLAGS,
+} from "../application/command-parameters.ts";
 import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
@@ -90,9 +98,18 @@ function failure(
   };
 }
 
+/**
+ * QCLI-266: keys `quest help` prints before the alphabetical rest. `summary`
+ * and `usage` are the only lines that show a command's positional form, and
+ * they used to render last, under ~50 lines of alphabetized field and flag
+ * names -- so anything that truncates never reached them.
+ */
+const HELP_PRIORITY_KEYS = ["summary", "usage", "flags"] as const;
+
 function output(
   data: object | readonly unknown[],
   mode: OutputMode,
+  priorityKeys: readonly string[] = [],
 ): InvocationResult {
   const success = data as {
     readonly schemaVersion: unknown;
@@ -109,19 +126,29 @@ function output(
     stdout:
       mode === "json"
         ? `${JSON.stringify(envelope)}\n`
-        : renderHumanPayload(envelope.data),
+        : renderHumanPayload(envelope.data, priorityKeys),
     stderr: "",
     exitCode: 0,
   };
 }
 
 /** Merges human help content into manifest entries for `quest help` output
- * only; `commandManifest`/`quest manifest` are never touched. */
+ * only; `commandManifest`/`quest manifest` are never touched. Flags carry
+ * their value shape (QCLI-266): a bare list of flag names cannot tell a
+ * reader that `--label` is repeated per item while `--acceptance-criteria`
+ * takes one JSON array, and getting that wrong is a usage error the caller
+ * only learns about after the fact. */
 function withHelp(entries: typeof commandManifest.commands) {
-  return entries.map((entry) => ({
-    ...entry,
-    ...commandHelp[entry.name],
-  }));
+  return entries.map((entry) => {
+    const help = commandHelp[entry.name];
+    return {
+      ...entry,
+      ...help,
+      ...(help
+        ? { flags: help.flags.map((flag) => describeFlag(flag, entry.name)) }
+        : {}),
+    };
+  });
 }
 
 class FlagUsageError extends Error {}
@@ -162,27 +189,7 @@ function flags(
   const json = argv.includes("--json");
   const plain = argv.includes("--plain");
   const repeatable = new Set(repeatableValueFlags);
-  const booleanFlags = new Set([
-    "--agent-instructions",
-    "--check",
-    "--require-installed",
-    "--update-instructions",
-    "--confirm",
-    "--dry-run",
-    "--include-archived",
-    "--all",
-    "--clear-parent",
-    "--clear-milestone",
-    "--clear-ac",
-    "--clear-dod",
-    "--clear-final-summary",
-    "--force",
-    "--preserve-source-ids",
-    "--reconfigure",
-    "--list",
-    "--ready",
-    "--unassigned",
-  ]);
+  const booleanFlags = new Set<string>(BOOLEAN_FLAGS);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     const equals = argument?.indexOf("=") ?? -1;
@@ -812,6 +819,7 @@ export async function runQuest(
           data: { commands: withHelp(commandManifest.commands) },
         },
         modeFor(),
+        HELP_PRIORITY_KEYS,
       );
     }
     const helpFlagIndex = arguments_.findIndex(
@@ -867,6 +875,7 @@ export async function runQuest(
           data: { commands, details },
         },
         modeFor(parsed),
+        HELP_PRIORITY_KEYS,
       );
     }
     if (arguments_[0] === "init") {
@@ -1964,12 +1973,7 @@ export async function runQuest(
       );
     }
     if (command === "list") {
-      const parsed = flags(rest, [
-        "--label",
-        "--exclude-status",
-        "--assignee",
-        "--type",
-      ]);
+      const parsed = flags(rest, REPEATABLE_LIST_FLAGS);
       if (
         !parsed ||
         !only(parsed, [
@@ -2188,15 +2192,7 @@ export async function runQuest(
     }
     if (command === "create" && rest[0]) {
       const title = rest[0];
-      const parsed = flags(rest.slice(1), [
-        "--label",
-        "--doc",
-        "--alias",
-        "--assignee",
-        "--reference",
-        "--modified-file",
-        "--dependency",
-      ]);
+      const parsed = flags(rest.slice(1), REPEATABLE_CREATE_FLAGS);
       if (
         !parsed ||
         !only(parsed, [
@@ -2283,25 +2279,7 @@ export async function runQuest(
       // QCLI-122 public batch boundary (strict JSONL per FMC 05fe52e8):
       // malformed/unknown/managed content fails at parse time or becomes a
       // documented per-item error — never a silent successful no-op.
-      const parsed = flags(rest, [
-        "--add-label",
-        "--remove-label",
-        "--doc",
-        "--add-plan",
-        "--remove-plan",
-        "--add-note",
-        "--remove-note",
-        "--add-comment",
-        "--remove-comment",
-        "--add-dependency",
-        "--remove-dependency",
-        "--add-assignee",
-        "--remove-assignee",
-        "--add-reference",
-        "--remove-reference",
-        "--add-modified-file",
-        "--remove-modified-file",
-      ]);
+      const parsed = flags(rest, REPEATABLE_EDIT_BATCH_FLAGS);
       if (
         !parsed ||
         !only(parsed, [
@@ -2578,32 +2556,7 @@ export async function runQuest(
     }
     if (command === "edit" && rest[0]) {
       const reference = rest[0];
-      const parsed = flags(rest.slice(1), [
-        "--add-label",
-        "--remove-label",
-        "--doc",
-        "--add-plan",
-        "--remove-plan",
-        "--add-note",
-        "--remove-note",
-        "--append-final-summary",
-        "--add-comment",
-        "--remove-comment",
-        "--add-dependency",
-        "--remove-dependency",
-        "--add-assignee",
-        "--remove-assignee",
-        "--add-reference",
-        "--remove-reference",
-        "--add-modified-file",
-        "--remove-modified-file",
-        "--check-ac",
-        "--uncheck-ac",
-        "--remove-ac",
-        "--check-dod",
-        "--uncheck-dod",
-        "--remove-dod",
-      ]);
+      const parsed = flags(rest.slice(1), REPEATABLE_EDIT_FLAGS);
       if (
         !parsed ||
         !only(parsed, [

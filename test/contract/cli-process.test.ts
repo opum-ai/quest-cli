@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 
 import { commandHelp } from "../../src/application/command-help.ts";
+import { BOOLEAN_FLAGS } from "../../src/application/command-parameters.ts";
 import { runQuest } from "../../src/cli/main.ts";
 import { QUEST_VERSION } from "../../src/application/version.ts";
 
@@ -198,12 +198,14 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
       mutates: true,
       usage:
         'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex|antigravity]] [--skill-source repo|plugin]',
+      // QCLI-266: help flags carry their value shape; `--agent-instructions`
+      // is boolean and correctly claims no value.
       flags: [
-        "--name",
-        "--task-id-prefix",
+        "--name <string>",
+        "--task-id-prefix <string>",
         "--agent-instructions",
-        "--target",
-        "--skill-source",
+        "--target <string>",
+        "--skill-source <string>",
       ],
     }),
     expect.objectContaining({
@@ -212,7 +214,12 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
       mutates: true,
       usage:
         'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC] [--skill-source repo|plugin]',
-      flags: ["--name", "--task-id-prefix", "--skill-source", "--reconfigure"],
+      flags: [
+        "--name <string>",
+        "--task-id-prefix <string>",
+        "--skill-source <string>",
+        "--reconfigure",
+      ],
     }),
   ]);
 
@@ -222,7 +229,10 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
   const manifestInit = manifestJson.data.commands.find(
     (entry: { name: string }) => entry.name === "init",
   );
-  expect(manifestInit).toEqual({
+  // QCLI-266 added `parameters` (argument SHAPE, machine-readable). What must
+  // still never appear in the manifest is help PROSE -- that separation is
+  // what this assertion has always been about.
+  expect(manifestInit).toMatchObject({
     name: "init",
     schemaVersion: 1,
     kind: "workspace.initialized",
@@ -230,6 +240,16 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
   });
   expect(manifestInit.summary).toBeUndefined();
   expect(manifestInit.usage).toBeUndefined();
+  expect(Object.keys(manifestInit).sort()).toEqual([
+    "kind",
+    "mutates",
+    "name",
+    "parameters",
+    "schemaVersion",
+  ]);
+  expect(manifestInit.parameters.flags["--agent-instructions"]).toEqual({
+    value: "none",
+  });
 });
 
 test("pretty output is readable without ANSI escapes when color is disabled", async () => {
@@ -506,21 +526,10 @@ test("every flag `task edit` documents is a flag `task edit` accepts", async () 
   // Derived, not copied. A hand-kept list here goes stale silently: a boolean
   // flag missing from it gets probed as `--flag=1`, which the parser rejects
   // for taking a value before `only()` is ever consulted, so the guard passes
-  // without testing anything.
-  const source = readFileSync(
-    new URL("../../src/cli/main.ts", import.meta.url),
-    "utf8",
-  );
-  const declaration = source.slice(
-    source.indexOf("const booleanFlags = new Set(["),
-  );
-  const booleanFlags = new Set(
-    [
-      ...declaration
-        .slice(0, declaration.indexOf("]"))
-        .matchAll(/"(--[a-z-]+)"/g),
-    ].map((match) => match[1]),
-  );
+  // without testing anything. QCLI-266 lifted the set out of main.ts into the
+  // shared parameter table, so this imports it rather than scraping the source
+  // text -- the same derivation, one indirection shorter.
+  const booleanFlags = new Set<string>(BOOLEAN_FLAGS);
   expect(booleanFlags.size).toBeGreaterThan(5);
   const rejected = "task edit received invalid arguments.";
   for (const flag of commandHelp["task edit"]?.flags ?? []) {
