@@ -11,19 +11,24 @@ section carries no version number until that release sets it.
 
 ### Changed (breaking)
 
-- Every mutating command now carries the written record directly in the
-  envelope's `data`, the shape `task create` and `task edit` already used.
-  `task complete`, `task archive`, `task pause`, `task start`, `task demote`,
-  `draft create`, `draft promote` and `draft archive` previously nested it
-  under `data.task`/`data.draft`, alongside the repository `revision` hash and
-  a second `kind: "success"` that shadowed the envelope's own semantic kind.
-  A caller reading one group could not read the other: a `^status:` match over
-  `--plain` matched an edit and silently missed a complete. Read the record at
-  `data` on all of them; drop any `.data.task`/`.data.draft` hop (QCLI-264).
+- Every **single-record** mutating command now carries the written record
+  directly in the envelope's `data`, the shape `task create` and `task edit`
+  already used. `task complete`, `task archive`, `task pause`, `task start`,
+  `task demote`, `draft create`, `draft promote` and `draft archive`
+  previously nested it under `data.task`/`data.draft`, alongside the
+  repository `revision` hash and a second `kind: "success"` that shadowed the
+  envelope's own semantic kind. A caller reading one group could not read the
+  other: a `^status:` match over `--plain` matched an edit and silently missed
+  a complete. Read the record at `data` on those commands; drop any
+  `.data.task`/`.data.draft` hop (QCLI-264).
 
-  `task edit-batch` is unchanged and keeps its declared `data.revision` --
-  chunked callers page on it. `milestone create` and `decision create` keep
-  `{record, result}`; unifying the planning group is not part of this change.
+  "Single-record" is the whole claim, and the qualifier is load-bearing rather
+  than pedantic: `task edit-batch` is a batch **report**, not a record, and is
+  unchanged. Its records stay at `data.items[].task` and it keeps its declared
+  `data.revision`, which chunked callers page on and a test now pins so a
+  later sweep cannot strip it by association. `milestone create` and
+  `decision create` keep `{record, result}`; unifying the planning group is
+  not part of this change (QCLI-265).
 
 ### Fixed
 

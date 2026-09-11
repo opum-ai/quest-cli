@@ -124,8 +124,10 @@ function taskFromMutation(
 }
 
 /**
- * QCLI-264: every mutating command puts the written record itself in `data`,
- * never the service's internal mutation envelope. Unwrapping here is what
+ * QCLI-264: every single-record mutating command puts the written record
+ * itself in `data`, never the service's internal mutation envelope. (The
+ * batch route is a report rather than a record and keeps its own shape,
+ * records at `data.items[].task`.) Unwrapping here is what
  * keeps `task complete` readable the same way as `task edit`; passing the
  * result through instead nests the record under `task`/`draft`, exposes the
  * repository `revision` hash, and shadows the envelope's semantic `kind` with
