@@ -249,7 +249,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
       "--json",
     ]);
     expect(milestone.exitCode).toBe(0);
-    const milestoneId = JSON.parse(milestone.stdout).data.record.id as string;
+    const milestoneId = JSON.parse(milestone.stdout).data.id as string;
     const viewedMilestone = await quest(store, [
       "milestone",
       "view",
@@ -289,9 +289,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     ]);
     expect(JSON.parse(added.stdout)).toMatchObject({
       kind: "milestone.updated",
-      data: {
-        record: { taskIds: [createdTask.id, secondTask.id, thirdTask.id] },
-      },
+      data: { taskIds: [createdTask.id, secondTask.id, thirdTask.id] },
     });
     const removed = await quest(store, [
       "milestone",
@@ -309,7 +307,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     ]);
     expect(JSON.parse(removed.stdout)).toMatchObject({
       kind: "milestone.updated",
-      data: { record: { taskIds: [secondTask.id, thirdTask.id] } },
+      data: { taskIds: [secondTask.id, thirdTask.id] },
     });
     const replaced = await quest(store, [
       "milestone",
@@ -329,7 +327,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
     ]);
     expect(JSON.parse(replaced.stdout)).toMatchObject({
       kind: "milestone.updated",
-      data: { record: { taskIds: [createdTask.id, thirdTask.id] } },
+      data: { taskIds: [createdTask.id, thirdTask.id] },
     });
     for (const argv of [
       ["--task", thirdTask.id],
@@ -365,7 +363,7 @@ test("the installed executable routes persistent tracker reads and writes as JSO
           "--json",
         ])
       ).stdout,
-    ).data.record;
+    ).data;
     for (const flag of [
       "--add-task",
       "--remove-task",
@@ -431,7 +429,7 @@ test("inline free-text flag values preserve literal dash-prefixed bytes in stora
           ...human,
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     const title = "--title=first=equals";
     expect(
       JSON.parse(
@@ -445,7 +443,7 @@ test("inline free-text flag values preserve literal dash-prefixed bytes in stora
           ])
         ).stdout,
       ),
-    ).toMatchObject({ data: { record: { title } } });
+    ).toMatchObject({ data: { title } });
     expect(
       JSON.parse(
         (await quest(store, ["milestone", "view", milestone, "--json"])).stdout,
@@ -465,7 +463,7 @@ test("inline free-text flag values preserve literal dash-prefixed bytes in stora
           ...human,
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     expect(
       JSON.parse(
         (await quest(store, ["decision", "view", decision, "--json"])).stdout,
@@ -665,15 +663,16 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
     const draft = JSON.parse(
       (await quest(store, ["draft", "create", "Draft", ...human])).stdout,
     ).data;
-    // QCLI-264 converged the mutating routes on the bare record; `draft view`
-    // is a read and still carries the located record's `{draft, location}`.
+    // QCLI-264 converged the mutating routes on the bare record and QCLI-265
+    // did the same for the reads: `draft view` now carries the draft's own
+    // fields with `location` inline, as `task view` carries `path`.
     expect(
       JSON.parse(
         (await quest(store, ["draft", "view", draft.id, "--json"])).stdout,
       ),
     ).toMatchObject({
       kind: "draft.view",
-      data: { draft: { id: draft.id } },
+      data: { id: draft.id, location: "drafts" },
     });
     expect(
       JSON.parse(
@@ -686,7 +685,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
 
     const milestone = JSON.parse(
       (await quest(store, ["milestone", "create", "M1", ...human])).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     expect(
       JSON.parse(
         (await quest(store, ["milestone", "view", milestone, "--json"])).stdout,
@@ -694,7 +693,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
     ).toMatchObject({ kind: "milestone.view", data: { id: milestone } });
     const decision = JSON.parse(
       (await quest(store, ["decision", "create", "D1", ...human])).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     expect(
       JSON.parse(
         (await quest(store, ["decision", "view", decision, "--json"])).stdout,
@@ -715,7 +714,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
       ),
     ).toMatchObject({
       kind: "milestone.updated",
-      data: { record: { id: milestone, title: "M1 edited" } },
+      data: { id: milestone, title: "M1 edited" },
     });
     expect(
       JSON.parse(
@@ -732,7 +731,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
       ),
     ).toMatchObject({
       kind: "decision.updated",
-      data: { record: { id: decision, outcome: "Decided" } },
+      data: { id: decision, outcome: "Decided" },
     });
     const deletedMilestone = JSON.parse(
       (
@@ -743,7 +742,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
           ...human,
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     expect(
       JSON.parse(
         (
@@ -757,12 +756,12 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
       ),
     ).toMatchObject({
       kind: "milestone.deleted",
-      data: { record: { id: deletedMilestone } },
+      data: { id: deletedMilestone },
     });
     const deletedDecision = JSON.parse(
       (await quest(store, ["decision", "create", "Delete decision", ...human]))
         .stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     expect(
       JSON.parse(
         (await quest(store, ["decision", "delete", deletedDecision, ...human]))
@@ -770,7 +769,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
       ),
     ).toMatchObject({
       kind: "decision.deleted",
-      data: { record: { id: deletedDecision } },
+      data: { id: deletedDecision },
     });
     for (const [argv, kind] of [
       [["overview", "--json"], "project.overview"],
@@ -846,7 +845,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "--json",
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     const milestoneToArchive = JSON.parse(
       (
         await quest(store, [
@@ -857,7 +856,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "--json",
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     const milestoneToDelete = JSON.parse(
       (
         await quest(store, [
@@ -868,7 +867,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "--json",
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     const decision = JSON.parse(
       (
         await quest(store, [
@@ -879,7 +878,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "--json",
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     const decisionToDelete = JSON.parse(
       (
         await quest(store, [
@@ -890,7 +889,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "--json",
         ])
       ).stdout,
-    ).data.record.id as string;
+    ).data.id as string;
     const bound = JSON.parse(
       (await quest(store, ["task", "create", "Bound", ...actor, "--json"]))
         .stdout,
@@ -1880,7 +1879,7 @@ test("milestone archive retires a milestone and list hides it by default (QCLI-1
     const envelope = JSON.parse(archived.stdout);
     expect(envelope.kind).toBe("milestone.archived");
     // The task reference survives; that is the difference from delete.
-    expect(envelope.data.record).toMatchObject({
+    expect(envelope.data).toMatchObject({
       id: "M-1",
       status: "closed",
       taskIds: ["T-1"],
@@ -1960,7 +1959,7 @@ test("milestone archive retires a milestone and list hides it by default (QCLI-1
       ...human,
     ]);
     expect(afterArchive.exitCode).toBe(0);
-    expect(JSON.parse(afterArchive.stdout).data.record.id).toBe("M-2");
+    expect(JSON.parse(afterArchive.stdout).data.id).toBe("M-2");
 
     // Editing an archived milestone does not quietly un-archive it.
     await quest(store, [

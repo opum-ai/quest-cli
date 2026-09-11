@@ -437,8 +437,7 @@ test("red: milestone transition row is rejected at exact index without task or p
       "--json",
     ]);
     expect(milestoneCreated.exitCode).toBe(0);
-    const milestoneId = JSON.parse(milestoneCreated.stdout).data.record
-      .id as string;
+    const milestoneId = JSON.parse(milestoneCreated.stdout).data.id as string;
     const before = JSON.parse(
       spawnJson(root, ["task", "view", "T-1", "--json"]).stdout,
     );

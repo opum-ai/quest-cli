@@ -28,9 +28,22 @@ section carries no version number until that release sets it.
   `data.revision`: it is the workspace revision the batch committed at, which
   is what a caller needs to do its own bounded retry after a conflict, and
   `test/qcli122-third-pass.test.ts` has pinned it since QCLI-122. It is kept
-  on that reasoning alone -- no external consumer reads it for control flow. `milestone create` and
-  `decision create` keep `{record, result}`; unifying the planning group is
-  not part of this change (QCLI-265).
+  on that reasoning alone -- no external consumer reads it for control flow.
+  It is the one payload in the CLI that is not a record, and it is meant to
+  stay that way.
+
+- Planning mutations and draft reads now carry the record in `data` too, so
+  "where is the record" has one answer across the whole CLI.
+  `milestone create|edit|archive|delete` and `decision create|edit|delete`
+  returned `{record, result}`, where `result` was the same write receipt
+  QCLI-264 unwrapped elsewhere; they now return the record. `draft view` and
+  `draft list` returned the repository's `{draft, location}` pair -- the only
+  reads in the CLI where the record was not the payload -- and now carry the
+  draft's own fields with `location` inline, exactly as `task view` and
+  `task list` already carried `path`. Read `data.id`, not `data.record.id` or
+  `data.draft.id`; `location` keeps its name and its values (`drafts`,
+  `archive/drafts`), so `--include-archived` callers filter on it as before
+  (QCLI-265).
 
 ### Fixed
 
