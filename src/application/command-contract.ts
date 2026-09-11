@@ -1,3 +1,5 @@
+import { commandHelp } from "./command-help.ts";
+import { flagParameter, positionalParameters } from "./command-parameters.ts";
 import {
   type DiagnosticEnvelope,
   type ExitCode,
@@ -652,8 +654,37 @@ export const commandManifest = {
   exitCodes,
 } as const;
 
+/**
+ * QCLI-266: the registry plus each command's argument SHAPE. `fields` lists
+ * domain field names and cannot tell a caller that `title` is positional or
+ * that `--acceptance-criteria` takes one JSON array, so a caller generating a
+ * command line from it wrote `--title` and failed. `parameters` is additive --
+ * every existing key, `fields` included, is untouched -- and is derived from
+ * the same `usage` string and flag sets the CLI itself parses with, so it
+ * cannot drift from what the command accepts.
+ */
+function withParameters(entries: typeof commandManifest.commands) {
+  return entries.map((entry) => {
+    const help = commandHelp[entry.name];
+    if (!help) return entry;
+    const flags = Object.fromEntries(
+      help.flags.map((flag) => [flag, flagParameter(flag, entry.name)]),
+    );
+    return {
+      ...entry,
+      parameters: {
+        positional: positionalParameters(help.usage),
+        flags,
+      },
+    };
+  });
+}
+
 export function manifestResult() {
-  return success("manifest.registry", commandManifest);
+  return success("manifest.registry", {
+    ...commandManifest,
+    commands: withParameters(commandManifest.commands),
+  });
 }
 
 export function validateCommandManifest(manifest: unknown): boolean {
