@@ -35,7 +35,7 @@ import { commandHelp } from "../application/command-help.ts";
 import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
-import type { TaskService } from "../application/tasks/tasks.ts";
+import type { LocatedDraft, TaskService } from "../application/tasks/tasks.ts";
 import {
   type AgentSkillSource,
   initializeWorkspace,
@@ -541,6 +541,22 @@ async function nextTaskId(tasks: TaskService, prefix: string): Promise<string> {
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
   return `${prefix}-${highest + 1}`;
+}
+
+/**
+ * QCLI-265: draft reads carry the draft's own fields with `location` inline,
+ * the shape `task view`/`task list` already use for `path`. They used to be
+ * the repository's `{draft, location}` pair, which made `draft view` the only
+ * read in the CLI where the record was not the payload.
+ *
+ * `location` is kept under that name rather than renamed to `path` on purpose:
+ * it is the field drafts already exposed, it is what `--include-archived`
+ * callers distinguish on, and a rename would be a second break for no gain.
+ */
+function flattenLocatedDraft(
+  located: LocatedDraft,
+): LocatedDraft["draft"] & { readonly location: LocatedDraft["location"] } {
+  return { ...located.draft, location: located.location };
 }
 
 async function nextDraftId(tasks: TaskService): Promise<string> {
@@ -1570,7 +1586,9 @@ export async function runQuest(
           {
             schemaVersion: 1,
             kind: isMilestone ? "milestone.created" : "decision.created",
-            data: result,
+            // QCLI-265: the record itself, not {record, result}. `result` is
+            // the same mutation wrapper QCLI-264 unwrapped elsewhere.
+            data: result.record,
           },
           modeFor(parsed),
         );
@@ -1593,7 +1611,7 @@ export async function runQuest(
           {
             schemaVersion: 1,
             kind: isMilestone ? "milestone.deleted" : "decision.deleted",
-            data,
+            data: data.record,
           },
           modeFor(parsed),
         );
@@ -1673,7 +1691,7 @@ export async function runQuest(
           {
             schemaVersion: 1,
             kind: isMilestone ? "milestone.updated" : "decision.updated",
-            data,
+            data: data.record,
           },
           modeFor(parsed),
         );
@@ -1694,7 +1712,9 @@ export async function runQuest(
           {
             schemaVersion: 1,
             kind: "milestone.archived",
-            data: await planning.archiveMilestone(rest[0], crypto.randomUUID()),
+            data: (
+              await planning.archiveMilestone(rest[0], crypto.randomUUID())
+            ).record,
           },
           modeFor(parsed),
         );
@@ -1754,9 +1774,9 @@ export async function runQuest(
           {
             schemaVersion: 1,
             kind: "draft.list",
-            data: await tasks.listDrafts(
-              parsed.values.has("--include-archived"),
-            ),
+            data: (
+              await tasks.listDrafts(parsed.values.has("--include-archived"))
+            ).map(flattenLocatedDraft),
           },
           modeFor(parsed),
         );
@@ -1765,7 +1785,7 @@ export async function runQuest(
           {
             schemaVersion: 1,
             kind: "draft.view",
-            data: await tasks.viewDraft(rest[0]),
+            data: flattenLocatedDraft(await tasks.viewDraft(rest[0])),
           },
           modeFor(parsed),
         );
