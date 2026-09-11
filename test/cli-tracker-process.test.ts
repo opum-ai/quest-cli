@@ -651,7 +651,7 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
       ),
     ).toMatchObject({
       kind: "task.completed",
-      data: { task: { id: task.id, status: "Done" } },
+      data: { id: task.id, status: "Done" },
     });
     expect(
       JSON.parse(
@@ -659,29 +659,29 @@ test("public lifecycle, draft, and planning routes preserve their declared envel
       ),
     ).toMatchObject({
       kind: "task.archived",
-      data: { task: { id: task.id } },
+      data: { id: task.id },
     });
 
     const draft = JSON.parse(
       (await quest(store, ["draft", "create", "Draft", ...human])).stdout,
     ).data;
+    // QCLI-264 converged the mutating routes on the bare record; `draft view`
+    // is a read and still carries the located record's `{draft, location}`.
     expect(
       JSON.parse(
-        (await quest(store, ["draft", "view", draft.draft.id, "--json"]))
-          .stdout,
+        (await quest(store, ["draft", "view", draft.id, "--json"])).stdout,
       ),
     ).toMatchObject({
       kind: "draft.view",
-      data: { draft: { id: draft.draft.id } },
+      data: { draft: { id: draft.id } },
     });
     expect(
       JSON.parse(
-        (await quest(store, ["draft", "promote", draft.draft.id, ...human]))
-          .stdout,
+        (await quest(store, ["draft", "promote", draft.id, ...human])).stdout,
       ),
     ).toMatchObject({
       kind: "draft.promoted",
-      data: { task: { id: "T-2" } },
+      data: { id: "T-2" },
     });
 
     const milestone = JSON.parse(
@@ -824,7 +824,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "--json",
         ])
       ).stdout,
-    ).data.draft.id as string;
+    ).data.id as string;
     const archivableDraft = JSON.parse(
       (
         await quest(store, [
@@ -835,7 +835,7 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "--json",
         ])
       ).stdout,
-    ).data.draft.id as string;
+    ).data.id as string;
     const milestone = JSON.parse(
       (
         await quest(store, [
@@ -2109,18 +2109,18 @@ test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI
     expect(edited.updatedAt > created.updatedAt).toBe(true);
     expect(edited.updatedAt).toMatch(iso);
 
-    // A status transition is a write. Note the envelope: task.completed nests
-    // the record under data.task, unlike task.updated.
+    // A status transition is a write. QCLI-264: task.completed carries the
+    // record directly in data, the same as task.updated.
     const completed = JSON.parse(
       (await quest(store, ["task", "complete", "T-1", ...human])).stdout,
-    ).data.task;
+    ).data;
     expect(completed.updatedAt > edited.updatedAt).toBe(true);
     expect(completed.createdAt).toBe(created.createdAt);
 
     // So is a lifecycle move, which takes a different write path entirely.
     const archived = JSON.parse(
       (await quest(store, ["task", "archive", "T-1", ...human])).stdout,
-    ).data.task;
+    ).data;
     expect(archived.updatedAt > completed.updatedAt).toBe(true);
     expect(archived.createdAt).toBe(created.createdAt);
 
@@ -2161,7 +2161,7 @@ test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI
     await quest(store, ["draft", "create", "An idea", ...human]);
     const promoted = JSON.parse(
       (await quest(store, ["draft", "promote", "D-1", ...human])).stdout,
-    ).data.task;
+    ).data;
     expect(promoted.createdAt).toMatch(iso);
     expect(promoted.updatedAt).toBe(promoted.createdAt);
   } finally {

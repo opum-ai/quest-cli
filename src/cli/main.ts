@@ -46,7 +46,10 @@ import {
   WorkspaceError,
 } from "../application/workspaces/workspaces.ts";
 import { QUEST_VERSION } from "../application/version.ts";
-import { dispatchTrackerTaskCommand } from "./commands/task/index.ts";
+import {
+  dispatchTrackerTaskCommand,
+  recordFromMutation,
+} from "./commands/task/index.ts";
 import {
   createAgentInstructionPort,
   createBacklogImportService,
@@ -1785,15 +1788,18 @@ export async function runQuest(
             "denied",
             "Draft writes require an explicit actor declaration.",
           );
-        const data = await tasks.createDraft(
-          one(parsed, "--id") ?? (await nextDraftId(tasks)),
-          {
-            title: rest[0],
-            description: one(parsed, "--description"),
-            labels: parsed.values.get("--label"),
-            documentation: parsed.values.get("--doc"),
-          },
-          crypto.randomUUID(),
+        const data = recordFromMutation(
+          await tasks.createDraft(
+            one(parsed, "--id") ?? (await nextDraftId(tasks)),
+            {
+              title: rest[0],
+              description: one(parsed, "--description"),
+              labels: parsed.values.get("--label"),
+              documentation: parsed.values.get("--doc"),
+            },
+            crypto.randomUUID(),
+          ),
+          "draft",
         );
         return output(
           { schemaVersion: 1, kind: "draft.created", data },
@@ -1816,11 +1822,14 @@ export async function runQuest(
             "denied",
             "Draft writes require an explicit actor declaration.",
           );
-        const data = await tasks.promoteDraft(
-          rest[0],
-          one(parsed, "--task-id") ??
-            (await nextTaskId(tasks, await configuredTaskIdPrefix())),
-          crypto.randomUUID(),
+        const data = recordFromMutation(
+          await tasks.promoteDraft(
+            rest[0],
+            one(parsed, "--task-id") ??
+              (await nextTaskId(tasks, await configuredTaskIdPrefix())),
+            crypto.randomUUID(),
+          ),
+          "task",
         );
         return output(
           { schemaVersion: 1, kind: "draft.promoted", data },
@@ -1838,7 +1847,10 @@ export async function runQuest(
             "denied",
             "Draft writes require an explicit actor declaration.",
           );
-        const data = await tasks.archiveDraft(rest[0], crypto.randomUUID());
+        const data = recordFromMutation(
+          await tasks.archiveDraft(rest[0], crypto.randomUUID()),
+          "draft",
+        );
         return output(
           { schemaVersion: 1, kind: "draft.archived", data },
           modeFor(parsed),
@@ -1873,14 +1885,16 @@ export async function runQuest(
           "Tracker writes require an explicit actor declaration.",
         );
       const tasks = await taskService();
-      const data =
+      const data = recordFromMutation(
         command === "complete"
           ? await tasks.complete(rest[0], crypto.randomUUID())
           : command === "archive"
             ? await tasks.archive(rest[0], crypto.randomUUID())
             : command === "pause"
               ? await tasks.pause(rest[0], crypto.randomUUID())
-              : await tasks.start(rest[0], crypto.randomUUID());
+              : await tasks.start(rest[0], crypto.randomUUID()),
+        "task",
+      );
       const kind = command === "start" ? "task.started" : `task.${command}d`;
       return output({ schemaVersion: 1, kind, data }, modeFor(parsed));
     }
@@ -1908,7 +1922,10 @@ export async function runQuest(
           "Tracker writes require an explicit actor declaration.",
         );
       const tasks = await taskService();
-      const data = await tasks.demote(rest[0], to, crypto.randomUUID());
+      const data = recordFromMutation(
+        await tasks.demote(rest[0], to, crypto.randomUUID()),
+        "task",
+      );
       return output(
         { schemaVersion: 1, kind: "task.demoted", data },
         modeFor(parsed),
