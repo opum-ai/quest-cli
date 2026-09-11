@@ -90,6 +90,24 @@ review gates rather than bypass them.
 Do not generalize this to sibling repos. At least one fleet repo gates `dev`
 instead; that is exactly why this lives here and not in the shared block.
 
+### This repository's tags are load-bearing for quest-web's CI
+
+`quest-web` (questgraph.dev) runs a link gate as part of its `npm run check`
+that fetches every external link LIVE. It cites this repository, so deleting
+or moving a tag here turns a repository I do not own red, and nothing on this
+side can see that dependency -- it exists only in quest-web's gate code.
+
+Measured 2026-09-11, by quest-web and confirmed here with `git ls-remote`:
+`v0.5.0` returns 404 and the tags API lists only `v0.6.0`, whose `^{}` peel
+is `a9fbc78` -- the post-recreation initial commit, NOT the commit that
+produced 0.6.0. The releases API returns `[]`. All three are consequences of
+the 2026-09-10 repository deletion and recreation (OPAG-70), not of any
+deliberate retag.
+
+So before deleting, moving or re-pointing a tag: say so to quest-web first.
+And treat the current tags as weaker anchors than the npm version, which is
+immutable -- that is the advice given back to quest-web for its own citations.
+
 ### Breaking an envelope shape: sweep consumers in two passes, not one
 
 This repository ships a machine contract that sibling repos parse, so a
