@@ -1,0 +1,79 @@
+name: Tracker integrity
+
+# OPAG-79. Two assertions about the tracker, in deliberately separate steps so
+# a red names which one failed rather than "tracker broke":
+#
+#   1. the tracker reads cleanly -- catches a duplicated task identity (the
+#      same id in both .quest/tasks/ and .quest/completed/), which exits
+#      conflict/5 and makes every tracker read in the repository fail;
+#   2. the managed Quest block and skill file are current -- drift exits 6,
+#      and drifts on its own whenever the CLI moves underneath a committed
+#      copy, with no commit here to blame.
+#
+# WHY THIS REPOSITORY RUNS ITS OWN BUILD RATHER THAN THE PUBLISHED PACKAGE.
+# The fleet's reference job installs @opum-ai/quest from npm at the version
+# CLAUDE.md declares. That is right everywhere else and wrong here: quest-cli
+# AUTHORS the CLI, so a job pinned to the last published version cannot see a
+# regression introduced by the pull request it is running on. It would report
+# green from last release's binary while the working tree could no longer read
+# a task. The published-artifact angle is not lost -- prepublication
+# qualification and opum-cli-e2e both exercise the packaged binary -- but the
+# PR-regression angle is covered nowhere else, and this is the only repository
+# that can author that defect.
+#
+# The version-derivation step the fleet job uses becomes an equality assertion
+# instead: there is no install to pin, but CLAUDE.md's declared version and
+# package.json must still agree. That is the same drift class in the form this
+# repository can actually have it.
+#
+# Runs on push as well as pull_request deliberately. A job scoped only to
+# pull_request never appears on dev's tip commit, and GitHub gates a direct
+# push by the pushed commit's own prior check history -- so adding a
+# PR-only context to main's required checks makes `git push origin dev:main`
+# permanently unpushable. See promotion-guardrails.yml for the full reasoning
+# and the opum-doc incident behind it.
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tracker-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tracker:
+    name: Tracker integrity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile --linker=isolated
+
+      - name: CLAUDE.md's declared Quest version matches this package
+        run: |
+          set -euo pipefail
+          declared="$(sed -n 's/.*Quest CLI \([0-9][0-9.]*\).*/\1/p' CLAUDE.md | head -1)"
+          if [ -z "$declared" ]; then
+            echo "::error file=CLAUDE.md::No 'Quest CLI <version>' line found in the managed block. Tracker integrity cannot be checked against an undeclared version."
+            exit 1
+          fi
+          packaged="$(node -p "require('./package.json').version")"
+          if [ "$declared" != "$packaged" ]; then
+            echo "::error file=CLAUDE.md::The managed block declares Quest CLI $declared but package.json is $packaged. Regenerate the block with 'quest agents --update-instructions --target claude'."
+            exit 1
+          fi
+          echo "Declared and packaged versions agree: $declared"
+
+      - name: Tracker reads cleanly
+        run: bun run src/cli/main.ts task list --json
+
+      - name: Managed instructions are current
+        run: bun run src/cli/main.ts agents --check --require-installed --target claude
