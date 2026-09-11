@@ -175,8 +175,16 @@ test("--plain renders the record's own fields for a lifecycle move, not a wrappe
 
 test("task edit-batch keeps its declared revision (QCLI-264 scope)", async () => {
   // The batch envelope is the deliberate exception: `data.revision` is part of
-  // its contract (chunked callers page on it), so the QCLI-264 sweep must not
-  // strip it along with the lifecycle wrappers.
+  // its contract, so the QCLI-264 sweep must not strip it along with the
+  // lifecycle wrappers.
+  //
+  // Why it is kept, stated precisely so this pin does not outlive its reason:
+  // it is the workspace revision the batch committed at, which a caller needs
+  // for its own bounded retry after a conflict, and QCLI-122 has pinned it
+  // since it was introduced. NOT because a sibling repo depends on it -- the
+  // only fleet read of it (opum-cli-e2e bin/opum-e2e-scale.mjs:312) is one
+  // interpolation in a progress log line; that harness pages off its own chunk
+  // bookkeeping. An earlier revision of this comment claimed otherwise.
   const root = await workspace();
   try {
     quest(root, ["task", "create", "Batch probe", ...HUMAN, "--json"]);

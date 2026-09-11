@@ -25,8 +25,10 @@ section carries no version number until that release sets it.
   "Single-record" is the whole claim, and the qualifier is load-bearing rather
   than pedantic: `task edit-batch` is a batch **report**, not a record, and is
   unchanged. Its records stay at `data.items[].task` and it keeps its declared
-  `data.revision`, which chunked callers page on and a test now pins so a
-  later sweep cannot strip it by association. `milestone create` and
+  `data.revision`: it is the workspace revision the batch committed at, which
+  is what a caller needs to do its own bounded retry after a conflict, and
+  `test/qcli122-third-pass.test.ts` has pinned it since QCLI-122. It is kept
+  on that reasoning alone -- no external consumer reads it for control flow. `milestone create` and
   `decision create` keep `{record, result}`; unifying the planning group is
   not part of this change (QCLI-265).
 
