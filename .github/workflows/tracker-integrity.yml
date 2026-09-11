@@ -26,6 +26,23 @@ name: Tracker integrity
 # package.json must still agree. That is the same drift class in the form this
 # repository can actually have it.
 #
+# EVERY INPUT TO THIS JOB IS DETERMINED BY THE COMMIT: the .quest records,
+# CLAUDE.md, package.json, the absence of a repo-local skill file (this
+# workspace's agents.skill_source is "plugin", so the check asserts that
+# .claude/skills/quest/SKILL.md does NOT exist), and the CLI built from this
+# same checkout. Nothing here samples the outside world, so a green run is a
+# durable statement about the commit rather than a timestamped one, and no
+# schedule is needed.
+#
+# That property is worth preserving deliberately. quest-web learned the other
+# half the hard way on 2026-09-11: its link gate fetches external URLs live,
+# so its dev stayed green for a day while the site served a 404, because
+# nothing pushed in between. An absent signal looked exactly like a passing
+# one. If a step is ever added here that reads anything outside the commit --
+# a registry, a URL, an installed plugin -- this job's green stops meaning
+# "this commit is sound" and starts meaning "it was sound at that push", and
+# it needs a `schedule:` trigger to keep saying anything about now.
+
 # Runs on push as well as pull_request deliberately. A job scoped only to
 # pull_request never appears on dev's tip commit, and GitHub gates a direct
 # push by the pushed commit's own prior check history -- so adding a
