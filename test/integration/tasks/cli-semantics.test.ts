@@ -188,7 +188,7 @@ test("task pause/start reach and leave the paused status, and task demote requir
     expect(paused.exitCode).toBe(0);
     expect(json(paused)).toMatchObject({
       kind: "task.paused",
-      data: { task: expect.objectContaining({ status: "Blocked" }) },
+      data: expect.objectContaining({ status: "Blocked" }),
     });
 
     // `--status` can neither reach nor leave the paused status.
@@ -207,7 +207,7 @@ test("task pause/start reach and leave the paused status, and task demote requir
     expect(started.exitCode).toBe(0);
     expect(json(started)).toMatchObject({
       kind: "task.started",
-      data: { task: expect.objectContaining({ status: "In Progress" }) },
+      data: expect.objectContaining({ status: "In Progress" }),
     });
 
     // demote requires --to; omitting it is a usage error and nothing mutates.
@@ -263,7 +263,7 @@ test("task pause/start reach and leave the paused status, and task demote requir
     expect(demoted.exitCode).toBe(0);
     expect(json(demoted)).toMatchObject({
       kind: "task.demoted",
-      data: { task: expect.objectContaining({ status: "To Do" }) },
+      data: expect.objectContaining({ status: "To Do" }),
     });
 
     // Already at the earliest status: no legal target remains.

@@ -4,6 +4,35 @@ Records start here, at 0.5.0. Earlier releases are documented in
 `docs/reference/quest-cli-release-truth.md` and in each release's own PR
 history; this file is the forward-looking record.
 
+## Unreleased
+
+Rides the next stacked CLI release in lockstep with `@opum-ai/lore`; this
+section carries no version number until that release sets it.
+
+### Changed (breaking)
+
+- Every mutating command now carries the written record directly in the
+  envelope's `data`, the shape `task create` and `task edit` already used.
+  `task complete`, `task archive`, `task pause`, `task start`, `task demote`,
+  `draft create`, `draft promote` and `draft archive` previously nested it
+  under `data.task`/`data.draft`, alongside the repository `revision` hash and
+  a second `kind: "success"` that shadowed the envelope's own semantic kind.
+  A caller reading one group could not read the other: a `^status:` match over
+  `--plain` matched an edit and silently missed a complete. Read the record at
+  `data` on all of them; drop any `.data.task`/`.data.draft` hop (QCLI-264).
+
+  `task edit-batch` is unchanged and keeps its declared `data.revision` --
+  chunked callers page on it. `milestone create` and `decision create` keep
+  `{record, result}`; unifying the planning group is not part of this change.
+
+### Fixed
+
+- A write conflict on `task complete`/`archive`/`pause`/`start`/`demote` and
+  the `draft` mutations is now the documented `conflict` failure (exit 5)
+  rather than a success envelope, exit 0, carrying `kind: "conflict"` inside
+  `data`. Only the unwrapped commands ever had this; `task create`/`edit`
+  already classified it (QCLI-264).
+
 ## 0.6.0
 
 Lockstep with `@opum-ai/lore` 0.6.0, same pairing convention as every release

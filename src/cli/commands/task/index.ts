@@ -123,6 +123,27 @@ function taskFromMutation(
   return result.task;
 }
 
+/**
+ * QCLI-264: every mutating command puts the written record itself in `data`,
+ * never the service's internal mutation envelope. Unwrapping here is what
+ * keeps `task complete` readable the same way as `task edit`; passing the
+ * result through instead nests the record under `task`/`draft`, exposes the
+ * repository `revision` hash, and shadows the envelope's semantic `kind` with
+ * a second `kind: "success"`. A conflict is an exit-5 failure, not a success
+ * envelope carrying `kind: "conflict"`, which is what the raw pass-through
+ * used to emit.
+ */
+export function recordFromMutation<
+  Result extends { readonly kind: string },
+  Field extends keyof Extract<Result, { readonly kind: "success" }> & string,
+>(
+  result: Result,
+  field: Field,
+): Extract<Result, { readonly kind: "success" }>[Field] {
+  if (result.kind !== "success") throw new Error("tracker_write_conflict");
+  return (result as Extract<Result, { readonly kind: "success" }>)[field];
+}
+
 /** Maps the public tracker vocabulary without choosing a repository or actor identity provider. */
 export async function dispatchTrackerTaskCommand(
   tasks: TaskService,
