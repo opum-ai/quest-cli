@@ -90,6 +90,32 @@ review gates rather than bypass them.
 Do not generalize this to sibling repos. At least one fleet repo gates `dev`
 instead; that is exactly why this lives here and not in the shared block.
 
+### Breaking an envelope shape: sweep consumers in two passes, not one
+
+This repository ships a machine contract that sibling repos parse, so a
+payload change is a cross-repo break. QCLI-264 and QCLI-265 established the
+procedure the hard way -- each pass below was added because the previous one
+looked complete and was not:
+
+1. **Grep the bare field name**, not the access idiom. `[."'\[]<field>\b`,
+   then read every hit. QCLI-264 matched `data?.id ?? data?.task?.id` and
+   missed a call site that wrote the same fallback in the reverse order.
+2. **Grep the command invocation** (`"milestone", "create"`, `quest draft
+   view`) and read what each caller does with the response. This is the only
+   pass that finds a *structure-agnostic helper* -- code that consumes the
+   envelope without ever naming the field. opum-cli-e2e's `extractId` reads
+   `payload.id`, then any nested object's `.id`; it is tolerant of both
+   shapes, and no field-name grep can see it.
+
+**State the pattern you matched** when you report the sweep. Both gaps above
+were caught by a sibling reconstructing the shape of the search from the
+report -- "I enumerated the consumers" is unfalsifiable and gets agreed with.
+
+Assume the current pattern has its own blind spot. Each fix so far moved it
+rather than removed it: the idiom grep looked complete because it returned
+rows; the field grep looked complete because it returned every direct read.
+Ask what this pattern cannot see before calling a sweep closed.
+
 <!-- quest:agent-instructions:begin -->
 # Quest agent instructions
 
