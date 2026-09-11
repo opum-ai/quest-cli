@@ -50,7 +50,7 @@ async function workspace() {
   return root;
 }
 
-test("every mutating command carries the written record directly in data (QCLI-264)", async () => {
+test("every single-record mutating command carries the written record directly in data (QCLI-264)", async () => {
   const root = await workspace();
   try {
     // One command from each group that the ruling converged: create/edit,
