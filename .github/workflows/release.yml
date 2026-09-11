@@ -108,6 +108,15 @@ jobs:
       - name: Gate on the receipt
         run: node scripts/qualification/native-execution-receipt.mjs --require --receipt receipt/native-execution-receipt.json
 
+      # QCLI-267. The tag, the commit and package.json must agree, and the
+      # commit must be reachable from main. A tag outside the mainline is the
+      # shape that outlives the history it pointed into: @opum-ai/quest 0.6.0
+      # records gitHead=ce551cf4, which no longer exists anywhere, while the
+      # v0.6.0 tag peels to the post-recreation initial commit. Nothing on
+      # either side noticed; a downstream site found it as a 404 in production.
+      - name: Gate on release provenance
+        run: node scripts/qualification/release-provenance.mjs --pre
+
       # Fail on the credential BEFORE touching the registry, and say which
       # fault it is. npm returns E404 on PUT both for a token that cannot write
       # to the scope and for one that is not a token at all, so the publish
@@ -188,3 +197,13 @@ jobs:
           # The receipt claims specific bytes. Prove the registry serves them.
           node scripts/qualification/native-execution-receipt.mjs \
             --verify-published "$version" --receipt receipt/native-execution-receipt.json
+
+      # QCLI-267, the half that names the defect directly: the registry's own
+      # gitHead for what was just published must be the commit it was released
+      # from. This is the only moment both halves exist and can be compared --
+      # afterwards a history rewrite can silently make the claim false, and
+      # nothing can repair it. A red here is a real release problem, not CDN
+      # lag: the step above has already waited for propagation.
+      - name: Verify the registry's provenance matches what was released
+        if: ${{ inputs.publish == true }}
+        run: node scripts/qualification/release-provenance.mjs --post
