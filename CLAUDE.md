@@ -134,6 +134,29 @@ rather than removed it: the idiom grep looked complete because it returned
 rows; the field grep looked complete because it returned every direct read.
 Ask what this pattern cannot see before calling a sweep closed.
 
+### A source-touching PR fires `source-gates` twice; a `.quest/`-only one fires it once
+
+Observed directly 2026-09-12 across two promotions in the same session, not
+inferred: PR #24 changed `src/cli/render.ts` and its `source-gates` context
+reported **twice** on the same head SHA -- once from the `pull_request`
+trigger, once from `push`, because the push trigger is path-filtered to skip
+only when nothing under its watched paths changed. `mergeStateStatus` stayed
+`UNSTABLE` until both had gone green. PR #22 and PR #26, each touching only
+`.quest/`, never fired the push-triggered run at all -- `source-gates` reported
+once, from `pull_request` only.
+
+Two things this means in practice:
+
+- **Waiting on "the PR's checks" can mean waiting on the same context name
+  twice.** Confirm via `gh pr checks <n> --json name,bucket` (or `gh pr view
+  <n> --json mergeStateStatus`) rather than treating one green `source-gates`
+  row as the whole gate when a second one for the same name is still pending.
+- **The six-platform build matrix (`darwin-arm64`, `linux-x64`, etc.) is not
+  in the required-checks list**, so it can sit `pending` or `skipping`
+  indefinitely without blocking a merge. The gate is the required check
+  *names* (`source-gates`, `Tracker integrity`), never the all-green rollup of
+  every job GitHub happens to show.
+
 <!-- quest:agent-instructions:begin -->
 # Quest agent instructions
 
