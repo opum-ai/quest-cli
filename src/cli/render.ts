@@ -41,10 +41,20 @@ function renderLines(
     const index = priorityKeys.indexOf(key);
     return index === -1 ? priorityKeys.length : index;
   };
-  const entries = Object.entries(value as Record<string, unknown>).sort(
-    ([left], [right]) =>
-      rank(left) - rank(right) || (left < right ? -1 : left > right ? 1 : 0),
-  );
+  // QCLI-272: Object.entries keeps a key whose value is JS `undefined`
+  // (unlike JSON.stringify, which drops it), so an object literal that
+  // assigns an absent optional field straight from a possibly-undefined
+  // variable -- rather than conditionally spreading it in -- would otherwise
+  // print the literal word "undefined" here. Filtering before the emptiness
+  // check matches JSON's own semantics and this renderer's existing
+  // empty-object convention: an object left with nothing to show renders
+  // `{}`, not a wall of absent keys.
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(
+      ([left], [right]) =>
+        rank(left) - rank(right) || (left < right ? -1 : left > right ? 1 : 0),
+    );
   if (entries.length === 0) return [`${prefix}{}`];
   return entries.flatMap(([key, entry]) => {
     if (entry === null || typeof entry !== "object")
