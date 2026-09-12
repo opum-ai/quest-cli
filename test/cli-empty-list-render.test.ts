@@ -13,6 +13,22 @@ test("the generic human renderer emits intentional output for empty collections"
   expect(renderHumanPayload({})).toBe("{}\n");
 });
 
+test("QCLI-272: an undefined-valued key is omitted, not rendered as the literal word undefined", () => {
+  // Object.entries keeps a key whose value is JS `undefined`, unlike
+  // JSON.stringify, which drops it -- this asserts the human renderer
+  // matches JSON's behavior instead of leaking the JS value through.
+  expect(renderHumanPayload({ present: "x", absent: undefined })).toBe(
+    "present: x\n",
+  );
+  // Every key absent after filtering falls back to the same {} convention
+  // as a genuinely empty object.
+  expect(renderHumanPayload({ absent: undefined })).toBe("{}\n");
+  // Nested objects are filtered too, not just the top level.
+  expect(
+    renderHumanPayload({ outer: { present: "x", absent: undefined } }),
+  ).toBe("outer:\n  present: x\n");
+});
+
 test("an empty task list renders human output in every mode without changing JSON", async () => {
   const store = await mkdtemp(join(tmpdir(), "quest-empty-list-"));
   const previousStore = process.env.QUEST_TASK_STORE;
