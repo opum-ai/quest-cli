@@ -122,18 +122,24 @@ jobs:
       # to the scope and for one that is not a token at all, so the publish
       # error alone does not distinguish "rotate the token" from "configure
       # trusted publishing" — and those are different fixes.
+      #
+      # `unset` here too: without it, `npm whoami` authenticates against
+      # `setup-node`'s placeholder NODE_AUTH_TOKEN (see the Publish step's env
+      # comment) rather than reporting the no-token/OIDC state this step
+      # exists to distinguish.
       - name: Preflight the publish credential
         continue-on-error: true
         run: |
           set +e
+          unset NODE_AUTH_TOKEN
           echo "::group::whoami"
           who=$(npm whoami 2>&1); code=$?
           echo "$who"
           echo "::endgroup::"
           if [ $code -ne 0 ]; then
-            echo "::warning::Stored NPM_TOKEN does not authenticate. If trusted publishing is configured for these packages, OIDC is used instead and this does not matter; if it is not, publication cannot proceed."
+            echo "::warning::No usable token; publication depends on trusted publishing (OIDC) being configured for these packages."
           else
-            echo "::notice::Stored NPM_TOKEN authenticates as ${who}. An E404 on PUT below therefore means the token lacks write access to the @opum-ai scope, not that it is invalid."
+            echo "::notice::A stored credential authenticates as ${who}. An E404 on PUT below therefore means the token lacks write access to the @opum-ai scope, not that it is invalid."
             echo "::group::access"
             npm access list packages "$who" 2>&1 | head -20
             echo "::endgroup::"
@@ -144,18 +150,26 @@ jobs:
       # exist.
       - name: Publish
         env:
-          # NO NODE_AUTH_TOKEN, deliberately. `setup-node` with `registry-url`
-          # writes `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into
-          # .npmrc, so supplying a token makes npm authenticate with it and
-          # NEVER ATTEMPT OIDC. Keeping the dead NPM_TOKEN here "as a fallback"
-          # is what produced five E404s that were read as a missing trust
-          # relationship: the trust may have been there all along, and the
-          # fallback was standing in front of it.
-          #
-          # With no token configured, npm falls through to trusted publishing.
+          # Omitting NODE_AUTH_TOKEN here is NOT enough on its own: confirmed
+          # 2026-09-13 (v0.6.1 attempt, run 34782779654) that `setup-node`'s
+          # own registry-url handling unconditionally does
+          # `core.exportVariable('NODE_AUTH_TOKEN', process.env.NODE_AUTH_TOKEN
+          # || 'XXXXX-XXXXX-XXXXX-XXXXX')` -- a real job-level env var, visible
+          # to every later step, even when no token/secret exists anywhere
+          # (verified: zero repo, environment, and org secrets at the time).
+          # .npmrc's `_authToken=${NODE_AUTH_TOKEN}` then resolves to that
+          # placeholder, npm treats a non-empty (if fake) token as "use token
+          # auth", and it never attempts OIDC -- so this is not the same
+          # "trust relationship" question the two npm-11.19.1 permutations
+          # above were testing; it reproduces the identical E404 for a
+          # different reason. `unset` below removes the variable outright
+          # rather than relying on an empty-string override, since npm's
+          # empty-vs-absent handling for `_authToken` was not the thing being
+          # fixed here and is not worth re-guessing.
           DRY: ${{ inputs.publish == true && ' ' || '--dry-run' }}
         run: |
           set -euo pipefail
+          unset NODE_AUTH_TOKEN
           for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64; do
             echo "::group::@opum-ai/quest-${target}"
             (cd "npm/quest-${target}" && npm publish --access public $DRY)
