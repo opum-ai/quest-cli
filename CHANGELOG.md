@@ -9,6 +9,17 @@ history; this file is the forward-looking record.
 Rides the next stacked CLI release in lockstep with `@opum-ai/lore`; this
 section carries no version number until that release sets it.
 
+## 0.6.1
+
+Lockstep with `@opum-ai/lore` 0.6.1 -- same pairing convention as every
+release since 0.5.0, and the version number reflects that pairing, not this
+release's own severity. Unlike 0.6.0's "minor, not patch" note, this is
+**not** a claim that the release is safe to take without reading further:
+the `### Changed (breaking)` entries below are real envelope-shape breaks
+(QCLI-264, QCLI-265). Lore's own 0.6.1 is an uncomplicated patch; quest's is
+not, and shares the number anyway so the pair stays coordinated. Read the
+breaking section before upgrading.
+
 ### Changed (breaking)
 
 - Every **single-record** mutating command now carries the written record
@@ -74,6 +85,14 @@ section carries no version number until that release sets it.
   rather than a success envelope, exit 0, carrying `kind: "conflict"` inside
   `data`. Only the unwrapped commands ever had this; `task create`/`edit`
   already classified it (QCLI-264).
+- `quest init --plain` no longer prints the literal word `undefined` for a
+  field it never selected (`agentSkillSource`, `instructionsByTarget`).
+  Display-only: the identical `--json` invocation always omitted both keys
+  correctly, and the underlying writes were correct. `src/cli/render.ts`'s
+  object renderer kept a key whose value is JS `undefined` -- unlike
+  `JSON.stringify`, which drops it -- and rendered it as the literal string.
+  Fixed at the shared renderer, which protects every command that assigns an
+  optional field straight into a data object, not just `quest init` (QCLI-272).
 
 ## 0.6.0
 
