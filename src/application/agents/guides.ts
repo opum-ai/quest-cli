@@ -204,6 +204,13 @@ An acceptance criterion you cannot prove stays unchecked, and the reason belongs
 in the notes. A criterion checked on faith is worse than one left open, because
 it stops anyone else from looking.
 
+\`quest task complete\` does not refuse or require checking every item first
+(QCLI-252) -- but completing with any acceptance criterion or definition-of-done
+item still unchecked is not silent either: it prints a stderr warning naming
+the unresolved items and adds an \`unresolvedAtCompletion\` field to the JSON
+result. A completion carrying that field is a signal to read the notes for why,
+not evidence that something went wrong.
+
 ## Then summarize and close
 
 The final summary is for someone deciding whether to trust this work: what

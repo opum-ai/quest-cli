@@ -303,7 +303,8 @@ export const commandHelp: Record<
     flags: ["--file", ...ACTOR_FLAGS],
   },
   "task complete": {
-    summary: "Move a task to its terminal complete status.",
+    summary:
+      "Move a task to its terminal complete status. Unchecked acceptance criteria and definition-of-done items do NOT block completion -- an honestly-unchecked item is advisory, not an error (QCLI-252) -- but completing with any left unchecked prints a stderr warning naming them and adds an `unresolvedAtCompletion` field to the JSON result, so the gap is reported rather than silent.",
     usage: "quest task complete <id> --actor <name> --actor-kind human",
     flags: [...ACTOR_FLAGS],
   },
