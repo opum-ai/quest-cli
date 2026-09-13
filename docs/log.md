@@ -239,6 +239,8 @@
 - 2026-09-07T09:21:54-05:00 307184f622ba63a58c2f4f605fdfe4aa2c5be1b6 docs: replace stale Lore adapter evidence, close QCLI-207 (all ACs met) (#287)
 - 2026-09-07T10:01:11-05:00 b68d603048956e853939014a08312dbebb56dd39 docs: record quest-cli 0.4.0 release truth, close QCLI-241 (#288)
 - 2026-09-10T16:49:37-05:00 a9fbc78a3e18967538bf5c26f8620552df060293 Initial commit: fresh history after repository deletion/recreation (OPAG-70)
+- 2026-09-13T17:21:37-05:00 187dcbde3b08d523e14356ee659b19c9caa1fb41 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight
+- 2026-09-13T17:24:55-05:00 0854289dd3e3a25ee6f5b803da5073eb889dfaeb docs(QCLI-278): correct stale reviewer-gate note, document permanent gitHead 404s (#42)
 
 ## docs/adr
 
