@@ -239,10 +239,10 @@
 - 2026-09-07T09:21:54-05:00 307184f622ba63a58c2f4f605fdfe4aa2c5be1b6 docs: replace stale Lore adapter evidence, close QCLI-207 (all ACs met) (#287)
 - 2026-09-07T10:01:11-05:00 b68d603048956e853939014a08312dbebb56dd39 docs: record quest-cli 0.4.0 release truth, close QCLI-241 (#288)
 - 2026-09-10T16:49:37-05:00 a9fbc78a3e18967538bf5c26f8620552df060293 Initial commit: fresh history after repository deletion/recreation (OPAG-70)
-- 2026-09-13T17:14:57-05:00 e777946a5d42d54930339967e46b833378d4f41b chore(QCLI-271): correct a stale gate note and document the permanent provenance gap
-- 2026-09-13T17:15:54-05:00 c195ba0206909fe25e2828e75c1ba7a24ff61fb9 chore(QCLI-278): file the task record for this split-out doc/tracker fix
+- 2026-09-13T17:21:37-05:00 187dcbde3b08d523e14356ee659b19c9caa1fb41 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight
 - 2026-09-13T17:24:55-05:00 0854289dd3e3a25ee6f5b803da5073eb889dfaeb docs(QCLI-278): correct stale reviewer-gate note, document permanent gitHead 404s (#42)
-- 2026-09-13T17:31:43-05:00 1f7ed5c963344bf16199c185d846714095f69efb chore(QCLI-280): file the gitHead-vs-attestation provenance gate gap
+- 2026-09-13T17:32:20-05:00 e900f065de5ccbb068f495f86344ae9ce9e087b3 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight (#43)
+- 2026-09-13T17:38:17-05:00 f5225105cbc36f5419e517171c99f514f67dda27 docs(QCLI-210): correct the OIDC root-cause speculation to the confirmed one
 
 ## docs/adr
 
