@@ -215,6 +215,42 @@ regenerated. Two mistakes have already come from ignoring this: a reproduction
 gate that could never pass, and a candidate bundle that named a commit whose
 bytes it did not carry.
 
+## A 404 on an old gitHead is expected, not tampering
+
+Every version published before v0.6.1 (0.3.0 through 0.6.0, eight versions)
+records an npm `gitHead` that returns HTTP 422 from
+`gh api repos/opum-ai/quest-cli/commits/<sha>` — "No commit found for SHA".
+This is a consequence of the 2026-09-10 repository deletion and recreation
+(OPAG-70), not evidence of tampering, a broken reference, or a reason to
+retag or republish anything. See QCLI-267 for the fullest measured case
+(v0.6.0) and its forward fix.
+
+**Nothing repairs this.** npm forbids republishing an existing version, and
+the commits those `gitHead` values name are unrecoverable — the recreation
+did not just move history, it replaced it. Re-pointing a tag to a surviving
+commit would make the tag agree with the repository again but would still
+disagree with the immutable npm `gitHead`, which cannot be changed at all.
+The published tarballs, their checksums, and their SLSA provenance
+attestations are all intact and correctly signed; only the commit their
+provenance names has stopped existing. The cure is worse than the
+condition, which is why this is a documentation entry and not a task.
+
+The `release-provenance.mjs --pre`/`--post` gate wired into `release.yml`
+(QCLI-267) prevents this class from recurring silently on any release from
+v0.6.1 onward. It does not, and cannot, retroactively fix the eight versions
+that predate it — a reader hitting a 422 on one of those `gitHead` values is
+seeing the expected, permanent state of an already-published artifact, not a
+new defect. Cite the immutable npm version, not the git tag or commit, when
+that matters.
+
+Check this from the live GitHub API, never from a local clone: the destroyed
+commits still resolve inside a local clone's own loose objects (`git cat-file
+-t <sha>` happily answers `commit`), because deletion-and-recreation replaced
+what the *remote* serves, not what an existing local checkout had already
+fetched. Only `gh api repos/opum-ai/quest-cli/commits/<sha>` — or an equally
+fresh clone — shows the 422 that proves the commit is actually gone
+(lore-cli, hitting the identical shape in its own repository).
+
 ## Exercising a build before it is published
 
 To qualify changes that have not been released, dispatch the qualification

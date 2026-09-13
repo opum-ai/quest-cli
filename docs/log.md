@@ -238,6 +238,9 @@
 - 2026-09-04T01:04:38-05:00 cb026a216e18d2bdc8df293e029a258155c0c662 docs: lore sync after quest 0.3.2 / lore 0.4.1 (QCLI-225) (#261)
 - 2026-09-07T09:21:54-05:00 307184f622ba63a58c2f4f605fdfe4aa2c5be1b6 docs: replace stale Lore adapter evidence, close QCLI-207 (all ACs met) (#287)
 - 2026-09-07T10:01:11-05:00 b68d603048956e853939014a08312dbebb56dd39 docs: record quest-cli 0.4.0 release truth, close QCLI-241 (#288)
+- 2026-09-10T16:49:37-05:00 a9fbc78a3e18967538bf5c26f8620552df060293 Initial commit: fresh history after repository deletion/recreation (OPAG-70)
+- 2026-09-13T17:14:57-05:00 e777946a5d42d54930339967e46b833378d4f41b chore(QCLI-271): correct a stale gate note and document the permanent provenance gap
+- 2026-09-13T17:15:54-05:00 c195ba0206909fe25e2828e75c1ba7a24ff61fb9 chore(QCLI-278): file the task record for this split-out doc/tracker fix
 
 ## docs/adr
 
