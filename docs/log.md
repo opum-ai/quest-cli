@@ -242,6 +242,7 @@
 - 2026-09-13T17:14:57-05:00 e777946a5d42d54930339967e46b833378d4f41b chore(QCLI-271): correct a stale gate note and document the permanent provenance gap
 - 2026-09-13T17:15:54-05:00 c195ba0206909fe25e2828e75c1ba7a24ff61fb9 chore(QCLI-278): file the task record for this split-out doc/tracker fix
 - 2026-09-13T17:24:55-05:00 0854289dd3e3a25ee6f5b803da5073eb889dfaeb docs(QCLI-278): correct stale reviewer-gate note, document permanent gitHead 404s (#42)
+- 2026-09-13T17:31:43-05:00 1f7ed5c963344bf16199c185d846714095f69efb chore(QCLI-280): file the gitHead-vs-attestation provenance gate gap
 
 ## docs/adr
 
