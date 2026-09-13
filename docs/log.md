@@ -241,6 +241,7 @@
 - 2026-09-10T16:49:37-05:00 a9fbc78a3e18967538bf5c26f8620552df060293 Initial commit: fresh history after repository deletion/recreation (OPAG-70)
 - 2026-09-13T17:21:37-05:00 187dcbde3b08d523e14356ee659b19c9caa1fb41 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight
 - 2026-09-13T17:24:55-05:00 0854289dd3e3a25ee6f5b803da5073eb889dfaeb docs(QCLI-278): correct stale reviewer-gate note, document permanent gitHead 404s (#42)
+- 2026-09-13T17:32:20-05:00 e900f065de5ccbb068f495f86344ae9ce9e087b3 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight (#43)
 
 ## docs/adr
 
