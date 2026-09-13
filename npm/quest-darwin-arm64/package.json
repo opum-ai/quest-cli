@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest-darwin-arm64",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Quest CLI binary for darwin-arm64.",
   "license": "MIT",
   "author": "Opum AI",

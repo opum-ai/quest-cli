@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Deterministic, LLM-free task tracker CLI — the record layer coding agents and humans write to.",
   "license": "MIT",
   "author": "Opum AI",
@@ -55,12 +55,12 @@
     "publish:release": "node scripts/publish-release.mjs"
   },
   "optionalDependencies": {
-    "@opum-ai/quest-darwin-arm64": "0.6.1",
-    "@opum-ai/quest-darwin-x64": "0.6.1",
-    "@opum-ai/quest-linux-arm64": "0.6.1",
-    "@opum-ai/quest-linux-x64": "0.6.1",
-    "@opum-ai/quest-win32-arm64": "0.6.1",
-    "@opum-ai/quest-win32-x64": "0.6.1"
+    "@opum-ai/quest-darwin-arm64": "0.6.2",
+    "@opum-ai/quest-darwin-x64": "0.6.2",
+    "@opum-ai/quest-linux-arm64": "0.6.2",
+    "@opum-ai/quest-linux-x64": "0.6.2",
+    "@opum-ai/quest-win32-arm64": "0.6.2",
+    "@opum-ai/quest-win32-x64": "0.6.2"
   },
   "questPlatformPackages": {
     "@opum-ai/quest-darwin-arm64": "4e56fc67e5880fd630e000197cf928ceabaa80c66fc4891175243c39fbc16bcc",
