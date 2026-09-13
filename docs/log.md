@@ -241,6 +241,7 @@
 - 2026-09-10T16:49:37-05:00 a9fbc78a3e18967538bf5c26f8620552df060293 Initial commit: fresh history after repository deletion/recreation (OPAG-70)
 - 2026-09-13T17:11:30-05:00 8d4c6ef04c69c9f7df5e14cc1754402ec38c744a chore(QCLI-271): correct a stale gate note and document the permanent provenance gap
 - 2026-09-13T17:37:25-05:00 c41f0d8239ced8d8a53cabf1b082f315814ca673 chore(QCLI-271): correct the OIDC root-cause speculation to the confirmed one
+- 2026-09-13T18:02:22-05:00 d6b5ca33a6960cc7aa9d895f421dc47a56e97176 chore(QCLI-271): record session handoff before orchestrator recycle
 
 ## docs/adr
 
