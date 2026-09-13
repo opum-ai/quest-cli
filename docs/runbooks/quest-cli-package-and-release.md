@@ -243,6 +243,14 @@ seeing the expected, permanent state of an already-published artifact, not a
 new defect. Cite the immutable npm version, not the git tag or commit, when
 that matters.
 
+Check this from the live GitHub API, never from a local clone: the destroyed
+commits still resolve inside a local clone's own loose objects (`git cat-file
+-t <sha>` happily answers `commit`), because deletion-and-recreation replaced
+what the *remote* serves, not what an existing local checkout had already
+fetched. Only `gh api repos/opum-ai/quest-cli/commits/<sha>` — or an equally
+fresh clone — shows the 422 that proves the commit is actually gone
+(lore-cli, hitting the identical shape in its own repository).
+
 ## Exercising a build before it is published
 
 To qualify changes that have not been released, dispatch the qualification
