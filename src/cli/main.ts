@@ -132,6 +132,95 @@ function output(
   };
 }
 
+type ChecklistEntry =
+  | string
+  | {
+      readonly index: number;
+      readonly text: string;
+      readonly checked: boolean;
+    };
+
+type UnresolvedChecklistItem = {
+  readonly index: number;
+  readonly text: string;
+};
+
+/** Legacy bare-string entries are unchecked by construction (domain/tasks/tasks.ts's normalizeCheckList). */
+function unresolvedItems(
+  list: readonly ChecklistEntry[],
+): readonly UnresolvedChecklistItem[] {
+  return list.flatMap((entry, position) =>
+    typeof entry === "string"
+      ? [{ index: position, text: entry }]
+      : entry.checked
+        ? []
+        : [{ index: entry.index, text: entry.text }],
+  );
+}
+
+/**
+ * QCLI-252: computes the additive, presentation-only signal that a completed
+ * task still carries unchecked acceptance criteria / definition-of-done.
+ * Returns undefined (omit, never an empty object) when nothing is unresolved.
+ */
+function unresolvedAtCompletion(task: {
+  readonly acceptanceCriteria: readonly ChecklistEntry[];
+  readonly definitionOfDone: readonly ChecklistEntry[];
+}):
+  | {
+      readonly acceptanceCriteria: readonly UnresolvedChecklistItem[];
+      readonly definitionOfDone: readonly UnresolvedChecklistItem[];
+    }
+  | undefined {
+  const acceptanceCriteria = unresolvedItems(task.acceptanceCriteria);
+  const definitionOfDone = unresolvedItems(task.definitionOfDone);
+  return acceptanceCriteria.length === 0 && definitionOfDone.length === 0
+    ? undefined
+    : { acceptanceCriteria, definitionOfDone };
+}
+
+function describeUnresolved(
+  label: string,
+  total: number,
+  items: readonly UnresolvedChecklistItem[],
+): string | undefined {
+  if (items.length === 0) return undefined;
+  const named = items.map((item) => `#${item.index} "${item.text}"`).join("; ");
+  return `${label}: ${items.length} of ${total} unchecked (${named})`;
+}
+
+/**
+ * Contract §5 (opum-cli-e2e's check.stderrSilentOnSuccess) tolerates a
+ * "warning"-prefixed line on an otherwise successful stderr, which is exactly
+ * the channel this needs: exit 0 and the record stay a genuine success, but
+ * the gap does not go unmentioned the way it did before QCLI-252.
+ */
+function completionWarning(
+  task: {
+    readonly id: string;
+    readonly acceptanceCriteria: readonly ChecklistEntry[];
+    readonly definitionOfDone: readonly ChecklistEntry[];
+  },
+  unresolved: {
+    readonly acceptanceCriteria: readonly UnresolvedChecklistItem[];
+    readonly definitionOfDone: readonly UnresolvedChecklistItem[];
+  },
+): string {
+  const parts = [
+    describeUnresolved(
+      "acceptance criteria",
+      task.acceptanceCriteria.length,
+      unresolved.acceptanceCriteria,
+    ),
+    describeUnresolved(
+      "definition of done",
+      task.definitionOfDone.length,
+      unresolved.definitionOfDone,
+    ),
+  ].filter((part): part is string => part !== undefined);
+  return `Warning: task ${task.id} completed with unresolved checklist items -- ${parts.join("; ")}. This does not block completion; see quest instructions task-finalization.`;
+}
+
 /** Merges human help content into manifest entries for `quest help` output
  * only; `commandManifest`/`quest manifest` are never touched. Flags carry
  * their value shape (QCLI-266): a bare list of flag names cannot tell a
@@ -1925,7 +2014,27 @@ export async function runQuest(
         "task",
       );
       const kind = command === "start" ? "task.started" : `task.${command}d`;
-      return output({ schemaVersion: 1, kind, data }, modeFor(parsed));
+      // QCLI-252: acceptance criteria and definition-of-done stay advisory at
+      // completion -- an honestly-unchecked item is not a defect to force
+      // closed -- but a completion that leaves items unchecked must say so
+      // rather than exit clean and silent. Archive/pause/start have no
+      // terminal "was this actually finished" question, so this is
+      // deliberately complete-only.
+      const unresolved =
+        command === "complete" ? unresolvedAtCompletion(data) : undefined;
+      const result = output(
+        {
+          schemaVersion: 1,
+          kind,
+          data: unresolved
+            ? { ...data, unresolvedAtCompletion: unresolved }
+            : data,
+        },
+        modeFor(parsed),
+      );
+      return unresolved
+        ? { ...result, stderr: `${completionWarning(data, unresolved)}\n` }
+        : result;
     }
     if (command === "demote" && rest[0]) {
       const parsed = flags(rest.slice(1));
