@@ -150,22 +150,25 @@ jobs:
       # exist.
       - name: Publish
         env:
-          # Omitting NODE_AUTH_TOKEN here is NOT enough on its own: confirmed
-          # 2026-09-13 (v0.6.1 attempt, run 34782779654) that `setup-node`'s
-          # own registry-url handling unconditionally does
-          # `core.exportVariable('NODE_AUTH_TOKEN', process.env.NODE_AUTH_TOKEN
-          # || 'XXXXX-XXXXX-XXXXX-XXXXX')` -- a real job-level env var, visible
-          # to every later step, even when no token/secret exists anywhere
-          # (verified: zero repo, environment, and org secrets at the time).
-          # .npmrc's `_authToken=${NODE_AUTH_TOKEN}` then resolves to that
-          # placeholder, npm treats a non-empty (if fake) token as "use token
-          # auth", and it never attempts OIDC -- so this is not the same
-          # "trust relationship" question the two npm-11.19.1 permutations
-          # above were testing; it reproduces the identical E404 for a
-          # different reason. `unset` below removes the variable outright
-          # rather than relying on an empty-string override, since npm's
-          # empty-vs-absent handling for `_authToken` was not the thing being
-          # fixed here and is not worth re-guessing.
+          # CORRECTED 2026-09-13 (lore-cli, reading npm's own source --
+          # lib/commands/publish.js calls oidc() unconditionally BEFORE
+          # getCredentialsByURI reads any stored/env token, and oidc.js has no
+          # early return on an existing NODE_AUTH_TOKEN; verified byte-identical
+          # in npm 11.19.1, what this job installs, and 12.0.2). The prior note
+          # here claimed the placeholder from `setup-node`'s registry-url
+          # handling (`NODE_AUTH_TOKEN=XXXXX-XXXXX-XXXXX-XXXXX` when unset) made
+          # npm skip OIDC outright. That is wrong: the OIDC exchange is always
+          # attempted first. What actually happens is `oidc()` swallowing the
+          # exchange failure (log.verbose only) and falling back to whatever
+          # `.npmrc` holds -- with the placeholder present that is a PUT with a
+          # fake token (E404); without it, ENEEDAUTH. Same underlying failure,
+          # clearer error. The real cause is the OIDC exchange itself being
+          # rejected (immutable-subject-claim mismatch with npm Trusted
+          # Publishing -- see QCLI-271), not this placeholder. `unset` below is
+          # kept for the clearer error only, not because it enables OIDC.
+          # NPM_CONFIG_LOGLEVEL=verbose surfaces oidc.js's swallowed exchange
+          # message instead of inferring the cause three layers downstream.
+          NPM_CONFIG_LOGLEVEL: verbose
           DRY: ${{ inputs.publish == true && ' ' || '--dry-run' }}
         run: |
           set -euo pipefail

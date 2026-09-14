@@ -9,15 +9,22 @@ history; this file is the forward-looking record.
 Rides the next stacked CLI release in lockstep with `@opum-ai/lore`; this
 section carries no version number until that release sets it.
 
-## 0.6.1
+## 0.6.2
 
-Lockstep with `@opum-ai/lore` 0.6.1 -- same pairing convention as every
-release since 0.5.0, and the version number reflects that pairing, not this
-release's own severity. Unlike 0.6.0's "minor, not patch" note, this is
-**not** a claim that the release is safe to take without reading further:
-the `### Changed (breaking)` entries below are real envelope-shape breaks
-(QCLI-264, QCLI-265). Lore's own 0.6.1 is an uncomplicated patch; quest's is
-not, and shares the number anyway so the pair stays coordinated. Read the
+Breaks lockstep with `@opum-ai/lore`, once, deliberately -- the pairing
+convention every release has held since 0.5.0 otherwise. `v0.6.1` was
+tagged but never published: every publish attempt failed a registry E404
+before writing anything (`actions/setup-node` exporting a placeholder
+`NODE_AUTH_TOKEN` that defeated OIDC trusted publishing), a CI-only defect
+with no content change of its own. Rather than move an already-pushed tag
+(a cross-repo tag-stability concern for `quest-web`'s own CI), this release
+carries the same content 0.6.1 would have under the next unclaimed version
+number. Unlike 0.6.0's "minor, not patch" note, this is **not** a claim
+that the release is safe to take without reading further: the
+`### Changed (breaking)` entries below are real envelope-shape breaks
+(QCLI-264, QCLI-265). Lore's own 0.6.1 is an uncomplicated patch; quest's
+content is not, and normally would have shared the number anyway so the
+pair stays coordinated -- this release is the one exception. Read the
 breaking section before upgrading.
 
 ### Changed (breaking)
