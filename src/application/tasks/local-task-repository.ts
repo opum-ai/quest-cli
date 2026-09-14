@@ -37,6 +37,34 @@ import type {
 
 const LOCK_WAIT_MS = 500;
 
+export interface DuplicateIdentityRecord {
+  readonly id: string;
+  readonly paths: readonly string[];
+}
+
+/**
+ * QCLI-261: the snapshot builder's global duplicate-identity invariant used to
+ * throw a bare `RecordConflictError` with no way for a caller (or a bug
+ * reporter who did not cause the corruption) to learn which id collided or
+ * where. Carries every colliding id and the exact file paths it was found
+ * under, the same way `BacklogMigrationRefusedError` carries its collision
+ * list, so the CLI's top-level classifier can surface it as a `hint`/`input`
+ * instead of the bare message. Lives here rather than in `domain/records.ts`
+ * because `cli` may import `application` but not `domain` directly
+ * (scripts/check-layers.mjs) -- the same reason `BacklogMigrationRefusedError`
+ * lives in its own application-layer module rather than domain.
+ */
+export class RecordDuplicateIdentityError extends RecordConflictError {
+  constructor(
+    message:
+      | "task_lifecycle_duplicate_identity"
+      | "draft_lifecycle_duplicate_identity",
+    readonly duplicates: readonly DuplicateIdentityRecord[],
+  ) {
+    super(message);
+  }
+}
+
 /**
  * Small repository-local storage used by the executable composition root.
  * It intentionally stores only validated public task records beneath .quest.
@@ -313,20 +341,51 @@ export class LocalTaskRepository
         location: "archive/drafts" as const,
       })),
     ];
-    if (
-      new Set(taskRecords.map((record) => record.task.id)).size !==
-      taskRecords.length
-    )
-      throw new RecordConflictError("task_lifecycle_duplicate_identity");
-    if (
-      new Set(draftRecords.map((record) => record.draft.id)).size !==
-      draftRecords.length
-    )
-      throw new RecordConflictError("draft_lifecycle_duplicate_identity");
+    const taskDuplicates = this.duplicatesOf(
+      taskRecords.map((record) => ({
+        id: record.task.id,
+        path: this.taskPath(record.task.id, record.location),
+      })),
+    );
+    if (taskDuplicates.length > 0)
+      throw new RecordDuplicateIdentityError(
+        "task_lifecycle_duplicate_identity",
+        taskDuplicates,
+      );
+    const draftDuplicates = this.duplicatesOf(
+      draftRecords.map((record) => ({
+        id: record.draft.id,
+        path: this.draftPath(record.draft.id, record.location),
+      })),
+    );
+    if (draftDuplicates.length > 0)
+      throw new RecordDuplicateIdentityError(
+        "draft_lifecycle_duplicate_identity",
+        draftDuplicates,
+      );
     return {
       taskRecords,
       drafts: draftRecords,
     };
+  }
+
+  /**
+   * QCLI-261: groups by id and keeps only ids seen under more than one path,
+   * in first-seen order, so a caller sees every colliding id at once rather
+   * than learning about a second one only after fixing the first.
+   */
+  private duplicatesOf(
+    records: readonly { readonly id: string; readonly path: string }[],
+  ): readonly { readonly id: string; readonly paths: readonly string[] }[] {
+    const pathsById = new Map<string, string[]>();
+    for (const record of records) {
+      const paths = pathsById.get(record.id);
+      if (paths) paths.push(record.path);
+      else pathsById.set(record.id, [record.path]);
+    }
+    return [...pathsById.entries()]
+      .filter(([, paths]) => paths.length > 1)
+      .map(([id, paths]) => ({ id, paths }));
   }
 
   private revision(

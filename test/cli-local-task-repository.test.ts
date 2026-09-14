@@ -11,7 +11,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LocalPlanningRepository } from "../src/adapters/planning/local-planning-repository.ts";
-import { LocalTaskRepository } from "../src/application/tasks/local-task-repository.ts";
+import {
+  LocalTaskRepository,
+  RecordDuplicateIdentityError,
+} from "../src/application/tasks/local-task-repository.ts";
 import { TaskService } from "../src/application/tasks/tasks.ts";
 import { createTask } from "../src/domain/tasks/tasks.ts";
 
@@ -105,6 +108,35 @@ test("lifecycle moves retain one canonical task identity and drafts promote atom
     expect(
       (await service.listDrafts(true)).map((record) => record.location),
     ).toEqual(["archive/drafts"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("QCLI-261: a task left duplicated across tasks/ and completed/ by a partial `git add` throws a duplicate-identity error naming the id and every path", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-duplicate-identity-"));
+  try {
+    const repository = new LocalTaskRepository(join(root, ".quest", "tasks"));
+    const service = new TaskService(repository);
+    await service.create("T-1", { title: "dup" }, "create");
+    await service.transition("T-1", "In Progress", "progress");
+    await service.complete("T-1", "complete");
+    // The exact corruption shape from the field: completed/T-1.json is the
+    // real, current record; tasks/T-1.json is the stale pre-move snapshot a
+    // `git add <added> <added>` (no `-a`) left behind because its deletion
+    // was never staged.
+    const completedPath = join(root, ".quest", "completed", "T-1.json");
+    const stalePath = join(root, ".quest", "tasks", "T-1.json");
+    await writeFile(stalePath, await readFile(completedPath, "utf8"), "utf8");
+
+    const error: unknown = await repository.readAll().catch((caught) => caught);
+    expect(error).toBeInstanceOf(RecordDuplicateIdentityError);
+    expect((error as RecordDuplicateIdentityError).message).toBe(
+      "task_lifecycle_duplicate_identity",
+    );
+    expect((error as RecordDuplicateIdentityError).duplicates).toEqual([
+      { id: "T-1", paths: [stalePath, completedPath] },
+    ]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
