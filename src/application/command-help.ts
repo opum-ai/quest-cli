@@ -230,12 +230,13 @@ export const commandHelp: Record<
     summary:
       "Edit an existing task's fields, or append/remove list items. " +
       "Checklist positions are 1-based and reader-facing: --check-ac/--uncheck-ac/--remove-ac " +
-      "and the --*-dod equivalents address an item the same way `quest task view`'s numbered " +
-      "list does. This differs from the JSON envelope's own acceptanceCriteria/definitionOfDone " +
-      "entries, each of which carries a 0-based `index` field for programmatic addressing -- " +
-      "position N is index N-1. Removing an item renumbers everything after it, in both forms: " +
-      "re-read the task before addressing what you think is 'the next' item rather than trusting " +
-      "a position computed before the removal. " +
+      "and the --*-dod equivalents address an item by the `position` field `quest task view` " +
+      "(and every other checklist-bearing command) prints on each acceptanceCriteria/" +
+      "definitionOfDone entry -- pass that number back verbatim, no arithmetic required. Each " +
+      "entry also keeps its 0-based `index` for programmatic addressing (position is always " +
+      "index + 1); `index` is not what these flags take. Removing an item renumbers everything " +
+      "after it, in both forms: re-read the task before addressing what you think is 'the next' " +
+      "item rather than trusting a position computed before the removal. " +
       "--comments/--add-comment take a JSON array of structured objects, not free text: each " +
       'entry needs {"id":"<string>","authorId":"<string>","body":"<string>","createdAt":"<ISO-8601 string>"}.',
     usage:
@@ -304,9 +305,10 @@ export const commandHelp: Record<
   },
   "task complete": {
     summary:
-      "Move a task to its terminal complete status. Unchecked acceptance criteria and definition-of-done items do NOT block completion -- an honestly-unchecked item is advisory, not an error (QCLI-252) -- but completing with any left unchecked prints a stderr warning naming them and adds an `unresolvedAtCompletion` field to the JSON result, so the gap is reported rather than silent.",
-    usage: "quest task complete <id> --actor <name> --actor-kind human",
-    flags: [...ACTOR_FLAGS],
+      "Move a task to its terminal complete status. Unchecked acceptance criteria and definition-of-done items do NOT block completion -- an honestly-unchecked item is advisory, not an error (QCLI-252) -- but completing with any left unchecked prints a stderr warning naming them and adds an `unresolvedAtCompletion` field to the JSON result, so the gap is reported rather than silent. --final-summary is optional and applies a plain replacement to the record as part of the same write (QCLI-270), so a final summary can be recorded and the task completed in one command instead of `task edit --final-summary` followed by `task complete`; `--clear-final-summary`/`--append-final-summary` stay edit-only.",
+    usage:
+      'quest task complete <id> [--final-summary "text"] --actor <name> --actor-kind human',
+    flags: ["--final-summary", ...ACTOR_FLAGS],
   },
   "task archive": {
     summary: "Archive a task.",

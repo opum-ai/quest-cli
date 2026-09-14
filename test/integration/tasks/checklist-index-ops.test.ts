@@ -40,8 +40,9 @@ async function view(run: Run, id: string): Promise<Record<string, unknown>> {
   return data(result);
 }
 
+/** QCLI-269: every checklist item also carries a 1-based `position` (index + 1). */
 function item(text: string, checked: boolean, index: number) {
-  return { index, text, checked };
+  return { index, position: index + 1, text, checked };
 }
 
 async function seed(
@@ -444,5 +445,80 @@ test("edit-batch rejects malformed index positions before any mutation", async (
     expect(
       data(await run(["task", "view", id, "--json"])).acceptanceCriteria,
     ).toEqual([item("a", false, 0)]);
+  });
+});
+
+test("`position` closes the in-range wrong-number trap that bare `index` left open (QCLI-269)", async () => {
+  await withStore(async (run) => {
+    const id = await seed(run, ["first", "second", "third"]);
+    const viewed = await view(run, id);
+    expect(viewed.acceptanceCriteria).toEqual([
+      item("first", false, 0),
+      item("second", false, 1),
+      item("third", false, 2),
+    ]);
+
+    // Before QCLI-269, `index` (0-based) was the only number a checklist item
+    // ever displayed. A caller who read the "third" entry's displayed index
+    // (2) and passed it straight to --check-ac silently checked "second"
+    // instead -- exit 0, indistinguishable from success. `position` is the
+    // field these flags actually take, and it round-trips to the item the
+    // caller actually read.
+    const criteria = viewed.acceptanceCriteria as readonly {
+      readonly index: number;
+      readonly position: number;
+      readonly text: string;
+    }[];
+    const third = criteria.find((entry) => entry.text === "third");
+    if (!third) throw new Error("fixture missing 'third'");
+    expect(third.index).toBe(2); // the old trap: this is NOT what --check-ac takes
+    expect(third.position).toBe(3); // this is
+
+    const checked = await run([
+      "task",
+      "edit",
+      id,
+      "--check-ac",
+      String(third.position),
+      ...actor,
+      "--json",
+    ]);
+    expect(checked.exitCode).toBe(0);
+    // "third" is checked, "second" is untouched -- the exact mix-up QCLI-269
+    // reported (--check-ac 2 wrongly checking "second") does not occur here
+    // because position 3, not index 2, is what got passed.
+    expect(data(checked).acceptanceCriteria).toEqual([
+      item("first", false, 0),
+      item("second", false, 1),
+      item("third", true, 2),
+    ]);
+  });
+});
+
+test("task complete also carries `position` on its checklist entries, matching the shared dispatcher (QCLI-269)", async () => {
+  await withStore(async (run) => {
+    // task complete/archive/pause/start/demote build their envelope directly
+    // in src/cli/main.ts rather than through dispatchTrackerTaskCommand, so
+    // this pins that the fix covers both call-site families, not just the
+    // dispatcher-routed commands every other test in this file exercises.
+    const id = await seed(run, ["only criterion"]);
+    const checkedAc = await run([
+      "task",
+      "edit",
+      id,
+      "--check-ac",
+      "1",
+      ...actor,
+      "--json",
+    ]);
+    expect(checkedAc.exitCode).toBe(0);
+    const started = await run(["task", "start", id, ...actor, "--json"]);
+    expect(started.exitCode).toBe(0);
+
+    const completed = await run(["task", "complete", id, ...actor, "--json"]);
+    expect(completed.exitCode).toBe(0);
+    expect(data(completed).acceptanceCriteria).toEqual([
+      item("only criterion", true, 0),
+    ]);
   });
 });

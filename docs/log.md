@@ -240,7 +240,11 @@
 - 2026-09-07T10:01:11-05:00 b68d603048956e853939014a08312dbebb56dd39 docs: record quest-cli 0.4.0 release truth, close QCLI-241 (#288)
 - 2026-09-10T16:49:37-05:00 a9fbc78a3e18967538bf5c26f8620552df060293 Initial commit: fresh history after repository deletion/recreation (OPAG-70)
 - 2026-09-13T17:11:30-05:00 8d4c6ef04c69c9f7df5e14cc1754402ec38c744a chore(QCLI-271): correct a stale gate note and document the permanent provenance gap
+- 2026-09-13T17:21:37-05:00 187dcbde3b08d523e14356ee659b19c9caa1fb41 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight
+- 2026-09-13T17:24:55-05:00 0854289dd3e3a25ee6f5b803da5073eb889dfaeb docs(QCLI-278): correct stale reviewer-gate note, document permanent gitHead 404s (#42)
+- 2026-09-13T17:32:20-05:00 e900f065de5ccbb068f495f86344ae9ce9e087b3 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight (#43)
 - 2026-09-13T17:37:25-05:00 c41f0d8239ced8d8a53cabf1b082f315814ca673 chore(QCLI-271): correct the OIDC root-cause speculation to the confirmed one
+- 2026-09-13T17:38:17-05:00 f5225105cbc36f5419e517171c99f514f67dda27 docs(QCLI-210): correct the OIDC root-cause speculation to the confirmed one
 - 2026-09-13T18:02:22-05:00 d6b5ca33a6960cc7aa9d895f421dc47a56e97176 chore(QCLI-271): record session handoff before orchestrator recycle
 
 ## docs/adr

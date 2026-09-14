@@ -631,10 +631,19 @@ export class TaskService {
   private ownedPathForLocation(id: string, location: TaskLocation): string {
     return `.quest/${location}/${id}.json`;
   }
-  /** Completes the next legal terminal transition and retains the record separately. */
+  /**
+   * Completes the next legal terminal transition and retains the record
+   * separately. `finalSummary`, when given, is applied to the record as
+   * part of the same write (QCLI-270) -- additive: omitting it leaves
+   * completion exactly as it always worked, and this is a plain replace
+   * (matching `task edit --final-summary`), not the clear/append vocabulary
+   * `foldFinalSummary` supports, since a completing caller states a summary
+   * rather than editing one already in progress.
+   */
   async complete(
     reference: string,
     operationId: string,
+    finalSummary?: string,
   ): Promise<TaskMutationResult> {
     return this.moveTask(reference, "completed", operationId, (task) => {
       const terminal = this.lifecycle.terminalStatuses[0];
@@ -642,7 +651,10 @@ export class TaskService {
         throw new RecordValidationError(
           "Lifecycle terminal status is not configured.",
         );
-      return transitionTask(task, terminal, this.lifecycle);
+      const transitioned = transitionTask(task, terminal, this.lifecycle);
+      return finalSummary === undefined
+        ? transitioned
+        : taskState({ ...transitioned, finalSummary });
     });
   }
   async archive(

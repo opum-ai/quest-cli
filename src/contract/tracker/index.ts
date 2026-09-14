@@ -121,6 +121,14 @@ export interface TrackerCheckItem {
   readonly index: number;
   readonly text: string;
   readonly checked: boolean;
+  /**
+   * 1-based, always `index + 1` (QCLI-269). Present on every item Quest
+   * returns; absent when this type is used to author an item for a write
+   * (`TrackerEditPatch`/`TrackerCreateInput`), since position is derived from
+   * array order rather than something a caller chooses. Pass it straight to
+   * `checkAcceptanceCriteria`/etc -- `index` is not what those take.
+   */
+  readonly position?: number;
 }
 export interface TrackerSummary {
   readonly id: string;
@@ -299,6 +307,11 @@ function isCheckList(
       typeof (item as TrackerCheckItem).text !== "string" ||
       typeof (item as TrackerCheckItem).checked !== "boolean"
     )
+      return false;
+    // QCLI-269: when present, `position` must be `index + 1` -- it is a
+    // derived field, never an independent one a response could drift on.
+    const declaredPosition = (item as TrackerCheckItem).position;
+    if (declaredPosition !== undefined && declaredPosition !== position + 1)
       return false;
   }
   // Authored item lists must be complete: every position carries an item.

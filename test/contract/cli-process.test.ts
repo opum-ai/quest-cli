@@ -541,12 +541,19 @@ test("every flag `task edit` documents is a flag `task edit` accepts", async () 
     }).not.toEqual({ flag, message: rejected });
   }
 
+  // QCLI-270: an unrecognized flag is named in the message rather than
+  // folded into the generic "invalid arguments" sentence above, which reads
+  // as though the reference or actor was the problem even when neither was.
   const unknown = await runQuest(
     ["task", "edit", "T-1", "--not-a-flag=1"],
     false,
   );
-  expect(JSON.parse(unknown.stderr)).toMatchObject({
-    error_type: "usage",
-    message: rejected,
-  });
+  const unknownDiagnostic = JSON.parse(unknown.stderr) as {
+    error_type?: string;
+    message?: string;
+  };
+  expect(unknownDiagnostic.error_type).toBe("usage");
+  expect(unknownDiagnostic.message).not.toBe(rejected);
+  expect(unknownDiagnostic.message).toContain("--not-a-flag");
+  expect(unknownDiagnostic.message).toMatch(/^Unrecognized flag /);
 });

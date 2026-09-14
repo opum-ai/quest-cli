@@ -12,6 +12,78 @@ type TrackerTask = Awaited<ReturnType<TaskService["view"]>>;
 type TrackerTaskWithPath = Awaited<ReturnType<TaskService["viewWithPath"]>>;
 type TrackerTaskInput = Parameters<TaskService["create"]>[1];
 
+/**
+ * Derived from {@link TrackerTask} rather than imported from
+ * `domain/tasks/tasks.ts` directly: `cli` may only depend on `application`
+ * (scripts/check-layers.mjs), and `TaskState`'s own checklist shape already
+ * flows through {@link TaskService}'s return types.
+ */
+type TaskCheckList = TrackerTask["acceptanceCriteria"];
+type TaskCheckItem = Exclude<TaskCheckList[number], string>;
+
+/**
+ * QCLI-269: `--check-ac`/`--uncheck-ac`/`--remove-ac` (and the `--*-dod`
+ * equivalents) address a checklist item by 1-based position, but every
+ * checklist a caller could read back only ever carried the domain's own
+ * 0-based `index` -- there was no surface printing the number those flags
+ * actually take. A caller who read `index` and passed it straight to
+ * `--check-ac` addressed the item before the one they meant, silently, for
+ * every in-range value except the first.
+ *
+ * `position` is additive and presentation-only: it is computed here, at the
+ * boundary that builds every read/write envelope, and never touches the
+ * persisted domain shape (`TaskCheckItem` in domain/tasks/tasks.ts stays
+ * `{index, text, checked}`). A caller can now read `position` off any
+ * checklist item and pass it back to `--check-ac`/etc. verbatim -- no
+ * index-plus-one arithmetic, and no separate numbered list to consult.
+ */
+export interface TaskCheckItemView extends TaskCheckItem {
+  readonly position: number;
+}
+
+/** Adds `position` to every entry; legacy bare strings are 0-based by array order (matches normalizeCheckList). */
+function withPositions(list: TaskCheckList): readonly TaskCheckItemView[] {
+  return list.map((entry, arrayIndex) => {
+    const item: TaskCheckItem =
+      typeof entry === "string"
+        ? { index: arrayIndex, text: entry, checked: false }
+        : entry;
+    return { ...item, position: item.index + 1 };
+  });
+}
+
+interface Checklisted {
+  readonly acceptanceCriteria: TaskCheckList;
+  readonly definitionOfDone: TaskCheckList;
+}
+
+/** `T` with both checklists' entries carrying {@link TaskCheckItemView}'s `position`. */
+export type WithCheckPositions<T extends Checklisted> = Omit<
+  T,
+  "acceptanceCriteria" | "definitionOfDone"
+> & {
+  readonly acceptanceCriteria: readonly TaskCheckItemView[];
+  readonly definitionOfDone: readonly TaskCheckItemView[];
+};
+
+/**
+ * Applies {@link withPositions} to both checklists of any task-shaped record.
+ * Exported so `src/cli/main.ts`'s five direct lifecycle commands
+ * (complete/archive/pause/start/demote) -- which build their envelopes
+ * without going through {@link dispatchTrackerTaskCommand} -- can carry the
+ * same `position` field instead of silently omitting it (QCLI-252's
+ * cross-reference).
+ */
+export function withCheckPositions<T extends Checklisted>(
+  task: T,
+): WithCheckPositions<T> {
+  return {
+    ...task,
+    acceptanceCriteria: withPositions(task.acceptanceCriteria),
+    definitionOfDone: withPositions(task.definitionOfDone),
+  };
+}
+
 export interface TaskCommandActor {
   readonly id: string;
   readonly kind: "human" | "delegated-agent";
@@ -63,22 +135,22 @@ export type TaskCommandResponse =
   | {
       readonly schemaVersion: 1;
       readonly kind: "task.list";
-      readonly data: readonly TrackerTaskWithPath[];
+      readonly data: readonly WithCheckPositions<TrackerTaskWithPath>[];
     }
   | {
       readonly schemaVersion: 1;
       readonly kind: "task.view";
-      readonly data: TrackerTaskWithPath;
+      readonly data: WithCheckPositions<TrackerTaskWithPath>;
     }
   | {
       readonly schemaVersion: 1;
       readonly kind: "task.created" | "task.updated";
-      readonly data: TrackerTask;
+      readonly data: WithCheckPositions<TrackerTask>;
     }
   | {
       readonly schemaVersion: 1;
       readonly kind: "task.search";
-      readonly data: readonly TrackerTask[];
+      readonly data: readonly WithCheckPositions<TrackerTask>[];
     }
   | {
       readonly schemaVersion: 1;
@@ -89,7 +161,7 @@ export type TaskCommandResponse =
               readonly kind: "updated";
               readonly reference: string;
               readonly operationId: string;
-              readonly task: TrackerTask;
+              readonly task: WithCheckPositions<TrackerTask>;
             }
           | {
               readonly kind: "error";
@@ -170,28 +242,30 @@ export async function dispatchTrackerTaskCommand(
       return {
         schemaVersion: 1,
         kind: "task.list",
-        data: await tasks.listFilteredWithPath(query),
+        data: (await tasks.listFilteredWithPath(query)).map(withCheckPositions),
       };
     }
     case "view":
       return {
         schemaVersion: 1,
         kind: "task.view",
-        data: await tasks.viewWithPath(request.reference),
+        data: withCheckPositions(await tasks.viewWithPath(request.reference)),
       };
     case "search":
       return {
         schemaVersion: 1,
         kind: "task.search",
-        data: await tasks.search(request.query),
+        data: (await tasks.search(request.query)).map(withCheckPositions),
       };
     case "create":
       requireWriteActor(request.actor);
       return {
         schemaVersion: 1,
         kind: "task.created",
-        data: taskFromMutation(
-          await tasks.create(request.id, request.input, request.operationId),
+        data: withCheckPositions(
+          taskFromMutation(
+            await tasks.create(request.id, request.input, request.operationId),
+          ),
         ),
       };
     case "edit": {
@@ -204,12 +278,14 @@ export async function dispatchTrackerTaskCommand(
       return {
         schemaVersion: 1,
         kind: "task.updated",
-        data: taskFromMutation(
-          await tasks.editOn(
-            prepared.snapshot,
-            request.reference,
-            patch as Parameters<TaskService["edit"]>[1],
-            request.operationId,
+        data: withCheckPositions(
+          taskFromMutation(
+            await tasks.editOn(
+              prepared.snapshot,
+              request.reference,
+              patch as Parameters<TaskService["edit"]>[1],
+              request.operationId,
+            ),
           ),
         ),
       };
@@ -231,7 +307,11 @@ export async function dispatchTrackerTaskCommand(
         schemaVersion: 1,
         kind: "task.batch-updated",
         data: {
-          items: result.items,
+          items: result.items.map((item) =>
+            item.kind === "updated"
+              ? { ...item, task: withCheckPositions(item.task) }
+              : item,
+          ),
           applied: result.items.filter((item) => item.kind === "updated")
             .length,
           failed: result.items.filter((item) => item.kind === "error").length,

@@ -98,6 +98,11 @@ to different components, prefer separate tasks joined by \`--dependency <id>\`.
 Dependencies are what \`quest task list --ready\` reads, so an honest edge here is
 what lets the next agent pick work safely.
 
+A parent organizes scope; it implies no ordering and is not a substitute for a
+dependency. Reserve \`--dependency\` for a prerequisite the target actually needs
+before it can start -- not every alternative approach you considered and set
+aside, which only makes \`--ready\` wait on work nobody is actually blocked on.
+
 ## Create it
 
 \`\`\`
@@ -131,11 +136,14 @@ parent, not a dependency.
 ## Checklist positions renumber after a removal
 
 \`--check-ac\`/\`--uncheck-ac\`/\`--remove-ac\` (and the \`--*-dod\` equivalents)
-address an acceptance-criteria/definition-of-done item by its 1-based position,
-same as the numbered list \`quest task view\` prints -- not the JSON envelope's
-own 0-based \`index\` field (position N is index N-1). Removing an item shifts
-every later item's position and index down by one, so a position computed
-before a removal is stale after it. Re-read the task rather than assume:
+address an acceptance-criteria/definition-of-done item by its 1-based
+\`position\` field (QCLI-269) -- every acceptanceCriteria/definitionOfDone entry
+\`quest task view\` (and every other checklist-bearing command) prints carries
+one; read it and pass it straight back. Each entry also keeps a 0-based
+\`index\` for programmatic addressing (position is always index + 1); \`index\`
+is not what these flags take. Removing an item shifts every later item's
+position and index down by one, so a position computed before a removal is
+stale after it. Re-read the task rather than assume:
 
 \`\`\`
 quest task create "<title>" --acceptance-criteria '["<observable outcome>","<observable outcome>"]' --actor <actor> --actor-kind human --json
@@ -160,6 +168,12 @@ const taskExecution = `# Working a task
 Read the task: \`quest task view <id> --json\`. Confirm it is eligible, its
 dependencies are satisfied, and its scope still matches what was asked. Do not
 trust an approach proposed when the task was filed; the code has moved since.
+
+\`--ready\` is only an execution filter: it says a prerequisite finished, not
+that it established what you need from it. A completed dependency answers "may
+this start", never "did that prove what this task now assumes" -- read what a
+prerequisite actually concluded before depending on it for anything more
+specific than "it is no longer blocking."
 
 Claim it, then record the plan you actually intend to follow:
 
@@ -192,8 +206,11 @@ const taskFinalization = `# Finishing a task
 
 ## Verify before you check anything
 
-Check an acceptance criterion only when you have evidence that proves it: a test
-that fails without the change, command output, an observed result. Code being
+Status is not a verdict. Closing a task, even correctly, does not retroactively
+satisfy a criterion nobody proved -- a task whose criterion is to establish some
+outcome does not meet it just because the work session on it ended. Check an
+acceptance criterion only when you have evidence that proves it: a test that
+fails without the change, command output, an observed result. Code being
 present is not evidence, and neither is intent.
 
 \`\`\`

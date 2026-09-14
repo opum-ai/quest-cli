@@ -42,7 +42,10 @@ import {
 } from "../application/command-parameters.ts";
 import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
-import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
+import {
+  LocalTaskRepository,
+  RecordDuplicateIdentityError,
+} from "../application/tasks/local-task-repository.ts";
 import type { LocatedDraft, TaskService } from "../application/tasks/tasks.ts";
 import {
   type AgentSkillSource,
@@ -57,6 +60,7 @@ import { QUEST_VERSION } from "../application/version.ts";
 import {
   dispatchTrackerTaskCommand,
   recordFromMutation,
+  withCheckPositions,
 } from "./commands/task/index.ts";
 import {
   createAgentInstructionPort,
@@ -336,7 +340,60 @@ function only(
   parsed: NonNullable<ReturnType<typeof flags>>,
   allowed: readonly string[],
 ): boolean {
-  return [...parsed.values.keys()].every((flag) => allowed.includes(flag));
+  return unknownFlags(parsed, allowed).length === 0;
+}
+
+/**
+ * Flags the caller passed that are not in `allowed` (QCLI-270). `only()`
+ * collapses this to a boolean, which is enough to reject a call but not
+ * enough to say why: every one of `only()`'s call sites paired a failed
+ * check with one fixed usage sentence regardless of which flag actually
+ * caused it, so a caller who supplied a valid reference and a fully-formed
+ * actor was still told the reference or actor was missing (`task complete
+ * --final-summary ...` was the reported case). `usageFailure` below reads
+ * this to name the actual flag instead.
+ */
+function unknownFlags(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  allowed: readonly string[],
+): string[] {
+  return [...parsed.values.keys()].filter((flag) => !allowed.includes(flag));
+}
+
+/**
+ * Shared usage-failure formatter for the `!parsed || !only(parsed, allowed)`
+ * idiom repeated across this file's command dispatch (QCLI-270). When the
+ * rejection is caused by one or more flags outside `allowed`, names them
+ * explicitly instead of falling back to `fallback` -- the generic sentence
+ * every call site used to hardcode regardless of cause, which reads as a
+ * missing reference or actor even when both were supplied correctly and the
+ * real problem was an unrecognized flag. Any other rejection reason (a
+ * missing reference, an unparseable argument list, a flag-less command given
+ * something it does not accept at all) still gets `fallback`, since there is
+ * no flag to name.
+ *
+ * Only covers the direct `if (!parsed || !only(...)) return failure(...)`
+ * shape. A handful of call sites (the `migration backlog`, `milestone`/
+ * `decision`, and `draft` action dispatchers) instead gate each action with
+ * a *positive* `only()` check and cascade past all of them to one shared
+ * bottom-of-group fallback message on failure; by the time execution reaches
+ * that fallback, which action's allowed-list (if any) was actually being
+ * evaluated is no longer known, so this helper does not reach them. That is
+ * a structural gap, not an oversight -- see QCLI-270's implementation notes.
+ */
+function usageFailure(
+  parsed: NonNullable<ReturnType<typeof flags>> | undefined,
+  allowed: readonly string[],
+  fallback: string,
+): InvocationResult {
+  const unknown = parsed ? unknownFlags(parsed, allowed) : [];
+  if (unknown.length === 0) return failure("usage", fallback);
+  const word = unknown.length === 1 ? "flag" : "flags";
+  const accepted = allowed.length > 0 ? allowed.join(", ") : "--json, --plain";
+  return failure(
+    "usage",
+    `Unrecognized ${word} ${unknown.join(", ")}. Accepted flags: ${accepted}.`,
+  );
 }
 
 /** Resolves the bare `quest agents` command's persisted skill-source setting.
@@ -969,19 +1026,18 @@ export async function runQuest(
     }
     if (arguments_[0] === "init") {
       const parsed = flags(arguments_.slice(1));
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--agent-instructions",
-          "--name",
-          "--task-id-prefix",
-          "--reconfigure",
-          "--target",
-          "--skill-source",
-        ])
-      )
-        return failure(
-          "usage",
+      const initFlags = [
+        "--agent-instructions",
+        "--name",
+        "--task-id-prefix",
+        "--reconfigure",
+        "--target",
+        "--skill-source",
+      ];
+      if (!parsed || !only(parsed, initFlags))
+        return usageFailure(
+          parsed,
+          initFlags,
           "init accepts only --name, --task-id-prefix, --agent-instructions, --target, --skill-source, --reconfigure, --json, and --plain.",
         );
       const targetValue = one(parsed, "--target");
@@ -1122,8 +1178,9 @@ export async function runQuest(
         : arguments_[1];
       const parsed = flags(arguments_.slice(requested ? 2 : 1));
       if (!parsed || !only(parsed, ["--list"]))
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          ["--list"],
           "instructions accepts one guide name, --list, --json, and --plain.",
         );
       if (requested && parsed.values.has("--list"))
@@ -1185,18 +1242,17 @@ export async function runQuest(
     }
     if (arguments_[0] === "agents") {
       const parsed = flags(arguments_.slice(1));
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--check",
-          "--require-installed",
-          "--update-instructions",
-          "--target",
-          "--force",
-        ])
-      )
-        return failure(
-          "usage",
+      const agentsFlags = [
+        "--check",
+        "--require-installed",
+        "--update-instructions",
+        "--target",
+        "--force",
+      ];
+      if (!parsed || !only(parsed, agentsFlags))
+        return usageFailure(
+          parsed,
+          agentsFlags,
           "agents requires --check or --update-instructions.",
         );
       const check = parsed.values.has("--check");
@@ -1272,8 +1328,9 @@ export async function runQuest(
     if (arguments_[0] === "completion" && arguments_[1] === "bash") {
       const parsed = flags(arguments_.slice(2));
       if (!parsed || !only(parsed, []))
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          [],
           "completion bash accepts only --json and --plain.",
         );
       return output(
@@ -1291,8 +1348,9 @@ export async function runQuest(
     if (arguments_[0] === "sqlite-smoke") {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          [],
           "sqlite-smoke accepts only --json and --plain.",
         );
       const database = new Database(":memory:");
@@ -1315,8 +1373,9 @@ export async function runQuest(
     if (arguments_[0] === "migration-smoke") {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          [],
           "migration-smoke accepts only --json and --plain.",
         );
       return output(await migrationSmokeResult(), modeFor(parsed));
@@ -1443,15 +1502,20 @@ export async function runQuest(
     if (arguments_[0] === "manifest") {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
-        return failure("usage", "manifest accepts only --json and --plain.");
+        return usageFailure(
+          parsed,
+          [],
+          "manifest accepts only --json and --plain.",
+        );
       return output(manifestResult(), modeFor(parsed));
     }
     if (arguments_[0] === "board" && arguments_[1] === "export") {
       const target = arguments_[2];
       const parsed = flags(arguments_.slice(target ? 3 : 2));
       if (!target || !parsed || !only(parsed, ["--force"]))
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          ["--force"],
           "board export requires a target file and accepts only --force, --json, and --plain.",
         );
       // This writes outside .quest/, so it never clobbers silently.
@@ -1492,8 +1556,9 @@ export async function runQuest(
     if (["overview", "board", "doctor"].includes(arguments_[0] ?? "")) {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, []))
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          [],
           `${arguments_[0]} accepts only --json and --plain.`,
         );
       const planning = await planningService();
@@ -1513,18 +1578,17 @@ export async function runQuest(
     }
     if (arguments_[0] === "cleanup") {
       const parsed = flags(arguments_.slice(1));
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--dry-run",
-          "--confirm",
-          "--actor",
-          "--actor-kind",
-          "--accountable-human",
-        ])
-      )
-        return failure(
-          "usage",
+      const cleanupFlags = [
+        "--dry-run",
+        "--confirm",
+        "--actor",
+        "--actor-kind",
+        "--accountable-human",
+      ];
+      if (!parsed || !only(parsed, cleanupFlags))
+        return usageFailure(
+          parsed,
+          cleanupFlags,
           "cleanup accepts --dry-run or --confirm with an actor.",
         );
       const writeActor = actor(parsed);
@@ -1546,7 +1610,11 @@ export async function runQuest(
     if (arguments_[0] === "browser") {
       const parsed = flags(arguments_.slice(1));
       if (!parsed || !only(parsed, ["--port"]))
-        return failure("usage", "browser accepts --port, --json, and --plain.");
+        return usageFailure(
+          parsed,
+          ["--port"],
+          "browser accepts --port, --json, and --plain.",
+        );
       const requestedPort = one(parsed, "--port");
       const port = requestedPort === undefined ? 0 : Number(requestedPort);
       if (!Number.isInteger(port) || port < 0 || port > 65535)
@@ -1825,7 +1893,11 @@ export async function runQuest(
     if (arguments_[0] === "search" && arguments_[1]) {
       const parsed = flags(arguments_.slice(2));
       if (!parsed || !only(parsed, ["--all"]))
-        return failure("usage", "search accepts --all, --json, and --plain.");
+        return usageFailure(
+          parsed,
+          ["--all"],
+          "search accepts --all, --json, and --plain.",
+        );
       if (!parsed.values.has("--all"))
         return output(
           await dispatchTrackerTaskCommand(await taskService(), {
@@ -1988,12 +2060,22 @@ export async function runQuest(
       rest[0]
     ) {
       const parsed = flags(rest.slice(1));
-      if (
-        !parsed ||
-        !only(parsed, ["--actor", "--actor-kind", "--accountable-human"])
-      )
-        return failure(
-          "usage",
+      // QCLI-270: `--final-summary` is complete-only -- archive/pause/start
+      // have no terminal "how did this go" question, so widening their
+      // allowed set too would just make it silently accepted and dropped.
+      const allowedFlags =
+        command === "complete"
+          ? [
+              "--final-summary",
+              "--actor",
+              "--actor-kind",
+              "--accountable-human",
+            ]
+          : ["--actor", "--actor-kind", "--accountable-human"];
+      if (!parsed || !only(parsed, allowedFlags))
+        return usageFailure(
+          parsed,
+          allowedFlags,
           `task ${command} requires a reference and an explicit actor.`,
         );
       const writeActor = actor(parsed);
@@ -2003,15 +2085,27 @@ export async function runQuest(
           "Tracker writes require an explicit actor declaration.",
         );
       const tasks = await taskService();
-      const data = recordFromMutation(
-        command === "complete"
-          ? await tasks.complete(rest[0], crypto.randomUUID())
-          : command === "archive"
-            ? await tasks.archive(rest[0], crypto.randomUUID())
-            : command === "pause"
-              ? await tasks.pause(rest[0], crypto.randomUUID())
-              : await tasks.start(rest[0], crypto.randomUUID()),
-        "task",
+      // QCLI-270: a final summary written as part of completion is a plain
+      // replace, matching `task edit --final-summary` -- not the
+      // clear/append vocabulary, which stays edit-only.
+      const finalSummary =
+        command === "complete" ? one(parsed, "--final-summary") : undefined;
+      // QCLI-269: these five lifecycle commands build their envelope directly
+      // rather than through dispatchTrackerTaskCommand, so the same
+      // presentation-only `position` field it adds to every checklist item
+      // has to be applied here too, or task.completed/archived/paused/started
+      // would silently fall back to the bare 0-based `index`.
+      const data = withCheckPositions(
+        recordFromMutation(
+          command === "complete"
+            ? await tasks.complete(rest[0], crypto.randomUUID(), finalSummary)
+            : command === "archive"
+              ? await tasks.archive(rest[0], crypto.randomUUID())
+              : command === "pause"
+                ? await tasks.pause(rest[0], crypto.randomUUID())
+                : await tasks.start(rest[0], crypto.randomUUID()),
+          "task",
+        ),
       );
       const kind = command === "start" ? "task.started" : `task.${command}d`;
       // QCLI-252: acceptance criteria and definition-of-done stay advisory at
@@ -2038,17 +2132,16 @@ export async function runQuest(
     }
     if (command === "demote" && rest[0]) {
       const parsed = flags(rest.slice(1));
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--to",
-          "--actor",
-          "--actor-kind",
-          "--accountable-human",
-        ])
-      )
-        return failure(
-          "usage",
+      const demoteFlags = [
+        "--to",
+        "--actor",
+        "--actor-kind",
+        "--accountable-human",
+      ];
+      if (!parsed || !only(parsed, demoteFlags))
+        return usageFailure(
+          parsed,
+          demoteFlags,
           "task demote requires a reference, --to <status>, and an explicit actor.",
         );
       const to = one(parsed, "--to");
@@ -2060,9 +2153,14 @@ export async function runQuest(
           "Tracker writes require an explicit actor declaration.",
         );
       const tasks = await taskService();
-      const data = recordFromMutation(
-        await tasks.demote(rest[0], to, crypto.randomUUID()),
-        "task",
+      // QCLI-269: same reasoning as the complete/archive/pause/start branch
+      // above -- demote also builds its envelope outside the shared
+      // dispatcher, so it needs the `position` field applied explicitly too.
+      const data = withCheckPositions(
+        recordFromMutation(
+          await tasks.demote(rest[0], to, crypto.randomUUID()),
+          "task",
+        ),
       );
       return output(
         { schemaVersion: 1, kind: "task.demoted", data },
@@ -2072,8 +2170,9 @@ export async function runQuest(
     if (command === "status-flow") {
       const parsed = flags(rest);
       if (!parsed || !only(parsed, []))
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          [],
           "task status-flow accepts only --json and --plain.",
         );
       return output(
@@ -2083,26 +2182,28 @@ export async function runQuest(
     }
     if (command === "list") {
       const parsed = flags(rest, REPEATABLE_LIST_FLAGS);
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--status",
-          "--label",
-          "--ready",
-          "--exclude-status",
-          "--assignee",
-          "--unassigned",
-          "--milestone",
-          "--parent",
-          "--priority",
-          "--type",
-          "--search",
-          "--limit",
-          "--sort",
-          "--include-archived",
-        ])
-      )
-        return failure("usage", "task list received invalid arguments.");
+      const listFlags = [
+        "--status",
+        "--label",
+        "--ready",
+        "--exclude-status",
+        "--assignee",
+        "--unassigned",
+        "--milestone",
+        "--parent",
+        "--priority",
+        "--type",
+        "--search",
+        "--limit",
+        "--sort",
+        "--include-archived",
+      ];
+      if (!parsed || !only(parsed, listFlags))
+        return usageFailure(
+          parsed,
+          listFlags,
+          "task list received invalid arguments.",
+        );
       if (parsed.values.has("--assignee") && parsed.values.has("--unassigned"))
         return failure(
           "usage",
@@ -2132,7 +2233,11 @@ export async function runQuest(
     if (command === "view" && rest[0]) {
       const parsed = flags(rest.slice(1));
       if (!parsed || !only(parsed, []))
-        return failure("usage", "task view received invalid arguments.");
+        return usageFailure(
+          parsed,
+          [],
+          "task view received invalid arguments.",
+        );
       return output(
         await dispatchTrackerTaskCommand(await taskService(), {
           command,
@@ -2172,14 +2277,16 @@ export async function runQuest(
         !parsed ||
         (suppliedBindingFlags.length > 0 &&
           bindingFlagNames.some((flag) => one(parsed, flag) === undefined));
+      const bindingAllowedFlags = ["--contract", ...bindingFlagNames];
       if (
         !parsed ||
-        !only(parsed, ["--contract", ...bindingFlagNames]) ||
+        !only(parsed, bindingAllowedFlags) ||
         !one(parsed, "--contract") ||
         flagsIncomplete
       )
-        return failure(
-          "usage",
+        return usageFailure(
+          parsed,
+          bindingAllowedFlags,
           "task binding requires --contract plus either the piped stdin request envelope alone or all of --task/--claim-or-correlation/--holder/--repository/--base/--settlement.",
         );
       const stdinTransport = stdinIsPiped && suppliedBindingFlags.length === 0;
@@ -2302,36 +2409,38 @@ export async function runQuest(
     if (command === "create" && rest[0]) {
       const title = rest[0];
       const parsed = flags(rest.slice(1), REPEATABLE_CREATE_FLAGS);
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--id",
-          "--summary",
-          "--description",
-          "--label",
-          "--doc",
-          "--priority",
-          "--type",
-          "--ordinal",
-          "--alias",
-          "--acceptance-criteria",
-          "--definition-of-done",
-          "--plan",
-          "--implementation-notes",
-          "--comments",
-          "--assignee",
-          "--reference",
-          "--modified-file",
-          "--dependency",
-          "--parent",
-          "--milestone",
-          "--final-summary",
-          "--actor",
-          "--actor-kind",
-          "--accountable-human",
-        ])
-      )
-        return failure("usage", "task create received invalid arguments.");
+      const createFlags = [
+        "--id",
+        "--summary",
+        "--description",
+        "--label",
+        "--doc",
+        "--priority",
+        "--type",
+        "--ordinal",
+        "--alias",
+        "--acceptance-criteria",
+        "--definition-of-done",
+        "--plan",
+        "--implementation-notes",
+        "--comments",
+        "--assignee",
+        "--reference",
+        "--modified-file",
+        "--dependency",
+        "--parent",
+        "--milestone",
+        "--final-summary",
+        "--actor",
+        "--actor-kind",
+        "--accountable-human",
+      ];
+      if (!parsed || !only(parsed, createFlags))
+        return usageFailure(
+          parsed,
+          createFlags,
+          "task create received invalid arguments.",
+        );
       for (const flag of [
         "--label",
         "--doc",
@@ -2389,17 +2498,16 @@ export async function runQuest(
       // malformed/unknown/managed content fails at parse time or becomes a
       // documented per-item error — never a silent successful no-op.
       const parsed = flags(rest, REPEATABLE_EDIT_BATCH_FLAGS);
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--file",
-          "--actor",
-          "--actor-kind",
-          "--accountable-human",
-        ])
-      )
-        return failure(
-          "usage",
+      const editBatchFlags = [
+        "--file",
+        "--actor",
+        "--actor-kind",
+        "--accountable-human",
+      ];
+      if (!parsed || !only(parsed, editBatchFlags))
+        return usageFailure(
+          parsed,
+          editBatchFlags,
           "task edit-batch requires exactly one --file pointing at a JSONL operations file plus --actor/--actor-kind.",
         );
       const filePath = one(parsed, "--file");
@@ -2666,60 +2774,62 @@ export async function runQuest(
     if (command === "edit" && rest[0]) {
       const reference = rest[0];
       const parsed = flags(rest.slice(1), REPEATABLE_EDIT_FLAGS);
-      if (
-        !parsed ||
-        !only(parsed, [
-          "--status",
-          "--title",
-          "--priority",
-          "--type",
-          "--ordinal",
-          "--summary",
-          "--description",
-          "--final-summary",
-          "--clear-final-summary",
-          "--append-final-summary",
-          "--labels",
-          "--add-label",
-          "--remove-label",
-          "--doc",
-          "--plan",
-          "--add-plan",
-          "--remove-plan",
-          "--notes",
-          "--add-note",
-          "--remove-note",
-          "--comments",
-          "--add-comment",
-          "--remove-comment",
-          "--acceptance-criteria",
-          "--definition-of-done",
-          "--check-ac",
-          "--uncheck-ac",
-          "--remove-ac",
-          "--clear-ac",
-          "--check-dod",
-          "--uncheck-dod",
-          "--remove-dod",
-          "--clear-dod",
-          "--add-dependency",
-          "--remove-dependency",
-          "--parent",
-          "--clear-parent",
-          "--milestone",
-          "--clear-milestone",
-          "--add-assignee",
-          "--remove-assignee",
-          "--add-reference",
-          "--remove-reference",
-          "--add-modified-file",
-          "--remove-modified-file",
-          "--actor",
-          "--actor-kind",
-          "--accountable-human",
-        ])
-      )
-        return failure("usage", "task edit received invalid arguments.");
+      const editFlags = [
+        "--status",
+        "--title",
+        "--priority",
+        "--type",
+        "--ordinal",
+        "--summary",
+        "--description",
+        "--final-summary",
+        "--clear-final-summary",
+        "--append-final-summary",
+        "--labels",
+        "--add-label",
+        "--remove-label",
+        "--doc",
+        "--plan",
+        "--add-plan",
+        "--remove-plan",
+        "--notes",
+        "--add-note",
+        "--remove-note",
+        "--comments",
+        "--add-comment",
+        "--remove-comment",
+        "--acceptance-criteria",
+        "--definition-of-done",
+        "--check-ac",
+        "--uncheck-ac",
+        "--remove-ac",
+        "--clear-ac",
+        "--check-dod",
+        "--uncheck-dod",
+        "--remove-dod",
+        "--clear-dod",
+        "--add-dependency",
+        "--remove-dependency",
+        "--parent",
+        "--clear-parent",
+        "--milestone",
+        "--clear-milestone",
+        "--add-assignee",
+        "--remove-assignee",
+        "--add-reference",
+        "--remove-reference",
+        "--add-modified-file",
+        "--remove-modified-file",
+        "--actor",
+        "--actor-kind",
+        "--accountable-human",
+      ];
+      if (!parsed || !only(parsed, editFlags))
+        return usageFailure(
+          parsed,
+          editFlags,
+          "task edit received invalid arguments.",
+        );
       for (const flag of [
         "--add-label",
         "--remove-label",
@@ -2846,6 +2956,15 @@ export async function runQuest(
     // summary message and drop the list the operator needs to act on it.
     if (error instanceof BacklogMigrationRefusedError)
       return failure("conflict", error.message, { input: error.details });
+    // QCLI-261: same rationale as BacklogMigrationRefusedError above -- the
+    // generic `kind === "conflict"` fallback would keep only the bare message
+    // ("task_lifecycle_duplicate_identity") and drop the id and paths a
+    // caller who did not cause the corruption needs to find and fix it.
+    if (error instanceof RecordDuplicateIdentityError)
+      return failure("conflict", error.message, {
+        input: { duplicates: error.duplicates },
+        hint: "Every quest command fails closed while a task or draft id exists under more than one of tasks/completed/archive/tasks (or drafts/archive/drafts) -- usually a partial `git add` that staged a move's addition but not its deletion. Compare the listed paths yourself (diff, updatedAt, status): if they are the same record duplicated, keep the one reflecting the record's actual current state and remove the other(s) directly with `rm`/`git rm` -- quest cannot run any command to do this for you while the duplicate exists, so this is a sanctioned exception to editing .quest/ by hand. If the records genuinely differ (two unrelated tasks collided on the same id), this is not a stale copy -- do not delete either without reconciling which one keeps the id.",
+      });
     // Decidable from argv alone, so they belong with the other flag-combination
     // usage errors rather than the post-read validation failures. The fold
     // still owns the rule, so `task edit-batch` reports it per item.
@@ -2915,6 +3034,14 @@ export async function runQuest(
         "draft_not_found",
         "milestone_not_found",
         "decision_not_found",
+        // QCLI-257: MigrationBacklogService.status() throws this plain Error
+        // for an unknown or never-previewed digest; rollback() calls status()
+        // internally and inherits the identical message on the identical
+        // path, so this one entry covers both. apply()'s own not-yet-approved
+        // case is the differently-shaped migration_approval_digest_mismatch
+        // (a freshly recomputed preview digest disagreeing with the caller's)
+        // and deliberately stays validation -- see DEC-2.
+        "migration_not_found",
       ].includes(message)
     )
       return failure("not_found", message);
