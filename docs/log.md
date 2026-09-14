@@ -245,7 +245,10 @@
 - 2026-09-13T17:32:20-05:00 e900f065de5ccbb068f495f86344ae9ce9e087b3 chore(QCLI-279): file the task-id-collision defect lore-cli found tonight (#43)
 - 2026-09-13T17:37:25-05:00 c41f0d8239ced8d8a53cabf1b082f315814ca673 chore(QCLI-271): correct the OIDC root-cause speculation to the confirmed one
 - 2026-09-13T17:38:17-05:00 f5225105cbc36f5419e517171c99f514f67dda27 docs(QCLI-210): correct the OIDC root-cause speculation to the confirmed one
+- 2026-09-13T17:38:43-05:00 308afad2b902dffe2bd8a8fb9b31e74761dd1de0 chore(QCLI-280): file the gitHead-vs-attestation provenance gate gap (#44)
+- 2026-09-13T17:57:55-05:00 8dccba5ae4d05b31b8f73a0f24533085ce9dfa4c docs(QCLI-210): correct OIDC E404 root-cause speculation (#45)
 - 2026-09-13T18:02:22-05:00 d6b5ca33a6960cc7aa9d895f421dc47a56e97176 chore(QCLI-271): record session handoff before orchestrator recycle
+- 2026-09-13T23:46:30-05:00 bbcd2f136cddebce7d00c9e8b4328e614eb0d43e chore(QCLI-271): ship Quest CLI 0.6.2 (#57)
 
 ## docs/adr
 

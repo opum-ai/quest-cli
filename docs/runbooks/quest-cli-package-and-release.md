@@ -107,7 +107,10 @@ release does not complete.
 1. Build candidates from the reviewed commit. Record the source SHA, Bun
    version, root checksum, each platform checksum, and every compiler fallback
    used. A local compiler cache is build infrastructure, never a package
-   payload.
+   payload. Before committing a rebuilt `npm/quest-darwin-arm64/bin/quest`,
+   see "A locally-rebuilt darwin-arm64 binary can SIGKILL git on this host"
+   below -- executing it before the final delete-and-recreate, not after,
+   avoids a real host-level hazard.
 
 2. Run the artifact and packed-tarball gates:
 
@@ -200,6 +203,56 @@ release does not complete.
    to the receipt. Publish the receipt to the consuming harness only after it
    passes; a receipt that describes a build nobody published is the exact
    failure this step exists to prevent.
+
+## A locally-rebuilt darwin-arm64 binary can SIGKILL git on this host
+
+Host-specific, not a code defect, confirmed via live kernel log capture
+(QCLI-271): once a freshly built `npm/quest-darwin-arm64/bin/quest` has been
+**executed** on a machine that code-signs and validates Mach-O binaries at
+mmap time, any subsequent git operation that reads that exact file --
+`status`, `diff`, `add`, `hash-object`, `commit`, even an unscoped `git
+status` that merely refreshes the whole index -- gets killed outright
+(`exit 137`). `log stream` at the moment of the kill shows the kernel's own
+diagnosis: `CODE SIGNING: cs_invalid_page(...) ... denying page ... sending
+SIGKILL`, naming the exact path, with the process marked `tainted:1`. Only
+`darwin-arm64` is affected -- it is the only platform binary that is
+natively executable (and therefore code-signed and validated) on this class
+of host; the `linux-*`/`win32-*` binaries never engage this kernel path.
+
+**A fresh inode (delete-then-recreate the file) is necessary but NOT
+sufficient.** Recreating the file clears stale validation state tied to the
+old inode, so a git operation on the fresh copy succeeds -- right up until
+the fresh copy is itself *executed*. Executing it taints its own vnode for
+subsequent git access, even though a git-only read (e.g. `git hash-object`)
+on that same inode had already succeeded moments earlier. So the ordering
+that actually avoids the kill is:
+
+1. Do every execution you need against the freshly built binary first
+   (`--version`, `agents --update-instructions`, whatever the release step
+   requires).
+2. Delete the file and recreate it fresh from the untouched build artifact,
+   as the **literal last step** before any git command touches it.
+3. Run git operations against it with **zero execution** in between that
+   final recreate and the commit.
+
+If a git operation on this path gets killed anyway, do not try to strip
+quarantine attributes, re-sign, or otherwise bypass the platform's
+validation -- escalate instead. The escape hatch for finishing an unrelated
+commit while this is unresolved is plumbing that never mmaps the working-tree
+file: `git show HEAD:<path>` + `cp` to revert a single file's content, and
+`git update-index --cacheinfo <mode>,<sha>,<path>` to unstage one, both avoid
+the working-tree read that `git checkout --`/`git reset --` perform. A killed
+git process can leave a stale `.git/index.lock`; verify with `ps`/`lsof` that
+nothing still holds it before removing the lock file by hand.
+
+This is a **general macOS code-signing hazard**, not specific to Quest's own
+build step -- see opum-doc's fleet-wide reference,
+[`native-macos-binary-git-sigkill-hazard.md`](https://github.com/opum-ai/opum-doc/blob/main/docs/reference/native-macos-binary-git-sigkill-hazard.md)
+(ODOC-188), for the mechanism in general terms. QCLI-275 (converging
+`npm/*/bin/` packaging on a build-in-CI, never-commit shape) would remove
+this repository's exposure to it as a side effect, but is not a substitute
+for the execution-ordering discipline above wherever a native binary is
+still built and committed locally.
 
 ## Anchor every artifact claim to stored bytes
 
