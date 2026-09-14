@@ -25,7 +25,7 @@ export function success<TData extends object | readonly unknown[]>(
   kind: `${string}.${string}`,
   data: TData,
 ): ResultEnvelope<TData> {
-  return { schemaVersion: 1, kind, data, principal: null };
+  return { schemaVersion: 1, contractVersion: 1, kind, data, principal: null };
 }
 
 export function diagnostic(

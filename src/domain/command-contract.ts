@@ -12,6 +12,7 @@ export type ExitCode = (typeof exitCodes)[keyof typeof exitCodes];
 
 export interface ResultEnvelope<TData extends object | readonly unknown[]> {
   readonly schemaVersion: 1;
+  readonly contractVersion: 1;
   readonly kind: `${string}.${string}`;
   readonly data: TData;
   readonly principal: null;

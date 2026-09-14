@@ -24,6 +24,7 @@ test("success envelopes have the frozen Opum wire shape", () => {
   const envelope = success("query.results", { tasks: [] });
   expect(envelope).toEqual({
     schemaVersion: 1,
+    contractVersion: 1,
     kind: "query.results",
     data: { tasks: [] },
     principal: null,
