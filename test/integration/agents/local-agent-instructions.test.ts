@@ -96,6 +96,32 @@ test("a version-only difference reports version-only, not drift, but genuine con
   });
 });
 
+test("the embedded CI-hint sentence documents the version-only exemption it implements, not just current/exit-6 (QCLI-284)", () => {
+  // QCLI-284: the sentence used to read "current instructions exit 0, while
+  // missing, drifted, or malformed managed instructions exit 6" with no
+  // mention of version-only at all. A reader of their own CLAUDE.md/AGENTS.md
+  // reasonably concluded CI caught version drift via that exit-6 promise --
+  // when by design (QCLI-228) it deliberately does not for a version-only
+  // difference. The sentence must name version-only explicitly as an
+  // exit-0 case, not leave it implied by omission from the exit-6 list.
+  expect(questAgentInstructions).toContain(
+    "current instructions, and a version-only difference (only the pinned Quest CLI version number is stale) both exit 0; missing, drifted, or malformed managed instructions exit 6",
+  );
+  expect(questAgentInstructions).not.toContain(
+    "current instructions exit 0, while missing, drifted, or malformed managed instructions exit 6",
+  );
+
+  // Cross-check the sentence's claim against actual behavior, rather than
+  // trusting the string alone: the exact case it exempts (only the embedded
+  // version number is stale) really does report "version-only", not
+  // "drift" -- pinning the generated text and the check's own logic
+  // together the way this task's AC1 asks for.
+  const versionOnly = questAgentInstructions
+    .trimEnd()
+    .replace(`Quest CLI ${QUEST_VERSION}`, "Quest CLI 0.0.0");
+  expect(checkQuestAgentInstructions(versionOnly).state).toBe("version-only");
+});
+
 test("agents --update-instructions still refreshes a version-only-stale block to the exact current bytes (QCLI-228)", async () => {
   const root = await mkdtemp(join(tmpdir(), "quest-agents-version-"));
   try {
