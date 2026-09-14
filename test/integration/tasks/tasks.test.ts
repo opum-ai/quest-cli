@@ -158,9 +158,9 @@ test("pause and start reach the paused status only through each other, never thr
   const todo = task("T-1");
   const progress = transitionTask(todo, "In Progress");
   const paused = pauseTask(progress);
-  expect(paused.status).toBe("Blocked");
+  expect(paused.status).toBe("Paused");
   // The generic --status ladder never reaches or leaves the paused status.
-  expect(() => transitionTask(progress, "Blocked")).toThrow(
+  expect(() => transitionTask(progress, "Paused")).toThrow(
     RecordValidationError,
   );
   expect(() => transitionTask(paused, "In Progress")).toThrow(
@@ -198,7 +198,7 @@ test("pause and start reach the paused status only through each other, never thr
 test("legalDemoteTargets walks strictly back within tasks, but includes the current ladder position when returning from retention, and never includes the paused status", () => {
   expect(legalDemoteTargets("To Do", "tasks")).toEqual([]);
   expect(legalDemoteTargets("In Progress", "tasks")).toEqual(["To Do"]);
-  expect(legalDemoteTargets("Blocked", "tasks")).toEqual([]);
+  expect(legalDemoteTargets("Paused", "tasks")).toEqual([]);
   expect(legalDemoteTargets("Done", "completed")).toEqual([
     "To Do",
     "In Progress",
@@ -221,7 +221,7 @@ test("demoteTask validates its target instead of resetting to a hardcoded status
     demoteTask(task("T-1", { status: "To Do" }), "tasks", "To Do"),
   ).toThrow("Illegal task demotion: To Do has no earlier status to demote to.");
   // Never reaches the paused status; only `start` may.
-  expect(() => demoteTask(progress, "tasks", "Blocked")).toThrow(
+  expect(() => demoteTask(progress, "tasks", "Paused")).toThrow(
     RecordValidationError,
   );
   const done = task("T-1", { status: "Done" });
@@ -284,7 +284,7 @@ test("TaskService pause/start/demote work end to end, and demote's near-miss reg
   const paused = await service.pause("T-1", "pause-1");
   expect(paused).toMatchObject({
     kind: "success",
-    task: { status: "Blocked" },
+    task: { status: "Paused" },
   });
   // Re-promoting a paused task back to In Progress.
   const started = await service.start("T-1", "start-again-1");

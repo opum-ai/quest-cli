@@ -227,7 +227,7 @@ export const trackerConformanceFixtures = {
     data: {
       statuses: ["To Do", "In Progress", "Done"],
       terminalStatuses: ["Done"],
-      pausedStatus: "Blocked",
+      pausedStatus: "Paused",
     },
   },
   list: { schemaVersion: 1, kind: "task.list", data: [trackerTaskFixture] },
