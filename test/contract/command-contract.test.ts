@@ -475,6 +475,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "task.completed",
       mutates: true,
+      fields: ["finalSummary"],
     },
     {
       name: "task archive",
@@ -895,10 +896,11 @@ test("`task edit` documents every flag it accepts (QCLI-147)", () => {
   const branch = source.slice(
     source.indexOf('if (command === "edit" && rest[0])'),
   );
-  // The repeatable-flag list passed to flags() also ends in "])", so anchor on
-  // the allowlist itself before looking for its close.
-  const start = branch.indexOf("!only(parsed, [");
-  const allowlist = branch.slice(start, branch.indexOf("])", start));
+  // QCLI-270 pulled the allowlist out of the `only()` call and into a named
+  // `editFlags` array (so the shared usage-failure helper can report it),
+  // so anchor on that declaration instead of the call site.
+  const start = branch.indexOf("const editFlags = [");
+  const allowlist = branch.slice(start, branch.indexOf("];", start));
   const accepted = [...allowlist.matchAll(/"(--[a-z-]+)"/g)]
     .map((match) => match[1])
     .sort();
