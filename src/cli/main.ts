@@ -111,6 +111,16 @@ function failure(
  */
 const HELP_PRIORITY_KEYS = ["summary", "usage", "flags"] as const;
 
+/**
+ * QCLI-289: a global counter, deliberately not per-command (agreed with
+ * opum-cli-e2e -- a bounded coarse-recheck cost beats an unbounded
+ * per-command versioning obligation). Bump this, and only this, the moment
+ * any command's `data` payload shape changes in a way an existing decoder
+ * would misread. Distinct from `schemaVersion`, which stays the outer
+ * envelope-wrapper version.
+ */
+const CONTRACT_VERSION = 1;
+
 function output(
   data: object | readonly unknown[],
   mode: OutputMode,
@@ -123,6 +133,7 @@ function output(
   };
   const envelope = {
     schemaVersion: success.schemaVersion,
+    contractVersion: CONTRACT_VERSION,
     kind: success.kind,
     data: success.data,
     principal: null,

@@ -9,6 +9,27 @@ history; this file is the forward-looking record.
 Rides the next stacked CLI release in lockstep with `@opum-ai/lore`; this
 section carries no version number until that release sets it.
 
+### Added
+
+- Every success envelope now carries `contractVersion: 1`, a new field
+  distinct from `schemaVersion` (which stays the outer envelope-wrapper
+  version). `contractVersion` is a single global counter, not a per-command
+  one: it moves whenever any command's `data` payload shape changes in a way
+  an existing decoder would misread, so a consumer has one field to check
+  rather than needing to track ~30 commands independently (QCLI-289).
+
+  This exists because 0.6.2's `QCLI-264`/`QCLI-265` envelope-shape unification
+  (`data.task` becoming bare `data`, among others) shipped with `schemaVersion`
+  unchanged at `1` on both sides of the break -- reported downstream by host
+  mbpm2, whose own integration suite passed 0.6.2 validation and then broke
+  anyway, because nothing distinguished the old shape from the new one.
+  **That break predates this field and stays undetectable by it**:
+  `contractVersion` starts at `1` in the release that introduces it rather
+  than being backdated to claim a transition that had no signal at the time.
+  Anything relying on the pre-`contractVersion` shape needs to keep doing
+  what it already does today (a defensive read of either shape); this field
+  only protects against the *next* shape change, not the last one.
+
 ## 0.6.2
 
 Breaks lockstep with `@opum-ai/lore`, once, deliberately -- the pairing

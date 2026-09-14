@@ -43,6 +43,7 @@ test("status-flow reports the configured policy and list matches statuses case-i
     expect(flow.exitCode).toBe(0);
     expect(json(flow)).toEqual({
       schemaVersion: 1,
+      contractVersion: 1,
       kind: "task.status-flow",
       data: {
         statuses: ["To Do", "In Progress", "Done"],
