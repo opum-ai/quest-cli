@@ -492,6 +492,7 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "task.completed",
       mutates: true,
+      fields: ["finalSummary"],
     },
     {
       name: "task archive",

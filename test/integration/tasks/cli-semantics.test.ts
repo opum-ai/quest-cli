@@ -972,6 +972,9 @@ test("writes without an actor are denied and unknown flags fail loud as usage", 
       message: "Tracker writes require an explicit actor declaration.",
       principal: null,
     });
+    // QCLI-270: the flag is named, not folded into a generic "invalid
+    // arguments" sentence that could equally mean a missing reference or
+    // actor -- both were supplied correctly here.
     const unknownFlag = await run([
       "task",
       "create",
@@ -984,11 +987,92 @@ test("writes without an actor are denied and unknown flags fail loud as usage", 
     expect(unknownFlag.exitCode).toBe(2);
     expect(diagnostic(unknownFlag)).toMatchObject({
       error_type: "usage",
-      message: "task create received invalid arguments.",
+      message:
+        "Unrecognized flag --bogus. Accepted flags: --id, --summary," +
+        " --description, --label, --doc, --priority, --type, --ordinal," +
+        " --alias, --acceptance-criteria, --definition-of-done, --plan," +
+        " --implementation-notes, --comments, --assignee, --reference," +
+        " --modified-file, --dependency, --parent, --milestone," +
+        " --final-summary, --actor, --actor-kind, --accountable-human.",
     });
     const empty = await run(["task", "list", "--json"]);
     expect(empty.exitCode).toBe(0);
     expect(json(empty).data).toEqual([]);
+  });
+});
+
+test("`task complete --final-summary` writes the summary and closes in one command (QCLI-270)", async () => {
+  await withStore(async (run) => {
+    const created = await run([
+      "task",
+      "create",
+      "Ship it",
+      ...actor,
+      "--json",
+    ]);
+    expect(created.exitCode).toBe(0);
+    const id = (json(created).data as { id: string }).id;
+    expect(
+      (await run(["task", "start", id, ...actor, "--json"])).exitCode,
+    ).toBe(0);
+
+    const completed = await run([
+      "task",
+      "complete",
+      id,
+      "--final-summary",
+      "Shipped in one write.",
+      ...actor,
+      "--json",
+    ]);
+    expect(completed.exitCode).toBe(0);
+    // QCLI-264: the written record sits directly in `data`, not nested under
+    // `data.task`.
+    expect(json(completed).data).toMatchObject({
+      status: "Done",
+      finalSummary: "Shipped in one write.",
+    });
+
+    const viewed = await run(["task", "view", id, "--json"]);
+    expect(json(viewed).data).toMatchObject({
+      status: "Done",
+      finalSummary: "Shipped in one write.",
+    });
+  });
+});
+
+test("`task complete` with a real reference and actor still names an unrecognized flag rather than blaming either (QCLI-270)", async () => {
+  await withStore(async (run) => {
+    const created = await run([
+      "task",
+      "create",
+      "Ship it",
+      ...actor,
+      "--json",
+    ]);
+    expect(created.exitCode).toBe(0);
+    const id = (json(created).data as { id: string }).id;
+    expect(
+      (await run(["task", "start", id, ...actor, "--json"])).exitCode,
+    ).toBe(0);
+
+    const result = await run([
+      "task",
+      "complete",
+      id,
+      "--final-summary",
+      "x",
+      ...actor,
+      "--bogus-flag",
+      "1",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(2);
+    const problem = diagnostic(result);
+    expect(problem).toMatchObject({ error_type: "usage" });
+    const message = problem.message as string;
+    expect(message).toContain("--bogus-flag");
+    expect(message).not.toContain("requires a reference and an explicit actor");
   });
 });
 
