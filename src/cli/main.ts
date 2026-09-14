@@ -60,6 +60,7 @@ import { QUEST_VERSION } from "../application/version.ts";
 import {
   dispatchTrackerTaskCommand,
   recordFromMutation,
+  TrackerWriteConflictError,
   withCheckPositions,
 } from "./commands/task/index.ts";
 import {
@@ -2659,7 +2660,16 @@ export async function runQuest(
             "usage",
             `Invalid operations item at line ${index + 1}: expected an object.`,
           );
-        const allowedTop = new Set(["reference", "operationId", "patch"]);
+        // QCLI-277: `ifRevision` is a per-item precondition, not a task
+        // field, so it lives beside `reference`/`operationId` rather than
+        // inside `patch` -- same reasoning as keeping `--if-revision`
+        // outside `task edit`'s own patch vocabulary below.
+        const allowedTop = new Set([
+          "reference",
+          "operationId",
+          "patch",
+          "ifRevision",
+        ]);
         for (const key of Object.keys(record))
           if (!allowedTop.has(key))
             return failure(
@@ -2672,6 +2682,14 @@ export async function runQuest(
           return failure(
             "usage",
             `Missing reference string in operations item at line ${index + 1}.`,
+          );
+        if (
+          record.ifRevision !== undefined &&
+          typeof record.ifRevision !== "string"
+        )
+          return failure(
+            "usage",
+            `ifRevision must be a string in operations item at line ${index + 1}.`,
           );
         const operationIdRaw = record.operationId;
         if (
@@ -2855,6 +2873,7 @@ export async function runQuest(
             reference: string;
             operationId?: string;
             patch?: Record<string, unknown>;
+            ifRevision?: string;
           }[],
         }),
         modeFor(parsed),
@@ -2909,6 +2928,7 @@ export async function runQuest(
         "--remove-reference",
         "--add-modified-file",
         "--remove-modified-file",
+        "--if-revision",
         "--actor",
         "--actor-kind",
         "--accountable-human",
@@ -2946,6 +2966,7 @@ export async function runQuest(
           reference,
           operationId: crypto.randomUUID(),
           actor: writeActor,
+          ifRevision: one(parsed, "--if-revision"),
           patch: {
             status: one(parsed, "--status"),
             title: one(parsed, "--title"),
@@ -3087,6 +3108,22 @@ export async function runQuest(
         "One checklist position was given contradictory operations.",
         {
           hint: "Address each position once: do not check and uncheck it, or remove and check it, in the same edit.",
+        },
+      );
+    // QCLI-277: same exit-5 conflict shape as the generic branch just below
+    // -- this only adds `input.actualRevision`, which `TrackerWriteConflictError`
+    // carries and a bare `Error("tracker_write_conflict")` never did, so a
+    // caller (in particular one whose `--if-revision` precondition just
+    // failed) can re-read without a second round trip.
+    if (error instanceof TrackerWriteConflictError)
+      return failure(
+        "conflict",
+        "Task state changed concurrently; the operation was not applied.",
+        {
+          hint: "Read the latest task state and retry the operation.",
+          ...(error.actualRevision !== undefined
+            ? { input: { actualRevision: error.actualRevision } }
+            : {}),
         },
       );
     if (

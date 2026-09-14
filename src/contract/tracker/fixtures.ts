@@ -74,6 +74,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "plan",
         "priority",
         "references",
+        "revision",
         "status",
         "summary",
         "title",

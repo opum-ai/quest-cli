@@ -307,6 +307,7 @@ export const commandManifest = {
         "plan",
         "priority",
         "references",
+        "revision",
         "status",
         "summary",
         "title",

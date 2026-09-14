@@ -5,6 +5,7 @@ import {
 import type {
   TaskListQuery,
   TaskService,
+  TaskWriteConflict,
 } from "../../../application/tasks/tasks.ts";
 
 type TrackerTask = Awaited<ReturnType<TaskService["view"]>>;
@@ -108,6 +109,8 @@ export type TaskCommandRequest =
       readonly patch: TrackerEditPatch;
       readonly operationId: string;
       readonly actor: TaskCommandActor;
+      /** QCLI-277: see {@link TaskEditOptions.ifRevision}. */
+      readonly ifRevision?: string;
     }
   | {
       readonly command: "edit-batch";
@@ -116,6 +119,8 @@ export type TaskCommandRequest =
         readonly reference: string;
         readonly operationId?: string;
         readonly patch?: Partial<TrackerEditPatch>;
+        /** QCLI-277: per-item precondition; see `TaskService.editBatch`'s `ifRevision`. */
+        readonly ifRevision?: string;
       }[];
     };
 
@@ -140,7 +145,11 @@ export type TaskCommandResponse =
   | {
       readonly schemaVersion: 1;
       readonly kind: "task.view";
-      readonly data: WithCheckPositions<TrackerTaskWithPath>;
+      // QCLI-277: `revision` is additive so a caller can capture it here and
+      // later supply it back as `task edit --if-revision`'s precondition.
+      readonly data: WithCheckPositions<TrackerTaskWithPath> & {
+        readonly revision: string;
+      };
     }
   | {
       readonly schemaVersion: 1;
@@ -188,11 +197,37 @@ function requireWriteActor(actor: TaskCommandActor): void {
   }
 }
 
+/**
+ * QCLI-277: carries the losing write's `actualRevision` (when the result
+ * was shaped like a {@link TaskWriteConflict}) from `recordFromMutation`/
+ * `taskFromMutation` out to `main.ts`'s catch handler, which names it in
+ * the diagnostic's `input` so a caller can re-read without a second round
+ * trip -- same exit-5 `tracker_write_conflict` shape as before, just no
+ * longer discarding data the mutation result already carried.
+ */
+export class TrackerWriteConflictError extends Error {
+  readonly actualRevision?: string;
+  constructor(actualRevision?: string) {
+    super("tracker_write_conflict");
+    this.name = "TrackerWriteConflictError";
+    this.actualRevision = actualRevision;
+  }
+}
+
+function actualRevisionOf(result: {
+  readonly kind: string;
+}): string | undefined {
+  const candidate = result as Partial<TaskWriteConflict>;
+  return result.kind === "conflict" &&
+    typeof candidate.actualRevision === "string"
+    ? candidate.actualRevision
+    : undefined;
+}
+
 function taskFromMutation(
   result: Awaited<ReturnType<TaskService["create"]>>,
 ): TrackerTask {
-  if (result.kind === "conflict") throw new Error("tracker_write_conflict");
-  return result.task;
+  return recordFromMutation(result, "task");
 }
 
 /**
@@ -214,7 +249,8 @@ export function recordFromMutation<
   result: Result,
   field: Field,
 ): Extract<Result, { readonly kind: "success" }>[Field] {
-  if (result.kind !== "success") throw new Error("tracker_write_conflict");
+  if (result.kind !== "success")
+    throw new TrackerWriteConflictError(actualRevisionOf(result));
   return (result as Extract<Result, { readonly kind: "success" }>)[field];
 }
 
@@ -245,12 +281,16 @@ export async function dispatchTrackerTaskCommand(
         data: (await tasks.listFilteredWithPath(query)).map(withCheckPositions),
       };
     }
-    case "view":
+    case "view": {
+      const { task, revision } = await tasks.viewWithRevision(
+        request.reference,
+      );
       return {
         schemaVersion: 1,
         kind: "task.view",
-        data: withCheckPositions(await tasks.viewWithPath(request.reference)),
+        data: { ...withCheckPositions(task), revision },
       };
+    }
     case "search":
       return {
         schemaVersion: 1,
@@ -285,6 +325,7 @@ export async function dispatchTrackerTaskCommand(
               request.reference,
               patch as Parameters<TaskService["edit"]>[1],
               request.operationId,
+              { ifRevision: request.ifRevision },
             ),
           ),
         ),
@@ -300,9 +341,11 @@ export async function dispatchTrackerTaskCommand(
             import("../../../domain/tasks/tasks.ts").TaskState &
               TrackerEditPatch
           >,
+          ifRevision: item.ifRevision,
         })),
       );
-      if (result.kind === "conflict") throw new Error("tracker_write_conflict");
+      if (result.kind === "conflict")
+        throw new TrackerWriteConflictError(result.actualRevision);
       return {
         schemaVersion: 1,
         kind: "task.batch-updated",

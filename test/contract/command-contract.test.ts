@@ -291,6 +291,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "plan",
         "priority",
         "references",
+        "revision",
         "status",
         "summary",
         "title",

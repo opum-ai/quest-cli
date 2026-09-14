@@ -144,6 +144,46 @@ test("CRUD retains all authored task fields and reads never write", async () => 
   });
 });
 
+test("edit's --if-revision precondition (QCLI-277): matches and applies, omitted is unaffected, stale refuses before any write", async () => {
+  const store = new MemoryTasks([task("T-1")]);
+  const tasks = new TaskService(store);
+
+  // Omitted: identical to today's behavior -- always freshly read, always matches.
+  const unconditional = await tasks.edit("T-1", { summary: "a" }, "edit-1");
+  expect(unconditional).toMatchObject({ kind: "success" });
+  expect(store.writes).toBe(1);
+
+  // Matching precondition: a caller who captured the CURRENT revision may
+  // still edit, and the edit lands exactly as it would without the flag.
+  const currentRevision = (await store.readAll()).revision;
+  const matched = await tasks.edit("T-1", { summary: "b" }, "edit-2", {
+    ifRevision: currentRevision,
+  });
+  expect(matched).toMatchObject({ kind: "success", task: { summary: "b" } });
+  expect(store.writes).toBe(2);
+
+  // Stale precondition: the store has moved twice since "currentRevision"
+  // was captured. The edit must refuse BEFORE any write -- same shape a
+  // repository-level CAS conflict already produces (TaskWriteConflict) --
+  // and name the store's actual current revision, not the caller's stale one.
+  const staleAttempt = await tasks.edit("T-1", { summary: "c" }, "edit-3", {
+    ifRevision: currentRevision,
+  });
+  const actualRevision = (await store.readAll()).revision;
+  expect(staleAttempt).toEqual({
+    kind: "conflict",
+    expectedRevision: currentRevision,
+    actualRevision,
+    operationId: "edit-3",
+    ownedPaths: [],
+  });
+  expect(actualRevision).not.toBe(currentRevision);
+  // No write was attempted: the write counter did not advance, and the
+  // record still carries the last SUCCESSFUL edit's value, not "c".
+  expect(store.writes).toBe(2);
+  expect((await tasks.view("T-1")).summary).toBe("b");
+});
+
 test("lifecycle only moves through its configured order and retains done records", () => {
   const todo = task("T-1");
   const progress = transitionTask(todo, "In Progress");

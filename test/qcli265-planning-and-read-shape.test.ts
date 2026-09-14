@@ -53,7 +53,12 @@ async function workspace() {
   return root;
 }
 
-/** The wrapper keys no payload may carry: a nested record or a write receipt. */
+/**
+ * The wrapper keys no payload may carry: a nested record or a write
+ * receipt. `revision` stays listed because it is still banned as that
+ * write-mutation receipt everywhere -- the sole, explicit exception is
+ * `task view` (QCLI-277), asserted below where it cannot be missed.
+ */
 const WRAPPERS = ["task", "draft", "record", "result", "revision"] as const;
 
 function wrapperKeys(value: unknown): readonly string[] {
@@ -172,6 +177,13 @@ test("every read and every write puts the record in data, across all four groups
     ];
     for (const argv of single) {
       const { data } = envelope(root, argv);
+      // QCLI-277: `task view` alone is allowed to carry `revision` -- a
+      // legitimate additive field, like `path` (QCLI-220), that a caller
+      // captures and later supplies back as `task edit --if-revision`'s
+      // precondition. It is not the internal write-mutation wrapper this
+      // list otherwise still catches: every other read and write here
+      // still must not carry it.
+      const isTaskView = argv[0] === "task" && argv[1] === "view";
       expect({
         argv: argv.slice(0, 3).join(" "),
         id: typeof (data as Record<string, unknown>).id,
@@ -179,7 +191,7 @@ test("every read and every write puts the record in data, across all four groups
       }).toEqual({
         argv: argv.slice(0, 3).join(" "),
         id: "string",
-        wrappers: [],
+        wrappers: isTaskView ? ["revision"] : [],
       });
     }
 

@@ -183,7 +183,10 @@ export const commandHelp: Record<
     ],
   },
   "task view": {
-    summary: "View one task by id or alias.",
+    summary:
+      "View one task by id or alias. The result carries a `revision` field " +
+      "(QCLI-277) a caller can capture and later supply back as `task edit " +
+      "--if-revision <revision>`'s precondition.",
     usage: "quest task view <id>",
     flags: [],
   },
@@ -238,7 +241,11 @@ export const commandHelp: Record<
       "after it, in both forms: re-read the task before addressing what you think is 'the next' " +
       "item rather than trusting a position computed before the removal. " +
       "--comments/--add-comment take a JSON array of structured objects, not free text: each " +
-      'entry needs {"id":"<string>","authorId":"<string>","body":"<string>","createdAt":"<ISO-8601 string>"}.',
+      'entry needs {"id":"<string>","authorId":"<string>","body":"<string>","createdAt":"<ISO-8601 string>"}. ' +
+      "--if-revision <revision> (QCLI-277) is an optional precondition: capture `revision` from an " +
+      "earlier `task view --json`, and the edit is refused with an exit-5 conflict -- naming the " +
+      "record's actual current revision -- if the record has moved since, instead of silently " +
+      "applying over a change the caller never saw. Omitted, behavior is unchanged.",
     usage:
       'quest task edit <id> --status "In Progress" --actor <name> --actor-kind human',
     flags: [
@@ -287,6 +294,7 @@ export const commandHelp: Record<
       "--remove-reference",
       "--add-modified-file",
       "--remove-modified-file",
+      "--if-revision",
       ...ACTOR_FLAGS,
     ],
   },
@@ -298,7 +306,10 @@ export const commandHelp: Record<
       '{"status":"In Progress"} or {"addLabels":["urgent"]}), by field name rather than flag ' +
       "spelling. `operationId` is optional (defaults to a positional label) but must be unique " +
       "within the file; each line's result reports success or a per-item error against it, so one " +
-      "bad line never blocks the rest of the batch.",
+      "bad line never blocks the rest of the batch. Each item also takes an optional top-level " +
+      '"ifRevision":"<revision>" (QCLI-277), the per-item counterpart of `task edit --if-revision`: ' +
+      "a mismatch fails only that item (a per-item error, same as an unresolvable reference), " +
+      "checked against the revision the whole batch is running against.",
     usage:
       "quest task edit-batch --file operations.jsonl --actor <name> --actor-kind human",
     flags: ["--file", ...ACTOR_FLAGS],

@@ -150,6 +150,12 @@ export interface TrackerSummary {
    * than treating it as a stable identifier. The task id is the stable one.
    */
   readonly path?: string;
+  /**
+   * QCLI-277: present on `task.view` only. Capture it and supply it back as
+   * `task edit --if-revision <revision>`'s precondition so a stale read is
+   * refused with a conflict instead of silently overwritten.
+   */
+  readonly revision?: string;
 }
 export interface TrackerTask extends TrackerSummary {
   readonly description?: string;
@@ -333,7 +339,8 @@ function isSummary(value: unknown): value is TrackerSummary {
     (task.ordinal === undefined || Number.isFinite(task.ordinal)) &&
     (task.createdAt === undefined || typeof task.createdAt === "string") &&
     (task.updatedAt === undefined || typeof task.updatedAt === "string") &&
-    (task.path === undefined || typeof task.path === "string")
+    (task.path === undefined || typeof task.path === "string") &&
+    (task.revision === undefined || typeof task.revision === "string")
   );
 }
 
@@ -615,6 +622,7 @@ export class QuestTrackerClient {
           "plan",
           "priority",
           "references",
+          "revision",
           "status",
           "summary",
           "title",

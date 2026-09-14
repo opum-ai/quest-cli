@@ -138,6 +138,24 @@ export type TaskMutationResult =
     }
   | TaskWriteConflict;
 
+/**
+ * QCLI-277: an optional precondition for {@link TaskService.edit}/{@link
+ * TaskService.editOn}. Every mutation already reads a fresh snapshot and
+ * writes with that snapshot's own revision as `expectedRevision` -- which
+ * trivially matches every time, since it was read moments earlier in the
+ * same call, and so can never by itself detect that a CALLER's own earlier
+ * read (e.g. `task view --json`'s `revision` field) has since gone stale.
+ * `ifRevision`, when supplied, is checked against the freshly-read
+ * snapshot BEFORE any other work -- including the freshly-read
+ * `expectedRevision` write below, which stays exactly as before -- so a
+ * caller reasoning from a stale read gets the same exit-5 conflict shape
+ * an ordinary write race already produces, instead of silently succeeding
+ * over another session's update. Omitted, behavior is unchanged.
+ */
+export interface TaskEditOptions {
+  readonly ifRevision?: string;
+}
+
 type ReferenceIndex = {
   resolve(reference: string): number | undefined;
 };
@@ -897,6 +915,35 @@ export class TaskService {
       path: this.ownedPathForLocation(task.id, current.location),
     };
   }
+  /**
+   * QCLI-277: `task view --json`'s revision-exposing variant. A caller
+   * captures `revision` from here and supplies it back as `task edit
+   * --if-revision` later, so an edit made against a stale read is refused
+   * instead of silently applied. Kept separate from {@link viewWithPath}
+   * (rather than widening its return type) to avoid touching `task list`'s
+   * shared `TaskStateWithPath` shape, and performs its own single
+   * `readAll()` rather than composing `viewWithPath` plus a second read, so
+   * the returned task and revision always describe the same snapshot.
+   */
+  async viewWithRevision(
+    reference: string,
+  ): Promise<{ readonly task: TaskStateWithPath; readonly revision: string }> {
+    const snapshot = await this.repository.readAll();
+    const records = this.taskRecords(snapshot);
+    const task = findTask(
+      records.map((record) => record.task),
+      reference,
+    );
+    const current = records.find((record) => record.task.id === task.id);
+    if (!current) throw new RecordValidationError("task_not_found");
+    return {
+      task: {
+        ...task,
+        path: this.ownedPathForLocation(task.id, current.location),
+      },
+      revision: snapshot.revision,
+    };
+  }
 
   /**
    * Resolves the mutable task and its authoritative snapshot in one read
@@ -926,9 +973,10 @@ export class TaskService {
     reference: string,
     patch: Partial<Omit<TaskState, "id" | "gates" | "gateEvents">>,
     operationId: string,
+    options?: TaskEditOptions,
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
-    return this.editOn(snapshot, reference, patch, operationId);
+    return this.editOn(snapshot, reference, patch, operationId, options);
   }
 
   /**
@@ -942,7 +990,24 @@ export class TaskService {
     reference: string,
     patch: Partial<Omit<TaskState, "id" | "gates" | "gateEvents">>,
     operationId: string,
+    options?: TaskEditOptions,
   ): Promise<TaskMutationResult> {
+    // QCLI-277: checked first, before task resolution or any other work, so
+    // a stale caller-supplied precondition changes nothing -- not even a
+    // read. See TaskEditOptions for why this is a distinct check from the
+    // `expectedRevision: snapshot.revision` write further down.
+    if (
+      options?.ifRevision !== undefined &&
+      options.ifRevision !== snapshot.revision
+    ) {
+      return {
+        kind: "conflict",
+        expectedRevision: options.ifRevision,
+        actualRevision: snapshot.revision,
+        operationId,
+        ownedPaths: [],
+      };
+    }
     // Cross-location resolution (QCLI-219): a completed or archived record
     // is a real, viewable task -- `quest task view` resolves it fine -- so
     // scoping the lookup to active `tasks/` alone made every edit against it
@@ -1055,6 +1120,17 @@ export class TaskService {
         Omit<TaskState, "id" | "gates" | "gateEvents"> & EditPatchVocabulary
       >;
       readonly operationId?: string;
+      /**
+       * QCLI-277: the per-item counterpart of {@link TaskEditOptions.ifRevision}.
+       * A batch's working revision is fixed at `initial.revision` for its
+       * whole run (every item evolves the same in-memory snapshot; the
+       * store only moves, if at all, at the final commit), so each item's
+       * precondition -- when supplied -- is checked against that same
+       * value. A mismatch fails only that item, exactly like any other
+       * per-item validation failure (`task_not_found`, a bad checklist
+       * position, ...): it does not abort sibling items in the batch.
+       */
+      readonly ifRevision?: string;
     }[],
   ): Promise<
     | {
@@ -1180,6 +1256,17 @@ export class TaskService {
       for (const [index, { item, operationId }] of resolvedItems.entries()) {
         const reference = item.reference;
         try {
+          // QCLI-277: checked before resolving or touching this item's row,
+          // so a stale per-item precondition changes nothing for it -- same
+          // "before any state change" property as the single-edit check in
+          // editOn, scoped to one item instead of aborting the whole batch.
+          if (
+            item.ifRevision !== undefined &&
+            item.ifRevision !== initial.revision
+          )
+            throw new RecordValidationError(
+              `task_revision_precondition_failed (expected ${item.ifRevision}, actual ${initial.revision})`,
+            );
           const slot = rowIndex.resolve(item.reference);
           if (slot === undefined)
             throw new RecordValidationError("task_not_found");
