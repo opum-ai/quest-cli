@@ -758,11 +758,23 @@ export class LocalTaskRepository
         taskRecords: nextRecordsArray,
         drafts: current.drafts ?? [],
       };
-      if (
-        new Set(nextSnapshot.taskRecords.map((r) => r.task.id)).size !==
-        nextSnapshot.taskRecords.length
-      )
-        throw new RecordConflictError("task_lifecycle_duplicate_identity");
+      // QCLI-261: structurally unreachable today -- nextRecords is a Map
+      // keyed by task id, so nextRecordsArray cannot itself contain a
+      // duplicate id -- but kept as a defensive invariant check and upgraded
+      // to the same enriched error as snapshot() so a future refactor of the
+      // dedup logic above cannot silently reintroduce the bare, unhelpful
+      // message this task removed everywhere else it was reachable.
+      const applyTransactionDuplicates = this.duplicatesOf(
+        nextSnapshot.taskRecords.map((record) => ({
+          id: record.task.id,
+          path: this.taskPath(record.task.id, record.location),
+        })),
+      );
+      if (applyTransactionDuplicates.length > 0)
+        throw new RecordDuplicateIdentityError(
+          "task_lifecycle_duplicate_identity",
+          applyTransactionDuplicates,
+        );
 
       const nextTaskRevision = this.revision(nextSnapshot);
 
