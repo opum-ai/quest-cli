@@ -9,6 +9,7 @@ import {
   REQUIRED_PLATFORMS,
   sha256,
   validateReceipt,
+  waitForPublished,
 } from "../../../scripts/qualification/native-execution-receipt.mjs";
 
 /**
@@ -270,4 +271,104 @@ test("the emitted document satisfies the downstream validator's rules", async ()
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+/**
+ * QCLI-285. Registry read-after-write lag is real and measured worsening
+ * release to release elsewhere in this fleet, so a fixed short timeout is
+ * not conservative -- it is a coin flip that gets worse over time. These
+ * tests never actually sleep: a fake clock and an injectable verify stand in
+ * for real time and the real registry.
+ */
+
+function fakeClock(start = 0) {
+  let time = start;
+  return {
+    now: () => time,
+    sleep: async (ms: number) => {
+      time += ms;
+    },
+  };
+}
+
+// The `verify` mocks below never read the receipt itself; only its identity
+// as an opaque value being threaded through matters here.
+const FAKE_RECEIPT =
+  {} as import("../../../scripts/qualification/native-execution-receipt.mjs").NativeExecutionReceipt;
+
+test("waitForPublished returns immediately once verify succeeds, without waiting out the window", async () => {
+  const { now, sleep } = fakeClock();
+  let calls = 0;
+  const result = await waitForPublished(FAKE_RECEIPT, "1.0.0", {
+    now,
+    sleep,
+    verify: async () => {
+      calls += 1;
+      return { ok: true, problems: [] };
+    },
+  });
+  expect(result).toEqual({
+    ok: true,
+    problems: [],
+    attempts: 1,
+    timedOut: false,
+  });
+  expect(calls).toBe(1);
+});
+
+test("waitForPublished retries with backoff and succeeds once the registry catches up", async () => {
+  const { now, sleep } = fakeClock();
+  let calls = 0;
+  const result = await waitForPublished(FAKE_RECEIPT, "1.0.0", {
+    now,
+    sleep,
+    initialDelayMs: 1000,
+    verify: async () => {
+      calls += 1;
+      return calls < 3
+        ? { ok: false, problems: ["not yet visible"] }
+        : { ok: true, problems: [] };
+    },
+  });
+  expect(result).toEqual({
+    ok: true,
+    problems: [],
+    attempts: 3,
+    timedOut: false,
+  });
+});
+
+test("waitForPublished reports a timeout rather than throwing when the window elapses", async () => {
+  const { now, sleep } = fakeClock();
+  const result = await waitForPublished(FAKE_RECEIPT, "1.0.0", {
+    now,
+    sleep,
+    maxWaitMs: 10_000,
+    initialDelayMs: 4000,
+    verify: async () => ({ ok: false, problems: ["still not visible"] }),
+  });
+  expect(result.ok).toBe(false);
+  expect(result.timedOut).toBe(true);
+  expect(result.problems).toEqual(["still not visible"]);
+  // The window elapsed via the fake clock, not real time.
+  expect(now()).toBeGreaterThanOrEqual(10_000);
+});
+
+test("waitForPublished caps backoff at maxDelayMs rather than growing unbounded", async () => {
+  const { now, sleep } = fakeClock();
+  const delays: number[] = [];
+  const trackedSleep = async (ms: number) => {
+    delays.push(ms);
+    await sleep(ms);
+  };
+  await waitForPublished(FAKE_RECEIPT, "1.0.0", {
+    now,
+    sleep: trackedSleep,
+    maxWaitMs: 400_000,
+    initialDelayMs: 5000,
+    maxDelayMs: 20_000,
+    verify: async () => ({ ok: false, problems: ["not yet"] }),
+  }).catch(() => {});
+  // Doubling from 5s would exceed 20s by the third retry; it must not.
+  expect(Math.max(...delays)).toBeLessThanOrEqual(20_000);
 });

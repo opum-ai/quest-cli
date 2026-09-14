@@ -281,6 +281,47 @@ export async function verifyPublished(receipt, version) {
 }
 
 /**
+ * Retries verifyPublished with backoff across ONE shared wall-clock window
+ * for every platform together, not one window per platform (QCLI-285,
+ * following lore-cli's own measured design). npm's publish confirmation is
+ * authoritative; its read API lags behind it, and the lag has been measured
+ * WORSENING release to release elsewhere in this fleet (seconds, then tens of
+ * seconds, then tens of minutes) — so a fixed short timeout is not a
+ * conservative choice, it is a coin flip that gets worse over time.
+ *
+ * A timed-out result is returned, not thrown: the last attempt's problems are
+ * still the most accurate diagnosis, but the caller must present a timeout as
+ * "registry lag, not a failed release" — see `publish-release.mjs`. Treating
+ * this function's own timeout as failure would repeat the mistake it exists
+ * to prevent.
+ */
+export async function waitForPublished(
+  receipt,
+  version,
+  {
+    maxWaitMs = 30 * 60 * 1000,
+    initialDelayMs = 5000,
+    maxDelayMs = 60 * 1000,
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now = () => Date.now(),
+    verify = verifyPublished,
+  } = {},
+) {
+  const deadline = now() + maxWaitMs;
+  let delay = initialDelayMs;
+  let attempts = 0;
+  let result;
+  for (;;) {
+    attempts += 1;
+    result = await verify(receipt, version);
+    if (result.ok) return { ...result, attempts, timedOut: false };
+    if (now() >= deadline) return { ...result, attempts, timedOut: true };
+    await sleep(Math.min(delay, maxDelayMs, deadline - now()));
+    delay = Math.min(delay * 2, maxDelayMs);
+  }
+}
+
+/**
  * The AC#3 release gate: the reason a version cannot ship without a receipt.
  *
  * It deliberately re-derives everything rather than trusting the document. A

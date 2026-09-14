@@ -73,6 +73,27 @@ export function verifyPublished(
   version: string,
 ): Promise<ValidationResult>;
 
+export interface WaitForPublishedResult extends ValidationResult {
+  readonly attempts: number;
+  readonly timedOut: boolean;
+}
+
+export function waitForPublished(
+  receipt: NativeExecutionReceipt,
+  version: string,
+  options?: {
+    maxWaitMs?: number;
+    initialDelayMs?: number;
+    maxDelayMs?: number;
+    sleep?: (ms: number) => Promise<void>;
+    now?: () => number;
+    verify?: (
+      receipt: NativeExecutionReceipt,
+      version: string,
+    ) => Promise<ValidationResult>;
+  },
+): Promise<WaitForPublishedResult>;
+
 export function verifyCommitted(
   target: string,
   options?: { directory?: string },

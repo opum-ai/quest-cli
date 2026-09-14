@@ -192,6 +192,10 @@ release does not complete.
    public version, manifest, task, projection, and migration smokes. Only this
    successful verification permits availability or install documentation.
 
+   If the CI/OIDC publish path is unavailable (see "Publishing locally when
+   CI cannot" below), `scripts/publish-release.mjs` performs the same
+   fail-closed, receipt-gated publish from an operator's own machine.
+
 8. Confirm the receipt describes what the registry actually serves, then hand
    it to downstream qualification:
 
@@ -253,6 +257,78 @@ build step -- see opum-doc's fleet-wide reference,
 this repository's exposure to it as a side effect, but is not a substitute
 for the execution-ordering discipline above wherever a native binary is
 still built and committed locally.
+
+## Publishing locally when CI cannot
+
+`scripts/publish-release.mjs` exists for exactly the case the CI/OIDC path
+cannot cover -- trusted publishing not yet configured, or (as observed
+2026-09) GitHub's org-wide immutable-subject-claim policy rejecting the
+subject shape npm Trusted Publishing expects. It is gated the same way CI is:
+`--receipt <path>` is required, and the receipt must bind the exact commit
+and version being published (`validateReceipt`, re-deriving every digest from
+the artifacts on disk rather than trusting the document).
+
+```sh
+node scripts/publish-release.mjs --receipt native-execution-receipt.json
+node scripts/publish-release.mjs --publish --otp <code> --receipt native-execution-receipt.json
+```
+
+**Two auth mechanisms**, tried in this order, reported explicitly at the
+start of a run so the operator knows which one is active:
+
+1. **A stored npm granular access token** -- macOS Keychain under the service
+   name `npm-opum-ai-publish`, or `$NPM_TOKEN`. Store one with (never typed
+   where it lands in shell history):
+
+   ```sh
+   read -rs T
+   security add-generic-password -a "$USER" -s npm-opum-ai-publish -w "$T" -U
+   unset T
+   ```
+
+   Shape-checked before any publish attempt -- length, prefix, and an
+   internal-whitespace flag, the value itself never logged. A granular token
+   is `npm_` followed by 36 characters (length 40); anything else refuses to
+   publish rather than attempt one. This matters because an npm `PUT` to an
+   unauthorised package returns 404, not 403 (so as not to disclose whether
+   the package exists) -- "not a token", "wrong token", and "token without
+   rights" are otherwise indistinguishable, and a sibling repo's release
+   burned two full publish attempts on a permissions theory before finding a
+   malformed stored value was the actual cause. A token found this way
+   bypasses the interactive OTP requirement entirely and is written to a
+   *temporary* npmrc for the run only (`npm_config_userconfig`); `~/.npmrc`
+   is never touched, and no `--otp` is required or sent.
+
+2. **An interactive `npm login` session**, with `--otp <code>` on the real
+   publish. This is the human path and needs 2FA at the point of the write,
+   regardless of whether the login session itself succeeded -- a valid
+   `npm whoami` does not mean the write will be accepted without an OTP.
+
+Deliberately **not** implemented as a pre-publish readiness gate: `npm
+whoami` (401s for a correctly scoped package-only granular token -- too
+strict), `npm owner ls` (succeeds with no token at all -- vacuous), `npm
+config get //registry.npmjs.org/:_authToken` (npm redacts the value -- a
+false negative). Write permission is only observable by writing, which is
+exactly why the two properties below matter together with fail-closed
+platform-then-root ordering: a refusal costs one package, not the release.
+
+**Resumable.** A target already on the registry at the exact version being
+published is skipped, not re-attempted (`isPublished`, wrapping `npm view
+<pkg>@<version> version`). A partial failure -- an expired OTP mid-sequence,
+a transient network error -- can be cleared by simply re-running the same
+command; whatever already landed is skipped rather than rejected as "cannot
+publish over an existing version."
+
+**Registry propagation lag is real and can be long.** After every platform
+and the root publish successfully, the script waits for the registry's read
+API to catch up with npm's own write confirmation before verifying (a single
+shared backoff window across all seven packages, not one per package,
+default 30 minutes). This is not paranoia: read-after-write lag has been
+measured *worsening* release to release elsewhere in this fleet (seconds,
+then tens of seconds, then tens of minutes). **A timeout here is reported as
+registry lag, not a failed release** -- the write already succeeded, and
+running `npm unpublish` in response is destructive, available for 72 hours,
+and would remove a release that is not actually broken.
 
 ## Anchor every artifact claim to stored bytes
 
