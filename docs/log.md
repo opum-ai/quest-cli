@@ -252,6 +252,7 @@
 - 2026-09-14T00:26:38-05:00 fa94d57d944e550b354a8e993935139f00a1bf8b docs(QCLI-271): document the darwin-arm64 execution-taint SIGKILL hazard (#61)
 - 2026-09-14T11:40:39-05:00 68ab6da5c89a1d0b258cbf37a208a7ce5a890589 feat(QCLI-285): resumable publish, non-alarming propagation wait, token auth (#66)
 - 2026-09-14T15:08:05-05:00 6bd5d1d9ffdf0b29609ef5689c18db453b9c536a fix(QCLI-279): make task id allocation refs-aware
+- 2026-09-14T15:12:04-05:00 095793f4dbcc537b1c48b410a7ba5362981b3870 chore: file QCLI-287, task pause renders a healthy task as Blocked
 
 ## docs/adr
 
