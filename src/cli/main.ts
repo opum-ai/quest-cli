@@ -630,11 +630,29 @@ function sortValue(
   return { field, direction: direction === "desc" ? "desc" : "asc" };
 }
 
-function limitValue(value: string | undefined): number | undefined {
+/** Shared by every flag whose value must be a positive integer (`--limit`, `--max-notes`). */
+function positiveIntegerValue(
+  value: string | undefined,
+  flagName: string,
+): number | undefined {
   if (value === undefined) return undefined;
   if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(Number(value)))
-    throw new FlagUsageError("--limit must be a positive integer.");
+    throw new FlagUsageError(`${flagName} must be a positive integer.`);
   return Number(value);
+}
+
+function limitValue(value: string | undefined): number | undefined {
+  return positiveIntegerValue(value, "--limit");
+}
+
+/**
+ * QCLI-276: caps `task view`'s `implementationNotes` to the most recent N
+ * entries. Reuses `--limit`'s exact positive-integer grammar (QCLI-276's
+ * task brief: check `task list`'s `--limit` before committing to a shape) --
+ * a distinct helper only so the error message names `--max-notes`.
+ */
+function maxNotesValue(value: string | undefined): number | undefined {
+  return positiveIntegerValue(value, "--max-notes");
 }
 
 function updatedMilestoneTaskIds(
@@ -2316,16 +2334,17 @@ export async function runQuest(
     }
     if (command === "view" && rest[0]) {
       const parsed = flags(rest.slice(1));
-      if (!parsed || !only(parsed, []))
+      if (!parsed || !only(parsed, ["--max-notes"]))
         return usageFailure(
           parsed,
-          [],
+          ["--max-notes"],
           "task view received invalid arguments.",
         );
       return output(
         await dispatchTrackerTaskCommand(await taskService(), {
           command,
           reference: rest[0],
+          maxNotes: maxNotesValue(one(parsed, "--max-notes")),
         }),
         modeFor(parsed),
       );

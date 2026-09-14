@@ -2233,6 +2233,25 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
     const viewed = JSON.parse(
       (await quest(store, ["task", "view", created.id, "--json"])).stdout,
     ).data;
+    // QCLI-276 / DEC-3: `notesOmitted` is the one manifest-declared "task
+    // view" field that is NOT always emitted -- it is additive and only
+    // appears when `--max-notes` was supplied, present even at 0. The
+    // generic loop below carves it out of the always-present check and this
+    // pair asserts the conditional shape directly instead.
+    const viewedWithMaxNotes = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "view",
+          created.id,
+          "--max-notes",
+          "999",
+          "--json",
+        ])
+      ).stdout,
+    ).data;
+    expect(Object.hasOwn(viewed, "notesOmitted")).toBe(false);
+    expect(viewedWithMaxNotes.notesOmitted).toBe(0);
     const listed = JSON.parse(
       (await quest(store, ["task", "list", "--json"])).stdout,
     ).data.find((task: { id: string }) => task.id === created.id);
@@ -2255,9 +2274,12 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
         name,
         declared: true,
       });
-      const missing = (declared ?? []).filter(
-        (field) => !Object.hasOwn(payload as object, field),
-      );
+      // notesOmitted is checked separately above -- it is the one declared
+      // "task view" field this test's default (no --max-notes) call must
+      // NOT emit (QCLI-276 / DEC-3).
+      const missing = (declared ?? [])
+        .filter((field) => field !== "notesOmitted")
+        .filter((field) => !Object.hasOwn(payload as object, field));
       expect({ name, missing }).toEqual({ name, missing: [] });
     }
   } finally {

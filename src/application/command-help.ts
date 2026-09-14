@@ -183,9 +183,10 @@ export const commandHelp: Record<
     ],
   },
   "task view": {
-    summary: "View one task by id or alias.",
-    usage: "quest task view <id>",
-    flags: [],
+    summary:
+      "View one task by id or alias. --max-notes N caps implementationNotes to the most recent N entries and adds a notesOmitted count; omitted, the read is the full unbounded record, unchanged.",
+    usage: "quest task view <id> [--max-notes N]",
+    flags: ["--max-notes"],
   },
   search: {
     summary: "Search tasks by title and description.",
