@@ -509,13 +509,13 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       actor,
     );
     expect(checked.acceptanceCriteria).toEqual([
-      { index: 0, text: "first", checked: true },
-      { index: 1, text: "second", checked: false },
-      { index: 2, text: "third", checked: true },
+      { index: 0, position: 1, text: "first", checked: true },
+      { index: 1, position: 2, text: "second", checked: false },
+      { index: 2, position: 3, text: "third", checked: true },
     ]);
     expect(checked.definitionOfDone).toEqual([
-      { index: 0, text: "reviewed", checked: false },
-      { index: 1, text: "shipped", checked: true },
+      { index: 0, position: 1, text: "reviewed", checked: false },
+      { index: 1, position: 2, text: "shipped", checked: true },
     ]);
 
     // Removing re-indexes the survivors and leaves an untouched checkmark.
@@ -525,8 +525,8 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       actor,
     );
     expect(removed.acceptanceCriteria).toEqual([
-      { index: 0, text: "first", checked: true },
-      { index: 1, text: "third", checked: true },
+      { index: 0, position: 1, text: "first", checked: true },
+      { index: 1, position: 2, text: "third", checked: true },
     ]);
 
     // uncheck flips one box and leaves its neighbour alone.
@@ -536,8 +536,8 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       actor,
     );
     expect(unchecked.acceptanceCriteria).toEqual([
-      { index: 0, text: "first", checked: true },
-      { index: 1, text: "third", checked: false },
+      { index: 0, position: 1, text: "first", checked: true },
+      { index: 1, position: 2, text: "third", checked: false },
     ]);
 
     const dodEdited = await client.edit(
@@ -546,8 +546,8 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       actor,
     );
     expect(dodEdited.definitionOfDone).toEqual([
-      { index: 0, text: "reviewed", checked: true },
-      { index: 1, text: "shipped", checked: false },
+      { index: 0, position: 1, text: "reviewed", checked: true },
+      { index: 1, position: 2, text: "shipped", checked: false },
     ]);
 
     // --remove-dod re-indexes the survivors and keeps their checkmarks.
@@ -557,7 +557,7 @@ test("the flags the adapter emits are the flags quest accepts (QCLI-146)", async
       actor,
     );
     expect(dodRemoved.definitionOfDone).toEqual([
-      { index: 0, text: "reviewed", checked: true },
+      { index: 0, position: 1, text: "reviewed", checked: true },
     ]);
 
     const cleared = await client.edit(

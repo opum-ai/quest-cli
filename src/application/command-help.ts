@@ -230,12 +230,13 @@ export const commandHelp: Record<
     summary:
       "Edit an existing task's fields, or append/remove list items. " +
       "Checklist positions are 1-based and reader-facing: --check-ac/--uncheck-ac/--remove-ac " +
-      "and the --*-dod equivalents address an item the same way `quest task view`'s numbered " +
-      "list does. This differs from the JSON envelope's own acceptanceCriteria/definitionOfDone " +
-      "entries, each of which carries a 0-based `index` field for programmatic addressing -- " +
-      "position N is index N-1. Removing an item renumbers everything after it, in both forms: " +
-      "re-read the task before addressing what you think is 'the next' item rather than trusting " +
-      "a position computed before the removal. " +
+      "and the --*-dod equivalents address an item by the `position` field `quest task view` " +
+      "(and every other checklist-bearing command) prints on each acceptanceCriteria/" +
+      "definitionOfDone entry -- pass that number back verbatim, no arithmetic required. Each " +
+      "entry also keeps its 0-based `index` for programmatic addressing (position is always " +
+      "index + 1); `index` is not what these flags take. Removing an item renumbers everything " +
+      "after it, in both forms: re-read the task before addressing what you think is 'the next' " +
+      "item rather than trusting a position computed before the removal. " +
       "--comments/--add-comment take a JSON array of structured objects, not free text: each " +
       'entry needs {"id":"<string>","authorId":"<string>","body":"<string>","createdAt":"<ISO-8601 string>"}.',
     usage:

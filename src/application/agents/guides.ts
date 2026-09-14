@@ -136,11 +136,14 @@ parent, not a dependency.
 ## Checklist positions renumber after a removal
 
 \`--check-ac\`/\`--uncheck-ac\`/\`--remove-ac\` (and the \`--*-dod\` equivalents)
-address an acceptance-criteria/definition-of-done item by its 1-based position,
-same as the numbered list \`quest task view\` prints -- not the JSON envelope's
-own 0-based \`index\` field (position N is index N-1). Removing an item shifts
-every later item's position and index down by one, so a position computed
-before a removal is stale after it. Re-read the task rather than assume:
+address an acceptance-criteria/definition-of-done item by its 1-based
+\`position\` field (QCLI-269) -- every acceptanceCriteria/definitionOfDone entry
+\`quest task view\` (and every other checklist-bearing command) prints carries
+one; read it and pass it straight back. Each entry also keeps a 0-based
+\`index\` for programmatic addressing (position is always index + 1); \`index\`
+is not what these flags take. Removing an item shifts every later item's
+position and index down by one, so a position computed before a removal is
+stale after it. Re-read the task rather than assume:
 
 \`\`\`
 quest task create "<title>" --acceptance-criteria '["<observable outcome>","<observable outcome>"]' --actor <actor> --actor-kind human --json

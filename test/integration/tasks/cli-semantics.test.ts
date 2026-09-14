@@ -405,12 +405,16 @@ test("create accepts the full advertised field set and stores it losslessly", as
       // QCLI-137 stamps every write; the values are clock-dependent.
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
-      acceptanceCriteria: [{ index: 0, text: "works", checked: false }],
+      acceptanceCriteria: [
+        { index: 0, position: 1, text: "works", checked: false },
+      ],
       aliases: ["FULL"],
       assignees: ["person-2"],
       blockers: [],
       comments: [],
-      definitionOfDone: [{ index: 0, text: "shipped", checked: false }],
+      definitionOfDone: [
+        { index: 0, position: 1, text: "shipped", checked: false },
+      ],
       dependencies: ["T-1"],
       documentation: [],
       finalSummary: "wrapped",
@@ -572,12 +576,16 @@ test("edit replace add remove clear operations keep deterministic ordering", asy
       // QCLI-137 stamps every write; the values are clock-dependent.
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
-      acceptanceCriteria: [{ index: 0, text: "ac", checked: true }],
+      acceptanceCriteria: [
+        { index: 0, position: 1, text: "ac", checked: true },
+      ],
       aliases: [],
       assignees: ["person-2", "person-4"],
       blockers: [],
       comments: [],
-      definitionOfDone: [{ index: 0, text: "done-check", checked: false }],
+      definitionOfDone: [
+        { index: 0, position: 1, text: "done-check", checked: false },
+      ],
       dependencies: [],
       documentation: [],
       gates: [],
