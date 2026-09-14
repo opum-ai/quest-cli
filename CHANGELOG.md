@@ -30,6 +30,56 @@ section carries no version number until that release sets it.
   what it already does today (a defensive read of either shape); this field
   only protects against the *next* shape change, not the last one.
 
+- `quest task view <id> --max-notes N` caps `implementationNotes` to the most
+  recent `N` entries, adding a `notesOmitted` count (present whenever
+  `--max-notes` is supplied, including `0`, never otherwise). Additive and
+  opt-in -- omitted, `task view` is byte-for-byte unchanged (QCLI-276, one
+  piece of DEC-3, a shape agreed jointly with `@opum-ai/lore`'s own
+  `lore context` budget work). The rest of DEC-3's originally-scoped surface
+  (a general `--fields` selector, `--since`/cursor note selection, retrieving
+  one note by a stable id, field-level omission metadata) is deliberately
+  deferred, not dropped -- tracked as QCLI-291.
+
+- `quest task edit <id> --if-revision <rev>` (and a per-item `ifRevision` on
+  `task edit-batch`) lets a caller supply the revision it read earlier and
+  have the edit refused, before any state change, if the record has since
+  moved -- the same exit-5 conflict a concurrent write race already produces.
+  `quest task view <id> --json` now returns that revision (additive field) so
+  a caller has something to capture. Omitted, `task edit` is unaffected
+  (QCLI-277).
+
+### Fixed
+
+- A write conflict's `actualRevision` -- the one piece of data a caller needs
+  to retry without a second read -- was silently discarded for *every* task
+  write conflict, not only the new `--if-revision` case above: the internal
+  helper that unwraps a mutation result threw a bare error with no payload.
+  The documented retry protocol ("re-read the latest state and perform your
+  own bounded retry") was correct advice that the CLI's own diagnostic didn't
+  carry the means to follow. Now named in the diagnostic's `input` on every
+  conflict, same exit code and message (QCLI-277).
+
+- `quest agents --check --require-installed` exited `0` for a managed
+  instruction block whose *content* is current but whose embedded Quest CLI
+  version string is stale (`state: version-only`) -- correct, deliberate
+  behavior since QCLI-228, and already documented that way in this CLI's own
+  guide and help text. The one place that still lied about it: the
+  block's own embedded CI-hint sentence, written into every consumer's
+  CLAUDE.md/AGENTS.md, which said only "current instructions exit 0, ...
+  missing, drifted, or malformed managed instructions exit 6" with no mention
+  of the version-only case -- so a reader (lore-cli, concretely, whose
+  CLAUDE.md said Quest CLI 0.4.0 against an installed 0.6.0 for two minor
+  versions) reasonably concluded CI caught version drift when it deliberately
+  does not. The sentence now names the exemption explicitly; the exit code
+  itself was never the defect (QCLI-284, DEC-4).
+
+- `quest task pause <id>` parked a task at status `"Blocked"` by default --
+  a false signal read fleet-wide as "needs intervention," even when nothing
+  was blocking the task. The default paused status is now `"Paused"`,
+  structurally unchanged (still separate from the `To Do`/`In Progress`/`Done`
+  ladder, still reachable only via `pause`/`start`) -- a naming fix, not a
+  new transition (QCLI-287).
+
 ## 0.6.2
 
 Breaks lockstep with `@opum-ai/lore`, once, deliberately -- the pairing
