@@ -317,7 +317,7 @@ export const commandHelp: Record<
   },
   "task pause": {
     summary:
-      'Pause an In Progress task to the configured paused status ("Blocked" by default), recording that work was started rather than resetting it. The only way in; `task edit --status` cannot reach the paused status. Disabled if the workspace has no paused status configured.',
+      'Pause an In Progress task to the configured paused status ("Paused" by default), recording that work was started rather than resetting it. The only way in; `task edit --status` cannot reach the paused status. Disabled if the workspace has no paused status configured.',
     usage: "quest task pause <id> --actor <name> --actor-kind human",
     flags: [...ACTOR_FLAGS],
   },

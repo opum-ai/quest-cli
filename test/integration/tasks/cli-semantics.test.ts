@@ -48,7 +48,7 @@ test("status-flow reports the configured policy and list matches statuses case-i
       data: {
         statuses: ["To Do", "In Progress", "Done"],
         terminalStatuses: ["Done"],
-        pausedStatus: "Blocked",
+        pausedStatus: "Paused",
       },
       principal: null,
     });
@@ -75,13 +75,7 @@ test("status-flow reports the configured policy and list matches statuses case-i
         expect.objectContaining({ id: "T-1", status: "To Do" }),
       ]);
     }
-    const unknown = await run([
-      "task",
-      "list",
-      "--status",
-      "Blocked",
-      "--json",
-    ]);
+    const unknown = await run(["task", "list", "--status", "Paused", "--json"]);
     expect(unknown.exitCode).toBe(6);
     expect(unknown.stdout).toBe("");
     expect(diagnostic(unknown)).toEqual({
@@ -159,7 +153,7 @@ test("edit resolves case-insensitive configured statuses and rejects unknown or 
       "edit",
       "T-2",
       "--status",
-      "Blocked",
+      "Paused",
       ...actor,
       "--json",
     ]);
@@ -189,7 +183,7 @@ test("task pause/start reach and leave the paused status, and task demote requir
     expect(paused.exitCode).toBe(0);
     expect(json(paused)).toMatchObject({
       kind: "task.paused",
-      data: expect.objectContaining({ status: "Blocked" }),
+      data: expect.objectContaining({ status: "Paused" }),
     });
 
     // `--status` can neither reach nor leave the paused status.
@@ -241,16 +235,16 @@ test("task pause/start reach and leave the paused status, and task demote requir
     });
 
     // demote never reaches the paused status either; only `start` may.
-    const toBlocked = await run([
+    const toPaused = await run([
       "task",
       "demote",
       "T-1",
       "--to",
-      "Blocked",
+      "Paused",
       ...actor,
       "--json",
     ]);
-    expect(toBlocked.exitCode).toBe(6);
+    expect(toPaused.exitCode).toBe(6);
 
     const demoted = await run([
       "task",

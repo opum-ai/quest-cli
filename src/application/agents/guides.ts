@@ -267,7 +267,7 @@ removes closed, unreferenced milestones and superseded decisions.)
 
 An In Progress task that is paused rather than closed does not go through
 demote: \`quest task pause <id>\` parks it at the configured paused status
-("Blocked" by default) without erasing that work was started, and \`quest task
+("Paused" by default) without erasing that work was started, and \`quest task
 start <id>\` brings it back to In Progress.
 
 Status and on-disk location are deliberately independent (QCLI-221): only

@@ -36,7 +36,7 @@ export interface LifecyclePolicy {
 export const defaultLifecyclePolicy: LifecyclePolicy = {
   statuses: taskStatuses,
   terminalStatuses: ["Done"],
-  pausedStatus: "Blocked",
+  pausedStatus: "Paused",
 };
 
 function lifecyclePolicy(policy: LifecyclePolicy): LifecyclePolicy {
