@@ -186,9 +186,12 @@ export const commandHelp: Record<
     summary:
       "View one task by id or alias. The result carries a `revision` field " +
       "(QCLI-277) a caller can capture and later supply back as `task edit " +
-      "--if-revision <revision>`'s precondition.",
-    usage: "quest task view <id>",
-    flags: [],
+      "--if-revision <revision>`'s precondition. --max-notes N caps " +
+      "implementationNotes to the most recent N entries and adds a " +
+      "notesOmitted count; omitted, the read is the full unbounded record, " +
+      "unchanged.",
+    usage: "quest task view <id> [--max-notes N]",
+    flags: ["--max-notes"],
   },
   search: {
     summary: "Search tasks by title and description.",

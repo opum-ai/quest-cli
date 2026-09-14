@@ -269,6 +269,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "task.view",
       mutates: false,
+      filters: ["max-notes"],
       fields: [
         "acceptanceCriteria",
         "aliases",
@@ -285,6 +286,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "labels",
         "milestoneId",
         "modifiedFiles",
+        "notesOmitted",
         "ordinal",
         "parentId",
         "path",

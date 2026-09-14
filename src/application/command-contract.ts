@@ -285,6 +285,10 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "task.view",
       mutates: false,
+      // QCLI-276 / DEC-3: `--max-notes N` caps `implementationNotes` to the
+      // most recent N entries; absent, the read is the full unbounded
+      // record, unchanged.
+      filters: ["max-notes"],
       fields: [
         "acceptanceCriteria",
         "aliases",
@@ -301,6 +305,7 @@ export const commandManifest = {
         "labels",
         "milestoneId",
         "modifiedFiles",
+        "notesOmitted",
         "ordinal",
         "parentId",
         "path",

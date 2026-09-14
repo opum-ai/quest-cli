@@ -94,7 +94,18 @@ export interface TaskCommandActor {
 export type TaskCommandRequest =
   | { readonly command: "status-flow" }
   | ({ readonly command: "list" } & TaskListQuery)
-  | { readonly command: "view"; readonly reference: string }
+  | {
+      readonly command: "view";
+      readonly reference: string;
+      /**
+       * QCLI-276 / DEC-3: caps `implementationNotes` to the most recent N
+       * entries (the array's tail -- notes append chronologically, see
+       * `mergeList` in `application/tasks/edit-patch.ts`). Opt-in and
+       * additive: absent means the full, unbounded record, byte-for-byte
+       * unchanged from before this flag existed.
+       */
+      readonly maxNotes?: number;
+    }
   | { readonly command: "search"; readonly query: string }
   | {
       readonly command: "create";
@@ -149,6 +160,13 @@ export type TaskCommandResponse =
       // later supply it back as `task edit --if-revision`'s precondition.
       readonly data: WithCheckPositions<TrackerTaskWithPath> & {
         readonly revision: string;
+        /**
+         * QCLI-276 / DEC-3: `notesOmitted` is additive and conditional --
+         * present (even at 0) whenever `--max-notes` was supplied, absent
+         * entirely otherwise. It is never emitted alongside the unbounded
+         * default read, so it cannot be a required field on the base type.
+         */
+        readonly notesOmitted?: number;
       };
     }
   | {
@@ -282,13 +300,31 @@ export async function dispatchTrackerTaskCommand(
       };
     }
     case "view": {
+      // QCLI-277: revision comes from one authoritative read alongside the
+      // task itself (viewWithRevision), so it always describes the exact
+      // snapshot the rest of `data` was built from.
+      //
+      // QCLI-276 / DEC-3: the application layer keeps returning the full,
+      // untrimmed record (it stays the source of truth for any other
+      // caller); --max-notes projection happens only here, at the
+      // CLI-facing boundary.
       const { task, revision } = await tasks.viewWithRevision(
         request.reference,
       );
+      const full = { ...withCheckPositions(task), revision };
+      if (request.maxNotes === undefined)
+        return { schemaVersion: 1, kind: "task.view", data: full };
+      // Notes append chronologically (mergeList pushes new entries at the
+      // array's end), so "most recent N" is the tail slice.
+      const capped = full.implementationNotes.slice(-request.maxNotes);
       return {
         schemaVersion: 1,
         kind: "task.view",
-        data: { ...withCheckPositions(task), revision },
+        data: {
+          ...full,
+          implementationNotes: capped,
+          notesOmitted: full.implementationNotes.length - capped.length,
+        },
       };
     }
     case "search":

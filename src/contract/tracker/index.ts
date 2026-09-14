@@ -600,6 +600,7 @@ export class QuestTrackerClient {
         name: "task view",
         kind: "task.view",
         mutates: false,
+        filters: ["max-notes"],
         fields: [
           "acceptanceCriteria",
           "aliases",
@@ -616,6 +617,7 @@ export class QuestTrackerClient {
           "labels",
           "milestoneId",
           "modifiedFiles",
+          "notesOmitted",
           "ordinal",
           "parentId",
           "path",

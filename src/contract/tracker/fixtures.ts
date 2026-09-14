@@ -52,6 +52,7 @@ export const trackerManifestFixture: TrackerManifest = {
       schemaVersion: 1,
       kind: "task.view",
       mutates: false,
+      filters: ["max-notes"],
       fields: [
         "acceptanceCriteria",
         "aliases",
@@ -68,6 +69,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "labels",
         "milestoneId",
         "modifiedFiles",
+        "notesOmitted",
         "ordinal",
         "parentId",
         "path",
