@@ -11,7 +11,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LocalPlanningRepository } from "../src/adapters/planning/local-planning-repository.ts";
-import { LocalTaskRepository } from "../src/application/tasks/local-task-repository.ts";
+import {
+  LocalTaskRepository,
+  RecordDuplicateIdentityError,
+} from "../src/application/tasks/local-task-repository.ts";
 import { TaskService } from "../src/application/tasks/tasks.ts";
 import { createTask } from "../src/domain/tasks/tasks.ts";
 
@@ -105,6 +108,89 @@ test("lifecycle moves retain one canonical task identity and drafts promote atom
     expect(
       (await service.listDrafts(true)).map((record) => record.location),
     ).toEqual(["archive/drafts"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("QCLI-261: a task left duplicated across tasks/ and completed/ by a partial `git add` throws a duplicate-identity error naming the id and every path", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-duplicate-identity-"));
+  try {
+    const repository = new LocalTaskRepository(join(root, ".quest", "tasks"));
+    const service = new TaskService(repository);
+    await service.create("T-1", { title: "dup" }, "create");
+    await service.transition("T-1", "In Progress", "progress");
+    await service.complete("T-1", "complete");
+    // The exact corruption shape from the field: a `git add <added> <added>`
+    // (no `-a`) that named the two files being moved but not the deletion of
+    // the original leaves BOTH the addition (completed/T-1.json) and the
+    // never-deleted original (tasks/T-1.json) present. The two files happen
+    // to be byte-identical here since nothing else changed between them;
+    // the duplicate-identity check fires on the id colliding across
+    // locations, not on the files' content differing.
+    const completedPath = join(root, ".quest", "completed", "T-1.json");
+    const stalePath = join(root, ".quest", "tasks", "T-1.json");
+    await writeFile(stalePath, await readFile(completedPath, "utf8"), "utf8");
+
+    const error: unknown = await repository.readAll().catch((caught) => caught);
+    expect(error).toBeInstanceOf(RecordDuplicateIdentityError);
+    expect((error as RecordDuplicateIdentityError).message).toBe(
+      "task_lifecycle_duplicate_identity",
+    );
+    expect((error as RecordDuplicateIdentityError).duplicates).toEqual([
+      { id: "T-1", paths: [stalePath, completedPath] },
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("QCLI-261: two files under the SAME location sharing an id report both real filenames, not a synthesized path repeated twice", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "quest-duplicate-identity-same-dir-"),
+  );
+  try {
+    const repository = new LocalTaskRepository(join(root, ".quest", "tasks"));
+    const service = new TaskService(repository);
+    await service.create("T-1", { title: "dup" }, "create");
+    // A stray hand-made copy under a DIFFERENT filename in the same
+    // directory -- the naive fix (reconstructing `<id>.json` from the id)
+    // would report the canonical path twice and never name this file.
+    const canonicalPath = join(root, ".quest", "tasks", "T-1.json");
+    const strayPath = join(root, ".quest", "tasks", "T-1-copy.json");
+    await writeFile(strayPath, await readFile(canonicalPath, "utf8"), "utf8");
+
+    const error: unknown = await repository.readAll().catch((caught) => caught);
+    expect(error).toBeInstanceOf(RecordDuplicateIdentityError);
+    // Sorted filename order ("T-1-copy.json" < "T-1.json"), matching
+    // filesMatchingId's own deterministic sort -- not insertion order.
+    expect((error as RecordDuplicateIdentityError).duplicates).toEqual([
+      { id: "T-1", paths: [strayPath, canonicalPath] },
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("QCLI-261: the same duplicate-identity shape on the draft side names the id and both paths", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-duplicate-identity-draft-"));
+  try {
+    const repository = new LocalTaskRepository(join(root, ".quest", "tasks"));
+    const service = new TaskService(repository);
+    await service.createDraft("D-1", { title: "dup draft" }, "create");
+    await service.archiveDraft("D-1", "archive");
+    const archivedPath = join(root, ".quest", "archive", "drafts", "D-1.json");
+    const stalePath = join(root, ".quest", "drafts", "D-1.json");
+    await writeFile(stalePath, await readFile(archivedPath, "utf8"), "utf8");
+
+    const error: unknown = await repository.readAll().catch((caught) => caught);
+    expect(error).toBeInstanceOf(RecordDuplicateIdentityError);
+    expect((error as RecordDuplicateIdentityError).message).toBe(
+      "draft_lifecycle_duplicate_identity",
+    );
+    expect((error as RecordDuplicateIdentityError).duplicates).toEqual([
+      { id: "D-1", paths: [stalePath, archivedPath] },
+    ]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
