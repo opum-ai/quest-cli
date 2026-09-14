@@ -378,11 +378,16 @@ test("imported acceptance criteria and definition-of-done keep their checked sta
     // Before the fix this came back checked:false on every item -- the parsed
     // checkbox state never reached the structured field, only `item.text` did.
     expect(partial.acceptanceCriteria).toEqual([
-      { index: 0, text: "Reproduce with empty CSV", checked: true },
-      { index: 1, text: "Add regression test", checked: false },
+      {
+        index: 0,
+        position: 1,
+        text: "Reproduce with empty CSV",
+        checked: true,
+      },
+      { index: 1, position: 2, text: "Add regression test", checked: false },
     ]);
     expect(partial.definitionOfDone).toEqual([
-      { index: 0, text: "Code reviewed", checked: true },
+      { index: 0, position: 1, text: "Code reviewed", checked: true },
     ]);
 
     const done = JSON.parse(
