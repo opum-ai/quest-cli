@@ -49,6 +49,14 @@ import {
   type TaskBindingReadModel,
 } from "../application/claims/opum-agent-workflow.ts";
 
+/** Inferred rather than annotated with the `ports/git.ts` interface type:
+ * `cli` may depend on `application`, never on `ports` directly (see
+ * scripts/check-layers.mjs); only this file's construction of the concrete
+ * adapter is exempted. */
+export function createGitPort() {
+  return new LocalGitPort();
+}
+
 /** Read model for the public opum-agent-workflow/v1 binding surface. */
 export async function createTaskBindingModel(
   root: string,

@@ -167,6 +167,17 @@ export class LocalGitPort implements GitPort {
     return result.stdout.split("\n").filter((line) => line.length > 0);
   }
 
+  async listRefs(repositoryPath: string): Promise<readonly string[]> {
+    const result = await git(repositoryPath, [
+      "for-each-ref",
+      "--format=%(refname)",
+      "refs/heads",
+      "refs/remotes",
+    ]);
+    if (result.code !== 0) return [];
+    return result.stdout.split("\n").filter((line) => line.length > 0);
+  }
+
   async commit(operation: GitOperation): Promise<GitOperationResult> {
     this.assertOperationScope(operation);
     const prepared = await this.withPreparationLock(
