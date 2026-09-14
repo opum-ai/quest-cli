@@ -909,3 +909,52 @@ test("a genuine dual id claim still refuses under --preserve-source-ids, with gu
     await rm(source, { recursive: true, force: true });
   }
 });
+
+test("status and rollback report a never-previewed digest as not_found on exit 3, not validation on exit 6 (QCLI-257)", async () => {
+  const store = await mkdtemp(join(tmpdir(), "quest-backlog-not-found-"));
+  try {
+    const unknownDigest =
+      "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+
+    const status = await quest(store, [
+      "migration",
+      "backlog",
+      "status",
+      "--digest",
+      unknownDigest,
+      "--json",
+    ]);
+    expect(status.exitCode).toBe(3);
+    expect(status.stdout).toBe("");
+    expect(JSON.parse(status.stderr)).toEqual({
+      error_type: "not_found",
+      message: "migration_not_found",
+      principal: null,
+    });
+
+    // rollback() calls status() internally to load the receipt before it does
+    // anything else, so it throws and must classify the identical message the
+    // identical way -- this is the sibling call site DEC-2/QCLI-257 covers.
+    const rollback = await quest(store, [
+      "migration",
+      "backlog",
+      "rollback",
+      "--digest",
+      unknownDigest,
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(rollback.exitCode).toBe(3);
+    expect(rollback.stdout).toBe("");
+    expect(JSON.parse(rollback.stderr)).toEqual({
+      error_type: "not_found",
+      message: "migration_not_found",
+      principal: null,
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+  }
+});

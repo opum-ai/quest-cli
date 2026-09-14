@@ -2915,6 +2915,14 @@ export async function runQuest(
         "draft_not_found",
         "milestone_not_found",
         "decision_not_found",
+        // QCLI-257: MigrationBacklogService.status() throws this plain Error
+        // for an unknown or never-previewed digest; rollback() calls status()
+        // internally and inherits the identical message on the identical
+        // path, so this one entry covers both. apply()'s own not-yet-approved
+        // case is the differently-shaped migration_approval_digest_mismatch
+        // (a freshly recomputed preview digest disagreeing with the caller's)
+        // and deliberately stays validation -- see DEC-2.
+        "migration_not_found",
       ].includes(message)
     )
       return failure("not_found", message);
