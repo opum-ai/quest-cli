@@ -52,7 +52,8 @@ test("task command mapping preserves read records and requires actor declaration
     dispatchTrackerTaskCommand(service, { command: "view", reference: "T-1" }),
   ).resolves.toMatchObject({
     kind: "task.view",
-    data: { description: "Unchanged public task detail." },
+    // QCLI-277: additive `revision`, present alongside every other field.
+    data: { description: "Unchanged public task detail.", revision: "one" },
   });
   await expect(
     dispatchTrackerTaskCommand(service, {
