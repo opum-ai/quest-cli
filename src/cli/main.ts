@@ -42,7 +42,10 @@ import {
 } from "../application/command-parameters.ts";
 import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
-import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
+import {
+  LocalTaskRepository,
+  RecordDuplicateIdentityError,
+} from "../application/tasks/local-task-repository.ts";
 import type { LocatedDraft, TaskService } from "../application/tasks/tasks.ts";
 import {
   type AgentSkillSource,
@@ -2846,6 +2849,15 @@ export async function runQuest(
     // summary message and drop the list the operator needs to act on it.
     if (error instanceof BacklogMigrationRefusedError)
       return failure("conflict", error.message, { input: error.details });
+    // QCLI-261: same rationale as BacklogMigrationRefusedError above -- the
+    // generic `kind === "conflict"` fallback would keep only the bare message
+    // ("task_lifecycle_duplicate_identity") and drop the id and paths a
+    // caller who did not cause the corruption needs to find and fix it.
+    if (error instanceof RecordDuplicateIdentityError)
+      return failure("conflict", error.message, {
+        input: { duplicates: error.duplicates },
+        hint: "Every quest command fails closed while a task or draft id exists under more than one of tasks/completed/archive/tasks (or drafts/archive/drafts) -- usually a partial `git add` that staged a move's addition but not its deletion. Compare the listed paths yourself (diff, updatedAt, status): if they are the same record duplicated, keep the one reflecting the record's actual current state and remove the other(s) directly with `rm`/`git rm` -- quest cannot run any command to do this for you while the duplicate exists, so this is a sanctioned exception to editing .quest/ by hand. If the records genuinely differ (two unrelated tasks collided on the same id), this is not a stale copy -- do not delete either without reconciling which one keeps the id.",
+      });
     // Decidable from argv alone, so they belong with the other flag-combination
     // usage errors rather than the post-read validation failures. The fold
     // still owns the rule, so `task edit-batch` reports it per item.
