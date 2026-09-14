@@ -65,6 +65,7 @@ import {
 import {
   createAgentInstructionPort,
   createBacklogImportService,
+  createGitPort,
   createPlanningService,
   createTaskBindingModel,
   createTaskService,
@@ -682,17 +683,83 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   } as const;
 }
 
-async function nextTaskId(tasks: TaskService, prefix: string): Promise<string> {
+/** Subdirectories, relative to `<workspaceRoot>/.quest`, a task record can
+ * live in across its lifecycle -- must track local-task-repository.ts's own
+ * layout, or an id retained there would be invisible to this scan too. */
+const TASK_RECORD_SUBDIRECTORIES = ["tasks", "completed", "archive/tasks"];
+
+/**
+ * QCLI-279: the working tree only shows what THIS ref's `.quest/tasks`
+ * happens to contain. A sibling branch carrying an unmerged task record, or
+ * a detached HEAD sitting behind a branch that has since moved, both hide a
+ * higher id from a scan of the working tree alone -- and allocating from the
+ * tree alone then mints a silent duplicate (reproduced three times on this
+ * task's own filing; see its implementation notes). Local refs are cheap to
+ * check -- a tree listing per ref, not a history walk -- and this covers
+ * every reproduced trigger, because the branch or tag that actually carries
+ * the newer record is always among them.
+ *
+ * Degrades to 0 wherever `root` is not a Git working directory, or Git is
+ * not installed at all: `listRefs`/`listFiles` return `[]` for a non-zero
+ * Git exit (same defensive contract `local-git.ts` already keeps
+ * everywhere else), and the outer try/catch below also covers a Git binary
+ * that cannot be spawned in the first place -- the same broad-catch shape
+ * `createTaskBindingModel` (composition.ts) already uses around its own
+ * `readRevision("HEAD")` call for exactly this reason. Either way, a plain
+ * (non-Git) `.quest` directory keeps today's local-only behavior exactly.
+ */
+async function highestSequenceOnOtherRefs(
+  git: ReturnType<typeof createGitPort>,
+  root: string,
+  marker: string,
+): Promise<number> {
+  try {
+    const refs = await git.listRefs(root);
+    const filesByRef = await Promise.all(
+      refs.map(async (ref) => {
+        const filesBySubdirectory = await Promise.all(
+          TASK_RECORD_SUBDIRECTORIES.map((subdirectory) =>
+            git.listFiles(root, ref, `.quest/${subdirectory}`),
+          ),
+        );
+        return filesBySubdirectory.flat();
+      }),
+    );
+    let highest = 0;
+    for (const file of filesByRef.flat()) {
+      const name = file.slice(file.lastIndexOf("/") + 1);
+      if (!name.startsWith(marker) || !name.endsWith(".json")) continue;
+      const numeric = Number(
+        name.slice(marker.length, name.length - ".json".length),
+      );
+      if (Number.isSafeInteger(numeric)) highest = Math.max(highest, numeric);
+    }
+    return highest;
+  } catch {
+    return 0;
+  }
+}
+
+async function nextTaskId(
+  tasks: TaskService,
+  prefix: string,
+  git: ReturnType<typeof createGitPort>,
+  root: string,
+): Promise<string> {
   const ids = await tasks.listIncludingRetained();
   // Only this prefix's own family can advance the counter: a foreign-prefixed
   // id (an imported record, or a workspace whose prefix changed) must never
   // perturb the sequence.
   const marker = `${prefix}-`;
-  const highest = ids.reduce((maximum, task) => {
+  const localHighest = ids.reduce((maximum, task) => {
     if (!task.id.startsWith(marker)) return maximum;
     const numeric = Number(task.id.slice(marker.length));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
+  const highest = Math.max(
+    localHighest,
+    await highestSequenceOnOtherRefs(git, root, marker),
+  );
   return `${prefix}-${highest + 1}`;
 }
 
@@ -939,6 +1006,7 @@ export async function runQuest(
       });
     let root: Promise<string> | undefined;
     const resolvedRoot = () => (root ??= taskStoreRoot());
+    const git = createGitPort();
     const taskService = async () => createTaskService(await resolvedRoot());
     const taskReader = async () => createTaskReader(await resolvedRoot());
     const planningService = async () =>
@@ -2016,7 +2084,12 @@ export async function runQuest(
           await tasks.promoteDraft(
             rest[0],
             one(parsed, "--task-id") ??
-              (await nextTaskId(tasks, await configuredTaskIdPrefix())),
+              (await nextTaskId(
+                tasks,
+                await configuredTaskIdPrefix(),
+                git,
+                await resolvedRoot(),
+              )),
             crypto.randomUUID(),
           ),
           "task",
@@ -2463,7 +2536,12 @@ export async function runQuest(
           command,
           id:
             one(parsed, "--id") ??
-            (await nextTaskId(tasks, await configuredTaskIdPrefix())),
+            (await nextTaskId(
+              tasks,
+              await configuredTaskIdPrefix(),
+              git,
+              await resolvedRoot(),
+            )),
           operationId: crypto.randomUUID(),
           actor: writeActor,
           input: {

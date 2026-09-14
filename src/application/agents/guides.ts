@@ -116,6 +116,17 @@ Write acceptance criteria as outcomes someone else could verify without asking
 you what you meant. An id is allocated for you; pass \`--id\` only to reserve a
 specific one.
 
+## Auto-allocated ids are refs-aware
+
+Omitting \`--id\` checks every local branch and remote-tracking ref for the same
+prefix, not just the current working tree (QCLI-279). A sibling branch carrying
+an unmerged task record, or a detached checkout sitting behind a branch that
+has since moved, no longer produces a silent duplicate id -- allocation takes
+the highest sequence number visible across every local ref, not only the one
+checked out. This only consults refs that already exist locally; it never
+fetches. A \`.quest\` directory with no Git repository behind it keeps
+allocating from the working tree alone, exactly as before.
+
 ## Dependencies must already exist
 
 \`--dependency\`/\`--parent\` validate against real records at creation time, so a
