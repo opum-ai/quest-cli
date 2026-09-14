@@ -100,6 +100,63 @@ breaking section before upgrading.
   `JSON.stringify`, which drops it -- and rendered it as the literal string.
   Fixed at the shared renderer, which protects every command that assigns an
   optional field straight into a data object, not just `quest init` (QCLI-272).
+- `--check-ac`/`--uncheck-ac`/`--remove-ac` (and the `--*-dod` equivalents)
+  addressed the wrong checklist item: every display surface numbers
+  acceptance criteria and definition-of-done items starting at 1, but these
+  flags read that same number as the 0-based `index` -- `--check-ac 3` on an
+  item printed as position 3 silently checked the fourth item instead. Every
+  envelope now carries an additive, presentation-matching 1-based `position`
+  alongside the unchanged 0-based `index`; the flags take the printed
+  `position` verbatim, and help/agent-guide text no longer describes a
+  numbered list that did not exist (QCLI-269).
+- The shared usage-error path (`only()` in `src/cli/main.ts`, 37 call sites)
+  discarded which flag was rejected, so a caller who supplied every required
+  flag correctly plus one unrecognized one was still told a reference or
+  actor was missing -- `task complete --final-summary ...` was the reported
+  case, since `--final-summary` was not yet an accepted flag on `task
+  complete` at all. Both are fixed: `task complete` now accepts
+  `--final-summary`, applied in the same write as the terminal transition,
+  and 21 of the 37 call sites now name the actual unrecognized flag instead
+  of a generic reference/actor sentence. The remaining 15 (the `migration
+  backlog`, `milestone`/`decision`, and `draft` action dispatchers) use a
+  positive-gate-per-action shape that cannot take this fix without a larger
+  restructure and still report the old generic message -- tracked separately
+  rather than left silently inconsistent (QCLI-270; the remaining 15 sites
+  are QCLI-282).
+- A task or draft record present under more than one `.quest/` storage
+  location -- the shape a partial `git add` produces -- took down every
+  `quest task` command with a bare, unactionable error. The error now names
+  every colliding id and its exact file paths, plus sanctioned `rm`/`git rm`
+  recovery guidance, instead of a message with nothing to act on (QCLI-261).
+- `migration backlog status`/`rollback` reported a not-yet-previewed digest
+  as `error_type: "validation"` (exit 6), not `"not_found"` (exit 3),
+  contrary to the Opum result contract's not-found convention -- a caller
+  branching on `error_type` to distinguish "malformed input" from "no such
+  record" could not do so reliably. Reclassified to `not_found`; a
+  differently-shaped digest-mismatch case on `apply()` stays `validation`
+  deliberately, recorded as DEC-2 (QCLI-257).
+- `release.yml`'s post-publish registry-verification step hard-failed the
+  whole release if any of the seven npm packages was not yet visible within
+  a flat 5-minute window -- and had already false-failed a successful
+  publish twice (0.4.0, 0.5.0), both times on `quest-win32-arm64` alone
+  propagating slower than the other six platforms. Widened to 12 attempts
+  with exponential backoff (15s/30s/60s, capped), about 2.75-3x the old
+  window, while the common fast case is unchanged; the step's output now
+  also names which of two failure classes occurred (QCLI-247).
+
+### Known limitations
+
+- **0.6.2 ships without a provenance attestation, because provenance
+  requires the CI OIDC path, which is currently dead.** GitHub's org-wide
+  immutable-subject-claim policy rejects the subject-claim shape npm Trusted
+  Publishing expects (unrelated to the 2026-09-10 repository recreation
+  below), so 0.6.2 was published manually instead; a manual publish cannot
+  produce an attestation. Expected, not evidence of tampering.
+- **Versions published before 2026-09-10 carry permanently dangling
+  provenance links** (the repository recreation destroyed the commits/build
+  runs they point to) **and cannot be repaired -- npm forbids republishing a
+  version.** Affects 0.3.0 through 0.6.0 and the never-published `v0.6.1`
+  tag. See `docs/runbooks/quest-cli-package-and-release.md`.
 
 ## 0.6.0
 
