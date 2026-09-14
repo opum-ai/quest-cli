@@ -341,10 +341,10 @@ export class LocalTaskRepository
         location: "archive/drafts" as const,
       })),
     ];
-    const taskDuplicates = this.duplicatesOf(
+    const taskDuplicates = await this.duplicatesOf(
       taskRecords.map((record) => ({
         id: record.task.id,
-        path: this.taskPath(record.task.id, record.location),
+        location: record.location,
       })),
     );
     if (taskDuplicates.length > 0)
@@ -352,10 +352,10 @@ export class LocalTaskRepository
         "task_lifecycle_duplicate_identity",
         taskDuplicates,
       );
-    const draftDuplicates = this.duplicatesOf(
+    const draftDuplicates = await this.duplicatesOf(
       draftRecords.map((record) => ({
         id: record.draft.id,
-        path: this.draftPath(record.draft.id, record.location),
+        location: record.location,
       })),
     );
     if (draftDuplicates.length > 0)
@@ -370,22 +370,81 @@ export class LocalTaskRepository
   }
 
   /**
-   * QCLI-261: groups by id and keeps only ids seen under more than one path,
-   * in first-seen order, so a caller sees every colliding id at once rather
-   * than learning about a second one only after fixing the first.
+   * QCLI-261: groups by id and keeps only ids seen more than once, in
+   * first-seen order, so a caller sees every colliding id at once rather
+   * than learning about a second one only after fixing the first. Re-scans
+   * each implicated location for the REAL filename(s) matching the id,
+   * rather than reconstructing `<id>.json` -- a naive reconstruction reports
+   * the identical (wrong) path twice for the corruption shape this exists to
+   * diagnose in the first place: two files under the SAME location whose
+   * content shares an id but whose filenames differ (e.g. a stray hand copy)
+   * would otherwise look invisible in the diagnostic. Only runs once a
+   * duplicate is already known to exist, so the extra directory reads cost
+   * nothing on the normal, non-duplicated path.
    */
-  private duplicatesOf(
-    records: readonly { readonly id: string; readonly path: string }[],
-  ): readonly { readonly id: string; readonly paths: readonly string[] }[] {
-    const pathsById = new Map<string, string[]>();
+  private async duplicatesOf(
+    records: readonly {
+      readonly id: string;
+      readonly location: TaskLocation | DraftLocation;
+    }[],
+  ): Promise<readonly DuplicateIdentityRecord[]> {
+    const locationsById = new Map<string, Set<TaskLocation | DraftLocation>>();
+    const occurrences = new Map<string, number>();
     for (const record of records) {
-      const paths = pathsById.get(record.id);
-      if (paths) paths.push(record.path);
-      else pathsById.set(record.id, [record.path]);
+      occurrences.set(record.id, (occurrences.get(record.id) ?? 0) + 1);
+      const locations = locationsById.get(record.id) ?? new Set();
+      locations.add(record.location);
+      locationsById.set(record.id, locations);
     }
-    return [...pathsById.entries()]
-      .filter(([, paths]) => paths.length > 1)
-      .map(([id, paths]) => ({ id, paths }));
+    const duplicateIds = [...occurrences.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+    return Promise.all(
+      duplicateIds.map(async (id) => {
+        const paths = (
+          await Promise.all(
+            [...(locationsById.get(id) ?? [])].map((location) =>
+              this.filesMatchingId(id, location),
+            ),
+          )
+        ).flat();
+        return { id, paths };
+      }),
+    );
+  }
+
+  /** Real on-disk filenames under `location` whose own `id` field matches -- not an assumption about naming. */
+  private async filesMatchingId(
+    id: string,
+    location: TaskLocation | DraftLocation,
+  ): Promise<readonly string[]> {
+    const directory = join(this.root(), location);
+    let names: readonly string[];
+    try {
+      names = await readdir(directory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+    const matches: string[] = [];
+    for (const name of names
+      .filter((entry) => !entry.startsWith(".") && entry.endsWith(".json"))
+      .sort()) {
+      const path = join(directory, name);
+      try {
+        const parsed = JSON.parse(await readFile(path, "utf8"));
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          (parsed as { id?: unknown }).id === id
+        )
+          matches.push(path);
+      } catch {
+        // A file that fails to parse here already surfaces (or will) through
+        // recordsAt's own decode path; this diagnostic scan just skips it.
+      }
+    }
+    return matches;
   }
 
   private revision(
@@ -758,23 +817,19 @@ export class LocalTaskRepository
         taskRecords: nextRecordsArray,
         drafts: current.drafts ?? [],
       };
-      // QCLI-261: structurally unreachable today -- nextRecords is a Map
-      // keyed by task id, so nextRecordsArray cannot itself contain a
-      // duplicate id -- but kept as a defensive invariant check and upgraded
-      // to the same enriched error as snapshot() so a future refactor of the
-      // dedup logic above cannot silently reintroduce the bare, unhelpful
-      // message this task removed everywhere else it was reachable.
-      const applyTransactionDuplicates = this.duplicatesOf(
-        nextSnapshot.taskRecords.map((record) => ({
-          id: record.task.id,
-          path: this.taskPath(record.task.id, record.location),
-        })),
-      );
-      if (applyTransactionDuplicates.length > 0)
-        throw new RecordDuplicateIdentityError(
-          "task_lifecycle_duplicate_identity",
-          applyTransactionDuplicates,
-        );
+      // QCLI-261: structurally unreachable -- nextRecords is a Map keyed by
+      // task id, so nextRecordsArray cannot itself contain a duplicate id.
+      // Left as the original bare check deliberately: this validates an
+      // in-memory, not-yet-written hypothetical snapshot, so there is no
+      // real file for `duplicatesOf`'s on-disk filename scan to find, and
+      // reconstructing a path here would repeat the exact flaw QCLI-261
+      // fixed in the reachable `snapshot()` path (reporting a synthesized
+      // `<id>.json` path rather than a real one).
+      if (
+        new Set(nextSnapshot.taskRecords.map((r) => r.task.id)).size !==
+        nextSnapshot.taskRecords.length
+      )
+        throw new RecordConflictError("task_lifecycle_duplicate_identity");
 
       const nextTaskRevision = this.revision(nextSnapshot);
 
