@@ -185,32 +185,66 @@ jobs:
       # completed release as a failed one. A red run on a successful publish is
       # how a real failure gets ignored later, so this waits for propagation
       # rather than reporting the lag as a defect.
+      #
+      # QCLI-247. The original fixed 30s x 10 (5 minutes flat, no backoff)
+      # budget false-failed the whole run on 0.4.0 and 0.5.0 alike -- 2 for 2.
+      # Both times every package but quest-win32-arm64 was visible well inside
+      # that window; win32-arm64's own publish log showed npm's own "being
+      # processed and may take a few minutes to become available" notice, and
+      # it then resolved on independent polling shortly after the 5-minute
+      # cutoff, with no republish needed (0.4.0: docs/reference/quest-cli-
+      # release-truth.md "Current publication state (2026-09-07)"; 0.5.0:
+      # QCLI-242's implementation notes). Neither record carries an exact
+      # resolution time -- the workflow run logs that would have it no longer
+      # exist after the 2026-09-10 repository deletion/recreation (QCLI-267)
+      # -- so this budget is sized as a multiple of the window that already
+      # failed twice, not a fresh guess: up to 12 checks with exponential
+      # backoff (15s, 30s, 60s, then 90s), ~13m45s of total wait before giving
+      # up. That clears "shortly after" a 5-minute miss with roughly 2.75x
+      # margin, while the doubling keeps the common case (all seven visible on
+      # the first check) just as fast as before and avoids hammering the
+      # registry once a package is already known to be lagging.
       - name: Verify the registry serves what was published
         if: ${{ inputs.publish == true }}
         run: |
           set -uo pipefail
           version=$(node -p "require('./package.json').version")
           names="quest quest-darwin-arm64 quest-darwin-x64 quest-linux-arm64 quest-linux-x64 quest-win32-arm64 quest-win32-x64"
-          for attempt in $(seq 1 10); do
+          max_attempts=12
+          delay=15
+          elapsed=0
+          for attempt in $(seq 1 "$max_attempts"); do
             missing=""
             for name in $names; do
               npm view "@opum-ai/${name}@${version}" version >/dev/null 2>&1 || missing="${missing} ${name}"
             done
             if [ -z "$missing" ]; then
-              echo "all seven packages serving ${version} (after ${attempt} checks)"
+              echo "all seven packages visible on the registry (after ${attempt} checks, ~${elapsed}s elapsed)"
               break
             fi
-            if [ "$attempt" -eq 10 ]; then
-              echo "::error::still not served after 10 checks:${missing}"
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::error::registry propagation timeout: still not visible after ${attempt} checks over ~${elapsed}s (~$((elapsed / 60))m):${missing}. This means the package(s) never appeared under ${version} in that window at all -- npm-side CDN/attestation-processing lag, the same class observed on 0.4.0 and 0.5.0's quest-win32-arm64, both of which resolved shortly after a shorter 5-minute budget. This is NOT a content mismatch: a package visible under the right version but serving the wrong bytes is a different, real failure and is reported separately below, after this loop passes."
               exit 1
             fi
-            echo "waiting for CDN propagation, still missing:${missing}"
-            sleep 30
+            echo "still waiting for CDN propagation (attempt ${attempt}/${max_attempts}, next check in ${delay}s):${missing}"
+            sleep "$delay"
+            elapsed=$((elapsed + delay))
+            if [ "$delay" -lt 90 ]; then
+              delay=$((delay * 2))
+              [ "$delay" -gt 90 ] && delay=90
+            fi
           done
           set -e
           # The receipt claims specific bytes. Prove the registry serves them.
-          node scripts/qualification/native-execution-receipt.mjs \
-            --verify-published "$version" --receipt receipt/native-execution-receipt.json
+          # A failure here is a different class of problem from the loop
+          # above: every package is already confirmed visible by this point,
+          # so a red run here means the registry serves the wrong content
+          # under the right version -- a real mismatch, not propagation lag.
+          if ! node scripts/qualification/native-execution-receipt.mjs \
+            --verify-published "$version" --receipt receipt/native-execution-receipt.json; then
+            echo "::error::registry content mismatch: all seven packages are visible as ${version}, but the published bytes do not match the native-execution receipt (mismatch detail above). This is a real defect, not propagation lag."
+            exit 1
+          fi
 
       # QCLI-267, the half that names the defect directly: the registry's own
       # gitHead for what was just published must be the commit it was released
