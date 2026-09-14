@@ -250,6 +250,7 @@
 - 2026-09-13T18:02:22-05:00 d6b5ca33a6960cc7aa9d895f421dc47a56e97176 chore(QCLI-271): record session handoff before orchestrator recycle
 - 2026-09-13T23:46:30-05:00 bbcd2f136cddebce7d00c9e8b4328e614eb0d43e chore(QCLI-271): ship Quest CLI 0.6.2 (#57)
 - 2026-09-14T00:26:38-05:00 fa94d57d944e550b354a8e993935139f00a1bf8b docs(QCLI-271): document the darwin-arm64 execution-taint SIGKILL hazard (#61)
+- 2026-09-14T11:40:39-05:00 68ab6da5c89a1d0b258cbf37a208a7ce5a890589 feat(QCLI-285): resumable publish, non-alarming propagation wait, token auth (#66)
 
 ## docs/adr
 
