@@ -27,6 +27,19 @@ content is not, and normally would have shared the number anyway so the
 pair stays coordinated -- this release is the one exception. Read the
 breaking section before upgrading.
 
+### Changed
+
+- The root `@opum-ai/quest` package's published tarball now includes
+  `README.md` alongside `bin/quest.cjs` and `LICENSE`, so the npm registry
+  page renders it. It entered `package.json`'s `files` list as part of the
+  2026-09-10 repository recreation (OPAG-70) without a specific review of
+  its own; ratified here as a deliberate, ordinary choice for a published
+  CLI package rather than reverted to match the pre-recreation three-file
+  shape. Confirmed by opum-cli-e2e's pair-qualification suite against both
+  a local pack and the live registry tarball; its expected-file-list
+  baseline (`baselines/v0.6.2-pair`) now reflects this shape as current,
+  not as a regression.
+
 ### Changed (breaking)
 
 - Every **single-record** mutating command now carries the written record
