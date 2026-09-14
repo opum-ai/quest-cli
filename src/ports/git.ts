@@ -78,6 +78,12 @@ export interface GitPort {
     revision: string,
     prefix: string,
   ): Promise<readonly string[]>;
+  /**
+   * Every local branch and remote-tracking ref, as full ref names (e.g.
+   * `refs/heads/dev`). Current tips only -- a for-each-ref listing, never a
+   * history walk.
+   */
+  listRefs(repositoryPath: string): Promise<readonly string[]>;
   commit(operation: GitOperation): Promise<GitOperationResult>;
   synchronize(operation: GitSynchronization): Promise<GitOperationResult>;
   push(operation: GitPush): Promise<GitOperationResult>;
