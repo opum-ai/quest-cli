@@ -337,7 +337,7 @@ export const commandHelp: Record<
   },
   "task start": {
     summary:
-      "Move a task to In Progress from either To Do or the paused status. The only way out of the paused status.",
+      'Move a task to In Progress from either To Do or the paused status. The only way out of the paused status -- including the retired pre-0.7.0 default "Blocked" on a record parked before the rename, when the workspace does not configure that literal itself (QCLI-302); nothing is migrated silently, and `quest doctor` names such records.',
     usage: "quest task start <id> --actor <name> --actor-kind human",
     flags: [...ACTOR_FLAGS],
   },
@@ -465,7 +465,8 @@ export const commandHelp: Record<
     flags: ["--force"],
   },
   doctor: {
-    summary: "Check the workspace for consistency problems.",
+    summary:
+      'Check the workspace for consistency problems: milestone references to unknown tasks, and active tasks parked at a status on neither the configured ladder nor the paused slot (for example the retired pre-0.7.0 paused literal "Blocked"), each with the command that repairs it.',
     usage: "quest doctor",
     flags: [],
   },

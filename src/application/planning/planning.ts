@@ -9,6 +9,12 @@ import {
   RecordValidationError,
 } from "../../domain/records.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
+import {
+  defaultLifecyclePolicy,
+  isOffFlowStatus,
+  isRetiredPausedStatus,
+  type LifecyclePolicy,
+} from "../../domain/tasks/tasks.ts";
 import type { TaskReader } from "../tasks/tasks.ts";
 
 export type {
@@ -60,11 +66,24 @@ export interface PlanningBoard {
 
 export interface PlanningDoctorReport {
   readonly healthy: boolean;
-  readonly issues: readonly {
-    readonly code: "milestone_task_not_found";
-    readonly milestoneId: string;
-    readonly taskId: string;
-  }[];
+  readonly issues: readonly (
+    | {
+        readonly code: "milestone_task_not_found";
+        readonly milestoneId: string;
+        readonly taskId: string;
+      }
+    | {
+        /**
+         * An active task whose status is on neither the configured ladder
+         * nor the paused slot, so no transition command can move it
+         * (QCLI-302). `hint` names the repair when one exists.
+         */
+        readonly code: "task_status_off_flow";
+        readonly taskId: string;
+        readonly status: string;
+        readonly hint: string;
+      }
+  )[];
 }
 
 export interface PlanningCleanupPlan {
@@ -390,17 +409,19 @@ export class PlanningService {
    * reconciled here, since making `doctor` also validate the graph is new
    * surface, not this bug's fix. See QCLI-249's notes for the reasoning.
    */
-  async doctor(tasks: TaskReader): Promise<PlanningDoctorReport> {
+  async doctor(
+    tasks: TaskReader,
+    lifecycle: LifecyclePolicy = defaultLifecyclePolicy,
+  ): Promise<PlanningDoctorReport> {
     const [planning, taskSnapshot] = await Promise.all([
       this.repository.read(),
       tasks.readAll(),
     ]);
+    const records = taskSnapshot.taskRecords ?? taskSnapshot.tasks;
     const known = new Set(
-      (taskSnapshot.taskRecords ?? taskSnapshot.tasks).map((record) =>
-        "task" in record ? record.task.id : record.id,
-      ),
+      records.map((record) => ("task" in record ? record.task.id : record.id)),
     );
-    const issues = planning.milestones
+    const milestoneIssues = planning.milestones
       .flatMap((item) =>
         item.taskIds
           .filter((taskId) => !known.has(taskId))
@@ -415,6 +436,38 @@ export class PlanningService {
           left.milestoneId.localeCompare(right.milestoneId) ||
           left.taskId.localeCompare(right.taskId),
       );
+    // QCLI-302: only ACTIVE records are checked, because the repair the hint
+    // names (`task start`) reaches active records alone. A retained record
+    // at an off-flow status is retired, not stranded.
+    const offFlowIssues = records
+      .flatMap((record) =>
+        "task" in record
+          ? record.location === "tasks"
+            ? [record.task]
+            : []
+          : [record],
+      )
+      .filter((task) => isOffFlowStatus(task.status, lifecycle))
+      .map((task) => ({
+        code: "task_status_off_flow" as const,
+        taskId: task.id,
+        status: task.status,
+        hint: isRetiredPausedStatus(task.status, lifecycle)
+          ? `"${task.status}" is the paused status of an earlier release; ` +
+            `\`quest task start ${task.id} --actor <name> --actor-kind human\` ` +
+            `resumes it` +
+            (lifecycle.pausedStatus
+              ? `, and \`quest task pause ${task.id}\` then parks it at "${lifecycle.pausedStatus}".`
+              : ".")
+          : `"${task.status}" is on neither the configured status ladder ` +
+            `(${lifecycle.statuses.join(", ")})` +
+            (lifecycle.pausedStatus
+              ? ` nor the paused status ("${lifecycle.pausedStatus}")`
+              : "") +
+            `; no transition command can leave it.`,
+      }))
+      .sort((left, right) => left.taskId.localeCompare(right.taskId));
+    const issues = [...milestoneIssues, ...offFlowIssues];
     return { healthy: issues.length === 0, issues };
   }
   /**
