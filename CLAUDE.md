@@ -104,9 +104,97 @@ produced 0.6.0. The releases API returns `[]`. All three are consequences of
 the 2026-09-10 repository deletion and recreation (OPAG-70), not of any
 deliberate retag.
 
+**Re-measured 2026-09-15 during the 0.7.0 promotion. Two of those three have
+moved, and the distinction matters:**
+
+```
+v0.6.0  tagger Jeremy Newhouse  2026-09-10T21:57:26Z  peel a9fbc78
+v0.6.1  tagger Jeremy Newhouse  2026-09-13T19:07:57Z  peel 1fa0fef
+v0.6.2  tagger Jeremy Newhouse  2026-09-14T05:04:39Z  peel a925b35
+releases API: 1 entry (v0.6.0, created 2026-09-10T21:57:26Z,
+                       published 2026-09-11T13:44:44Z)
+```
+
+- The tag list and the releases count are **stale, not wrong**. Nothing was
+  restored and nothing was retagged: 0.6.1 and 0.6.2 were simply released
+  after the 2026-09-11 measurement, and the one release was published at
+  13:44:44Z that day -- so an earlier-in-the-day reading of `[]` was
+  accurate when taken. A dated measurement going stale is the normal way a
+  dated measurement ends; do not read it as drift needing investigation.
+- **The `v0.6.0` peel claim is still exactly true.** `v0.6.0^{}` is still
+  `a9fbc78`, still the post-recreation initial commit, still not the commit
+  that produced 0.6.0. That is the load-bearing half of this section and it
+  has not moved.
+
+The lesson worth more than the numbers: when a dated fact looks stale,
+re-measure each clause separately before rewriting the paragraph. Two clauses
+here aged out and one did not, and a rewrite that treated "this paragraph is
+stale" as one judgement would have deleted the only claim that still holds.
+
 So before deleting, moving or re-pointing a tag: say so to quest-web first.
 And treat the current tags as weaker anchors than the npm version, which is
-immutable -- that is the advice given back to quest-web for its own citations.
+immutable -- that is the advice given back to quest-web for its own citations,
+and it stands regardless of how many tags exist, because tags are mutable and
+a published npm version is not.
+
+### Adding a top-level envelope key: three constraints, all in opum-cli-e2e
+
+`opum-cli-e2e/lib/check.mjs` is imported by both `suites/10-contract-quest.mjs`
+and `suites/11-contract-lore.mjs`, so these bind **both** CLIs, not just this
+one. Established 2026-09-15 while shipping `contractVersion` (QCLI-289), each
+measured in that file rather than inferred:
+
+1. **The error envelope is a CLOSED key set.** `check.errorEnvelope`
+   (`lib/check.mjs:181-183`) allow-lists `{error_type, message, hint, input,
+   principal}` and fails the row on any extra key, across ~41 call sites in 11
+   suites. Adding envelope metadata to an error envelope turns those red --
+   before a tag or after, so deferring such a change is later, not cheaper.
+   This is why `contractVersion` went on success envelopes only.
+2. **The success envelope is an OPEN key set in code and a CLOSED one in its
+   own docblock.** `check.successEnvelope` (`:124-139`) validates
+   `schemaVersion`/`kind`/`data` and rejects no unknown key; the comment above
+   it says the envelope "is exactly `{schemaVersion, kind, data, principal}`".
+   Additive success fields are safe today **because of the code, against the
+   prose** -- anyone tightening it to match its own comment turns every quest
+   row red at once. Read the assertion, never the sentence above it.
+3. **`principal` must remain the LAST top-level key.** Unlike 1 and 2, this
+   one is **not** a harness interpretation -- it is normative in the shared
+   contract (`opum-doc/docs/specs/opum-command-contract.md` § "Reserved
+   `principal` field": "Position: the last top-level key", and the envelope
+   "gains a `principal` field **at the fixed position above**"). The spec's
+   breaking-change list names the slot's "name/position" explicitly.
+   `check.principalLastKey` (`:158-170`) is merely where it is *enforced*: it
+   compares `Object.keys(...)` order and runs on **success** envelopes too,
+   not only error ones (`10-contract-quest.mjs:120` stdout, `:224` stderr).
+   So an additive field is safe only if emitted *before* `principal` --
+   presence and position are separate constraints, and only presence is
+   obvious. Do not "fix" this by changing the harness; the rule outlives it.
+
+**Unsettled, and this repository is the one that moved first.** Read from
+`opum-doc` `origin/dev` == `origin/main` == `1d98ddb`, spec blob `02530b8`,
+on 2026-09-15 -- **cite the ref you read, because "I read the contract" is
+exactly as unfalsifiable as "I enumerated the consumers"** (the same lesson
+the two-pass consumer sweep below records, arriving from a different
+direction). The spec's own Adoption clause names `dev` as its stable
+location; `main` happened to agree here, which is luck rather than method.
+The contract's
+§ Versioning policy permits, without a breaking change, exactly three
+additions: fields on `data`, new `kind` values, new `error_type` strings. A
+new **top-level envelope key** is on neither that list nor the breaking-change
+list beside it. `contractVersion` is therefore unratified rather than
+permitted -- it renames, removes and repurposes nothing, so it is not breaking
+under the spec's own definition, but neither is it enumerated as allowed. The
+spec's `PrincipalRef` clause reasons that letting "whichever component ships
+first decide that shape unilaterally" is the hazard ratification exists to
+prevent; that reasoning applies by analogy to a top-level key, which is an
+argument rather than a rule the spec states. Routed to opum-doc as a contract
+question (2026-09-15). If it is settled the other way, this repository is the
+one that has to change.
+
+0.7.0 satisfies all three: every success envelope it emits is
+`[schemaVersion, contractVersion, kind, data, principal]` -- verified by
+probing every read and mutating command family against the built binary, not
+read off the source -- and both error paths carry no `contractVersion`.
 
 ### Breaking an envelope shape: sweep consumers in two passes, not one
 
