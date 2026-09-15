@@ -335,11 +335,25 @@ test("a missing origin/dev in a SHALLOW clone blames the workflow, not the remot
  *
  * What the refspec actually does is make `origin/dev` come into existence
  * as a consequence of THIS SCRIPT rather than of a clone configuration the
- * workflow does not control -- so the assertion has to be that the run
- * SUCCEEDS where it otherwise could not. Measured against the production
- * shape: original exit 0 with the ref created, both mutants exit 1 with
- * byte-identical shallow diagnoses. The thing that separates them is not a
+ * workflow does not control. Measured against the production shape: original
+ * exit 0 with the ref created, both mutants exit 1 with byte-identical
+ * shallow diagnoses. In THIS fixture, the thing that separates them is not a
  * better error, it is the accept.
+ *
+ * SCOPE, corrected by opum-doc via opum-agent (ODOC-217) and verified here.
+ * An earlier draft of this comment said the assertion "has to be" an accept,
+ * which states as a property of the LINE what is a property of the FIXTURE.
+ * This suite does separate the variants in the reject direction too -- in the
+ * remote-with-no-dev full clone, original and mutant both exit 1 with the
+ * REMOTE-blaming error and differ only in the git text quoted back
+ * ("refs/heads/dev" vs "dev"). opum-doc's shallow row keeps its remote where
+ * ours removes it, and separates by diagnosis wording there.
+ *
+ * The thinner claim is the durable one and is why this test earns its place:
+ * coverage resting on a single negative assertion tied to MESSAGE WORDING can
+ * be deleted by a rewording without any row going red. The accept assertion
+ * does not depend on wording at all -- that, not exclusivity of direction, is
+ * what it buys.
  */
 test("the script's own fetch creates origin/dev in a single-branch shallow clone, and the run is ACCEPTED", async () => {
   const { root, origin, c4 } = await scratch();
