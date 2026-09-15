@@ -174,33 +174,36 @@ if (
 // WHAT LORE ENFORCES, the other half of A5, so this side's entry is not half
 // a picture.
 //
-// STATUS: DECIDED AND LOCALLY MEASURED. NOT proven in CI, and NOT to be
-// cited as proven until lore-cli sends a green run on their CURRENT HEAD.
-// One narrow CI fact is measured and is deliberately not more than that:
-// lore-cli run 35017881343 on de319a1f is green on every job including
-// `lint · typecheck · test (windows-latest)`, which establishes that the
-// GNU-tar failure that broke the withdrawn citation is FIXED. It does not
-// establish their implementation, because they pushed 159f7d2d after it, so
-// de319a1f is green and is no longer their head. Recording "green run" and
-// "green head" as the same fact is how the first citation went wrong in the
-// other direction; they flagged the distinction themselves before anyone
-// could record it. A previous revision of
-// this block (07dcacb) claimed PROVEN and cited lore-cli PR #118, CI run
-// 35016083790 on a390713c. THAT CITATION IS WITHDRAWN: the run completed as
-// `failure` -- verified here at repos/opum-ai/lore-cli/actions/runs/
-// 35016083790, conclusion=failure, one failing job
-// `lint · typecheck · test (windows-latest)`, GNU tar on the Windows runner
-// reading `C:\...` as a host:path remote spec. lore-cli sent the id while
-// the run was still in_progress; it was the ADDRESS of a proof, not a proof.
-// A record citing a failing run as evidence is worse than one citing
-// nothing, because the id makes it look checked.
+// STATUS: QUALIFIED IN CI ON AN UNLANDED BRANCH HEAD. Stronger than the
+// previous "decided and locally measured", and deliberately NOT the word
+// "proven" on its own, because the distinction has now failed here three
+// separate ways and each time the wording was what hid it.
 //
-// The failure is quest's as much as lore's. The same commit that added this
-// citation also re-resolved ODOC-203 first-hand specifically to avoid
-// carrying a relay -- and then recorded a CI run id, in the adjacent
-// paragraph, without opening it. The rule was applied to one citation and
-// not the other in the same edit. An id is not a measurement; resolving it
-// costs one API call.
+// Verified first-hand, not relayed -- lore-cli reported it and every clause
+// below was re-resolved through the API here:
+//   opum-ai/lore-cli PR #118   state=open   head=930935d9bc
+//   run 35018902430            completed    success    headSha=930935d9bc
+//   13 jobs: 11 success, 2 skipped (`promotion is manual`, `main is
+//   fast-forward of dev` -- they run only on PRs into main and are not
+//   required here). `lint · typecheck · test (windows-latest)` is SUCCESS,
+//   which is what closes the GNU-tar failure behind the withdrawn citation.
+// The run's headSha and the PR's headRefOid are the SAME SHA. That identity
+// is the whole claim, and it is precisely what could not be said about the
+// two earlier citations.
+//
+// WHAT IT STILL DOES NOT ESTABLISH: PR #118 is OPEN. The run qualifies the
+// implementation; it does not mean it has landed on lore's `dev`. If a
+// tracker-completion commit moves the head when they land it, the SHA above
+// goes stale while nothing about the implementation changes -- lore-cli
+// flagged that themselves before anyone could record it wrong. Upgrade this
+// to landed only against a run on their `dev`, not by deleting this
+// paragraph.
+//
+// The three ways this distinction has failed here, kept because the wording
+// is the failure each time: a FAILING run cited as proof (07dcacb,
+// withdrawn in #136); a GREEN run on a SHA two commits behind the head
+// (de319a1f, recorded narrowly on purpose); and now a green run on the true
+// head of a branch that has not landed. Each looked like "CI is green".
 //
 // Their LOCAL measurements stand and are what the lines below record: two A1
 // halves on real tarballs (a clean 0.7.0 pack exits 0; a 0.7.1 pack with the
