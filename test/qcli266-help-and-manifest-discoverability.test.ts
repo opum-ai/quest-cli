@@ -160,7 +160,17 @@ test("help flags carry their value shape, per command (QCLI-266)", async () => {
 
     const create = flagsIn(["help", "task", "create"]);
     expect(create).toContain("- --label <string, repeatable>");
-    expect(create).toContain("- --acceptance-criteria <json-array>");
+    // QCLI-313 made this shape MORE precise rather than changing what it
+    // means: a checklist flag now renders the element shapes it accepts, so
+    // the `{index,text,checked}` form is visible in the flag list and not
+    // only in the prose. That serves this test's own intent -- flags carry
+    // their value shape -- so the assertion moved with it rather than being
+    // relaxed. `--plan` below still renders bare `<json-array>`, which is
+    // what keeps this from being a blanket rewording.
+    expect(create).toContain(
+      "- --acceptance-criteria <json-array: string | {index,text,checked}>",
+    );
+    expect(create).toContain("- --plan <json-array>");
     expect(create).toContain("- --comments <json-objects>");
     // `--type` is one scalar here and a repeatable filter on `task list`.
     // A single global set would get exactly this wrong.

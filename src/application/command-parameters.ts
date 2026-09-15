@@ -26,6 +26,21 @@ export interface FlagParameter {
   readonly value: ParameterValue;
   /** Pass the flag once per item (--label a --label b), never as a JSON array. */
   readonly repeatable?: true;
+  /**
+   * The element shapes a checklist array accepts (QCLI-313). ADDITIVE and
+   * optional on purpose: `value` stays `json-array`, so a consumer switching
+   * on it is unaffected, and one that reads this learns the object form
+   * exists. Widening the `ParameterValue` union instead would have been the
+   * tidier-looking change and would break any consumer matching that union
+   * exhaustively.
+   *
+   * It is here because the object form used to be discoverable from exactly
+   * one place in the CLI's entire output -- the usage error for an object
+   * array missing `index` -- so an agent reading `quest manifest --json` to
+   * learn the contract concluded the flag took strings, and was wrong. Three
+   * of them did within hours.
+   */
+  readonly items?: string;
 }
 
 export interface PositionalParameter {
@@ -48,6 +63,21 @@ export const JSON_ARRAY_FLAGS = [
 
 /** Takes one JSON array of structured objects, not bare strings. */
 export const JSON_OBJECT_FLAGS = ["--comments", "--add-comment"] as const;
+
+/**
+ * The checklist flags: a JSON array whose elements may be bare strings OR
+ * `{index,text,checked}` objects (QCLI-313). `--plan` and
+ * `--implementation-notes` share `json-array` and are NOT checklists -- they
+ * hold no checked state and take strings only, which is why this is its own
+ * set rather than all of `JSON_ARRAY_FLAGS`.
+ */
+export const CHECKLIST_FLAGS = [
+  "--acceptance-criteria",
+  "--definition-of-done",
+] as const;
+
+/** The element shapes a checklist flag accepts, as the manifest reports them. */
+export const CHECKLIST_ITEM_SHAPE = "string | {index,text,checked}";
 
 /**
  * Flags that take no value. Lifted out of the argv parser so help and the
@@ -163,6 +193,7 @@ const REPEATABLE_BY_COMMAND: Readonly<Record<string, readonly string[]>> = {
 const BOOLEAN = new Set<string>(BOOLEAN_FLAGS);
 const JSON_ARRAY = new Set<string>(JSON_ARRAY_FLAGS);
 const JSON_OBJECT = new Set<string>(JSON_OBJECT_FLAGS);
+const CHECKLIST = new Set<string>(CHECKLIST_FLAGS);
 
 /** The value shape of one flag on one command, from the sets the parser uses. */
 export function flagParameter(
@@ -171,6 +202,8 @@ export function flagParameter(
 ): FlagParameter {
   if (BOOLEAN.has(flag)) return { value: "none" };
   if (JSON_OBJECT.has(flag)) return { value: "json-objects" };
+  if (CHECKLIST.has(flag))
+    return { value: "json-array", items: CHECKLIST_ITEM_SHAPE };
   if (JSON_ARRAY.has(flag)) return { value: "json-array" };
   if ((REPEATABLE_BY_COMMAND[commandName] ?? []).includes(flag))
     return { value: "string", repeatable: true };
@@ -179,8 +212,9 @@ export function flagParameter(
 
 /** How a flag reads in `quest help`: `--label <string, repeatable>`. */
 export function describeFlag(flag: string, commandName: string): string {
-  const { value, repeatable } = flagParameter(flag, commandName);
+  const { value, repeatable, items } = flagParameter(flag, commandName);
   if (value === "none") return flag;
+  if (items !== undefined) return `${flag} <${value}: ${items}>`;
   return `${flag} <${repeatable ? `${value}, repeatable` : value}>`;
 }
 
