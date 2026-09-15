@@ -62,6 +62,15 @@ changed to make that true -- the configured value did. Everything else here
 is additive: a new envelope field and two new optional flags, each inert when
 not asked for.
 
+*Observed after release, 2026-09-15, reported by opum-cli-e2e from their
+0.7.0 qualification matrix (their PR #154):* that warning was published and
+the best-placed consumer still missed it. Their `60-project-lifecycle` suite
+pinned the literal `"Blocked"` and six rows failed against a conformant quest,
+while their `40-cross-product` suite read the value live and absorbed the
+same release without moving a row. Their fix binds the suite to what
+`task status-flow` declares. A changelog warning is not a gate; a consumer
+that binds to the CLI's own declaration does not need one.
+
 ### Added
 
 - Every success envelope now carries `contractVersion: 1`, a new field
