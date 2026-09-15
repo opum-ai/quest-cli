@@ -22,6 +22,16 @@ import { runQuest } from "../src/cli/main.ts";
  * test. That is the whole defect class: the gate was real, it measured a
  * real thing, and the thing it measured was not the claim.
  *
+ * AND IT IS A RESIDUAL OF A FIX, WHICH IS WHY THE GATE ITERATES EVERY GUIDE
+ * RATHER THAN NAMING ONE. QCLI-269 fixed exactly this defect two days
+ * earlier: it added the 1-based `position` field to every checklist entry,
+ * corrected `command-help.ts`, and corrected the guide prose -- in
+ * `task-creation`. `task-execution` says the same thing about the same flags
+ * and was left saying "index-addressed". A fix applied at the sites where a
+ * defect was reported is the easiest kind to under-apply, and a gate naming
+ * the one surface that was missed would repeat the mistake the moment a
+ * fourth surface appears.
+ *
  * Reported by opum-doc, who found it by counting `checked: true` against the
  * criterion count before closing a task. Their loop over `0..4` -- the
  * natural loop when the field is called an index and the record prints a
@@ -109,13 +119,28 @@ test("the guide's checklist-addressing prose matches what the flag actually does
 
     // The prose, now that the behaviour above is established. A guide that
     // calls this "index-addressed" is describing the flag that was refused.
-    const guide = questGuides.find((entry) => entry.name === "task-execution");
-    expect(guide).toBeDefined();
-    const body = guide?.content ?? "";
-    expect(body).toContain("--check-ac");
-    expect(body).toContain("1-based");
-    expect(body).toContain("position");
-    expect(body).not.toContain("index-addressed");
+    //
+    // EVERY guide, not the one that was wrong. Naming `task-execution` here
+    // would be the same under-application that produced this defect.
+    expect(questGuides.length).toBeGreaterThan(0);
+    for (const guide of questGuides)
+      expect(`${guide.name}: ${guide.content}`).not.toContain(
+        "index-addressed",
+      );
+
+    // A guide that merely SHOWS `--check-ac 1` in a recipe makes no claim
+    // about addressing and is not required to explain it. One that talks
+    // about addressing must get it right -- that is the claim under test.
+    const explainers = questGuides.filter(
+      (guide) =>
+        guide.content.includes("--check-ac") &&
+        guide.content.includes("address"),
+    );
+    expect(explainers.length).toBeGreaterThanOrEqual(2);
+    for (const guide of explainers) {
+      expect(`${guide.name}: ${guide.content}`).toContain("1-based");
+      expect(`${guide.name}: ${guide.content}`).toContain("position");
+    }
 
     // And the two surfaces must not disagree: `help task edit` already said
     // this correctly while the guide did not, which is what made the wrong
