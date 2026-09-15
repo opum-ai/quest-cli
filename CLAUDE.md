@@ -244,7 +244,7 @@ rather than removed it: the idiom grep looked complete because it returned
 rows; the field grep looked complete because it returned every direct read.
 Ask what this pattern cannot see before calling a sweep closed.
 
-### A source-touching PR fires `source-gates` twice; a `.quest/`-only one fires it once
+### `source-gates` fires twice or once per PUSH, not per PR -- and the head commit is what decides
 
 Observed directly 2026-09-12 across two promotions in the same session, not
 inferred: PR #24 changed `src/cli/render.ts` and its `source-gates` context
@@ -255,6 +255,33 @@ only when nothing under its watched paths changed. `mergeStateStatus` stayed
 `.quest/`, never fired the push-triggered run at all -- `source-gates` reported
 once, from `pull_request` only.
 
+**Amended 2026-09-15, because the heading above was wrong in its UNIT and the
+error was the kind that stalls someone.** The path filter applies to each
+individual PUSH, never to the pull request's cumulative diff -- so the right
+question is not "does this PR touch source" but "does its HEAD COMMIT touch a
+watched path". Measured on PR #145, which changed a guide source file and a
+test and therefore counts as source-touching by the old wording:
+
+```
+200f203  src/ + test/    push run fired    source-gates x2 on that SHA
+cbea37e  test/           push run fired    source-gates x2 on that SHA
+4374c69  .quest/ only    NO push run       source-gates x1, and that is COMPLETE
+```
+
+`gh pr checks` and the merge gate both read the HEAD SHA, so a source-touching
+PR whose final commit is tracker-only is gated by a single `source-gates` row.
+A predecessor's handoff on that exact PR said "wait for both source-gates runs
+(a source-touching PR fires it twice here)" -- following it would have waited
+forever on a run that correctly never existed, on a PR that was already `CLEAN`.
+Confirm with `gh api "repos/opum-ai/quest-cli/actions/runs?head_sha=<sha>"` and
+read the `event` field: two rows for one context name means `pull_request` plus
+`push`, and one row is not evidence that something is still pending.
+
+The watched paths are in `.github/workflows/prepublication-qualification.yml`
+(`src/**`, `test/**`, `bin/**`, `npm/**`, `scripts/qualification/**`,
+`package.json`, `bun.lock`, `tsconfig.json`, and four named scripts). The
+`pull_request` trigger has NO path filter, which is why one row always appears.
+
 Two things this means in practice:
 
 - **Waiting on "the PR's checks" can mean waiting on the same context name
@@ -264,8 +291,13 @@ Two things this means in practice:
 - **The six-platform build matrix (`darwin-arm64`, `linux-x64`, etc.) is not
   in the required-checks list**, so it can sit `pending` or `skipping`
   indefinitely without blocking a merge. The gate is the required check
-  *names* (`source-gates`, `Tracker integrity`), never the all-green rollup of
-  every job GitHub happens to show.
+  *names*, never the all-green rollup of every job GitHub happens to show.
+  Re-measured 2026-09-15 against `rules/branches/main`, because this bullet
+  had gone stale naming two: there are **three** -- `source-gates`, `Tracker
+  integrity`, `lore check` -- which is the same set the ruleset paragraph at
+  the top of this profile already records. On PR #145, `candidate-bundle`,
+  `matrix.target` and `native-execution-receipt` all reported `SKIPPED` while
+  `mergeStateStatus` was `CLEAN`.
 
 ### The quest/lore release lockstep is a fact about VERSIONS, not SHAs
 
