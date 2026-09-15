@@ -311,6 +311,25 @@ PR whose final commit is tracker-only is gated by a single `source-gates` row.
 A predecessor's handoff on that exact PR said "wait for both source-gates runs
 (a source-touching PR fires it twice here)" -- following it would have waited
 forever on a run that correctly never existed, on a PR that was already `CLEAN`.
+**The general rule is NEWEST-PER-CONTEXT, and `mergeStateStatus` is one
+correct implementation of it.** opum-cli-e2e's formulation, 2026-09-15, after
+I restated the row-counting belief this section exists to correct -- four
+messages after citing the correction to them, while holding a merge on a PR
+whose head was already the one-row case. Take the latest row per context name
+(`group_by(.name) | sort_by(.started_at) | last`) and require every required
+context to be a completed success. It is agnostic to HOW MANY rows a context
+produced, which is the property that matters: counting can hang forever on a
+head that legitimately produces one, or pass early on two stale greens, while
+newest-per-context can do neither. A row count is a symptom of which paths the
+head touched and nothing more.
+
+The trap has a second mouth worth naming: my waits were ALREADY
+newest-per-context (`gh pr checks --watch` plus `mergeStateStatus`), so
+nothing ever hung. Only the prose describing them counted rows, and the prose
+is what got relayed to a peer under their own name. **Check that the method
+you describe is the method your tooling runs** -- they diverged here without
+any behaviour changing, and the written version is the one that travels.
+
 **So do not count rows at all -- read `mergeStateStatus`.** It is the rollup
 over the required set and it does not care how many rows produced it:
 `UNSTABLE` while anything required is pending or failed, `CLEAN` once the
