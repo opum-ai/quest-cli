@@ -170,7 +170,14 @@ measured in that file rather than inferred:
    presence and position are separate constraints, and only presence is
    obvious. Do not "fix" this by changing the harness; the rule outlives it.
 
-**Unsettled, and this repository is the one that moved first.** The contract's
+**Unsettled, and this repository is the one that moved first.** Read from
+`opum-doc` `origin/dev` == `origin/main` == `1d98ddb`, spec blob `02530b8`,
+on 2026-09-15 -- **cite the ref you read, because "I read the contract" is
+exactly as unfalsifiable as "I enumerated the consumers"** (the same lesson
+the two-pass consumer sweep below records, arriving from a different
+direction). The spec's own Adoption clause names `dev` as its stable
+location; `main` happened to agree here, which is luck rather than method.
+The contract's
 § Versioning policy permits, without a breaking change, exactly three
 additions: fields on `data`, new `kind` values, new `error_type` strings. A
 new **top-level envelope key** is on neither that list nor the breaking-change
