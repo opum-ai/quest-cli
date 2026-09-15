@@ -175,7 +175,16 @@ if (
 // a picture.
 //
 // STATUS: DECIDED AND LOCALLY MEASURED. NOT proven in CI, and NOT to be
-// cited as proven until lore-cli sends a green run. A previous revision of
+// cited as proven until lore-cli sends a green run on their CURRENT HEAD.
+// One narrow CI fact is measured and is deliberately not more than that:
+// lore-cli run 35017881343 on de319a1f is green on every job including
+// `lint · typecheck · test (windows-latest)`, which establishes that the
+// GNU-tar failure that broke the withdrawn citation is FIXED. It does not
+// establish their implementation, because they pushed 159f7d2d after it, so
+// de319a1f is green and is no longer their head. Recording "green run" and
+// "green head" as the same fact is how the first citation went wrong in the
+// other direction; they flagged the distinction themselves before anyone
+// could record it. A previous revision of
 // this block (07dcacb) claimed PROVEN and cited lore-cli PR #118, CI run
 // 35016083790 on a390713c. THAT CITATION IS WITHDRAWN: the run completed as
 // `failure` -- verified here at repos/opum-ai/lore-cli/actions/runs/
@@ -223,6 +232,24 @@ if (
 // support below handles exactly ONE marker pair. lore needs two. If quest
 // ever needs a second region, that is a change to this file rather than a
 // change to the README.
+//
+// THE N+1 QUESTION, from lore-cli, and quest's answer to it. Their regions
+// are declared in code, so an implementation silently specialised to the two
+// that exist would pass their whole suite -- every test exercises exactly
+// those two. Their sharpest assertion is that a newly declared region's
+// generated content deliberately carries the package's own name next to a
+// version, because a masking rule specialised to the known region ids would
+// make the gate refuse WHAT ITS OWN GENERATOR PRODUCES.
+//
+// Quest is not exposed to the specialisation, because a second region is an
+// explicit refusal above rather than a silent first-match -- limited and
+// loud, not specialised and quiet. But the underlying question survives
+// translation and was UNPROVEN here until now: does this gate refuse content
+// a generator would legitimately put inside the region? It does not, and
+// that is measured rather than reasoned (proof G below). The general form is
+// worth keeping separately from either repository's answer: an exemption
+// mechanism must be proved not to reject the exempt thing, which is a
+// different measurement from proving it rejects the unexempt thing.
 //
 // The markers are honoured if present so that adding a legitimate version is
 // a one-line, visible decision. They are absent today by design.
