@@ -310,6 +310,93 @@ test("a missing origin/dev in a SHALLOW clone blames the workflow, not the remot
   }
 });
 
+/**
+ * THE ACCEPT DIRECTION FOR THE FETCH REFSPEC -- the one property none of the
+ * three tests above can reach, and the reason they all still went red when
+ * the refspec was mutated away, which is what made the gap easy to miss.
+ *
+ * Routed by opum-agent 2026-09-15 (QCLI-317): opum-doc measured that in the
+ * reference SHELL implementation the drop-refspec mutant SURVIVES, because
+ * the missing-ref split emits exactly the diagnosis and exit code the
+ * shallow row already asserts. lore-cli found the equivalent in its own
+ * `.mjs`. Here both mutants -- `"dev"` for the refspec, and dropping it
+ * entirely -- did turn the suite red, so the first reading was that this
+ * repository was already covered. It is not. Both killed the SAME single
+ * test, `a remote with no dev blames the REMOTE`, which is about diagnosis
+ * ATTRIBUTION, and each killed it incidentally: the bare form only because
+ * git's own message quotes back the refspec that was passed to it, and the
+ * dropped form only because a bare `git fetch origin` SUCCEEDS against a
+ * remote with no `dev`, so the REMOTE-blaming branch never runs at all.
+ * Selectively red is not the same as asserted.
+ *
+ * `a missing origin/dev in a SHALLOW clone` cannot cover this by
+ * construction: it REMOVES the remote, so the fetch never executes and no
+ * mutation of the fetch line can change its result.
+ *
+ * What the refspec actually does is make `origin/dev` come into existence
+ * as a consequence of THIS SCRIPT rather than of a clone configuration the
+ * workflow does not control -- so the assertion has to be that the run
+ * SUCCEEDS where it otherwise could not. Measured against the production
+ * shape: original exit 0 with the ref created, both mutants exit 1 with
+ * byte-identical shallow diagnoses. The thing that separates them is not a
+ * better error, it is the accept.
+ */
+test("the script's own fetch creates origin/dev in a single-branch shallow clone, and the run is ACCEPTED", async () => {
+  const { root, origin, c4 } = await scratch();
+  try {
+    const accept = join(root, "accept");
+    git(
+      root,
+      "clone",
+      "-q",
+      "--depth",
+      "1",
+      "--branch",
+      "main",
+      `file://${origin}`,
+      accept,
+    );
+
+    // PRECONDITIONS, asserted rather than assumed. This fixture is only
+    // meaningful while it is genuinely the production shape: if a change to
+    // `scratch()` or to git's defaults ever made `origin/dev` exist here for
+    // free, the accept below would pass with the refspec doing nothing --
+    // the same "fixture that cannot fail" the shallow test above was already
+    // caught by once, which is why these are three assertions and not a
+    // comment.
+    expect(git(accept, "rev-parse", "--is-shallow-repository")).toBe("true");
+    expect(git(accept, "config", "--get", "remote.origin.fetch")).toBe(
+      "+refs/heads/main:refs/remotes/origin/main",
+    );
+    expect(
+      git(accept, "for-each-ref", "--format=%(refname)", "refs/remotes/"),
+    ).not.toContain("refs/remotes/origin/dev");
+
+    // Branch creation is the only accept path a --depth 1 clone can reach:
+    // any real previous HEAD is unfetchable there, which is precisely what
+    // the shallow test above asserts. The property under test is the FETCH,
+    // so assertion 2 is deliberately taken out of the picture rather than
+    // worked around by deepening the clone.
+    const result = run(accept, { BEFORE_SHA: ZERO });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain(`created at ${c4}`);
+    expect(result.stdout).toContain("is a commit dev holds");
+    expect(result.stdout).toContain("dev's tip exactly");
+    // No diagnosis of any kind: a run that emitted the shallow annotation
+    // AND exited 0 would be a different defect, and exit code alone is what
+    // this file exists not to trust.
+    expect(result.stderr).not.toContain("::error::");
+
+    // The ref is the point. It provably did not exist before the run, and
+    // the script's own fetch is the only thing that could have created it.
+    expect(
+      git(accept, "rev-parse", "--verify", "refs/remotes/origin/dev^{commit}"),
+    ).toBe(c4);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a missing origin/dev in a FULL clone is a real anomaly, not a fetch-depth problem", async () => {
   const { root, work } = await scratch();
   try {
