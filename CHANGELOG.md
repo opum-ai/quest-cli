@@ -4,7 +4,20 @@ Records start here, at 0.5.0. Earlier releases are documented in
 `docs/reference/quest-cli-release-truth.md` and in each release's own PR
 history; this file is the forward-looking record.
 
-## Unreleased
+## 0.7.1
+
+Version frozen 2026-09-15. **Breaks lockstep with `@opum-ai/lore`, once and
+deliberately, as 0.6.2 did:** lore stays at 0.7.0 and nothing in lore
+changes. This is a hotfix for a defect every fleet workspace that paused a
+task before 0.7.0 is exposed to, ruled ahead of everything else the same day
+it was reported, and holding it for the next paired release would have left
+those records unreachable for no reason a consumer benefits from. The one
+entry below is additive on the read side (`doctor` gains an issue code) and
+restores a transition on the write side (`task start` from the retired
+literal); nothing else moves. **The date above is when this version was
+frozen and the bump landed, not when it reached npm**; publication is a
+separate, manually authorized step, and nothing in this file should be read
+as evidence that it happened.
 
 ### Fixed
 
