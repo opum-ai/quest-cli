@@ -137,6 +137,38 @@ immutable -- that is the advice given back to quest-web for its own citations,
 and it stands regardless of how many tags exist, because tags are mutable and
 a published npm version is not.
 
+### Adding a top-level envelope key: three constraints, all in opum-cli-e2e
+
+`opum-cli-e2e/lib/check.mjs` is imported by both `suites/10-contract-quest.mjs`
+and `suites/11-contract-lore.mjs`, so these bind **both** CLIs, not just this
+one. Established 2026-09-15 while shipping `contractVersion` (QCLI-289), each
+measured in that file rather than inferred:
+
+1. **The error envelope is a CLOSED key set.** `check.errorEnvelope`
+   (`lib/check.mjs:181-183`) allow-lists `{error_type, message, hint, input,
+   principal}` and fails the row on any extra key, across ~41 call sites in 11
+   suites. Adding envelope metadata to an error envelope turns those red --
+   before a tag or after, so deferring such a change is later, not cheaper.
+   This is why `contractVersion` went on success envelopes only.
+2. **The success envelope is an OPEN key set in code and a CLOSED one in its
+   own docblock.** `check.successEnvelope` (`:124-139`) validates
+   `schemaVersion`/`kind`/`data` and rejects no unknown key; the comment above
+   it says the envelope "is exactly `{schemaVersion, kind, data, principal}`".
+   Additive success fields are safe today **because of the code, against the
+   prose** -- anyone tightening it to match its own comment turns every quest
+   row red at once. Read the assertion, never the sentence above it.
+3. **`principal` must remain the LAST top-level key.**
+   `check.principalLastKey` (`:158-170`) compares `Object.keys(...)` order and
+   runs on **success** envelopes too, not only error ones
+   (`10-contract-quest.mjs:120` stdout, `:224` stderr). So an additive field is
+   safe only if it is emitted *before* `principal`. Presence and position are
+   separate constraints and only the first is obvious.
+
+0.7.0 satisfies all three: every success envelope it emits is
+`[schemaVersion, contractVersion, kind, data, principal]` -- verified by
+probing every read and mutating command family against the built binary, not
+read off the source -- and both error paths carry no `contractVersion`.
+
 ### Breaking an envelope shape: sweep consumers in two passes, not one
 
 This repository ships a machine contract that sibling repos parse, so a
