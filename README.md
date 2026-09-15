@@ -13,17 +13,22 @@ machine-readable `--json`).
 - Built on **Bun + TypeScript** with an exact-pinned **Commander** parser; a
   versioned capability manifest (`quest manifest --json`) is the live,
   authoritative description of the command surface.
-- Published on npm as **`@opum-ai/quest@0.6.0`** (bin `quest`) with six
+- Published on npm as **`@opum-ai/quest`** (bin `quest`) with six
   exact-pinned platform packages, including Windows ARM64.
 - The agent bridge is a generated managed block in **`CLAUDE.md`**,
   **`AGENTS.md`**, or **`GEMINI.md`** (Claude Code, Codex/OpenCode/pi/etc., and
   Google Antigravity/Gemini CLI respectively) plus `quest instructions` for
   just-in-time, task-shaped guidance.
 
-> **Status: 0.6.0 released.** Tag `v0.6.0`, the qualified workflow artifacts,
-> all seven public `@opum-ai/quest*` npm packages, and a clean registry
-> install agree on `0.6.0`. Releases are qualified in lockstep with
-> `@opum-ai/lore`. See
+> **Status: released.** The release tag, the qualified workflow artifacts, all
+> seven public `@opum-ai/quest*` npm packages, and a clean registry install
+> agree on one published version. This file deliberately does not restate that
+> number, and `bun run check:packages` fails the release if it reappears: a
+> version hand-maintained here goes stale the moment the next release lands,
+> and because `README.md` ships inside the tarball, the npm page then
+> advertises the wrong one permanently -- version pages are immutable. npm and
+> the repository's tags both show the current version already. Releases are
+> qualified in lockstep with `@opum-ai/lore`. See
 > [`docs/reference/quest-cli-release-truth.md`](docs/reference/quest-cli-release-truth.md).
 
 ---
