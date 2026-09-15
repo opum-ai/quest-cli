@@ -135,10 +135,34 @@ if (
 //      legitimate version tokens in its README) and implements the
 //      contract's scoped clause instead; that divergence is expected and is
 //      why A5 exists.
+//      PROVEN AGAINST BOTH SHAPES SEPARATELY, which is the part that matters
+//      and does not follow from the run count: one defect run reintroduces a
+//      package-name-adjacent site (`@opum-ai/quest@0.6.0`) and the other a
+//      `Status:`-style site whose nearest package name is on the NEXT line.
+//      A gate proved twice against the same shape shows that it runs, not
+//      that it catches; only the second shape distinguishes this rule from
+//      the contract's scoped clause.
+//
+//      THIS RULE IS FREE ONLY WHILE THE README HAS ZERO VERSION TOKENS, and
+//      that is a fact about today, not a property of the rule. The first
+//      honest historical sentence -- "0.6.2 was published with ..." is a
+//      true statement lore's README actually carries -- makes this rule
+//      condemn something correct. WHEN THAT HAPPENS, MARK THE REGION. Do not
+//      loosen `versionToken` or add an exemption: two implementations
+//      loosening their own matchers independently is the exact drift the
+//      contract's marked-region clause exists to bound, and the region below
+//      is the intended escape hatch.
 //   A4 NOT ENFORCED HERE, and cannot be. The post-publish read-back is a
 //      confirmation, not a gate -- published version pages are immutable, so
 //      it can only ever observe the defect. It belongs to the release
 //      procedure and is tracked on QCLI-307, not to this script.
+//   A3 CLAUSE 2 (byte-equality of a generated region) is VACUOUS HERE BY
+//      CONSTRUCTION, which is not the same state as unenforced and should
+//      not be read as a gap. Taking A2's "absent" arm means there is no
+//      generator, so there is nothing for byte-equality to guard. lore-cli
+//      takes the "generated" arm and is the only side enforcing that clause;
+//      the two implementations therefore exercise disjoint parts of the
+//      contract, and neither alone is evidence that it works.
 //
 // The markers are honoured if present so that adding a legitimate version is
 // a one-line, visible decision. They are absent today by design.
