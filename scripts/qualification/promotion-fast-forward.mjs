@@ -97,10 +97,22 @@ const fail = (message) => {
 
 // Fetch failure is fatal rather than ignored: a stale or absent origin/dev
 // would make assertion 1 compare against the wrong history and report a
-// verdict about an object nobody measured.
+// verdict about an object nobody measured. The refspec is EXPLICIT rather
+// than a bare `git fetch origin dev`: bare works in
+// Actions today, but only because git opportunistically updates the
+// remote-tracking ref -- under actions/checkout's narrowed
+// remote.origin.fetch that behaviour is incidental and nothing asserts it
+// (quest-web, 2026-09-15). Naming the refspec makes origin/dev's existence a
+// consequence of this line rather than of a default.
 if (
   gitOk("remote", "get-url", "origin") &&
-  !gitOk("fetch", "--no-tags", "--quiet", "origin", "dev")
+  !gitOk(
+    "fetch",
+    "--no-tags",
+    "--quiet",
+    "origin",
+    "+refs/heads/dev:refs/remotes/origin/dev",
+  )
 )
   fail(
     `Could not fetch origin dev, so ${devRef} cannot be trusted and no verdict is reported.`,
@@ -140,10 +152,29 @@ let movement;
 if (beforeSha === ZERO) {
   movement = `created at ${headSha} (main did not exist before this push, so there is no previous position to compare)`;
 } else if (!gitOk("cat-file", "-e", `${beforeSha}^{commit}`)) {
+  // The same missing object has two causes with opposite diagnoses, and the
+  // boring one is far likelier: a checkout without `fetch-depth: 0`.
+  // Reporting a workflow misconfiguration as a DAMAGED main -- on the one
+  // event everyone is watching -- is its own defect (opum-web, relayed by
+  // opum-marketplace; the shallow branch verified reachable here with a
+  // --depth 1 file:// clone plus this script's own fetch: is-shallow true,
+  // previous HEAD still unresolvable, origin/dev resolving fine). Only the
+  // object the error NAMES changes. The exit code is deliberately identical
+  // in both branches, because an unmeasured previous position is not a pass
+  // either way, and "make the false red less likely" was the available wrong
+  // fix.
+  if (git("rev-parse", "--is-shallow-repository") === "true")
+    fail(
+      `THIS CHECKOUT IS SHALLOW, so main's previous HEAD (${beforeSha}) was never fetched ` +
+        "and forward movement cannot be proven. This is a fault in the WORKFLOW, not in the " +
+        "promotion: the job needs actions/checkout with 'fetch-depth: 0'. main is very " +
+        "probably fine -- fix the checkout and re-run before treating this as a damaged branch.",
+    );
   fail(
     `main's previous HEAD (${beforeSha}) cannot be resolved in this clone, so forward ` +
-      "movement CANNOT be proven. Treat as an anomaly, not as a pass -- an object that is " +
-      "gone is usually one a rewrite orphaned.",
+      "movement CANNOT be proven. The clone is NOT shallow, so this is not a fetch-depth " +
+      "problem. Treat as an anomaly, not as a pass -- an object that is gone in a full clone " +
+      "is usually one a rewrite orphaned.",
   );
 } else if (beforeSha === headSha) {
   movement = `unchanged at ${headSha}`;

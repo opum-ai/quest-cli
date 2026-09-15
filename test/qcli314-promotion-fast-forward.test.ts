@@ -71,7 +71,7 @@ async function scratch() {
   const c4 = commit(work, "c4");
   git(work, "push", "-q", "origin", "dev");
   git(work, "fetch", "-q", "origin");
-  return { root, work, c1, c2, c3, c4 };
+  return { root, origin, work, c1, c2, c3, c4 };
 }
 
 function run(cwd: string, env: Record<string, string>) {
@@ -195,7 +195,15 @@ test("a partial promotion warns, names what was left behind, and does NOT fail",
   }
 });
 
-test("an unresolvable previous HEAD is an anomaly, never a pass", async () => {
+/**
+ * The next two are a MATCHED PAIR: the same missing object, opposite
+ * diagnoses. Each asserts the ABSENCE of the other's wording, because a
+ * single over-broad message satisfies a presence-only assertion in both
+ * directions and would look like two passing tests (opum-web, relayed by
+ * opum-marketplace). Reporting a missing `fetch-depth: 0` as a damaged main,
+ * on the one event everyone watches, is its own defect.
+ */
+test("an unresolvable previous HEAD in a FULL clone is an anomaly, never a pass", async () => {
   const { root, work, c4 } = await scratch();
   try {
     git(work, "checkout", "-q", c4);
@@ -203,6 +211,38 @@ test("an unresolvable previous HEAD is an anomaly, never a pass", async () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("cannot be resolved in this clone");
     expect(result.stderr).toContain("CANNOT be proven");
+    expect(result.stderr).toContain("NOT shallow");
+    // Not `"fetch-depth: 0'"` with the trailing quote: that spelling was the
+    // first draft's, and a combined-message mutant that wrote `fetch-depth:
+    // 0.` slipped past it. The absence assertion has to name the token, not
+    // the token as it happens to be punctuated in the message it came from.
+    expect(result.stderr).not.toContain("fetch-depth: 0");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the same missing object in a SHALLOW clone blames the workflow, not main", async () => {
+  const { root, origin, c2 } = await scratch();
+  try {
+    // `file://` is load-bearing: git ignores --depth on a local-path clone
+    // and silently produces a full one, so the case under test would not be
+    // the case exercised. Measured, not assumed -- the first attempt at this
+    // test made exactly that mistake and reported is-shallow false.
+    const shallow = join(root, "shallow");
+    git(root, "clone", "-q", "--depth", "1", `file://${origin}`, shallow);
+    // c2 is deliberately NOT dev's tip: a --depth 1 clone holds the tip, so
+    // naming it would resolve and exercise the wrong branch entirely. The
+    // first draft of this test did exactly that and passed with exit 0.
+    const result = run(shallow, { BEFORE_SHA: c2 });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("THIS CHECKOUT IS SHALLOW");
+    expect(result.stderr).toContain("fetch-depth: 0");
+    expect(result.stderr).toContain("main is very probably fine");
+    // The exit code is deliberately unchanged between the two branches: an
+    // unmeasured previous position is not a pass just because the likely
+    // cause is boring.
+    expect(result.stderr).not.toContain("a rewrite orphaned");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
