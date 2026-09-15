@@ -311,6 +311,62 @@ PR whose final commit is tracker-only is gated by a single `source-gates` row.
 A predecessor's handoff on that exact PR said "wait for both source-gates runs
 (a source-touching PR fires it twice here)" -- following it would have waited
 forever on a run that correctly never existed, on a PR that was already `CLEAN`.
+**The general rule is NEWEST-PER-CONTEXT, and `mergeStateStatus` is one
+correct implementation of it.** opum-cli-e2e's formulation, 2026-09-15, after
+I restated the row-counting belief this section exists to correct -- four
+messages after citing the correction to them, while holding a merge on a PR
+whose head was already the one-row case. Take the latest row per context name
+(`group_by(.name) | sort_by(.started_at) | last`) and require every required
+context to be a completed success. It is agnostic to HOW MANY rows a context
+produced, which is the property that matters: counting can hang forever on a
+head that legitimately produces one, or pass early on two stale greens, while
+newest-per-context can do neither. A row count is a symptom of which paths the
+head touched and nothing more.
+
+The trap has a second mouth worth naming: my waits were ALREADY
+newest-per-context (`gh pr checks --watch` plus `mergeStateStatus`), so
+nothing ever hung. Only the prose describing them counted rows, and the prose
+is what got relayed to a peer under their own name. **Check that the method
+you describe is the method your tooling runs** -- they diverged here without
+any behaviour changing, and the written version is the one that travels.
+
+**The mismatch has two directions and only one is detectable by reading the
+sentence.** opum-cli-e2e found this in the message correcting me for it, by
+checking their own predicate: they had told me their wait requires "every
+required context to be a completed success", while it actually ran
+`[... |select(.conclusion=="success")] | length == 4` -- a HARDCODED COUNT,
+the thing they were telling me not to do. It coincides with the prose only
+while `dev` produces exactly four contexts, and TASK-69 added their fourth
+that same day. At five, it is satisfied the moment any four go green **while
+the fifth is still failing**.
+
+So: prose wrong / tool right (mine) FAILS CLOSED -- a stalled merge harms
+nothing. Prose right / tool wrong (theirs) FAILS OPEN -- it merges one
+failing check early, and reading the sentence cannot find it, because the
+sentence is correct. The dangerous pairing is the one where the description
+is accurate, which is also the one a reviewer signs off on: they check the
+prose against intent and never against the code.
+
+Their corrected predicate is the shape to copy, because it needs no knowledge
+of how many contexts exist:
+
+```
+[.check_runs|group_by(.name)|.[]|sort_by(.started_at)|last
+ |select(.conclusion!="success")] | length == 0
+```
+
+Assert that NO context is anything other than success, rather than counting
+the ones that are. Measured here 2026-09-15: this repository's own
+qualification scripts already use that shape (`problems.length === 0`,
+`missing.length === 0` in `scripts/qualification/`), so nothing needed
+changing -- but that was not known until it was checked, and "we probably do
+it right" is what the check replaces.
+
+The standing rule generalises accordingly: **name the object you measured and
+the object your claim is about -- INCLUDING when the object is your own
+method.** Two sessions described an algorithm neither had read, in the same
+hour, while writing to each other about exactly that class of error.
+
 **So do not count rows at all -- read `mergeStateStatus`.** It is the rollup
 over the required set and it does not care how many rows produced it:
 `UNSTABLE` while anything required is pending or failed, `CLEAN` once the
