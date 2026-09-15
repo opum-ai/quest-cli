@@ -4,6 +4,35 @@ Records start here, at 0.5.0. Earlier releases are documented in
 `docs/reference/quest-cli-release-truth.md` and in each release's own PR
 history; this file is the forward-looking record.
 
+## Unreleased
+
+### Fixed
+
+- The release publish no longer puts `@opum-ai/quest` on the registry until a
+  read confirms all six platform packages actually **resolve for a consumer**.
+  It previously ordered its writes and treated that as the guarantee; write
+  order does not produce visibility order, and during the 0.7.0 publish the
+  two disagreed in four of six positions while one package sat non-public for
+  twelve minutes past the wrapper. Because platform packages are
+  `optionalDependencies`, an install inside that window SUCCEEDS and leaves no
+  binary -- so the failure was silent from the consumer's side and reported as
+  success from the publisher's (QCLI-299).
+
+  Nothing about an installed release changes; this is release tooling. The
+  gate reads over plain HTTPS with no credential, which is a different client
+  from the publishing one, and holds a 30s settle margin over the 9-20s
+  publisher-early lag measured by opum-cli-e2e.
+
+- A timed-out publish verification no longer asserts "this is registry
+  read-after-write lag, not a failed release". That sentence was true of six
+  packages and wrong about the one that decided whether 0.7.0 shipped, and it
+  told the operator to stop investigating at the moment investigating was the
+  whole job. It now reports each package's state read from the registry --
+  public, staged, or undetermined -- and names the operator action for a
+  staged one, including that the release token cannot clear it. The
+  `npm unpublish` warning stays: that half was protecting against a genuinely
+  destructive action (QCLI-299).
+
 ## 0.7.0
 
 Version frozen 2026-09-15, in lockstep with `@opum-ai/lore` 0.7.0 -- the

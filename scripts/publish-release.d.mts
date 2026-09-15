@@ -33,3 +33,60 @@ export function isPublished(
     ) => Promise<{ stdout: string; stderr: string }>;
   },
 ): Promise<boolean>;
+
+// QCLI-299: the wrapper publish is gated on a consumer-side read of every
+// platform package, so the sequence and its failure reporting are exported
+// with every side effect injectable.
+
+import type {
+  PublishErrorState,
+  VersionClassification,
+} from "./qualification/registry-visibility.d.mts";
+
+export interface PublishTarget {
+  readonly name: string;
+  readonly cwd: string;
+}
+
+export interface GateResult {
+  readonly ok: boolean;
+  readonly timedOut?: boolean;
+  readonly attempts?: number;
+  readonly missing?: readonly string[];
+}
+
+export interface PublishOutcome {
+  readonly ok: boolean;
+  readonly wrapperPublished: boolean;
+  readonly visibility: GateResult;
+  readonly platformNames: readonly string[];
+}
+
+export function publishPlatformsThenWrapper(options: {
+  platforms: readonly PublishTarget[];
+  wrapper: PublishTarget;
+  publish: (target: PublishTarget) => Promise<unknown>;
+  alreadyPublished: (name: string) => Promise<boolean>;
+  gate: (names: readonly string[]) => Promise<GateResult>;
+  log?: (message: string) => void;
+}): Promise<PublishOutcome>;
+
+export function describeUnresolvedPackages(
+  names: readonly string[],
+  version: string,
+  options?: {
+    classify?: (
+      pkgName: string,
+      version: string,
+      options?: Record<string, unknown>,
+    ) => Promise<VersionClassification>;
+  },
+): Promise<{ lines: string[]; states: Record<string, string> }>;
+
+export function diagnoseStaged(
+  target: PublishTarget,
+  options: { publish: (target: PublishTarget) => Promise<unknown> },
+): Promise<{
+  state: PublishErrorState | "was-absent-now-published";
+  detail: string | null;
+}>;
