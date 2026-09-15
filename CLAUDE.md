@@ -144,12 +144,19 @@ and `suites/11-contract-lore.mjs`, so these bind **both** CLIs, not just this
 one. Established 2026-09-15 while shipping `contractVersion` (QCLI-289), each
 measured in that file rather than inferred:
 
-1. **The error envelope is a CLOSED key set.** `check.errorEnvelope`
-   (`lib/check.mjs:181-183`) allow-lists `{error_type, message, hint, input,
-   principal}` and fails the row on any extra key, across ~41 call sites in 11
-   suites. Adding envelope metadata to an error envelope turns those red --
-   before a tag or after, so deferring such a change is later, not cheaper.
-   This is why `contractVersion` went on success envelopes only.
+1. **The error envelope is a CLOSED key set *in the harness*, and an OPEN one
+   in the contract -- so this check is now a consumer defect, not a
+   constraint.** `check.errorEnvelope` (`lib/check.mjs:181-183`) allow-lists
+   `{error_type, message, hint, input, principal}` and fails the row on any
+   extra key, across ~41 call sites in 11 suites. The 2026-09-15 amendment
+   (below) states that a consumer "MUST tolerate a top-level key it does not
+   recognize; rejecting an otherwise-valid envelope because it carries one is
+   a consumer defect, not grounds for treating the envelope as
+   non-conformant." **Still treat it as a practical blocker** -- the rows go
+   red until opum-cli-e2e fixes it, and a red suite blocks a release whatever
+   the spec says -- but the fix is theirs, not a redesign here. This is why
+   `contractVersion` went on success envelopes only; that reasoning was
+   correct on the facts at the time and is now superseded on the policy.
 2. **The success envelope is an OPEN key set in code and a CLOSED one in its
    own docblock.** `check.successEnvelope` (`:124-139`) validates
    `schemaVersion`/`kind`/`data` and rejects no unknown key; the comment above
@@ -170,26 +177,33 @@ measured in that file rather than inferred:
    presence and position are separate constraints, and only presence is
    obvious. Do not "fix" this by changing the harness; the rule outlives it.
 
-**Unsettled, and this repository is the one that moved first.** Read from
-`opum-doc` `origin/dev` == `origin/main` == `1d98ddb`, spec blob `02530b8`,
-on 2026-09-15 -- **cite the ref you read, because "I read the contract" is
-exactly as unfalsifiable as "I enumerated the consumers"** (the same lesson
-the two-pass consumer sweep below records, arriving from a different
-direction). The spec's own Adoption clause names `dev` as its stable
-location; `main` happened to agree here, which is luck rather than method.
-The contract's
-§ Versioning policy permits, without a breaking change, exactly three
-additions: fields on `data`, new `kind` values, new `error_type` strings. A
-new **top-level envelope key** is on neither that list nor the breaking-change
-list beside it. `contractVersion` is therefore unratified rather than
-permitted -- it renames, removes and repurposes nothing, so it is not breaking
-under the spec's own definition, but neither is it enumerated as allowed. The
-spec's `PrincipalRef` clause reasons that letting "whichever component ships
-first decide that shape unilaterally" is the hazard ratification exists to
-prevent; that reasoning applies by analogy to a top-level key, which is an
-argument rather than a rule the spec states. Routed to opum-doc as a contract
-question (2026-09-15). If it is settled the other way, this repository is the
-one that has to change.
+**Settled 2026-09-15: top-level envelope keys are OPEN to addition, and
+`contractVersion` is named in the Spec as a conformant instance.** Read from
+`opum-doc` `origin/dev` `5f67ea8`, spec blob `824628f` (PR #274) --
+**cite the ref you read, because "I read the contract" is exactly as
+unfalsifiable as "I enumerated the consumers"** (the same lesson the two-pass
+consumer sweep below records, from a different direction). The Spec's own
+Adoption clause names `dev`, not `main`, as its stable reference, and here
+they had genuinely diverged: `main` was still `1d98ddb`. Reading `main` would
+have returned the *pre-amendment* text and produced a confidently wrong
+answer -- the near-miss that makes this rule worth keeping.
+
+§ Versioning policy now permits adding a top-level key on **either** envelope
+without a breaking change, provided it does not establish, name, or vouch for
+identity or trust (`principal`'s category, which keeps its ratification bar).
+A consumer **MUST** tolerate a key it does not recognize. Retraction is not
+symmetric with addition: once a top-level key has shipped to real consumers,
+renaming or removing it is a breaking change like any other envelope field.
+
+Worth keeping for the reasoning rather than the outcome: before the ruling
+this read as unratified-not-forbidden, because the permitted list enumerated
+three additions and a top-level key was on neither it nor the breaking list.
+That was the right read of the text and the wrong prediction of the ruling --
+the gap was a gap in the *Spec*, which the amendment closed, not a defect in
+0.7.0. **When a contract is silent, say "undetermined" and route it; do not
+infer the answer from the neighbouring clause's reasoning.** Arguing by
+analogy from the `PrincipalRef` ratification bar pointed the opposite way to
+where this landed.
 
 0.7.0 satisfies all three: every success envelope it emits is
 `[schemaVersion, contractVersion, kind, data, principal]` -- verified by
