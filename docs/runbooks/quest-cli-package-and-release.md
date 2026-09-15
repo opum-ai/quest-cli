@@ -543,6 +543,57 @@ checkout and which version to expect, and leave it there for the duration of
 the run; a working tree that moves mid-run fails those rows on a mismatch that
 has nothing to do with the candidate.
 
+## A publish can land STAGED: accepted, reserved, and invisible
+
+Measured during the 0.7.0 release, 2026-09-15 (QCLI-299). npm 12 has a
+staged-publish flow: a version can sit in the registry **non-public, awaiting a
+maintainer's 2FA approval**, and a staged version **occupies the same semver
+unique index as a published one**. So a fourth state exists alongside
+published / slow / absent, and nothing in the publish path names it.
+
+What it looked like. `npm publish` returned success for
+`@opum-ai/quest-darwin-x64@0.7.0` and the loop published five more packages
+after it. The version never appeared: absent from `versions`, absent from
+`time`, `dist-tags.latest` still `0.6.2`, and the packument's `time.modified`
+still showing the previous day. Meanwhile `@opum-ai/quest@0.7.0` was live
+advertising it as an `optionalDependency`, so a macOS x64 install succeeded
+and left no binary -- silently, because optional dependencies do not fail an
+install.
+
+**The symptom that identifies it is a 409 on a re-publish attempt:**
+
+```
+http fetch PUT 409 https://registry.npmjs.org/@opum-ai%2fquest-darwin-x64
+error code E409
+error 409 Conflict - Cannot publish over previously staged version "0.7.0".
+```
+
+Two properties worth knowing before the next release:
+
+- **The release token cannot see it.** `npm stage list` returned `[]` for the
+  granular publishing token while the registry was refusing its PUT over a
+  staged version that token had itself created. The publisher is blind to the
+  thing blocking the publisher.
+- **`time.modified` does not distinguish staged from never-written.** A staged
+  version does not touch the public packument, so that field -- which looks
+  decisive, and was used as decisive here before the 409 arrived -- separates
+  "the public packument was not written" from "nothing happened", and those are
+  different facts.
+
+**Clearing it is an operator action and needs 2FA**, which is the entire point
+of staging: `npm stage list` then `npm stage approve <stage-id>` from a
+logged-in session, or the package's page on npmjs.com. The owner approved this
+one roughly twelve minutes after the publish, and the staged tarball went
+public **unmodified** -- shasum, integrity, file count and unpacked size all
+identical to what the pre-publication receipt gate had verified, so candidate
+digests do not need re-deriving after an approval.
+
+What is still undetermined, recorded rather than guessed: why one package of
+seven staged when all seven went through the identical code path with the same
+token and npm 12.0.2. npm warns on every invocation that tokens bypassing 2FA
+are being restricted for direct publishing, which makes a token publish landing
+in staging plausible -- but it does not explain six-of-seven.
+
 ## Rollback
 
 Before publication, discard only candidate artifacts and keep the evidence
