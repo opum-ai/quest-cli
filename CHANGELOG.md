@@ -33,6 +33,18 @@ history; this file is the forward-looking record.
   `npm unpublish` warning stays: that half was protecting against a genuinely
   destructive action (QCLI-299).
 
+### Added
+
+- `.github/workflows/lore-check.yml`: CI now runs `lore check` on every pull
+  request into `dev` (and on push to `dev` and `main`, so the context can later
+  become a required check without deadlocking the fast-forward promotion). The
+  operating block has made a green `lore check` the definition of done for a
+  docs change all along; nothing here enforced it. Unlike the fleet reference
+  job, this one installs no published `@opum-ai/quest`: lore's quest adapter
+  shells out to whatever `quest` is on PATH, and this repository authors quest,
+  so the job runs lore against a shim over `bun run src/cli/main.ts` from the
+  same checkout and asserts that is what PATH resolved to (QCLI-301).
+
 ## 0.7.0
 
 Version frozen 2026-09-15, in lockstep with `@opum-ai/lore` 0.7.0 -- the
