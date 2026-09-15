@@ -145,7 +145,7 @@ immutable -- that is the advice given back to quest-web for its own citations,
 and it stands regardless of how many tags exist, because tags are mutable and
 a published npm version is not.
 
-### Adding a top-level envelope key: three constraints, all in opum-cli-e2e
+### Adding a top-level envelope key: four constraints, all in opum-cli-e2e
 
 `opum-cli-e2e/lib/check.mjs` is imported by both `suites/10-contract-quest.mjs`
 and `suites/11-contract-lore.mjs`, so these bind **both** CLIs, not just this
@@ -184,6 +184,44 @@ measured in that file rather than inferred:
    So an additive field is safe only if emitted *before* `principal` --
    presence and position are separate constraints, and only presence is
    obvious. Do not "fix" this by changing the harness; the rule outlives it.
+
+4. **`contractVersion` must stay at EXACT INDEX 1**, and this one is not an
+   ordering rule but an index assertion, which is why constraint 3 does not
+   imply it. Reported by opum-cli-e2e 2026-09-15 while sweeping QCLI-316's
+   `scope` key (their sweep head `186c2e5`): `task list` sits in their
+   `READ_ONLY` probe table, so the row runs against exactly the kind that
+   changed. `scope` was safe only because it went in **after `data`**, leaving
+   index 1 untouched. A key inserted anywhere before `data` shifts
+   `contractVersion` and fails that row even though the envelope is perfectly
+   conformant and `principal` is still last.
+
+   So the safe slot for an additive top-level key is **after `data` and before
+   `principal`**, and it is bounded on BOTH sides by a different assertion.
+   Constraints 3 and 4 are easy to collapse into "keep the order tidy"; they
+   are two independent checks that fail on opposite edits.
+
+**A sweep is a verdict about a SPECIFIC diff -- cite the head SHA, and
+re-cite it if the branch moves.** Established with opum-cli-e2e 2026-09-15,
+from both ends in the same exchange. They cleared PR #148 without naming the
+head they read; I then committed QCLI-316 onto that same branch, which would
+have put an unswept envelope change under a verdict given about a different
+diff. Caught before pushing, #148 was merged at exactly the swept head and
+the new work cherry-picked onto a fresh branch off `dev`. Nothing in the
+verdict itself would have revealed the drift.
+
+Their framing is the one to keep, because it separates two failures that both
+look like a bad sweep: **the two-pass consumer rule governs whether the method
+could have seen everything; this governs whether the object is still the one
+that was read.** They fail independently, and a sweep can be perfect on the
+first and void on the second.
+
+**"Zero rows affected" from that harness means NO VERDICT MOVED -- it does not
+mean nothing changed.** Volunteered by opum-cli-e2e against their own
+reassurance, and worth more than the reassurance: their diff gate keys on
+`surface :: scenario` and `verdict` only, never on the recorded `actual` text.
+An envelope change that alters what a row PRINTS while leaving its verdict
+alone is invisible to it. Do not read their green as a statement about output
+bytes.
 
 **Settled 2026-09-15: top-level envelope keys are OPEN to addition, and
 `contractVersion` is named in the Spec as a conformant instance.** Read from

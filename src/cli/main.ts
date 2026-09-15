@@ -126,27 +126,140 @@ function output(
   data: object | readonly unknown[],
   mode: OutputMode,
   priorityKeys: readonly string[] = [],
+  scope?: ListingScope,
 ): InvocationResult {
   const success = data as {
     readonly schemaVersion: unknown;
     readonly kind: unknown;
     readonly data: unknown;
   };
+  // QCLI-316. `scope` is additive and sits BEFORE `principal`, which the
+  // shared command contract fixes as the last top-level key -- presence and
+  // position are separate constraints there and only presence is obvious.
+  // Additive top-level keys on a SUCCESS envelope are permitted (the
+  // `contractVersion` precedent, QCLI-289); a consumer that does not know the
+  // key ignores it and still reads the same `data`.
   const envelope = {
     schemaVersion: success.schemaVersion,
     contractVersion: CONTRACT_VERSION,
     kind: success.kind,
     data: success.data,
+    ...(scope === undefined ? {} : { scope }),
     principal: null,
   };
   return {
     stdout:
       mode === "json"
         ? `${JSON.stringify(envelope)}\n`
-        : renderHumanPayload(envelope.data, priorityKeys),
+        : `${renderHumanPayload(envelope.data, priorityKeys)}${scope === undefined ? "" : renderScopeFooter(scope)}`,
     stderr: "",
     exitCode: 0,
   };
+}
+
+/**
+ * What object a task listing actually answered about (QCLI-316).
+ *
+ * `quest task list --status "In Progress"` reads the checked-out ref's
+ * `.quest/` and nothing else, while the rule that sends a session to it --
+ * "check nothing is still open before you report clear" -- is asking about the
+ * REPOSITORY. The two diverge for exactly the tasks most likely to be
+ * forgotten, the ones still on an unmerged branch, and the failure direction
+ * is the bad one: an empty list reads as THE CHECK PASSING rather than as THE
+ * CHECK NOT RUNNING. Reported by opum-doc after an empty In Progress list on
+ * `dev` missed a task that was In Progress with an open PR.
+ */
+interface ListingScope {
+  /** The branch answered about, or null when HEAD is detached / not Git. */
+  readonly branch: string | null;
+  /** Whether other refs were consulted at all -- never left to inference. */
+  readonly otherRefsRead: boolean;
+  /**
+   * Task ids carried by another ref and absent from this one. Present only
+   * when `otherRefsRead`, and EMPTY IS A RESULT: it says the listing is
+   * load-bearing, which is the answer the caller actually wanted.
+   */
+  readonly unseenTaskIds?: readonly string[];
+}
+
+function renderScopeFooter(scope: ListingScope): string {
+  const where =
+    scope.branch === null
+      ? "the checked-out revision"
+      : `branch ${scope.branch}`;
+  if (!scope.otherRefsRead)
+    return `\nAnswered about ${where}. Other refs may carry task records that were not read.\n`;
+  const unseen = scope.unseenTaskIds ?? [];
+  if (unseen.length === 0)
+    return `\nAnswered about ${where}. No task record exists on any other ref that is absent here.\n`;
+  return `\nAnswered about ${where}. ${unseen.length} task record(s) exist on other refs and were NOT read: ${unseen.join(", ")}. An empty or filtered list here is not an answer about the repository.\n`;
+}
+
+/**
+ * Ids present on some other ref and absent from this one -- a SET DIFFERENCE,
+ * deliberately, not a count (QCLI-316).
+ *
+ * opum-doc built the naive version against a single non-dev ref and got 122
+ * lines, essentially all of which `dev` already held: useless as a notice and
+ * worse than useless as a safety signal, because a session that sees 122 lines
+ * after an empty list learns nothing and stops reading it the second time.
+ * Subtracting what the current ref carries left exactly one line -- the task
+ * the empty list had missed. Measured here across 20 refs: ~4,500 raw rows,
+ * ZERO after the difference. The notice's APPEARANCE is the signal, so being
+ * silent in the ordinary case is the property to design for.
+ *
+ * The subtrahend must span tasks/, completed/ AND archive/tasks/: a record can
+ * sit in `tasks/` on a branch and `completed/` on dev, and comparing only
+ * `tasks/` would report it as a phantom open task on every ref.
+ *
+ * FILENAMES ONLY, like the id allocator this borrows from
+ * ({@link highestSequenceOnOtherRefs}) -- one tree listing per ref, never a
+ * `git show` and never a JSON parse. That is what keeps it free of a merge
+ * policy: the allocator's cross-ref operation is max-over-integers, which
+ * cannot disagree with itself, whereas READING status across refs would have
+ * to answer "which ref wins when two carry the same id with different
+ * statuses", and inventing a merge policy for tracker state is a much larger
+ * decision than this. Existence is the most this can report without acquiring
+ * that question, and existence is enough to tell a caller their empty list is
+ * not load-bearing. See DEC-6.
+ */
+async function taskRecordIdsOnOtherRefs(
+  git: ReturnType<typeof createGitPort>,
+  root: string,
+): Promise<readonly string[] | null> {
+  try {
+    const refs = await git.listRefs(root);
+    if (refs.length === 0) return null;
+    const current = await git.currentBranch(root);
+    const idsOn = async (ref: string) => {
+      const listings = await Promise.all(
+        TASK_RECORD_SUBDIRECTORIES.map((subdirectory) =>
+          git.listFiles(root, ref, `.quest/${subdirectory}`),
+        ),
+      );
+      return new Set(
+        listings
+          .flat()
+          .filter((file) => file.endsWith(".json"))
+          .map((file) =>
+            file.slice(file.lastIndexOf("/") + 1, -".json".length),
+          ),
+      );
+    };
+    const here = await idsOn(
+      current === null ? "HEAD" : `refs/heads/${current}`,
+    );
+    const unseen = new Set<string>();
+    for (const ref of refs) {
+      for (const id of await idsOn(ref)) if (!here.has(id)) unseen.add(id);
+    }
+    return [...unseen].sort();
+  } catch {
+    // Same degradation as the allocator: a `.quest` directory with no Git
+    // behind it keeps today's local-only behaviour exactly, and a listing is
+    // never failed because a cross-ref check could not run.
+    return null;
+  }
 }
 
 type ChecklistEntry =
@@ -2315,26 +2428,45 @@ export async function runQuest(
           "usage",
           "task list --assignee and --unassigned cannot be combined.",
         );
-      return output(
-        await dispatchTrackerTaskCommand(await taskService(), {
-          command,
-          status: one(parsed, "--status"),
-          labels: parsed.values.get("--label"),
-          ready: parsed.values.has("--ready") || undefined,
-          excludeStatuses: csvValues(parsed, "--exclude-status"),
-          assignees: csvValues(parsed, "--assignee"),
-          unassigned: parsed.values.has("--unassigned") || undefined,
-          milestoneId: one(parsed, "--milestone"),
-          parentId: one(parsed, "--parent"),
-          priority: one(parsed, "--priority"),
-          types: csvValues(parsed, "--type"),
-          search: one(parsed, "--search"),
-          limit: limitValue(one(parsed, "--limit")),
-          sort: sortValue(one(parsed, "--sort")),
-          includeArchived: parsed.values.has("--include-archived") || undefined,
-        }),
-        modeFor(parsed),
-      );
+      const listing = await dispatchTrackerTaskCommand(await taskService(), {
+        command,
+        status: one(parsed, "--status"),
+        labels: parsed.values.get("--label"),
+        ready: parsed.values.has("--ready") || undefined,
+        excludeStatuses: csvValues(parsed, "--exclude-status"),
+        assignees: csvValues(parsed, "--assignee"),
+        unassigned: parsed.values.has("--unassigned") || undefined,
+        milestoneId: one(parsed, "--milestone"),
+        parentId: one(parsed, "--parent"),
+        priority: one(parsed, "--priority"),
+        types: csvValues(parsed, "--type"),
+        search: one(parsed, "--search"),
+        limit: limitValue(one(parsed, "--limit")),
+        sort: sortValue(one(parsed, "--sort")),
+        includeArchived: parsed.values.has("--include-archived") || undefined,
+      });
+      // QCLI-316 / DEC-6. The cross-ref difference is read ONLY when this
+      // listing came back empty, and that is a deliberate line rather than a
+      // cost dodge. A non-empty list already tells the reader that records
+      // exist and that this is a filtered view; an EMPTY one is the case that
+      // reads as the check passing rather than as the check not running, and
+      // it is the only case where naming what was not read changes what the
+      // reader concludes. The branch name is stated either way, because "which
+      // object did this answer about" is a question every listing owes an
+      // answer to and costs one `rev-parse`.
+      const listedTasks = (listing as { readonly data?: readonly unknown[] })
+        .data;
+      const listingIsEmpty =
+        Array.isArray(listedTasks) && listedTasks.length === 0;
+      const listingRoot = await resolvedRoot();
+      const unseenTaskIds = listingIsEmpty
+        ? await taskRecordIdsOnOtherRefs(git, listingRoot)
+        : null;
+      return output(listing, modeFor(parsed), [], {
+        branch: await git.currentBranch(listingRoot),
+        otherRefsRead: unseenTaskIds !== null,
+        ...(unseenTaskIds === null ? {} : { unseenTaskIds }),
+      });
     }
     if (command === "view" && rest[0]) {
       const parsed = flags(rest.slice(1));

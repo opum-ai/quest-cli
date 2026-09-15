@@ -178,6 +178,20 @@ export class LocalGitPort implements GitPort {
     return result.stdout.split("\n").filter((line) => line.length > 0);
   }
 
+  async currentBranch(repositoryPath: string): Promise<string | null> {
+    const result = await git(repositoryPath, [
+      "rev-parse",
+      "--abbrev-ref",
+      "HEAD",
+    ]);
+    if (result.code !== 0) return null;
+    const name = result.stdout.trim();
+    // `--abbrev-ref` answers the literal "HEAD" on a detached checkout. That
+    // is not a branch name, and returning it would have the listing claim to
+    // be scoped to a branch called HEAD.
+    return name === "" || name === "HEAD" ? null : name;
+  }
+
   async commit(operation: GitOperation): Promise<GitOperationResult> {
     this.assertOperationScope(operation);
     const prepared = await this.withPreparationLock(

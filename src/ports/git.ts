@@ -84,6 +84,13 @@ export interface GitPort {
    * history walk.
    */
   listRefs(repositoryPath: string): Promise<readonly string[]>;
+  /**
+   * The checked-out branch's short name, or null when HEAD is detached or the
+   * path is not a Git repository (QCLI-316). Needed because a task listing has
+   * to be able to NAME the object it answered about, and a SHA does not tell a
+   * reader which branch they are standing on.
+   */
+  currentBranch(repositoryPath: string): Promise<string | null>;
   commit(operation: GitOperation): Promise<GitOperationResult>;
   synchronize(operation: GitSynchronization): Promise<GitOperationResult>;
   push(operation: GitPush): Promise<GitOperationResult>;
