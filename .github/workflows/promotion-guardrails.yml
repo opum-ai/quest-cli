@@ -52,13 +52,19 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
-      - name: main's new HEAD must already be an ancestor of dev
-        run: |
-          set -euo pipefail
-          git fetch origin dev --quiet
-          if git merge-base --is-ancestor HEAD origin/dev; then
-            echo "main's new HEAD is a fast-forward of dev."
-          else
-            echo "::error::main's new HEAD is NOT an ancestor of dev. Something reached main outside the fast-forward promotion procedure (git push origin dev:main). Do not force-push over it -- find out what happened first. See CLAUDE.md's Ownership section."
-            exit 1
-          fi
+          # Load-bearing twice: the shallow default clone has neither main's
+          # previous HEAD nor enough history for either is-ancestor test.
+      - name: main must have moved forward, and from dev
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          FORCED: ${{ github.event.forced }}
+        # QCLI-314. This was an inline `run:` asserting only
+        # `git merge-base --is-ancestor HEAD origin/dev` and then reporting
+        # "main's new HEAD is a fast-forward of dev" -- containment measured,
+        # fast-forwardness claimed. It passed a force-push rewind of main to
+        # an older commit still on dev. Extracting it is the load-bearing
+        # half of the fix: inline here it had no tests by construction, which
+        # is how the defect survived in eight repositories. The script's own
+        # header carries the reasoning, and its test file asserts the
+        # emitted verdict and not only the exit code.
+        run: node scripts/qualification/promotion-fast-forward.mjs
