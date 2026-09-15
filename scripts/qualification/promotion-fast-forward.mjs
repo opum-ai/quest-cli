@@ -97,13 +97,21 @@ const fail = (message) => {
 
 // Fetch failure is fatal rather than ignored: a stale or absent origin/dev
 // would make assertion 1 compare against the wrong history and report a
-// verdict about an object nobody measured. The refspec is EXPLICIT rather
-// than a bare `git fetch origin dev`: bare works in
-// Actions today, but only because git opportunistically updates the
-// remote-tracking ref -- under actions/checkout's narrowed
-// remote.origin.fetch that behaviour is incidental and nothing asserts it
-// (quest-web, 2026-09-15). Naming the refspec makes origin/dev's existence a
-// consequence of this line rather than of a default.
+// verdict about an object nobody measured.
+//
+// The refspec is EXPLICIT and it is REQUIRED, not a tidiness preference. It
+// arrived as quest-web's optional adaptation -- "bare worked in Actions, it
+// just was not asserted by anything" -- and that framing understated it.
+// `--depth` implies `--single-branch`, and actions/checkout without
+// `fetch-depth: 0` behaves the same, so on a push to main
+// remote.origin.fetch covers only main and a bare `git fetch origin dev`
+// does not create origin/dev at all. Measured here in the production shape
+// (`git clone --depth 1 --branch main`): bare leaves origin/dev missing, and
+// the script would then die at the rev-parse below -- one line BEFORE the
+// previous-HEAD test the shallow diagnosis hangs off -- with exit 128 and NO
+// ::error:: annotation, on a push to main. Naming the refspec is what makes
+// origin/dev's existence a consequence of this line rather than of a clone
+// configuration nobody controls from here (lore-web, via opum-marketplace).
 if (
   gitOk("remote", "get-url", "origin") &&
   !gitOk(

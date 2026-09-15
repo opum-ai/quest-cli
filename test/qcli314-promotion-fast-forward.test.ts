@@ -70,6 +70,9 @@ async function scratch() {
   const c3 = commit(work, "c3");
   const c4 = commit(work, "c4");
   git(work, "push", "-q", "origin", "dev");
+  // `main` exists on the remote because the shallow fixture must be cut the
+  // way a push to main is: `--depth 1 --branch main`. See that test.
+  git(work, "push", "-q", "origin", "HEAD:main");
   git(work, "fetch", "-q", "origin");
   return { root, origin, work, c1, c2, c3, c4 };
 }
@@ -225,12 +228,33 @@ test("an unresolvable previous HEAD in a FULL clone is an anomaly, never a pass"
 test("the same missing object in a SHALLOW clone blames the workflow, not main", async () => {
   const { root, origin, c2 } = await scratch();
   try {
-    // `file://` is load-bearing: git ignores --depth on a local-path clone
-    // and silently produces a full one, so the case under test would not be
-    // the case exercised. Measured, not assumed -- the first attempt at this
-    // test made exactly that mistake and reported is-shallow false.
+    // Two things about this clone are load-bearing, and BOTH were wrong in
+    // an earlier draft:
+    //
+    // `file://` -- git silently ignores --depth on a local-path clone and
+    // produces a full one, so the case under test would not be the case
+    // exercised. The first draft reported is-shallow false.
+    //
+    // `--branch main` -- this is the PRODUCTION shape. A push to main checks
+    // out main, and --depth implies --single-branch, so remote.origin.fetch
+    // covers only main and `origin/dev` does not exist. Cloning --branch dev
+    // creates origin/dev for free and makes the shallow branch reachable
+    // whatever the script's fetch does, which is a fixture that cannot fail.
+    // Caught by lore-web via opum-marketplace, who had verified the shallow
+    // branch's PRECONDITIONS (is-shallow true, previous HEAD unresolvable --
+    // both correct) without its REACHABILITY; the failure sits between them.
     const shallow = join(root, "shallow");
-    git(root, "clone", "-q", "--depth", "1", `file://${origin}`, shallow);
+    git(
+      root,
+      "clone",
+      "-q",
+      "--depth",
+      "1",
+      "--branch",
+      "main",
+      `file://${origin}`,
+      shallow,
+    );
     // c2 is deliberately NOT dev's tip: a --depth 1 clone holds the tip, so
     // naming it would resolve and exercise the wrong branch entirely. The
     // first draft of this test did exactly that and passed with exit 0.
@@ -260,4 +284,34 @@ test("an unset BEFORE_SHA refuses to report at all rather than skipping assertio
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+/**
+ * The assertion above this line all test the script. This one tests that the
+ * workflow actually RUNS it. Mutation proves the suite's logic goes red; that
+ * a non-zero exit reddens the CI check is WIRING, a separate object, and the
+ * guard job only fires on push-to-main so no PR can prove it end to end
+ * (opum-marketplace, after nearly closing its own equivalent on mutation
+ * alone). This buys the cheap half: the call exists and is a `run:` line
+ * rather than a mention in a comment, which a path grep alone would accept.
+ */
+test("the workflow invokes the script from a run: line, not merely a comment", async () => {
+  const workflow = await Bun.file(
+    new URL("../.github/workflows/promotion-guardrails.yml", import.meta.url)
+      .pathname,
+  ).text();
+  const invocations = workflow
+    .split("\n")
+    .filter((line) =>
+      /^\s*run:\s*node\s+scripts\/qualification\/promotion-fast-forward\.mjs\s*$/.test(
+        line,
+      ),
+    );
+  expect(invocations).toHaveLength(1);
+  // The inputs assertion 2 cannot be made without. A job that calls the
+  // script but passes neither gets a usage refusal rather than a verdict.
+  expect(workflow).toContain("BEFORE_SHA: ${{ github.event.before }}");
+  expect(workflow).toContain("FORCED: ${{ github.event.forced }}");
+  // fetch-depth: 0 is what keeps the previous HEAD resolvable at all.
+  expect(workflow).toContain("fetch-depth: 0");
 });
