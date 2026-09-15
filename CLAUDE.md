@@ -259,6 +259,46 @@ Two things this means in practice:
   *names* (`source-gates`, `Tracker integrity`), never the all-green rollup of
   every job GitHub happens to show.
 
+### The quest/lore release lockstep is a fact about VERSIONS, not SHAs
+
+Established with lore-cli 2026-09-15, after a cross-read where each side's
+tip had moved between the reads. Both CLIs ship paired at the same version;
+either repository's `dev` and `main` can move at any time for a tracker-only
+or docs-only commit, and such a move **does not unpair the release**. When
+re-verifying the pairing, re-read `package.json` and the tags -- not the tip
+SHA. A moved commit is not evidence of drift and should not be investigated
+as if it were.
+
+Two mechanics that make a cross-read trustworthy rather than merely polite:
+
+- **Read `package.json` at the exact SHA, not at a branch name.** A branch
+  can move between two API calls; a SHA cannot. `gh api
+  "repos/opum-ai/<repo>/contents/package.json?ref=<sha>"` -- quote the URL,
+  because zsh globs the `?`.
+- **Verify the peer's claim rather than accepting it.** Measured 2026-09-15:
+  lore-cli's report of its own state was accurate in every clause, and my
+  own reported state had gone stale by one `.quest/`-only commit between
+  their read and mine. Both facts came from checking, and only one of them
+  was predictable.
+
+### Assert the refs after a promotion push; a failed push and a silent no-op look alike
+
+Reported by lore-cli 2026-09-15 from a promotion that failed on intermittent
+SSH `Permission denied (publickey)` and succeeded on retry. `main` did not
+move on the failed attempt, and they only knew that because a post-push
+assertion ran -- in a scrollback, an auth-failed push and a promotion that
+silently no-ops on a stale ref (ODOC-193) read the same way.
+
+So after `git push origin origin/dev:main`, assert the result instead of
+trusting the exit code:
+
+```sh
+gh api repos/opum-ai/quest-cli/git/ref/heads/main --jq '.object.sha'
+```
+
+Prefer the GitHub API for the assertion: it uses token auth and was
+unaffected by the SSH failure that broke the push.
+
 <!-- quest:agent-instructions:begin -->
 # Quest agent instructions
 
