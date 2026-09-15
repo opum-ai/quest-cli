@@ -326,6 +326,50 @@ test("a missing origin/dev in a FULL clone is a real anomaly, not a fetch-depth 
   }
 });
 
+/**
+ * The fetch site, one step earlier again. opum-marketplace measured a bare
+ * `git fetch origin dev` against a remote with no `dev` dying at exit 128
+ * with ZERO annotations -- their implementation's version of the second-site
+ * defect, found after this repository described the general form. This
+ * script already annotated here, but with a paraphrase: git's own
+ * `fatal: couldn't find remote ref refs/heads/dev` was discarded by
+ * `stdio: "ignore"`, leaving the operator the least specific version of the
+ * most specific fact available.
+ */
+test("a remote with no dev blames the REMOTE and quotes git's own error", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-promotion-nodev-"));
+  try {
+    const origin = join(root, "origin.git");
+    const work = join(root, "work");
+    git(root, "init", "--bare", "-q", "--initial-branch=main", origin);
+    git(root, "init", "-q", "--initial-branch=main", work);
+    git(work, "config", "user.email", "test@example.com");
+    git(work, "config", "user.name", "Test");
+    git(work, "remote", "add", "origin", origin);
+    commit(work, "c1");
+    const head = commit(work, "c2");
+    git(work, "push", "-q", "origin", "main");
+    const clone = join(root, "clone");
+    git(root, "clone", "-q", `file://${origin}`, clone);
+
+    const result = run(clone, { BEFORE_SHA: head });
+    expect(result.exitCode).toBe(1);
+    // Liveness: a negative assertion is satisfied by a run that emits
+    // nothing, so the annotation's presence is asserted before its absences.
+    expect(result.stderr).toContain("::error::");
+    expect(result.stderr).toContain("blames the REMOTE, not main");
+    expect(result.stderr).toContain("main itself is untouched");
+    // git's own message, not this script's paraphrase of it.
+    expect(result.stderr).toContain("couldn't find remote ref refs/heads/dev");
+    expect(result.stderr).not.toContain("git said: (nothing)");
+    // This is not the fetch-depth story: the clone is full and dev is simply
+    // not there.
+    expect(result.stderr).not.toContain("fetch-depth: 0");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("an unset BEFORE_SHA refuses to report at all rather than skipping assertion 2", async () => {
   const { root, work, c4 } = await scratch();
   try {

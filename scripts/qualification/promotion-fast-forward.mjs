@@ -82,12 +82,26 @@ const forced = process.env.FORCED === "true";
 const devRef = process.env.DEV_REF || "origin/dev";
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+// `gitOk` is for questions where a non-zero exit is a legitimate ANSWER --
+// is-ancestor, cat-file -e -- so discarding stderr is correct there.
 const gitOk = (...args) => {
   try {
     execFileSync("git", args, { stdio: "ignore" });
     return true;
   } catch {
     return false;
+  }
+};
+// `gitTry` is for operations where a non-zero exit is a FAILURE. There, git's
+// own message is the most specific information available, and a diagnostic
+// wrapper that discards the underlying tool's error leaves the operator with
+// nothing but this script's paraphrase.
+const gitTry = (...args) => {
+  try {
+    execFileSync("git", args, { stdio: ["ignore", "ignore", "pipe"] });
+    return { ok: true, stderr: "" };
+  } catch (error) {
+    return { ok: false, stderr: String(error.stderr ?? "").trim() };
   }
 };
 const fail = (message) => {
@@ -112,19 +126,22 @@ const fail = (message) => {
 // ::error:: annotation, on a push to main. Naming the refspec is what makes
 // origin/dev's existence a consequence of this line rather than of a clone
 // configuration nobody controls from here (lore-web, via opum-marketplace).
-if (
-  gitOk("remote", "get-url", "origin") &&
-  !gitOk(
+if (gitOk("remote", "get-url", "origin")) {
+  const fetched = gitTry(
     "fetch",
     "--no-tags",
     "--quiet",
     "origin",
     "+refs/heads/dev:refs/remotes/origin/dev",
-  )
-)
-  fail(
-    `Could not fetch origin dev, so ${devRef} cannot be trusted and no verdict is reported.`,
   );
+  if (!fetched.ok)
+    fail(
+      `Could not fetch dev from origin, so ${devRef} cannot be trusted and no verdict is ` +
+        "reported. This blames the REMOTE, not main: the likeliest causes are dev renamed or " +
+        "deleted upstream, or the job pointed at the wrong remote. main itself is untouched " +
+        `by this failure. git said: ${fetched.stderr || "(nothing)"}`,
+    );
+}
 
 // The SAME two-causes problem as the previous-HEAD test below, one step
 // earlier and easier to miss: a missing ref here reads like a repository
