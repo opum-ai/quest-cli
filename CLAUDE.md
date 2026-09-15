@@ -273,9 +273,14 @@ PR whose final commit is tracker-only is gated by a single `source-gates` row.
 A predecessor's handoff on that exact PR said "wait for both source-gates runs
 (a source-touching PR fires it twice here)" -- following it would have waited
 forever on a run that correctly never existed, on a PR that was already `CLEAN`.
-Confirm with `gh api "repos/opum-ai/quest-cli/actions/runs?head_sha=<sha>"` and
-read the `event` field: two rows for one context name means `pull_request` plus
-`push`, and one row is not evidence that something is still pending.
+**So do not count rows at all -- read `mergeStateStatus`.** It is the rollup
+over the required set and it does not care how many rows produced it:
+`UNSTABLE` while anything required is pending or failed, `CLEAN` once the
+required set is satisfied. Counting rows requires knowing which of two numbers
+is correct for this particular head commit, which is the judgement that was
+wrong above; `gh pr view <n> --json mergeStateStatus` needs no such knowledge.
+Reach for `gh api "repos/opum-ai/quest-cli/actions/runs?head_sha=<sha>"` and
+its `event` field only to explain a count, never to decide whether to wait.
 
 The watched paths are in `.github/workflows/prepublication-qualification.yml`
 (`src/**`, `test/**`, `bin/**`, `npm/**`, `scripts/qualification/**`,
