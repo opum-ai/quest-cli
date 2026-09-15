@@ -3124,6 +3124,21 @@ export async function runQuest(
           hint: "Use --clear-ac or --clear-dod on its own, and keep --acceptance-criteria/--definition-of-done in a separate edit from --check-*/--uncheck-*/--remove-*.",
         },
       );
+    // QCLI-313 / DEC-5. `validation` on exit 6, NOT `usage` on exit 2 like the
+    // two conflicts above: those are decided by the flag combination alone,
+    // while this one depends on the record's current state -- the identical
+    // command line is fine against a list with nothing ticked. A caller can
+    // therefore tell "I combined flags wrongly" from "the record has state my
+    // replacement would destroy" by exit code, without parsing prose. Follows
+    // DEC-2, where a mismatch against current state stayed validation.
+    if (message === "check_replacement_clears_checked")
+      return failure(
+        "validation",
+        "This checklist replacement would clear a box that is currently checked.",
+        {
+          hint: 'Replace with the object form, which carries checked state: --acceptance-criteria \'[{"index":0,"text":"...","checked":true}]\' (--definition-of-done takes the same shape). To reset a box deliberately, pass that form with "checked": false. To edit one entry without restating the list, use --check-ac/--uncheck-ac/--remove-ac with its 1-based position.',
+        },
+      );
     if (message === "check_index_conflict")
       return failure(
         "usage",

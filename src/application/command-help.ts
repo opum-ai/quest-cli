@@ -243,6 +243,15 @@ export const commandHelp: Record<
       "index + 1); `index` is not what these flags take. Removing an item renumbers everything " +
       "after it, in both forms: re-read the task before addressing what you think is 'the next' " +
       "item rather than trusting a position computed before the removal. " +
+      "--acceptance-criteria/--definition-of-done REPLACE the whole list, and take a JSON array " +
+      "whose entries may be bare strings or " +
+      '{"index":<0-based>,"text":"<string>","checked":<boolean>} objects (QCLI-313). Only the ' +
+      "object form carries checked state, so it is the one to use when amending an entry on a " +
+      "list that has anything ticked -- a bare string says nothing about the box and the edit " +
+      "is refused with an exit-6 validation error naming this shape, rather than clearing it " +
+      'silently as it did before. Pass the object form with "checked": false to reset a box ' +
+      "deliberately. For a one-entry change prefer --check-ac/--uncheck-ac/--remove-ac, which " +
+      "need no restatement of the list at all. " +
       "--comments/--add-comment take a JSON array of structured objects, not free text: each " +
       'entry needs {"id":"<string>","authorId":"<string>","body":"<string>","createdAt":"<ISO-8601 string>"}. ' +
       "--if-revision <revision> (QCLI-277) is an optional precondition: capture `revision` from an " +

@@ -291,7 +291,10 @@ function foldCheckList(
       throw new RecordValidationError("check_operation_conflict");
     return [];
   }
-  if (!addressed) return replacement;
+  if (!addressed) {
+    if (replacement !== undefined) assertNoCheckedLoss(current, replacement);
+    return replacement;
+  }
   if (replacement !== undefined)
     throw new RecordValidationError("check_operation_conflict");
   const base = reindex(current);
@@ -317,6 +320,60 @@ function foldCheckList(
         return item;
       }),
   );
+}
+
+/**
+ * QCLI-313 / DEC-5. A wholesale checklist replacement drops whatever it does
+ * not restate, and a BARE STRING restates no checked state at all -- so
+ * `--acceptance-criteria '["a","b"]'` over a list with boxes ticked silently
+ * unticked them, at exit 0 with `kind=task.updated` and an empty stderr.
+ *
+ * Three independent agent callers reached for that form within hours on
+ * 2026-09-15, none of them knowing the `{index,text,checked}` form existed:
+ * `quest manifest --json` advertised only `json-array`, and the object form
+ * appeared nowhere in the CLI's output except the usage error for an object
+ * array missing `index`. One caller reaching for the destructive path is a
+ * caller mistake; three is the DISCOVERABLE path being the destructive one.
+ *
+ * The refusal fires IF AND ONLY IF a currently-checked position is replaced by
+ * a BARE STRING -- so the refusal and the SILENT loss are the same event, with
+ * no false refusals and no silent losses. A list with nothing checked has
+ * nothing to lose and is replaced exactly as before, which covers every
+ * creation and every existing caller who was never at risk.
+ *
+ * The test is on what the replacement CARRIES, not on the outcome, and that
+ * distinction is the whole escape hatch: an entry that says `checked: false`
+ * has stated its intent and is honoured, while a bare string has said nothing
+ * and would have the box cleared out from under it. An outcome-based test --
+ * refuse whenever a ticked box ends up unticked -- reads as equivalent and is
+ * not: it refuses the deliberate reset too, leaving no way to express one.
+ * Written that way first, and caught by running the deliberate-reset case
+ * rather than by re-reading the rule, which had looked obviously correct.
+ *
+ * A checked position with NO entry opposite it is a removal, not a silent
+ * clear: the item is gone, so there is no box left to preserve, and
+ * `--remove-ac` says the same thing more precisely.
+ *
+ * Deliberately NOT a new flag. Resetting a box on purpose is already
+ * expressible -- pass the object form with `checked: false` -- and the refusal
+ * names that spelling, which closes the discoverability gap at the one moment
+ * the caller is certainly reading. See DEC-5 for the alternatives weighed:
+ * preserve-by-position is silent in the other direction and quietly redefines
+ * an operation the contract already documents, and an unconditional refusal
+ * breaks the harmless majority.
+ */
+function assertNoCheckedLoss(
+  current: readonly (string | TaskCheckItem)[],
+  replacement: readonly (string | TaskCheckItem)[],
+): void {
+  const before = reindex(current);
+  // Cheap and, more to the point, exact: with nothing ticked there is no
+  // state a replacement could destroy, so this is not a fast path around the
+  // rule -- it IS the rule.
+  if (!before.some((item) => item.checked)) return;
+  for (const [offset, item] of before.entries())
+    if (item.checked && typeof replacement[offset] === "string")
+      throw new RecordValidationError("check_replacement_clears_checked");
 }
 
 /** Normalizes a legacy-or-item checklist to positionally indexed items. */
