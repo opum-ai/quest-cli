@@ -270,12 +270,45 @@ Two things this means in practice:
 ### The quest/lore release lockstep is a fact about VERSIONS, not SHAs
 
 Established with lore-cli 2026-09-15, after a cross-read where each side's
-tip had moved between the reads. Both CLIs ship paired at the same version;
-either repository's `dev` and `main` can move at any time for a tracker-only
-or docs-only commit, and such a move **does not unpair the release**. When
+tip had moved between the reads. **Both CLIs ship paired at the same exact
+version, and a unilateral patch that says so in its own changelog entry is
+the documented exception to that, not a violation of it** -- so quest 0.7.1
+against lore 0.7.0 is the pair in its exception state, not drift. Either
+repository's `dev` and `main` can move at any time for a tracker-only or
+docs-only commit, and such a move **does not unpair the release**. When
 re-verifying the pairing, re-read `package.json` and the tags -- not the tip
 SHA. A moved commit is not evidence of drift and should not be investigated
 as if it were.
+
+**Exact version, not minor-with-patches-free.** The convention is normative
+in this repository's own `CHANGELOG.md`, not here: 0.5.0 established that the
+two "move together at every stacked release: one version number naming the
+pair", and every release since has either held it or declared breaking it in
+its own entry. Twice, both legitimate, both declared:
+
+- **0.6.2** -- `v0.6.1` was tagged here and never published (every publish
+  attempt hit a registry E404 before writing anything, a CI-only defect with
+  no content of its own). Rather than move an already-pushed tag -- a
+  cross-repo tag-stability concern for `quest-web`'s CI, see above -- the
+  content shipped under the next unclaimed number. npm still carries the
+  gap: quest 0.6.0, 0.6.2; lore 0.6.0, 0.6.1, 0.6.2.
+- **0.7.1** -- a quest-side hotfix with no lore half. `task start` out of the
+  retired `"Blocked"` literal plus a new `doctor` `task_status_off_flow`
+  issue (QCLI-302), and the publish-visibility gate (QCLI-299). lore-cli
+  consumed it to repair LCLI-333; it did not co-author it. Holding it for
+  the next paired release would have left stranded records unreachable for
+  no consumer's benefit.
+
+So a patch-level difference is not by itself evidence of a missing release on
+the other side. Check whether the leading side's changelog entry declares the
+break: if it does, the pair is in its documented exception state; if it does
+not, **that** is the defect -- an undeclared unilateral release -- and the
+number is only the symptom. And a quest version named in a managed `CLAUDE.md`
+block implies nothing about lore: that block declares the quest CLI a
+workspace runs, and no lore release at the same number is entailed by it.
+Ten repositories declaring Quest CLI 0.7.1 while lore sits at 0.7.0 is
+correct, not a fleet-wide dangling reference (QCLI-306, asked by opum-agent
+2026-09-15).
 
 Two mechanics that make a cross-read trustworthy rather than merely polite:
 
