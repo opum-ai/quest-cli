@@ -272,6 +272,60 @@ test("the same missing object in a SHALLOW clone blames the workflow, not main",
   }
 });
 
+/**
+ * A second matched pair, at the `origin/dev` site rather than the
+ * previous-HEAD one. This branch executes BEFORE the shallow diagnosis
+ * further down, so that diagnosis cannot cover it -- found by mutating the
+ * fetch refspec away and READING the failure rather than noting that a test
+ * had gone red. The message it emitted was accurate and blamed the wrong
+ * thing: "nothing to compare main against" reads as a repository problem
+ * when the cause is a single-branch checkout.
+ */
+test("a missing origin/dev in a SHALLOW clone blames the workflow, not the remote", async () => {
+  const { root, origin } = await scratch();
+  try {
+    const shallow = join(root, "no-dev");
+    git(
+      root,
+      "clone",
+      "-q",
+      "--depth",
+      "1",
+      "--branch",
+      "main",
+      `file://${origin}`,
+      shallow,
+    );
+    // Removing the remote reproduces the no-refspec outcome without mutating
+    // the script: nothing fetches, so origin/dev never comes into existence.
+    git(shallow, "remote", "remove", "origin");
+    const result = run(shallow, { BEFORE_SHA: ZERO });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("does not resolve in this clone");
+    expect(result.stderr).toContain("THIS CHECKOUT IS SHALLOW");
+    expect(result.stderr).toContain("fetch-depth: 0");
+    expect(result.stderr).not.toContain("real anomaly");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a missing origin/dev in a FULL clone is a real anomaly, not a fetch-depth problem", async () => {
+  const { root, work } = await scratch();
+  try {
+    git(work, "remote", "remove", "origin");
+    git(work, "update-ref", "-d", "refs/remotes/origin/dev");
+    const result = run(work, { BEFORE_SHA: ZERO });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("does not resolve in this clone");
+    expect(result.stderr).toContain("NOT shallow");
+    expect(result.stderr).toContain("real anomaly");
+    expect(result.stderr).not.toContain("fetch-depth: 0");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("an unset BEFORE_SHA refuses to report at all rather than skipping assertion 2", async () => {
   const { root, work, c4 } = await scratch();
   try {

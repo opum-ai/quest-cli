@@ -126,12 +126,26 @@ if (
     `Could not fetch origin dev, so ${devRef} cannot be trusted and no verdict is reported.`,
   );
 
+// The SAME two-causes problem as the previous-HEAD test below, one step
+// earlier and easier to miss: a missing ref here reads like a repository
+// problem, and the likeliest cause is again a single-branch checkout. Found
+// by mutating the refspec away and READING the failure rather than noting
+// that a test went red -- the shallow diagnosis further down does not cover
+// this site, because execution never reaches it.
 let devSha;
 try {
   devSha = git("rev-parse", "--verify", `${devRef}^{commit}`);
 } catch {
+  const shallow = git("rev-parse", "--is-shallow-repository") === "true";
   fail(
-    `${devRef} does not resolve in this clone, so there is nothing to compare main against.`,
+    `${devRef} does not resolve in this clone, so there is nothing to compare main against. ` +
+      (shallow
+        ? "THIS CHECKOUT IS SHALLOW, and --depth implies --single-branch, so remote.origin.fetch " +
+          "covers only the pushed branch. This is a fault in the WORKFLOW, not in the promotion: " +
+          "the job needs actions/checkout with 'fetch-depth: 0', and this script's fetch must name " +
+          "an explicit refspec. main is very probably fine."
+        : "The clone is NOT shallow, so this is not a fetch-depth problem -- dev itself may be " +
+          "missing from the remote, which is a real anomaly."),
   );
 }
 const headSha = git("rev-parse", "HEAD");
