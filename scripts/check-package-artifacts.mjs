@@ -164,6 +164,33 @@ if (
 //      the two implementations therefore exercise disjoint parts of the
 //      contract, and neither alone is evidence that it works.
 //
+// WHAT LORE ENFORCES, the other half of A5. Reported by lore-cli 2026-09-15
+// and recorded here so this side's A5 entry is not half a picture. It is
+// their DECISION, not yet their proof -- they said so explicitly and are
+// implementing now; treat every line below as pending until they send exit
+// codes, and do not cite it as a verified state of lore-cli.
+//   A1 exercised -- read out of the real `npm pack` tarball, as here.
+//   A2 GENERATED arm, in TWO marked regions, generated from `package.json`.
+//      Two rather than one because lore's stale sites are not contiguous and
+//      a single spanning region would swallow a paragraph of legitimate
+//      historical version citations that no generator could reproduce from
+//      `package.json` without fabricating them.
+//   A3 clause 1 exercised per region; clause 2 exercised, and lore is the
+//      only side that ever will exercise it, for the reason above.
+//   A3 clause 3 exercised as BLOCK-scoped name-plus-version adjacency: a
+//      block is a maximal run of lines delimited by a blank line or a bare
+//      `>`, region lines are excised before evaluation, and the clause fails
+//      when one block holds both the package's own npm name and a semver
+//      token. Strictly stronger than the landed floor and strictly weaker
+//      than quest's no-token rule -- necessarily so, since nine of lore's
+//      README tokens are legitimate.
+//   A4 exercised, naming package and version.
+//
+// One divergence that is a CODE fact here, not a policy one: the region
+// support below handles exactly ONE marker pair. lore needs two. If quest
+// ever needs a second region, that is a change to this file rather than a
+// change to the README.
+//
 // The markers are honoured if present so that adding a legitimate version is
 // a one-line, visible decision. They are absent today by design.
 const versionClaimStart = "<!-- quest:version-claims -->";
