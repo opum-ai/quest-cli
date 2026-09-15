@@ -162,7 +162,7 @@ export const commandHelp: Record<
   },
   "task list": {
     summary:
-      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived.",
+      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived. SCOPE (QCLI-316): this reads the CHECKED-OUT ref's .quest/ and nothing else, so a result -- and an EMPTY result especially -- is a claim about that branch, not about the repository. A task filed on an unmerged branch is invisible here, which is exactly the task most likely to be forgotten. Every listing carries a `scope` field naming the branch it answered about; when the result is empty, scope also reports `unseenTaskIds`, the ids that exist on some other ref and not on this one (filenames only, one tree listing per ref, no record is read and no status is merged across refs). An empty list with an empty `unseenTaskIds` is load-bearing; an empty list naming ids is the check not having run on them. Before reporting that nothing is open, read `scope`, and cross-check an independent source such as `gh pr list`.",
     usage:
       'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--search text] [--sort id[:asc|desc]] [--limit 20] [--include-archived]',
     flags: [
