@@ -102,6 +102,74 @@ release does not complete.
 - Explicit owner authorization immediately before publication. This task does
   not reserve a name, alter registry access, or publish on its own.
 
+## What a version bump touches
+
+Before "a reviewed source commit" above can exist, the version itself has to
+move in every place that carries it. Eleven sites across eight files,
+established by a pre-0.7.0 version audit (OPAG-142) rather than assumed --
+verify against source before trusting this list for a release further out
+than the one that produced it. This section documents what a bump touches;
+it does not change the procedure above or move any file on its own.
+
+**Hand-edited, independently -- nothing here derives from anything else:**
+
+- `package.json` (root) `.version` -- the actual source of truth: everything
+  generated below reads from this field, not the other way round.
+- `src/application/version.ts`'s `QUEST_VERSION` constant. Its own doc
+  comment calls it "the single release-version source of truth," but it is
+  **not derived from `package.json`** -- a comment claiming an authority the
+  file does not have. A bump that only touches `package.json` leaves this
+  stale, and `bun run check` will not catch it; only `bun run test:packages`
+  does.
+- `src/contract/tracker/index.ts`'s `QUEST_ADAPTER_PINNED_VERSION` constant.
+  Has its own pinning test, same failure mode as above if skipped.
+- `fixtures/tracker/v1/conformance.json`'s `questVersion` golden value.
+
+**Generated, not hand-edited -- `scripts/build-platform-packages.mjs` is the
+generator:**
+
+- `npm/quest-<platform>/package.json` for all six platforms (`darwin-arm64`,
+  `darwin-x64`, `linux-arm64`, `linux-x64`, `win32-arm64`, `win32-x64`).
+- `npm/quest-<platform>/bin/quest`(`.exe`) for all six.
+- Root `package.json`'s `questPlatformPackages` checksum map.
+
+The script reads `version` from root `package.json` -- confirming root as the
+one real source of truth above -- then, in the *same pass*, both writes each
+platform manifest and recompiles that platform's binary
+(`bun build --compile`). **There is no manifest-only mode.** That is the
+actual mechanism behind "Anchor every artifact claim to stored bytes" below:
+this script cannot be safely re-run against an already-published version to
+fix a manifest typo alone, because doing so also produces a new, non-byte-
+identical binary for a release that already shipped a different one. Before
+publish -- preparing a new bump, nothing published yet -- running it via a CI
+dispatch against the release branch (see "Exercising a build before it is
+published") is the normal, correct procedure, not an exception to this rule.
+
+**Also generated, separately:**
+
+- CLAUDE.md's managed Quest block (the "Quest CLI `<version>`" sentence), via
+  `quest agents --update-instructions --target claude`. Run it against the
+  **freshly built local binary** for this machine's own architecture (e.g.
+  `./npm/quest-darwin-arm64/bin/quest agents --update-instructions --target
+  claude`), never the globally installed CLI on `PATH` -- it reads its own
+  running version, not `package.json`. Regenerating against a stale global
+  install silently reports `state: current` against itself; this exact
+  mistake happened at the 0.6.1 bump.
+
+**Not covered by any of the above, and not yet automated:** `bun.lock`'s
+platform-package pins (its `optionalDependencies` block and the resolved
+package entries) stay at whatever version they were last generated at until
+someone runs `bun install`. This broke `bun install --frozen-lockfile` in CI
+at the 0.6.2 bump and was patched once as a one-off. Touch `bun.lock` on
+every bump regardless of whether QCLI-292 (tracking making this automatic or
+checked) is done -- see that task for the fix-it-properly work, not
+duplicated here.
+
+**Not part of the bump commit:** `CHANGELOG.md`'s `## Unreleased` heading
+becomes `## <version>` at tag time (Step 5 below), not when the version
+files above are committed -- moving it early makes the changelog claim a
+release before qualification has run.
+
 ## Steps
 
 1. Build candidates from the reviewed commit. Record the source SHA, Bun
