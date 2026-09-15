@@ -42,6 +42,34 @@ not asked for.
   what it already does today (a defensive read of either shape); this field
   only protects against the *next* shape change, not the last one.
 
+  **What `contractVersion` does NOT cover.** Stated here because a field that
+  says what it covers and not what it omits has the same defect it was added
+  to fix -- and because 0.7.0 itself contains two changes it does not signal.
+  Verified by probing every envelope family the 0.7.0 binary emits, not read
+  off the source:
+
+  - **Error envelopes carry no `contractVersion`, by design.** An error
+    envelope is `{error_type, message, hint?, input?, principal}` and carries
+    no envelope metadata at all -- no `schemaVersion` and no `kind` either --
+    so its absence here is the existing design, not an oversight. Do **not**
+    infer "`contractVersion` absent ⇒ pre-0.7.0 shape" from an error envelope;
+    that rule holds only for success envelopes. Errors are discriminated by
+    the frozen exit-code taxonomy (§3) instead, which is stable and needs no
+    version field. This is deliberate and will not be revisited quietly: the
+    error envelope is specified as a closed key set, so adding a key to it is
+    a breaking change for any consumer validating it strictly -- and at least
+    one does, which is precisely why the field was added to success envelopes
+    only.
+  - **Configured-value changes are not payload-shape changes.** The counter
+    moves when a `data` payload's *shape* changes in a way an existing decoder
+    would misread. It does not move when a value inside an unchanged shape
+    changes. **0.7.0 contains exactly such a change**: `quest task pause` now
+    parks a task at `"Paused"` instead of `"Blocked"`, so a consumer matching
+    the literal string `"Blocked"` stops matching while `contractVersion`
+    correctly stays `1`. Read `contractVersion` as "can my decoder still parse
+    this?", never as "did anything I depend on change?" -- the second question
+    is what a changelog is for, and this entry is the answer for this release.
+
 - `quest task view <id> --max-notes N` caps `implementationNotes` to the most
   recent `N` entries, adding a `notesOmitted` count (present whenever
   `--max-notes` is supplied, including `0`, never otherwise). Additive and
