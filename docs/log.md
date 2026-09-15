@@ -256,6 +256,7 @@
 - 2026-09-14T15:13:05-05:00 b67bec455355e26005158b488cf3a0ae9ba053cc fix(QCLI-279): make task id allocation refs-aware (#72)
 - 2026-09-14T15:21:43-05:00 f05a27b536a5f3f2e1b88e98e87c483632a67e49 chore: file QCLI-287, task pause renders a healthy task as Blocked (#73)
 - 2026-09-14T15:54:31-05:00 6ecce20150c0f2190ee845b58ca44ea1034078c7 chore(QCLI-271): record handoff before session recycle (#75)
+- 2026-09-14T19:25:33-05:00 9e9392a483529c50f898aa3a51c3be1daadebb5b docs(QCLI-292): document what a version bump touches (#95)
 
 ## docs/adr
 
