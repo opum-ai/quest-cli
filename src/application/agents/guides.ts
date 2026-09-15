@@ -203,8 +203,10 @@ decision and its reason, a blocker, a validation result:
 quest task edit <id> --add-note "<what changed and why>" --actor <actor> --actor-kind human --json
 \`\`\`
 
-Checkbox edits are index-addressed, so two editors do not overwrite each other:
-\`--check-ac 2\`, \`--uncheck-dod 1\`, \`--remove-ac 3\`. Prefer them over replacing a
+Checkbox edits are addressed by the 1-based \`position\` that \`task view\` prints,
+so two editors do not overwrite each other: \`--check-ac 2\`, \`--uncheck-dod 1\`,
+\`--remove-ac 3\`. Pass that number back verbatim. Each entry also carries a
+0-based \`index\`; it is NOT what these flags take. Prefer them over replacing a
 whole list.
 
 ## If the scope moves
