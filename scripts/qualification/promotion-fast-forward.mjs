@@ -1,0 +1,258 @@
+#!/usr/bin/env node
+// Assert that a push to `main` was a fast-forward promotion of `dev`.
+//
+// Reported by opum-marketplace 2026-09-15 (OMARK-58), confirmed here. The
+// job this replaces ran, inline in promotion-guardrails.yml:
+//
+//     git merge-base --is-ancestor HEAD origin/dev
+//     echo "main's new HEAD is a fast-forward of dev."
+//
+// That proves CONTAINMENT -- main's new HEAD is a commit dev already held --
+// and then reports FAST-FORWARDNESS, which is strictly stronger. It never
+// reads where main WAS, so it cannot tell a forward promotion from a
+// backwards rewind. A force-push rewinding main to an older commit that is
+// still on dev passes it, and prints the affirmative while commits come off
+// main. Measured by opum-marketplace on a scratch repo: genuine promotion
+// GREEN, merge commit RED, rewind GREEN-and-wrong.
+//
+// Both halves of prove-it-rejects and prove-it-accepts passed on the old
+// job, and it was still wrong. The defect is the gap between what the
+// verdict CLAIMED and what the assertion MEASURED -- which is why a green
+// history was never evidence about it, and why the tests beside this file
+// assert the emitted verdict and not only the exit code.
+//
+// The ruleset is not a second line of defence for this. quest-cli's
+// require-ci-on-main ruleset (id 22833771, zero bypass actors) carries
+// exactly one rule -- required_status_checks -- and no non_fast_forward or
+// deletion rule. Required checks gate a push on the pushed COMMIT's own
+// check history, not on which direction the branch moved, and every commit
+// ever promoted to main carries those contexts by construction. So a rewind
+// to a previously promoted commit satisfies the ruleset and is allowed.
+// Measured 2026-09-15 against the live API; opum-marketplace then measured
+// the same shape in all five "protected" fleet repos. `protected=true` is
+// true here and, for this failure mode, inert.
+//
+// Three assertions, and they are ADDITIVE. Swapping forward-movement in for
+// containment would trade a known blind spot for a new one while looking
+// like a fix: containment is what catches a foreign commit or a merge-button
+// merge. Each assertion carries its own message so a failure names which
+// property broke.
+//
+//   1  containment      main's new HEAD is a commit dev holds        failure
+//   2  forward movement main's previous HEAD is an ancestor of it    failure
+//   3  completeness     main IS dev's tip, not merely part of it     WARNING
+//
+// Assertion 3 is a warning and must stay one: dev legitimately advancing
+// between the promotion push and this run produces a non-zero count with
+// nothing wrong. It exists because `git push origin dev:main` off a STALE
+// LOCAL dev (ODOC-193) moves main forward to a commit dev genuinely holds --
+// both hard assertions green, less delivered than intended.
+//
+// DO NOT SIMPLIFY AWAY THE FORCED BRANCH because it looks redundant with the
+// rewind branch. In production a rewind of main is essentially always
+// forced, so FORCED fires first and REWOUND reads like dead code in the
+// logs. Both earn their place: FORCED defaults to false when this is run by
+// hand, and a rewind performed via the API, or by delete-and-recreate, need
+// not set it. Removing either restores the defect (opum-marketplace,
+// lore-web).
+//
+// Inputs come from the environment so this is runnable outside Actions and
+// therefore testable at all:
+//   BEFORE_SHA  github.event.before -- all-zero when the branch is created.
+//               Required: an unmeasured previous position is refused, never
+//               assumed benign.
+//   FORCED      github.event.forced, "true"/"false". Defaults false.
+//   DEV_REF     the ref to compare against. Defaults origin/dev.
+
+import { execFileSync } from "node:child_process";
+
+const ZERO = "0".repeat(40);
+
+const beforeSha = process.env.BEFORE_SHA;
+if (!beforeSha) {
+  console.error(
+    "usage: BEFORE_SHA=<github.event.before> [FORCED=true|false] promotion-fast-forward.mjs\n" +
+      "Refusing to report on an unmeasured previous position: without it, assertion 2 " +
+      "cannot be made at all, and a script that silently skips an assertion is the " +
+      "defect this file exists to fix.",
+  );
+  process.exit(2);
+}
+const forced = process.env.FORCED === "true";
+const devRef = process.env.DEV_REF || "origin/dev";
+
+const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+// `gitOk` is for questions where a non-zero exit is a legitimate ANSWER --
+// is-ancestor, cat-file -e -- so discarding stderr is correct there.
+const gitOk = (...args) => {
+  try {
+    execFileSync("git", args, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+};
+// `gitTry` is for operations where a non-zero exit is a FAILURE. There, git's
+// own message is the most specific information available, and a diagnostic
+// wrapper that discards the underlying tool's error leaves the operator with
+// nothing but this script's paraphrase.
+const gitTry = (...args) => {
+  try {
+    execFileSync("git", args, { stdio: ["ignore", "ignore", "pipe"] });
+    return { ok: true, stderr: "" };
+  } catch (error) {
+    return { ok: false, stderr: String(error.stderr ?? "").trim() };
+  }
+};
+const fail = (message) => {
+  console.error(`::error::${message}`);
+  process.exit(1);
+};
+
+// Fetch failure is fatal rather than ignored: a stale or absent origin/dev
+// would make assertion 1 compare against the wrong history and report a
+// verdict about an object nobody measured.
+//
+// The refspec is EXPLICIT and it is REQUIRED, not a tidiness preference. It
+// arrived as quest-web's optional adaptation -- "bare worked in Actions, it
+// just was not asserted by anything" -- and that framing understated it.
+// `--depth` implies `--single-branch`, and actions/checkout without
+// `fetch-depth: 0` behaves the same, so on a push to main
+// remote.origin.fetch covers only main and a bare `git fetch origin dev`
+// does not create origin/dev at all. Measured here in the production shape
+// (`git clone --depth 1 --branch main`): bare leaves origin/dev missing, and
+// the script would then die at the rev-parse below -- one line BEFORE the
+// previous-HEAD test the shallow diagnosis hangs off -- with exit 128 and NO
+// ::error:: annotation, on a push to main. Naming the refspec is what makes
+// origin/dev's existence a consequence of this line rather than of a clone
+// configuration nobody controls from here (lore-web, via opum-marketplace).
+if (gitOk("remote", "get-url", "origin")) {
+  const fetched = gitTry(
+    "fetch",
+    "--no-tags",
+    "--quiet",
+    "origin",
+    "+refs/heads/dev:refs/remotes/origin/dev",
+  );
+  if (!fetched.ok)
+    fail(
+      `Could not fetch dev from origin, so ${devRef} cannot be trusted and no verdict is ` +
+        "reported. This blames the REMOTE, not main: the likeliest causes are dev renamed or " +
+        "deleted upstream, or the job pointed at the wrong remote. main itself is untouched " +
+        `by this failure. git said: ${fetched.stderr || "(nothing)"}`,
+    );
+}
+
+// The SAME two-causes problem as the previous-HEAD test below, one step
+// earlier and easier to miss: a missing ref here reads like a repository
+// problem, and the likeliest cause is again a single-branch checkout. Found
+// by mutating the refspec away and READING the failure rather than noting
+// that a test went red -- the shallow diagnosis further down does not cover
+// this site, because execution never reaches it.
+let devSha;
+try {
+  devSha = git("rev-parse", "--verify", `${devRef}^{commit}`);
+} catch {
+  const shallow = git("rev-parse", "--is-shallow-repository") === "true";
+  fail(
+    `${devRef} does not resolve in this clone, so there is nothing to compare main against. ` +
+      (shallow
+        ? "THIS CHECKOUT IS SHALLOW, and --depth implies --single-branch, so remote.origin.fetch " +
+          "covers only the pushed branch. This is a fault in the WORKFLOW, not in the promotion: " +
+          "the job needs actions/checkout with 'fetch-depth: 0', and this script's fetch must name " +
+          "an explicit refspec. main is very probably fine."
+        : "The clone is NOT shallow, so this is not a fetch-depth problem -- dev itself may be " +
+          "missing from the remote, which is a real anomaly."),
+  );
+}
+const headSha = git("rev-parse", "HEAD");
+
+// ASSERTION 1 -- came from dev. Unchanged in substance from the job this
+// replaces; it is the half that was always correct.
+if (!gitOk("merge-base", "--is-ancestor", headSha, devSha))
+  fail(
+    `main's new HEAD (${headSha}) is not a commit dev ever held. A merge button or a ` +
+      "direct commit produces this. Do not push over it -- find out what happened first. " +
+      "See CLAUDE.md's Ownership section.",
+  );
+
+// A forced push to main is never needed for a fast-forward, so its presence
+// is the anomaly regardless of what the ancestor tests say. Kept separate so
+// the operator is told WHICH thing happened.
+if (forced)
+  fail(
+    `main was FORCE-PUSHED (${beforeSha} -> ${headSha}). A fast-forward promotion never ` +
+      "requires --force. Force-push to main needs your own user's direct authority, not a " +
+      "peer's instruction.",
+  );
+
+// ASSERTION 2 -- moved forward. The half the old job never measured.
+let movement;
+if (beforeSha === ZERO) {
+  movement = `created at ${headSha} (main did not exist before this push, so there is no previous position to compare)`;
+} else if (!gitOk("cat-file", "-e", `${beforeSha}^{commit}`)) {
+  // The same missing object has two causes with opposite diagnoses, and the
+  // boring one is far likelier: a checkout without `fetch-depth: 0`.
+  // Reporting a workflow misconfiguration as a DAMAGED main -- on the one
+  // event everyone is watching -- is its own defect (opum-web, relayed by
+  // opum-marketplace; the shallow branch verified reachable here with a
+  // --depth 1 file:// clone plus this script's own fetch: is-shallow true,
+  // previous HEAD still unresolvable, origin/dev resolving fine). Only the
+  // object the error NAMES changes. The exit code is deliberately identical
+  // in both branches, because an unmeasured previous position is not a pass
+  // either way, and "make the false red less likely" was the available wrong
+  // fix.
+  if (git("rev-parse", "--is-shallow-repository") === "true")
+    fail(
+      `THIS CHECKOUT IS SHALLOW, so main's previous HEAD (${beforeSha}) was never fetched ` +
+        "and forward movement cannot be proven. This is a fault in the WORKFLOW, not in the " +
+        "promotion: the job needs actions/checkout with 'fetch-depth: 0'. main is very " +
+        "probably fine -- fix the checkout and re-run before treating this as a damaged branch.",
+    );
+  fail(
+    `main's previous HEAD (${beforeSha}) cannot be resolved in this clone, so forward ` +
+      "movement CANNOT be proven. The clone is NOT shallow, so this is not a fetch-depth " +
+      "problem. Treat as an anomaly, not as a pass -- an object that is gone in a full clone " +
+      "is usually one a rewrite orphaned.",
+  );
+} else if (beforeSha === headSha) {
+  movement = `unchanged at ${headSha}`;
+} else if (gitOk("merge-base", "--is-ancestor", beforeSha, headSha)) {
+  movement = `moved forward ${beforeSha} -> ${headSha}`;
+} else {
+  fail(
+    `main was REWOUND or diverged: its previous HEAD (${beforeSha}) is not an ancestor of ` +
+      `its new HEAD (${headSha}). Commits that were on main are no longer on main. This ` +
+      "passes an is-ancestor-of-dev check, which is why that check alone was not enough.",
+  );
+}
+
+// ASSERTION 3 -- main IS dev, not merely part of it. WARNING, NOT A FAILURE.
+const behind = Number(git("rev-list", "--count", `${headSha}..${devSha}`));
+let completeness;
+if (behind > 0) {
+  console.log(
+    `::warning::main is ${behind} commit(s) BEHIND dev after this push. If dev advanced ` +
+      "after the promotion, this is expected and fine. If not, this was a PARTIAL " +
+      "promotion -- the classic cause is pushing a stale local dev (git push origin " +
+      "dev:main) instead of the remote-tracking ref (git push origin origin/dev:main), " +
+      "ODOC-193. Left behind:",
+  );
+  for (const line of git(
+    "log",
+    "--oneline",
+    "--no-decorate",
+    `${headSha}..${devSha}`,
+  ).split("\n"))
+    console.log(`::warning::  ${line}`);
+  completeness = `but is ${behind} commit(s) behind dev (see warning)`;
+} else {
+  completeness = "and is dev's tip exactly, with nothing left behind";
+}
+
+// States the two things it measured and the one it observed -- never
+// "fast-forward" as a bare claim, which is the wording that made the old job
+// wrong while its exit code was right about what it actually tested.
+console.log(
+  `main ${movement}; its HEAD is a commit dev holds (dev tip ${devSha}), ${completeness}.`,
+);
