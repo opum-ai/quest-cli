@@ -1,0 +1,101 @@
+name: lore check
+
+# QCLI-301 (routed from OPAG-146). The shared operating block makes a green
+# `lore check` the definition of done for any docs-touching change, and until
+# this file existed nothing in this repository's CI ran it: the gate was
+# whoever remembered to run it by hand before opening a PR. Measured by
+# opum-agent on 2026-09-15 across the fleet, eight of ten repos had the gap.
+#
+# WHY THIS JOB DOES NOT INSTALL @opum-ai/quest, UNLIKE THE FLEET REFERENCE JOB.
+# lore's quest adapter shells out to the `quest` binary on PATH -- a subprocess
+# contract, not a file read. It probes `quest --version` first and throws
+# validation ("did not report a supported Quest version") when that fails, so a
+# missing or broken quest is a hard red, never a degraded read. opum-agent and
+# opum-doc satisfy that by installing a published quest next to lore. That is
+# right there and wrong here for the same two reasons tracker-integrity.yml
+# already gives: this repository AUTHORS quest, so a published pin cannot see a
+# regression the pull request itself introduces, and it goes red on every
+# version-bump PR because the version the PR declares is not published yet.
+# So the `quest` lore runs is a shim that execs `bun run src/cli/main.ts` from
+# this same checkout, and a step asserts that is what PATH resolved to and that
+# it reports package.json's version -- the two facts that distinguish "the
+# checkout's quest" from "some quest".
+#
+# lore itself IS pinned, to the lore release paired with this package (the
+# quest/lore lockstep is a fact about versions). It is deliberately not derived
+# from package.json: on the PR that bumps this package to the next version the
+# paired lore is not published yet, and a derived pin would red exactly the PR
+# that cuts a release. Bump it by hand when the pairing moves.
+#
+# DETERMINISM. `lore check` writes nothing, has no LLM dependency, and reads
+# the evaluation date from HEAD's committer date rather than the clock, so a
+# clean run locally is a clean run here for the same tree. As with
+# tracker-integrity.yml, setup reaches the network (setup-bun, the frozen
+# lockfile install, and `npm install -g` of lore) while the assertions read
+# only the commit -- so a red in setup with a green `lore check` locally points
+# at the registry or the runner, not at the docs.
+#
+# Runs on push as well as pull_request deliberately, for the reason
+# tracker-integrity.yml and promotion-guardrails.yml record: a context that
+# only ever reports on pull_request never appears on dev's tip commit, and
+# GitHub gates a direct push by that commit's own prior check history, so
+# making a PR-only context required would make `git push origin origin/dev:main`
+# permanently unpushable. This job is NOT yet in main's required-checks
+# ruleset; adding it is a ruleset edit, made only after it has reported green
+# on main's tip.
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lore-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lore:
+    name: lore check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile --linker=isolated
+
+      - name: Put the quest built from this checkout on PATH
+        run: |
+          set -euo pipefail
+          shim_dir="$RUNNER_TEMP/quest-shim"
+          mkdir -p "$shim_dir"
+          printf '#!/bin/sh\nexec bun run "%s/src/cli/main.ts" "$@"\n' "$GITHUB_WORKSPACE" > "$shim_dir/quest"
+          chmod +x "$shim_dir/quest"
+          echo "$shim_dir" >> "$GITHUB_PATH"
+
+      - name: lore will run this checkout's quest, not a published one
+        run: |
+          set -euo pipefail
+          resolved="$(command -v quest || true)"
+          expected="$RUNNER_TEMP/quest-shim/quest"
+          if [ "$resolved" != "$expected" ]; then
+            echo "::error::PATH resolves quest to '${resolved:-nothing}', not the checkout shim at '$expected'. lore would run against a quest this pull request did not build."
+            exit 1
+          fi
+          reported="$(quest --version)"
+          packaged="$(node -p "require('./package.json').version")"
+          if [ "$reported" != "$packaged" ]; then
+            echo "::error::The quest on PATH reports $reported but this checkout's package.json is $packaged, so it is not the quest this pull request built."
+            exit 1
+          fi
+          echo "quest on PATH: $resolved (reports $reported, package.json $packaged)"
+
+      - name: Install the lore release paired with this package
+        run: npm install -g @opum-ai/lore@0.7.0
+
+      - name: lore check
+        run: lore check
