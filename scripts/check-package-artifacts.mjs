@@ -162,13 +162,29 @@ if (
 //      generator, so there is nothing for byte-equality to guard. lore-cli
 //      takes the "generated" arm and is the only side enforcing that clause;
 //      the two implementations therefore exercise disjoint parts of the
-//      contract, and neither alone is evidence that it works.
+//      contract, and neither alone is evidence that it works. This is not
+//      quest's inference: the contract itself says so. Read first-hand at
+//      opum-doc main@b596ca5, docs/reference/shipped-readme-version-
+//      assertions.md -- its table marks lore "yes -- the only side that
+//      does" and quest "no -- vacuous by construction", and it requires a
+//      vacuous clause to carry its REASON, because "vacuous because there is
+//      no generator to break" and "vacuous because nobody implemented it"
+//      are the same word for opposite situations.
 //
-// WHAT LORE ENFORCES, the other half of A5. Reported by lore-cli 2026-09-15
-// and recorded here so this side's A5 entry is not half a picture. It is
-// their DECISION, not yet their proof -- they said so explicitly and are
-// implementing now; treat every line below as pending until they send exit
-// codes, and do not cite it as a verified state of lore-cli.
+// WHAT LORE ENFORCES, the other half of A5, so this side's entry is not half
+// a picture. PROVEN as of 2026-09-15, not merely decided: lore-cli PR #118,
+// CI run 35016083790 on a390713c, resolved with lore 0.7.0 / quest 0.7.1 /
+// Bun 1.3.14 / Node 24.20.0. Their A1 proof is two measurements on real
+// tarballs -- a clean 0.7.0 pack exits 0, and a 0.7.1 pack with the README
+// left as post-tag bookkeeping exits 1 naming both regions, which is the
+// defect at the exact moment a 0.7.1 release would have shipped it. Their
+// clause-3 proof is four planted shapes, each named by the wrong
+// implementation it would pass under, plus a mutation matrix: line-scoped
+// clause 3 fails 2 tests, exempting a block overlapping a region fails 2,
+// line-wise region excision fails 1, disabling byte-equality fails 5,
+// deleting the gate fails 1, and the unmutated suite fails 0 of 20. That
+// matrix is the part worth trusting -- it measures that each clause is
+// load-bearing rather than that the suite is green.
 //   A1 exercised -- read out of the real `npm pack` tarball, as here.
 //   A2 GENERATED arm, in TWO marked regions, generated from `package.json`.
 //      Two rather than one because lore's stale sites are not contiguous and
@@ -208,11 +224,31 @@ try {
   const packedReadme =
     await Bun.$`tar -xzOf ${join(packDirectory, tarball)} package/README.md`.text();
 
+  const occurrences = (marker) => packedReadme.split(marker).length - 1;
+  const starts = occurrences(versionClaimStart);
+  const ends = occurrences(versionClaimEnd);
+  // Ported from lore-cli's `locateRegions` (LCLI-510), which refuses an
+  // ambiguous extent rather than resolving it. Without this, a second marker
+  // pair here still fails -- the second region falls OUTSIDE the first and
+  // trips the stray-version check below -- but it fails with the wrong
+  // diagnosis, reporting a version "outside a version-claim region" when the
+  // version is in fact inside the second one. A correct refusal with a
+  // misleading message is the expensive kind to debug.
+  if (starts > 1 || ends > 1)
+    throw new Error(
+      `The packed README has ${starts} opening and ${ends} closing version-claim ` +
+        "markers. This check supports exactly one region and cannot tell which " +
+        "extent you meant. Use one region, or extend this check to handle several.",
+    );
   const start = packedReadme.indexOf(versionClaimStart);
   const end = packedReadme.indexOf(versionClaimEnd);
   if ((start === -1) !== (end === -1))
     throw new Error(
       "The packed README has one version-claim marker without the other.",
+    );
+  if (start !== -1 && end < start)
+    throw new Error(
+      "The packed README's version-claim markers are in the wrong order.",
     );
 
   if (start !== -1) {
