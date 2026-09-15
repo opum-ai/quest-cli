@@ -588,11 +588,71 @@ public **unmodified** -- shasum, integrity, file count and unpacked size all
 identical to what the pre-publication receipt gate had verified, so candidate
 digests do not need re-deriving after an approval.
 
-What is still undetermined, recorded rather than guessed: why one package of
-seven staged when all seven went through the identical code path with the same
-token and npm 12.0.2. npm warns on every invocation that tokens bypassing 2FA
-are being restricted for direct publishing, which makes a token publish landing
-in staging plausible -- but it does not explain six-of-seven.
+That last sentence is measured, not inferred: the owner confirmed directly
+that they approved it. It matters because the alternatives imply different
+tooling. Staging that self-resolves would be a transient state worth waiting
+out; staging cleared by a human is a procedure with a named actor, and a wait
+loop pointed at it burns its entire window on something that was never going
+to resolve on its own. The publish script reports it as its own outcome for
+exactly that reason.
+
+### Why one package of seven staged: undetermined, and here is what is ruled out
+
+Recorded rather than guessed, and re-measured on 2026-09-15 rather than
+carried over:
+
+- **Nothing in this repository ever asks for a stage.** The CI release
+  workflow (`.github/workflows/release.yml`, the per-target loop) and
+  `scripts/publish-release.mjs` both invoke `npm publish --access public`.
+  Neither calls `npm stage publish`. So the stage was created registry-side.
+- **npm's own documentation says this should not happen.** `npm help stage`
+  and the v12 docs describe staging as an explicit `npm stage publish`
+  workflow, and GitHub's changelog dates the removal of direct publishing for
+  2FA-bypass granular tokens to *around January 2027*. The observed behaviour
+  on 2026-09-15 was neither: an ordinary `npm publish` with a granular token,
+  landing in a stage, four months before the documented enforcement.
+- **A per-package 2FA requirement is the most plausible remaining mechanism
+  and cannot be checked from here.** `npm access set mfa=none|publish|automation`
+  is settable per package, but nothing reads it back: `npm access get status`
+  returns only `public`/`private`, and it returned `public` for all seven.
+  So a per-package setting is neither confirmed nor excluded.
+- **If it recurs, the measurement that would settle it** is the package's own
+  settings page on npmjs.com, read by the owner -- the 2FA requirement is
+  visible there and nowhere the release credential can reach.
+
+Whatever the trigger, the publish path no longer depends on the answer: a
+version that is not resolvable for a consumer blocks the wrapper, whether it
+is staged, slow, or absent.
+
+## The wrapper publish is gated on a CONSUMER-side read
+
+Added by QCLI-299, after the failure above. Write order does not produce
+visibility order, and on 0.7.0 the two disagreed in four of six positions.
+
+`scripts/publish-release.mjs` publishes the six platform packages, then
+**blocks until every one of them resolves from a read that is not the
+publisher's** -- plain HTTPS to `registry.npmjs.org` with no credential and no
+npmrc -- and only then publishes `@opum-ai/quest`. A package that resolves and
+then stops resolving drops back to not-visible rather than counting, because an
+installer hitting the stale CDN edge is in exactly that state.
+
+**The second sense of publisher blindness, which is the one that survives
+fixing the gate's position.** opum-cli-e2e timed 9-20 seconds between a
+package's registry `time[0.7.0]` and its first resolution from a non-publishing
+npm client, across five packages, bounded above by their 10s poll granularity.
+A publisher-side poll therefore reports ready while an installer still resolves
+the previous version -- so the gate holds a 30s settle margin after the last
+package appears and re-reads before proceeding. Two distinct blindnesses, and
+the release needs both handled: the publisher cannot see a stage it created,
+and the publisher sees a publish before consumers do.
+
+When the gate does not pass, the wrapper is **not** published -- so the failure
+is a release that did not happen rather than one that installs and leaves no
+binary -- and the script prints each unresolved package's state read from the
+public registry at that moment. `--diagnose-staged` adds the one thing a read
+cannot do: it re-attempts the publish, where a 409 "previously staged" means
+staged and a success means it never landed. That costs a write, which is why it
+is a flag and not part of the poll.
 
 ## Rollback
 

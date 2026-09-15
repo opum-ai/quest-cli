@@ -52,6 +52,12 @@ import {
   validateReceipt,
   waitForPublished,
 } from "./qualification/native-execution-receipt.mjs";
+import {
+  classifyPublishError,
+  classifyVersion,
+  describeVersionState,
+  waitForConsumerVisibility,
+} from "./qualification/registry-visibility.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -138,6 +144,93 @@ export async function isPublished(
   }
 }
 
+/**
+ * The publish sequence, with every side effect injected so the gate can be
+ * tested by making it fail on purpose (QCLI-299 AC#6).
+ *
+ * The ordering guarantee this provides is the one the old comment claimed and
+ * the old code could not deliver: the wrapper is not published until a read
+ * confirms every platform package RESOLVES, not merely that its write
+ * returned success. Write order cannot produce visibility order, and on
+ * 0.7.0 the two disagreed in four of six positions.
+ *
+ * A failed gate returns rather than throws, and leaves the wrapper
+ * unpublished. That is the whole point: with no wrapper on the registry at
+ * this version, there is nothing advertising an optionalDependency that does
+ * not resolve, so the failure mode is a release that did not happen instead
+ * of one that installs and leaves no binary.
+ */
+export async function publishPlatformsThenWrapper({
+  platforms,
+  wrapper,
+  publish,
+  alreadyPublished,
+  gate,
+  log = () => {},
+}) {
+  const platformNames = platforms.map((target) => target.name);
+  for (const target of platforms) {
+    if (await alreadyPublished(target.name)) {
+      log(`${target.name} ... skip (already on the registry at this version)`);
+      continue;
+    }
+    await publish(target);
+  }
+
+  log(
+    `\nGating the wrapper publish on all ${platforms.length} platform packages resolving` +
+      " for a consumer -- not on their writes having returned success...",
+  );
+  const visibility = await gate(platformNames);
+  if (!visibility.ok)
+    return { ok: false, wrapperPublished: false, visibility, platformNames };
+
+  if (await alreadyPublished(wrapper.name))
+    log(`${wrapper.name} ... skip (already on the registry at this version)`);
+  else await publish(wrapper);
+  return { ok: true, wrapperPublished: true, visibility, platformNames };
+}
+
+/**
+ * Per-package state for everything the gate could not confirm, read from the
+ * public registry at the moment of the failure rather than asserted from what
+ * npm said earlier in the run.
+ */
+export async function describeUnresolvedPackages(
+  names,
+  version,
+  { classify = classifyVersion, ...options } = {},
+) {
+  const lines = [];
+  const states = {};
+  for (const name of names) {
+    const classification = await classify(name, version, options);
+    states[name] = classification.state;
+    lines.push(...describeVersionState(name, version, classification));
+  }
+  return { lines, states };
+}
+
+/**
+ * The 409 probe, behind an explicit operator flag.
+ *
+ * Staged and never-landed are indistinguishable by reading -- a stage is
+ * invisible to the credential that created it -- and the only thing that
+ * separates them is attempting the publish again. That costs a write, so it
+ * is the operator's decision to make and not a poll's.
+ */
+export async function diagnoseStaged(target, { publish }) {
+  try {
+    await publish(target);
+    return { state: "was-absent-now-published", detail: null };
+  } catch (error) {
+    return {
+      state: classifyPublishError(error),
+      detail: String(error?.stderr ?? error?.message ?? error).slice(0, 600),
+    };
+  }
+}
+
 async function main(argv) {
   const flag = (name) => {
     const index = argv.indexOf(name);
@@ -150,6 +243,9 @@ async function main(argv) {
   const dryRun = !argv.includes("--publish");
   const otp = flag("--otp");
   const receiptPath = flag("--receipt");
+  // Opt-in, because the thing it does that a read cannot is WRITE: it
+  // re-attempts the publish so that a 409 can say "staged" out loud.
+  const diagnoseStagedRequested = argv.includes("--diagnose-staged");
 
   const version = JSON.parse(
     await readFile(join(root, "package.json"), "utf8"),
@@ -202,23 +298,13 @@ async function main(argv) {
   }
 
   try {
-    // Platform packages before the root, so the root never briefly advertises
-    // optionalDependencies that do not exist.
-    const targets = [
-      ...REQUIRED_PLATFORMS.map((platform) => ({
-        name: `@opum-ai/quest-${platform}`,
-        cwd: join(root, "npm", `quest-${platform}`),
-      })),
-      { name: "@opum-ai/quest", cwd: root },
-    ];
+    const platforms = REQUIRED_PLATFORMS.map((platform) => ({
+      name: `@opum-ai/quest-${platform}`,
+      cwd: join(root, "npm", `quest-${platform}`),
+    }));
+    const wrapper = { name: "@opum-ai/quest", cwd: root };
 
-    for (const target of targets) {
-      if (!dryRun && (await isPublished(target.name, version))) {
-        console.log(
-          `${target.name} ... skip (already on the registry at ${version})`,
-        );
-        continue;
-      }
+    const publish = async (target) => {
       const args = [
         "publish",
         "--access",
@@ -238,9 +324,84 @@ async function main(argv) {
         // Stop rather than continue: a partial platform set is worse than
         // none, because the root would resolve to a mix of versions. Safe to
         // stop here specifically because a rerun skips whatever already
-        // landed (isPublished above), rather than erroring on it.
+        // landed (alreadyPublished below), rather than erroring on it.
         process.exit(1);
       }
+    };
+
+    const outcome = await publishPlatformsThenWrapper({
+      platforms,
+      wrapper,
+      publish,
+      alreadyPublished: (name) =>
+        dryRun ? Promise.resolve(false) : isPublished(name, version),
+      gate: (names) =>
+        dryRun
+          ? Promise.resolve({ ok: true, attempts: 0, missing: [] })
+          : waitForConsumerVisibility(names, version, {
+              onProgress: (event) => {
+                if (event.state === "visible")
+                  console.log(`  resolves for consumers: ${event.name}`);
+                else if (event.state === "regressed")
+                  console.log(
+                    `  STOPPED resolving, back to waiting: ${event.name}`,
+                  );
+                else if (event.state === "settling")
+                  console.log(
+                    `  all ${names.length} resolve; holding ${Math.round(event.waitMs / 1000)}s to cover the measured publisher-early lag, then re-reading`,
+                  );
+              },
+            }),
+      log: console.log,
+    });
+
+    if (!outcome.ok) {
+      const { lines, states } = await describeUnresolvedPackages(
+        outcome.visibility.missing,
+        version,
+      );
+      console.error(
+        `\nTHE WRAPPER WAS NOT PUBLISHED. ${outcome.visibility.missing.length} of ${platforms.length} platform packages did not resolve for a consumer` +
+          ` after ${outcome.visibility.attempts} check(s) across the full wait window.\n` +
+          `@opum-ai/quest@${version} is NOT on the registry, so nothing is advertising an optionalDependency that does not resolve.\n` +
+          "That is this gate working, not a new failure: an install inside that window succeeds and leaves no binary.\n" +
+          "Do NOT run npm unpublish.\n\nPer-package state, read from the public registry just now:",
+      );
+      for (const line of lines) console.error(line);
+      const ambiguous = Object.entries(states)
+        .filter(([, state]) => state === "absent-or-staged")
+        .map(([name]) => name);
+      if (ambiguous.length && diagnoseStagedRequested) {
+        console.error(
+          "\n--diagnose-staged: re-attempting the publish to separate staged from never-landed.",
+        );
+        for (const name of ambiguous) {
+          const target = platforms.find((candidate) => candidate.name === name);
+          const probe = await diagnoseStaged(target, {
+            publish: (candidate) =>
+              run(
+                [
+                  "publish",
+                  "--access",
+                  "public",
+                  ...(!token && otp ? ["--otp", otp] : []),
+                ],
+                candidate.cwd,
+                envOverrides,
+              ),
+          });
+          console.error(`  ${name}: ${probe.state}`);
+          if (probe.detail) console.error(`      ${probe.detail}`);
+        }
+      } else if (ambiguous.length) {
+        console.error(
+          "\nRe-run with --diagnose-staged to separate staged from never-landed by attempting the publish again.",
+        );
+      }
+      console.error(
+        "\nRe-run this script once the state above is resolved; packages already on the registry are skipped, not re-attempted.",
+      );
+      process.exit(1);
     }
 
     if (dryRun) {
@@ -258,10 +419,28 @@ async function main(argv) {
     const wait = await waitForPublished(receipt, version);
     if (!wait.ok) {
       if (wait.timedOut) {
+        // What this used to say -- "npm ALREADY CONFIRMED this publish
+        // succeeded above, this is registry lag, not a failed release" -- was
+        // an assertion the script had not verified at the moment it printed
+        // it, and on 0.7.0 it was wrong about the one package that decided
+        // whether the release shipped. The unpublish warning stays: that half
+        // is protecting against a genuinely destructive action.
         console.error(
           `\nThe registry still does not reflect every published byte after ${wait.attempts} check(s) across the full wait window.\n` +
-            "npm ALREADY CONFIRMED this publish succeeded above -- this is registry read-after-write lag, not a failed release.\n" +
-            "Do NOT run npm unpublish. Re-run this check again in a few minutes once the registry has caught up:\n" +
+            "npm's write returned success for every package above. That is NOT evidence the release is fine --\n" +
+            "a version can be accepted into a STAGED state: reserved, non-public, and awaiting a 2FA approval.\n" +
+            "Do NOT run npm unpublish.\n\nPer-package state, read from the public registry just now:",
+        );
+        const { lines } = await describeUnresolvedPackages(
+          [
+            ...receipt.platforms.map((entry) => entry.packageName),
+            wrapper.name,
+          ],
+          version,
+        );
+        for (const line of lines) console.error(line);
+        console.error(
+          "\nOnce every line above reads public, re-run just the verification:\n" +
             `  node scripts/qualification/native-execution-receipt.mjs --verify-published ${version} --receipt ${receiptPath}\n`,
         );
       } else {
