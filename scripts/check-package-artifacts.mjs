@@ -172,19 +172,36 @@ if (
 //      are the same word for opposite situations.
 //
 // WHAT LORE ENFORCES, the other half of A5, so this side's entry is not half
-// a picture. PROVEN as of 2026-09-15, not merely decided: lore-cli PR #118,
-// CI run 35016083790 on a390713c, resolved with lore 0.7.0 / quest 0.7.1 /
-// Bun 1.3.14 / Node 24.20.0. Their A1 proof is two measurements on real
-// tarballs -- a clean 0.7.0 pack exits 0, and a 0.7.1 pack with the README
-// left as post-tag bookkeeping exits 1 naming both regions, which is the
-// defect at the exact moment a 0.7.1 release would have shipped it. Their
-// clause-3 proof is four planted shapes, each named by the wrong
-// implementation it would pass under, plus a mutation matrix: line-scoped
-// clause 3 fails 2 tests, exempting a block overlapping a region fails 2,
-// line-wise region excision fails 1, disabling byte-equality fails 5,
-// deleting the gate fails 1, and the unmutated suite fails 0 of 20. That
-// matrix is the part worth trusting -- it measures that each clause is
-// load-bearing rather than that the suite is green.
+// a picture.
+//
+// STATUS: DECIDED AND LOCALLY MEASURED. NOT proven in CI, and NOT to be
+// cited as proven until lore-cli sends a green run. A previous revision of
+// this block (07dcacb) claimed PROVEN and cited lore-cli PR #118, CI run
+// 35016083790 on a390713c. THAT CITATION IS WITHDRAWN: the run completed as
+// `failure` -- verified here at repos/opum-ai/lore-cli/actions/runs/
+// 35016083790, conclusion=failure, one failing job
+// `lint · typecheck · test (windows-latest)`, GNU tar on the Windows runner
+// reading `C:\...` as a host:path remote spec. lore-cli sent the id while
+// the run was still in_progress; it was the ADDRESS of a proof, not a proof.
+// A record citing a failing run as evidence is worse than one citing
+// nothing, because the id makes it look checked.
+//
+// The failure is quest's as much as lore's. The same commit that added this
+// citation also re-resolved ODOC-203 first-hand specifically to avoid
+// carrying a relay -- and then recorded a CI run id, in the adjacent
+// paragraph, without opening it. The rule was applied to one citation and
+// not the other in the same edit. An id is not a measurement; resolving it
+// costs one API call.
+//
+// Their LOCAL measurements stand and are what the lines below record: two A1
+// halves on real tarballs (a clean 0.7.0 pack exits 0; a 0.7.1 pack with the
+// README left as post-tag bookkeeping exits 1 naming both regions -- the
+// defect at the exact moment a 0.7.1 release would have shipped it), four
+// planted clause-3 shapes each named by the wrong implementation it passes
+// under, and a mutation matrix. Two matrix figures have already moved and
+// are recorded as superseded rather than repeated: the suite is 23 tests,
+// not 20, and gains a row for an inline-marker rendering check. Do not copy
+// the old numbers forward.
 //   A1 exercised -- read out of the real `npm pack` tarball, as here.
 //   A2 GENERATED arm, in TWO marked regions, generated from `package.json`.
 //      Two rather than one because lore's stale sites are not contiguous and
@@ -240,6 +257,38 @@ try {
         "markers. This check supports exactly one region and cannot tell which " +
         "extent you meant. Use one region, or extend this check to handle several.",
     );
+  // A marker whose line CONTENT begins with `<!--` opens a CommonMark HTML
+  // block, which swallows the rest of that line as raw text: a marker written
+  // as `- <!-- ... -->` or `> <!-- ... -->` renders the surrounding prose
+  // literally, asterisks and all, on the npm page. Found by lore-cli
+  // (2026-09-15) with GitHub's own POST /markdown, on a README where every
+  // A3 clause passed while the served page showed `**Status: ... released.**`
+  // verbatim. No version assertion can see it, because the bytes are correct
+  // and only the rendering is wrong.
+  //
+  // This repository has no markers today, so it cannot currently be hit --
+  // but the docblock above instructs a future editor to add one, and a
+  // list item or blockquote is exactly where a version claim tends to live.
+  // Refusing here turns that trap into an error at the moment it is
+  // introduced, rather than a literal-asterisks npm page nobody can correct
+  // afterwards. Anchor the marker AFTER hand-written text on its line.
+  for (const line of packedReadme.split("\n")) {
+    const content = line.replace(/^\s*(?:[>\-*+]\s*|\d+\.\s+)+/, "");
+    if (
+      content.startsWith(versionClaimStart) ||
+      content.startsWith(versionClaimEnd)
+    ) {
+      if (content !== line)
+        throw new Error(
+          `The packed README has a version-claim marker opening the content of a ` +
+            `list or blockquote line: ${JSON.stringify(line.trim().slice(0, 60))}. ` +
+            "That starts a CommonMark HTML block and the rest of the line renders " +
+            "as raw text on the npm page, while every version assertion still " +
+            "passes. Put the marker after the line's hand-written text instead.",
+        );
+    }
+  }
+
   const start = packedReadme.indexOf(versionClaimStart);
   const end = packedReadme.indexOf(versionClaimEnd);
   if ((start === -1) !== (end === -1))
