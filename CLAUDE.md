@@ -157,12 +157,32 @@ measured in that file rather than inferred:
    Additive success fields are safe today **because of the code, against the
    prose** -- anyone tightening it to match its own comment turns every quest
    row red at once. Read the assertion, never the sentence above it.
-3. **`principal` must remain the LAST top-level key.**
-   `check.principalLastKey` (`:158-170`) compares `Object.keys(...)` order and
-   runs on **success** envelopes too, not only error ones
-   (`10-contract-quest.mjs:120` stdout, `:224` stderr). So an additive field is
-   safe only if it is emitted *before* `principal`. Presence and position are
-   separate constraints and only the first is obvious.
+3. **`principal` must remain the LAST top-level key.** Unlike 1 and 2, this
+   one is **not** a harness interpretation -- it is normative in the shared
+   contract (`opum-doc/docs/specs/opum-command-contract.md` § "Reserved
+   `principal` field": "Position: the last top-level key", and the envelope
+   "gains a `principal` field **at the fixed position above**"). The spec's
+   breaking-change list names the slot's "name/position" explicitly.
+   `check.principalLastKey` (`:158-170`) is merely where it is *enforced*: it
+   compares `Object.keys(...)` order and runs on **success** envelopes too,
+   not only error ones (`10-contract-quest.mjs:120` stdout, `:224` stderr).
+   So an additive field is safe only if emitted *before* `principal` --
+   presence and position are separate constraints, and only presence is
+   obvious. Do not "fix" this by changing the harness; the rule outlives it.
+
+**Unsettled, and this repository is the one that moved first.** The contract's
+§ Versioning policy permits, without a breaking change, exactly three
+additions: fields on `data`, new `kind` values, new `error_type` strings. A
+new **top-level envelope key** is on neither that list nor the breaking-change
+list beside it. `contractVersion` is therefore unratified rather than
+permitted -- it renames, removes and repurposes nothing, so it is not breaking
+under the spec's own definition, but neither is it enumerated as allowed. The
+spec's `PrincipalRef` clause reasons that letting "whichever component ships
+first decide that shape unilaterally" is the hazard ratification exists to
+prevent; that reasoning applies by analogy to a top-level key, which is an
+argument rather than a rule the spec states. Routed to opum-doc as a contract
+question (2026-09-15). If it is settled the other way, this repository is the
+one that has to change.
 
 0.7.0 satisfies all three: every success envelope it emits is
 `[schemaVersion, contractVersion, kind, data, principal]` -- verified by
