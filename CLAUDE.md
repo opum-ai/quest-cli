@@ -104,9 +104,38 @@ produced 0.6.0. The releases API returns `[]`. All three are consequences of
 the 2026-09-10 repository deletion and recreation (OPAG-70), not of any
 deliberate retag.
 
+**Re-measured 2026-09-15 during the 0.7.0 promotion. Two of those three have
+moved, and the distinction matters:**
+
+```
+v0.6.0  tagger Jeremy Newhouse  2026-09-10T21:57:26Z  peel a9fbc78
+v0.6.1  tagger Jeremy Newhouse  2026-09-13T19:07:57Z  peel 1fa0fef
+v0.6.2  tagger Jeremy Newhouse  2026-09-14T05:04:39Z  peel a925b35
+releases API: 1 entry (v0.6.0, created 2026-09-10T21:57:26Z,
+                       published 2026-09-11T13:44:44Z)
+```
+
+- The tag list and the releases count are **stale, not wrong**. Nothing was
+  restored and nothing was retagged: 0.6.1 and 0.6.2 were simply released
+  after the 2026-09-11 measurement, and the one release was published at
+  13:44:44Z that day -- so an earlier-in-the-day reading of `[]` was
+  accurate when taken. A dated measurement going stale is the normal way a
+  dated measurement ends; do not read it as drift needing investigation.
+- **The `v0.6.0` peel claim is still exactly true.** `v0.6.0^{}` is still
+  `a9fbc78`, still the post-recreation initial commit, still not the commit
+  that produced 0.6.0. That is the load-bearing half of this section and it
+  has not moved.
+
+The lesson worth more than the numbers: when a dated fact looks stale,
+re-measure each clause separately before rewriting the paragraph. Two clauses
+here aged out and one did not, and a rewrite that treated "this paragraph is
+stale" as one judgement would have deleted the only claim that still holds.
+
 So before deleting, moving or re-pointing a tag: say so to quest-web first.
 And treat the current tags as weaker anchors than the npm version, which is
-immutable -- that is the advice given back to quest-web for its own citations.
+immutable -- that is the advice given back to quest-web for its own citations,
+and it stands regardless of how many tags exist, because tags are mutable and
+a published npm version is not.
 
 ### Breaking an envelope shape: sweep consumers in two passes, not one
 
