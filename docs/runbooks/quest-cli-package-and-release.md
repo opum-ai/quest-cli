@@ -49,6 +49,13 @@ release does not complete.
   locally with the matched Bun version first (previous bullet), commit
   root and platform changes together as one reviewed commit, and only then
   let CI validate it.
+
+  **Qualified by "Why strings first, then bytes" below (QCLI-294).** The
+  dependency this bullet describes is real, but "not via a CI dispatch" is
+  too strong: a CI dispatch *can* produce the binaries, provided the version
+  strings are synced in an earlier commit so `source-gates` stays green. On a
+  host that cannot cross-compile all six targets, that is the only available
+  route.
 - A native-execution receipt emitted by the tagged CI run, binding that exact
   commit and version. A receipt made by hand after the fact is not acceptable
   evidence: the one that existed before QCLI-135 outlived the release it
@@ -105,11 +112,15 @@ release does not complete.
 ## What a version bump touches
 
 Before "a reviewed source commit" above can exist, the version itself has to
-move in every place that carries it. Eleven sites across eight files,
-established by a pre-0.7.0 version audit (OPAG-142) rather than assumed --
-verify against source before trusting this list for a release further out
-than the one that produced it. This section documents what a bump touches;
-it does not change the procedure above or move any file on its own.
+move in every place that carries it. Established by a pre-0.7.0 version audit
+(OPAG-142) and corrected during the 0.7.0 bump itself (QCLI-294), which found
+one site the audit had missed -- verify against source before trusting this
+list for a release further out than the one that produced it.
+
+**Sync the version STRINGS first, then replace the BINARY bytes -- in two
+commits, not one.** This is the ordering the rest of this section assumes, and
+getting it backwards strands the release: see "Why strings first, then bytes"
+below, which also reconciles this section with the Prerequisites bullet above.
 
 **Hand-edited, independently -- nothing here derives from anything else:**
 
@@ -124,6 +135,17 @@ it does not change the procedure above or move any file on its own.
 - `src/contract/tracker/index.ts`'s `QUEST_ADAPTER_PINNED_VERSION` constant.
   Has its own pinning test, same failure mode as above if skipped.
 - `fixtures/tracker/v1/conformance.json`'s `questVersion` golden value.
+- `.claude-plugin/plugin.json`'s `.version`. **The audit that produced the
+  first version of this list missed this file, and it had already been wrong
+  for two releases** -- it read `0.6.0` from the 2026-09-10 repository
+  recreation until QCLI-294 moved it, so it was stale through the abortive
+  0.6.1 and through the 0.6.2 that actually shipped. QCLI-258 (the 0.6.0
+  release) listed it as a hand-edited site, and that knowledge was simply
+  lost. Nothing generates it and no test compares it to `package.json`, which
+  is exactly why it drifted silently; treat its presence on this list as the
+  only thing currently preventing a third occurrence.
+- Root `package.json`'s six `optionalDependencies` pins (`@opum-ai/quest-<platform>`),
+  which `check:packages` requires to equal the root version exactly.
 
 **Generated, not hand-edited -- `scripts/build-platform-packages.mjs` is the
 generator:**
@@ -169,6 +191,50 @@ duplicated here.
 becomes `## <version>` at tag time (Step 5 below), not when the version
 files above are committed -- moving it early makes the changelog claim a
 release before qualification has run.
+
+### Why strings first, then bytes
+
+The Prerequisites bullet above says platform binaries are built "locally,
+before any commit, not via a CI dispatch on the branch," and the first
+version of this section said a CI dispatch was simply the normal procedure.
+**Both were incomplete, and the disagreement was real rather than a wording
+difference** -- recorded here rather than silently resolved, because the
+mechanism underneath is what a bump actually has to obey.
+
+`check-package-artifacts.mjs` tests two things *independently*: that every
+version string agrees (root `.version`, each `optionalDependencies` pin, each
+platform manifest's `.version`), and that every checksum agrees with the bytes
+it describes (each manifest's `questBinarySha256` and root's
+`questPlatformPackages` entry, both against the actual binary on disk). A
+commit can therefore satisfy the second while moving only the first.
+
+That is the intermediate state a bump needs, because of a CI dependency that
+is otherwise a trap. `check:packages` runs inside `source-gates`;
+`immutable-candidates` -- the job that rebuilds the six platforms -- declares
+`needs: source-gates`. So a commit that bumps only the root version fails
+`check:packages` on a version mismatch, `source-gates` goes red, and the
+rebuild job never runs: **the gate that would let CI fix it is the gate the
+mismatch breaks.** That is what the Prerequisites bullet is warning about, and
+it is correct as far as it goes.
+
+The way through is two commits:
+
+1. **Strings.** Move every hand-edited site above *and* each platform
+   manifest's `.version` field. Leave the binaries, the `questBinarySha256`
+   fields and the `questPlatformPackages` map untouched -- each still matches
+   its own (now-previous-version) bytes, so the checksum half still passes
+   while the version half now reads the new number. `check:packages` exits 0
+   in this state; verified at the 0.7.0 bump.
+2. **Bytes.** With `source-gates` green, dispatch the qualification workflow
+   against the branch, let `immutable-candidates` build all six platforms with
+   the new version compiled in, then download the `quest-package-<target>`
+   artifacts and commit the real binaries, regenerated manifests and updated
+   checksums.
+
+A local `build:packages` run is a legitimate substitute for step 2 on a host
+that can cross-compile all six targets; it is not available on a host that
+cannot, and on macOS it additionally risks the code-signing hazard documented
+below. Neither route changes step 1, which is required either way.
 
 ## Steps
 

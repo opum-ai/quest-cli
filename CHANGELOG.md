@@ -4,10 +4,22 @@ Records start here, at 0.5.0. Earlier releases are documented in
 `docs/reference/quest-cli-release-truth.md` and in each release's own PR
 history; this file is the forward-looking record.
 
-## Unreleased
+## 0.7.0
 
-Rides the next stacked CLI release in lockstep with `@opum-ai/lore`; this
-section carries no version number until that release sets it.
+Version frozen 2026-09-15, in lockstep with `@opum-ai/lore` 0.7.0 -- the
+pairing convention every release has held since 0.5.0, resumed after 0.6.2
+broke it once deliberately. **The date above is when this version was frozen
+and the bump landed, not when it reached npm**; publication is a separate,
+manually authorized step, and nothing in this file should be read as evidence
+that it happened.
+
+Minor, not patch, and one entry below deserves reading before you upgrade
+rather than after. `quest task pause` now parks a task at `"Paused"` instead
+of `"Blocked"`, so **anything matching on the literal string `"Blocked"` to
+find paused work will stop matching.** No transition, flag or envelope shape
+changed to make that true -- the configured value did. Everything else here
+is additive: a new envelope field and two new optional flags, each inert when
+not asked for.
 
 ### Added
 
