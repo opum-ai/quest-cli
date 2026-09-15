@@ -8,6 +8,33 @@ history; this file is the forward-looking record.
 
 ### Fixed
 
+- A record parked at the pre-0.7.0 default paused status `"Blocked"` could
+  not leave it by any command after upgrading: `task start` and `task pause`
+  refused the transition, `task edit --status` and `task complete` reported
+  an unconfigured status, `task demote` had nowhere to go, and `quest doctor`
+  reported the workspace healthy. QCLI-287 renamed the default to `"Paused"`
+  and every lifecycle check compares the record's status to the configured
+  value by exact string, so an already-parked record became an off-flow
+  status on upgrade; 0.7.0's changelog warned about the literal and the
+  best-placed consumer still missed it, so a warning was not the fix.
+
+  `quest task start <id>` is now the sanctioned exit from the retired
+  literal, exactly as it was in 0.6.x, when and only when the workspace does
+  not configure `"Blocked"` itself (on its ladder or as its paused status);
+  `task pause` then parks the record at `"Paused"`. Nothing is migrated
+  silently. `quest doctor` gains a `task_status_off_flow` issue naming every
+  active task whose status is on neither the ladder nor the paused slot, with
+  the repair command in its `hint`, so a stranded record is a red doctor
+  rather than a healthy one. Reported by lore-web (LWEB-80), also hit by
+  lore-cli (LCLI-333) (QCLI-302).
+
+  For a stranded workspace, the repair is:
+
+  ```sh
+  quest doctor --json                      # names the task id and status
+  quest task start <id> --actor <name> --actor-kind human --json
+  ```
+
 - The release publish no longer puts `@opum-ai/quest` on the registry until a
   read confirms all six platform packages actually **resolve for a consumer**.
   It previously ordered its writes and treated that as the guarantee; write

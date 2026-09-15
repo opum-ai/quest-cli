@@ -39,6 +39,48 @@ export const defaultLifecyclePolicy: LifecyclePolicy = {
   pausedStatus: "Paused",
 };
 
+/**
+ * Paused-status literals an earlier release parked records at by default.
+ * QCLI-287 renamed the default from `"Blocked"` to `"Paused"` without
+ * migrating records already parked, so a workspace upgraded to 0.7.0 held
+ * records at a status on neither the ladder nor the paused slot, which no
+ * command could leave (QCLI-302). `startTask` accepts a retired literal as
+ * the paused status when, and only when, the workspace does not configure
+ * that literal itself -- a workspace naming `"Blocked"` on its ladder or as
+ * its paused status keeps exactly the behaviour it configured. Nothing is
+ * migrated silently: the exit is an explicit, attributed `task start`.
+ */
+export const retiredPausedStatuses: readonly TaskStatus[] = ["Blocked"];
+
+/**
+ * True when `status` is a retired paused literal the policy does not itself
+ * configure, i.e. a record that only an older default could have parked
+ * there (QCLI-302).
+ */
+export function isRetiredPausedStatus(
+  status: TaskStatus,
+  policy: LifecyclePolicy = defaultLifecyclePolicy,
+): boolean {
+  return (
+    retiredPausedStatuses.includes(status) &&
+    !policy.statuses.includes(status) &&
+    status !== policy.pausedStatus
+  );
+}
+
+/**
+ * True when a record's status is on neither the ladder nor the paused slot,
+ * so `transitionTask`, `pauseTask` and (unless it is a retired paused
+ * literal) `startTask` all refuse to move it (QCLI-302). `doctor` reports
+ * such records; nothing else in the lifecycle can see them.
+ */
+export function isOffFlowStatus(
+  status: TaskStatus,
+  policy: LifecyclePolicy = defaultLifecyclePolicy,
+): boolean {
+  return !policy.statuses.includes(status) && status !== policy.pausedStatus;
+}
+
 function lifecyclePolicy(policy: LifecyclePolicy): LifecyclePolicy {
   if (
     !policy.statuses.length ||
@@ -492,7 +534,10 @@ export function pauseTask(
 
 /**
  * Moves a task back to the ladder's working status (`statuses[1]`) from
- * either the paused status or the ladder's initial status (QCLI-229).
+ * either the paused status or the ladder's initial status (QCLI-229), or
+ * from a retired paused literal the workspace does not configure
+ * (QCLI-302) -- the one sanctioned exit for a record an older default
+ * parked at `"Blocked"`.
  */
 export function startTask(
   task: TaskState,
@@ -506,7 +551,11 @@ export function startTask(
     );
   const initial = configured.statuses[0];
   const paused = configured.pausedStatus;
-  if (task.status !== initial && (!paused || task.status !== paused))
+  if (
+    task.status !== initial &&
+    (!paused || task.status !== paused) &&
+    !isRetiredPausedStatus(task.status, configured)
+  )
     throw new RecordValidationError(
       `Illegal task transition: ${task.status} -> ${working}.`,
     );

@@ -1665,7 +1665,10 @@ export async function runQuest(
           ? await planning.overview(await taskReader())
           : arguments_[0] === "board"
             ? await planning.board(await taskReader())
-            : await planning.doctor(await taskReader());
+            : await planning.doctor(
+                await taskReader(),
+                (await taskService()).lifecycle,
+              );
       const kind =
         arguments_[0] === "overview"
           ? "project.overview"

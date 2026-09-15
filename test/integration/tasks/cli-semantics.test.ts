@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -1469,6 +1469,85 @@ test("repeatable list flags reject a JSON-array value as usage instead of silent
     expect(planLooksLikeJson.exitCode).toBe(0);
     expect(json(planLooksLikeJson).data).toMatchObject({
       plan: ['["a","b"]'],
+    });
+  });
+});
+
+test("a record parked at the retired paused literal is named by doctor and leaves only through task start (QCLI-302)", async () => {
+  await withStore(async (run) => {
+    await run(["task", "create", "Stranded", ...actor, "--json"]);
+    await run([
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...actor,
+      "--json",
+    ]);
+    // Strand it the way an upgrade did: the record bytes a 0.6.x
+    // `task pause` wrote, read back by a CLI whose default is "Paused".
+    const path = join(
+      process.env.QUEST_TASK_STORE as string,
+      ".quest",
+      "tasks",
+      "T-1.json",
+    );
+    const record = JSON.parse(await readFile(path, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    await writeFile(path, JSON.stringify({ ...record, status: "Blocked" }));
+    const stuck = await run(["task", "view", "T-1", "--json"]);
+    expect(stuck.exitCode).toBe(0);
+    expect((json(stuck).data as { status: string }).status).toBe("Blocked");
+
+    // doctor is red and names the record, the status, and the repair.
+    const sick = await run(["doctor", "--json"]);
+    expect(sick.exitCode).toBe(0);
+    expect(json(sick)).toMatchObject({
+      kind: "project.doctor",
+      data: {
+        healthy: false,
+        issues: [
+          {
+            code: "task_status_off_flow",
+            taskId: "T-1",
+            status: "Blocked",
+            hint: expect.stringContaining("quest task start T-1"),
+          },
+        ],
+      },
+    });
+
+    // Every other transition still refuses it -- nothing migrates silently.
+    for (const argv of [
+      ["task", "pause", "T-1"],
+      ["task", "edit", "T-1", "--status", "In Progress"],
+      ["task", "complete", "T-1"],
+      ["task", "demote", "T-1", "--to", "To Do"],
+    ]) {
+      const refused = await run([...argv, ...actor, "--json"]);
+      expect(refused.exitCode).toBe(6);
+      expect(diagnostic(refused)).toMatchObject({ error_type: "validation" });
+    }
+
+    // start is the sanctioned exit, exactly as it was before the rename.
+    const started = await run(["task", "start", "T-1", ...actor, "--json"]);
+    expect(started.exitCode).toBe(0);
+    expect(json(started)).toMatchObject({
+      kind: "task.started",
+      data: expect.objectContaining({ status: "In Progress" }),
+    });
+    const well = await run(["doctor", "--json"]);
+    expect(json(well).data).toEqual({ healthy: true, issues: [] });
+
+    // ...after which pause parks it at the configured literal.
+    const paused = await run(["task", "pause", "T-1", ...actor, "--json"]);
+    expect(paused.exitCode).toBe(0);
+    expect(json(paused)).toMatchObject({
+      kind: "task.paused",
+      data: expect.objectContaining({ status: "Paused" }),
     });
   });
 });

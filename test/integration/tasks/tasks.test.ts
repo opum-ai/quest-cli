@@ -14,6 +14,8 @@ import {
   defaultLifecyclePolicy,
   demoteTask,
   evaluateReadySet,
+  isOffFlowStatus,
+  isRetiredPausedStatus,
   legalDemoteTargets,
   pauseTask,
   startTask,
@@ -233,6 +235,55 @@ test("pause and start reach the paused status only through each other, never thr
     "In Progress",
   );
   expect(legalDemoteTargets("Parked", "tasks", renamed)).toEqual([]);
+});
+
+test("start is the one sanctioned exit from the retired paused literal, and only when the workspace does not configure it (QCLI-302)", () => {
+  // The bytes a 0.6.x `task pause` wrote: parked at the old default.
+  const stranded = taskState({ ...task("T-1"), status: "Blocked" });
+  expect(isRetiredPausedStatus("Blocked")).toBe(true);
+  expect(isOffFlowStatus("Blocked")).toBe(true);
+  expect(isOffFlowStatus("Paused")).toBe(false);
+  expect(isOffFlowStatus("In Progress")).toBe(false);
+  // start resumes it exactly as it did before the rename, and pause then
+  // parks it at the configured literal.
+  expect(startTask(stranded).status).toBe("In Progress");
+  expect(pauseTask(startTask(stranded)).status).toBe("Paused");
+  // Every other transition still refuses it: nothing migrates silently.
+  expect(() => pauseTask(stranded)).toThrow(RecordValidationError);
+  expect(() => transitionTask(stranded, "In Progress")).toThrow(
+    RecordValidationError,
+  );
+  expect(legalDemoteTargets("Blocked", "tasks")).toEqual([]);
+  // A workspace that configures the literal as its paused status keeps
+  // 0.7.0 behaviour: start leaves it because it IS the paused status, and
+  // nothing retired fires.
+  const configuredPaused = {
+    statuses: defaultLifecyclePolicy.statuses,
+    terminalStatuses: defaultLifecyclePolicy.terminalStatuses,
+    pausedStatus: "Blocked",
+  };
+  expect(isRetiredPausedStatus("Blocked", configuredPaused)).toBe(false);
+  expect(isOffFlowStatus("Blocked", configuredPaused)).toBe(false);
+  expect(startTask(stranded, configuredPaused).status).toBe("In Progress");
+  // One that puts it on the ladder walks it like any ladder status: start
+  // refuses it (neither initial nor paused) and transitionTask moves it.
+  const onLadder = {
+    statuses: ["To Do", "In Progress", "Blocked", "Done"],
+    terminalStatuses: ["Done"],
+    pausedStatus: "Paused",
+  };
+  expect(isRetiredPausedStatus("Blocked", onLadder)).toBe(false);
+  expect(isOffFlowStatus("Blocked", onLadder)).toBe(false);
+  expect(() => startTask(stranded, onLadder)).toThrow(
+    "Illegal task transition: Blocked -> In Progress.",
+  );
+  expect(transitionTask(stranded, "Done", onLadder).status).toBe("Done");
+  // Any other unconfigured status is still refused by start: only the
+  // literal an earlier default actually wrote is recognised.
+  const parked = taskState({ ...task("T-2"), status: "Parked" });
+  expect(isRetiredPausedStatus("Parked")).toBe(false);
+  expect(isOffFlowStatus("Parked")).toBe(true);
+  expect(() => startTask(parked)).toThrow(RecordValidationError);
 });
 
 test("legalDemoteTargets walks strictly back within tasks, but includes the current ladder position when returning from retention, and never includes the paused status", () => {

@@ -11,7 +11,11 @@ import type {
   Decision,
   Milestone,
 } from "../../../src/domain/planning/planning.ts";
-import { createTask } from "../../../src/domain/tasks/tasks.ts";
+import {
+  createTask,
+  startTask,
+  taskState,
+} from "../../../src/domain/tasks/tasks.ts";
 
 class MemoryPlanning implements PlanningRepository {
   private revision = "1";
@@ -306,4 +310,68 @@ test("archiving preserves a milestone against every other writer (QCLI-140)", as
     title: "Retired, renamed",
     archived: true,
   });
+});
+
+test("doctor names an active task parked at an off-flow status with its repair, ignores retained records, and is healthy once the record is started (QCLI-302)", async () => {
+  const service = new PlanningService(new MemoryPlanning());
+  const stranded = taskState({
+    ...createTask("T-3", { title: "parked by 0.6.x" }),
+    status: "Blocked",
+  });
+  const parked = taskState({
+    ...createTask("T-4", { title: "odd status" }),
+    status: "Parked",
+  });
+  const fine = createTask("T-5", { title: "fine" });
+  expect(
+    await service.doctor({
+      readAll: async () => ({ revision: "t", tasks: [fine, parked, stranded] }),
+    }),
+  ).toEqual({
+    healthy: false,
+    issues: [
+      {
+        code: "task_status_off_flow",
+        taskId: "T-3",
+        status: "Blocked",
+        hint: expect.stringContaining(
+          "`quest task start T-3 --actor <name> --actor-kind human` resumes it",
+        ),
+      },
+      {
+        code: "task_status_off_flow",
+        taskId: "T-4",
+        status: "Parked",
+        hint: expect.stringContaining("no transition command can leave it"),
+      },
+    ],
+  });
+  // Only the "tasks" location is checked: a retained record at an off-flow
+  // status is retired, not stranded, and `task start` could not reach it.
+  expect(
+    await service.doctor({
+      readAll: async () => ({
+        revision: "t",
+        tasks: [],
+        taskRecords: [{ task: stranded, location: "archive/tasks" }],
+      }),
+    }),
+  ).toEqual({ healthy: true, issues: [] });
+  // A workspace that configures the literal is healthy with records at it.
+  expect(
+    await service.doctor(
+      { readAll: async () => ({ revision: "t", tasks: [stranded] }) },
+      {
+        statuses: ["To Do", "In Progress", "Done"],
+        terminalStatuses: ["Done"],
+        pausedStatus: "Blocked",
+      },
+    ),
+  ).toEqual({ healthy: true, issues: [] });
+  // And the repair the hint names clears the finding.
+  expect(
+    await service.doctor({
+      readAll: async () => ({ revision: "t", tasks: [startTask(stranded)] }),
+    }),
+  ).toEqual({ healthy: true, issues: [] });
 });
