@@ -40,9 +40,11 @@ name: lore check
 # only ever reports on pull_request never appears on dev's tip commit, and
 # GitHub gates a direct push by that commit's own prior check history, so
 # making a PR-only context required would make `git push origin origin/dev:main`
-# permanently unpushable. This job is NOT yet in main's required-checks
-# ruleset; adding it is a ruleset edit, made only after it has reported green
-# on main's tip.
+# permanently unpushable. Enrolled in main's required-checks ruleset
+# (require-ci-on-main) on 2026-09-15 by the repository owner, after this
+# context had reported green on main's tip 9258018 through the push trigger
+# (run 34990613983) -- the sequencing that keeps the promotion push pushable.
+# Renaming this job now needs the ruleset edit in the same change.
 
 on:
   pull_request:

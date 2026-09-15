@@ -87,6 +87,14 @@ and a passing one are different facts. The gate that actually blocks is on
 dev:main`, after a `dev`->`main` PR goes green on that exact SHA) satisfy the
 review gates rather than bypass them.
 
+Re-measured 2026-09-15 after the owner enrolled a third context: the
+`require-ci-on-main` ruleset (id 22833771, zero bypass actors) now requires
+`source-gates`, `Tracker integrity` and `lore check`, in that order, strict
+policy off. The third was added only after `lore check` had reported on
+main's tip through its push trigger, so the fast-forward push stayed
+pushable; renaming any of the three jobs needs the ruleset edit in the same
+change, or `main` waits forever on a context that can never report.
+
 Do not generalize this to sibling repos. At least one fleet repo gates `dev`
 instead; that is exactly why this lives here and not in the shared block.
 
