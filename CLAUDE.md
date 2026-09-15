@@ -299,6 +299,43 @@ gh api repos/opum-ai/quest-cli/git/ref/heads/main --jq '.object.sha'
 Prefer the GitHub API for the assertion: it uses token auth and was
 unaffected by the SSH failure that broke the push.
 
+### A claim that was true when written is the hardest kind to catch
+
+Five claims were withdrawn across one QCLI-298 exchange with opum-cli-e2e on
+2026-09-15, and **not one of them was false when it was made.** Each was true
+in the narrow reading it was written in and was doing work in a wider one:
+
+| claim | true as | used as |
+|---|---|---|
+| "the paired form is house style 20 lines away" | a distance between two rows | evidence the author knew the rule |
+| "82 of 83 absence assertions are paired" | a count of co-occurrence | a compliance rate |
+| "the author applied the rule then dropped it 13 lines later" | two rows, 13 lines apart | an ordering that runs the other way |
+| "the repair pattern exists twice in this suite" | two rows resembling it | two deliberate guards; there were none |
+| "that row is still safe" | safe against a bogus identifier | safe against an empty list |
+
+Every one was caught by someone re-opening a figure nobody had questioned,
+and none by the controls already in place -- "verify the thing, not a claim
+about the thing" did not fire because each figure **was** verified, once, at
+the moment it was found, by someone who then never re-opened it. So the
+trigger that works is tied to a different moment:
+
+- **Re-measure a load-bearing figure at the moment a decision rests on it**,
+  in the file, by the repository that owns the file. Not when it was first
+  obtained -- those two moments diverged silently in all five cases.
+- **Do not reach for a number to settle a question.** Both withdrawn ratios
+  existed because a call felt undecidable without one. An honest "one known
+  instance, no base rate" is a usable input; a number that means less than it
+  looks like is not.
+- **Two sessions agreeing is not confirmation when neither measured.** This
+  fleet reads fast convergence as a quality signal, which is exactly the
+  condition under which nobody checks. Three of the five were self-inflicted
+  on files the claimant owned, so "verify the peer" would have caught two.
+
+What this does NOT ask for is a new marking. Provenance marking (source,
+date, verified-independently) was already in place, would have marked the
+withdrawn citations accurately, and caught none of them. It records where a
+claim came from; it cannot tell you the claim has since been narrowed.
+
 <!-- quest:agent-instructions:begin -->
 # Quest agent instructions
 
