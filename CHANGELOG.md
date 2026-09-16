@@ -4,6 +4,104 @@ Records start here, at 0.5.0. Earlier releases are documented in
 `docs/reference/quest-cli-release-truth.md` and in each release's own PR
 history; this file is the forward-looking record.
 
+## Unreleased
+
+Nothing below has been published. `@opum-ai/quest` 0.7.1 is the latest
+released version and predates every entry here, so a consumer running the
+published CLI observes none of them.
+
+This heading was itself missing until QCLI-319. Release prep renamed the
+previous `## Unreleased` into `## 0.7.1` and left no successor, so four
+consumer-observable changes landed on `dev` with nowhere to be recorded --
+and were noticed only because a consumer reported it could not detect one of
+them by any means (QCLI-296). Release prep now leaves a fresh empty heading
+behind it; see `docs/runbooks/quest-cli-package-and-release.md`, step 5.
+
+### Added
+
+- Every `task.list` envelope carries an additive top-level `scope`
+  (`{branch, otherRefsRead, unseenTaskIds?}`), so a listing names the object
+  it answered about instead of leaving the reader to assume it covered the
+  repository. `quest task list` reads the checked-out ref's `.quest/` and
+  nothing else, while the rule that sends a session to it -- confirm nothing
+  is still open before reporting clear -- asks about the repository. The two
+  diverge for exactly the tasks most likely to be forgotten, the ones still on
+  an unmerged branch, and the failure direction is the bad one: an empty list
+  reads as the check PASSING rather than as the check NOT RUNNING. Reported by
+  opum-doc after an empty In Progress listing on `dev` missed a task that was
+  In Progress with an open pull request; they caught it only because an
+  independent source disagreed with the empty list, and neither the exit code
+  nor the output would ever have shown it.
+
+  `branch` is named on every listing. The cross-ref set difference that fills
+  `unseenTaskIds` runs only when the listing came back empty -- the only case
+  where naming what was not read changes the reader's conclusion -- and
+  `otherRefsRead` says whether it ran. Three limits, all deliberate: it
+  reports EXISTENCE only and never status, so a named id may already be Done
+  on the ref that carries it (DEC-6); it reads `refs/heads` and
+  `refs/remotes` and never fetches, so run `git fetch --prune` first if local
+  refs may be stale; and it is a local-git detector, which means it shares a
+  blind spot with any other local-ref sweep and does not replace asking
+  GitHub (QCLI-316).
+
+  **Detect it by key presence, not by version, and keep doing so after the
+  next release.** The success envelope is an open key set, so `scope` is
+  exactly the additive change a consumer is required to tolerate, and
+  `"scope" in envelope` is the semantically correct probe rather than a
+  fallback. A version gate cannot work here in any case: `dev` declares 0.7.1
+  and so does the published build that lacks the key (QCLI-296).
+
+### Fixed
+
+- `quest task edit --acceptance-criteria` (and `--definition-of-done`) given a
+  JSON array of bare strings silently unticked every checked box: exit 0,
+  empty stderr, `kind=task.updated`. The lossless `{index, text, checked}`
+  element form already existed, but appeared nowhere in the CLI's output
+  except the usage error for an object array missing `index`, and
+  `quest manifest --json` advertised only `json-array` -- so the discoverable
+  path was the destructive one. Three independent agent callers reached for
+  the string form within hours on 2026-09-15, none knowing the object form
+  existed, all three having read the manifest; one caller reaching for the
+  destructive path is a caller mistake, three is the shape of the surface.
+
+  The replacement is now refused with exit 6 (validation, not usage: the two
+  neighbouring conflicts are decided by the flag combination alone, this one
+  by the record's state) if and only if a currently-checked position is
+  replaced by a BARE STRING. The test is on what the replacement carries, not
+  on the outcome -- an entry saying `checked: false` has stated its intent and
+  is honoured, a bare string has said nothing -- so a deliberate reset is
+  still expressible and this needed no `--force` flag. The refusal names that
+  spelling at the one moment the caller is certainly reading. `manifest` now
+  advertises the element shapes (`string | {index,text,checked}`) additively,
+  with `value` still `json-array` so a consumer switching on it is unaffected
+  (QCLI-313).
+
+- `quest instructions task-execution` said checkbox edits are
+  "index-addressed". The flags take the 1-based `position`, and
+  `quest help task edit` already said so at length, including "`index` is not
+  what these flags take" -- so two documentation surfaces of the same CLI
+  contradicted each other, and the wrong one is the surface the agent protocol
+  sends a caller to first. Reported by opum-doc, who hit it as four silent
+  successes: a loop over `0..4` gets one error on `i=0` and checks positions
+  1-4, leaving the LAST criterion unchecked under a final summary claiming all
+  of them met. They caught it by counting `checked: true` against the criterion
+  count, not from any exit code (QCLI-315).
+
+- `README.md` no longer states a version of its own, and a pack-time gate
+  keeps it that way. It ships inside the tarball, and this repository's
+  release path never read it -- `git log -- README.md` returned one commit,
+  ever -- so `@opum-ai/quest@0.7.0` and `@0.7.1` both advertise 0.6.0 on their
+  npm pages, permanently, because version pages are immutable. The gate reads
+  `README.md` back out of a real `npm pack` tarball rather than the
+  working-tree copy: a check on the repo file passes while the packed one is
+  stale, and the packed one is what the registry serves. Implements the
+  shipped-README contract accepted into opum-doc as
+  `docs/reference/shipped-readme-version-assertions.md` (ODOC-201), taking its
+  "absent" arm, and in a stronger form than the shared clause -- no
+  version-shaped token anywhere in the packed README, because the worst site
+  here (`**Status: 0.6.0 released.**`) carries no package name on its line and
+  the shared clause would have missed the defect it exists for (QCLI-307).
+
 ## 0.7.1
 
 Version frozen 2026-09-15. **Breaks lockstep with `@opum-ai/lore`, once and
