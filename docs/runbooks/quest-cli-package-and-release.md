@@ -190,7 +190,13 @@ duplicated here.
 **Not part of the bump commit:** `CHANGELOG.md`'s `## Unreleased` heading
 becomes `## <version>` at tag time (Step 5 below), not when the version
 files above are committed -- moving it early makes the changelog claim a
-release before qualification has run.
+release before qualification has run. It is a RENAME PLUS A NEW HEADING, not
+a rename: step 5 leaves a fresh empty `## Unreleased` above the section it
+just named. Omitting the successor is what produced QCLI-319 -- four
+consumer-observable changes landed on `dev` after the 0.7.1 tag with no
+heading to be recorded under, and nobody noticed until a consumer reported it
+could not detect one of them by any means. An absent section is invisible in
+a way a wrong section is not: nothing reads as missing.
 
 ### Why strings first, then bytes
 
@@ -271,9 +277,27 @@ below. Neither route changes step 1, which is required either way.
    checks. Attach each command, result, candidate checksum, and skipped-gate
    reason to the release evidence.
 
-5. Require the native-execution receipt for this exact commit and version.
-   Create the release tag, then dispatch the qualification workflow **against
-   that tag**:
+5. Finalize the changelog, then tag. Rename `CHANGELOG.md`'s `## Unreleased`
+   heading to `## <version>`, **and add a fresh empty `## Unreleased` heading
+   directly above it in the same edit**:
+
+   ```markdown
+   ## Unreleased
+
+   ## <version>
+   ```
+
+   The empty heading is the step, not a courtesy. Every change that lands
+   between this tag and the next one needs somewhere to be written down at
+   the moment it lands. What was measured after the 0.7.1 tag, which left no
+   successor: four consumer-observable changes landed on `dev` and not one
+   carries a changelog entry (QCLI-319). Why each author wrote nothing was
+   not measured and is not the point -- the heading costs two lines and
+   removes the question.
+
+   Then require the native-execution receipt for this exact commit and
+   version, create the release tag, and dispatch the qualification workflow
+   **against that tag**:
 
    ```sh
    git tag v<version> && git push origin v<version>
