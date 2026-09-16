@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -314,6 +314,64 @@ test("milestone edit --remove-task obeys the same rule through its own code path
       (await quest("milestone", "edit", "M-1", "--remove-task", "T-1"))
         .exitCode,
     ).toBe(0);
+  });
+});
+
+test("task edit-batch inherits the rule PER ITEM: one bad removal fails its own line and the rest of the batch still applies", async () => {
+  await withStore(async () => {
+    await seed();
+
+    // The rule lives in the fold, which both transports share -- so this
+    // should hold by construction. Asserted anyway, because "by construction"
+    // is an argument from where the code sits and not a measurement, and the
+    // batch path reports per item rather than failing the process, which is a
+    // materially different surface from the one every other row here covers.
+    const store = process.env.QUEST_TASK_STORE as string;
+    const operations = join(store, "operations.jsonl");
+    await writeFile(
+      operations,
+      [
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "misses",
+          patch: { removeNotes: ["NO-SUCH"] },
+        }),
+        JSON.stringify({
+          reference: "T-1",
+          operationId: "hits",
+          patch: { removeNotes: ["note beta"] },
+        }),
+      ].join("\n") + "\n",
+    );
+
+    const batch = await quest("task", "edit-batch", "--file", operations);
+    const data = JSON.parse(batch.stdout).data as {
+      items: { kind: string; operationId: string; message?: string }[];
+      applied: number;
+      failed: number;
+    };
+
+    expect({ applied: data.applied, failed: data.failed }).toEqual({
+      applied: 1,
+      failed: 1,
+    });
+    const missed = data.items.find((item) => item.operationId === "misses");
+    const hit = data.items.find((item) => item.operationId === "hits");
+    expect(missed?.kind).toBe("error");
+    // The SAME message the single-edit path produces, record id and delimited
+    // value included -- not a batch-shaped paraphrase of it.
+    expect(missed?.message).toContain('"NO-SUCH"');
+    expect(missed?.message).toContain("T-1");
+    // Deliberate, and the one place a batch caller has to translate: the
+    // message names the FLAG spelling (--remove-note) while this transport
+    // takes the FIELD spelling (removeNotes). One message in one vocabulary
+    // beats two spellings that can drift; `quest help task edit-batch`
+    // already documents the correspondence in the other direction.
+    expect(missed?.message).toContain("--remove-note");
+    expect(hit?.kind).toBe("updated");
+
+    // One bad line never blocks the rest: the matching removal still applied.
+    expect((await task()).implementationNotes).toEqual(["note alpha"]);
   });
 });
 
