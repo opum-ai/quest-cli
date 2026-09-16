@@ -508,6 +508,48 @@ date, verified-independently) was already in place, would have marked the
 withdrawn citations accurately, and caught none of them. It records where a
 claim came from; it cannot tell you the claim has since been narrowed.
 
+### The AMFI SIGKILL on the darwin-arm64 binary is armed by INDEX STATE
+
+`npm/quest-darwin-arm64/bin/quest` is a signed (adhoc, linker-signed) Mach-O.
+When git reads its WORKING-TREE bytes it mmaps them, the kernel validates each
+mapped page against the embedded CodeDirectory, finds them tainted, and kills
+git: `CODE SIGNING: cs_invalid_page(...) denying page sending SIGKILL`, exit
+137. QCLI-271 root-caused that in September with kernel-log evidence and the
+finding stands.
+
+What that Done record cannot carry, because it was written mid-release with
+the file dirty, is the CONDITION. Re-measured 2026-09-16:
+
+```
+git hash-object npm/quest-darwin-arm64/bin/quest   exit 137   repeatable
+git status --porcelain                             exit 0
+git add -A --dry-run                               exit 0
+git diff HEAD --stat / git log                     exit 0
+git commit (real, 5 files)                         exit 0
+git cat-file -s <the stored blob>                  exit 0
+./npm/quest-darwin-arm64/bin/quest --version       0.7.1, exit 0, 3/3
+```
+
+The kill fires only on a working-tree CONTENT read. The file is clean and its
+stat matches the index, so nothing routine re-hashes it, and the object-store
+copy of the same bytes reads fine. The September behaviour -- "any operation
+that refreshes the full index" -- was this same mechanism with the file
+**dirty**: a dirty entry forces a re-hash, so every index-refreshing command
+inherited the kill.
+
+So state it as the index state, not as the repository or the volume (both of
+which were tested and withdrawn as theories). **Clean: ordinary git works,
+including a real commit. Dirty: the wide block returns.** A recycle gate or
+any other sweep is unaffected unless it re-hashes that path specifically --
+which happens when a build rewrites the file in place, or when a command
+names it (`git hash-object`, `git add <that path>`). Touching its mtime is
+therefore not a harmless probe: it re-arms the block.
+
+The trap for the next reader is the timing. Whoever asks this question will
+most likely be asking DURING a release, which is the one time the file is
+legitimately dirty -- and QCLI-271's record, correct for the state it
+described, will tell them the block is unconditional.
+
 <!-- quest:agent-instructions:begin -->
 # Quest agent instructions
 
