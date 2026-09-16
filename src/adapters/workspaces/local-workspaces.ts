@@ -195,11 +195,12 @@ export class LocalWorkspacePort implements WorkspacePort {
     if (
       agentSkillSourceRaw !== undefined &&
       agentSkillSourceRaw !== "repo" &&
-      agentSkillSourceRaw !== "plugin"
+      agentSkillSourceRaw !== "plugin" &&
+      agentSkillSourceRaw !== "none"
     )
       throw new WorkspaceError(
         "invalid_configuration",
-        `.quest/workspace.toml: agents.skill_source must be "repo" or "plugin", got "${agentSkillSourceRaw}".`,
+        `.quest/workspace.toml: agents.skill_source must be "repo", "plugin", or "none", got "${agentSkillSourceRaw}".`,
       );
     return {
       schemaVersion: 1,

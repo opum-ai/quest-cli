@@ -557,6 +557,175 @@ test("--skill-source plugin given alongside --agent-instructions on the same cal
   }
 });
 
+test("--skill-source none stops the Claude-provider skill file being written on a --target codex init, without asserting a plugin provides it (QCLI-309)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    // The reporter's scenario exactly: a Codex-only workspace. Before
+    // QCLI-309 the only way to stop the Claude-provider file appearing was
+    // --skill-source plugin, which asserts the opum-quest CLAUDE CODE plugin
+    // ships the skill -- something this consumer does not have.
+    const initialized = await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--target",
+      "codex",
+      "--skill-source",
+      "none",
+      "--json",
+    );
+    expect(initialized.exitCode).toBe(0);
+    const initializedBody = JSON.parse(initialized.stdout) as {
+      data: Record<string, unknown>;
+    };
+    expect(initializedBody.data).toMatchObject({
+      configuration: { agentSkillSource: "none" },
+    });
+    expect(initializedBody.data.skill).toBeUndefined();
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain("quest");
+    await expect(readFile(skillFile, "utf8")).rejects.toThrow();
+    expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\n\n[agents]\nskill_source = "none"\n',
+    );
+
+    // --target codex is public product surface and keeps working: update and
+    // check both pass, and neither touches .claude/.
+    const updated = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--target",
+      "codex",
+      "--json",
+    );
+    expect(updated.exitCode).toBe(0);
+    await expect(readFile(skillFile, "utf8")).rejects.toThrow();
+
+    const checked = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "codex",
+      "--require-installed",
+      "--json",
+    );
+    expect(checked.exitCode).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--skill-source none: a leftover skill file reports orphaned with a message that never claims a plugin ships it, and --force removes a byte-exact one (QCLI-309)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    // An already-initialized workspace that already has the stray file --
+    // the state the reporter was actually in. --reconfigure persists the
+    // opt-out after the fact.
+    expect(
+      await run(root, "init", "--agent-instructions", "--json"),
+    ).toMatchObject({ exitCode: 0 });
+    expect(await readFile(skillFile, "utf8")).toContain("name: quest");
+
+    expect(
+      await run(
+        root,
+        "init",
+        "--reconfigure",
+        "--skill-source",
+        "none",
+        "--json",
+      ),
+    ).toMatchObject({ exitCode: 0 });
+
+    const check = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "codex",
+      "--json",
+    );
+    expect(check.exitCode).toBe(6);
+    const drift = JSON.parse(check.stderr) as { message: string };
+    expect(drift).toMatchObject({ error_type: "drift" });
+    // The whole point of the value: the diagnosis names the file and the
+    // reason without asserting anything false about where a skill comes from.
+    expect(drift.message).toContain(".claude/skills/quest/SKILL.md");
+    expect(drift.message).toContain('agents.skillSource is "none"');
+    expect(drift.message).not.toContain("plugin");
+
+    const forced = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--target",
+      "codex",
+      "--force",
+      "--json",
+    );
+    expect(forced.exitCode).toBe(0);
+    expect(JSON.parse(forced.stdout)).toMatchObject({
+      data: { skill: { state: "current" } },
+    });
+    await expect(readFile(skillFile, "utf8")).rejects.toThrow();
+
+    expect(
+      await run(
+        root,
+        "agents",
+        "--check",
+        "--target",
+        "codex",
+        "--require-installed",
+        "--json",
+      ),
+    ).toMatchObject({ exitCode: 0 });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--skill-source none: --force never deletes a hand-edited skill file, exactly as under plugin (QCLI-309)", async () => {
+  const root = await repository();
+  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  try {
+    expect(
+      await run(root, "init", "--agent-instructions", "--json"),
+    ).toMatchObject({ exitCode: 0 });
+    await writeFile(skillFile, "a human wrote this on purpose\n");
+    expect(
+      await run(
+        root,
+        "init",
+        "--reconfigure",
+        "--skill-source",
+        "none",
+        "--json",
+      ),
+    ).toMatchObject({ exitCode: 0 });
+
+    const forced = await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--force",
+      "--json",
+    );
+    expect(forced.exitCode).toBe(0);
+    expect(JSON.parse(forced.stdout)).toMatchObject({
+      data: { skill: { state: "orphaned" } },
+    });
+    expect(await readFile(skillFile, "utf8")).toBe(
+      "a human wrote this on purpose\n",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("--skill-source plugin persisted from a prior call still lets a LATER, bare --agent-instructions request materialize the skill once -- explicit beats a PERSISTED config, unlike an explicit --skill-source given in the same breath (QCLI-254)", async () => {
   const root = await repository();
   const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
@@ -685,7 +854,8 @@ test("an invalid --skill-source value is a usage error, and --reconfigure accept
     expect(invalid.exitCode).toBe(2);
     expect(JSON.parse(invalid.stderr)).toMatchObject({
       error_type: "usage",
-      message: '--skill-source must be "repo" or "plugin", got "bogus".',
+      message:
+        '--skill-source must be "repo", "plugin", or "none", got "bogus".',
     });
 
     await run(root, "init", "--json");

@@ -221,6 +221,29 @@ test("an [agents] table appearing after taskIdPrefix (or absent entirely) is sti
   }
 });
 
+test('agents.skill_source = "none" round-trips as a first-class value, not an invalid one (QCLI-309)', async () => {
+  const root = await repository();
+  try {
+    const port = new LocalWorkspacePort();
+    await initializeWorkspace(port, root, {
+      name: "Quest",
+      taskIdPrefix: "QCLI",
+      agentSkillSource: "none",
+    });
+    expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
+      'schemaVersion = 1\nname = "Quest"\ntaskIdPrefix = "QCLI"\n\n[agents]\nskill_source = "none"\n',
+    );
+    expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
+      schemaVersion: 1,
+      name: "Quest",
+      taskIdPrefix: "QCLI",
+      agentSkillSource: "none",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("an invalid agents.skill_source value fails loud rather than silently defaulting (QCLI-236)", async () => {
   const root = await repository();
   try {

@@ -342,6 +342,68 @@ test("skillSource=plugin: absent skill file is current, a present one is orphane
   }
 });
 
+test("skillSource=none: every file operation matches plugin, and only the message differs -- it names no plugin (QCLI-309)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-skill-none-"));
+  try {
+    const port = new LocalAgentInstructionPort(root);
+    const file = join(root, questSkillPath);
+
+    // Absence is the healthy state, exactly as under plugin.
+    expect(await inspectQuestSkillFile(port, questSkillPath, "none")).toEqual({
+      state: "current",
+    });
+    expect(await updateQuestSkillFile(port, questSkillPath, "none")).toEqual({
+      state: "current",
+    });
+    await expect(readFile(file, "utf8")).rejects.toThrow();
+
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, questSkillContent);
+    const orphaned = await inspectQuestSkillFile(port, questSkillPath, "none");
+    expect(orphaned.state).toBe("orphaned");
+    const message = (orphaned as { message: string }).message;
+    // The one thing that distinguishes "none" from "plugin": it asserts
+    // nothing about a plugin, which is the false declaration QCLI-309 exists
+    // to remove. The plugin variant of this same message says "opum-quest".
+    expect(message).toContain('agents.skillSource is "none"');
+    expect(message).not.toContain("opum-quest");
+    expect(message).not.toContain("plugin");
+
+    // Non-force update leaves it; --force removes a byte-exact leftover.
+    expect(await updateQuestSkillFile(port, questSkillPath, "none")).toEqual(
+      orphaned,
+    );
+    expect(await readFile(file, "utf8")).toBe(questSkillContent);
+    expect(
+      await updateQuestSkillFile(port, questSkillPath, "none", true),
+    ).toEqual({ state: "current" });
+    await expect(readFile(file, "utf8")).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("skillSource=none: --force never removes a hand-edited leftover either (QCLI-309)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-skill-none-force-"));
+  try {
+    const port = new LocalAgentInstructionPort(root);
+    const file = join(root, questSkillPath);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, "hand-edited, not the generated content\n");
+
+    const check = await inspectQuestSkillFile(port, questSkillPath, "none");
+    expect(check.state).toBe("orphaned");
+    expect(
+      await updateQuestSkillFile(port, questSkillPath, "none", true),
+    ).toEqual(check);
+    expect(await readFile(file, "utf8")).toBe(
+      "hand-edited, not the generated content\n",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("skillSource=plugin: --force never removes a hand-edited leftover, even though it still reports orphaned (QCLI-236)", async () => {
   const root = await mkdtemp(join(tmpdir(), "quest-skill-plugin-force-"));
   try {

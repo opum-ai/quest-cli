@@ -182,7 +182,7 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
     "summary: Initialize a Quest workspace in the current Git worktree.",
   );
   expect(helpPlain.stdout).toContain(
-    'usage: quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex|antigravity]] [--skill-source repo|plugin]',
+    'usage: quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex|antigravity]] [--skill-source repo|plugin|none] | quest init --reconfigure [--name ...] [--task-id-prefix ...] [--skill-source repo|plugin|none]',
   );
   expect(helpPlain.stdout).toContain("summary: Create a task.");
 
@@ -197,7 +197,7 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
       kind: "workspace.initialized",
       mutates: true,
       usage:
-        'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex|antigravity]] [--skill-source repo|plugin]',
+        'quest init [--name "My Project"] [--task-id-prefix ABC] [--agent-instructions [--target claude|codex|antigravity]] [--skill-source repo|plugin|none] | quest init --reconfigure [--name ...] [--task-id-prefix ...] [--skill-source repo|plugin|none]',
       // QCLI-266: help flags carry their value shape; `--agent-instructions`
       // is boolean and correctly claims no value.
       flags: [
@@ -213,7 +213,7 @@ test("quest help prints human-readable summary and usage prose, and manifest sta
       kind: "workspace.reconfigured",
       mutates: true,
       usage:
-        'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC] [--skill-source repo|plugin]',
+        'quest init --reconfigure [--name "My Project"] [--task-id-prefix ABC] [--skill-source repo|plugin|none]',
       flags: [
         "--name <string>",
         "--task-id-prefix <string>",
