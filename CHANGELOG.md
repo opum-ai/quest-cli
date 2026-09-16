@@ -17,6 +17,69 @@ and were noticed only because a consumer reported it could not detect one of
 them by any means (QCLI-296). Release prep now leaves a fresh empty heading
 behind it; see `docs/runbooks/quest-cli-package-and-release.md`, step 5.
 
+### Changed (breaking)
+
+- **A removal that matches nothing now fails loud (exit 6) instead of
+  returning `task.updated`/`milestone.updated` with an unchanged list.** Nine
+  flags across two commands: `task edit`'s `--remove-label`, `--remove-plan`,
+  `--remove-note`, `--remove-comment`, `--remove-assignee`,
+  `--remove-reference`, `--remove-modified-file` and `--remove-dependency`,
+  plus `milestone edit --remove-task`. The error names the record id and
+  echoes every unmatched value JSON-delimited, and NOTHING is removed -- not
+  even the values in the same flag that did match.
+
+  Quest shipped two removal vocabularies with opposite miss behaviour in the
+  same command. `--remove-ac 9` on a two-item list exits 6; `--remove-note 1`
+  exited 0 and removed nothing, because removal matches on exact TEXT. An
+  agent that had learned the loud one reasonably tried the same shape on the
+  quiet one and was told its edit succeeded. Reported by opum-cli-e2e via
+  opum-agent as one flag; reproducing it found eight, then nine across two
+  commands, because `milestone edit --remove-task` has its own merge and never
+  touches the shared helper.
+
+  **The payload could not have carried this instead, and that is the argument
+  that decided the shape.** The natural defensive check on the returned record
+  -- "is the value I asked to remove absent from it?" -- returns TRUE on the
+  whitespace case, because a value differing by a trailing space was never in
+  the list under any outcome. It confirms the failure AS a success. A defect
+  that defeats the diligent caller and the careless one identically is worse
+  than one that only catches the careless, so an additive `unmatched` count
+  would have left the hard case exactly as silent for everyone not reading a
+  field they have no reason to expect. Hence the JSON delimiters: a trailing
+  space sits inside the quotes and a tab renders as `\t`.
+
+  Both downstream consumers chose loud independently, and lore-cli did so
+  against its own convenience: a silent no-op on the only path they reach (a
+  read-then-remove race) is worse for them, because lore would then report
+  "removed" for an edit that removed nothing, propagating the defect into
+  their report rather than stopping at Quest's boundary. They asked for the
+  record id in the message for the same reason -- their per-task error field
+  carries one line into a multi-task report.
+
+  The ordinal-addressed family (`--remove-ac`/`--check-ac`/`--uncheck-ac` and
+  the `--*-dod` equivalents) is unchanged and keeps its own message. Accepting
+  an ordinal on the by-value flags was considered and DROPPED, not deferred: a
+  value that is both a valid ordinal and valid item text would have two
+  meanings, so a note whose text is literally `"1"` would get a removal that
+  silently addressed a different item -- a wrong object returning success,
+  strictly worse than the no-op it replaced.
+
+  **Who this can break, stated with its bound rather than as a clean bill of
+  health.** A caller that passes removal values speculatively -- a
+  remove-if-present idiom, or an idempotent retry that re-sends an edit whose
+  removal already applied -- now gets exit 6 where it got exit 0. A consumer
+  sweep across the fleet checkouts on this machine found exactly one
+  cross-repo caller, lore-cli's `src/adapters/quest.ts` emitting
+  `--remove-label`, and both of its call sites compute the removal from a
+  fresh read and short-circuit when the label is already absent, so neither is
+  speculative; lore-cli confirmed from their own side that no third producer
+  and no retry path exists. **That finding is bounded to the fleet checkouts
+  on this machine and is NOT a claim about consumers generally.** It cannot
+  see removals assembled into a `task edit-batch` ops file outside those
+  repositories, and it cannot see any consumer outside them -- the mbpm2
+  project included, who are a real integration consumer of the published CLIs
+  and have not been asked (QCLI-297).
+
 ### Added
 
 - Every `task.list` envelope carries an additive top-level `scope`
