@@ -29,8 +29,17 @@ export class WorkspaceError extends Error {
 /** Where the quest Claude Code skill for this workspace comes from: "repo"
  * (default) generates .claude/skills/quest/SKILL.md into this repository;
  * "plugin" declares it ships instead from the opum-quest Claude Code plugin,
- * so quest agents stops writing or proposing the per-repo copy. */
-export type AgentSkillSource = "repo" | "plugin";
+ * so quest agents stops writing or proposing the per-repo copy; "none"
+ * declares this workspace has no quest skill file at all and none is
+ * provided from anywhere.
+ *
+ * "plugin" and "none" agree on every file operation and differ only in what
+ * they assert. That distinction is the whole point of "none" (QCLI-309): a
+ * workspace that does not use Claude Code had to declare "plugin" to stop a
+ * Claude-provider file being written, which asserts a plugin ships the skill
+ * -- something a Codex-only or Antigravity-only consumer does not have. An
+ * opt-out should not require declaring something false. */
+export type AgentSkillSource = "repo" | "plugin" | "none";
 
 /** Optional operator-declared identity stored alongside schemaVersion.
  * All three fields are absent on every workspace initialized before they

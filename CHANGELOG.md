@@ -51,6 +51,44 @@ behind it; see `docs/runbooks/quest-cli-package-and-release.md`, step 5.
   fallback. A version gate cannot work here in any case: `dev` declares 0.7.1
   and so does the published build that lacks the key (QCLI-296).
 
+- `agents.skill_source` accepts a third value, `"none"`, meaning this
+  workspace generates no quest skill file and none ships from anywhere else.
+  Set it with `quest init --skill-source none`, or on an existing workspace
+  with `quest init --reconfigure --skill-source none`. It behaves identically
+  to `"plugin"` on every file operation -- absence is the healthy state, a
+  leftover `.claude/skills/quest/SKILL.md` reports as drift, and `--force`
+  removes it only when byte-exact -- and differs only in what it asserts.
+
+  That difference is the entire point. Reported by the mbpm2 project, a
+  Codex-only consumer, as an integration blocker: `quest agents
+  --update-instructions --target codex` writes AGENTS.md **and** the
+  Claude-provider skill file, because the skill file is target-independent by
+  design and governed by `agents.skill_source`. The only way to stop it was
+  `--skill-source plugin`, which asserts the opum-quest **Claude Code** plugin
+  ships the skill -- a plugin they do not have and are not using. The opt-out
+  required declaring something false. `"none"` says only that no skill file is
+  generated, and its drift message names no plugin.
+
+  The `--target codex` path is unchanged and is not deprecated: Codex is
+  retired as a runtime this fleet builds on, not as product surface, and this
+  is an external user invoking a published flag.
+
+  Two things a reader should not over-read here. First, the file-writing
+  behaviour under `"repo"` -- the default, and what every existing workspace
+  has -- is byte-identical to before; nothing changes for a consumer who does
+  not set the new value. Second, a workspace that had already worked around
+  this with `"plugin"` is still correct and needs no migration; `"none"` is a
+  more accurate declaration of the same intent, not a replacement for a broken
+  one (QCLI-309).
+
+- `quest help init` now states that `--reconfigure` accepts `--skill-source`,
+  and both `init` usage lines name all three values. The omission was the
+  cheaper half of the report above: `--reconfigure` has accepted and persisted
+  `--skill-source` since QCLI-236, but the `init` summary described it as
+  being for "name/task-id-prefix on an existing workspace", so a documentation
+  gap turned a one-command fix into a blocker. The reporter could not
+  reasonably have derived it (QCLI-309).
+
 ### Fixed
 
 - `quest task edit --acceptance-criteria` (and `--definition-of-done`) given a

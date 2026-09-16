@@ -7,6 +7,7 @@ import {
   agentInstructionPathForTarget,
   type AgentInstructionCheck,
   type AgentInstructionTarget,
+  generatesQuestSkillFile,
   inspectQuestAgentInstructions,
   inspectQuestSkillFile,
   questAgentInstructions,
@@ -1102,9 +1103,11 @@ export async function writeInitInstructions(
   // instructions", so skip the write. The skill file is Claude-specific but
   // not per-target: it is written once whenever any instructions were
   // written, regardless of which/how many targets were selected (unchanged
-  // from QCLI-254).
+  // from QCLI-254). QCLI-309: "none" skips for the same reason "plugin"
+  // does -- both declare this repository generates no skill file, and they
+  // differ only in what they assert ships instead.
   const skill =
-    agentSkillSource !== "plugin"
+    agentSkillSource === undefined || generatesQuestSkillFile(agentSkillSource)
       ? await updateQuestSkillFile(agentInstructionPort)
       : undefined;
   return { instructions, instructionsByTarget, skill };
@@ -1221,7 +1224,9 @@ export async function runQuest(
               target:
                 "--target selects codex (AGENTS.md, the default) or claude (CLAUDE.md); each call checks or updates exactly one file.",
               force:
-                'When this workspace\'s agents.skill_source is "plugin", a leftover .claude/skills/quest/SKILL.md reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
+                'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover .claude/skills/quest/SKILL.md reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
+              skillSource:
+                'The skill file is target-independent and governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
             }
           : {}),
       };
@@ -1272,11 +1277,12 @@ export async function runQuest(
       if (
         skillSourceValue !== undefined &&
         skillSourceValue !== "repo" &&
-        skillSourceValue !== "plugin"
+        skillSourceValue !== "plugin" &&
+        skillSourceValue !== "none"
       )
         return failure(
           "usage",
-          `--skill-source must be "repo" or "plugin", got "${skillSourceValue}".`,
+          `--skill-source must be "repo", "plugin", or "none", got "${skillSourceValue}".`,
         );
       const agentSkillSource = skillSourceValue as AgentSkillSource | undefined;
       const reconfigure = parsed.values.has("--reconfigure");
