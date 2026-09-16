@@ -47,6 +47,7 @@ import {
   LocalTaskRepository,
   RecordDuplicateIdentityError,
 } from "../application/tasks/local-task-repository.ts";
+import { RemovalValueNotFoundError } from "../application/tasks/edit-patch.ts";
 import type { LocatedDraft, TaskService } from "../application/tasks/tasks.ts";
 import {
   type AgentSkillSource,
@@ -770,9 +771,19 @@ function maxNotesValue(value: string | undefined): number | undefined {
   return positiveIntegerValue(value, "--max-notes");
 }
 
+/**
+ * QCLI-297: the milestone half of the removal vocabulary. `--remove-task`
+ * reaches this function, NOT `foldEditPatch`'s `mergeList`, so fixing
+ * edit-patch.ts alone would leave `milestone edit --remove-task NO-SUCH-TASK`
+ * silently succeeding with an unchanged membership and the whole suite green.
+ * Found by asking which OTHER command shares the vocabulary rather than by
+ * re-reading the reported one; the rule is the same rule, so the error is the
+ * same error rather than a milestone-shaped copy of it.
+ */
 function updatedMilestoneTaskIds(
   current: readonly string[],
   parsed: NonNullable<ReturnType<typeof flags>>,
+  milestoneId: string,
 ): readonly string[] {
   const replacement = parsed.values.get("--replace-task");
   const additions = parsed.values.get("--add-task") ?? [];
@@ -785,6 +796,18 @@ function updatedMilestoneTaskIds(
   if (additions.some((taskId) => removed.has(taskId)))
     throw new FlagUsageError(
       "--add-task and --remove-task cannot name the same task.",
+    );
+  // A replacement supersedes the membership outright, and --replace-task is
+  // already exclusive with --remove-task above, so `current` is always the
+  // list the removal is addressed against.
+  const unmatched = [...new Set(removals)].filter(
+    (taskId) => !current.includes(taskId),
+  );
+  if (unmatched.length > 0)
+    throw new RemovalValueNotFoundError(
+      milestoneId,
+      "--remove-task",
+      unmatched,
     );
   const result: string[] = [];
   const add = (taskId: string) => {
@@ -2046,6 +2069,7 @@ export async function runQuest(
                 taskIds: updatedMilestoneTaskIds(
                   existingMilestone.taskIds,
                   parsed,
+                  existingMilestone.id,
                 ),
               },
               crypto.randomUUID(),
@@ -3234,6 +3258,22 @@ export async function runQuest(
       return failure("conflict", error.message, {
         input: { duplicates: error.duplicates },
         hint: "Every quest command fails closed while a task or draft id exists under more than one of tasks/completed/archive/tasks (or drafts/archive/drafts) -- usually a partial `git add` that staged a move's addition but not its deletion. Compare the listed paths yourself (diff, updatedAt, status): if they are the same record duplicated, keep the one reflecting the record's actual current state and remove the other(s) directly with `rm`/`git rm` -- quest cannot run any command to do this for you while the duplicate exists, so this is a sanctioned exception to editing .quest/ by hand. If the records genuinely differ (two unrelated tasks collided on the same id), this is not a stale copy -- do not delete either without reconciling which one keeps the id.",
+      });
+    // QCLI-297. `validation` on exit 6, matching check_index_out_of_range
+    // below rather than `usage` on exit 2: whether a removal matches depends
+    // on the record's current state, not on the flag combination -- the same
+    // command line succeeds against a record that holds the value. The error
+    // composes its own message (record id plus the delimited unmatched value)
+    // rather than being mapped from a bare code here, because both halves are
+    // per-call facts a fixed sentence cannot carry.
+    if (error instanceof RemovalValueNotFoundError)
+      return failure("validation", error.message, {
+        input: {
+          record: error.recordId,
+          flag: error.flag,
+          unmatched: error.values,
+        },
+        hint: "Removal matches the stored value EXACTLY, including leading and trailing whitespace -- the message shows the value JSON-delimited so an invisible difference is visible. Read the record and copy the value, or, for checklist items, address the position instead with the 1-based --remove-ac/--remove-dod. These flags take one raw value per occurrence; repeat the flag for several.",
       });
     // Decidable from argv alone, so they belong with the other flag-combination
     // usage errors rather than the post-read validation failures. The fold

@@ -1,6 +1,45 @@
 import { RecordValidationError } from "../../domain/records.ts";
 import type { TaskCheckItem, TaskState } from "../../domain/tasks/tasks.ts";
 
+/**
+ * QCLI-297. A removal that matched nothing, raised where the removal is
+ * applied rather than reported as an unchanged list at exit 0.
+ *
+ * Quest had two removal vocabularies with OPPOSITE miss behaviour: the
+ * ordinal-addressed checklist family (`--remove-ac` and friends) threw
+ * `check_index_out_of_range`, while every text- and id-addressed removal
+ * filtered by exact equality and discarded a non-matching value silently --
+ * exit 0, `kind=task.updated`, an unchanged list. An agent that had learned
+ * the loud one reasonably tried the same shape on the quiet one and was told
+ * its edit succeeded.
+ *
+ * The message is composed HERE, not mapped from a bare code at the CLI
+ * boundary, because two things have to survive being lifted out of context
+ * one line at a time (both asked for by the consumers who hit this):
+ *
+ * - The unmatched value is delimited with `JSON.stringify`, so a miss caused
+ *   by a trailing space or a tab is VISIBLE. That case is the whole reason
+ *   loud beats a payload count: the caller cannot see the difference unaided,
+ *   and the natural defensive check ("is the value I asked to remove absent
+ *   from the returned record?") returns TRUE on it -- it confirms the failure
+ *   AS a success, because the value passed was never in the list under any
+ *   outcome.
+ * - The record id is named, because a consumer running a multi-record edit
+ *   (lore's `link`/`unlink`/`rename` capture one error line per task) would
+ *   otherwise carry a line that cannot say which record it was about.
+ */
+export class RemovalValueNotFoundError extends RecordValidationError {
+  constructor(
+    readonly recordId: string,
+    readonly flag: string,
+    readonly values: readonly string[],
+  ) {
+    super(
+      `${recordId} ${flag}: no entry matches ${values.map((value) => JSON.stringify(value)).join(", ")}. Nothing was removed.`,
+    );
+  }
+}
+
 /** Public tracker edit vocabulary (QCLI-97.11.6) owned by the application layer. */
 export interface EditPatchVocabulary {
   readonly status?: string;
@@ -98,6 +137,9 @@ export function foldEditPatch(
   resolveStatus: (status: string) => TaskState["status"],
 ): Record<string, unknown> {
   const next: Record<string, unknown> = {};
+  // QCLI-297: every removal error names the record it was about, so a single
+  // error line lifted into a multi-record report stays self-contained.
+  const recordId = current.id;
   if (patch.status !== undefined) next.status = resolveStatus(patch.status);
   // Plain scalar replaces. The domain has always carried these (TaskState
   // title/priority/type/ordinal); only the public edit vocabulary omitted them,
@@ -128,6 +170,7 @@ export function foldEditPatch(
       patch.labels ?? current.labels,
       patch.addLabels,
       patch.removeLabels,
+      { recordId, flag: "--remove-label" },
     );
   if (patch.documentation !== undefined)
     next.documentation = patch.documentation;
@@ -140,6 +183,7 @@ export function foldEditPatch(
       patch.plan ?? current.plan,
       patch.addPlan,
       patch.removePlan,
+      { recordId, flag: "--remove-plan" },
     );
   if (
     patch.implementationNotes !== undefined ||
@@ -150,6 +194,7 @@ export function foldEditPatch(
       patch.implementationNotes ?? current.implementationNotes,
       patch.addNotes,
       patch.removeNotes,
+      { recordId, flag: "--remove-note" },
     );
   if (
     patch.comments !== undefined ||
@@ -160,6 +205,7 @@ export function foldEditPatch(
       patch.comments ?? current.comments,
       patch.addComments,
       patch.removeComments,
+      { recordId, flag: "--remove-comment" },
     );
   const acceptanceCriteria = foldCheckList(
     current.acceptanceCriteria,
@@ -185,6 +231,7 @@ export function foldEditPatch(
       current.dependencies,
       patch.addDependencies,
       patch.removeDependencies,
+      { recordId, flag: "--remove-dependency" },
     );
   if (patch.parentId !== undefined) next.parentId = patch.parentId;
   else if (patch.clearParent === true) next.parentId = undefined;
@@ -195,20 +242,55 @@ export function foldEditPatch(
       current.assignees ?? [],
       patch.addAssignees,
       patch.removeAssignees,
+      { recordId, flag: "--remove-assignee" },
     );
   if (patch.addReferences?.length || patch.removeReferences?.length)
     next.references = mergeList(
       current.references ?? [],
       patch.addReferences,
       patch.removeReferences,
+      { recordId, flag: "--remove-reference" },
     );
   if (patch.addModifiedFiles?.length || patch.removeModifiedFiles?.length)
     next.modifiedFiles = mergeList(
       current.modifiedFiles ?? [],
       patch.addModifiedFiles,
       patch.removeModifiedFiles,
+      { recordId, flag: "--remove-modified-file" },
     );
   return next;
+}
+
+/** Where a removal came from, so the error can name the record and the flag
+ * the caller actually typed rather than an internal field name (QCLI-297). */
+export interface RemovalSite {
+  readonly recordId: string;
+  readonly flag: string;
+}
+
+/**
+ * QCLI-297. Raises {@link RemovalValueNotFoundError} for every removal value
+ * that matches nothing, checked against the list BEFORE anything is filtered.
+ *
+ * All unmatched values in one flag are reported together rather than the
+ * first alone: a caller passing three values wants to know which of them are
+ * wrong, and failing on the first would hand back one miss per round trip.
+ *
+ * The predicate is passed in because identity differs by list -- exact string
+ * equality for the seven text lists, comment id for comments -- while the
+ * rule ("a removal that removes nothing is an error, not a no-op") is one
+ * rule and belongs in one place. This runs inside the fold, so `task edit`
+ * and `task edit-batch` cannot drift: the batch path reports it per item.
+ */
+function assertEveryRemovalMatched(
+  removed: readonly string[] | undefined,
+  matches: (value: string) => boolean,
+  site: RemovalSite,
+): void {
+  if (!removed?.length) return;
+  const unmatched = [...new Set(removed)].filter((value) => !matches(value));
+  if (unmatched.length > 0)
+    throw new RemovalValueNotFoundError(site.recordId, site.flag, unmatched);
 }
 
 /**
@@ -228,8 +310,10 @@ function mergeList(
   current: readonly string[],
   added: readonly string[] | undefined,
   removed: readonly string[] | undefined,
+  site: RemovalSite,
 ): readonly string[] {
   const dropped = new Set(removed ?? []);
+  assertEveryRemovalMatched(removed, (value) => current.includes(value), site);
   const result = current.filter((value) => !dropped.has(value));
   for (const value of added ?? [])
     if (!result.includes(value)) result.push(value);
@@ -241,12 +325,19 @@ function mergeComments(
   current: readonly unknown[],
   added: readonly unknown[] | undefined,
   removed: readonly string[] | undefined,
+  site: RemovalSite,
 ): readonly unknown[] {
   const dropped = new Set(removed ?? []);
   const isCommentId = (comment: unknown): boolean =>
     !!comment &&
     typeof comment === "object" &&
     typeof (comment as { id?: unknown }).id === "string";
+  const commentIds = new Set(
+    current
+      .filter(isCommentId)
+      .map((comment) => (comment as { id: string }).id),
+  );
+  assertEveryRemovalMatched(removed, (value) => commentIds.has(value), site);
   const result = current.filter((comment) => {
     const id = isCommentId(comment) ? (comment as { id: string }).id : "";
     return !dropped.has(id);

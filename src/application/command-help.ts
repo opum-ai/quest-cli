@@ -257,7 +257,20 @@ export const commandHelp: Record<
       "--if-revision <revision> (QCLI-277) is an optional precondition: capture `revision` from an " +
       "earlier `task view --json`, and the edit is refused with an exit-5 conflict -- naming the " +
       "record's actual current revision -- if the record has moved since, instead of silently " +
-      "applying over a change the caller never saw. Omitted, behavior is unchanged.",
+      "applying over a change the caller never saw. Omitted, behavior is unchanged. " +
+      "REMOVAL IS ONE VOCABULARY ADDRESSED TWO WAYS, and every removal fails loud on a miss " +
+      "(QCLI-297). BY POSITION: --remove-ac/--check-ac/--uncheck-ac and the --*-dod equivalents " +
+      "take a 1-based position; a position outside the list is an exit-6 validation error. " +
+      "BY VALUE: --remove-label, --remove-plan, --remove-note, --remove-reference, " +
+      "--remove-modified-file, --remove-assignee and --remove-dependency match the stored " +
+      "entry's text EXACTLY -- including leading and trailing whitespace, and with no case " +
+      "folding or trimming -- while --remove-comment matches a comment's `id`. A value matching " +
+      "nothing is an exit-6 validation error naming the task id and echoing the value " +
+      "JSON-delimited (so a miss caused by a trailing space or a tab is visible), and NOTHING is " +
+      "removed -- not even the values in the same flag that did match. Every unmatched value in " +
+      "one flag is reported together rather than one per round trip. This is deliberately not a " +
+      "remove-if-present: a caller who wants that should read the record first and skip the " +
+      "edit, which is also the only way to be sure the value it read is the one it removed.",
     usage:
       'quest task edit <id> --status "In Progress" --actor <name> --actor-kind human',
     flags: [
@@ -399,7 +412,13 @@ export const commandHelp: Record<
     flags: ["--id", "--status", "--description", "--task", ...ACTOR_FLAGS],
   },
   "milestone edit": {
-    summary: "Edit a milestone's fields or its linked tasks.",
+    summary:
+      "Edit a milestone's fields or its linked tasks. " +
+      "--add-task/--remove-task adjust the current membership; --replace-task states it " +
+      "outright and cannot be combined with either. --remove-task matches a linked task id " +
+      "EXACTLY, the same rule `task edit`'s by-value removals follow: an id matching nothing " +
+      "is an exit-6 validation error naming the milestone id and echoing the value " +
+      "JSON-delimited, and nothing is removed (QCLI-297). It is not a remove-if-present.",
     usage:
       'quest milestone edit <id> --title "<title>" --actor <name> --actor-kind human',
     flags: [
