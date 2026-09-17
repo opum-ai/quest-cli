@@ -6,16 +6,15 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
-Nothing below has been published. `@opum-ai/quest` 0.7.1 is the latest
-released version and predates every entry here, so a consumer running the
-published CLI observes none of them.
+## 0.8.0
 
-This heading was itself missing until QCLI-319. Release prep renamed the
-previous `## Unreleased` into `## 0.7.1` and left no successor, so four
-consumer-observable changes landed on `dev` with nowhere to be recorded --
-and were noticed only because a consumer reported it could not detect one of
-them by any means (QCLI-296). Release prep now leaves a fresh empty heading
-behind it; see `docs/runbooks/quest-cli-package-and-release.md`, step 5.
+Version frozen 2026-09-17. Breaks lockstep with `@opum-ai/lore` once more --
+lore-cli's `dev` remains at 0.7.0 and nothing in lore changes; this is a
+quest-only release, forced by QCLI-328's rule that a breaking `Changed` entry
+needs at least a minor bump, and the entry directly below is exactly that.
+**The date above is when this version was frozen and the bump landed, not
+when it reached npm**; publication is a separate, manually authorized step,
+and nothing in this file should be read as evidence that it happened.
 
 ### Changed (breaking)
 
