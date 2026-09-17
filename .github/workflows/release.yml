@@ -15,6 +15,14 @@ on:
 permissions:
   contents: read
 
+# QCLI-326 (OPAG-166) considered a concurrency group here and rejected it
+# entirely, not only cancel-in-progress. This job runs `npm publish` per
+# platform; even a non-cancelling group queues a second dispatch behind an
+# in-flight one, which sounds safe but adds a new way for a release to
+# appear to hang with no clear cause. Publishes are already manual,
+# deliberate, and low-frequency -- there is no stacking problem here for a
+# concurrency group to solve. Leave this workflow's triggers as the only
+# guard against overlapping runs.
 jobs:
   publish:
     # Dispatch this against the tag, not a branch: the artifacts published are

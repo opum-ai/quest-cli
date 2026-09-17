@@ -26,6 +26,23 @@ on:
 permissions:
   contents: read
 
+# QCLI-326. Cancels a superseded run for the same workflow+ref -- e.g. two
+# pushes to the same task branch seconds apart -- rather than letting the
+# stale one run to completion alongside the new one. The final SHA still
+# gets a full run either way; this only kills work whose answer no longer
+# matters.
+#
+# CORRECTED (opum-agent, re-measured against this repo's own history rather
+# than accepted from the relay): source-gates is a required check on main's
+# ruleset, and it runs in THIS SAME concurrency group on both an ordinary
+# feature-branch push (safe to cancel) and a dev->main promotion (a push to
+# `main`, or a pull_request whose head is `dev`) -- unconditional
+# cancellation could kill a required check mid-run on the one path that
+# cannot afford it. Excluded explicitly rather than trusted to be rare.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' && github.head_ref != 'dev' }}
+
 jobs:
   source-gates:
     runs-on: ubuntu-24.04
@@ -43,13 +60,24 @@ jobs:
           QUEST_QUALIFICATION_STRICT: "1"
 
   # The six-platform release matrix is too slow and too expensive to run on
-  # every PR. source-gates alone (typecheck, lint, format, layer boundaries,
-  # and the full test suite) is the required PR check; this job stays scoped
-  # to push/workflow_dispatch/tag builds, matching its existing behavior.
+  # every PR or every ordinary branch push -- source-gates alone (typecheck,
+  # lint, format, layer boundaries, and the full test suite) is the required
+  # PR check. QCLI-326: this used to additionally run on every `push` event,
+  # and push's `paths:` filter above has no `branches:` restriction, so it
+  # fired the full matrix (two macOS legs, two Windows legs) on every commit
+  # pushed to any task branch mid-review, not only on dev/main merges --
+  # measured at 130 such runs in September against a 41%-of-fleet GitHub
+  # Actions bill (OPAG-166). Scoped to match candidate-bundle and
+  # native-execution-receipt below: workflow_dispatch or a tag push only.
+  # Platform-specific build/prepublish breaks now surface at tag time (or an
+  # explicit workflow_dispatch) rather than on every dev push -- a deliberate
+  # trade of earlier signal for cost, not an oversight.
   immutable-candidates:
     name: ${{ matrix.target }}
     needs: source-gates
-    if: github.event_name != 'pull_request'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
