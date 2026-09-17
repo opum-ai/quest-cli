@@ -543,6 +543,23 @@ gh api repos/opum-ai/quest-cli/git/ref/heads/main --jq '.object.sha'
 Prefer the GitHub API for the assertion: it uses token auth and was
 unaffected by the SSH failure that broke the push.
 
+**The two assertions do not become true at the same moment, and only one of
+them is trustworthy immediately.** Measured here twice in one session,
+2026-09-17, on promotion PRs #164 and #166: in the same command as the push,
+the API ref read already returned the promoted SHA while `gh pr view` still
+reported `state=OPEN, mergedAt=null, mergeCommit=none`. Both flipped to
+`MERGED` within seconds on a re-read. GitHub's auto-mark of a fast-forwarded
+promotion PR lags the ref it is inferred from.
+
+So read the ref to decide whether the promotion landed, and read the PR state
+only to confirm no merge commit was created -- re-reading it if it still says
+`OPEN`. A session that asserts the PR state alone, or that treats the pair as
+one atomic check, concludes a successful promotion failed, and the obvious
+recovery from that wrong conclusion is to push again or to start
+investigating a push that was already correct. This does not weaken the
+section above: the ref assertion is exactly the one that stays reliable, and
+it is reliable at once.
+
 ### A claim that was true when written is the hardest kind to catch
 
 Five claims were withdrawn across one QCLI-298 exchange with opum-cli-e2e on
