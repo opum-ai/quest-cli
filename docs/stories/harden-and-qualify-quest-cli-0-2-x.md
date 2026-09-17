@@ -9,7 +9,7 @@ tags:
   - release
 summary: Complete Quest parity, resolve 0.2.x qualification defects, and establish release-ready evidence without rewriting the 0.1.0 delivery record.
 timestamp: 2026-08-17T16:25:23.594Z
-status: todo
+status: done
 tasks:
   - qcli-97
   - qcli-97.1
@@ -83,7 +83,11 @@ available before it was.
 QCLI-97.5 and QCLI-97.11 have since closed. QCLI-97.5 (QCLI-207) met all three criteria — the
 owner-approved adapter contract, explicit workspace selection, and the managed-region separation.
 QCLI-97.11 (QCLI-196) closed as a stale migration-parent status superseded by its five completed
-children (QCLI-197, QCLI-198, QCLI-199, QCLI-202, QCLI-203). QCLI-97 itself remains To Do.
+children (QCLI-197, QCLI-198, QCLI-199, QCLI-202, QCLI-203). QCLI-97 itself closed 2026-09-17 as a
+stale umbrella, found while auditing archived-but-open-status tracker records during a fleet-wide
+dedupe pass: 9 of its 11 children were already Done, and the remaining branch (QCLI-196 and its own
+children) is superseded by the shipped Backlog→Quest cutover (QCLI-160/QCLI-169). It had been
+archived since 2026-09-07 without its status field or this section being updated to match.
 
 Nothing in this record is soak. It measures one host at one moment.
 
@@ -92,7 +96,7 @@ Nothing in this record is soak. It measures one host at one moment.
 <!-- lore:tasks:begin -->
 | Task | Title | Status |
 |---|---|---|
-| [QCLI-97](../../.quest/archive/tasks/QCLI-97.json) | Restore Quest parity, project bootstrap, and Lore/Codex integration | To Do |
+| [QCLI-97](../../.quest/completed/QCLI-97.json) | [SUPERSEDED by QCLI-160/QCLI-169] Restore Quest parity, project bootstrap, and Lore/Codex integration | Done |
 | [QCLI-189](../../.quest/tasks/QCLI-189.json) | Audit Backlog parity and Lore/Codex onboarding gaps | Done |
 | [QCLI-204](../../.quest/tasks/QCLI-204.json) | Implement Quest project bootstrap, discovery, and Codex instructions | Done |
 | [QCLI-205](../../.quest/tasks/QCLI-205.json) | Restore Quest planning and operations parity commands | Done |

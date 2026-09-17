@@ -257,6 +257,7 @@
 - 2026-09-14T15:21:43-05:00 f05a27b536a5f3f2e1b88e98e87c483632a67e49 chore: file QCLI-287, task pause renders a healthy task as Blocked (#73)
 - 2026-09-14T15:54:31-05:00 6ecce20150c0f2190ee845b58ca44ea1034078c7 chore(QCLI-271): record handoff before session recycle (#75)
 - 2026-09-14T19:25:33-05:00 9e9392a483529c50f898aa3a51c3be1daadebb5b docs(QCLI-292): document what a version bump touches (#95)
+- 2026-09-15T03:36:00-05:00 b38b544c4c320085bd00a9d25524644953f8ad63 chore(QCLI-271,QCLI-289): apply rulings; close QCLI-271 (#98)
 
 ## docs/adr
 
@@ -290,6 +291,10 @@
 - 2026-08-29T20:49:32-05:00 c81b4b376982cd81ae400df2e798e75c25fe25e1 docs(release): correct the Bun cross-compile claim
 - 2026-08-29T21:22:34-05:00 fce8a9f970f04735a8bb5d5b8df999255745e131 fix(release): attest the committed artifact instead of rebuilding it
 - 2026-08-29T21:45:23-05:00 b54587a946176da3f04c047dddc94572c62270d5 feat(release): publish from CI, and refuse a bundle that misattributes its bytes
+- 2026-09-15T03:46:59-05:00 505d2a46679266ef37677a87cc85012c07c4c9a6 chore(QCLI-294): release prep 0.7.0 — version bump and CI-built platform binaries (#99)
+- 2026-09-15T08:58:11-05:00 f027c2450e74f970048d61a779f17d4e2ab8e905 chore(QCLI-289,QCLI-299): 0.7.0 published; file the publish-path defects (#117)
+- 2026-09-15T09:33:48-05:00 0a480d668df92b88405e3c7123b9f45175cfe522 fix(QCLI-299): gate the wrapper publish on a consumer-side read (#120)
+- 2026-09-16T17:05:13-05:00 95b53569e041e66423633684bed6c68cece1e006 docs(QCLI-319): restore the Unreleased heading; make release prep leave a successor (#152)
 
 ## docs/specs
 
