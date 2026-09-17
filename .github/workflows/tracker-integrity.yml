@@ -90,7 +90,8 @@ jobs:
       - name: CLAUDE.md's declared Quest version matches this package
         run: |
           set -euo pipefail
-          declared="$(sed -n 's/.*Quest CLI \([0-9][0-9.]*\).*/\1/p' CLAUDE.md | head -1)"
+          declared="$(sed -n '/<!-- quest:agent-instructions:begin -->/,/<!-- quest:agent-instructions:end -->/p' CLAUDE.md \
+            | sed -n 's/.*Quest CLI \([0-9][0-9.]*\).*/\1/p' | head -1)"
           if [ -z "$declared" ]; then
             echo "::error file=CLAUDE.md::No 'Quest CLI <version>' line found in the managed block. Tracker integrity cannot be checked against an undeclared version."
             exit 1
