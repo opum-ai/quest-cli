@@ -154,6 +154,44 @@ behind it; see `docs/runbooks/quest-cli-package-and-release.md`, step 5.
 
 ### Fixed
 
+- **Draft, milestone and decision ids are now allocated refs-aware, like task
+  ids have been since QCLI-279.** `quest draft create`, `quest milestone
+  create` and `quest decision create` used to compute "next available" from
+  the checked-out tree's `.quest/` alone, so an unmerged sibling branch or a
+  detached checkout behind a moved branch could mint an id that already
+  existed elsewhere. QCLI-279 fixed exactly one of the three allocators and
+  deliberately left these two pending a real reproduction; that reproduction
+  arrived on 2026-09-14, when two sessions independently minted `DEC-3` from
+  branches neither of which carried the other's record. Recovered by hand, no
+  data lost, and it would not have been caught by a less careful actor.
+
+  **The obvious fix -- point QCLI-279's existing helper at the other
+  subdirectories -- is right for drafts and silently wrong for milestones and
+  decisions**, which is the only interesting thing about this change. That
+  helper finds ids by reading FILE NAMES, which works because tasks and drafts
+  are stored one record per file. Milestones and decisions share a single
+  `.quest/planning.json`; a filename scan over that path matches one file
+  called `planning.json`, matches no id marker, and returns 0 -- and 0 is
+  indistinguishable from "no other ref carries a higher id". So the planning
+  half reads blob CONTENT per ref instead, via the revision-pinned read the
+  Git port already exposed.
+
+  That is measured, not argued: a mutant implementing the obvious fix produces
+  a verdict set byte-identical to a mutant with no fix at all -- five of nine
+  tests red, the same five. The wrong mechanism and the absent one are the
+  same observation.
+
+  Unchanged in every other respect. Allocation still consults only refs that
+  already exist locally and never fetches; only a prefix's own family can
+  advance its counter, so a decision cannot advance the milestone counter
+  though both live in one document; and a `.quest` directory with no Git
+  repository behind it still allocates from the working tree alone. An
+  unreadable or unparseable planning document on some unrelated branch is
+  skipped while the remaining refs are still consulted -- a coarser guard
+  would fall back to the local-only view, which is the un-fixed behaviour
+  wearing a passing test. Ids minted before this change are not repaired by
+  upgrading.
+
 - `quest task edit --acceptance-criteria` (and `--definition-of-done`) given a
   JSON array of bare strings silently unticked every checked box: exit 0,
   empty stderr, `kind=task.updated`. The lossless `{index, text, checked}`
