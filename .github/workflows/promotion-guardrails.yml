@@ -31,6 +31,13 @@ on:
 permissions:
   contents: read
 
+# QCLI-326 (OPAG-166). Both jobs here are single-runner and cheap; this is
+# included for consistency across all four CI workflows, not because either
+# job was a meaningful cost driver.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   promotion-is-manual:
     name: promotion-is-manual

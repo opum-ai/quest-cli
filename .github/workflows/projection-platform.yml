@@ -1,18 +1,27 @@
 name: Projection platform matrix
 
+# QCLI-326. This used to trigger on `push` with a `paths:` filter but no
+# `branches:` restriction, so it ran the full six-platform matrix (including
+# two macOS legs) on every push to any branch that touched the matched
+# paths -- 24 runs in September, roughly half of them on task branches mid-
+# review rather than dev/main merges, against a 41%-of-fleet GitHub Actions
+# bill (OPAG-166). Scoped to workflow_dispatch or a tag push only, matching
+# prepublication-qualification.yml's immutable-candidates. Cross-platform
+# projection regressions now surface at tag time (or an explicit
+# workflow_dispatch) rather than on every dev push -- a deliberate trade of
+# earlier signal for cost, not an oversight.
 on:
   workflow_dispatch:
   push:
-    paths:
-      - ".github/workflows/projection-platform.yml"
-      - "bun.lock"
-      - "package.json"
-      - "src/adapters/projection/**"
-      - "src/application/projection/**"
-      - "test/integration/projection/**"
+    tags:
+      - "v*"
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   projection:

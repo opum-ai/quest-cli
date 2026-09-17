@@ -15,6 +15,15 @@ on:
 permissions:
   contents: read
 
+# QCLI-326 (OPAG-166). cancel-in-progress is deliberately false here, unlike
+# the fleet's other three CI workflows: this job runs `npm publish` per
+# platform, and killing it mid-run over a second dispatch against the same
+# ref could leave a release half-published (some platform packages live,
+# others not). A second dispatch queues behind the first instead.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     # Dispatch this against the tag, not a branch: the artifacts published are
