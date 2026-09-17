@@ -31,9 +31,17 @@ permissions:
 # stale one run to completion alongside the new one. The final SHA still
 # gets a full run either way; this only kills work whose answer no longer
 # matters.
+#
+# CORRECTED (opum-agent, re-measured against this repo's own history rather
+# than accepted from the relay): source-gates is a required check on main's
+# ruleset, and it runs in THIS SAME concurrency group on both an ordinary
+# feature-branch push (safe to cancel) and a dev->main promotion (a push to
+# `main`, or a pull_request whose head is `dev`) -- unconditional
+# cancellation could kill a required check mid-run on the one path that
+# cannot afford it. Excluded explicitly rather than trusted to be rare.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' && github.head_ref != 'dev' }}
 
 jobs:
   source-gates:

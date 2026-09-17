@@ -31,13 +31,17 @@ on:
 permissions:
   contents: read
 
-# QCLI-326 (OPAG-166). Both jobs here are single-runner and cheap; this is
-# included for consistency across all four CI workflows, not because either
-# job was a meaningful cost driver.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+# QCLI-326 (OPAG-166) considered and REJECTED adding a concurrency
+# cancellation group here, on re-measurement rather than the "free, add it
+# everywhere" assumption the task started with. This workflow only triggers
+# on pushes/PRs to `main` (see `on:` above) -- never a feature branch -- so
+# there are no superseded runs to collapse: quest-cli's own history this
+# month is 39 push + 39 pull_request, all against `main`, zero stacking.
+# What cancellation would buy instead is suppressing the guard itself: two
+# promotions in quick succession would cancel the first one's fast-forward
+# check, and the deliberate failure telling a human not to use the merge
+# button could disappear along with it. Do not add this back without
+# re-verifying both of those hold.
 jobs:
   promotion-is-manual:
     name: promotion-is-manual
