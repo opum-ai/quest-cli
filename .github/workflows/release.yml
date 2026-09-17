@@ -148,7 +148,7 @@ jobs:
       # Platform packages first: the root's optionalDependencies name them, so
       # publishing the root first would briefly advertise versions that do not
       # exist.
-      - name: Publish
+      - name: Publish the platform packages
         env:
           # CORRECTED 2026-09-13 (lore-cli, reading npm's own source --
           # lib/commands/publish.js calls oidc() unconditionally BEFORE
@@ -178,6 +178,34 @@ jobs:
             (cd "npm/quest-${target}" && npm publish --access public $DRY)
             echo "::endgroup::"
           done
+
+      # QCLI-300. The gate, not a confirmation: it runs BETWEEN the platform
+      # loop and the wrapper publish, so a failure leaves @opum-ai/quest
+      # unpublished. The propagation loop further down runs AFTER the wrapper
+      # is already on the registry and can only report -- which is exactly the
+      # shape QCLI-299 removed from scripts/publish-release.mjs, and which this
+      # workflow still had.
+      #
+      # A write returning success is not visibility. On 0.7.0 write order and
+      # visibility order disagreed in four of six positions, and a wrapper
+      # published ahead of its platform packages advertises an
+      # optionalDependency that does not resolve: the install succeeds and
+      # leaves no binary.
+      #
+      # Skipped on a dry run because nothing was published to become visible;
+      # asserting otherwise would fail every dry run for the right reason at
+      # the wrong time.
+      - name: Gate -- all six platform packages must resolve for a consumer
+        if: ${{ inputs.publish == true }}
+        run: node scripts/qualification/require-platform-visibility.mjs
+
+      - name: Publish the wrapper
+        env:
+          NPM_CONFIG_LOGLEVEL: verbose
+          DRY: ${{ inputs.publish == true && ' ' || '--dry-run' }}
+        run: |
+          set -euo pipefail
+          unset NODE_AUTH_TOKEN
           echo "::group::@opum-ai/quest"
           npm publish --access public $DRY
           echo "::endgroup::"
@@ -226,7 +254,7 @@ jobs:
               break
             fi
             if [ "$attempt" -eq "$max_attempts" ]; then
-              echo "::error::registry propagation timeout: still not visible after ${attempt} checks over ~${elapsed}s (~$((elapsed / 60))m):${missing}. This means the package(s) never appeared under ${version} in that window at all -- npm-side CDN/attestation-processing lag, the same class observed on 0.4.0 and 0.5.0's quest-win32-arm64, both of which resolved shortly after a shorter 5-minute budget. This is NOT a content mismatch: a package visible under the right version but serving the wrong bytes is a different, real failure and is reported separately below, after this loop passes."
+              echo "::error::registry verification failed: ${missing} still not visible after ${attempt} checks over ~${elapsed}s (~$((elapsed / 60))m). DO NOT ASSUME THIS IS PROPAGATION LAG (QCLI-300). Before the visibility gate was added upstream of the wrapper publish, that was the likely reading and this message asserted it. It is no longer: the gate has already confirmed a consumer-side read of all six PLATFORM packages at this version, so their lag is the one explanation now ruled out. What remains is a failed release until proven otherwise -- most likely the WRAPPER (@opum-ai/quest) never landed, or a package that resolved for the gate stopped resolving, which is the CDN serving two documents and is a real fault rather than a slow one. Read the per-package lines above and the Publish the wrapper step's own output; treat the release as incomplete. This is NOT a content mismatch: a package visible under the right version but serving the wrong bytes is a different, real failure and is reported separately below, after this loop passes."
               exit 1
             fi
             echo "still waiting for CDN propagation (attempt ${attempt}/${max_attempts}, next check in ${delay}s):${missing}"
