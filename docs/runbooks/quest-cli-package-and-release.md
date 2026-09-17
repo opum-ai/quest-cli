@@ -366,6 +366,47 @@ below. Neither route changes step 1, which is required either way.
    passes; a receipt that describes a build nobody published is the exact
    failure this step exists to prevent.
 
+## Promoting dev to main
+
+Not one of the eight numbered steps above, deliberately: the release workflow
+dispatches against the TAG (`--ref v<version>`), never against `main`, so
+promoting `dev` is orthogonal to qualification and to publish. It can happen
+any time after a reviewed commit lands on `dev` -- most naturally right after
+step 5's tag-time commit -- and if the publish is later declined, `main`
+carrying a prepared-but-unpublished version costs nothing; the tag is what
+step 7 actually reads.
+
+This repository gates `main`, not `dev` (see the repository profile in
+`CLAUDE.md`): a `dev`-to-`main` PR triggers the same required checks a second
+time, on a SHA that already passed them once on its way into `dev`. Learned
+at the 0.8.0 promotion (QCLI-332), 2026-09-17, because each of these reads as
+a broken promotion to whoever sees it for the first time mid-release:
+
+- **Two full rounds of `source-gates` / `Tracker integrity` / `lore check`
+  fire on one SHA.** "Green once" is not "done" -- read the newest run per
+  required context (by `started_at`) from `gh api
+  repos/opum-ai/quest-cli/commits/<sha>/check-runs`, intersected against the
+  context names in `rules/branches/main`, and confirm zero non-`completed`
+  runs remain before merging.
+- **`promotion-is-manual` failing and `main-is-fast-forward-of-dev` skipping
+  are the documented always-fail tripwire from
+  `.github/workflows/promotion-guardrails.yml`, not blockers.** Neither is in
+  the required-checks list; both exist only to stop the GitHub merge button
+  from being used on this PR.
+- **`mergeStateStatus` reading `UNSTABLE` is expected on this PR shape**, not
+  evidence the promotion is broken.
+
+Land it with `git push origin origin/dev:main` -- the remote-tracking ref,
+never bare `dev:main`, which resolves to a local branch that can be stale and
+silently no-ops instead of promoting anything -- chained on the check with
+`&&`, never `;`. Never the merge button: it staples a merge commit onto
+`main` that never reaches `dev`, breaking the fast-forward ancestor invariant
+this whole procedure depends on. Assert the result from the API (`gh api
+repos/opum-ai/quest-cli/git/ref/heads/main`) rather than trusting the push's
+exit code, then fetch and read `origin/main` before reporting it -- local
+`main` is stale in any session that has been promoting, because the push
+never checks `main` out.
+
 ## A locally-rebuilt darwin-arm64 binary can SIGKILL git on this host
 
 Host-specific, not a code defect, confirmed via live kernel log capture

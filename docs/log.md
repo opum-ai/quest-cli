@@ -258,6 +258,7 @@
 - 2026-09-14T15:54:31-05:00 6ecce20150c0f2190ee845b58ca44ea1034078c7 chore(QCLI-271): record handoff before session recycle (#75)
 - 2026-09-14T19:25:33-05:00 9e9392a483529c50f898aa3a51c3be1daadebb5b docs(QCLI-292): document what a version bump touches (#95)
 - 2026-09-15T03:36:00-05:00 b38b544c4c320085bd00a9d25524644953f8ad63 chore(QCLI-271,QCLI-289): apply rulings; close QCLI-271 (#98)
+- 2026-09-17T13:51:30-05:00 305e2c67cc16587d0ae31d3e116c3becf1932edc chore(QCLI-259,QCLI-97,QCLI-200,QCLI-201,QCLI-247,QCLI-329): dedupe pass
 
 ## docs/adr
 
