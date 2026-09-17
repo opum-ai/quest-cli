@@ -347,34 +347,104 @@ sentence is correct. The dangerous pairing is the one where the description
 is accurate, which is also the one a reviewer signs off on: they check the
 prose against intent and never against the code.
 
-Their corrected predicate is the shape to copy, because it needs no knowledge
-of how many contexts exist:
+Their corrected predicate was recorded here as "the shape to copy", because
+it needs no knowledge of how many contexts exist:
 
 ```
 [.check_runs|group_by(.name)|.[]|sort_by(.started_at)|last
  |select(.conclusion!="success")] | length == 0
 ```
 
-Assert that NO context is anything other than success, rather than counting
-the ones that are. Measured here 2026-09-15: this repository's own
-qualification scripts already use that shape (`problems.length === 0`,
-`missing.length === 0` in `scripts/qualification/`), so nothing needed
-changing -- but that was not known until it was checked, and "we probably do
-it right" is what the check replaces.
+**CORRECTED 2026-09-16 (QCLI-321): that predicate can never pass in this
+repository.** Asserting that NO context is anything other than success is
+only safe where every context that reports is required, and here three are
+not. Measured on PR #157 head `3bb65aa`: `source-gates`, `Tracker integrity`
+and `lore check` succeeded while `candidate-bundle`, `matrix.target` and
+`native-execution-receipt` concluded `skipped` -- they are gated off
+`pull_request` -- so the predicate returned 3 on a PR whose
+`mergeStateStatus` was `CLEAN` and which merged cleanly. A background poll
+built on it literally as written hung and had to be killed.
+
+**How it got in, because that is what lets the next reader find their own
+copy:** this profile lifted the predicate out of a cross-session message and
+never ran it against its own check set. The fleet reference was not wrong and
+never was -- opum-workflow 0.8.2
+`skills/opum-sdlc/references/promotion.md` reads the required contexts by name
+from the ruleset and asserts each is present and passed, and the `group_by`
+snippet there is explicitly a READ of the latest conclusion per context, *not*
+the wait predicate. This copy collapsed the two. If the two ever disagree
+again, that reference wins and this paragraph is the stale one.
+
+The correct form intersects with the required set BY NAME, read from the
+ruleset so the guard tracks the rule rather than a copy that can drift from it:
+
+```sh
+SHA=$(git rev-parse origin/dev)
+REQ=$(gh api repos/opum-ai/quest-cli/rules/branches/main \
+  --jq '[.[]|select(.type=="required_status_checks")
+         |.parameters.required_status_checks[].context]')
+# -> ["source-gates","Tracker integrity","lore check"]
+
+RUNS=$(gh api "repos/opum-ai/quest-cli/commits/$SHA/check-runs" \
+  --jq '[.check_runs[]] | group_by(.name) | map(max_by(.started_at))')
+[ "$RUNS" != "[]" ] || { echo "empty answer - not settled, keep waiting"; exit 1; }
+
+printf '%s' "$RUNS" | jq -e --argjson req "$REQ" '
+  [ $req[] as $c
+    | ([.[]|select(.name==$c)] | first)
+    | if . == null then "ABSENT"
+      elif .status != "completed" then .status
+      else .conclusion end ]
+  | all(. == "success")'
+```
+
+The non-empty guard is load-bearing, not decoration: `all` over an empty array
+is **vacuously true**, and `[]` is what the API returns in the seconds before
+runs register -- so an unguarded poll concludes "settled" at the exact instant
+nothing has been tested. `ABSENT` is what distinguishes a required context
+that has not reported from one that passed; presence and success are two
+assertions, and only success is obvious.
+
+Measured here 2026-09-15: this repository's own qualification scripts use the
+no-failures shape (`problems.length === 0`, `missing.length === 0` in
+`scripts/qualification/`), which is correct *there* because those lists hold
+only real findings -- there is no skipped-but-fine category for them to admit.
+That is precisely why the defect survived a check: the same shape is right in
+one place and wrong in the other, and the 2026-09-15 sweep confirmed the shape
+without asking which set each one quantified over.
 
 The standing rule generalises accordingly: **name the object you measured and
 the object your claim is about -- INCLUDING when the object is your own
 method.** Two sessions described an algorithm neither had read, in the same
 hour, while writing to each other about exactly that class of error.
 
-**So do not count rows at all -- read `mergeStateStatus`.** It is the rollup
-over the required set and it does not care how many rows produced it:
-`UNSTABLE` while anything required is pending or failed, `CLEAN` once the
-required set is satisfied. Counting rows requires knowing which of two numbers
-is correct for this particular head commit, which is the judgement that was
-wrong above; `gh pr view <n> --json mergeStateStatus` needs no such knowledge.
-Reach for `gh api "repos/opum-ai/quest-cli/actions/runs?head_sha=<sha>"` and
-its `event` field only to explain a count, never to decide whether to wait.
+**Do not count rows -- and do not reach for `mergeStateStatus` either.** An
+earlier revision of this paragraph said to read it, on the grounds that it is
+the rollup over the required set and does not care how many rows produced it.
+That holds on a task PR into `dev`. It is **false on a `dev`-to-`main`
+promotion PR**, which is the one shape where being wrong stalls a delivery
+indefinitely. `.github/workflows/promotion-guardrails.yml` puts a
+`promotion-is-manual` job on every PR targeting `main` that `exit 1`s BY
+DESIGN -- it exists to stop anyone using the merge button -- beside a
+`main-is-fast-forward-of-dev` job that reports `skipped` because it is scoped
+to the push. Neither is in the ruleset, deliberately, and that file's own
+header explains why adding them would make the correct promotion path
+permanently unpushable. Measured on promotion PR #158, 2026-09-17:
+`promotion-is-manual` `failure`, `main-is-fast-forward-of-dev` `skipped`, all
+three required contexts green. **A promotion PR here never reaches `CLEAN`**,
+so a wait keyed on it waits forever. Confirmed fleet-wide, n=3.
+
+The same field fails in the opposite direction too: right after a push,
+`mergeStateStatus` can read `CLEAN` because no checks exist yet rather than
+because any passed -- the vacuous-truth trap wearing GitHub's own clothes. One
+field, two failures, opposite signs, and no way to tell from the value which
+you have.
+
+So the required-set intersection above is the only form correct on BOTH PR
+shapes, and it is correct only because it asserts each required context is
+PRESENT as well as passed. Reach for `gh api
+"repos/opum-ai/quest-cli/actions/runs?head_sha=<sha>"` and its `event` field
+only to explain a count, never to decide whether to wait.
 
 The watched paths are in `.github/workflows/prepublication-qualification.yml`
 (`src/**`, `test/**`, `bin/**`, `npm/**`, `scripts/qualification/**`,
@@ -384,9 +454,11 @@ The watched paths are in `.github/workflows/prepublication-qualification.yml`
 Two things this means in practice:
 
 - **Waiting on "the PR's checks" can mean waiting on the same context name
-  twice.** Confirm via `gh pr checks <n> --json name,bucket` (or `gh pr view
-  <n> --json mergeStateStatus`) rather than treating one green `source-gates`
-  row as the whole gate when a second one for the same name is still pending.
+  twice.** Resolve it with the newest run per context on the head SHA, as the
+  block above does, rather than treating one green `source-gates` row as the
+  whole gate when a second one for the same name is still pending. `gh pr
+  checks <n> --json name,bucket` also answers it; `mergeStateStatus` does not,
+  for the two reasons given above.
 - **The six-platform build matrix (`darwin-arm64`, `linux-x64`, etc.) is not
   in the required-checks list**, so it can sit `pending` or `skipping`
   indefinitely without blocking a merge. The gate is the required check
