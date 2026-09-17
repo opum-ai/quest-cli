@@ -119,13 +119,27 @@ specific one.
 ## Auto-allocated ids are refs-aware
 
 Omitting \`--id\` checks every local branch and remote-tracking ref for the same
-prefix, not just the current working tree (QCLI-279). A sibling branch carrying
-an unmerged task record, or a detached checkout sitting behind a branch that
-has since moved, no longer produces a silent duplicate id -- allocation takes
-the highest sequence number visible across every local ref, not only the one
-checked out. This only consults refs that already exist locally; it never
-fetches. A \`.quest\` directory with no Git repository behind it keeps
-allocating from the working tree alone, exactly as before.
+prefix, not just the current working tree. A sibling branch carrying an
+unmerged record, or a detached checkout sitting behind a branch that has since
+moved, no longer produces a silent duplicate id -- allocation takes the highest
+sequence number visible across every local ref, not only the one checked out.
+This only consults refs that already exist locally; it never fetches. A
+\`.quest\` directory with no Git repository behind it keeps allocating from the
+working tree alone, exactly as before.
+
+**This covers all four id families**: tasks (QCLI-279), and drafts, milestones
+and decisions (QCLI-290). Between those two releases the guarantee held for
+tasks only, and this section said so in a way that read as covering the rest --
+which is how two sessions independently minted \`DEC-3\` on 2026-09-14. A
+draft, milestone or decision id allocated before QCLI-290 shipped was minted
+under the narrower rule, so an existing collision is not repaired by upgrading.
+
+The mechanism differs beneath the two, and the difference is deliberately
+invisible here: tasks and drafts are stored one record per file, so their ids
+are read from file names, while milestones and decisions share a single
+\`.quest/planning.json\` and are read out of its content. Both degrade the same
+way -- an unreadable or unparseable document on some unrelated branch is
+skipped, and the remaining refs are still consulted.
 
 ## Dependencies must already exist
 

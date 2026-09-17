@@ -855,6 +855,11 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
  * layout, or an id retained there would be invisible to this scan too. */
 const TASK_RECORD_SUBDIRECTORIES = ["tasks", "completed", "archive/tasks"];
 
+/** The same, for drafts. An archived draft keeps its id, so allocation has
+ * to see `archive/drafts` too -- the same reason `nextPlanningId` lists
+ * archived milestones. QCLI-290. */
+const DRAFT_RECORD_SUBDIRECTORIES = ["drafts", "archive/drafts"];
+
 /**
  * QCLI-279: the working tree only shows what THIS ref's `.quest/tasks`
  * happens to contain. A sibling branch carrying an unmerged task record, or
@@ -879,13 +884,14 @@ async function highestSequenceOnOtherRefs(
   git: ReturnType<typeof createGitPort>,
   root: string,
   marker: string,
+  subdirectories: readonly string[],
 ): Promise<number> {
   try {
     const refs = await git.listRefs(root);
     const filesByRef = await Promise.all(
       refs.map(async (ref) => {
         const filesBySubdirectory = await Promise.all(
-          TASK_RECORD_SUBDIRECTORIES.map((subdirectory) =>
+          subdirectories.map((subdirectory) =>
             git.listFiles(root, ref, `.quest/${subdirectory}`),
           ),
         );
@@ -925,7 +931,12 @@ async function nextTaskId(
   }, 0);
   const highest = Math.max(
     localHighest,
-    await highestSequenceOnOtherRefs(git, root, marker),
+    await highestSequenceOnOtherRefs(
+      git,
+      root,
+      marker,
+      TASK_RECORD_SUBDIRECTORIES,
+    ),
   );
   return `${prefix}-${highest + 1}`;
 }
@@ -946,12 +957,38 @@ function flattenLocatedDraft(
   return { ...located.draft, location: located.location };
 }
 
-async function nextDraftId(tasks: TaskService): Promise<string> {
+/**
+ * QCLI-290: drafts carry the identical collision shape {@link nextTaskId}
+ * was fixed for in QCLI-279, and are storage-identical to tasks -- one
+ * record per file, the id in the file name -- so they reuse the same
+ * filename scan against a different subdirectory set. The subdirectory set
+ * is passed rather than defaulted so that which family a scan walks is
+ * visible where it is called, not inherited from a constant three hundred
+ * lines away.
+ */
+async function nextDraftId(
+  tasks: TaskService,
+  git: ReturnType<typeof createGitPort>,
+  root: string,
+): Promise<string> {
   const drafts = await tasks.listDrafts(true);
-  const highest = drafts.reduce((maximum, record) => {
-    const numeric = Number(record.draft.id.slice(2));
+  const marker = "D-";
+  const localHighest = drafts.reduce((maximum, record) => {
+    // Same rule as nextTaskId: only this family's own ids advance the
+    // counter, so an imported or foreign-prefixed record cannot perturb it.
+    if (!record.draft.id.startsWith(marker)) return maximum;
+    const numeric = Number(record.draft.id.slice(marker.length));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
+  const highest = Math.max(
+    localHighest,
+    await highestSequenceOnOtherRefs(
+      git,
+      root,
+      marker,
+      DRAFT_RECORD_SUBDIRECTORIES,
+    ),
+  );
   return `D-${highest + 1}`;
 }
 
@@ -1136,9 +1173,86 @@ export async function writeInitInstructions(
   return { instructions, instructionsByTarget, skill };
 }
 
+/**
+ * QCLI-290: the planning half of the same collision, and the half that
+ * actually fired -- two sessions independently minted `DEC-3` on
+ * 2026-09-14 from branches neither of which carried the other's record.
+ *
+ * It needs its own mechanism, and that is the whole reason this is not a
+ * two-line change. {@link highestSequenceOnOtherRefs} finds ids by reading
+ * FILE NAMES, which works only because tasks and drafts are stored one
+ * record per file. Milestones and decisions share a single
+ * `.quest/planning.json`, so a filename scan over that path matches one
+ * file called `planning.json`, matches no marker, and returns 0 -- and 0 is
+ * indistinguishable from "no other ref carries a higher id". Pointing the
+ * existing helper at the planning directory would have produced a wrong
+ * answer wearing the shape of a right one, with every test still green.
+ *
+ * So this reads CONTENT per ref instead, via the revision-pinned
+ * `readBlob` the port already exposes. One Git invocation per ref, against
+ * `for-each-ref` tips only -- never a history walk -- which is the same
+ * bound the task-side scan keeps.
+ *
+ * Degrades to 0 on anything: no Git, no such path on that ref, malformed
+ * JSON on some unrelated stale branch. A `.quest` directory that is not in
+ * a Git working tree keeps exactly today's local-only behavior, and a
+ * branch carrying a corrupt `planning.json` cannot wedge allocation on this
+ * one.
+ */
+async function highestPlanningSequenceOnOtherRefs(
+  git: ReturnType<typeof createGitPort>,
+  root: string,
+  prefix: "M" | "DEC",
+): Promise<number> {
+  const marker = `${prefix}-`;
+  try {
+    const refs = await git.listRefs(root);
+    const documents = await Promise.all(
+      refs.map(async (ref) => {
+        try {
+          return await git.readBlob(root, ref, ".quest/planning.json");
+        } catch {
+          return null;
+        }
+      }),
+    );
+    let highest = 0;
+    for (const document of documents) {
+      if (document === null) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(document);
+      } catch {
+        continue;
+      }
+      if (typeof parsed !== "object" || parsed === null) continue;
+      const record = parsed as Record<string, unknown>;
+      // Milestones and decisions live in the SAME file, so the scan has to
+      // filter by prefix rather than take the maximum of everything it
+      // finds -- otherwise DEC-9 would advance the milestone counter.
+      for (const key of ["milestones", "decisions"]) {
+        const entries = record[key];
+        if (!Array.isArray(entries)) continue;
+        for (const entry of entries) {
+          const id = (entry as { id?: unknown } | null)?.id;
+          if (typeof id !== "string" || !id.startsWith(marker)) continue;
+          const numeric = Number(id.slice(marker.length));
+          if (Number.isSafeInteger(numeric))
+            highest = Math.max(highest, numeric);
+        }
+      }
+    }
+    return highest;
+  } catch {
+    return 0;
+  }
+}
+
 async function nextPlanningId(
   planning: PlanningService,
   prefix: "M" | "DEC",
+  git: ReturnType<typeof createGitPort>,
+  root: string,
 ): Promise<string> {
   // Archived milestones keep their ids, so allocation must see them: listing
   // only the live ones would hand out an id that already exists.
@@ -1146,10 +1260,16 @@ async function nextPlanningId(
     prefix === "M"
       ? await planning.listMilestones(true)
       : await planning.listDecisions();
-  const highest = records.reduce((maximum, record) => {
-    const numeric = Number(record.id.slice(prefix.length + 1));
+  const marker = `${prefix}-`;
+  const localHighest = records.reduce((maximum, record) => {
+    if (!record.id.startsWith(marker)) return maximum;
+    const numeric = Number(record.id.slice(marker.length));
     return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
   }, 0);
+  const highest = Math.max(
+    localHighest,
+    await highestPlanningSequenceOnOtherRefs(git, root, prefix),
+  );
   return `${prefix}-${highest + 1}`;
 }
 
@@ -1964,7 +2084,12 @@ export async function runQuest(
           );
         const id =
           one(parsed, "--id") ??
-          (await nextPlanningId(planning, isMilestone ? "M" : "DEC"));
+          (await nextPlanningId(
+            planning,
+            isMilestone ? "M" : "DEC",
+            git,
+            await resolvedRoot(),
+          ));
         const result = isMilestone
           ? await planning.createMilestone(
               {
@@ -2224,7 +2349,8 @@ export async function runQuest(
           );
         const data = recordFromMutation(
           await tasks.createDraft(
-            one(parsed, "--id") ?? (await nextDraftId(tasks)),
+            one(parsed, "--id") ??
+              (await nextDraftId(tasks, git, await resolvedRoot())),
             {
               title: rest[0],
               description: one(parsed, "--description"),
