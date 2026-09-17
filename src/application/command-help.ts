@@ -347,7 +347,8 @@ export const commandHelp: Record<
     flags: ["--final-summary", ...ACTOR_FLAGS],
   },
   "task archive": {
-    summary: "Archive a task.",
+    summary:
+      "Retire a task, preserving its record. This is the only way to remove a task from active listings: there is deliberately no `task delete`, unlike milestone and decision which carry both (DEC-8, QCLI-164). A task record is audit-significant in a way those two are not -- every write demands an explicit actor, and the record carries history, gateEvents and comments -- so it is retired rather than destroyed. A throwaway probe task is archived like any other; that cost is accepted rather than solved with a destructive verb. Deleting would not deliver clean removal in any case, since .quest/ is committed to Git and the record stays recoverable from history.",
     usage: "quest task archive <id> --actor <name> --actor-kind human",
     flags: [...ACTOR_FLAGS],
   },

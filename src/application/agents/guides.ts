@@ -277,9 +277,13 @@ quest task complete <id> --actor <actor> --actor-kind human --json
 \`quest task complete\` moves the record to its terminal status; \`quest task
 archive\` retires it afterwards, and \`quest task demote <id> --to "<status>"\`
 walks it back to an explicit earlier status if closing turns out to be wrong.
-None of the three destroys a task: an archived task stays readable, and nothing
-in Quest deletes tasks on its own. (\`quest cleanup\` is unrelated to tasks — it
-removes closed, unreferenced milestones and superseded decisions.)
+None of the three destroys a task: an archived task stays readable, and there
+is no \`task delete\` at all — not an omission but a decision (DEC-8,
+QCLI-164). Milestone and decision each carry delete alongside archive; task
+deliberately does not, because a task record is audit-significant in a way
+those two are not. A throwaway probe task is archived like any other. (\`quest
+cleanup\` is unrelated to tasks — it removes closed, unreferenced milestones
+and superseded decisions.)
 
 An In Progress task that is paused rather than closed does not go through
 demote: \`quest task pause <id>\` parks it at the configured paused status
