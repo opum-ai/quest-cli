@@ -597,6 +597,59 @@ date, verified-independently) was already in place, would have marked the
 withdrawn citations accurately, and caught none of them. It records where a
 claim came from; it cannot tell you the claim has since been narrowed.
 
+### A null that is PERFECTLY UNIFORM is the signature of a field that does not exist
+
+Distinct from the two sections above, and it is worth saying which gap each
+one covers, because all three look like "bad evidence" from a distance. "Name
+the object you measured" is measuring the WRONG object. "A claim that was true
+when written" is a RIGHT measurement going stale. This one is a measurement
+that **never had an object at all** -- and unlike the other two, it gets more
+convincing the more thoroughly you check.
+
+Measured 2026-09-18, twice, independently, in two repositories and two
+languages' tooling, and **neither session caught its own**:
+
+- **quest-cli (mine).** QCLI-339's record and PR #190 identified 201 tasks as
+  Backlog imports citing "no history, `completedAt` null". `grep -rn
+  completedAt src/` returns **nothing**: quest has no such field, and no
+  `history` field either. `jq '{completedAt}'` prints `null` for an ABSENT
+  KEY, indistinguishably from a null value, so every record in every directory
+  answered identically and the discriminator separated nothing.
+- **opum-agent (theirs, and they escalated it further).** Python's `.get()`
+  renders a missing key as `None` the same way. They reported `completedAt`
+  null on a record they had completed twelve minutes earlier and offered a
+  CAUSE: "another instance of a held version naming two byte-sets". That
+  hypothesis explained a difference that does not exist. Their own re-test by
+  key presence: `"completedAt" in record` is true for **0 of 226** records.
+
+**The rule, which is theirs and is better than the one I first wrote.** The
+null was not weak evidence, it was ZERO evidence, and it read as STRONG
+evidence *because it was perfectly uniform*. Uniformity across every member of
+a population is exactly what a clean measurement feels like, and it is also
+what a nonexistent field produces. So before resting anything on a null:
+
+```sh
+jq 'has("completedAt")' record.json     # presence, not value
+grep -rn "completedAt" src/             # does the PRODUCER emit it at all?
+```
+
+and **prefer provenance to absence** where a record of origin exists. The
+corrected evidence did: the migration receipt's 214 mappings, every one
+`sourceFolder: "active"`, intersected against the 201 Done records in
+`.quest/tasks/` -- 201 migrated, 0 native. That conclusion stands on something
+that exists.
+
+Two second-order notes worth more than the numbers. **A false cause dressed in
+a known-true pattern is harder to dislodge than a bare wrong number** -- the
+held-version-two-byte-sets pattern is real in this fleet and documented in the
+shared block above, which is precisely why invoking it was persuasive. And the
+same hour produced the mirror-image failure on QCLI-340: an orchestrator's
+reasoning ("an empty population is the argument FOR a shape fix") had a wrong
+BASIS and a surviving CONCLUSION, because the population was not empty -- the
+planning suite's own fixture archives `M-1` after cleanup. Taking that
+reasoning at face value would have shipped the right fix for a reason that
+would not hold next time.
+
 ### The AMFI SIGKILL on the darwin-arm64 binary is armed by INDEX STATE
 
 `npm/quest-darwin-arm64/bin/quest` is a signed (adhoc, linker-signed) Mach-O.
