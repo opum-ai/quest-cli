@@ -18,6 +18,18 @@ export const taskStatuses = ["To Do", "In Progress", "Done"] as const;
 export type TaskStatus = string;
 /** Storage location is lifecycle metadata, never part of the task identifier. */
 export type TaskLocation = "tasks" | "completed" | "archive/tasks";
+/**
+ * The same vocabulary at runtime, in the order a reader should see it:
+ * active first, then the retention locations in the order a record reaches
+ * them. Seeding a per-location count from this is what lets a zero be
+ * reported as a zero rather than as an absent key (QCLI-339, following
+ * DEC-6's "empty is a result, not an omission").
+ */
+export const TASK_LOCATIONS: readonly TaskLocation[] = [
+  "tasks",
+  "completed",
+  "archive/tasks",
+];
 export type DraftLocation = "drafts" | "archive/drafts";
 export type DraftId = `D-${number}`;
 export interface LifecyclePolicy {

@@ -110,6 +110,45 @@ test("overview is read-only and groups task, milestone, and decision states dete
     milestones: { open: 0, closed: 1 },
     decisions: { proposed: 1 },
   });
+  // QCLI-339: this reader reports no `taskRecords`, so `byLocation` is
+  // omitted rather than guessed. Its absence means "this reader could not
+  // say", never "there are none" -- which is why the populated case below
+  // spells its zeroes out instead of leaving them implicit.
+  expect(overview.tasks.byLocation).toBeUndefined();
+});
+
+test("overview counts every retention location and names how the total divides (QCLI-339)", async () => {
+  const service = new PlanningService(new MemoryPlanning());
+  const active = createTask("T-1", { title: "one" });
+  const done = taskState({
+    ...startTask(createTask("T-2", { title: "two" })),
+    status: "Done",
+  });
+  const retired = taskState({
+    ...startTask(createTask("T-3", { title: "three" })),
+    status: "Done",
+  });
+  const overview = await service.overview({
+    readAll: async () => ({
+      revision: "tasks",
+      // The narrow array a legacy reader would expose...
+      tasks: [active],
+      // ...beside the located records the real repository always carries.
+      taskRecords: [
+        { task: active, location: "tasks" },
+        { task: done, location: "completed" },
+        { task: retired, location: "archive/tasks" },
+      ],
+    }),
+  });
+  // Counted from taskRecords, so the two retained records are not invisible.
+  expect(overview.tasks.total).toBe(3);
+  expect(overview.tasks.byStatus).toEqual({ "To Do": 1, Done: 2 });
+  expect(overview.tasks.byLocation).toEqual({
+    tasks: 1,
+    completed: 1,
+    "archive/tasks": 1,
+  });
 });
 
 test("planning CRUD, board, doctor, and cleanup preserve explicit safety boundaries", async () => {

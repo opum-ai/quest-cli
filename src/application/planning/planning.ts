@@ -14,6 +14,7 @@ import {
   isOffFlowStatus,
   isRetiredPausedStatus,
   type LifecyclePolicy,
+  TASK_LOCATIONS,
 } from "../../domain/tasks/tasks.ts";
 import type { TaskReader } from "../tasks/tasks.ts";
 
@@ -44,8 +45,27 @@ async function persistedPlanningRecord<T>(
 
 export interface ProjectOverview {
   readonly tasks: {
+    /**
+     * Every task record the reader can see, across all retention locations --
+     * NOT just `.quest/tasks/`. QCLI-339: counting the active directory alone
+     * meant `task complete` REMOVED a record from the counts (total fell by
+     * one, the terminal bucket never grew), so a successful write looked like
+     * a failed one. See `byLocation` for the narrower populations.
+     */
     readonly total: number;
+    /** Also across all retention locations, for the same reason as `total`. */
     readonly byStatus: Readonly<Record<string, number>>;
+    /**
+     * How `total` divides across storage locations, so the active and
+     * retained populations are visibly two rather than one unlabelled
+     * number. Every known location is present, including zeroes.
+     *
+     * Omitted ONLY by a reader that cannot report locations (a
+     * `TaskReadSnapshot` without `taskRecords`). Its absence therefore means
+     * "this reader could not say", never "there are none" -- which is why
+     * the zeroes above are spelled out rather than left implicit.
+     */
+    readonly byLocation?: Readonly<Record<string, number>>;
   };
   readonly milestones: { readonly open: number; readonly closed: number };
   readonly decisions: Readonly<Record<string, number>>;
@@ -263,16 +283,41 @@ export class PlanningService {
       this.repository.read(),
       tasks.readAll(),
     ]);
+    // QCLI-339: count every located record, not `tasks`, which
+    // `LocalTaskRepository.readAll` narrows to `location === "tasks"`. The
+    // snapshot already carries all three locations, so this costs no extra
+    // read. A reader that omits `taskRecords` falls back to the narrow array
+    // and reports no `byLocation`, rather than claiming a location it does
+    // not know.
+    const located = taskSnapshot.taskRecords;
+    const countedTasks =
+      located?.map((record) => record.task) ?? taskSnapshot.tasks;
     const byStatus: Record<string, number> = {};
-    for (const task of taskSnapshot.tasks)
+    for (const task of countedTasks)
       byStatus[task.status] = (byStatus[task.status] ?? 0) + 1;
+    let byLocation: Record<string, number> | undefined;
+    if (located) {
+      byLocation = Object.fromEntries(
+        TASK_LOCATIONS.map((location) => [location, 0]),
+      );
+      for (const record of located)
+        byLocation[record.location] = (byLocation[record.location] ?? 0) + 1;
+    }
     const decisions: Record<string, number> = {};
     for (const item of planning.decisions)
       decisions[item.status] = (decisions[item.status] ?? 0) + 1;
     return {
       tasks: {
-        total: taskSnapshot.tasks.length,
+        total: countedTasks.length,
         byStatus: sortedCounts(byStatus),
+        // Deliberately NOT sortedCounts: this is a fixed vocabulary, so the
+        // JSON keeps the canonical lifecycle order (active, then the
+        // retention locations in the order a record reaches them). That is a
+        // JSON-ONLY property -- `renderHumanPayload` alphabetises every map,
+        // so `--plain` prints archive/tasks first regardless. Said here
+        // because the alternative is a comment the renderer quietly
+        // contradicts.
+        ...(byLocation === undefined ? {} : { byLocation }),
       },
       milestones: {
         // Archived milestones are retired, so they count as neither.
