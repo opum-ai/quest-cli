@@ -6,8 +6,11 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
-Becomes **0.9.0** at tag time, and ships the 0.8.0 section below along with
-everything here.
+## 0.9.0
+
+Ships the 0.8.0 section below along with everything here: 0.8.0 was frozen and
+tagged but never published, so its content reaches consumers for the first
+time under this number.
 
 **Why the published number skips 0.8.0.** 0.8.0 was frozen, tagged at
 `9d91fc35` and never published; 15 further commits then landed on `dev`,
