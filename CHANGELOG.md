@@ -6,12 +6,94 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
+Becomes **0.9.0** at tag time, and ships the 0.8.0 section below along with
+everything here.
+
+**Why the published number skips 0.8.0.** 0.8.0 was frozen, tagged at
+`9d91fc35` and never published; 15 further commits then landed on `dev`,
+including the `Added` entry below and four fixes. Re-pointing the tag was
+refused rather than weighed: `quest-web` runs a live link gate against this
+repository's tags, and `opum-marketplace` re-resolves tag to commit to tree
+against a recorded baseline, so a moved tag falsifies every record citing it.
+The precedent for a tagged-but-unpublished version is 0.6.1 to 0.6.2 -- ship
+the content under the next unclaimed number. This is breaking-plus-feature
+relative to **published** 0.7.1, so the next unclaimed number is a minor one.
+
+**This section exists because QCLI-286 came true.** That task -- open, and
+filed as a warning -- predicted that a rolled-forward version section can
+silently swallow later fixes. It did: five consumer-observable changes sat on
+`dev` with an empty `Unreleased` heading above a frozen `## 0.8.0`, and
+nothing caught it. It was found by walking `git log v0.8.0..dev` during
+release preparation, which is exactly the manual step QCLI-286 asks to be
+replaced by a check.
+
+### Added
+
+- **`unresolvedAtCompletion` is persisted on the task record and queryable
+  across completed tasks** (QCLI-336). QCLI-252 made it a response-only
+  signal, so the fact that a task closed with unchecked acceptance criteria
+  survived only in the output of the command that closed it. `task complete`
+  now computes it in the domain and writes it into the record, the zod schema
+  validates it, and `task view`/`task list --json` surface it. `TaskInput`
+  excludes it from creation: it is a fact a completion establishes, never one
+  a caller asserts.
+
+### Fixed
+
+- **`overview` counted only `.quest/tasks/`, so completing a task removed it
+  from the totals instead of moving it** (QCLI-339). It now counts every
+  retention location, and carries an additive `byLocation` naming how the
+  total divides, so a total that looks wrong can be read rather than guessed
+  at.
+- **`overview` milestone counts silently excluded archived milestones**
+  (QCLI-340), the same unlisted-population shape as the entry above. Archived
+  is now reported alongside open and closed. QCLI-140 is preserved rather than
+  reopened: a retired milestone still counts as neither open nor closed work,
+  but the population it belongs to is now visible in the output instead of
+  only in a code comment.
+- **The `overview` guide documented an envelope the CLI does not emit**
+  (QCLI-342). It described `{schemaVersion, kind, data, principal}`, omitting
+  `contractVersion` -- the key at index 1 -- and did not say that the record
+  lives under `data`. An agent following it and projecting top-level fields
+  got all-null with exit 0 and empty stderr. The guide now names the envelope
+  exactly as emitted, separates success from error, states the additive-key
+  rule, and is pinned by a test that compares it against real CLI output
+  rather than against a copy of the prose.
+- **`task edit` rejected `--implementation-notes`, the name `task create`
+  uses for the same field** (QCLI-344). It is now accepted as an alias of
+  `--notes`. Passing both is a usage error rather than a silent preference for
+  one, and a rejected flag now states that the rest of the command was not
+  applied -- previously a caller could not tell from the message whether a
+  multi-flag edit had partially landed.
+
 ## 0.8.0
 
-Version frozen 2026-09-17. Breaks lockstep with `@opum-ai/lore` once more --
-lore-cli's `dev` remains at 0.7.0 and nothing in lore changes; this is a
-quest-only release, forced by QCLI-328's rule that a breaking `Changed` entry
-needs at least a minor bump, and the entry directly below is exactly that.
+Version frozen 2026-09-17, **tagged and never published**. Its content ships
+under 0.9.0 instead, together with the work that landed after the freeze; see
+that entry for why the number moved. The `v0.8.0` tag is left pointing at
+`9d91fc35` and is not re-pointed.
+
+Breaks lockstep with `@opum-ai/lore`, forced by QCLI-328's rule that a
+breaking `Changed` entry needs at least a minor bump, and the entry directly
+below is exactly that.
+
+**Corrected 2026-09-18 (QCLI-345).** This paragraph originally read
+"lore-cli's `dev` remains at 0.7.0 and nothing in lore changes". That was
+false when it was written, and it is corrected here rather than quietly
+dropped because it was the stated justification for shipping quest-only.
+Asked to measure their own range, lore-cli reported `dev` at 64 commits past
+tag `v0.7.0`, carrying a new `lore types` command, a new `profile.strict_types`
+config key, and committed-schema drift detection inside `lore check`.
+
+How it got in is worth more than the correction: the claim came from reading
+lore's `dev` package.json (0.7.0) as though it were a running version. It is
+not, and the conventions are opposite in the two repositories -- **lore bumps
+at release time, so that field names the LAST shipped version; quest bumps at
+freeze time, so ours names the NEXT, unpublished one.** Reading a sibling's
+field with this repository's convention in mind produces a confident wrong
+answer. A version field's meaning is a per-repo convention; the commit range
+is the only probe that means the same thing in both.
+
 **The date above is when this version was frozen and the bump landed, not
 when it reached npm**; publication is a separate, manually authorized step,
 and nothing in this file should be read as evidence that it happened.
@@ -78,6 +160,20 @@ and nothing in this file should be read as evidence that it happened.
   repositories, and it cannot see any consumer outside them -- the mbpm2
   project included, who are a real integration consumer of the published CLIs
   and have not been asked (QCLI-297).
+
+  **What the short-circuit does NOT cover, volunteered by lore-cli against
+  their own interest.** Both of those guarded call sites are a
+  read-modify-write with no `--if-revision`, which is their open LCLI-522. If
+  the label disappears between lore's read and lore's write, quest previously
+  returned `task.updated` with an unchanged list and the race stayed silent;
+  under this release it becomes exit 6. **So this change converts a silent
+  lore race into a loud failure** -- an improvement, and neither side asked to
+  hold the release for it, but it means lore 0.7.0 paired with this version
+  has a failure mode that neither lore 0.7.0 + quest 0.7.1 nor a matched newer
+  pair will necessarily show, because **it needs concurrency to surface**. A
+  serial qualification run cannot see it; opum-cli-e2e has been asked to
+  exercise that path concurrently. The pair being qualified matters here, not
+  just the two version numbers.
 
 ### Added
 
