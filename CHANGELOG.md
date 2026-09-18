@@ -59,6 +59,21 @@ replaced by a check.
   exactly as emitted, separates success from error, states the additive-key
   rule, and is pinned by a test that compares it against real CLI output
   rather than against a copy of the prose.
+- **`task create --id <taken>` reported a write conflict and told the caller
+  to retry, against a condition no retry can resolve** (QCLI-346). The id was
+  held by an existing record -- in the reported case an ARCHIVED one, which
+  `task list` does not show and which left `doctor` reporting healthy, so
+  every signal a caller could reach said the workspace was fine. It is now
+  `validation` on exit 6, names the id, and names the path holding it.
+
+  `task_already_exists` covers two cases with opposite remedies and both were
+  mapped to the retryable one. An **auto-allocated** id losing a race to a
+  concurrent writer is a genuine conflict and retrying recomputes a fresh id;
+  an id supplied with `--id` is fixed, so the same retry loops forever. Only
+  the explicit case changed -- the auto-allocated path keeps `conflict` and
+  its retry hint. Reported by opum-cli-e2e, who followed the old hint three
+  times before finding the cause by listing `.quest/archive/` on a hunch.
+
 - **`task edit` rejected `--implementation-notes`, the name `task create`
   uses for the same field** (QCLI-344). It is now accepted as an alias of
   `--notes`. Passing both is a usage error rather than a silent preference for

@@ -2828,17 +2828,30 @@ export async function runQuest(
           "Tracker writes require an explicit actor declaration.",
         );
       const tasks = await taskService();
-      return output(
-        await dispatchTrackerTaskCommand(tasks, {
+      // QCLI-346. `task_already_exists` covers two cases with OPPOSITE
+      // remedies, and the generic handler below maps both to the retryable
+      // one. An AUTO-ALLOCATED id losing a race to a concurrent writer is a
+      // genuine conflict -- retrying recomputes a fresh id and succeeds. An
+      // id the caller supplied with `--id` is fixed, so the same retry can
+      // never succeed, and the contract's "re-read and retry" hint sends
+      // them round a loop forever (reported by opum-cli-e2e, who followed it
+      // three times). Only this call site knows which case it is, because
+      // `create()` receives an already-resolved id, so the distinction is
+      // drawn here rather than in the application layer.
+      const explicitId = one(parsed, "--id");
+      const createId =
+        explicitId ??
+        (await nextTaskId(
+          tasks,
+          await configuredTaskIdPrefix(),
+          git,
+          await resolvedRoot(),
+        ));
+      let created: Awaited<ReturnType<typeof dispatchTrackerTaskCommand>>;
+      try {
+        created = await dispatchTrackerTaskCommand(tasks, {
           command,
-          id:
-            one(parsed, "--id") ??
-            (await nextTaskId(
-              tasks,
-              await configuredTaskIdPrefix(),
-              git,
-              await resolvedRoot(),
-            )),
+          id: createId,
           operationId: crypto.randomUUID(),
           actor: writeActor,
           input: {
@@ -2864,9 +2877,35 @@ export async function runQuest(
             milestoneId: one(parsed, "--milestone"),
             finalSummary: one(parsed, "--final-summary"),
           },
-        }),
-        modeFor(parsed),
-      );
+        });
+      } catch (error) {
+        if (
+          explicitId === undefined ||
+          !(error instanceof Error) ||
+          error.message !== "task_already_exists"
+        )
+          throw error;
+        // Name WHERE the id is held. A completed or archived holder does not
+        // appear in `task list`, which is why the reporter's workspace looked
+        // empty and `doctor` stayed healthy -- they found it by listing
+        // `.quest/archive/` on a hunch. `viewWithPath` resolves across every
+        // retention location, so the path is the answer to "taken by what?".
+        const heldAt = await tasks
+          .viewWithPath(explicitId)
+          .then((held) => held.path)
+          .catch(() => undefined);
+        return failure(
+          "validation",
+          `Task id ${explicitId} is already in use.`,
+          {
+            hint: heldAt
+              ? `It is held by the record at ${heldAt}. A completed or archived record is not shown by \`quest task list\`, so the id can be taken in a workspace that looks empty. Choose a different id, or omit --id to have one allocated.`
+              : "Choose a different id, or omit --id to have one allocated.",
+            input: { id: explicitId, ...(heldAt ? { heldAt } : {}) },
+          },
+        );
+      }
+      return output(created, modeFor(parsed));
     }
     if (command === "edit-batch") {
       // QCLI-122 public batch boundary (strict JSONL per FMC 05fe52e8):
