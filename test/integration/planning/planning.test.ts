@@ -107,7 +107,7 @@ test("overview is read-only and groups task, milestone, and decision states dete
   });
   expect(overview).toEqual({
     tasks: { total: 2, byStatus: { "To Do": 1, "In Progress": 1 } },
-    milestones: { open: 0, closed: 1 },
+    milestones: { open: 0, closed: 1, archived: 0 },
     decisions: { proposed: 1 },
   });
   // QCLI-339: this reader reports no `taskRecords`, so `byLocation` is
@@ -327,12 +327,21 @@ test("archiving preserves a milestone against every other writer (QCLI-140)", as
     "M-1",
   ]);
 
-  // A retired milestone is neither open nor closed work.
+  // A retired milestone is neither open nor closed work (QCLI-140), and
+  // QCLI-340 does not change that -- it only stops the exclusion being
+  // invisible. M-1 is archived here, so before QCLI-340 this overview
+  // reported open 0 / closed 0 with nothing saying a milestone existed at
+  // all; open + closed silently summed to less than the record.
   expect(
     await service.overview({
       readAll: async () => ({ revision: "t", tasks: [] }),
     }),
-  ).toMatchObject({ milestones: { open: 0, closed: 0 } });
+  ).toMatchObject({ milestones: { open: 0, closed: 0, archived: 1 } });
+  // The retired milestone is still on record, so `archived` is reporting a
+  // real exclusion rather than a constant.
+  expect((await service.listMilestones(true)).map((item) => item.id)).toEqual([
+    "M-1",
+  ]);
 
   // Editing an archived milestone must not quietly un-archive it.
   await service.updateMilestone(
