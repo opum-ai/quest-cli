@@ -67,7 +67,18 @@ export interface ProjectOverview {
      */
     readonly byLocation?: Readonly<Record<string, number>>;
   };
-  readonly milestones: { readonly open: number; readonly closed: number };
+  readonly milestones: {
+    readonly open: number;
+    readonly closed: number;
+    /**
+     * Retired milestones, counted as neither `open` nor `closed` (QCLI-140).
+     * Reported so the exclusion is visible in the output rather than only in
+     * the implementation: without it `open + closed` silently summed to less
+     * than the milestones on record. QCLI-340, the milestone half of
+     * QCLI-339's ruling.
+     */
+    readonly archived: number;
+  };
   readonly decisions: Readonly<Record<string, number>>;
 }
 
@@ -320,14 +331,27 @@ export class PlanningService {
         ...(byLocation === undefined ? {} : { byLocation }),
       },
       milestones: {
-        // Archived milestones are retired, so they count as neither.
+        // Archived milestones are retired, so they count as neither -- that
+        // is QCLI-140's decision and QCLI-340 does NOT reopen it. What
+        // QCLI-340 fixes is that the exclusion used to live only in this
+        // comment: `open` and `closed` silently summed to less than the
+        // milestones on record, with nothing in the OUTPUT saying so. The
+        // `archived` count below makes the excluded population visible
+        // without folding it back into open or closed work.
         open: planning.milestones.filter(
           (item) => item.archived !== true && item.status === "open",
         ).length,
         closed: planning.milestones.filter(
           (item) => item.archived !== true && item.status === "closed",
         ).length,
+        archived: planning.milestones.filter((item) => item.archived === true)
+          .length,
       },
+      // Decisions are NOT affected by the same narrowing, audited rather than
+      // assumed (QCLI-340): a Decision record has no `archived` field at all,
+      // and `superseded` is one of its three reported statuses rather than a
+      // hidden exclusion, so this count already covers every decision on
+      // record.
       decisions: sortedCounts(decisions),
     };
   }

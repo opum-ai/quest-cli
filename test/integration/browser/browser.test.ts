@@ -44,7 +44,7 @@ test("browser server exposes deterministic read-only overview and board payloads
       kind: "browser.overview",
       overview: {
         tasks: { total: 1, byStatus: { "To Do": 1 } },
-        milestones: { open: 1, closed: 0 },
+        milestones: { open: 1, closed: 0, archived: 0 },
         decisions: {},
       },
     });
