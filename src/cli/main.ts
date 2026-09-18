@@ -272,44 +272,16 @@ type ChecklistEntry =
       readonly checked: boolean;
     };
 
+/**
+ * QCLI-336: `unresolvedAtCompletion` is now computed once, by
+ * `tasks.complete()` (application/tasks/tasks.ts), and persisted on the
+ * record -- this type describes the shape the CLI reads back off `data`,
+ * not something it computes itself any more.
+ */
 type UnresolvedChecklistItem = {
   readonly index: number;
   readonly text: string;
 };
-
-/** Legacy bare-string entries are unchecked by construction (domain/tasks/tasks.ts's normalizeCheckList). */
-function unresolvedItems(
-  list: readonly ChecklistEntry[],
-): readonly UnresolvedChecklistItem[] {
-  return list.flatMap((entry, position) =>
-    typeof entry === "string"
-      ? [{ index: position, text: entry }]
-      : entry.checked
-        ? []
-        : [{ index: entry.index, text: entry.text }],
-  );
-}
-
-/**
- * QCLI-252: computes the additive, presentation-only signal that a completed
- * task still carries unchecked acceptance criteria / definition-of-done.
- * Returns undefined (omit, never an empty object) when nothing is unresolved.
- */
-function unresolvedAtCompletion(task: {
-  readonly acceptanceCriteria: readonly ChecklistEntry[];
-  readonly definitionOfDone: readonly ChecklistEntry[];
-}):
-  | {
-      readonly acceptanceCriteria: readonly UnresolvedChecklistItem[];
-      readonly definitionOfDone: readonly UnresolvedChecklistItem[];
-    }
-  | undefined {
-  const acceptanceCriteria = unresolvedItems(task.acceptanceCriteria);
-  const definitionOfDone = unresolvedItems(task.definitionOfDone);
-  return acceptanceCriteria.length === 0 && definitionOfDone.length === 0
-    ? undefined
-    : { acceptanceCriteria, definitionOfDone };
-}
 
 function describeUnresolved(
   label: string,
@@ -2483,24 +2455,19 @@ export async function runQuest(
         ),
       );
       const kind = command === "start" ? "task.started" : `task.${command}d`;
-      // QCLI-252: acceptance criteria and definition-of-done stay advisory at
-      // completion -- an honestly-unchecked item is not a defect to force
-      // closed -- but a completion that leaves items unchecked must say so
-      // rather than exit clean and silent. Archive/pause/start have no
-      // terminal "was this actually finished" question, so this is
-      // deliberately complete-only.
+      // QCLI-252 / QCLI-336: acceptance criteria and definition-of-done stay
+      // advisory at completion -- an honestly-unchecked item is not a defect
+      // to force closed -- but a completion that leaves items unchecked must
+      // say so rather than exit clean and silent. `data.unresolvedAtCompletion`
+      // is now persisted by `tasks.complete()` itself, computed from the same
+      // checklist state this reads; the CLI only decides whether the
+      // complete-specific stderr warning applies. Archive/pause/start have no
+      // terminal "was this actually finished" question, so the warning is
+      // deliberately complete-only -- the persisted field itself is not
+      // suppressed on those, so archiving an already-completed task keeps it.
       const unresolved =
-        command === "complete" ? unresolvedAtCompletion(data) : undefined;
-      const result = output(
-        {
-          schemaVersion: 1,
-          kind,
-          data: unresolved
-            ? { ...data, unresolvedAtCompletion: unresolved }
-            : data,
-        },
-        modeFor(parsed),
-      );
+        command === "complete" ? data.unresolvedAtCompletion : undefined;
+      const result = output({ schemaVersion: 1, kind, data }, modeFor(parsed));
       return unresolved
         ? { ...result, stderr: `${completionWarning(data, unresolved)}\n` }
         : result;
@@ -2572,6 +2539,7 @@ export async function runQuest(
         "--limit",
         "--sort",
         "--include-archived",
+        "--unresolved-at-completion",
       ];
       if (!parsed || !only(parsed, listFlags))
         return usageFailure(
@@ -2600,6 +2568,8 @@ export async function runQuest(
         limit: limitValue(one(parsed, "--limit")),
         sort: sortValue(one(parsed, "--sort")),
         includeArchived: parsed.values.has("--include-archived") || undefined,
+        unresolvedAtCompletion:
+          parsed.values.has("--unresolved-at-completion") || undefined,
       });
       // QCLI-316 / DEC-6. The cross-ref difference is read ONLY when this
       // listing came back empty, and that is a deliberate line rather than a

@@ -1389,6 +1389,7 @@ test("the published manifest advertises every task list filter (QCLI-139)", asyn
       "status",
       "type",
       "unassigned",
+      "unresolved-at-completion",
     ]);
   } finally {
     await rm(store, { recursive: true, force: true });
@@ -2276,9 +2277,15 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
       });
       // notesOmitted is checked separately above -- it is the one declared
       // "task view" field this test's default (no --max-notes) call must
-      // NOT emit (QCLI-276 / DEC-3).
+      // NOT emit (QCLI-276 / DEC-3). unresolvedAtCompletion is conditional
+      // the same way (QCLI-336): this fixture task is never completed, so
+      // it correctly never appears -- qcli336-unresolved-at-completion
+      // .test.ts pins the completed-with-unresolved-items case instead.
       const missing = (declared ?? [])
-        .filter((field) => field !== "notesOmitted")
+        .filter(
+          (field) =>
+            field !== "notesOmitted" && field !== "unresolvedAtCompletion",
+        )
         .filter((field) => !Object.hasOwn(payload as object, field));
       expect({ name, missing }).toEqual({ name, missing: [] });
     }

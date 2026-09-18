@@ -31,6 +31,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "status",
         "type",
         "unassigned",
+        "unresolved-at-completion",
       ],
       fields: [
         "assignees",
@@ -44,6 +45,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "summary",
         "title",
         "type",
+        "unresolvedAtCompletion",
         "updatedAt",
       ],
     },
@@ -81,6 +83,7 @@ export const trackerManifestFixture: TrackerManifest = {
         "summary",
         "title",
         "type",
+        "unresolvedAtCompletion",
         "updatedAt",
       ],
     },
