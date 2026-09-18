@@ -983,7 +983,8 @@ test("writes without an actor are denied and unknown flags fail loud as usage", 
     expect(diagnostic(unknownFlag)).toMatchObject({
       error_type: "usage",
       message:
-        "Unrecognized flag --bogus. Accepted flags: --id, --summary," +
+        "Unrecognized flag --bogus. Nothing was written: the rest of this" +
+        " command was not applied either. Accepted flags: --id, --summary," +
         " --description, --label, --doc, --priority, --type, --ordinal," +
         " --alias, --acceptance-criteria, --definition-of-done, --plan," +
         " --implementation-notes, --comments, --assignee, --reference," +
