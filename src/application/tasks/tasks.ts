@@ -24,6 +24,7 @@ import {
   type TaskStatus,
   taskState,
   transitionTask,
+  unresolvedAtCompletion,
 } from "../../domain/tasks/tasks.ts";
 import type { MigrationTransactionRepository } from "../../ports/backlog-import.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
@@ -221,6 +222,13 @@ export interface TaskListQuery {
    * archive location specifically.
    */
   readonly includeArchived?: boolean;
+  /**
+   * QCLI-336: selects only tasks carrying a persisted `unresolvedAtCompletion`
+   * -- i.e. completed with acceptance criteria or definition-of-done items
+   * still unchecked -- so a sweep for "shipped with X open" does not require
+   * reading every completed record by hand.
+   */
+  readonly unresolvedAtCompletion?: boolean;
 }
 
 const TASK_LIST_SORT_FIELDS = new Set([
@@ -582,6 +590,8 @@ export class TaskService {
         (parentId === undefined || task.parentId === parentId) &&
         (priority === undefined || fold(task.priority) === priority) &&
         (!types || types.has(fold(task.type))) &&
+        (!query.unresolvedAtCompletion ||
+          task.unresolvedAtCompletion !== undefined) &&
         (!readyIds || readyIds.has(task.id)) &&
         (!searched || searched.has(task.id)),
     );
@@ -670,9 +680,18 @@ export class TaskService {
           "Lifecycle terminal status is not configured.",
         );
       const transitioned = transitionTask(task, terminal, this.lifecycle);
-      return finalSummary === undefined
-        ? transitioned
-        : taskState({ ...transitioned, finalSummary });
+      const withSummary =
+        finalSummary === undefined
+          ? transitioned
+          : taskState({ ...transitioned, finalSummary });
+      // QCLI-336: persists QCLI-252's response-only signal onto the record
+      // itself, computed once from the checklist state at the moment of
+      // completion -- see unresolvedAtCompletion's own doc comment on
+      // TaskState for why this is never recomputed afterward.
+      const unresolved = unresolvedAtCompletion(withSummary);
+      return unresolved === undefined
+        ? withSummary
+        : taskState({ ...withSummary, unresolvedAtCompletion: unresolved });
     });
   }
   async archive(

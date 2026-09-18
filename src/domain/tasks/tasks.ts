@@ -145,6 +145,16 @@ export interface TaskCheckItem {
 /** Legacy records store bare strings; taskState() always normalizes to items. */
 export type TaskCheckList = readonly (string | TaskCheckItem)[];
 
+export interface UnresolvedChecklistItem {
+  readonly index: number;
+  readonly text: string;
+}
+
+export interface UnresolvedAtCompletion {
+  readonly acceptanceCriteria: readonly UnresolvedChecklistItem[];
+  readonly definitionOfDone: readonly UnresolvedChecklistItem[];
+}
+
 /** Structural side of a milestone; domain/planning's Milestone is assignable. */
 export interface MilestoneTaskSide {
   readonly id: string;
@@ -194,6 +204,17 @@ export interface TaskState {
   readonly gateEvents: readonly GateEvent[];
   readonly claim?: TaskClaim;
   readonly source?: SourceProvenance;
+  /**
+   * QCLI-336: the persisted counterpart of QCLI-252's response-only signal.
+   * Set once, by `complete()`, from the checklist state at the moment a task
+   * reaches its terminal status -- never recomputed afterward, so editing a
+   * completed task's checklist does not retroactively rewrite what was open
+   * when it closed. Absent means either nothing was unresolved at
+   * completion, or the task predates this field (QCLI-336 does not backfill
+   * historical records) -- the two are indistinguishable from this field
+   * alone, by design.
+   */
+  readonly unresolvedAtCompletion?: UnresolvedAtCompletion;
 }
 
 export interface TaskInput
@@ -213,6 +234,7 @@ export interface TaskInput
     | "blockers"
     | "gates"
     | "gateEvents"
+    | "unresolvedAtCompletion"
   > {
   readonly status?: TaskStatus;
   readonly aliases?: readonly string[];
@@ -334,6 +356,16 @@ const taskSchema = z.object({
       importedAt: z.string().optional(),
     })
     .optional(),
+  unresolvedAtCompletion: z
+    .object({
+      acceptanceCriteria: z.array(
+        z.object({ index: z.number().int().min(0), text: z.string() }),
+      ),
+      definitionOfDone: z.array(
+        z.object({ index: z.number().int().min(0), text: z.string() }),
+      ),
+    })
+    .optional(),
 });
 
 function unique(values: readonly string[], name: string): void {
@@ -374,6 +406,37 @@ function normalizeCheckList(list: TaskCheckList): readonly TaskCheckItem[] {
       "Check item indexes",
     );
   return items;
+}
+
+/**
+ * QCLI-252 / QCLI-336: the unchecked items in a checklist, by the same rule
+ * `normalizeCheckList` already uses to decide "unchecked" for a legacy bare
+ * string (unchecked by construction).
+ */
+function uncheckedItems(
+  list: TaskCheckList,
+): readonly UnresolvedChecklistItem[] {
+  return normalizeCheckList(list)
+    .filter((item) => !item.checked)
+    .map((item) => ({ index: item.index, text: item.text }));
+}
+
+/**
+ * The single computation behind both QCLI-252 (the one-shot response field)
+ * and QCLI-336 (`complete()`'s persisted counterpart) -- kept here rather
+ * than duplicated at each call site, so the two can never silently drift
+ * apart on what "unresolved" means. Returns undefined (omit, never an empty
+ * object) when nothing is unresolved.
+ */
+export function unresolvedAtCompletion(task: {
+  readonly acceptanceCriteria: TaskCheckList;
+  readonly definitionOfDone: TaskCheckList;
+}): UnresolvedAtCompletion | undefined {
+  const acceptanceCriteria = uncheckedItems(task.acceptanceCriteria);
+  const definitionOfDone = uncheckedItems(task.definitionOfDone);
+  return acceptanceCriteria.length === 0 && definitionOfDone.length === 0
+    ? undefined
+    : { acceptanceCriteria, definitionOfDone };
 }
 
 /** Normalizes defaults and rejects malformed authored task state. */

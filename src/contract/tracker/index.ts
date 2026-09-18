@@ -580,6 +580,7 @@ export class QuestTrackerClient {
           "status",
           "type",
           "unassigned",
+          "unresolved-at-completion",
         ],
         fields: [
           "assignees",
@@ -593,6 +594,7 @@ export class QuestTrackerClient {
           "summary",
           "title",
           "type",
+          "unresolvedAtCompletion",
           "updatedAt",
         ],
       },
@@ -629,6 +631,7 @@ export class QuestTrackerClient {
           "summary",
           "title",
           "type",
+          "unresolvedAtCompletion",
           "updatedAt",
         ],
       },

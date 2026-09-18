@@ -248,6 +248,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "status",
         "type",
         "unassigned",
+        "unresolved-at-completion",
       ],
       fields: [
         "assignees",
@@ -261,6 +262,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "summary",
         "title",
         "type",
+        "unresolvedAtCompletion",
         "updatedAt",
       ],
     },
@@ -298,6 +300,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "summary",
         "title",
         "type",
+        "unresolvedAtCompletion",
         "updatedAt",
       ],
     },

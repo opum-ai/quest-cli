@@ -162,9 +162,9 @@ export const commandHelp: Record<
   },
   "task list": {
     summary:
-      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived. SCOPE (QCLI-316): this reads the CHECKED-OUT ref's .quest/ and nothing else, so a result -- and an EMPTY result especially -- is a claim about that branch, not about the repository. A task filed on an unmerged branch is invisible here, which is exactly the task most likely to be forgotten. Every listing carries a `scope` field naming the branch it answered about; when the result is empty, scope also reports `unseenTaskIds`, the ids that exist on some other ref and not on this one (filenames only, one tree listing per ref, no record is read and no status is merged across refs). An empty list with an empty `unseenTaskIds` is load-bearing; an empty list naming ids is the check not having run on them. Before reporting that nothing is open, read `scope`, and cross-check an independent source such as `gh pr list`.",
+      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, unresolved-at-completion, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived. --unresolved-at-completion (QCLI-336) selects only tasks that completed with acceptance criteria or definition-of-done items still unchecked -- the persisted counterpart of the `unresolvedAtCompletion` field `task complete` adds to its own response (QCLI-252) -- so a sweep for 'what did we knowingly ship with open items' does not require reading every completed record by hand. SCOPE (QCLI-316): this reads the CHECKED-OUT ref's .quest/ and nothing else, so a result -- and an EMPTY result especially -- is a claim about that branch, not about the repository. A task filed on an unmerged branch is invisible here, which is exactly the task most likely to be forgotten. Every listing carries a `scope` field naming the branch it answered about; when the result is empty, scope also reports `unseenTaskIds`, the ids that exist on some other ref and not on this one (filenames only, one tree listing per ref, no record is read and no status is merged across refs). An empty list with an empty `unseenTaskIds` is load-bearing; an empty list naming ids is the check not having run on them. Before reporting that nothing is open, read `scope`, and cross-check an independent source such as `gh pr list`.",
     usage:
-      'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--search text] [--sort id[:asc|desc]] [--limit 20] [--include-archived]',
+      'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--unresolved-at-completion] [--search text] [--sort id[:asc|desc]] [--limit 20] [--include-archived]',
     flags: [
       "--status",
       "--exclude-status",
@@ -176,6 +176,7 @@ export const commandHelp: Record<
       "--parent",
       "--priority",
       "--type",
+      "--unresolved-at-completion",
       "--search",
       "--sort",
       "--limit",
@@ -189,7 +190,11 @@ export const commandHelp: Record<
       "--if-revision <revision>`'s precondition. --max-notes N caps " +
       "implementationNotes to the most recent N entries and adds a " +
       "notesOmitted count; omitted, the read is the full unbounded record, " +
-      "unchanged.",
+      "unchanged. A task completed with acceptance criteria or " +
+      "definition-of-done items still unchecked carries an " +
+      "`unresolvedAtCompletion` field (QCLI-336) naming them, set once at " +
+      "completion and never recomputed by a later edit; absent on any task " +
+      "not completed that way.",
     usage: "quest task view <id> [--max-notes N]",
     flags: ["--max-notes"],
   },
@@ -341,7 +346,7 @@ export const commandHelp: Record<
   },
   "task complete": {
     summary:
-      "Move a task to its terminal complete status. Unchecked acceptance criteria and definition-of-done items do NOT block completion -- an honestly-unchecked item is advisory, not an error (QCLI-252) -- but completing with any left unchecked prints a stderr warning naming them and adds an `unresolvedAtCompletion` field to the JSON result, so the gap is reported rather than silent. --final-summary is optional and applies a plain replacement to the record as part of the same write (QCLI-270), so a final summary can be recorded and the task completed in one command instead of `task edit --final-summary` followed by `task complete`; `--clear-final-summary`/`--append-final-summary` stay edit-only.",
+      "Move a task to its terminal complete status. Unchecked acceptance criteria and definition-of-done items do NOT block completion -- an honestly-unchecked item is advisory, not an error (QCLI-252) -- but completing with any left unchecked prints a stderr warning naming them and adds an `unresolvedAtCompletion` field to the JSON result, so the gap is reported rather than silent. That field is also PERSISTED on the record itself (QCLI-336), not just this one response -- `quest task view`/`task list --json` surface it afterward, and `task list --unresolved-at-completion` finds every completed task still carrying one, so the gap survives past this command's own output. --final-summary is optional and applies a plain replacement to the record as part of the same write (QCLI-270), so a final summary can be recorded and the task completed in one command instead of `task edit --final-summary` followed by `task complete`; `--clear-final-summary`/`--append-final-summary` stay edit-only.",
     usage:
       'quest task complete <id> [--final-summary "text"] --actor <name> --actor-kind human',
     flags: ["--final-summary", ...ACTOR_FLAGS],

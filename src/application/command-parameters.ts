@@ -103,6 +103,7 @@ export const BOOLEAN_FLAGS = [
   "--list",
   "--ready",
   "--unassigned",
+  "--unresolved-at-completion",
 ] as const;
 
 /**

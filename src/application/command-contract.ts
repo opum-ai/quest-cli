@@ -264,6 +264,7 @@ export const commandManifest = {
         "status",
         "type",
         "unassigned",
+        "unresolved-at-completion",
       ],
       fields: [
         "assignees",
@@ -277,6 +278,7 @@ export const commandManifest = {
         "summary",
         "title",
         "type",
+        "unresolvedAtCompletion",
         "updatedAt",
       ],
     },
@@ -317,6 +319,7 @@ export const commandManifest = {
         "summary",
         "title",
         "type",
+        "unresolvedAtCompletion",
         "updatedAt",
       ],
     },
