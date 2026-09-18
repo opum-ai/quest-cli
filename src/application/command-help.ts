@@ -297,6 +297,7 @@ export const commandHelp: Record<
       "--add-plan",
       "--remove-plan",
       "--notes",
+      "--implementation-notes",
       "--add-note",
       "--remove-note",
       "--comments",

@@ -492,7 +492,12 @@ function usageFailure(
   const accepted = allowed.length > 0 ? allowed.join(", ") : "--json, --plain";
   return failure(
     "usage",
-    `Unrecognized ${word} ${unknown.join(", ")}. Accepted flags: ${accepted}.`,
+    // QCLI-344: the discard sentence is the load-bearing half. The rejected
+    // flag was already named first, but nothing said the VALID flags in the
+    // same invocation did not apply either -- so an invocation pairing a bad
+    // flag with `--check-ac` looked like a checkbox that silently failed to
+    // check, rather than like a command that never ran.
+    `Unrecognized ${word} ${unknown.join(", ")}. Nothing was written: the rest of this command was not applied either. Accepted flags: ${accepted}.`,
   );
 }
 
@@ -3181,6 +3186,12 @@ export async function runQuest(
         "--add-plan",
         "--remove-plan",
         "--notes",
+        // QCLI-344: the name `task create` uses for this same field, accepted
+        // here as an alias so a caller moving from create to edit on one
+        // record does not meet a rejection for a capability that exists under
+        // another spelling. Supplying both is refused below rather than
+        // resolved silently.
+        "--implementation-notes",
         "--add-note",
         "--remove-note",
         "--comments",
@@ -3234,6 +3245,19 @@ export async function runQuest(
         "--remove-comment",
       ] as const)
         rejectArrayLookingValue(flag, parsed.values.get(flag));
+      // QCLI-344: `--implementation-notes` is an alias of `--notes`, so both
+      // together are ambiguous. Refuse rather than pick one -- silently
+      // preferring either would make the alias a new way to lose a write,
+      // which is the failure mode DEC-5 exists to prevent on a neighbouring
+      // field.
+      if (
+        parsed.values.has("--notes") &&
+        parsed.values.has("--implementation-notes")
+      )
+        return failure(
+          "usage",
+          "Use either --notes or --implementation-notes, not both: they name the same field. Nothing was written.",
+        );
       const writeActor = actor(parsed);
       if (!writeActor)
         return failure(
@@ -3267,7 +3291,10 @@ export async function runQuest(
             plan: stringValue(parsed, "--plan"),
             addPlan: parsed.values.get("--add-plan"),
             removePlan: parsed.values.get("--remove-plan"),
-            implementationNotes: stringValue(parsed, "--notes"),
+            implementationNotes:
+              stringValue(parsed, "--notes") ??
+              // QCLI-344: same field, the spelling `task create` uses.
+              stringValue(parsed, "--implementation-notes"),
             addNotes: parsed.values.get("--add-note"),
             removeNotes: parsed.values.get("--remove-note"),
             comments: commentsValue(parsed, "--comments"),
