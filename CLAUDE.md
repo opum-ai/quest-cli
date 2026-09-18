@@ -629,9 +629,28 @@ a population is exactly what a clean measurement feels like, and it is also
 what a nonexistent field produces. So before resting anything on a null:
 
 ```sh
+jq 'keys' record.json                   # FIRST: what is actually here?
 jq 'has("completedAt")' record.json     # presence, not value
 grep -rn "completedAt" src/             # does the PRODUCER emit it at all?
 ```
+
+**Lead with the key set, not with the named-key test** -- opum-agent's
+formulation, and it is the actionable one: "be careful with nulls" is not a
+check, "print the key set" is. It also covers a second sub-case the other two
+miss. There are two ways to get a uniform null and only one is a nonexistent
+field:
+
+- **The field exists nowhere.** `completedAt` above. `has()` and the grep both
+  catch it.
+- **You are querying the WRONG OBJECT.** Measured 2026-09-18, third instance:
+  `quest task view <id> --json | jq '{id,title,status}'` returned all-null
+  because the record is under `.data` and every key named was absent at the
+  TOP level. `has("id")` on that envelope is equally false, and the grep finds
+  `id` everywhere, so **neither of the lower two lines catches this one.**
+  Only the key set does. (The product half is fixed: QCLI-342 corrected the
+  `overview` guide, which had itself documented the envelope without
+  `contractVersion`, and now tells callers the record is under `data` and to
+  print the key set on an all-null projection.)
 
 and **prefer provenance to absence** where a record of origin exists. The
 corrected evidence did: the migration receipt's 214 mappings, every one
@@ -649,6 +668,22 @@ BASIS and a surviving CONCLUSION, because the population was not empty -- the
 planning suite's own fixture archives `M-1` after cleanup. Taking that
 reasoning at face value would have shipped the right fix for a reason that
 would not hold next time.
+
+**This section is an artifact, not a control, and the third instance is the
+proof.** opum-agent hit it *twenty minutes after reading the close-out that
+recorded it*, while writing the dispatch to spread it fleet-wide, carrying a
+private note on the same trap, having just read a handoff that named it as one
+of three errors its predecessor made in ninety minutes. Knowing the rule did
+not make it operational for any of the three of us. So do not read the prose
+above as cover: run the key-set line. The mechanical version would be a lint
+over evidence-bearing prose for a field name absent from the producing source;
+it does not exist, nobody has commissioned it, and the agreed trigger for
+revisiting that is a fourth instance after the fleet-level record lands.
+
+Their instance also shows the cost is not abstract: believing the all-null
+would have meant re-filing a task that already existed, and this tracker mints
+the next id on create, so the recovery from the wrong conclusion produces a
+duplicate record.
 
 ### The AMFI SIGKILL on the darwin-arm64 binary is armed by INDEX STATE
 
