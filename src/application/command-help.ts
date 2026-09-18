@@ -483,7 +483,8 @@ export const commandHelp: Record<
     flags: [...ACTOR_FLAGS],
   },
   overview: {
-    summary: "Print a project-wide task overview.",
+    summary:
+      "Print a project-wide task overview. Task counts span every retention location -- .quest/tasks/, completed/ and archive/tasks/ -- so completing a task moves a count rather than removing the record from it; byLocation names how the total divides.",
     usage: "quest overview",
     flags: [],
   },
