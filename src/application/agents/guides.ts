@@ -64,10 +64,26 @@ for the same registry without the prose.
 
 ## Machine contract
 
-Every command supports \`--json\` (the \`{schemaVersion, kind, data, principal}\`
-envelope) and \`--plain\` (human-readable, auto-selected off a TTY). Branch on the
-semantic exit code, never on prose: \`0\` ok, \`2\` usage, \`3\` not_found, \`4\` denied,
-\`5\` conflict, \`6\` validation or drift.
+Every command supports \`--json\` and \`--plain\` (human-readable, auto-selected
+off a TTY). Branch on the semantic exit code, never on prose: \`0\` ok, \`2\`
+usage, \`3\` not_found, \`4\` denied, \`5\` conflict, \`6\` validation or drift.
+
+\`--json\` emits one of TWO envelope shapes, and they share no payload key:
+
+- success: \`{schemaVersion, contractVersion, kind, data, principal}\`
+- error:   \`{error_type, message, principal}\`
+
+**The record you asked for is under \`data\`, never at the top level.** Reach for
+it as \`.data\`, and read the exit code to know which shape you have. A path
+naming a top-level \`id\` or \`title\` matches nothing and prints \`null\` for every
+field, which looks like a record that came back empty rather than a path
+pointing one level too high. If a projection comes back all-null, print the key
+set (\`jq 'keys'\`) before concluding anything about the record.
+
+Some commands add a key of their own between \`data\` and \`principal\` -- \`task
+list\` carries \`scope\`, for instance. **\`principal\` is always the last key**, and
+a caller must tolerate a top-level key it does not recognize rather than
+treating the envelope as malformed.
 
 Quest never retries a write conflict for you. On exit \`5\`, re-read the latest
 record and perform your own bounded retry rather than resubmitting a stale write.
