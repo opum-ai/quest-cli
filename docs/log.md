@@ -260,6 +260,7 @@
 - 2026-09-15T03:36:00-05:00 b38b544c4c320085bd00a9d25524644953f8ad63 chore(QCLI-271,QCLI-289): apply rulings; close QCLI-271 (#98)
 - 2026-09-17T13:51:30-05:00 305e2c67cc16587d0ae31d3e116c3becf1932edc chore(QCLI-259,QCLI-97,QCLI-200,QCLI-201,QCLI-247,QCLI-329): dedupe pass
 - 2026-09-17T18:56:11-05:00 8fabbdc4853a08a71de748f189e497487c4e200a docs(QCLI-334): document dev->main promotion mechanics in the release runbook (#187)
+- 2026-09-18T22:49:00-05:00 25909d18764325d8d3fba02689d74ca19bb9a84b chore(QCLI-354): record fleet-wide dotted-alias sweep for OPAG-276 (#213)
 
 ## docs/adr
 
