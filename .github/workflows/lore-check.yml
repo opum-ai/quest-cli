@@ -21,15 +21,46 @@ name: lore check
 # it reports package.json's version -- the two facts that distinguish "the
 # checkout's quest" from "some quest".
 #
-# lore itself IS pinned, to the lore release paired with this package (the
-# quest/lore lockstep is a fact about versions). It is deliberately not derived
-# from package.json: on the PR that bumps this package to the next version the
-# paired lore is not published yet, and a derived pin would red exactly the PR
-# that cuts a release. Bump it by hand when the pairing moves.
+# lore itself IS pinned. It is deliberately not derived from package.json: on
+# the PR that bumps this package to the next version the paired lore is not
+# published yet, and a derived pin would red exactly the PR that cuts a release.
 #
-# DETERMINISM. `lore check` writes nothing, has no LLM dependency, and reads
-# the evaluation date from HEAD's committer date rather than the clock, so a
-# clean run locally is a clean run here for the same tree. As with
+# THE PIN NO LONGER TRACKS "the lore release paired with this package", because
+# that phrase stopped naming one number (QCLI-356). CHANGELOG declares the
+# quest/lore lockstep deliberately broken -- quest published 0.9.0, lore
+# published 0.8.0 -- so "the paired release" has no unambiguous answer and an
+# instruction to hand-bump to it cannot be followed. The pin now names the
+# NEWEST PUBLISHED lore whose `lore check` this repository has actually been
+# measured against, and the number below is that measurement, not a pairing.
+#
+# Bumping it is a two-step change, in this order, and NOT one commit:
+#   1. regenerate the committed schemas under the new lore and land that alone;
+#   2. then move the number here.
+# Step 1 first because a new lore that changes schema generation would
+# otherwise red this gate on the same commit that bumps it, making the bump
+# look like a broken pin rather than a pending regeneration.
+#
+# THIS GATE CANNOT DETECT ITS OWN STALENESS, which is why the number going out
+# of date is tracked as its own task rather than assumed to be noticed.
+# `lore check` runs AT the pinned version and compares the committed schemas
+# against what THAT version generates, so it is self-consistent by construction
+# and stays green as the pin falls behind -- the same shape lore-cli recorded
+# as LCLI-504/508. A real detector has to compare this number against something
+# outside the run, and must NOT do it with a network read inside this job: a
+# flaky required check is worse than a stale one, because it teaches people to
+# re-run until green (opum-agent ruling, 2026-09-19).
+#
+# DETERMINISM, AND ITS ONE LOAD-BEARING CAVEAT. `lore check` writes nothing, has
+# no LLM dependency, and reads the evaluation date from HEAD's committer date
+# rather than the clock, so a clean run locally is a clean run here for the same
+# tree AND THE SAME LORE VERSION. The version is part of the precondition, not
+# background: this paragraph used to end at "the same tree", and it was false --
+# measured 2026-09-19 on one commit, lore 0.7.0 exited 0 with zero errors while
+# lore 0.8.0 exited 6 with seven schema-drift errors, because 0.7.0 has no
+# schema-drift detection at all. Holding the tree constant while letting the
+# tool vary is exactly how a required context goes green on something it cannot
+# see. If a local run disagrees with this job, compare `lore --version` BEFORE
+# suspecting the tree. As with
 # tracker-integrity.yml, setup reaches the network (setup-bun, the frozen
 # lockfile install, and `npm install -g` of lore) while the assertions read
 # only the commit -- so a red in setup with a green `lore check` locally points
@@ -96,8 +127,8 @@ jobs:
           fi
           echo "quest on PATH: $resolved (reports $reported, package.json $packaged)"
 
-      - name: Install the lore release paired with this package
-        run: npm install -g @opum-ai/lore@0.7.0
+      - name: Install the pinned lore release
+        run: npm install -g @opum-ai/lore@0.8.0
 
       - name: lore check
         run: lore check
