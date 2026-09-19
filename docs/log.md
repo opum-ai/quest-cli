@@ -259,6 +259,7 @@
 - 2026-09-14T19:25:33-05:00 9e9392a483529c50f898aa3a51c3be1daadebb5b docs(QCLI-292): document what a version bump touches (#95)
 - 2026-09-15T03:36:00-05:00 b38b544c4c320085bd00a9d25524644953f8ad63 chore(QCLI-271,QCLI-289): apply rulings; close QCLI-271 (#98)
 - 2026-09-17T13:51:30-05:00 305e2c67cc16587d0ae31d3e116c3becf1932edc chore(QCLI-259,QCLI-97,QCLI-200,QCLI-201,QCLI-247,QCLI-329): dedupe pass
+- 2026-09-17T18:56:11-05:00 8fabbdc4853a08a71de748f189e497487c4e200a docs(QCLI-334): document dev->main promotion mechanics in the release runbook (#187)
 
 ## docs/adr
 
@@ -296,6 +297,7 @@
 - 2026-09-15T08:58:11-05:00 f027c2450e74f970048d61a779f17d4e2ab8e905 chore(QCLI-289,QCLI-299): 0.7.0 published; file the publish-path defects (#117)
 - 2026-09-15T09:33:48-05:00 0a480d668df92b88405e3c7123b9f45175cfe522 fix(QCLI-299): gate the wrapper publish on a consumer-side read (#120)
 - 2026-09-16T17:05:13-05:00 95b53569e041e66423633684bed6c68cece1e006 docs(QCLI-319): restore the Unreleased heading; make release prep leave a successor (#152)
+- 2026-09-18T19:44:40-05:00 a94c8724dbcb8923db33e59aba7e17ad82bfaf05 chore(QCLI-347): close the 0.9.0 release and record what the publish taught (#205)
 
 ## docs/specs
 
