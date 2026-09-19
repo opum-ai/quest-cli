@@ -429,6 +429,9 @@
         "in-progress",
         "done"
       ]
+    },
+    "__deliberate_drift_probe__": {
+      "type": "string"
     }
   },
   "required": [
