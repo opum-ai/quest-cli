@@ -498,6 +498,38 @@ start of a run so the operator knows which one is active:
    *temporary* npmrc for the run only (`npm_config_userconfig`); `~/.npmrc`
    is never touched, and no `--otp` is required or sent.
 
+   **"no stored token found" does NOT mean there is no token, and this is the
+   single most likely thing to stall the next release.** Measured during the
+   0.9.0 publish, 2026-09-18: the Keychain entry existed and was perfectly
+   valid, while reading it from a non-interactive shell (an agent session, a
+   CI-less script, anything without a TTY) failed:
+
+   ```sh
+   security find-generic-password -s npm-opum-ai-publish -w   # exit 36
+   # errSecInteractionNotAllowed -- the per-item ACL wants a prompt that a
+   # non-interactive shell cannot answer
+   ```
+
+   `findKeychainToken` catches every `security` failure identically and
+   returns `null`, so the run reports the credential as ABSENT and announces
+   it will need `--otp`. **Absent and present-but-unreadable have opposite
+   remedies** -- create and store a token, versus unlock the keychain -- and
+   the message names the wrong one. Do not go looking for a token to create.
+   Check first:
+
+   ```sh
+   security find-generic-password -s npm-opum-ai-publish >/dev/null; echo $?
+   #  0 = the entry exists (44 = it really is missing)
+   ```
+
+   If it exists, the clearing action is `security unlock-keychain` **at a
+   terminal**, by the owner. Confirmed to work: after the unlock the same
+   `-w` read returned exit 0 with a valid granular shape, and the publish ran
+   on the token route with no OTP at any point. QCLI-349 tracks making the
+   tool say this itself, which is the fix that removes the judgement; until
+   it lands, this paragraph is the thing standing between the next session
+   and a wrong diagnosis.
+
 2. **An interactive `npm login` session**, with `--otp <code>` on the real
    publish. This is the human path and needs 2FA at the point of the write,
    regardless of whether the login session itself succeeded -- a valid
@@ -644,6 +676,25 @@ Two properties worth knowing before the next release:
   decisive, and was used as decisive here before the 409 arrived -- separates
   "the public packument was not written" from "nothing happened", and those are
   different facts.
+
+**AMENDED 2026-09-18 (QCLI-350): that signature is not decisive for staging,
+because a third state produces it identically.** During the 0.9.0 publish
+`@opum-ai/quest-linux-arm64` missed the visibility window entirely and
+presented every symptom above -- absent from `versions`, absent from `time`,
+`time.modified` still showing the previous release -- and `npm stage list`
+could not adjudicate either, returning **E401** for the publishing token
+rather than the `[]` seen at 0.7.0. It was neither staged nor never-landed:
+`--diagnose-staged` reported *"skip (already on the registry at this
+version)"*. It had landed and was merely **SLOW**. The wrapper then did the
+same thing minutes later, with the targeted version endpoint returning 404
+while the publish had in fact succeeded, and two npm cache layers disagreeing
+with each other for a further interval.
+
+So the states are **published / slow / absent / staged**, and a single read
+separates none of the middle three. Only the 409 is positive evidence of
+staging; everything else is compatible with lag. Wait and re-read before
+reaching for an operator action, and treat "absent from `time`" as suggestive
+rather than decisive.
 
 **Clearing it is an operator action and needs 2FA**, which is the entire point
 of staging: `npm stage list` then `npm stage approve <stage-id>` from a

@@ -727,6 +727,41 @@ most likely be asking DURING a release, which is the one time the file is
 legitimately dirty -- and QCLI-271's record, correct for the state it
 described, will tell them the block is unconditional.
 
+### "no stored token found" at publish time means the keychain is LOCKED, not empty
+
+Measured during the 0.9.0 publish, 2026-09-18. `publish-release.mjs` announces
+`no stored token found (Keychain or NPM_TOKEN)` and says it will need `--otp`.
+The entry exists and is valid. What actually happened is that reading it from a
+non-interactive shell returns **exit 36, `errSecInteractionNotAllowed`** -- the
+per-item ACL wants a prompt no agent session can answer -- and
+`findKeychainToken` catches every `security` failure identically and returns
+`null`.
+
+**Absent and present-but-unreadable have opposite remedies**, and the message
+names the wrong one. Check presence before believing it:
+
+```sh
+security find-generic-password -s npm-opum-ai-publish >/dev/null; echo $?
+#  0 = present (the usual case)   44 = genuinely missing
+```
+
+The clearing action is `security unlock-keychain` **at a terminal, by the
+owner**; it did clear the per-item ACL, and the publish then ran on the token
+route with **no OTP at any point**. Do not reach for OTP here, and do not go
+looking for a token to create. QCLI-349 tracks fixing the message.
+
+Two related facts from the same release, both of which produced a confident
+wrong reading at the time. **npm's read API lags its writes by minutes, and its
+cache layers disagree with each other** -- a package absent from `versions`,
+absent from `time`, with `time.modified` unchanged since the previous release,
+had in fact already published; the same signature is what the runbook
+attributes to the 0.7.0 STAGED incident, so it is suggestive of staging rather
+than decisive. Only a 409 is positive evidence. And the publisher's
+`published and verified` line names the wrapper while `waitForPublished`
+verifies the six PLATFORM packages against the receipt (QCLI-350) -- the same
+name-the-object-you-measured trap this profile records elsewhere, in our own
+release tooling.
+
 <!-- quest:agent-instructions:begin -->
 # Quest agent instructions
 
