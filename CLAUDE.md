@@ -311,6 +311,30 @@ PR whose final commit is tracker-only is gated by a single `source-gates` row.
 A predecessor's handoff on that exact PR said "wait for both source-gates runs
 (a source-touching PR fires it twice here)" -- following it would have waited
 forever on a run that correctly never existed, on a PR that was already `CLEAN`.
+
+**Amended 2026-09-20: that table's one-row case is measured ON A PULL REQUEST,
+and the floor before a PR exists is ZERO.** The `pull_request` trigger is what
+produced the row `4374c69` is credited with, so on a pushed `dev` head that
+touches no watched path `source-gates` produces no row at all. The
+required-set predicate below then correctly returns `ABSENT`, and no amount of
+waiting settles it, because nothing can fire that context on that SHA.
+Measured promoting `48dec13`, a head of one line in `.quest/tasks/`: `Tracker
+integrity` and `lore check` only, until PR #230 opened and all three appeared.
+**Opening the promotion PR is the remedy, not a formality** -- its trigger
+carries no path filter, which is this section's own closing sentence read
+forwards rather than backwards. This does not soften `ABSENT`, which is never
+green and still refuses the gate; it tells you which of two absences you are
+looking at, and only one of them is worth waiting on.
+
+opum-agent had the same defect in its own `promote.mjs`, which classed
+`ABSENT` with in-flight as "unsettled" and would spend a full 60x15s wait on a
+context that cannot fire, then refuse with a message reading identically for
+"still queued" and "never coming" (their OPAG-345, fixed and promoted). They
+are not themselves affected -- their `ci.yml` carries no `paths` filter, so
+all four of their required contexts fire on every push. Which other fleet
+repos have path-filtered required workflows is UNENUMERATED by either of us,
+so this is one measured instance and not a fleet-wide claim.
+
 **The general rule is NEWEST-PER-CONTEXT, and `mergeStateStatus` is one
 correct implementation of it.** opum-cli-e2e's formulation, 2026-09-15, after
 I restated the row-counting belief this section exists to correct -- four
