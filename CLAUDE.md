@@ -95,8 +95,12 @@ main's tip through its push trigger, so the fast-forward push stayed
 pushable; renaming any of the three jobs needs the ruleset edit in the same
 change, or `main` waits forever on a context that can never report.
 
-Do not generalize this to sibling repos. At least one fleet repo gates `dev`
-instead; that is exactly why this lives here and not in the shared block.
+Do not generalize this to sibling repos. THREE fleet repos gate `dev`
+instead -- `lore-cli`, `lore-web` and `opum-fleet`, measured here
+2026-09-20 in the same sweep recorded under the path-filter section below,
+correcting both an earlier hedge here ("at least one") and a count of two
+carried in opum-agent's own profile. That is exactly why this lives here and
+not in the shared block.
 
 ### This repository's tags are load-bearing for quest-web's CI
 
@@ -331,9 +335,34 @@ opum-agent had the same defect in its own `promote.mjs`, which classed
 context that cannot fire, then refuse with a message reading identically for
 "still queued" and "never coming" (their OPAG-345, fixed and promoted). They
 are not themselves affected -- their `ci.yml` carries no `paths` filter, so
-all four of their required contexts fire on every push. Which other fleet
-repos have path-filtered required workflows is UNENUMERATED by either of us,
-so this is one measured instance and not a fleet-wide claim.
+all four of their required contexts fire on every push.
+
+**Enumerated 2026-09-20, and the condition turns out to be a CONJUNCTION
+rather than the path filter alone.** opum-agent swept the fleet
+(`opum-ai/opum-agent#834`, 15:00:56Z) and this session re-ran it
+independently rather than relaying the number -- both read 10 repositories,
+22 workflow files and 32 required contexts, with `quest-web` skipped for
+having no required contexts on either ref. **`quest-cli` is the only affected
+repository.**
+
+The independent run is worth more for the finding it got WRONG. It flagged a
+second repo, `lore-cli`'s `Tracker integrity`, by matching `paths-ignore:` at
+FILE scope without checking which trigger carries it. Reading the file
+withdrew it: the filter is on `push` only, `push` is `branches: [main]` only,
+and `pull_request` is deliberately left unfiltered with a comment saying
+exactly why -- "so the required status check can never be skipped into a
+permanent pending that deadlocks a PR."
+
+Verifying that instead of reporting it is what produced the real rule.
+`quest-cli` and `lore-cli` have the SAME workflow shape -- `paths` on `push`,
+`pull_request` unfiltered -- so **the path filter is not the condition.** The
+condition is that filter AND a gate on `main` satisfied by fast-forward push,
+which is what requires the contexts green on a SHA that can predate any PR.
+`lore-cli` gates `dev`, where every landing goes through a PR and the
+unfiltered trigger always supplies the row; its `main` carries no ruleset at
+all. A sibling adopting this repo's promotion shape acquires the exposure
+without changing a single workflow file, which is the part a filter-only
+check cannot see.
 
 **The general rule is NEWEST-PER-CONTEXT, and `mergeStateStatus` is one
 correct implementation of it.** opum-cli-e2e's formulation, 2026-09-15, after
