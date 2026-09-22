@@ -432,6 +432,9 @@
         "in-progress",
         "done"
       ]
+    },
+    "qcli361DriftProbe": {
+      "type": "string"
     }
   },
   "required": [
