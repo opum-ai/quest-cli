@@ -455,7 +455,38 @@ printf '%s' "$RUNS" | jq -e --argjson req "$REQ" '
       elif .status != "completed" then .status
       else .conclusion end ]
   | all(. == "success")'
+
+# ...AND no row of a required context may still be pending, however old.
+# Piped to jq: `gh api --jq` takes no --argjson, and fails with "accepts 1 arg(s)".
+gh api "repos/opum-ai/quest-cli/commits/$SHA/check-runs" | jq -e \
+  --argjson req "$REQ" \
+  '[.check_runs[] | select(.name as $n | $req | index($n))
+    | select(.status != "completed")] | length == 0'
 ```
+
+**CORRECTED 2026-09-24 (QCLI-364): newest-per-context is necessary, not
+sufficient. The ruleset also blocks on an OLDER row that has not finished.**
+Promoting `b66ca56` (PR #241), the newest-row predicate above returned success
+for all three contexts, and the push was rejected with `GH013: Required status
+check "Tracker integrity" is queued`. The SHA carried two rows for that context.
+The `pull_request` row (started 04:51:22Z) had passed. The `push` row from the
+squash into `dev` (started 04:51:07Z) was still queued, so `max_by(.started_at)`
+chose the other one. Once the queued row completed at 04:56:26Z, the same push
+landed. The failure is safe: `main` did not move, and the API ref read
+confirmed it. But the gate refuses a push the predicate had just cleared.
+
+**How it got in:** every earlier measurement here had one row per context, or
+had all rows finished by the time the predicate ran. An unfinished older row
+needs a push run that is slow to get a runner. Nothing on this page had tested
+that case, and the prose never claimed it had. Note also that a queued row's
+`started_at` is not final: it moved from 04:51:07Z to 04:56:10Z when the job
+ran. That timestamp is not a stable ordering key while a row is pending.
+
+The rule this leaves: **judge each context's conclusion by its newest row, but
+wait until no row of that context is still pending.** The first half is the
+predicate above, and the second half is the added line. What an older FAILED
+row does to the ruleset once a newer row has passed is unmeasured here; do not
+infer it from this case.
 
 The non-empty guard is load-bearing, not decoration: `all` over an empty array
 is **vacuously true**, and `[]` is what the API returns in the seconds before
