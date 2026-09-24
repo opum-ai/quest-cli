@@ -59,6 +59,30 @@ test("managed instructions derive the runtime release version without hand-synce
   );
 });
 
+test("managed instructions route to the guides and name the actor flags instead of pointing at themselves (QCLI-362)", () => {
+  // `quest instructions --json` returns this very block, so naming it as
+  // "the current versioned protocol" sent a reader in a circle.
+  expect(questAgentInstructions).not.toContain("quest instructions --json");
+  for (const guide of [
+    "overview",
+    "task-creation",
+    "task-execution",
+    "task-finalization",
+    "workspace",
+  ]) {
+    expect(questAgentInstructions).toContain(`quest instructions ${guide}`);
+  }
+  expect(questAgentInstructions).toContain("quest instructions --list");
+  expect(questAgentInstructions).toContain('quest search "<query>" --json');
+  expect(questAgentInstructions).toContain("quest help <command>");
+  // The Backlog cutover recipe lives in the workspace guide, not here.
+  expect(questAgentInstructions).not.toContain("quest migration backlog");
+  expect(questAgentInstructions).toContain("--actor <id> --actor-kind human");
+  expect(questAgentInstructions).toContain(
+    "--actor <id> --actor-kind delegated-agent --accountable-human <id>",
+  );
+});
+
 test("a version-only difference reports version-only, not drift, but genuine content drift still fails (QCLI-228)", () => {
   const versionOnly = questAgentInstructions
     .trimEnd()
