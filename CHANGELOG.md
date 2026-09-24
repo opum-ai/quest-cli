@@ -6,6 +6,23 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
+### Changed
+
+- **The managed agent-instructions block now routes a reader to the guides
+  instead of back to itself** (QCLI-362, from opum-agent's OPAG-378 audit).
+  It used to call `quest instructions --json` "the current versioned
+  protocol", but that command returns this same block. The block now names
+  `quest instructions --list` and when to read each guide (`overview`,
+  `task-creation`, `task-execution`, `task-finalization`, `workspace`), along
+  with `quest search` and `quest help <command>`. It spells out the actor
+  flags for a person and for a delegated agent (`--actor`, `--actor-kind`,
+  `--accountable-human`), where it used to say only that a declaration is
+  required. The Backlog.md cutover recipe is gone from the block; the
+  `workspace` guide still carries it. `quest agents --check` reports every
+  existing block as `drift` (exit 6) until it is regenerated with
+  `quest agents --update-instructions`. That is a real content change, not a
+  version-only difference, so it is not exempt.
+
 ## 0.9.0
 
 Ships the 0.8.0 section below along with everything here: 0.8.0 was frozen and
