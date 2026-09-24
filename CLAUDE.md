@@ -6,7 +6,11 @@
 This project cut its tracker of record over from Backlog.md to Quest (`quest`,
 `@opum-ai/quest` 0.3.1) on 2026-09-03 (`QCLI-160`/`QCLI-169`).
 
-**For every user request in this project, run `quest instructions overview` before answering or taking action.**
+**Run `quest instructions overview` once per session, before your first tracker
+action** — searching, reading, creating, or updating Quest records. A request
+that never touches the tracker does not need it (QCLI-363; it used to be required
+for every request, at about 1k tokens each). Re-run it after a `quest` upgrade:
+the guide ships inside the CLI and changes with it.
 
 Use the overview to decide whether to search, read, create, or update Quest tasks.
 
@@ -39,7 +43,9 @@ a broken reference. A Story's `<!-- lore:tasks -->` block rendering bare task id
 (`QCLI-1`) instead of hyperlinks into `backlog/` is expected post-cutover behavior —
 already observed and reported to `lore-cli` — not local breakage.
 
-- **Skill:** `.claude/skills/quest/SKILL.md` — how to drive quest.
+- **Skill:** `opum-quest:quest`, installed from the `opum-quest` Claude Code plugin
+  rather than from this checkout. Its source is `skills/quest/SKILL.md` in this
+  repository. It is a pointer to the guides above, not a manual.
 
 </CRITICAL_INSTRUCTION>
 <!-- QUEST GUIDELINES END -->
