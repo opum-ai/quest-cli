@@ -6,6 +6,15 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
+## 0.10.0
+
+This release is minor rather than patch for one reason: the managed-block
+change below makes `quest agents --check` report `drift` (exit 6) against every
+existing block until `quest agents --update-instructions` rewrites it. No command,
+flag, envelope or exit code changed. Apart from the two version constants, the
+only source file changed since 0.9.0 is `src/application/agents/agent-instructions.ts`
+(QCLI-365).
+
 ### Changed
 
 - **The managed agent-instructions block now routes a reader to the guides
