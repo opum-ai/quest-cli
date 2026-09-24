@@ -11,8 +11,9 @@ history; this file is the forward-looking record.
 This release is minor rather than patch for one reason: the managed-block
 change below makes `quest agents --check` report `drift` (exit 6) against every
 existing block until `quest agents --update-instructions` rewrites it. No command,
-flag, envelope or exit code changed. `git log v0.9.0..v0.10.0 -- src` touches
-one file (QCLI-365).
+flag, envelope or exit code changed. Apart from the two version constants, the
+only source file changed since 0.9.0 is `src/application/agents/agent-instructions.ts`
+(QCLI-365).
 
 ### Changed
 
