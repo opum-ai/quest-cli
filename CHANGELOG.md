@@ -28,6 +28,13 @@ history; this file is the forward-looking record.
   states (slow, staged, never landed) instead of two. The wrapper is still
   withheld whenever any platform package does not resolve. Release tooling
   only.
+- **The post-publish verification is now testable end to end** (QCLI-304). It
+  moved out of `main()` into `verifyPublishedRelease`, with every read
+  injectable except the wrapper's anonymous consumer read. A test now makes the
+  0.7.1 failure happen through that real read: the wrapper's write succeeded
+  but the public packument does not list the version yet. It shows that no
+  success line prints until a plain read lists the version. The runbook
+  publish section now says what "verified" means. Release tooling only.
 
 ## 0.10.0
 

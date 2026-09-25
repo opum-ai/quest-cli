@@ -114,6 +114,40 @@ export function describeUnresolvedPackages(
   },
 ): Promise<{ lines: string[]; states: Record<string, string> }>;
 
+/**
+ * QCLI-304: everything after the writes. The wrapper is always checked by the
+ * plain anonymous read (a `read` in `consumerOptions` is ignored), and the
+ * success line prints only when that read resolves it.
+ */
+export function verifyPublishedRelease(options: {
+  version: string;
+  receipt: { readonly platforms: readonly { readonly packageName: string }[] };
+  receiptPath: string;
+  wrapperName: string;
+  verifyBundle: (
+    version: string,
+  ) => Promise<{ ok: boolean; problems: readonly string[] }>;
+  waitForReceipt?: (
+    receipt: never,
+    version: string,
+  ) => Promise<{
+    ok: boolean;
+    timedOut?: boolean;
+    attempts: number;
+    problems: readonly string[];
+  }>;
+  consumerOptions?: Record<string, unknown>;
+  describeUnresolved?: (
+    names: readonly string[],
+    version: string,
+  ) => Promise<{ lines: string[]; states: Record<string, string> }>;
+  log?: (message: string) => void;
+  logError?: (message: string) => void;
+}): Promise<{
+  ok: boolean;
+  stage: "receipt" | "bundle" | "wrapper" | "verified";
+}>;
+
 /** QCLI-350: the success line, naming each object beside its check. */
 export function describeVerifiedRelease(options: {
   version: string;
