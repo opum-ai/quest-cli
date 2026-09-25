@@ -29,6 +29,8 @@ export interface AgentPluginCheck {
   readonly id: string;
   readonly state: AgentPluginState;
   readonly version?: string;
+  /** The install scope that decided the state, where the runtime has one. */
+  readonly scope?: string;
   /** Why the state is not-detectable. */
   readonly reason?: string;
   /** What to run next, printed and never executed by init or --check. */
@@ -54,15 +56,19 @@ export function runtimeForTarget(
   return undefined;
 }
 
-export function questPluginUpdateCommand(runtime: AgentRuntime): string {
+export function questPluginUpdateCommand(
+  runtime: AgentRuntime,
+  scope?: string,
+): string {
   return runtime === "claude"
-    ? `claude plugin update ${questPluginId}`
+    ? `claude plugin update ${questPluginId}${scope !== undefined ? ` --scope ${scope}` : ""}`
     : `codex plugin marketplace upgrade ${marketplaceName} && codex plugin add ${questPluginId}`;
 }
 
 function remedyFor(
   runtime: AgentRuntime,
   state: AgentPluginState,
+  scope?: string,
 ): string | undefined {
   const cli = runtime === "claude" ? "claude" : "codex";
   if (state === "not-installed")
@@ -73,9 +79,9 @@ function remedyFor(
     // Codex has no enable command (codex-cli 0.155.1); enablement is this
     // config key, which is what its own list command reads.
     return runtime === "claude"
-      ? `${cli} plugin enable ${questPluginId}`
+      ? `${cli} plugin enable ${questPluginId}${scope !== undefined ? ` --scope ${scope}` : ""}`
       : `set enabled = true under [plugins."${questPluginId}"] in $CODEX_HOME/config.toml (default ~/.codex/config.toml)`;
-  if (state === "installed") return questPluginUpdateCommand(runtime);
+  if (state === "installed") return questPluginUpdateCommand(runtime, scope);
   return undefined;
 }
 
@@ -100,12 +106,13 @@ export async function detectQuestPlugin(
       : row.enabled === false
         ? "disabled"
         : "installed";
-  const remedy = remedyFor(runtime, state);
+  const remedy = remedyFor(runtime, state, row?.scope);
   return {
     runtime,
     id: questPluginId,
     state,
     ...(row?.version !== undefined ? { version: row.version } : {}),
+    ...(row?.scope !== undefined ? { scope: row.scope } : {}),
     ...(remedy !== undefined ? { remedy } : {}),
   };
 }
@@ -119,10 +126,15 @@ export async function detectQuestPlugin(
 export async function updateQuestPlugin(
   port: AgentPluginPort,
   runtime: AgentRuntime,
+  runtimeNamed: boolean,
 ): Promise<AgentPluginUpdateReport> {
   const detected = await detectQuestPlugin(port, runtime);
-  if (detected.state !== "installed") return { ...detected, update: "not-run" };
-  const outcome = await port.update(runtime, questPluginId);
+  // Ruling 25: consent covers only a runtime the user NAMED with --target.
+  // A bare call resolves to the codex default for the instructions, but for
+  // the plugin it reports and prints the update command without running it.
+  if (detected.state !== "installed" || !runtimeNamed)
+    return { ...detected, update: "not-run" };
+  const outcome = await port.update(runtime, questPluginId, detected.scope);
   const { remedy: _remedy, ...rest } = detected;
   return {
     ...rest,
@@ -130,6 +142,8 @@ export async function updateQuestPlugin(
     updateOk: outcome.ok,
     updateDetail: outcome.detail,
     // A failed update keeps its command visible so it can be run by hand.
-    ...(outcome.ok ? {} : { remedy: questPluginUpdateCommand(runtime) }),
+    ...(outcome.ok
+      ? {}
+      : { remedy: questPluginUpdateCommand(runtime, detected.scope) }),
   };
 }

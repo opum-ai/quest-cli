@@ -22,10 +22,10 @@ export function createAgentInstructionPort(root: string) {
 
 /** QCLI-371: reads and updates the opum-quest marketplace plugin through
  * each agent runtime's own CLI, unless QUEST_AGENT_PLUGINS=off. */
-export function createAgentPluginPort() {
+export function createAgentPluginPort(root: string) {
   return process.env.QUEST_AGENT_PLUGINS === "off"
     ? new DisabledAgentPluginPort()
-    : new CliAgentPluginPort();
+    : new CliAgentPluginPort(root);
 }
 
 export function createPlanningService(root: string): PlanningService {

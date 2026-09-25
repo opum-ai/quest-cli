@@ -179,7 +179,10 @@ for (const runtime of ["claude", "codex"] as const) {
     });
     expect(await calls()).toEqual(
       runtime === "claude"
-        ? ["claude plugin list --json", "claude plugin update opum-quest@opum"]
+        ? [
+            "claude plugin list --json",
+            "claude plugin update opum-quest@opum --scope user",
+          ]
         : [
             "codex plugin list --json",
             "codex plugin marketplace upgrade opum",
@@ -316,4 +319,132 @@ test("QUEST_AGENT_PLUGINS=off (the suite default) starts no runtime at all", asy
     update: "not-run",
   });
   expect(await calls()).toEqual([]);
+});
+
+// ---- QCLI-371 review findings and ruling 25 ----
+
+test("ruling 25: a bare --update-instructions names no runtime, so it reports and runs no plugin update", async () => {
+  await fake("codex", { listing: codexRow(true) });
+  const result = await quest("agents", "--update-instructions", "--json");
+  expect(result.exitCode).toBe(0);
+  expect(result.json.data.plugin).toMatchObject({
+    runtime: "codex",
+    state: "installed",
+    update: "not-run",
+  });
+  expect(result.json.data.plugin.remedy).toContain(
+    "codex plugin marketplace upgrade opum",
+  );
+  expect(await calls()).toEqual(["codex plugin list --json"]);
+});
+
+test("ruling 25: the Codex update says it refreshed the whole opum marketplace", async () => {
+  await fake("codex", { listing: codexRow(true) });
+  const result = await quest(
+    "agents",
+    "--update-instructions",
+    "--target",
+    "codex",
+    "--json",
+  );
+  expect(result.json.data.plugin.updateDetail).toContain(
+    "every opum plugin, including opum-lore",
+  );
+});
+
+test("claude scope: a local row for ANOTHER project is not this project's install, and is never updated", async () => {
+  await fake("claude", {
+    listing: JSON.stringify([
+      {
+        id: "opum-quest@opum",
+        scope: "local",
+        enabled: true,
+        projectPath: "/some/other/project",
+      },
+    ]),
+  });
+  const result = await quest(
+    "agents",
+    "--update-instructions",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(result.json.data.plugin).toMatchObject({
+    state: "not-installed",
+    update: "not-run",
+  });
+  expect(await calls()).toEqual(["claude plugin list --json"]);
+});
+
+test("claude scope: this project's disabled local row overrides an enabled user row, in either order", async () => {
+  for (const order of ["user-first", "local-first"] as const) {
+    const user = { id: "opum-quest@opum", scope: "user", enabled: true };
+    const local = {
+      id: "opum-quest@opum",
+      scope: "local",
+      enabled: false,
+      projectPath: root,
+    };
+    await fake("claude", {
+      listing: JSON.stringify(
+        order === "user-first" ? [user, local] : [local, user],
+      ),
+    });
+    const plugin = (
+      await quest("agents", "--check", "--target", "claude", "--json")
+    ).json.data.plugin;
+    expect({ order, state: plugin.state, scope: plugin.scope }).toEqual({
+      order,
+      state: "disabled",
+      scope: "local",
+    });
+  }
+});
+
+test("codex: a plugin only in available[] is not installed, and a row with no enabled field reads installed (never synthesised as disabled)", async () => {
+  await fake("codex", {
+    listing: JSON.stringify({
+      installed: [],
+      available: [{ pluginId: "opum-quest@opum", enabled: true }],
+    }),
+  });
+  expect(
+    (await quest("agents", "--check", "--target", "codex", "--json")).json.data
+      .plugin.state,
+  ).toBe("not-installed");
+  await fake("codex", {
+    listing: JSON.stringify({
+      installed: [{ pluginId: "opum-quest@opum", version: "1.0.0" }],
+    }),
+  });
+  expect(
+    (await quest("agents", "--check", "--target", "codex", "--json")).json.data
+      .plugin.state,
+  ).toBe("installed");
+});
+
+test("rows present but none readable (the list shape moved) is not-detectable, never not-installed", async () => {
+  await fake("claude", { listing: JSON.stringify([{ name: "opum-quest" }]) });
+  await fake("codex", {
+    listing: JSON.stringify({ installed: [{ id: "opum-quest@opum" }] }),
+  });
+  for (const runtime of ["claude", "codex"] as const) {
+    const plugin = (
+      await quest("agents", "--check", "--target", runtime, "--json")
+    ).json.data.plugin;
+    expect({ runtime, state: plugin.state }).toEqual({
+      runtime,
+      state: "not-detectable",
+    });
+  }
+});
+
+test("codex: a non-zero list exit is not-detectable even with a well-formed listing", async () => {
+  await fake("codex", { listing: codexRow(true), listExit: 2 });
+  const plugin = (
+    await quest("agents", "--check", "--target", "codex", "--json")
+  ).json.data.plugin;
+  expect(plugin.state).toBe("not-detectable");
+  expect(plugin.reason).toContain("exited 2");
 });

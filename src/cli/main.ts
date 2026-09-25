@@ -1354,7 +1354,7 @@ export async function runQuest(
               force:
                 'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover .claude/skills/quest/SKILL.md reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
               plugin:
-                'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions runs the update for an installed plugin (`claude plugin update opum-quest@opum`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`) and never installs or enables one. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
+                'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
                 'The skill file is target-independent and governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
             }
@@ -1505,7 +1505,7 @@ export async function runQuest(
           ),
         ];
         if (runtimes.length > 0) {
-          const pluginPort = createAgentPluginPort();
+          const pluginPort = createAgentPluginPort(process.cwd());
           plugins = {};
           for (const runtime of runtimes)
             plugins[runtime] = await detectQuestPlugin(pluginPort, runtime);
@@ -1715,8 +1715,15 @@ export async function runQuest(
         runtime === undefined
           ? undefined
           : check
-            ? await detectQuestPlugin(createAgentPluginPort(), runtime)
-            : await updateQuestPlugin(createAgentPluginPort(), runtime);
+            ? await detectQuestPlugin(
+                createAgentPluginPort(process.cwd()),
+                runtime,
+              )
+            : await updateQuestPlugin(
+                createAgentPluginPort(process.cwd()),
+                runtime,
+                targetValue !== undefined,
+              );
       return output(
         {
           schemaVersion: 1,

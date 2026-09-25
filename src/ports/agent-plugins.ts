@@ -12,6 +12,9 @@ export interface ListedAgentPlugin {
   readonly id: string;
   readonly enabled?: boolean;
   readonly version?: string;
+  /** The install scope whose row decided this entry, where the runtime has
+   * scopes (Claude: local, project, user, managed). */
+  readonly scope?: string;
 }
 
 /** A runtime's installed plugins, or why they could not be read. An
@@ -33,5 +36,6 @@ export interface AgentPluginPort {
   update(
     runtime: AgentRuntime,
     pluginId: string,
+    scope?: string,
   ): Promise<AgentPluginUpdateOutcome>;
 }

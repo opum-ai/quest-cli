@@ -362,8 +362,10 @@ runtime's own \`claude plugin list --json\` or \`codex plugin list --json\`:
 \`installed\`, \`disabled\` (installed but switched off, so its skill does not
 reach the agent), \`not-installed\`, or \`not-detectable\` (the runtime CLI is
 missing or its answer unreadable). \`init\` and \`--check\` only report, with the
-command to run next. \`--update-instructions\` runs the plugin update when the
-plugin is installed, and never installs or enables it. None of this changes an
+command to run next. \`--update-instructions --target <claude|codex>\` runs the plugin update when
+the plugin is installed, and never installs or enables it; with no \`--target\`
+it names no runtime, so it only reports. For Codex the update refreshes the
+whole opum marketplace, every opum plugin included, and says so in its output. None of this changes an
 exit code. Set \`QUEST_AGENT_PLUGINS=off\` to skip it, for example in a test
 suite that must not touch the machine's real agent install.
 
