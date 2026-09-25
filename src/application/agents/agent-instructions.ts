@@ -238,18 +238,33 @@ export async function inspectQuestAgentInstructions(
 
 export const questSkillPath = ".claude/skills/quest/SKILL.md";
 
-/** The bundled Quest skill, installed opt-in alongside the managed AGENTS.md
- * block. Entirely Quest-owned: unlike the managed block, the whole file is
- * either an exact match or drifted, never merged into surrounding content. */
-export const questSkillContent = `---
+/** Where the opum-quest Claude Code plugin's copy of the skill is committed,
+ * relative to the repository root. The marketplace federates the plugin from
+ * this repository at a release tag, so this file is what plugin users get. */
+export const pluginSkillRelPath = "skills/quest/SKILL.md";
+
+/** The Quest skill, generated for where it ships from. "repo" is the copy
+ * `quest agents` writes into a workspace; "plugin" is the committed
+ * pluginSkillRelPath. They differ only in the sentence saying where the skill
+ * came from, so the plugin copy cannot drift from what the CLI generates
+ * (QCLI-372). On a plugin-copy drift failure, regenerate it with
+ * `bun run scripts/plugin-skill.mjs --write`. */
+export function questSkillDoc(source: "repo" | "plugin"): string {
+  const provenance =
+    source === "plugin"
+      ? `This skill is a pointer, not a manual, installed from the \`opum-quest\` Claude Code
+plugin rather than generated into this repository. The guidance ships inside the CLI,
+so it cannot drift from the release you have installed:`
+      : `This skill is a pointer, not a manual. The guidance ships inside the CLI, so it cannot
+drift from the release you have installed:`;
+  return `---
 name: quest
 description: "Drive this repo's task tracker with the quest CLI instead of editing backlog/tracker state directly. Use whenever creating, listing, viewing, editing, completing, or archiving tasks, drafts, milestones, or decisions in a Quest-initialized workspace. Run \`quest instructions --list\` for the workflow guides and \`quest help [command]\` for full usage."
 ---
 
 # quest — tracker CLI
 
-This skill is a pointer, not a manual. The guidance ships inside the CLI, so it cannot
-drift from the release you have installed:
+${provenance}
 
 - \`quest instructions --list\` — the workflow guides, one line each.
 - \`quest instructions overview\` — start here.
@@ -258,6 +273,12 @@ drift from the release you have installed:
 
 Drive tracker state through \`quest\`, never by editing \`.quest/\` by hand.
 `;
+}
+
+/** The bundled Quest skill, installed opt-in alongside the managed AGENTS.md
+ * block. Entirely Quest-owned: unlike the managed block, the whole file is
+ * either an exact match or drifted, never merged into surrounding content. */
+export const questSkillContent = questSkillDoc("repo");
 
 /** True when this workspace generates no per-repo skill file, so absence is
  * the healthy state and a present file is orphaned rather than current.
