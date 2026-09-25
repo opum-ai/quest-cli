@@ -9,5 +9,11 @@
 # change re-examines every file it matches, and the committed darwin-arm64
 # binary is killed by AMFI when git re-reads it (see CLAUDE.md, "The AMFI
 # SIGKILL on the darwin-arm64 binary is armed by INDEX STATE").
+#
+# The root LICENSE too: off a release tag, build-platform-packages.mjs copies
+# it into every npm/quest-* directory, so an unpinned root LICENSE put the
+# CRLF straight back into the win32 packages on a branch build (run
+# 36088853907: package.json 0 CRs, LICENSE 21, until this line).
+LICENSE            text eol=lf
 npm/*/LICENSE      text eol=lf
 npm/*/package.json text eol=lf
