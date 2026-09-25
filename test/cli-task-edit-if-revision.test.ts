@@ -380,4 +380,6 @@ test("every by-value removal that misses under a stale --if-revision is a confli
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+  // 40 CLI spawns: 3s locally, past the 5s default on a loaded CI runner
+  // once source-gates began running this file (QCLI-375).
+}, 30_000);
