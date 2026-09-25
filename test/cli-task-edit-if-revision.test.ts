@@ -268,3 +268,116 @@ test("`task edit-batch` supports the same precondition per operation: a stale it
     await rm(root, { recursive: true, force: true });
   }
 }, 30_000);
+
+/**
+ * QCLI-374 (reported by opum-cli-e2e TASK-90). The single-edit path folded
+ * the patch before checking --if-revision, and folding throws the QCLI-297
+ * removal miss when a concurrent writer already removed the value. So the
+ * race this precondition exists to report surfaced as exit-6 validation,
+ * and a caller retrying on `conflict` (lore-cli LCLI-522) never retried.
+ * Enumerated over every by-value removal flag, as QCLI-297 is, because the
+ * miss is shared by all of them.
+ */
+const BY_VALUE_REMOVALS = [
+  "--remove-note",
+  "--remove-plan",
+  "--remove-label",
+  "--remove-assignee",
+  "--remove-reference",
+  "--remove-modified-file",
+  "--remove-dependency",
+  "--remove-comment",
+] as const;
+
+function revisionOf(root: string, taskId: string): string {
+  return JSON.parse(spawnQuest(root, ["task", "view", taskId, "--json"]).stdout)
+    .data.revision;
+}
+
+test("the reported race: a second writer removes the same label, and the stale removal is a conflict, not a miss (QCLI-374)", async () => {
+  const { root, taskId } = await seedWorkspace();
+  try {
+    for (const [add, remove, value] of [
+      ["--add-label", "--remove-label", "doc:S"],
+      ["--add-assignee", "--remove-assignee", "bob"],
+    ] as const) {
+      expect(
+        spawnQuest(root, ["task", "edit", taskId, add, value, ...HUMAN_ACTOR])
+          .exitCode,
+      ).toBe(0);
+      const read = revisionOf(root, taskId);
+      expect(
+        spawnQuest(root, [
+          "task",
+          "edit",
+          taskId,
+          remove,
+          value,
+          ...HUMAN_ACTOR,
+        ]).exitCode,
+      ).toBe(0);
+      const stale = spawnQuest(root, [
+        "task",
+        "edit",
+        taskId,
+        remove,
+        value,
+        "--if-revision",
+        read,
+        ...HUMAN_ACTOR,
+        "--json",
+      ]);
+      expect(stale.exitCode).toBe(5);
+      expect(JSON.parse(stale.stderr).error_type).toBe("conflict");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("every by-value removal that misses under a stale --if-revision is a conflict, and under a current one is still the QCLI-297 miss (QCLI-374)", async () => {
+  const { root, taskId } = await seedWorkspace();
+  try {
+    for (const flag of BY_VALUE_REMOVALS) {
+      const read = revisionOf(root, taskId);
+      expect(
+        spawnQuest(root, [
+          "task",
+          "edit",
+          taskId,
+          "--add-note",
+          `moved before ${flag}`,
+          ...HUMAN_ACTOR,
+        ]).exitCode,
+      ).toBe(0);
+      const stale = spawnQuest(root, [
+        "task",
+        "edit",
+        taskId,
+        flag,
+        "absent-value",
+        "--if-revision",
+        read,
+        ...HUMAN_ACTOR,
+        "--json",
+      ]);
+      expect({ flag, exit: stale.exitCode }).toEqual({ flag, exit: 5 });
+
+      const current = spawnQuest(root, [
+        "task",
+        "edit",
+        taskId,
+        flag,
+        "absent-value",
+        "--if-revision",
+        revisionOf(root, taskId),
+        ...HUMAN_ACTOR,
+        "--json",
+      ]);
+      expect({ flag, exit: current.exitCode }).toEqual({ flag, exit: 6 });
+      expect(JSON.parse(current.stderr).error_type).toBe("validation");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

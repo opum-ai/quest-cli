@@ -350,7 +350,16 @@ export async function dispatchTrackerTaskCommand(
       // one read, then apply the mutation from that same snapshot instead of
       // performing two independent full-collection reads per public edit.
       const prepared = await tasks.prepareMutation(request.reference);
-      const patch = buildEditPatch(prepared.task, request.patch, tasks);
+      // QCLI-374: a stale --if-revision must be refused as a conflict before
+      // the patch is folded, because folding validates removals against the
+      // CURRENT record and throws a QCLI-297 miss when a concurrent writer
+      // already removed the value. editOn then refuses the empty patch.
+      const stale =
+        request.ifRevision !== undefined &&
+        request.ifRevision !== prepared.snapshot.revision;
+      const patch = stale
+        ? {}
+        : buildEditPatch(prepared.task, request.patch, tasks);
       return {
         schemaVersion: 1,
         kind: "task.updated",
