@@ -44,7 +44,7 @@ try {
   );
 
   await run("lint");
-  await run("format:check-deliberately-broken");
+  await run("format:check");
 
   await mkdir(join(fixture, ".pooled-worktrees", "pooled-worktree"), {
     recursive: true,
