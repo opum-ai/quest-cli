@@ -1,4 +1,8 @@
 import { join } from "node:path";
+import {
+  CliAgentPluginPort,
+  DisabledAgentPluginPort,
+} from "../adapters/agents/cli-agent-plugins.ts";
 import { LocalAgentInstructionPort } from "../adapters/agents/local-agent-instructions.ts";
 import { BacklogImporter } from "../adapters/migration/backlog/importer.ts";
 import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
@@ -14,6 +18,14 @@ import {
 /** The sole CLI composition root permitted to construct concrete adapters. */
 export function createAgentInstructionPort(root: string) {
   return new LocalAgentInstructionPort(root);
+}
+
+/** QCLI-371: reads and updates the opum-quest marketplace plugin through
+ * each agent runtime's own CLI, unless QUEST_AGENT_PLUGINS=off. */
+export function createAgentPluginPort() {
+  return process.env.QUEST_AGENT_PLUGINS === "off"
+    ? new DisabledAgentPluginPort()
+    : new CliAgentPluginPort();
 }
 
 export function createPlanningService(root: string): PlanningService {
