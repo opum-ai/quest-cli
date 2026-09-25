@@ -16,6 +16,14 @@ on:
       - "scripts/check-package-artifacts.mjs"
       - "scripts/deliver-package-artifacts.mjs"
       - "scripts/test-package-artifact-delivery.mjs"
+      # QCLI-376: every other script a source-gates gate runs, and biome.json,
+      # which lint and format read, and bunfig.toml, whose preload every test
+      # run loads. A change to one of these alone used to fire no push run.
+      - "scripts/test-repository-check-scope.mjs"
+      - "scripts/check-lockfile-pins.mjs"
+      - "scripts/check-layers.mjs"
+      - "biome.json"
+      - "bunfig.toml"
       - "scripts/test-packed-packages.mjs"
       - "scripts/build-platform-packages.mjs"
       - "bin/**"
