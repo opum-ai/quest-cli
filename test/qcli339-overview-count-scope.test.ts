@@ -220,3 +220,50 @@ test("the JSON envelope keeps contractVersion at index 1 and principal last (QCL
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("overview's total equals what task list returns, over the same records (QCLI-329)", async () => {
+  const root = await workspace();
+  try {
+    for (const title of ["open", "done", "archived"])
+      expect(
+        quest(root, ["task", "create", title, ...ACTOR, "--json"]).exitCode,
+      ).toBe(0);
+    expect(
+      quest(root, [
+        "task",
+        "edit",
+        "T-2",
+        "--status",
+        "In Progress",
+        ...ACTOR,
+        "--json",
+      ]).exitCode,
+    ).toBe(0);
+    expect(
+      quest(root, ["task", "complete", "T-2", ...ACTOR, "--json"]).exitCode,
+    ).toBe(0);
+    expect(
+      quest(root, ["task", "archive", "T-3", ...ACTOR, "--json"]).exitCode,
+    ).toBe(0);
+    // Every location populated, so a reader that skips one cannot agree.
+    expect([
+      onDisk(root, "tasks"),
+      onDisk(root, "completed"),
+      onDisk(root, "archive/tasks"),
+    ]).toEqual([1, 1, 1]);
+
+    const listed = (args: readonly string[]) => {
+      const result = quest(root, ["task", "list", ...args, "--json"]);
+      expect(result.exitCode).toBe(0);
+      return (JSON.parse(result.stdout).data as { id: string }[]).length;
+    };
+    const result = overview(root);
+    expect(result.total).toBe(listed(["--include-archived"]));
+    expect(result.total - (result.byLocation?.["archive/tasks"] ?? 0)).toBe(
+      listed([]),
+    );
+    expect(listed([])).toBe(2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
