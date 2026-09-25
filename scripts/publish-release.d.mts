@@ -12,15 +12,46 @@ export interface TokenShape {
 export function tokenShape(token: string): TokenShape;
 export function isValidGranularTokenShape(shape: TokenShape): boolean;
 
+/**
+ * What a Keychain read established (QCLI-349). `absent` and `locked` have
+ * opposite remedies -- create a token, versus unlock the Keychain -- so they
+ * are never folded together. Only a `found` read carries the value.
+ */
+export type KeychainState =
+  | { readonly state: "found" }
+  | { readonly state: "absent" }
+  | { readonly state: "locked"; readonly exitCode: number }
+  | { readonly state: "unreadable"; readonly reason: string };
+
+export type KeychainRead =
+  | { readonly state: "found"; readonly token: string }
+  | Exclude<KeychainState, { state: "found" }>;
+
+export function findKeychainToken(
+  service: string,
+  execFileFn: (
+    file: string,
+    args: readonly string[],
+  ) => Promise<{ stdout: string }>,
+): Promise<KeychainRead>;
+export function classifyKeychainFailure(
+  error: { code?: number | string } | null | undefined,
+): Exclude<KeychainState, { state: "found" }>;
+export function describeKeychainState(
+  keychain: KeychainState,
+  keychainService?: string,
+): string;
+
 export interface ResolvedToken {
   readonly token: string | null;
   readonly source: string | null;
+  readonly keychain: KeychainState;
 }
 
 export function resolveToken(options?: {
   env?: Record<string, string | undefined>;
   keychainService?: string;
-  findKeychainPassword?: (service: string) => Promise<string | null>;
+  findKeychainPassword?: (service: string) => Promise<KeychainRead>;
 }): Promise<ResolvedToken>;
 
 export function isPublished(

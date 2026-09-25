@@ -839,7 +839,15 @@ security find-generic-password -s npm-opum-ai-publish >/dev/null; echo $?
 The clearing action is `security unlock-keychain` **at a terminal, by the
 owner**; it did clear the per-item ACL, and the publish then ran on the token
 route with **no OTP at any point**. Do not reach for OTP here, and do not go
-looking for a token to create. QCLI-349 tracks fixing the message.
+looking for a token to create.
+
+**Fixed by QCLI-349 (after 0.10.0):** the `Auth:` line now names the state it
+measured. Exit 36 reads as "the Keychain entry ... EXISTS but could not be
+read non-interactively" and names `security unlock-keychain`. Exit 44 reads as
+"no Keychain entry ... exists". Any other failure reads as "could not be
+checked". A real publish with the entry locked and no `--otp` now refuses with
+the unlock remedy. The message above is still what a script at 0.10.0 or
+earlier prints, so the presence check still applies there.
 
 Two related facts from the same release, both of which produced a confident
 wrong reading at the time. **npm's read API lags its writes by minutes, and its
