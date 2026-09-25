@@ -487,6 +487,14 @@ same gate and publishes the same files; it reads the receipt with the
 `E2E_RECEIPT_READ_TOKEN` secret, and refuses until one exists, because the
 job's own `GITHUB_TOKEN` cannot read a private repository.
 
+After publishing, both paths compare npm's `dist.integrity` for all seven
+packages with the bundle files (`scripts/qualification/bundle-integrity.mjs`,
+QCLI-368) and fail the release on any difference. `--verify-published`
+compares only the executables inside the tarballs, which is why it never saw
+0.9.0 and 0.10.0's win32 packages differ in LICENSE and package.json line
+endings. The CRLF came from the Windows runners' checkout, and is pinned to LF
+by `.gitattributes`.
+
 ```sh
 node scripts/publish-release.mjs --receipt native-execution-receipt.json --qualification-run <run-id>
 node scripts/publish-release.mjs --publish --otp <code> --receipt native-execution-receipt.json --qualification-run <run-id>
