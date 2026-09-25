@@ -109,3 +109,15 @@ export function qualifyBundle(options: {
     releaseRunId: string | number;
   }) => Promise<Partial<QualificationResult> & { ok: boolean; problems: string[] }>;
 }): Promise<Partial<QualificationResult> & { ok: boolean; problems: string[] }>;
+
+export function registryHoldsTarball(
+  pkgName: string,
+  version: string,
+  tarball: string,
+  options?: {
+    execFile?: (
+      command: string,
+      args: readonly string[],
+    ) => Promise<{ stdout: string; stderr: string }>;
+  },
+): Promise<{ ok: boolean; expected: string; actual: string }>;

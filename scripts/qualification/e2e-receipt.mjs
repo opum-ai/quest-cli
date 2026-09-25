@@ -39,6 +39,7 @@ export const RECEIPT_KIND = "opum.qualification-receipt.v1";
 export const RECEIPT_REPOSITORY = "opum-ai/opum-cli-e2e";
 export const PRODUCT = "quest";
 
+const OVERRIDE_FIELDS = Object.freeze(["by", "reason", "task", "adr"]);
 const COMMIT_HEX = /^[0-9a-f]{40}$/;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
@@ -137,8 +138,10 @@ export function evaluateReceipt(
       : {};
   if (recorded !== doc.tarballs)
     problems.push("receipt has no tarballs object");
+  // Object.hasOwn, never `in`: `in` also finds inherited properties, so a
+  // receipt naming `constructor` or `__proto__` would pass as a known archive.
   for (const [name, digest] of Object.entries(tarballs)) {
-    if (!(name in recorded))
+    if (!Object.hasOwn(recorded, name))
       problems.push(`${name}: not in the receipt, so it was never qualified`);
     else if (!SHA256_HEX.test(String(recorded[name])))
       problems.push(`${name}: receipt digest is not a sha256 hex digest`);
@@ -148,18 +151,34 @@ export function evaluateReceipt(
       );
   }
   for (const name of Object.keys(recorded))
-    if (!(name in tarballs))
+    if (!Object.hasOwn(tarballs, name))
       problems.push(
         `${name}: named in the receipt but not part of this release`,
       );
 
-  const override =
-    doc.override && typeof doc.override === "object" ? doc.override : null;
-  if (doc.override !== undefined && !override)
-    problems.push("override is present but is not an object");
+  // An override is a signed waiver, not a truthy value: it must carry the four
+  // fields the agreed format names, each a non-empty string, or it waives
+  // nothing and its banner would print an empty object.
+  let override = null;
+  if (doc.override !== undefined) {
+    const candidate = doc.override;
+    const shaped =
+      candidate && typeof candidate === "object" && !Array.isArray(candidate);
+    const missing = OVERRIDE_FIELDS.filter(
+      (field) =>
+        !shaped ||
+        typeof candidate[field] !== "string" ||
+        !candidate[field].trim(),
+    );
+    if (missing.length)
+      problems.push(
+        `override must name ${OVERRIDE_FIELDS.join(", ")} as non-empty strings; missing or empty: ${missing.join(", ")}`,
+      );
+    else override = candidate;
+  }
   // The key is verdict alone. The harness summary line can read NOT QUALIFIED
   // for reasons the verdict field already accounts for (opum-cli-e2e TASK-107).
-  if (doc.verdict !== "QUALIFIED" && !override)
+  if (doc.verdict !== "QUALIFIED" && !override && doc.override === undefined)
     problems.push(
       `verdict is ${JSON.stringify(doc.verdict)}, not "QUALIFIED", and the receipt carries no override`,
     );

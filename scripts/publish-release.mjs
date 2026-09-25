@@ -41,6 +41,7 @@
 // the end of a long day is exactly when the gates matter most.
 
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -202,6 +203,31 @@ export async function isPublished(
   } catch {
     return false;
   }
+}
+
+/**
+ * QCLI-366 review. A package already on the registry is skipped only when its
+ * bytes ARE the qualified tarball. `npm view ... version` answers "a version
+ * exists", which a publish made outside this gate -- a working-tree repack, or
+ * anything before QCLI-366 -- satisfies just as well, and skipping it would
+ * put a wrapper on npm that points at unqualified bytes.
+ */
+export async function registryHoldsTarball(
+  pkgName,
+  version,
+  tarball,
+  { execFile: execFileFn = execFile } = {},
+) {
+  const expected = `sha512-${createHash("sha512")
+    .update(await readFile(tarball))
+    .digest("base64")}`;
+  const { stdout } = await execFileFn("npm", [
+    "view",
+    `${pkgName}@${version}`,
+    "dist.integrity",
+  ]);
+  const actual = stdout.trim();
+  return { ok: actual === expected, expected, actual };
 }
 
 /**
@@ -438,8 +464,22 @@ async function main(argv) {
       platforms,
       wrapper,
       publish,
-      alreadyPublished: (name) =>
-        dryRun ? Promise.resolve(false) : isPublished(name, version),
+      alreadyPublished: async (name) => {
+        if (dryRun || !(await isPublished(name, version))) return false;
+        const target = [...platforms, wrapper].find(
+          (candidate) => candidate.name === name,
+        );
+        const held = await registryHoldsTarball(name, version, target.tarball);
+        if (!held.ok) {
+          console.error(
+            `\nRefusing to continue: ${name}@${version} is already on the registry, but not as the qualified tarball.\n` +
+              `  registry  ${held.actual}\n  qualified ${held.expected}\n` +
+              "It was published outside this gate. A version cannot be republished; this needs a new version, not a rerun. Do NOT run npm unpublish.",
+          );
+          process.exit(1);
+        }
+        return true;
+      },
       gate: (names) =>
         dryRun
           ? Promise.resolve({ ok: true, attempts: 0, missing: [] })

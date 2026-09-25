@@ -11,7 +11,10 @@ import {
   fetchReceipt,
   requireQualification,
 } from "../../../scripts/qualification/e2e-receipt.mjs";
-import { qualifyBundle } from "../../../scripts/publish-release.mjs";
+import {
+  qualifyBundle,
+  registryHoldsTarball,
+} from "../../../scripts/publish-release.mjs";
 
 /**
  * QCLI-366: publication refuses without an opum-cli-e2e qualification receipt
@@ -274,4 +277,64 @@ test("neither publisher offers an override outside the receipt", async () => {
     expect(source).not.toMatch(
       /--(skip|no|allow|force)[-a-z]*(qualif|receipt|e2e)/i,
     );
+});
+
+// QCLI-366 review findings, each proven against the real 0.10.0 bundle by the
+// reviewer before it was fixed here.
+
+test("a receipt naming an inherited property as an extra tarball refuses", async () => {
+  for (const key of ["constructor", "toString", "hasOwnProperty", "valueOf"]) {
+    const result = await gate(
+      receipt({ tarballs: { ...digests, [key]: "1".repeat(64) } }),
+    );
+    expect({ key, ok: result.ok }).toEqual({ key, ok: false });
+    expect(result.problems[0]).toContain(`${key}: named in the receipt`);
+  }
+  const proto = JSON.parse(
+    JSON.stringify(receipt()).replace(
+      '"tarballs":{',
+      `"tarballs":{"__proto__":"${"1".repeat(64)}",`,
+    ),
+  );
+  expect((await gate(proto)).ok).toBe(false);
+});
+
+test("an override without its four named fields waives nothing", async () => {
+  const full = { by: "a", reason: "b", task: "c", adr: "d" };
+  for (const override of [
+    {},
+    [],
+    "yes",
+    { ...full, reason: "  " },
+    { by: "a", reason: "b", task: "c" },
+  ]) {
+    const result = await gate(receipt({ verdict: "NOT QUALIFIED", override }));
+    expect(result.ok).toBe(false);
+    expect(result.override).toBeNull();
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]).toContain("override must name");
+  }
+});
+
+test("an already-published package is skipped only when the registry holds the qualified bytes", async () => {
+  const [name] = expectedTarballNames(VERSION);
+  const tarball = join(bundleDir, "tarballs", name);
+  const integrity = `sha512-${createHash("sha512")
+    .update(await readFile(tarball))
+    .digest("base64")}`;
+  const answering = (stdout: string) => async () => ({ stdout, stderr: "" });
+
+  const held = await registryHoldsTarball("@opum-ai/quest", VERSION, tarball, {
+    execFile: answering(`${integrity}\n`),
+  });
+  expect(held.ok).toBe(true);
+
+  const repacked = await registryHoldsTarball(
+    "@opum-ai/quest",
+    VERSION,
+    tarball,
+    { execFile: answering("sha512-somethingelse==\n") },
+  );
+  expect(repacked.ok).toBe(false);
+  expect(repacked.expected).toBe(integrity);
 });
