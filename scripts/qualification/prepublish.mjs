@@ -1,8 +1,8 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -73,16 +73,79 @@ async function runSourceGates() {
       "test:package-artifact-delivery",
     ]),
   );
-  for (const [name, path] of [
-    ["unit", "test/domain"],
-    ["contract", "test/contract"],
-    ["integration", "test/integration"],
-    ["black_box", "test/cli-tracker-process.test.ts"],
-    ["fault_clone_worktree", "test/fault/git/local-git.test.ts"],
-    ["migration", "test/e2e/migration"],
-    ["scale", "test/scale"],
-  ])
-    await attempt(() => command(name, "bun", ["test", path]));
+  const files = await testFiles();
+  await attempt(() => checkTestCoverage(files));
+  for (const [name, path] of TEST_GATES)
+    await attempt(() => command(name, "bun", ["test", `./${path}`]));
+  const topLevel = files.filter(
+    (file) => !file.includes("/", "test/".length) && !gatedBy(file),
+  );
+  await attempt(() =>
+    command("top_level", "bun", [
+      "test",
+      ...topLevel.map((file) => `./${file}`),
+    ]),
+  );
+}
+
+// QCLI-375: source-gates is the only required context that runs tests, so a
+// test file none of these gates names never runs in CI at all. Each gate is
+// named so a failure says which suite broke; every test file under test/ not
+// at its top level must fall under one of them, or be excluded here with a
+// written reason. Top-level files not named below run as `top_level`.
+const TEST_GATES = [
+  ["unit", "test/domain"],
+  ["contract", "test/contract"],
+  ["integration", "test/integration"],
+  ["black_box", "test/cli-tracker-process.test.ts"],
+  ["fault_clone_worktree", "test/fault/git/local-git.test.ts"],
+  ["migration", "test/e2e/migration"],
+  ["release", "test/e2e/release"],
+  ["scale", "test/scale"],
+];
+const TEST_EXCLUSIONS = {};
+
+function gatedBy(file) {
+  return TEST_GATES.find(
+    ([, path]) => file === path || file.startsWith(`${path}/`),
+  );
+}
+
+async function testFiles() {
+  const entries = await readdir(join(root, "test"), {
+    recursive: true,
+    withFileTypes: true,
+  });
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".test.ts"))
+    .map((entry) =>
+      relative(root, join(entry.parentPath, entry.name)).split(sep).join("/"),
+    )
+    .sort();
+}
+
+async function checkTestCoverage(files) {
+  const nested = files.filter((file) => file.includes("/", "test/".length));
+  const ungated = nested.filter(
+    (file) => !gatedBy(file) && !(file in TEST_EXCLUSIONS),
+  );
+  // A gate path that matches nothing is a gate that tests nothing and passes.
+  const empty = TEST_GATES.filter(
+    ([, path]) =>
+      !files.some((file) => file === path || file.startsWith(`${path}/`)),
+  ).map(([name]) => name);
+  const detail = {
+    filesRead: files.length,
+    topLevel: files.length - nested.length,
+    excluded: TEST_EXCLUSIONS,
+    ungated,
+    emptyGates: empty,
+  };
+  if (files.length === 0 || ungated.length > 0 || empty.length > 0) {
+    record("test_coverage", "failed", detail);
+    throw new Error("test_coverage");
+  }
+  record("test_coverage", "passed", detail);
 }
 
 async function runCandidateSmoke() {
