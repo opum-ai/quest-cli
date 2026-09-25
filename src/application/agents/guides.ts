@@ -338,9 +338,16 @@ AGENTS.md and installs the Quest skill at \`.claude/skills/quest/SKILL.md\`. The
 block is delimited and merged into surrounding content; the skill file is
 Quest-owned in full, so any edit to it reads as drift.
 
+\`--target\` picks the file: codex (AGENTS.md, the default), claude (CLAUDE.md) or
+antigravity (GEMINI.md), exactly one per call. Pass the same \`--target\` to
+\`--check\` that the block was written with. A \`--check\` with no \`--target\`
+reads AGENTS.md only, and exits 6 naming the \`--target\` to use when AGENTS.md
+has no Quest block but CLAUDE.md or GEMINI.md carries one.
+
 \`quest agents --check\` exits 0 when the block is current and 6 when it is
-missing, drifted or malformed. Add \`--require-installed\` and run it in CI to
-catch a Quest upgrade that moved the contract out from under a consumer. A
+drifted or malformed; a missing block exits 0 unless \`--require-installed\` is
+given, which makes it exit 6. Run it with \`--require-installed\` in CI to catch
+a Quest upgrade that moved the contract out from under a consumer. A
 block that differs from the installed CLI only in its one embedded version
 number reports \`"version-only"\` and exits 0 -- a routine patch/minor bump
 alone is not drift; any other difference still exits 6.

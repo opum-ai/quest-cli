@@ -393,7 +393,16 @@ test("--target claude writes and checks CLAUDE.md instead of AGENTS.md, end to e
 
     // Checking the other target reports missing: each --target checks exactly
     // one file, never both.
-    const codexMissing = await run(root, "agents", "--check", "--json");
+    // The codex target is named explicitly: a bare --check here refuses and
+    // names the --target to use instead (QCLI-373).
+    const codexMissing = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "codex",
+      "--json",
+    );
     expect(JSON.parse(codexMissing.stdout)).toMatchObject({
       data: { state: "missing" },
     });
@@ -458,7 +467,16 @@ test("--target antigravity writes and checks GEMINI.md instead of AGENTS.md, end
 
     // Checking a different target reports missing: each --target checks
     // exactly one file, never more than one.
-    const codexMissing = await run(root, "agents", "--check", "--json");
+    // The codex target is named explicitly: a bare --check here refuses and
+    // names the --target to use instead (QCLI-373).
+    const codexMissing = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "codex",
+      "--json",
+    );
     expect(JSON.parse(codexMissing.stdout)).toMatchObject({
       data: { state: "missing" },
     });

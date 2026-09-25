@@ -1342,7 +1342,7 @@ export async function runQuest(
                 "--check reports missing without failing unless --require-installed is present; strict missing exits 6.",
               drift: "Drift or malformed managed markers exit 6.",
               target:
-                "--target selects codex (AGENTS.md, the default) or claude (CLAUDE.md); each call checks or updates exactly one file.",
+                "--target selects codex (AGENTS.md, the default), claude (CLAUDE.md), or antigravity (GEMINI.md); each call checks or updates exactly one file. A --check with no --target checks AGENTS.md only, and exits 6 naming the --target to use when AGENTS.md has no Quest block but CLAUDE.md or GEMINI.md carries one.",
               force:
                 'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover .claude/skills/quest/SKILL.md reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
               skillSource:
@@ -1639,6 +1639,28 @@ export async function runQuest(
             force,
           );
       if (check) {
+        // QCLI-373: a bare --check reads AGENTS.md. When that file has no Quest
+        // block but another target's file does, exiting 0 would report on the
+        // wrong file; refuse and name the --target instead of guessing one.
+        if (
+          targetValue === undefined &&
+          instructionsResult.state === "missing"
+        ) {
+          const carrying: AgentInstructionTarget[] = [];
+          for (const other of ["claude", "antigravity"] as const) {
+            const otherResult = await inspectQuestAgentInstructions(
+              agentInstructionPort,
+              agentInstructionPathForTarget(other),
+              other,
+            );
+            if (otherResult.state !== "missing") carrying.push(other);
+          }
+          if (carrying.length > 0)
+            return failure(
+              "validation",
+              `No --target was given, so this checked ${agentInstructionPathForTarget("codex")} (the codex default), which has no Quest block; ${carrying.map((other) => `${agentInstructionPathForTarget(other)} carries one`).join(" and ")}. Re-run with ${carrying.map((other) => `--target ${other}`).join(" or ")}.`,
+            );
+        }
         if (instructionsResult.state === "drift")
           return failure("drift", instructionsResult.message);
         if (skillResult.state === "drift" || skillResult.state === "orphaned")
