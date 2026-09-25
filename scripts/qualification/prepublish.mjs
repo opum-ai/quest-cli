@@ -62,6 +62,11 @@ async function runSourceGates() {
   await attempt(() => command("biome", "bun", ["run", "lint"]));
   await attempt(() => command("format", "bun", ["run", "format:check"]));
   await attempt(() => command("layers", "bun", ["run", "layer:check"]));
+  // QCLI-292: CI's frozen install cannot see a stale bun.lock pin until the
+  // new version is published, so a bump PR has to be gated here instead.
+  await attempt(() =>
+    command("lockfile_pins", "bun", ["run", "check:lockfile"]),
+  );
   await attempt(() =>
     command("package_artifact_delivery", "bun", [
       "run",

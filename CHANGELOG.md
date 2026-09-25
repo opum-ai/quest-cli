@@ -35,6 +35,13 @@ history; this file is the forward-looking record.
   but the public packument does not list the version yet. It shows that no
   success line prints until a plain read lists the version. The runbook
   publish section now says what "verified" means. Release tooling only.
+- **A version bump now fails fast if `bun.lock` still pins the old platform
+  versions** (QCLI-292). CI's `bun install --frozen-lockfile` does not notice
+  at bump time, because the new version isn't on the registry yet. It failed
+  only after publish, on an unrelated pull request (the 0.6.2 breakage). The
+  new `lockfile_pins` source gate (`bun run check:lockfile`) compares the six
+  pins to `package.json` and names `bun install` as the fix. Release tooling
+  only.
 
 ## 0.10.0
 

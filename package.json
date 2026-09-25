@@ -41,6 +41,7 @@
     "layer:check": "node scripts/check-layers.mjs",
     "build:packages": "bun run scripts/build-platform-packages.mjs",
     "check:packages": "bun run scripts/check-package-artifacts.mjs",
+    "check:lockfile": "node scripts/check-lockfile-pins.mjs",
     "test:packages": "QUEST_AGENT_PLUGINS=off bun run scripts/test-packed-packages.mjs",
     "qualify:migration-artifact": "bun run scripts/qualification/migration-lifecycle.mjs",
     "deliver:packages": "bun run scripts/deliver-package-artifacts.mjs",
