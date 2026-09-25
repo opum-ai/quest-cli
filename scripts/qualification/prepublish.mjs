@@ -73,6 +73,13 @@ async function runSourceGates() {
       "test:package-artifact-delivery",
     ]),
   );
+  // QCLI-376: `bun run test` runs this first; nothing in CI ran it at all.
+  await attempt(() =>
+    command("repository_check_scope", "bun", [
+      "run",
+      "test:repository-check-scope",
+    ]),
+  );
   const files = await testFiles();
   await attempt(() => checkTestCoverage(files));
   for (const [name, path] of TEST_GATES)
