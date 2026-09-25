@@ -90,3 +90,34 @@ export function diagnoseStaged(
   state: PublishErrorState | "was-absent-now-published";
   detail: string | null;
 }>;
+
+// QCLI-366: the opum-cli-e2e qualification gate, with the GitHub reads and
+// the receipt gate injectable.
+
+import type { QualificationResult } from "./qualification/e2e-receipt.d.mts";
+
+export function qualifyBundle(options: {
+  runId: string | number;
+  commit: string;
+  version: string;
+  into: string;
+  gh?: (args: string[]) => Promise<{ stdout: string; stderr: string }>;
+  gate?: (input: {
+    bundleDir: string;
+    version: string;
+    commit: string;
+    releaseRunId: string | number;
+  }) => Promise<Partial<QualificationResult> & { ok: boolean; problems: string[] }>;
+}): Promise<Partial<QualificationResult> & { ok: boolean; problems: string[] }>;
+
+export function registryHoldsTarball(
+  pkgName: string,
+  version: string,
+  tarball: string,
+  options?: {
+    execFile?: (
+      command: string,
+      args: readonly string[],
+    ) => Promise<{ stdout: string; stderr: string }>;
+  },
+): Promise<{ ok: boolean; expected: string; actual: string }>;

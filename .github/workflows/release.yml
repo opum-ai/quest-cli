@@ -2,7 +2,9 @@ name: Release
 
 # Publication is never automatic. This runs only when a human dispatches it
 # against a release tag, and it refuses to publish anything unless a
-# native-execution receipt binds that exact commit and version (QCLI-135).
+# native-execution receipt binds that exact commit and version (QCLI-135),
+# and an opum-cli-e2e qualification receipt binds the exact tarballs it
+# publishes (QCLI-366).
 on:
   workflow_dispatch:
     inputs:
@@ -98,6 +100,7 @@ jobs:
       # commit, not passed in. A receipt supplied by the person publishing is
       # not evidence.
       - name: Fetch the native-execution receipt for this commit
+        id: qualification
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -112,9 +115,31 @@ jobs:
           test -n "$run_id" || { echo "No successful qualification run for ${GITHUB_SHA}"; exit 1; }
           echo "Receipt comes from qualification run ${run_id}"
           gh run download "$run_id" --name native-execution-receipt --dir receipt
+          # QCLI-366: the bundle from the SAME run is what gets published, so
+          # the tarballs opum-cli-e2e qualified are the files npm receives.
+          gh run download "$run_id" --name quest-candidate-bundle --dir candidate
+          echo "run_id=${run_id}" >> "$GITHUB_OUTPUT"
 
       - name: Gate on the receipt
         run: node scripts/qualification/native-execution-receipt.mjs --require --receipt receipt/native-execution-receipt.json
+
+      # QCLI-366, ADR harden-fleet-ci...-unqualified-publication ruling 3:
+      # hard-refuse without an opum-cli-e2e qualification receipt, on dry runs
+      # too, so a dry run answers "would this publish". opum-cli-e2e is
+      # private, so the job's own GITHUB_TOKEN reads a 404 and this refuses
+      # until a token that can read it is stored as E2E_RECEIPT_READ_TOKEN.
+      # That is the intended failure direction: an unreadable receipt is no
+      # receipt. The only override is one written into the receipt itself.
+      - name: Gate on the opum-cli-e2e qualification receipt
+        env:
+          GH_TOKEN: ${{ secrets.E2E_RECEIPT_READ_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/qualification/e2e-receipt.mjs --require \
+            --bundle candidate \
+            --run-id "${{ steps.qualification.outputs.run_id }}" \
+            --commit "${GITHUB_SHA}" \
+            --version "$(node -p "require('./package.json').version")"
 
       # QCLI-267. The tag, the commit and package.json must agree, and the
       # commit must be reachable from main. A tag outside the mainline is the
@@ -181,9 +206,12 @@ jobs:
         run: |
           set -euo pipefail
           unset NODE_AUTH_TOKEN
+          version=$(node -p "require('./package.json').version")
+          # The qualified archive, byte-for-byte -- never `npm publish` in the
+          # package directory, which repacks the working tree (QCLI-368).
           for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64; do
             echo "::group::@opum-ai/quest-${target}"
-            (cd "npm/quest-${target}" && npm publish --access public $DRY)
+            npm publish "candidate/tarballs/opum-ai-quest-${target}-${version}.tgz" --access public $DRY
             echo "::endgroup::"
           done
 
@@ -214,8 +242,9 @@ jobs:
         run: |
           set -euo pipefail
           unset NODE_AUTH_TOKEN
+          version=$(node -p "require('./package.json').version")
           echo "::group::@opum-ai/quest"
-          npm publish --access public $DRY
+          npm publish "candidate/tarballs/opum-ai-quest-${version}.tgz" --access public $DRY
           echo "::endgroup::"
 
       # Retries, because npm's CDN does not serve a version the instant the

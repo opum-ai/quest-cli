@@ -41,6 +41,7 @@
 // the end of a long day is exactly when the gates matter most.
 
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -53,6 +54,10 @@ import {
   waitForPublished,
 } from "./qualification/native-execution-receipt.mjs";
 import {
+  describeOverride,
+  requireQualification,
+} from "./qualification/e2e-receipt.mjs";
+import {
   classifyPublishError,
   classifyVersion,
   describeVersionState,
@@ -63,6 +68,9 @@ const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const KEYCHAIN_SERVICE = "npm-opum-ai-publish";
+const REPOSITORY = "opum-ai/quest-cli";
+const QUALIFICATION_WORKFLOW =
+  ".github/workflows/prepublication-qualification.yml";
 
 async function run(args, cwd, envOverrides = {}) {
   const { stdout, stderr } = await execFile("npm", args, {
@@ -125,6 +133,59 @@ export async function resolveToken({
 }
 
 /**
+ * QCLI-366. Fetches the candidate bundle the release is made of and gates it
+ * on an opum-cli-e2e qualification receipt, before anything touches npm.
+ *
+ * The run id is the only input. The bundle is downloaded from that run rather
+ * than accepted as a directory, and the run is checked to be this repository's
+ * prepublication qualification of this exact commit, so "these tarballs came
+ * from run N" is established here rather than asserted by whoever runs this.
+ */
+export async function qualifyBundle({
+  runId,
+  commit,
+  version,
+  into,
+  gh = (args) => execFile("gh", args, { maxBuffer: 32 * 1024 * 1024 }),
+  gate = requireQualification,
+}) {
+  if (!/^[0-9]+$/.test(String(runId ?? "")))
+    return {
+      ok: false,
+      problems: [`--qualification-run must be a numeric run id, got ${runId}`],
+    };
+  const { stdout } = await gh([
+    "api",
+    `repos/${REPOSITORY}/actions/runs/${runId}`,
+  ]);
+  const run = JSON.parse(stdout);
+  const problems = [];
+  if (run.path !== QUALIFICATION_WORKFLOW)
+    problems.push(`run ${runId} is ${run.path}, not ${QUALIFICATION_WORKFLOW}`);
+  if (run.head_sha !== commit)
+    problems.push(
+      `run ${runId} qualified ${run.head_sha}, the release is ${commit}`,
+    );
+  if (run.conclusion !== "success")
+    problems.push(
+      `run ${runId} concluded ${JSON.stringify(run.conclusion)}, not success`,
+    );
+  if (problems.length) return { ok: false, problems };
+  await gh([
+    "run",
+    "download",
+    String(runId),
+    "--repo",
+    REPOSITORY,
+    "--name",
+    "quest-candidate-bundle",
+    "--dir",
+    into,
+  ]);
+  return gate({ bundleDir: into, version, commit, releaseRunId: runId });
+}
+
+/**
  * Resumability (QCLI-285): a target already on the registry at this exact
  * version is skipped, not re-attempted. Combined with fail-closed
  * platform-then-root ordering, this is what makes a rerun after a partial
@@ -142,6 +203,31 @@ export async function isPublished(
   } catch {
     return false;
   }
+}
+
+/**
+ * QCLI-366 review. A package already on the registry is skipped only when its
+ * bytes ARE the qualified tarball. `npm view ... version` answers "a version
+ * exists", which a publish made outside this gate -- a working-tree repack, or
+ * anything before QCLI-366 -- satisfies just as well, and skipping it would
+ * put a wrapper on npm that points at unqualified bytes.
+ */
+export async function registryHoldsTarball(
+  pkgName,
+  version,
+  tarball,
+  { execFile: execFileFn = execFile } = {},
+) {
+  const expected = `sha512-${createHash("sha512")
+    .update(await readFile(tarball))
+    .digest("base64")}`;
+  const { stdout } = await execFileFn("npm", [
+    "view",
+    `${pkgName}@${version}`,
+    "dist.integrity",
+  ]);
+  const actual = stdout.trim();
+  return { ok: actual === expected, expected, actual };
 }
 
 /**
@@ -243,6 +329,7 @@ async function main(argv) {
   const dryRun = !argv.includes("--publish");
   const otp = flag("--otp");
   const receiptPath = flag("--receipt");
+  const qualificationRun = flag("--qualification-run");
   // Opt-in, because the thing it does that a read cannot is WRITE: it
   // re-attempts the publish so that a 409 can say "staged" out loud.
   const diagnoseStagedRequested = argv.includes("--diagnose-staged");
@@ -271,6 +358,41 @@ async function main(argv) {
     `Receipt binds ${version} at ${commit.slice(0, 7)} across all six platforms.`,
   );
 
+  // QCLI-366: the opum-cli-e2e gate, in dry runs as well as real ones, so a
+  // dry run answers "would this publish" rather than a weaker question.
+  if (!qualificationRun)
+    throw new Error(
+      "--qualification-run <id> is required: the prepublication-qualification run on the release tag whose quest-candidate-bundle is published, and which opum-cli-e2e's receipt must name",
+    );
+  const bundleDir = await mkdtemp(join(tmpdir(), "quest-publish-bundle-"));
+  const qualified = await qualifyBundle({
+    runId: qualificationRun,
+    commit,
+    version,
+    into: bundleDir,
+  });
+  if (!qualified.ok) {
+    console.error(
+      `Refusing to publish ${version} at ${commit.slice(0, 7)}: no opum-cli-e2e qualification receipt binds these bytes (ADR harden-fleet-ci...-unqualified-publication, ruling 3).`,
+    );
+    for (const problem of qualified.problems) console.error(`  - ${problem}`);
+    console.error(
+      "An override is honoured only when opum-cli-e2e writes it into the receipt itself; there is no flag or variable for it here.",
+    );
+    await rm(bundleDir, { recursive: true, force: true });
+    process.exit(1);
+  }
+  if (qualified.override)
+    console.log(describeOverride(qualified.override, qualified.source));
+  console.log(
+    `opum-cli-e2e receipt ${qualified.source} binds ${version} at ${commit.slice(0, 7)}, run ${qualificationRun}, and all ${Object.keys(qualified.bundle.tarballs).length} tarballs. Publishing those files byte-for-byte.`,
+  );
+  const tarballFor = (name) =>
+    join(
+      qualified.bundle.directory,
+      `${name.replace("@", "").replace("/", "-")}-${version}.tgz`,
+    );
+
   const { token, source } = await resolveToken();
   let tempNpmrcDir;
   let envOverrides = {};
@@ -298,15 +420,24 @@ async function main(argv) {
   }
 
   try {
+    // Every target publishes the qualified archive, never the package
+    // directory: `npm publish <dir>` repacks the working tree, and those bytes
+    // are not the ones the receipt binds (QCLI-368).
     const platforms = REQUIRED_PLATFORMS.map((platform) => ({
       name: `@opum-ai/quest-${platform}`,
-      cwd: join(root, "npm", `quest-${platform}`),
+      cwd: root,
+      tarball: tarballFor(`@opum-ai/quest-${platform}`),
     }));
-    const wrapper = { name: "@opum-ai/quest", cwd: root };
+    const wrapper = {
+      name: "@opum-ai/quest",
+      cwd: root,
+      tarball: tarballFor("@opum-ai/quest"),
+    };
 
     const publish = async (target) => {
       const args = [
         "publish",
+        target.tarball,
         "--access",
         "public",
         ...(dryRun ? ["--dry-run"] : []),
@@ -333,8 +464,22 @@ async function main(argv) {
       platforms,
       wrapper,
       publish,
-      alreadyPublished: (name) =>
-        dryRun ? Promise.resolve(false) : isPublished(name, version),
+      alreadyPublished: async (name) => {
+        if (dryRun || !(await isPublished(name, version))) return false;
+        const target = [...platforms, wrapper].find(
+          (candidate) => candidate.name === name,
+        );
+        const held = await registryHoldsTarball(name, version, target.tarball);
+        if (!held.ok) {
+          console.error(
+            `\nRefusing to continue: ${name}@${version} is already on the registry, but not as the qualified tarball.\n` +
+              `  registry  ${held.actual}\n  qualified ${held.expected}\n` +
+              "It was published outside this gate. A version cannot be republished; this needs a new version, not a rerun. Do NOT run npm unpublish.",
+          );
+          process.exit(1);
+        }
+        return true;
+      },
       gate: (names) =>
         dryRun
           ? Promise.resolve({ ok: true, attempts: 0, missing: [] })
@@ -382,6 +527,7 @@ async function main(argv) {
               run(
                 [
                   "publish",
+                  candidate.tarball,
                   "--access",
                   "public",
                   ...(!token && otp ? ["--otp", otp] : []),
@@ -456,6 +602,7 @@ async function main(argv) {
     );
   } finally {
     if (tempNpmrcDir) await rm(tempNpmrcDir, { recursive: true, force: true });
+    await rm(bundleDir, { recursive: true, force: true });
   }
 }
 
