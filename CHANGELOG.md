@@ -6,6 +6,18 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
+### Fixed
+
+- **`scripts/publish-release.mjs` no longer reports a locked Keychain entry as
+  a missing token** (QCLI-349). It used to treat every `security` failure the
+  same way and print "no stored token found", which points at the wrong fix. A
+  non-interactive read that fails with exit 36 (`errSecInteractionNotAllowed`)
+  now says the entry exists and names `security unlock-keychain`. Exit 44 still
+  says to create and store a token. Any other failure is reported as "could not
+  be checked". A real publish with the entry locked and no `--otp` refuses with
+  the unlock remedy. This is release tooling only; no command, flag, envelope
+  or exit code of `quest` changed.
+
 ## 0.10.0
 
 This release is minor rather than patch for one reason: the managed-block

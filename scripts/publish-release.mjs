@@ -100,7 +100,20 @@ export function isValidGranularTokenShape(shape) {
   return shape.prefix === "npm_" && shape.length === 40 && !shape.hasWhitespace;
 }
 
-async function findKeychainToken(service, execFileFn) {
+// `security` exit codes that decide the remedy (QCLI-349). A locked entry and a
+// missing one used to be reported identically, as "no stored token", which
+// sent the reader to create a credential that already existed.
+const SECURITY_INTERACTION_NOT_ALLOWED = 36; // errSecInteractionNotAllowed
+const SECURITY_ITEM_NOT_FOUND = 44; // errSecItemNotFound
+
+/**
+ * Reads the token and says which state the entry is in: `found`, `absent`
+ * (nothing stored, or an empty value), `locked` (present, but the item's ACL
+ * wants a prompt a non-interactive shell cannot answer), or `unreadable`
+ * (anything else, `security` missing included). Only `found` carries the
+ * value; every other state leaves the next mechanism to be tried.
+ */
+export async function findKeychainToken(service, execFileFn) {
   try {
     const { stdout } = await execFileFn("security", [
       "find-generic-password",
@@ -109,30 +122,68 @@ async function findKeychainToken(service, execFileFn) {
       "-w",
     ]);
     const token = stdout.trim();
-    return token || null;
-  } catch {
-    // Not found, wrong account, or `security` unavailable on this platform --
-    // all fall through to the next mechanism rather than fail here.
-    return null;
+    return token ? { state: "found", token } : { state: "absent" };
+  } catch (error) {
+    return classifyKeychainFailure(error);
   }
+}
+
+/** Maps a failed `security` call to a Keychain state. Never sees a value. */
+export function classifyKeychainFailure(error) {
+  const code = error?.code;
+  if (code === SECURITY_ITEM_NOT_FOUND) return { state: "absent" };
+  if (code === SECURITY_INTERACTION_NOT_ALLOWED)
+    return { state: "locked", exitCode: code };
+  if (code === "ENOENT")
+    return { state: "unreadable", reason: "security is not available" };
+  return {
+    state: "unreadable",
+    reason:
+      typeof code === "number"
+        ? `security exited ${code}`
+        : `security failed (${code ?? "no exit code"})`,
+  };
 }
 
 /**
  * Tries the Keychain, then $NPM_TOKEN. Returns `{ token: null, source: null }`
  * when neither is present, which the caller reads as "fall back to
  * interactive npm login + --otp" rather than an error: not having a stored
- * token is a normal, supported state.
+ * token is a normal, supported state. `keychain` carries the Keychain read's
+ * state either way, so the caller can say WHY the Keychain supplied nothing.
  */
 export async function resolveToken({
   env = process.env,
   keychainService = KEYCHAIN_SERVICE,
   findKeychainPassword = (service) => findKeychainToken(service, execFile),
 } = {}) {
-  const fromKeychain = await findKeychainPassword(keychainService);
-  if (fromKeychain)
-    return { token: fromKeychain, source: `Keychain (${keychainService})` };
-  if (env.NPM_TOKEN) return { token: env.NPM_TOKEN, source: "NPM_TOKEN" };
-  return { token: null, source: null };
+  const { token, ...keychain } = await findKeychainPassword(keychainService);
+  if (keychain.state === "found")
+    return { token, source: `Keychain (${keychainService})`, keychain };
+  if (env.NPM_TOKEN)
+    return { token: env.NPM_TOKEN, source: "NPM_TOKEN", keychain };
+  return { token: null, source: null, keychain };
+}
+
+/**
+ * The Keychain half of the auth report, worded per state so the two remedies
+ * are never presented interchangeably: `absent` means create and store a
+ * token, `locked` means unlock the Keychain at a terminal and create nothing.
+ */
+export function describeKeychainState(
+  keychain,
+  keychainService = KEYCHAIN_SERVICE,
+) {
+  switch (keychain.state) {
+    case "found":
+      return `the Keychain entry ${keychainService} was read`;
+    case "absent":
+      return `no Keychain entry ${keychainService} exists; to use the token route, create an npm granular access token and store it under that service`;
+    case "locked":
+      return `the Keychain entry ${keychainService} EXISTS but could not be read non-interactively (security exit ${keychain.exitCode}, errSecInteractionNotAllowed); run \`security unlock-keychain\` at a terminal and re-run -- there is no token to create, and the token route needs no --otp`;
+    default:
+      return `the Keychain entry ${keychainService} could not be checked (${keychain.reason}); this is neither a confirmed absence nor a locked entry`;
+  }
 }
 
 /**
@@ -376,11 +427,15 @@ async function main(argv) {
       `${name.replace("@", "").replace("/", "-")}-${version}.tgz`,
     );
 
-  const { token, source } = await resolveToken();
+  const { token, source, keychain } = await resolveToken();
   let tempNpmrcDir;
   let envOverrides = {};
   if (token) {
     const shape = tokenShape(token);
+    if (source === "NPM_TOKEN" && keychain.state !== "absent")
+      console.log(
+        `Auth: NPM_TOKEN used because ${describeKeychainState(keychain)}.`,
+      );
     console.log(
       `Auth: using a token from ${source} (length=${shape.length} prefix=${shape.prefix} whitespace=${shape.hasWhitespace ? "YES" : "no"}); ~/.npmrc left untouched.`,
     );
@@ -394,11 +449,13 @@ async function main(argv) {
     envOverrides = { npm_config_userconfig: npmrcPath };
   } else {
     console.log(
-      "Auth: no stored token found (Keychain or NPM_TOKEN); falling back to the interactive npm login session. Each publish call will need --otp.",
+      `Auth: no token from the Keychain or NPM_TOKEN -- ${describeKeychainState(keychain)}. Falling back to the interactive npm login session, where each publish call needs --otp.`,
     );
     if (!dryRun && !otp)
       throw new Error(
-        "--otp <code> is required for a real publish when no token is configured; the account has 2FA and npm will reject the write without one",
+        keychain.state === "locked"
+          ? `No usable token: ${describeKeychainState(keychain)}. Passing --otp <code> instead publishes through the interactive npm login session.`
+          : "--otp <code> is required for a real publish when no token is configured; the account has 2FA and npm will reject the write without one",
       );
   }
 

@@ -526,7 +526,7 @@ start of a run so the operator knows which one is active:
    *temporary* npmrc for the run only (`npm_config_userconfig`); `~/.npmrc`
    is never touched, and no `--otp` is required or sent.
 
-   **"no stored token found" does NOT mean there is no token, and this is the
+   **A Keychain entry that exists can still yield no token, and this is the
    single most likely thing to stall the next release.** Measured during the
    0.9.0 publish, 2026-09-18: the Keychain entry existed and was perfectly
    valid, while reading it from a non-interactive shell (an agent session, a
@@ -538,12 +538,22 @@ start of a run so the operator knows which one is active:
    # non-interactive shell cannot answer
    ```
 
-   `findKeychainToken` catches every `security` failure identically and
-   returns `null`, so the run reports the credential as ABSENT and announces
-   it will need `--otp`. **Absent and present-but-unreadable have opposite
-   remedies** -- create and store a token, versus unlock the keychain -- and
-   the message names the wrong one. Do not go looking for a token to create.
-   Check first:
+   **Absent and present-but-unreadable have opposite remedies** -- create and
+   store a token, versus unlock the keychain. Up to 0.10.0 the script caught
+   every `security` failure identically and printed "no stored token found
+   (Keychain or NPM_TOKEN)", which names the wrong one. Since QCLI-349 the
+   `Auth:` line names the state it measured:
+
+   | `security` result | reported as | remedy |
+   |---|---|---|
+   | exit 0, non-empty value | token used | none |
+   | exit 44 (errSecItemNotFound), or an empty value | no entry exists | create and store a token (above) |
+   | exit 36 (errSecInteractionNotAllowed) | entry EXISTS, could not be read | `security unlock-keychain` at a terminal; create nothing |
+   | anything else, `security` missing included | could not be checked | neither of the above; read the named failure |
+
+   A real publish with the entry locked and no `--otp` refuses with the
+   unlock remedy rather than asking for an OTP. With an older script, or to
+   check by hand without reading the value:
 
    ```sh
    security find-generic-password -s npm-opum-ai-publish >/dev/null; echo $?
@@ -553,10 +563,8 @@ start of a run so the operator knows which one is active:
    If it exists, the clearing action is `security unlock-keychain` **at a
    terminal**, by the owner. Confirmed to work: after the unlock the same
    `-w` read returned exit 0 with a valid granular shape, and the publish ran
-   on the token route with no OTP at any point. QCLI-349 tracks making the
-   tool say this itself, which is the fix that removes the judgement; until
-   it lands, this paragraph is the thing standing between the next session
-   and a wrong diagnosis.
+   on the token route with no OTP at any point. Do not go looking for a token
+   to create, and do not reach for `--otp`.
 
 2. **An interactive `npm login` session**, with `--otp <code>` on the real
    publish. This is the human path and needs 2FA at the point of the write,
