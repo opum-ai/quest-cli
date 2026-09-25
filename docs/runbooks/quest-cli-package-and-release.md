@@ -814,6 +814,36 @@ cannot do: it re-attempts the publish, where a 409 "previously staged" means
 staged and a success means it never landed. That costs a write, which is why it
 is a flag and not part of the poll.
 
+### What "verified" means at the end of a publish
+
+The wrapper gets the same consumer-side read, after its own write (QCLI-304).
+The script prints `Published @opum-ai/quest@<v>. Verified:` only after all
+three of these pass, in this order:
+
+1. the six platform packages match the qualification receipt
+   (`waitForPublished`);
+2. all seven tarballs npm serves have the qualified bundle's integrity
+   (`verifyRegistryHoldsBundle`, through npm's own client);
+3. `@opum-ai/quest@<v>` resolves from the plain anonymous read above and is
+   still there after the 30s settle margin (`waitForConsumerVisibility`).
+
+The line names each object next to its check. If the third check does not pass
+inside the window, the script exits 1 saying the release is NOT verified yet,
+prints the wrapper's state, and warns against `npm unpublish`. The code is
+`verifyPublishedRelease`, and
+`test/qcli304-wrapper-post-publish-verification.test.ts` makes the lag happen
+through the real read.
+
+**Why the third check exists: 0.7.1, 2026-09-15.** The script printed
+"@opum-ai/quest 0.7.1 published and verified (1 check)" and exited 0. Seconds
+later, at 16:03:02Z, `npm install -g @opum-ai/quest@0.7.1` failed with
+`notarget`. A plain read of `registry.npmjs.org/@opum-ai/quest/0.7.1` returned
+"version not found", and the packument still showed `latest` at 0.7.0. The
+wrapper first resolved from a plain read at 16:04:06Z, about a minute after
+"verified" (packument `time.modified` 16:03:39Z). The first two checks read
+through paths that see a write before the public read does. So they cannot
+be the last word on whether a consumer can install.
+
 ## Rollback
 
 Before publication, discard only candidate artifacts and keep the evidence

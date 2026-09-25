@@ -46,12 +46,6 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-
-import {
-  REQUIRED_PLATFORMS,
-  validateReceipt,
-  waitForPublished,
-} from "./qualification/native-execution-receipt.mjs";
 import {
   registryHoldsTarball,
   verifyRegistryHoldsBundle,
@@ -60,6 +54,11 @@ import {
   describeOverride,
   requireQualification,
 } from "./qualification/e2e-receipt.mjs";
+import {
+  REQUIRED_PLATFORMS,
+  validateReceipt,
+  waitForPublished,
+} from "./qualification/native-execution-receipt.mjs";
 import {
   classifyPublishError,
   classifyVersion,
@@ -329,6 +328,115 @@ export async function describeUnresolvedPackages(
     lines.push(...describeVersionState(name, version, classification));
   }
   return { lines, states };
+}
+
+/**
+ * Everything after the writes, with every read injected so the wrapper's
+ * consumer-side check can be driven to fail on purpose (QCLI-304). The success
+ * line prints only on the last path through here, after a plain anonymous
+ * read resolves the wrapper -- never on a write returning success, and never
+ * on the publishing client's own read, which sees a write early (0.7.1: about
+ * a minute before the first public read did).
+ *
+ * Returns `{ ok, stage }`, naming the check that stopped it: `receipt`,
+ * `bundle`, `wrapper`, or `verified`.
+ */
+export async function verifyPublishedRelease({
+  version,
+  receipt,
+  receiptPath,
+  wrapperName,
+  verifyBundle,
+  waitForReceipt = waitForPublished,
+  // Passed through to the consumer gate: `fetchImpl`, `now`, `sleep` and so on.
+  // A `read` in here is ignored, so a test drives the real anonymous read.
+  consumerOptions = {},
+  describeUnresolved = describeUnresolvedPackages,
+  log = console.log,
+  logError = console.error,
+}) {
+  log(
+    "\nWaiting for the registry to serve what was just published. npm's write already succeeded; its read API can lag behind it by minutes...",
+  );
+  const wait = await waitForReceipt(receipt, version);
+  if (!wait.ok) {
+    if (wait.timedOut) {
+      // What this used to say -- "npm ALREADY CONFIRMED this publish
+      // succeeded above, this is registry lag, not a failed release" -- was
+      // an assertion the script had not verified at the moment it printed
+      // it, and on 0.7.0 it was wrong about the one package that decided
+      // whether the release shipped. The unpublish warning stays: that half
+      // is protecting against a genuinely destructive action.
+      logError(
+        `\nThe registry still does not reflect every published byte after ${wait.attempts} check(s) across the full wait window.\n` +
+          "npm's write returned success for every package above. That is NOT evidence the release is fine --\n" +
+          "a version can be accepted into a STAGED state: reserved, non-public, and awaiting a 2FA approval.\n" +
+          "Nor is it evidence of failure: on 0.9.0 a package that had landed stayed invisible for minutes.\n" +
+          "Do NOT run npm unpublish.\n\nPer-package state, read from the public registry just now:",
+      );
+      const { lines } = await describeUnresolved(
+        [...receipt.platforms.map((entry) => entry.packageName), wrapperName],
+        version,
+      );
+      for (const line of lines) logError(line);
+      logError(
+        "\nOnce every line above reads public, re-run just the verification:\n" +
+          `  node scripts/qualification/native-execution-receipt.mjs --verify-published ${version} --receipt ${receiptPath}\n`,
+      );
+    } else {
+      logError(
+        `\nReceipt does not describe the bytes published as ${version}:`,
+      );
+    }
+    for (const problem of wait.problems) logError(`  - ${problem}`);
+    return { ok: false, stage: "receipt" };
+  }
+  // QCLI-368: the executables matching is not the tarballs matching. Only
+  // the whole-tarball comparison sees a difference outside the binary.
+  const served = await verifyBundle(version);
+  if (!served.ok) {
+    logError(
+      `\nnpm does not serve the qualified bundle for ${version}. Do NOT run npm unpublish.`,
+    );
+    for (const problem of served.problems) logError(`  - ${problem}`);
+    return { ok: false, stage: "bundle" };
+  }
+  // QCLI-350: neither check above is a consumer's read of the wrapper.
+  // waitForPublished verifies the platforms against the receipt, and the
+  // integrity comparison goes through the publishing npm client, which reads
+  // early. On 0.9.0 the old success line printed while an anonymous read
+  // of the wrapper still returned 404.
+  log(
+    `\nConfirming ${wrapperName}@${version} resolves for a consumer, with the same anonymous read that gated the platform packages...`,
+  );
+  // `read` is dropped so the wrapper is always checked by the plain HTTPS read.
+  const { read: _read, ...gateOptions } = consumerOptions;
+  const wrapperVisibility = await waitForConsumerVisibility(
+    [wrapperName],
+    version,
+    gateOptions,
+  );
+  if (!wrapperVisibility.ok) {
+    logError(
+      `\n${wrapperName}@${version} does not resolve for a consumer after ${wrapperVisibility.attempts} check(s) across the full wait window.\n` +
+        "Its publish returned success and npm's own client reads it with the qualified integrity, so this is\n" +
+        "NOT a verified release yet. Do NOT run npm unpublish.\n\nState, read from the public registry just now:",
+    );
+    const { lines } = await describeUnresolved([wrapperName], version);
+    for (const line of lines) logError(line);
+    return { ok: false, stage: "wrapper" };
+  }
+  log(
+    describeVerifiedRelease({
+      version,
+      wrapperName,
+      platformCount: receipt.platforms.length,
+      receiptChecks: wait.attempts,
+      wrapperPublishedAt:
+        wrapperVisibility.lastSeen?.[wrapperName]?.publishedAt ?? null,
+    }),
+  );
+  return { ok: true, stage: "verified" };
 }
 
 /**
@@ -622,93 +730,16 @@ async function main(argv) {
       return;
     }
 
-    console.log(
-      "\nWaiting for the registry to serve what was just published. npm's write already succeeded; its read API can lag behind it by minutes...",
-    );
-    const wait = await waitForPublished(receipt, version);
-    if (!wait.ok) {
-      if (wait.timedOut) {
-        // What this used to say -- "npm ALREADY CONFIRMED this publish
-        // succeeded above, this is registry lag, not a failed release" -- was
-        // an assertion the script had not verified at the moment it printed
-        // it, and on 0.7.0 it was wrong about the one package that decided
-        // whether the release shipped. The unpublish warning stays: that half
-        // is protecting against a genuinely destructive action.
-        console.error(
-          `\nThe registry still does not reflect every published byte after ${wait.attempts} check(s) across the full wait window.\n` +
-            "npm's write returned success for every package above. That is NOT evidence the release is fine --\n" +
-            "a version can be accepted into a STAGED state: reserved, non-public, and awaiting a 2FA approval.\n" +
-            "Nor is it evidence of failure: on 0.9.0 a package that had landed stayed invisible for minutes.\n" +
-            "Do NOT run npm unpublish.\n\nPer-package state, read from the public registry just now:",
-        );
-        const { lines } = await describeUnresolvedPackages(
-          [
-            ...receipt.platforms.map((entry) => entry.packageName),
-            wrapper.name,
-          ],
-          version,
-        );
-        for (const line of lines) console.error(line);
-        console.error(
-          "\nOnce every line above reads public, re-run just the verification:\n" +
-            `  node scripts/qualification/native-execution-receipt.mjs --verify-published ${version} --receipt ${receiptPath}\n`,
-        );
-      } else {
-        console.error(
-          `\nReceipt does not describe the bytes published as ${version}:`,
-        );
-      }
-      for (const problem of wait.problems) console.error(`  - ${problem}`);
-      process.exit(1);
-    }
-    // QCLI-368: the executables matching is not the tarballs matching. Only
-    // the whole-tarball comparison sees a difference outside the binary.
-    const served = await verifyRegistryHoldsBundle({
-      bundleDir,
+    const verified = await verifyPublishedRelease({
       version,
+      receipt,
+      receiptPath,
+      wrapperName: wrapper.name,
+      // QCLI-368: the executables matching is not the tarballs matching.
+      verifyBundle: (target) =>
+        verifyRegistryHoldsBundle({ bundleDir, version: target }),
     });
-    if (!served.ok) {
-      console.error(
-        `\nnpm does not serve the qualified bundle for ${version}. Do NOT run npm unpublish.`,
-      );
-      for (const problem of served.problems) console.error(`  - ${problem}`);
-      process.exit(1);
-    }
-    // QCLI-350: neither check above is a consumer's read of the wrapper.
-    // waitForPublished verifies the platforms against the receipt, and the
-    // integrity comparison goes through the publishing npm client, which reads
-    // early. On 0.9.0 the old success line printed while an anonymous read
-    // of the wrapper still returned 404.
-    console.log(
-      `\nConfirming ${wrapper.name}@${version} resolves for a consumer, with the same anonymous read that gated the platform packages...`,
-    );
-    const wrapperVisibility = await waitForConsumerVisibility(
-      [wrapper.name],
-      version,
-    );
-    if (!wrapperVisibility.ok) {
-      console.error(
-        `\n${wrapper.name}@${version} does not resolve for a consumer after ${wrapperVisibility.attempts} check(s) across the full wait window.\n` +
-          "Its publish returned success and npm's own client reads it with the qualified integrity, so this is\n" +
-          "NOT a verified release yet. Do NOT run npm unpublish.\n\nState, read from the public registry just now:",
-      );
-      const { lines } = await describeUnresolvedPackages(
-        [wrapper.name],
-        version,
-      );
-      for (const line of lines) console.error(line);
-      process.exit(1);
-    }
-    console.log(
-      describeVerifiedRelease({
-        version,
-        wrapperName: wrapper.name,
-        platformCount: receipt.platforms.length,
-        receiptChecks: wait.attempts,
-        wrapperPublishedAt:
-          wrapperVisibility.lastSeen?.[wrapper.name]?.publishedAt ?? null,
-      }),
-    );
+    if (!verified.ok) process.exit(1);
   } finally {
     if (tempNpmrcDir) await rm(tempNpmrcDir, { recursive: true, force: true });
     await rm(bundleDir, { recursive: true, force: true });
