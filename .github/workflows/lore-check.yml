@@ -137,7 +137,13 @@ jobs:
           echo "quest on PATH: $resolved (reports $reported, package.json $packaged)"
 
       - name: Install the pinned lore release
-        run: npm install -g @opum-ai/lore@0.9.0
+        run: npm install -g @opum-ai/lore@0.9.2
 
       - name: lore check
         run: lore check
+
+      # QCLI-367 (OPAG-378 AC4): the lore:agents block in CLAUDE.md is generated
+      # by `lore agents`; this fails (exit 6) when it drifts from what the pinned
+      # lore generates, the same way `quest agents --check` gates Quest's block.
+      - name: lore agents --check
+        run: lore agents --check
