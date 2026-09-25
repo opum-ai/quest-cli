@@ -859,7 +859,10 @@ than decisive. Only a 409 is positive evidence. And the publisher's
 `published and verified` line names the wrapper while `waitForPublished`
 verifies the six PLATFORM packages against the receipt (QCLI-350) -- the same
 name-the-object-you-measured trap this profile records elsewhere, in our own
-release tooling.
+release tooling. Both are fixed by QCLI-350, after 0.10.0. The success line
+now names each object with its own check, and it waits for an anonymous
+consumer read of the wrapper to resolve before printing. An undetermined
+package now names SLOW as a possibility alongside staged and never-landed.
 
 <!-- quest:agent-instructions:begin -->
 # Quest agent instructions

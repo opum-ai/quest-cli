@@ -230,8 +230,11 @@ export async function readStageList(
  * it and the publishing credential cannot see a stage. That is not a
  * diagnosis, it is the absence of one, and the caller must present it that
  * way -- `npm publish` returning 409 "previously staged" is the only signal
- * that separates the two, and it costs a write, so it belongs behind an
- * operator's explicit decision rather than inside a poll.
+ * that separates staged from never-landed, and it costs a write, so it
+ * belongs behind an operator's explicit decision rather than inside a poll.
+ * Despite its name it also covers a THIRD state, slow propagation of a
+ * version that did land (QCLI-350, measured on 0.9.0), which only waiting
+ * separates; the name is kept because CI and tests consume it.
  */
 export async function classifyVersion(
   pkgName,
@@ -291,11 +294,20 @@ export function describeVersionState(pkgName, version, classification) {
     );
   }
   if (classification.state === "absent-or-staged") {
+    // QCLI-350: three states, not two. On 2026-09-18 quest-linux-arm64 read
+    // exactly like this -- absent from versions and time, time.modified
+    // unchanged -- and had in fact landed; it was only slow to propagate.
     lines.push(
-      "      Staged and never-landed are not distinguishable from here: a stage is invisible",
-      "      to the credential that created it. Re-run with --diagnose-staged to separate them",
-      "      by attempting the publish again -- 409 'previously staged' means staged, and",
-      "      success means it never landed and has now been published.",
+      "      Not public YET, which is one of THREE states this read cannot separate:",
+      "        SLOW          it landed and the registry has not caught up (0.9.0, 2026-09-18:",
+      "                      this exact signature, and the package appeared minutes later)",
+      "        STAGED        accepted but non-public, awaiting a 2FA approval",
+      "        NEVER LANDED  the write did not take",
+      "      Re-read first: re-run the verification after a few minutes, since SLOW clears on",
+      "      its own and costs nothing to wait out. If it still does not resolve, re-run with",
+      "      --diagnose-staged to attempt the publish again -- 409 'previously staged' means",
+      "      staged, a publish conflict means it was public after all, and success means it",
+      "      never landed and has now been published.",
     );
   }
   if (classification.state === "unreadable")

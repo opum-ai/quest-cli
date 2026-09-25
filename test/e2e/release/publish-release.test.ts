@@ -4,6 +4,7 @@ import {
   classifyKeychainFailure,
   describeKeychainState,
   describeUnresolvedPackages,
+  describeVerifiedRelease,
   diagnoseStaged,
   findKeychainToken,
   isPublished,
@@ -308,6 +309,31 @@ test("a staged package produces the staged outcome with its operator action, not
   expect(text).toContain("npm stage approve stage_0715");
   expect(text).not.toContain("read-after-write lag");
   expect(text).not.toContain("not a failed release");
+});
+
+/**
+ * QCLI-350. The 0.9.0 success line said "@opum-ai/quest 0.9.0 published and
+ * verified (1 check)" while the one check was of the six platform packages
+ * against the receipt, and an anonymous read of the wrapper still 404'd.
+ */
+test("the success line names the platform packages as what the receipt checks verified, and the wrapper's consumer read separately", () => {
+  const line = describeVerifiedRelease({
+    version: "0.9.0",
+    wrapperName: "@opum-ai/quest",
+    platformCount: 6,
+    receiptChecks: 1,
+    wrapperPublishedAt: "2026-09-18T20:00:00.000Z",
+  });
+  expect(line).not.toContain("published and verified (");
+  expect(line).toContain(
+    "the 6 platform packages match the qualification receipt (1 registry check)",
+  );
+  expect(line).toContain(
+    "all 7 tarballs npm serves are byte-identical to the qualified bundle",
+  );
+  expect(line).toContain(
+    "@opum-ai/quest@0.9.0 resolves for an anonymous consumer (published 2026-09-18T20:00:00.000Z)",
+  );
 });
 
 test("the staged probe reads a 409 as staged and a success as never-landed", async () => {
