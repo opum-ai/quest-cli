@@ -222,6 +222,38 @@ test("a staged package reports the operator action and never calls itself lag", 
   expect(undetermined).toContain("--diagnose-staged");
 });
 
+/**
+ * QCLI-350. On 0.9.0 quest-linux-arm64 showed the 0.7.0 staged signature --
+ * absent from versions and time, time.modified unchanged -- and had in fact
+ * landed; it was only slow. A two-way "staged or never-landed" pointed the
+ * operator confidently at the wrong one of three.
+ */
+test("an undetermined package names SLOW beside staged and never-landed, and says to re-read before probing", () => {
+  const undetermined = describeVersionState(
+    "@opum-ai/quest-linux-arm64",
+    "0.9.0",
+    {
+      state: "absent-or-staged",
+      publishedAt: null,
+      stageId: null,
+      evidence: "public packument does not list 0.9.0",
+    },
+  ).join("\n");
+
+  expect(undetermined).toContain("THREE states");
+  expect(undetermined).toContain("SLOW");
+  expect(undetermined).toContain("STAGED");
+  expect(undetermined).toContain("NEVER LANDED");
+  expect(undetermined).toContain("2026-09-18");
+  expect(undetermined.indexOf("Re-read first")).toBeGreaterThan(-1);
+  expect(undetermined.indexOf("Re-read first")).toBeLessThan(
+    undetermined.indexOf("--diagnose-staged"),
+  );
+  expect(undetermined).not.toContain(
+    "Staged and never-landed are not distinguishable",
+  );
+});
+
 test("classifyPublishError separates the 409 that means staged from the conflict that means already public", () => {
   expect(
     classifyPublishError({

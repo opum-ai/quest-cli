@@ -732,6 +732,14 @@ staging; everything else is compatible with lag. Wait and re-read before
 reaching for an operator action, and treat "absent from `time`" as suggestive
 rather than decisive.
 
+The publisher now says this itself. An `absent-or-staged` package lists SLOW,
+STAGED and NEVER LANDED, and tells you to re-read before `--diagnose-staged`.
+The success line names each object with the check that verified it: the
+platform packages against the receipt, the seven tarballs by integrity, and
+the wrapper by the same anonymous consumer read that gates the platforms. It
+does not print until that last read resolves. On 0.9.0 it printed "published
+and verified (1 check)" while that read still returned 404.
+
 **Clearing it is an operator action and needs 2FA**, which is the entire point
 of staging: `npm stage list` then `npm stage approve <stage-id>` from a
 logged-in session, or the package's page on npmjs.com. The owner approved this

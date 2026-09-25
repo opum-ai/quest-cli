@@ -114,6 +114,15 @@ export function describeUnresolvedPackages(
   },
 ): Promise<{ lines: string[]; states: Record<string, string> }>;
 
+/** QCLI-350: the success line, naming each object beside its check. */
+export function describeVerifiedRelease(options: {
+  version: string;
+  wrapperName: string;
+  platformCount: number;
+  receiptChecks: number;
+  wrapperPublishedAt: string | null;
+}): string;
+
 export function diagnoseStaged(
   target: PublishTarget,
   options: { publish: (target: PublishTarget) => Promise<unknown> },

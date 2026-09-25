@@ -332,6 +332,27 @@ export async function describeUnresolvedPackages(
 }
 
 /**
+ * The success line, which names each object beside the check that verified
+ * it (QCLI-350). It used to read "@opum-ai/quest <v> published and verified
+ * (N checks)" while the N checks were of the six platform packages against
+ * the receipt, not of the wrapper it named.
+ */
+export function describeVerifiedRelease({
+  version,
+  wrapperName,
+  platformCount,
+  receiptChecks,
+  wrapperPublishedAt,
+}) {
+  return [
+    `Published ${wrapperName}@${version}. Verified:`,
+    `  - the ${platformCount} platform packages match the qualification receipt (${receiptChecks} registry check${receiptChecks === 1 ? "" : "s"})`,
+    `  - all ${platformCount + 1} tarballs npm serves are byte-identical to the qualified bundle`,
+    `  - ${wrapperName}@${version} resolves for an anonymous consumer${wrapperPublishedAt ? ` (published ${wrapperPublishedAt})` : ""}`,
+  ].join("\n");
+}
+
+/**
  * The 409 probe, behind an explicit operator flag.
  *
  * Staged and never-landed are indistinguishable by reading -- a stage is
@@ -581,7 +602,9 @@ async function main(argv) {
         }
       } else if (ambiguous.length) {
         console.error(
-          "\nRe-run with --diagnose-staged to separate staged from never-landed by attempting the publish again.",
+          "\nFirst re-run this script without --diagnose-staged after a few minutes: a package that is only SLOW\n" +
+            "resolves by then and is skipped. If one still does not resolve, re-run with --diagnose-staged to\n" +
+            "separate staged from never-landed by attempting the publish again.",
         );
       }
       console.error(
@@ -615,6 +638,7 @@ async function main(argv) {
           `\nThe registry still does not reflect every published byte after ${wait.attempts} check(s) across the full wait window.\n` +
             "npm's write returned success for every package above. That is NOT evidence the release is fine --\n" +
             "a version can be accepted into a STAGED state: reserved, non-public, and awaiting a 2FA approval.\n" +
+            "Nor is it evidence of failure: on 0.9.0 a package that had landed stayed invisible for minutes.\n" +
             "Do NOT run npm unpublish.\n\nPer-package state, read from the public registry just now:",
         );
         const { lines } = await describeUnresolvedPackages(
@@ -650,8 +674,40 @@ async function main(argv) {
       for (const problem of served.problems) console.error(`  - ${problem}`);
       process.exit(1);
     }
+    // QCLI-350: neither check above is a consumer's read of the wrapper.
+    // waitForPublished verifies the platforms against the receipt, and the
+    // integrity comparison goes through the publishing npm client, which reads
+    // early. On 0.9.0 the old success line printed while an anonymous read
+    // of the wrapper still returned 404.
     console.log(
-      `@opum-ai/quest ${version} published and verified (${wait.attempts} check${wait.attempts === 1 ? "" : "s"}); all seven tarballs on npm are byte-identical to the qualified bundle.`,
+      `\nConfirming ${wrapper.name}@${version} resolves for a consumer, with the same anonymous read that gated the platform packages...`,
+    );
+    const wrapperVisibility = await waitForConsumerVisibility(
+      [wrapper.name],
+      version,
+    );
+    if (!wrapperVisibility.ok) {
+      console.error(
+        `\n${wrapper.name}@${version} does not resolve for a consumer after ${wrapperVisibility.attempts} check(s) across the full wait window.\n` +
+          "Its publish returned success and npm's own client reads it with the qualified integrity, so this is\n" +
+          "NOT a verified release yet. Do NOT run npm unpublish.\n\nState, read from the public registry just now:",
+      );
+      const { lines } = await describeUnresolvedPackages(
+        [wrapper.name],
+        version,
+      );
+      for (const line of lines) console.error(line);
+      process.exit(1);
+    }
+    console.log(
+      describeVerifiedRelease({
+        version,
+        wrapperName: wrapper.name,
+        platformCount: receipt.platforms.length,
+        receiptChecks: wait.attempts,
+        wrapperPublishedAt:
+          wrapperVisibility.lastSeen?.[wrapper.name]?.publishedAt ?? null,
+      }),
     );
   } finally {
     if (tempNpmrcDir) await rm(tempNpmrcDir, { recursive: true, force: true });

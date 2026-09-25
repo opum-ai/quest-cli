@@ -17,6 +17,17 @@ history; this file is the forward-looking record.
   be checked". A real publish with the entry locked and no `--otp` refuses with
   the unlock remedy. This is release tooling only; no command, flag, envelope
   or exit code of `quest` changed.
+- **The publisher's success line names what it actually verified** (QCLI-350).
+  "@opum-ai/quest <version> published and verified (N checks)" described
+  checks of the six platform packages against the receipt, not of the
+  wrapper. On 0.9.0 it printed while an anonymous read of the wrapper still
+  returned 404. The script now checks that the wrapper resolves for a consumer,
+  using the same read that gates the platform packages, before it prints
+  anything. The line then lists each object with the check that verified it.
+  A package the registry does not show yet is described as one of three
+  states (slow, staged, never landed) instead of two. The wrapper is still
+  withheld whenever any platform package does not resolve. Release tooling
+  only.
 
 ## 0.10.0
 
