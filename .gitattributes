@@ -1,0 +1,13 @@
+# QCLI-368. The six npm/quest-* package manifests and licences are packed into
+# the release tarballs, and the win32 legs pack them on Windows runners, where
+# actions/checkout's core.autocrlf rewrote every line to CRLF. The CI bundle's
+# win32 tarballs then differed from any LF pack of the same commit, and since
+# QCLI-366 the bundle's bytes are exactly what publishes. Pinning these to LF
+# makes every runner check out the bytes that are committed.
+#
+# Deliberately scoped to these paths rather than `* text=auto`: an attribute
+# change re-examines every file it matches, and the committed darwin-arm64
+# binary is killed by AMFI when git re-reads it (see CLAUDE.md, "The AMFI
+# SIGKILL on the darwin-arm64 binary is armed by INDEX STATE").
+npm/*/LICENSE      text eol=lf
+npm/*/package.json text eol=lf
