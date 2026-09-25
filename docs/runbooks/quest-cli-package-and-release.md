@@ -467,9 +467,29 @@ subject shape npm Trusted Publishing expects. It is gated the same way CI is:
 and version being published (`validateReceipt`, re-deriving every digest from
 the artifacts on disk rather than trusting the document).
 
+`--qualification-run <id>` is also required (QCLI-366; opum-doc ADR
+`harden-fleet-ci-against-a-single-runner-outage-and-unqualified-publication`,
+ruling 3). It names the `prepublication-qualification.yml` run on the release
+tag. The script checks that run qualified this exact commit, downloads its
+`quest-candidate-bundle`, and refuses -- dry run included, before any
+credential is read or any npm call is made -- unless opum-cli-e2e's receipt at
+`receipts/quest/<version>.json` on its `main` binds this version, commit, run
+id and the sha256 of all seven bundle tarballs, with `verdict: "QUALIFIED"`.
+A 403 or 404 reading that private repository counts as no receipt. The only
+override is an `override` object that opum-cli-e2e writes into the receipt;
+it waives the verdict and nothing else, and is printed verbatim when used.
+There is no flag or variable that bypasses the gate.
+
+The seven bundle `.tgz` files are what gets published, byte-for-byte
+(`npm publish <file>`), not a repack of `npm/*` in the working tree -- so the
+bytes on npm are the bytes opum-cli-e2e qualified. `release.yml` applies the
+same gate and publishes the same files; it reads the receipt with the
+`E2E_RECEIPT_READ_TOKEN` secret, and refuses until one exists, because the
+job's own `GITHUB_TOKEN` cannot read a private repository.
+
 ```sh
-node scripts/publish-release.mjs --receipt native-execution-receipt.json
-node scripts/publish-release.mjs --publish --otp <code> --receipt native-execution-receipt.json
+node scripts/publish-release.mjs --receipt native-execution-receipt.json --qualification-run <run-id>
+node scripts/publish-release.mjs --publish --otp <code> --receipt native-execution-receipt.json --qualification-run <run-id>
 ```
 
 **Two auth mechanisms**, tried in this order, reported explicitly at the
