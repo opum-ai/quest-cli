@@ -110,6 +110,8 @@ export function qualifyBundle(options: {
   }) => Promise<Partial<QualificationResult> & { ok: boolean; problems: string[] }>;
 }): Promise<Partial<QualificationResult> & { ok: boolean; problems: string[] }>;
 
+import type { HeldTarball } from "./qualification/bundle-integrity.d.mts";
+
 export function registryHoldsTarball(
   pkgName: string,
   version: string,
@@ -120,4 +122,4 @@ export function registryHoldsTarball(
       args: readonly string[],
     ) => Promise<{ stdout: string; stderr: string }>;
   },
-): Promise<{ ok: boolean; expected: string; actual: string }>;
+): Promise<HeldTarball>;

@@ -314,6 +314,16 @@ jobs:
             exit 1
           fi
 
+      # QCLI-368. The step above compares executables, which is why it could
+      # not see win32 tarballs that differed only in LICENSE and package.json
+      # line endings. This compares npm's dist.integrity for all seven
+      # tarballs with the qualified bundle files that were published.
+      - name: Verify npm serves the qualified bundle, tarball for tarball
+        if: ${{ inputs.publish == true }}
+        run: |
+          node scripts/qualification/bundle-integrity.mjs \
+            --bundle candidate --version "$(node -p "require('./package.json').version")"
+
       # QCLI-267, the half that names the defect directly: the registry's own
       # gitHead for what was just published must be the commit it was released
       # from. This is the only moment both halves exist and can be compared --

@@ -41,7 +41,6 @@
 // the end of a long day is exactly when the gates matter most.
 
 import { execFile as execFileCallback } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -53,6 +52,10 @@ import {
   validateReceipt,
   waitForPublished,
 } from "./qualification/native-execution-receipt.mjs";
+import {
+  registryHoldsTarball,
+  verifyRegistryHoldsBundle,
+} from "./qualification/bundle-integrity.mjs";
 import {
   describeOverride,
   requireQualification,
@@ -205,30 +208,10 @@ export async function isPublished(
   }
 }
 
-/**
- * QCLI-366 review. A package already on the registry is skipped only when its
- * bytes ARE the qualified tarball. `npm view ... version` answers "a version
- * exists", which a publish made outside this gate -- a working-tree repack, or
- * anything before QCLI-366 -- satisfies just as well, and skipping it would
- * put a wrapper on npm that points at unqualified bytes.
- */
-export async function registryHoldsTarball(
-  pkgName,
-  version,
-  tarball,
-  { execFile: execFileFn = execFile } = {},
-) {
-  const expected = `sha512-${createHash("sha512")
-    .update(await readFile(tarball))
-    .digest("base64")}`;
-  const { stdout } = await execFileFn("npm", [
-    "view",
-    `${pkgName}@${version}`,
-    "dist.integrity",
-  ]);
-  const actual = stdout.trim();
-  return { ok: actual === expected, expected, actual };
-}
+// QCLI-366 review: an already-published package is skipped only when npm
+// holds the qualified tarball's bytes. Lives beside the post-publish check
+// that uses the same comparison (QCLI-368); re-exported for the tests.
+export { registryHoldsTarball };
 
 /**
  * The publish sequence, with every side effect injected so the gate can be
@@ -597,8 +580,21 @@ async function main(argv) {
       for (const problem of wait.problems) console.error(`  - ${problem}`);
       process.exit(1);
     }
+    // QCLI-368: the executables matching is not the tarballs matching. Only
+    // the whole-tarball comparison sees a difference outside the binary.
+    const served = await verifyRegistryHoldsBundle({
+      bundleDir,
+      version,
+    });
+    if (!served.ok) {
+      console.error(
+        `\nnpm does not serve the qualified bundle for ${version}. Do NOT run npm unpublish.`,
+      );
+      for (const problem of served.problems) console.error(`  - ${problem}`);
+      process.exit(1);
+    }
     console.log(
-      `@opum-ai/quest ${version} published and verified (${wait.attempts} check${wait.attempts === 1 ? "" : "s"}).`,
+      `@opum-ai/quest ${version} published and verified (${wait.attempts} check${wait.attempts === 1 ? "" : "s"}); all seven tarballs on npm are byte-identical to the qualified bundle.`,
     );
   } finally {
     if (tempNpmrcDir) await rm(tempNpmrcDir, { recursive: true, force: true });
