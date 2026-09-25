@@ -354,6 +354,21 @@ alone is not drift; any other difference still exits 6.
 \`quest agents --update-instructions\` always refreshes to the exact current
 bytes regardless, so the file never falls permanently behind.
 
+## The opum-quest marketplace plugin
+
+With the claude or codex target, \`quest init\` and \`quest agents\` also report
+whether that agent runtime has the \`opum-quest\` plugin, read through the
+runtime's own \`claude plugin list --json\` or \`codex plugin list --json\`:
+\`installed\`, \`disabled\` (installed but switched off, so its skill does not
+reach the agent), \`not-installed\`, or \`not-detectable\` (the runtime CLI is
+missing or its answer unreadable). \`init\` and \`--check\` only report, with the
+command to run next. \`--update-instructions --target <claude|codex>\` runs the plugin update when
+the plugin is installed, and never installs or enables it; with no \`--target\`
+it names no runtime, so it only reports. For Codex the update refreshes the
+whole opum marketplace, every opum plugin included, and says so in its output. None of this changes an
+exit code. Set \`QUEST_AGENT_PLUGINS=off\` to skip it, for example in a test
+suite that must not touch the machine's real agent install.
+
 ## Coming from Backlog.md
 
 \`quest migration backlog preview --source <project> --json\` reports a digest and

@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 
 import { qualifyMigrationLifecycle } from "./qualification/migration-lifecycle.mjs";
 
+// QCLI-371: this script runs `quest init --agent-instructions` and
+// `agents --update-instructions` on a release workstation; they must never
+// reach, or update, that machine's real agent plugins.
+process.env.QUEST_AGENT_PLUGINS = "off";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const rootPackage = JSON.parse(
   await readFile(join(root, "package.json"), "utf8"),

@@ -1,0 +1,6 @@
+[test]
+# QCLI-371: the suite spawns the real CLI, which would otherwise start the
+# machine's real claude and codex binaries, and `agents --update-instructions`
+# would update the developer's installed opum-quest plugin. Tests that exercise
+# plugin detection unset this and put fake binaries on PATH.
+preload = ["./test/preload-agent-plugins-off.ts"]

@@ -15,6 +15,13 @@ import {
   updateQuestAgentInstructions,
   updateQuestSkillFile,
 } from "../application/agents/agent-instructions.ts";
+import {
+  type AgentPluginCheck,
+  type AgentRuntime,
+  detectQuestPlugin,
+  runtimeForTarget,
+  updateQuestPlugin,
+} from "../application/agents/agent-plugins.ts";
 import { findQuestGuide, questGuides } from "../application/agents/guides.ts";
 import { startBrowserServer } from "../application/browser/browser.ts";
 import type { QuestTaskBindingV1Response } from "../application/claims/opum-agent-workflow.ts";
@@ -67,6 +74,7 @@ import {
 } from "./commands/task/index.ts";
 import {
   createAgentInstructionPort,
+  createAgentPluginPort,
   createBacklogImportService,
   createGitPort,
   createPlanningService,
@@ -1345,6 +1353,8 @@ export async function runQuest(
                 "--target selects codex (AGENTS.md, the default), claude (CLAUDE.md), or antigravity (GEMINI.md); each call checks or updates exactly one file. A --check with no --target checks AGENTS.md only, and exits 6 naming the --target to use when AGENTS.md has no Quest block but CLAUDE.md or GEMINI.md carries one.",
               force:
                 'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover .claude/skills/quest/SKILL.md reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
+              plugin:
+                'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
                 'The skill file is target-independent and governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
             }
@@ -1480,6 +1490,27 @@ export async function runQuest(
         | Readonly<Record<string, AgentInstructionCheck>>
         | undefined;
       let skill: AgentInstructionCheck | undefined;
+      // QCLI-371 (ADR ruling (a), Amendments 1-2): with a claude or codex
+      // target selected, report whether that runtime has the opum-quest
+      // plugin, after target selection and before any instruction or skill
+      // write. Detection only: init never installs, enables, or updates.
+      let plugins: Partial<Record<AgentRuntime, AgentPluginCheck>> | undefined;
+      if (writeInstructions) {
+        const runtimes = [
+          ...new Set(
+            (interactiveTargets ?? [target]).flatMap((selected) => {
+              const runtime = runtimeForTarget(selected);
+              return runtime ? [runtime] : [];
+            }),
+          ),
+        ];
+        if (runtimes.length > 0) {
+          const pluginPort = createAgentPluginPort(process.cwd());
+          plugins = {};
+          for (const runtime of runtimes)
+            plugins[runtime] = await detectQuestPlugin(pluginPort, runtime);
+        }
+      }
       if (writeInstructions) {
         const agentInstructionPort = createAgentInstructionPort(process.cwd());
         ({ instructions, instructionsByTarget, skill } =
@@ -1502,6 +1533,7 @@ export async function runQuest(
             instructions,
             instructionsByTarget,
             skill,
+            plugins,
           },
         },
         modeFor(parsed),
@@ -1675,11 +1707,28 @@ export async function runQuest(
             `Quest agent instruction block is missing. Run quest agents --update-instructions${target ? ` --target ${target}` : ""}.`,
           );
       }
+      // QCLI-371: --check only detects and reports (ruling 19); the manual
+      // update runs the plugin update for an installed plugin, and never
+      // installs or enables one (ruling 21). Antigravity has no plugin.
+      const runtime = runtimeForTarget(target);
+      const plugin =
+        runtime === undefined
+          ? undefined
+          : check
+            ? await detectQuestPlugin(
+                createAgentPluginPort(process.cwd()),
+                runtime,
+              )
+            : await updateQuestPlugin(
+                createAgentPluginPort(process.cwd()),
+                runtime,
+                targetValue !== undefined,
+              );
       return output(
         {
           schemaVersion: 1,
           kind: "agent.instructions-status",
-          data: { ...instructionsResult, skill: skillResult },
+          data: { ...instructionsResult, skill: skillResult, plugin },
         },
         modeFor(parsed),
       );

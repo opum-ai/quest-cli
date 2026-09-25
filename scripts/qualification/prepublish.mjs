@@ -23,6 +23,9 @@ async function command(name, file, args, options = {}) {
     const result = await execFile(executable, args, {
       cwd: root,
       maxBuffer: 10 * 1024 * 1024,
+      // QCLI-371: no spawned quest may reach the machine's real claude or
+      // codex; set here so it is in every child's ORIGINAL environment.
+      env: { ...process.env, QUEST_AGENT_PLUGINS: "off" },
       ...options,
     });
     record(name, "passed", { command: [executable, ...args].join(" ") });
@@ -143,7 +146,11 @@ async function runCandidateSmoke() {
       "bin",
       process.platform === "win32" ? "quest.exe" : "quest",
     );
-    const env = { ...process.env, QUEST_TASK_STORE: install };
+    const env = {
+      ...process.env,
+      QUEST_TASK_STORE: install,
+      QUEST_AGENT_PLUGINS: "off",
+    };
     const version = (
       await command("candidate_version", quest, ["--version"], {
         cwd: install,

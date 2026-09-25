@@ -10,6 +10,9 @@ async function quest(store: string, argv: readonly string[]) {
     cwd: store,
     stdout: "pipe",
     stderr: "pipe",
+    // QCLI-371: an env-less spawn gets the ORIGINAL environment, which drops
+    // the preload's QUEST_AGENT_PLUGINS=off and reaches the real claude.
+    env: { ...Bun.env },
   });
   return {
     exitCode: await child.exited,
