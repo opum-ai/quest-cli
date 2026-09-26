@@ -9,6 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { CliAgentPluginPort } from "../src/adapters/agents/cli-agent-plugins.ts";
 import { printable } from "../src/application/agents/agent-plugins.ts";
 
 /**
@@ -315,4 +316,68 @@ test("printable: CSI, OSC and two-byte escapes, C0 and C1 controls, and line sep
   expect(printable("a\u0000\u0008\u007f\u009bb")).toBe("ab");
   expect(printable("a\r\n\tb c")).toBe("a b c");
   expect(printable("  plain text  ")).toBe("plain text");
+});
+
+test("printable matches lore-cli dc09ca98 on the edge cases where a looser regex would differ", () => {
+  // Outputs taken from lore-cli's stripAnsiAndControls, not re-derived.
+  expect(printable(`v1${ESC}`)).toBe("v1");
+  // An unterminated OSC loses only its ESC; the text after it survives.
+  expect(printable(`v1${ESC}]0;title then text`)).toBe("v10;title then text");
+  expect(printable(`v1${ESC}]0;title${ESC}[31mred`)).toBe("v10;titlered");
+  expect(printable(`a${ESC}7b`)).toBe("ab");
+  expect(printable(`a${ESC}cb`)).toBe("ab");
+  expect(printable(`a${ESC}(0b`)).toBe("a0b");
+  expect(printable(`a${ESC}[31`)).toBe("a31");
+  expect(printable("a\u009b31mb")).toBe("a31mb");
+  // Removing a control byte between two spaces must not leave a double space.
+  expect(printable("a \u0000 b")).toBe("a b");
+});
+
+/** The adapter alone, so a runtime that keeps running can be timed. */
+function adapter() {
+  return new CliAgentPluginPort(root, {
+    env: { PATH: `${bin}:/usr/bin:/bin` },
+    listTimeoutMs: 20_000,
+  });
+}
+
+test("the cap stops a runtime that keeps running, on stdout or on stderr, so quest exits instead of waiting it out", async () => {
+  // Times the real CLI's EXIT: without the kill and the reader cancel the
+  // adapter's promise still settles at once, but the process waits out the
+  // runtime (QCLI-380 review, finding 1).
+  for (const stream of ["", " >&2"]) {
+    await fake("claude", {
+      list: `head -c 2097152 /dev/zero${stream}\nsleep 8`,
+    });
+    const started = Date.now();
+    const result = await quest(
+      "agents",
+      "--check",
+      "--target",
+      "claude",
+      "--json",
+    );
+    const elapsed = Date.now() - started;
+    expect({
+      stream,
+      plugin: JSON.parse(result.stdout).data.plugin,
+    }).toMatchObject({
+      stream,
+      plugin: {
+        state: "not-detectable",
+        reason: "claude plugin list --json printed more than 1048576 bytes.",
+      },
+    });
+    expect({ stream, fast: elapsed < 4000 }).toEqual({ stream, fast: true });
+  }
+}, 40_000);
+
+test("output of exactly 1 MiB is still read", async () => {
+  await fake("claude", {
+    list: `head -c 1048574 /dev/zero | tr '\\000' ' '\nprintf '[]'`,
+  });
+  expect(await adapter().list("claude")).toEqual({
+    kind: "listed",
+    plugins: [],
+  });
 });

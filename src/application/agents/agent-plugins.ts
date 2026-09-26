@@ -61,20 +61,26 @@ export function runtimeForTarget(
  * breaks included, collapses to one space first; then ANSI escape sequences
  * and every remaining control byte are removed. A line break would forge a
  * record in --plain output, and an escape sequence would let a runtime drive
- * the reader's terminal. Matches lore-cli's printable() (dc09ca98).
+ * the reader's terminal.
+ *
+ * Both regexes are lore-cli's stripAnsiAndControls (src/errors.ts at
+ * dc09ca98) byte for byte, so the same runtime text yields the same string
+ * from both CLIs (ADR ruling (d)). Keep them identical: an OSC needs its
+ * terminator, so an unterminated one loses only its ESC and never swallows
+ * the diagnostic text after it.
  */
 export function printable(text: string): string {
   return (
     text
       .replace(/\s+/g, " ")
       .replace(
-        // CSI, OSC (BEL- or ST-terminated) and two-byte ESC sequences.
+        // CSI, terminated OSC, and two-byte ESC sequences.
         // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control bytes is the purpose
-        /\u001b(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|[@-Z\\-_])/g,
+        /\x1b(?:\[[0-9;:<=>?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[ -~])/g,
         "",
       )
       // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control bytes is the purpose
-      .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+      .replace(/[\x00-\x1f\x7f-\x9f]/g, "")
       .replace(/\s+/g, " ")
       .trim()
   );
