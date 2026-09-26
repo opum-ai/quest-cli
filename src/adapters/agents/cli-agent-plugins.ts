@@ -47,23 +47,35 @@ type RunResult =
   | { readonly failure: string };
 
 /**
- * Runs one runtime command with a HARD deadline. Bun's own `timeout` sends a
- * single SIGTERM and then still waits for the output pipes, which a
- * grandchild can hold open (the codex Node launcher forwards TERM to its
- * native binary and waits for it), so the deadline here stops waiting,
- * SIGKILLs the child, and returns (QCLI-371 review).
+ * Runs one runtime command with a HARD deadline that bounds when THIS PROCESS
+ * exits, not only when the promise settles. Bun's own `timeout` sends a single
+ * SIGTERM and then still waits for the output pipes, which a grandchild can
+ * hold open (the codex Node launcher forwards TERM to its native binary and
+ * waits for it) (QCLI-371 review). On the deadline, or once output passes
+ * the cap, stop() does two things, each measured to matter on its own
+ * (QCLI-378, matching lore-cli dc09ca98):
+ *
+ * - it SIGKILLs the child's whole process group. On POSIX the child is spawned
+ *   detached, which makes it a group leader, so a grandchild holding the pipes
+ *   is reaped too. Windows has no process groups in this sense, so there only
+ *   the child is killed;
+ * - it cancels both pipe readers, which releases this process's event loop
+ *   whether or not the kill reached every descendant. Cancelling alone let
+ *   quest exit on time but left the grandchild running.
  */
 async function run(
   argv: readonly string[],
   timeoutMs: number,
   env: Record<string, string | undefined> | undefined,
 ): Promise<RunResult> {
+  const posix = process.platform !== "win32";
   let child: ReturnType<typeof Bun.spawn>;
   try {
     child = Bun.spawn([...argv], {
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
+      ...(posix ? { detached: true } : {}),
       ...(env ? { env } : {}),
     });
   } catch (error) {
@@ -83,7 +95,12 @@ async function run(
   const stdoutReader = child.stdout.getReader();
   const stderrReader = child.stderr.getReader();
   const stop = (): void => {
-    child.kill("SIGKILL");
+    try {
+      if (posix) process.kill(-child.pid, "SIGKILL");
+      else child.kill("SIGKILL");
+    } catch {
+      // Already gone: nothing left to kill.
+    }
     void stdoutReader.cancel().catch(() => undefined);
     void stderrReader.cancel().catch(() => undefined);
     // Do not keep this process alive for pipes a grandchild still holds.

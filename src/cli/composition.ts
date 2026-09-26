@@ -20,12 +20,25 @@ export function createAgentInstructionPort(root: string) {
   return new LocalAgentInstructionPort(root);
 }
 
+/** QCLI-378: overrides the plugin list deadline, in milliseconds, so a test
+ * can prove the deadline bounds the process exit without waiting out the 15s
+ * default. Unset, non-numeric or non-positive keeps the default. Matches
+ * lore-cli's LORE_AGENT_PLUGINS_TIMEOUT_MS. */
+function pluginListTimeoutMs(): number | undefined {
+  const value = Number(process.env.QUEST_AGENT_PLUGINS_TIMEOUT_MS);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 /** QCLI-371: reads and updates the opum-quest marketplace plugin through
  * each agent runtime's own CLI, unless QUEST_AGENT_PLUGINS=off. */
 export function createAgentPluginPort(root: string) {
+  const listTimeoutMs = pluginListTimeoutMs();
   return process.env.QUEST_AGENT_PLUGINS === "off"
     ? new DisabledAgentPluginPort()
-    : new CliAgentPluginPort(root);
+    : new CliAgentPluginPort(
+        root,
+        listTimeoutMs !== undefined ? { listTimeoutMs } : {},
+      );
 }
 
 export function createPlanningService(root: string): PlanningService {
