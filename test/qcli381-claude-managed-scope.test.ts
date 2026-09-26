@@ -178,16 +178,45 @@ test("an installed managed row is never updated: only the list runs", async () =
   expect(await calls()).toEqual(["claude plugin list --json"]);
 });
 
-test("a disabled managed row is not enabled or updated: only the list runs", async () => {
+const managedDetail =
+  "the deciding row is managed by your Claude Code administrator, so it is never updated";
+
+test("a disabled managed row is not enabled or updated, and carries the managed detail", async () => {
+  // LCLI-608 / opum-agent 21:25Z: never the ordinary disabled detail, which
+  // tells the user to enable it themselves.
   await listing([{ scope: "managed", enabled: false }]);
   const report = await plugin("--update-instructions", "--target", "claude");
   expect(report).toMatchObject({
     state: "disabled",
     scope: "managed",
     update: "not-run",
+    updateDetail: managedDetail,
     remedy: managedScopeRemedy,
   });
   expect(await calls()).toEqual(["claude plugin list --json"]);
+});
+
+for (const order of ["enabled first", "disabled first"] as const) {
+  test(`two managed rows, one disabled: disabled decides (${order})`, async () => {
+    const rows: Row[] = [
+      { scope: "managed", enabled: true },
+      { scope: "managed", enabled: false },
+    ];
+    await listing(order === "enabled first" ? rows : [...rows].reverse());
+    expect(await check()).toMatchObject({
+      state: "disabled",
+      scope: "managed",
+      remedy: managedScopeRemedy,
+    });
+  });
+}
+
+test("two enabled managed rows stay installed", async () => {
+  await listing([
+    { scope: "managed", enabled: true },
+    { scope: "managed", enabled: true },
+  ]);
+  expect(await check()).toMatchObject({ state: "installed", scope: "managed" });
 });
 
 test("--scope managed reaches no remedy or argv in any state", async () => {

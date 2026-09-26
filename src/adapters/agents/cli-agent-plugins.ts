@@ -219,10 +219,18 @@ function decodeClaude(
     const effectiveRank = rank < 0 ? claudeScopePrecedence.length : rank;
     const listed = toListed(row.id, row, scope);
     const current = byId.get(row.id);
+    // Two applicable managed rows: a disabled one decides, whatever the list
+    // order (QCLI-381, opum-agent ruling from lore-cli's LCLI-604 review).
+    // It changes only the reported state; a managed row is never acted on.
+    const managedDisables =
+      scope === "managed" &&
+      listed?.enabled === false &&
+      current?.listed.enabled !== false;
     const moreSpecific =
       !current ||
       effectiveRank < current.rank ||
-      (effectiveRank === current.rank && depth > current.depth);
+      (effectiveRank === current.rank &&
+        (depth > current.depth || managedDisables));
     if (listed && moreSpecific)
       byId.set(row.id, { rank: effectiveRank, depth, listed });
   }

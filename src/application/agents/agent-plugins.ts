@@ -226,21 +226,27 @@ export async function updateQuestPlugin(
   runtimeNamed: boolean,
 ): Promise<AgentPluginUpdateReport> {
   const detected = await detectQuestPlugin(port, runtime);
-  // Ruling 25: consent covers only a runtime the user NAMED with --target.
-  // A bare call resolves to the codex default for the instructions, but for
-  // the plugin it reports and prints the update command without running it.
-  if (detected.state !== "installed" || !runtimeNamed)
-    return { ...detected, update: "not-run" };
-  // Ruling 28: a managed deciding row is never updated, and no
+  // Ruling 28: a managed deciding row is never updated or enabled, and no
   // `--scope managed` reaches the argv. The remedy is already the managed
-  // prose (see remedyFor). String agreed with lore-cli (LCLI-604).
-  if (claudeScopeManaged(runtime, detected.scope))
+  // prose (see remedyFor). Checked FIRST, so a managed row, installed or
+  // disabled, named or bare, carries only this detail and never one that
+  // mentions enabling or a runnable update (LCLI-608). String agreed with
+  // lore-cli (LCLI-604).
+  if (
+    (detected.state === "installed" || detected.state === "disabled") &&
+    claudeScopeManaged(runtime, detected.scope)
+  )
     return {
       ...detected,
       update: "not-run",
       updateDetail:
         "the deciding row is managed by your Claude Code administrator, so it is never updated",
     };
+  // Ruling 25: consent covers only a runtime the user NAMED with --target.
+  // A bare call resolves to the codex default for the instructions, but for
+  // the plugin it reports and prints the update command without running it.
+  if (detected.state !== "installed" || !runtimeNamed)
+    return { ...detected, update: "not-run" };
   // Ruling 26 (iii): an update names its deciding scope and never updates a
   // row the reported state did not come from. A scope that cannot be put into
   // a command cannot be named, so nothing runs, and the remedy is already
