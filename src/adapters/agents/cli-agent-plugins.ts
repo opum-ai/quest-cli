@@ -15,6 +15,29 @@ const defaultListTimeoutMs = 15_000;
  * measured at over two minutes on a git fetch. */
 const defaultUpdateTimeoutMs = 600_000;
 
+/** A listing is a few kilobytes; anything past this is not a listing or an
+ * update log, and is not held in memory (QCLI-380, matching lore-cli). */
+export const maxPluginOutputBytes = 1024 * 1024;
+
+class OutputTooLarge extends Error {}
+
+/** Reads a stream to text, throwing OutputTooLarge once it passes
+ * maxPluginOutputBytes. */
+async function readCapped(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<string> {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxPluginOutputBytes) throw new OutputTooLarge();
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 type RunResult =
   | {
       readonly exitCode: number;
@@ -57,21 +80,41 @@ async function run(
     !(child.stderr instanceof ReadableStream)
   )
     return { failure: `${argv[0]} output streams are unavailable.` };
+  const stdoutReader = child.stdout.getReader();
+  const stderrReader = child.stderr.getReader();
+  const stop = (): void => {
+    child.kill("SIGKILL");
+    void stdoutReader.cancel().catch(() => undefined);
+    void stderrReader.cancel().catch(() => undefined);
+    // Do not keep this process alive for pipes a grandchild still holds.
+    child.unref();
+  };
   const completed = Promise.all([
     child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
+    readCapped(stdoutReader),
+    readCapped(stderrReader),
   ]);
+  // Once the deadline wins, stopping makes this reject with nobody awaiting.
+  completed.catch(() => undefined);
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<"timeout">((resolve) => {
     timer = setTimeout(() => resolve("timeout"), timeoutMs);
   });
-  const outcome = await Promise.race([completed, deadline]);
+  let outcome: Awaited<typeof completed> | "timeout";
+  try {
+    outcome = await Promise.race([completed, deadline]);
+  } catch (error) {
+    clearTimeout(timer);
+    stop();
+    if (error instanceof OutputTooLarge)
+      return {
+        failure: `${argv.join(" ")} printed more than ${maxPluginOutputBytes} bytes.`,
+      };
+    throw error;
+  }
   clearTimeout(timer);
   if (outcome === "timeout") {
-    child.kill("SIGKILL");
-    // Do not keep this process alive for pipes a grandchild still holds.
-    child.unref();
+    stop();
     return {
       failure: `${argv.join(" ")} did not finish within ${timeoutMs / 1000}s.`,
     };
