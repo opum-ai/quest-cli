@@ -10,7 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { CliAgentPluginPort } from "../src/adapters/agents/cli-agent-plugins.ts";
-import { printable } from "../src/application/agents/agent-plugins.ts";
+import {
+  printable,
+  unnamableScopeRemedy,
+} from "../src/application/agents/agent-plugins.ts";
 
 /**
  * QCLI-380: text a runtime supplies (list stderr, version, scope, update
@@ -158,6 +161,11 @@ test("a version carrying a line break and an escape sequence is printed as one c
   });
 });
 
+// QCLI-383 corrected the next two cases, which QCLI-380 wrote to pin an
+// UNSCOPED enable remedy and an UNSCOPED update. Ruling 26 (iii): a command
+// without --scope acts at Claude's default scope, which may be a different row
+// from the one that decided the state, so an unnamable scope gets no command
+// at all. lore-cli fixed the same in 46133fc0 (LCLI-593 review finding b).
 test("a scope that is not a plain token never reaches a printed remedy", async () => {
   await fake("claude", {
     list: await listingFrom(
@@ -177,8 +185,9 @@ test("a scope that is not a plain token never reaches a printed remedy", async (
   );
   expect(json.data.plugin).toMatchObject({
     state: "disabled",
-    remedy: "claude plugin enable opum-quest@opum",
+    remedy: unnamableScopeRemedy,
   });
+  expect(json.data.plugin.remedy).not.toContain("claude plugin enable");
 });
 
 test("a scope that is not a plain token never reaches the update's argv", async () => {
@@ -206,11 +215,50 @@ test("a scope that is not a plain token never reaches the update's argv", async 
       )
     ).stdout,
   );
-  expect(json.data.plugin).toMatchObject({ update: "ran", updateOk: true });
-  expect(await calls()).toEqual([
-    "claude plugin list --json",
-    "claude plugin update opum-quest@opum",
-  ]);
+  expect(json.data.plugin).toMatchObject({
+    state: "installed",
+    update: "not-run",
+    updateDetail: "the deciding scope could not be named in a command",
+    remedy: unnamableScopeRemedy,
+  });
+  expect(json.data.plugin.updateOk).toBeUndefined();
+  expect(await calls()).toEqual(["claude plugin list --json"]);
+});
+
+test("an installed row with an unnamable scope gets the prose remedy from --check", async () => {
+  await fake("claude", {
+    list: await listingFrom(
+      "claude",
+      JSON.stringify([
+        {
+          id: "opum-quest@opum",
+          scope: "user --dangerous",
+          enabled: true,
+          version: "1",
+        },
+      ]),
+    ),
+  });
+  const json = JSON.parse(
+    (await quest("agents", "--check", "--target", "claude", "--json")).stdout,
+  );
+  expect(json.data.plugin).toMatchObject({
+    state: "installed",
+    remedy: unnamableScopeRemedy,
+  });
+  expect(await calls()).toEqual(["claude plugin list --json"]);
+});
+
+test("the unnamable-scope remedy is lore-cli's at 46133fc0 with the names swapped", () => {
+  // lore-cli src/core/agent-plugins.ts:140 at 46133fc0, LORE_PLUGIN_ID
+  // expanded. Ruling (d): the two CLIs print the same prose.
+  const lore =
+    "the Claude scope that decided this state cannot be named safely in a command, so lore prints none: run `claude plugin list --json`, find the opum-lore@opum row that applies to this project, and act on it with that row's own --scope";
+  expect(unnamableScopeRemedy).toBe(
+    lore
+      .replace("opum-lore@opum", "opum-quest@opum")
+      .replace("so lore", "so quest"),
+  );
 });
 
 test("a plain-token scope still reaches the remedy and the update", async () => {

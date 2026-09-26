@@ -95,6 +95,26 @@ export function plainScope(scope: string | undefined): string | undefined {
     : undefined;
 }
 
+/**
+ * Whether a Claude plugin's deciding scope cannot be named in a command
+ * (QCLI-383). Ruling 26 (iii): a Claude update names its deciding scope and
+ * never touches a row the reported state did not come from. A command without
+ * `--scope` acts at Claude's DEFAULT scope, which may be a different row, so
+ * where the scope cannot be named quest neither runs nor prints a command.
+ * lore-cli's claudeScopeUnnamable at 46133fc0 (LCLI-593 review finding b).
+ */
+function claudeScopeUnnamable(
+  runtime: AgentRuntime,
+  scope: string | undefined,
+): boolean {
+  return runtime === "claude" && plainScope(scope) === undefined;
+}
+
+/** The remedy, as prose rather than a runnable command, for a Claude plugin
+ * whose scope cannot be named. lore-cli's UNNAMABLE_SCOPE_REMEDY at 46133fc0
+ * with the plugin id and the CLI's own name swapped (ADR ruling (d)). */
+export const unnamableScopeRemedy = `the Claude scope that decided this state cannot be named safely in a command, so quest prints none: run \`claude plugin list --json\`, find the ${questPluginId} row that applies to this project, and act on it with that row's own --scope`;
+
 /** ` --scope <scope>`, or nothing when the scope is absent or not a token. */
 function scopeFlag(scope: string | undefined): string {
   const token = plainScope(scope);
@@ -120,6 +140,14 @@ function remedyFor(
     return runtime === "claude"
       ? `${cli} plugin marketplace add ${marketplaceRepository} && ${cli} plugin install ${questPluginId}`
       : `${cli} plugin marketplace add ${marketplaceRepository} && ${cli} plugin add ${questPluginId}`;
+  // An unscoped `claude plugin enable`/`update` would act at Claude's default
+  // scope, which may not be the row this state came from (ruling 26 iii), so
+  // no command is offered at all.
+  if (
+    (state === "disabled" || state === "installed") &&
+    claudeScopeUnnamable(runtime, scope)
+  )
+    return unnamableScopeRemedy;
   if (state === "disabled")
     // Codex has no enable command (codex-cli 0.155.1); enablement is this
     // config key, which is what its own list command reads.
@@ -182,6 +210,16 @@ export async function updateQuestPlugin(
   // the plugin it reports and prints the update command without running it.
   if (detected.state !== "installed" || !runtimeNamed)
     return { ...detected, update: "not-run" };
+  // Ruling 26 (iii): an update names its deciding scope and never updates a
+  // row the reported state did not come from. A scope that cannot be put into
+  // a command cannot be named, so nothing runs, and the remedy is already
+  // prose rather than an unscoped command (see remedyFor).
+  if (claudeScopeUnnamable(runtime, detected.scope))
+    return {
+      ...detected,
+      update: "not-run",
+      updateDetail: "the deciding scope could not be named in a command",
+    };
   const outcome = await port.update(
     runtime,
     questPluginId,
