@@ -1,5 +1,6 @@
 import { realpathSync } from "node:fs";
 import { sep } from "node:path";
+import { printable } from "../../domain/agent-plugins.ts";
 import type {
   AgentPluginListing,
   AgentPluginPort,
@@ -208,7 +209,9 @@ function decodeClaude(
   for (const row of parsed) {
     if (!isRecord(row) || typeof row.id !== "string") continue;
     decodable += 1;
-    const scope = typeof row.scope === "string" ? row.scope : "user";
+    // Ranked in printable form, the form the report compares to "managed"
+    // (QCLI-381, lore-cli e6d504f6), so a padded "managed " decides first.
+    const scope = typeof row.scope === "string" ? printable(row.scope) : "user";
     let depth = 0;
     if (scope !== "managed" && typeof row.projectPath === "string") {
       const project = canonical(row.projectPath);

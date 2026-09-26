@@ -239,3 +239,32 @@ test("below managed, the order is unchanged: local decides over user", async () 
   ]);
   expect(await check()).toMatchObject({ state: "disabled", scope: "local" });
 });
+
+// AC4 parity read against lore-cli e6d504f6 (LCLI-604 + LCLI-608): lore ranks
+// a scope in printable() form, the form the report compares to "managed", so
+// a padded "managed " decides first and nothing runs. quest ranked the raw
+// string, which put it below synced while still reporting it as managed.
+for (const raw of ["managed ", " managed\u0007"]) {
+  for (const order of ["padded first", "padded last"] as const) {
+    test(`a managed scope written as ${JSON.stringify(raw)} still decides first (${order})`, async () => {
+      const rows: Row[] = [
+        { scope: raw, enabled: true },
+        { scope: "local", enabled: false, projectPath: root },
+      ];
+      await listing(order === "padded first" ? rows : [...rows].reverse());
+      expect(await check()).toMatchObject({
+        state: "installed",
+        scope: "managed",
+        remedy: managedScopeRemedy,
+      });
+      await rm(log, { force: true });
+      const report = await plugin(
+        "--update-instructions",
+        "--target",
+        "claude",
+      );
+      expect(report).toMatchObject({ update: "not-run", scope: "managed" });
+      expect(await calls()).toEqual(["claude plugin list --json"]);
+    });
+  }
+}
