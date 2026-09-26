@@ -56,12 +56,57 @@ export function runtimeForTarget(
   return undefined;
 }
 
+/**
+ * Runtime-supplied text as one printable line (QCLI-380). Whitespace, line
+ * breaks included, collapses to one space first; then ANSI escape sequences
+ * and every remaining control byte are removed. A line break would forge a
+ * record in --plain output, and an escape sequence would let a runtime drive
+ * the reader's terminal.
+ *
+ * Both regexes are lore-cli's stripAnsiAndControls (src/errors.ts at
+ * dc09ca98) byte for byte, so the same runtime text yields the same string
+ * from both CLIs (ADR ruling (d)). Keep them identical: an OSC needs its
+ * terminator, so an unterminated one loses only its ESC and never swallows
+ * the diagnostic text after it.
+ */
+export function printable(text: string): string {
+  return (
+    text
+      .replace(/\s+/g, " ")
+      .replace(
+        // CSI, terminated OSC, and two-byte ESC sequences.
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control bytes is the purpose
+        /\x1b(?:\[[0-9;:<=>?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[ -~])/g,
+        "",
+      )
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control bytes is the purpose
+      .replace(/[\x00-\x1f\x7f-\x9f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+/** A scope goes into a command a user may paste into a shell, and into the
+ * update's argv, only when it is a plain token (QCLI-380). Every scope Claude
+ * reports (local, project, user, managed, synced) is one. */
+export function plainScope(scope: string | undefined): string | undefined {
+  return scope !== undefined && /^[A-Za-z0-9_-]+$/.test(scope)
+    ? scope
+    : undefined;
+}
+
+/** ` --scope <scope>`, or nothing when the scope is absent or not a token. */
+function scopeFlag(scope: string | undefined): string {
+  const token = plainScope(scope);
+  return token !== undefined ? ` --scope ${token}` : "";
+}
+
 export function questPluginUpdateCommand(
   runtime: AgentRuntime,
   scope?: string,
 ): string {
   return runtime === "claude"
-    ? `claude plugin update ${questPluginId}${scope !== undefined ? ` --scope ${scope}` : ""}`
+    ? `claude plugin update ${questPluginId}${scopeFlag(scope)}`
     : `codex plugin marketplace upgrade ${marketplaceName} && codex plugin add ${questPluginId}`;
 }
 
@@ -79,7 +124,7 @@ function remedyFor(
     // Codex has no enable command (codex-cli 0.155.1); enablement is this
     // config key, which is what its own list command reads.
     return runtime === "claude"
-      ? `${cli} plugin enable ${questPluginId}${scope !== undefined ? ` --scope ${scope}` : ""}`
+      ? `${cli} plugin enable ${questPluginId}${scopeFlag(scope)}`
       : `set enabled = true under [plugins."${questPluginId}"] in $CODEX_HOME/config.toml (default ~/.codex/config.toml)`;
   if (state === "installed") return questPluginUpdateCommand(runtime, scope);
   return undefined;
@@ -97,7 +142,7 @@ export async function detectQuestPlugin(
       runtime,
       id: questPluginId,
       state: "not-detectable",
-      reason: listing.reason,
+      reason: printable(listing.reason),
     };
   const row = listing.plugins.find((plugin) => plugin.id === questPluginId);
   const state: AgentPluginState =
@@ -106,13 +151,16 @@ export async function detectQuestPlugin(
       : row.enabled === false
         ? "disabled"
         : "installed";
-  const remedy = remedyFor(runtime, state, row?.scope);
+  const version =
+    row?.version !== undefined ? printable(row.version) : undefined;
+  const scope = row?.scope !== undefined ? printable(row.scope) : undefined;
+  const remedy = remedyFor(runtime, state, scope);
   return {
     runtime,
     id: questPluginId,
     state,
-    ...(row?.version !== undefined ? { version: row.version } : {}),
-    ...(row?.scope !== undefined ? { scope: row.scope } : {}),
+    ...(version ? { version } : {}),
+    ...(scope ? { scope } : {}),
     ...(remedy !== undefined ? { remedy } : {}),
   };
 }
@@ -134,13 +182,17 @@ export async function updateQuestPlugin(
   // the plugin it reports and prints the update command without running it.
   if (detected.state !== "installed" || !runtimeNamed)
     return { ...detected, update: "not-run" };
-  const outcome = await port.update(runtime, questPluginId, detected.scope);
+  const outcome = await port.update(
+    runtime,
+    questPluginId,
+    plainScope(detected.scope),
+  );
   const { remedy: _remedy, ...rest } = detected;
   return {
     ...rest,
     update: "ran",
     updateOk: outcome.ok,
-    updateDetail: outcome.detail,
+    updateDetail: printable(outcome.detail),
     // A failed update keeps its command visible so it can be run by hand.
     ...(outcome.ok
       ? {}
