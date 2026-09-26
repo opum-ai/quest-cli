@@ -115,6 +115,20 @@ function claudeScopeUnnamable(
  * with the plugin id and the CLI's own name swapped (ADR ruling (d)). */
 export const unnamableScopeRemedy = `the Claude scope that decided this state cannot be named safely in a command, so quest prints none: run \`claude plugin list --json\`, find the ${questPluginId} row that applies to this project, and act on it with that row's own --scope`;
 
+/** The remedy for a Claude plugin whose deciding row is managed (QCLI-381,
+ * ruling 28): administrator policy, so no command the user could run. One
+ * string for installed and disabled alike and no OS path, agreed with
+ * lore-cli (LCLI-604) under ruling (d), plugin id swapped. */
+export const managedScopeRemedy = `managed by your Claude Code administrator: ${questPluginId} is set in the managed settings, which only an administrator can change`;
+
+/** A managed deciding row is never updated or enabled (ruling 28). */
+function claudeScopeManaged(
+  runtime: AgentRuntime,
+  scope: string | undefined,
+): boolean {
+  return runtime === "claude" && scope === "managed";
+}
+
 /** ` --scope <scope>`, or nothing when the scope is absent or not a token. */
 function scopeFlag(scope: string | undefined): string {
   const token = plainScope(scope);
@@ -140,6 +154,13 @@ function remedyFor(
     return runtime === "claude"
       ? `${cli} plugin marketplace add ${marketplaceRepository} && ${cli} plugin install ${questPluginId}`
       : `${cli} plugin marketplace add ${marketplaceRepository} && ${cli} plugin add ${questPluginId}`;
+  // Ruling 28: no `--scope managed` command is ever offered; only an
+  // administrator can change a managed row.
+  if (
+    (state === "disabled" || state === "installed") &&
+    claudeScopeManaged(runtime, scope)
+  )
+    return managedScopeRemedy;
   // An unscoped `claude plugin enable`/`update` would act at Claude's default
   // scope, which may not be the row this state came from (ruling 26 iii), so
   // no command is offered at all.
@@ -210,6 +231,16 @@ export async function updateQuestPlugin(
   // the plugin it reports and prints the update command without running it.
   if (detected.state !== "installed" || !runtimeNamed)
     return { ...detected, update: "not-run" };
+  // Ruling 28: a managed deciding row is never updated, and no
+  // `--scope managed` reaches the argv. The remedy is already the managed
+  // prose (see remedyFor). String agreed with lore-cli (LCLI-604).
+  if (claudeScopeManaged(runtime, detected.scope))
+    return {
+      ...detected,
+      update: "not-run",
+      updateDetail:
+        "the deciding row is managed by your Claude Code administrator, so it is never updated",
+    };
   // Ruling 26 (iii): an update names its deciding scope and never updates a
   // row the reported state did not come from. A scope that cannot be put into
   // a command cannot be named, so nothing runs, and the remedy is already

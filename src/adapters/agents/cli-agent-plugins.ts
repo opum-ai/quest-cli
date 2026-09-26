@@ -172,9 +172,11 @@ function canonical(path: string): string {
   }
 }
 
-/** Claude's scope precedence, most specific first: a local or project
- * setting overrides the user's, which overrides a managed default. */
-const claudeScopePrecedence = ["local", "project", "user", "managed", "synced"];
+/** Claude's scope precedence, deciding first. Managed is administrator
+ * policy the user cannot override, so it decides over every other scope
+ * (QCLI-381, ruling 28, which supersedes ruling 26(ii) for managed only);
+ * below it a local or project setting overrides the user's. */
+const claudeScopePrecedence = ["managed", "local", "project", "user", "synced"];
 
 /**
  * `claude plugin list --json`: an array with one row PER SCOPE, each
@@ -189,7 +191,8 @@ const claudeScopePrecedence = ["local", "project", "user", "managed", "synced"];
  * lore-cli dc09ca98): an enabled local row for /p/outer and a disabled one
  * for /p/outer/inner both apply at /p/outer/inner, and the inner one decides
  * there whichever order the runtime lists them in. A row with no projectPath
- * is the least specific.
+ * is the least specific. A managed row applies to every project (ruling
+ * 28), so it is never dropped for its projectPath.
  */
 function decodeClaude(
   parsed: unknown,
@@ -207,7 +210,7 @@ function decodeClaude(
     decodable += 1;
     const scope = typeof row.scope === "string" ? row.scope : "user";
     let depth = 0;
-    if (typeof row.projectPath === "string") {
+    if (scope !== "managed" && typeof row.projectPath === "string") {
       const project = canonical(row.projectPath);
       if (here !== project && !here.startsWith(`${project}${sep}`)) continue;
       depth = project.length;
