@@ -1,17 +1,24 @@
 import type {
   AgentPluginPort,
+  AgentPluginUpdateOutcome,
   AgentRuntime,
 } from "../../ports/agent-plugins.ts";
-import { printable } from "../../domain/agent-plugins.ts";
+import {
+  marketplaceName,
+  marketplaceRepository,
+  plainScope,
+  printable,
+  questPluginId,
+  questPluginUpdateSteps,
+} from "../../domain/agent-plugins.ts";
 import type { AgentInstructionTarget } from "./agent-instructions.ts";
 
 export type { AgentRuntime } from "../../ports/agent-plugins.ts";
-export { printable } from "../../domain/agent-plugins.ts";
-
-/** The opum-quest plugin as both runtimes name it: plugin@marketplace. */
-export const questPluginId = "opum-quest@opum";
-const marketplaceName = "opum";
-const marketplaceRepository = "opum-ai/opum-marketplace";
+export {
+  plainScope,
+  printable,
+  questPluginId,
+} from "../../domain/agent-plugins.ts";
 
 /**
  * QCLI-371, ADR Amendment 2 (ruling 20): four states. "disabled" is
@@ -58,15 +65,6 @@ export function runtimeForTarget(
   return undefined;
 }
 
-/** A scope goes into a command a user may paste into a shell, and into the
- * update's argv, only when it is a plain token (QCLI-380). Every scope Claude
- * reports (local, project, user, managed, synced) is one. */
-export function plainScope(scope: string | undefined): string | undefined {
-  return scope !== undefined && /^[A-Za-z0-9_-]+$/.test(scope)
-    ? scope
-    : undefined;
-}
-
 /**
  * Whether a Claude plugin's deciding scope cannot be named in a command
  * (QCLI-383). Ruling 26 (iii): a Claude update names its deciding scope and
@@ -107,13 +105,69 @@ function scopeFlag(scope: string | undefined): string {
   return token !== undefined ? ` --scope ${token}` : "";
 }
 
+/** The command that updates an installed plugin, naming its deciding scope
+ * (ruling 26 iii): the same steps the adapter runs (QCLI-384). */
 export function questPluginUpdateCommand(
   runtime: AgentRuntime,
   scope?: string,
 ): string {
-  return runtime === "claude"
-    ? `claude plugin update ${questPluginId}${scopeFlag(scope)}`
-    : `codex plugin marketplace upgrade ${marketplaceName} && codex plugin add ${questPluginId}`;
+  return questPluginUpdateSteps(runtime, scope)
+    .map((argv) => argv.join(" "))
+    .join(" && ");
+}
+
+/** The managed not-run detail agreed with lore-cli (LCLI-604, LCLI-608). */
+const managedScopeUpdateDetail =
+  "the deciding row is managed by your Claude Code administrator, so it is never updated";
+
+/**
+ * Ruling 25: the Codex upgrade's marketplace-wide side effect is said where
+ * it happens, in the command's own output. lore-cli's CODEX_MARKETPLACE_NOTICE
+ * at 46133fc0 with the plugin names swapped (QCLI-384).
+ */
+export const codexMarketplaceNotice = `\`codex plugin marketplace upgrade ${marketplaceName}\` refreshes every ${marketplaceName} plugin installed in Codex (opum-lore included), not only ${questPluginId}`;
+
+/**
+ * The Codex update's detail, worded by how far it got (QCLI-384, lore-cli
+ * codexUpdateDetail at 46133fc0). The all-plugins notice is said only when
+ * the marketplace upgrade actually ran to success: a failed or timed-out
+ * upgrade refreshed nothing quest can vouch for. When the upgrade succeeded
+ * and the re-add then failed, the refresh of every opum plugin has ALREADY
+ * happened, and the detail says so.
+ */
+function codexUpdateDetail(
+  detail: string,
+  outcome: AgentPluginUpdateOutcome,
+): string {
+  if (outcome.completed < 1) return detail;
+  if (outcome.ok) return `${detail}; note: ${codexMarketplaceNotice}`;
+  return `${detail}; note: \`codex plugin marketplace upgrade ${marketplaceName}\` had already succeeded, so every ${marketplaceName} plugin installed in Codex (opum-lore included) was refreshed; only re-adding ${questPluginId} failed`;
+}
+
+/**
+ * Why an update did not run: updateDetail on every not-run report (QCLI-384).
+ * lore-cli's notRunDetail (46133fc0, e6d504f6) with its command swapped for
+ * this CLI's and its own name swapped (ruled on QCLI-383). Managed first
+ * (ruling 28, LCLI-608), so no detail on a managed row mentions enabling or
+ * a runnable update.
+ */
+function notRunDetail(check: AgentPluginCheck, runtimeNamed: boolean): string {
+  if (
+    (check.state === "installed" || check.state === "disabled") &&
+    claudeScopeManaged(check.runtime, check.scope)
+  )
+    return managedScopeUpdateDetail;
+  if (!runtimeNamed)
+    // Rulings 25 and 27: a call naming no runtime is not consent to updating one.
+    return `this call named no runtime, so it updates none; \`quest agents --update-instructions --target ${check.runtime}\` updates this one`;
+  switch (check.state) {
+    case "disabled":
+      return "quest agents never enables a disabled plugin; enable it with the remedy, then update";
+    case "not-installed":
+      return "quest agents never installs a plugin; install it with the remedy";
+    default:
+      return "the plugin state could not be read, so nothing was run";
+  }
 }
 
 function remedyFor(
@@ -199,26 +253,19 @@ export async function updateQuestPlugin(
 ): Promise<AgentPluginUpdateReport> {
   const detected = await detectQuestPlugin(port, runtime);
   // Ruling 28: a managed deciding row is never updated or enabled, and no
-  // `--scope managed` reaches the argv. The remedy is already the managed
-  // prose (see remedyFor). Checked FIRST, so a managed row, installed or
-  // disabled, named or bare, carries only this detail and never one that
-  // mentions enabling or a runnable update (LCLI-608). String agreed with
-  // lore-cli (LCLI-604).
+  // `--scope managed` reaches the argv; notRunDetail says so first. Ruling
+  // 25: consent covers only a runtime the user NAMED with --target. Ruling
+  // 21: only an installed plugin is updated.
   if (
-    (detected.state === "installed" || detected.state === "disabled") &&
-    claudeScopeManaged(runtime, detected.scope)
+    claudeScopeManaged(runtime, detected.scope) ||
+    detected.state !== "installed" ||
+    !runtimeNamed
   )
     return {
       ...detected,
       update: "not-run",
-      updateDetail:
-        "the deciding row is managed by your Claude Code administrator, so it is never updated",
+      updateDetail: notRunDetail(detected, runtimeNamed),
     };
-  // Ruling 25: consent covers only a runtime the user NAMED with --target.
-  // A bare call resolves to the codex default for the instructions, but for
-  // the plugin it reports and prints the update command without running it.
-  if (detected.state !== "installed" || !runtimeNamed)
-    return { ...detected, update: "not-run" };
   // Ruling 26 (iii): an update names its deciding scope and never updates a
   // row the reported state did not come from. A scope that cannot be put into
   // a command cannot be named, so nothing runs, and the remedy is already
@@ -229,17 +276,15 @@ export async function updateQuestPlugin(
       update: "not-run",
       updateDetail: "the deciding scope could not be named in a command",
     };
-  const outcome = await port.update(
-    runtime,
-    questPluginId,
-    plainScope(detected.scope),
-  );
+  const outcome = await port.update(runtime, plainScope(detected.scope));
   const { remedy: _remedy, ...rest } = detected;
+  const detail = printable(outcome.detail);
   return {
     ...rest,
     update: "ran",
     updateOk: outcome.ok,
-    updateDetail: printable(outcome.detail),
+    updateDetail:
+      runtime === "codex" ? codexUpdateDetail(detail, outcome) : detail,
     // A failed update keeps its command visible so it can be run by hand.
     ...(outcome.ok
       ? {}

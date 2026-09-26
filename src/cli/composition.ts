@@ -24,21 +24,29 @@ export function createAgentInstructionPort(root: string) {
  * can prove the deadline bounds the process exit without waiting out the 15s
  * default. Unset, non-numeric or non-positive keeps the default. Matches
  * lore-cli's LORE_AGENT_PLUGINS_TIMEOUT_MS. */
-function pluginListTimeoutMs(): number | undefined {
-  const value = Number(process.env.QUEST_AGENT_PLUGINS_TIMEOUT_MS);
+function pluginTimeoutMs(name: string): number | undefined {
+  const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 /** QCLI-371: reads and updates the opum-quest marketplace plugin through
- * each agent runtime's own CLI, unless QUEST_AGENT_PLUGINS=off. */
+ * each agent runtime's own CLI, unless QUEST_AGENT_PLUGINS=off.
+ * QUEST_AGENT_PLUGINS_UPDATE_TIMEOUT_MS overrides the UPDATE deadline, per
+ * step, separately from the list's (QCLI-384, lore-cli's
+ * LORE_AGENT_PLUGINS_UPDATE_TIMEOUT_MS): the listing budget is seconds and
+ * the update budget minutes, and one knob for both would either starve the
+ * Codex upgrade or let a hung listing hold init for ten minutes. */
 export function createAgentPluginPort(root: string) {
-  const listTimeoutMs = pluginListTimeoutMs();
+  const listTimeoutMs = pluginTimeoutMs("QUEST_AGENT_PLUGINS_TIMEOUT_MS");
+  const updateTimeoutMs = pluginTimeoutMs(
+    "QUEST_AGENT_PLUGINS_UPDATE_TIMEOUT_MS",
+  );
   return process.env.QUEST_AGENT_PLUGINS === "off"
     ? new DisabledAgentPluginPort()
-    : new CliAgentPluginPort(
-        root,
-        listTimeoutMs !== undefined ? { listTimeoutMs } : {},
-      );
+    : new CliAgentPluginPort(root, {
+        ...(listTimeoutMs !== undefined ? { listTimeoutMs } : {}),
+        ...(updateTimeoutMs !== undefined ? { updateTimeoutMs } : {}),
+      });
 }
 
 export function createPlanningService(root: string): PlanningService {
