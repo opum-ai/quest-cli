@@ -1,6 +1,9 @@
 import { realpathSync } from "node:fs";
 import { sep } from "node:path";
-import { printable } from "../../domain/agent-plugins.ts";
+import {
+  printable,
+  questPluginUpdateSteps,
+} from "../../domain/agent-plugins.ts";
 import type {
   AgentPluginListing,
   AgentPluginPort,
@@ -257,10 +260,6 @@ function decodeCodex(
   return listed;
 }
 
-function marketplaceOf(pluginId: string): string {
-  return pluginId.slice(pluginId.indexOf("@") + 1);
-}
-
 /** Reaches each runtime only through its public CLI, never its internal
  * files (ADR ruling (d): lore and quest detect the same way). */
 export class CliAgentPluginPort implements AgentPluginPort {
@@ -307,50 +306,38 @@ export class CliAgentPluginPort implements AgentPluginPort {
       : { kind: "listed", plugins };
   }
 
+  /**
+   * Runs each of questPluginUpdateSteps in order on the same runner as the
+   * listing (process-group kill on the deadline, output cap), stopping at the
+   * first that fails. The deadline is the update budget, per step, never the
+   * listing's. A failure is an outcome, never a throw.
+   */
   async update(
     runtime: AgentRuntime,
-    pluginId: string,
     scope?: string,
   ): Promise<AgentPluginUpdateOutcome> {
-    const marketplace = marketplaceOf(pluginId);
-    // Codex has no `plugin update` (codex-cli 0.155.1): refreshing the
-    // marketplace and re-adding the plugin is its equivalent, and the
-    // refresh covers every plugin from that marketplace.
-    const steps: readonly (readonly string[])[] =
-      runtime === "claude"
-        ? [
-            [
-              "claude",
-              "plugin",
-              "update",
-              pluginId,
-              ...(scope !== undefined ? ["--scope", scope] : []),
-            ],
-          ]
-        : [
-            ["codex", "plugin", "marketplace", "upgrade", marketplace],
-            ["codex", "plugin", "add", pluginId],
-          ];
+    const steps = questPluginUpdateSteps(runtime, scope);
+    let completed = 0;
     for (const argv of steps) {
       const result = await run(
         argv,
         this.options.updateTimeoutMs ?? defaultUpdateTimeoutMs,
         this.options.env,
       );
-      if ("failure" in result) return { ok: false, detail: result.failure };
+      if ("failure" in result)
+        return { ok: false, detail: result.failure, completed };
       if (result.exitCode !== 0)
         return {
           ok: false,
           detail: `${argv.join(" ")} exited ${result.exitCode}: ${(result.stderr || result.stdout).trim().slice(0, 300)}`,
+          completed,
         };
+      completed += 1;
     }
-    // Ruling 25: the marketplace-wide side effect is said where it happens.
     return {
       ok: true,
-      detail:
-        runtime === "codex"
-          ? `refreshed the ${marketplace} marketplace for Codex (every ${marketplace} plugin, including opum-lore), then re-added ${pluginId}`
-          : steps.map((argv) => argv.join(" ")).join(" && "),
+      detail: steps.map((argv) => argv.join(" ")).join(" && "),
+      completed,
     };
   }
 }
@@ -370,6 +357,7 @@ export class DisabledAgentPluginPort implements AgentPluginPort {
     return {
       ok: false,
       detail: "plugin detection is off (QUEST_AGENT_PLUGINS=off).",
+      completed: 0,
     };
   }
 }

@@ -347,8 +347,9 @@ test("ruling 25: the Codex update says it refreshed the whole opum marketplace",
     "codex",
     "--json",
   );
+  // QCLI-384: worded as lore-cli's CODEX_MARKETPLACE_NOTICE (46133fc0).
   expect(result.json.data.plugin.updateDetail).toContain(
-    "every opum plugin, including opum-lore",
+    "refreshes every opum plugin installed in Codex (opum-lore included)",
   );
 });
 

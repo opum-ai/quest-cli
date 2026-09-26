@@ -1,9 +1,6 @@
-/**
- * The agent runtimes whose marketplace plugin Quest checks (QCLI-371, opum-doc
- * ADR "Distribute lore and quest agent skills through the plugin
- * marketplace"). Each is reached only through its own public CLI.
- */
-export type AgentRuntime = "claude" | "codex";
+import type { AgentRuntime } from "../domain/agent-plugins.ts";
+
+export type { AgentRuntime } from "../domain/agent-plugins.ts";
 
 /** One plugin row as the runtime's own list command reports it. `enabled`
  * is absent when the runtime does not report enablement; it is never
@@ -27,15 +24,20 @@ export type AgentPluginListing =
 export interface AgentPluginUpdateOutcome {
   readonly ok: boolean;
   readonly detail: string;
+  /** How many update steps exited 0 before the run stopped: what lets the
+   * Codex report say whether the marketplace-wide refresh (step 1) actually
+   * happened (QCLI-384, lore-cli 46133fc0). */
+  readonly completed: number;
 }
 
 /** Reads and updates a runtime's installed plugins. Installing and enabling
  * are deliberately absent: Quest prints those commands, never runs them. */
 export interface AgentPluginPort {
   list(runtime: AgentRuntime): Promise<AgentPluginListing>;
+  /** Runs questPluginUpdateSteps(runtime, scope), stopping at the first
+   * step that fails. */
   update(
     runtime: AgentRuntime,
-    pluginId: string,
     scope?: string,
   ): Promise<AgentPluginUpdateOutcome>;
 }
