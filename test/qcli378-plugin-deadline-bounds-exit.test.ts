@@ -64,13 +64,14 @@ function alive(pid: number): boolean {
 /** Runs `quest agents --check --target codex` against a fake codex that
  * ignores TERM, backgrounds a grandchild inheriting both pipes, records its
  * pid, then blocks: the codex Node launcher's shape. `ownGroup` puts the
- * grandchild in a process group of its own (job control), out of reach of a
- * group kill. */
+ * grandchild in a process group of its own, out of reach of a group kill.
+ * That uses perl's setpgrp, not `set -m`: job control in a non-interactive
+ * /bin/sh does not move a background job on Ubuntu's dash (measured on the
+ * CI runner, where the group kill still reached it). */
 async function checkAgainstHangingRuntime(ownGroup: boolean) {
   const script = `#!/bin/sh
 trap '' TERM
-${ownGroup ? "set -m" : ""}
-sleep ${grandchildLifetimeS} &
+${ownGroup ? `perl -e 'setpgrp(0, 0); sleep ${grandchildLifetimeS}' &` : `sleep ${grandchildLifetimeS} &`}
 echo $! > "${pidFile}"
 sleep ${grandchildLifetimeS}
 `;
@@ -121,7 +122,8 @@ test("a grandchild holding the pipes neither outlives the deadline nor keeps que
 
 test("a grandchild the group kill cannot reach still does not keep quest alive past the deadline", async () => {
   // Cancelling the pipe readers is what bounds the exit here: the grandchild
-  // runs in its own process group, so it survives (afterEach reaps it).
+  // runs in its own process group, so it survives (afterEach reaps it). The
+  // alive assertion is the precondition that the escape really happened.
   const { exitCode, stdout, elapsed } = await checkAgainstHangingRuntime(true);
   expect(JSON.parse(stdout).data.plugin).toMatchObject({
     state: "not-detectable",
