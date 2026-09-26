@@ -183,6 +183,13 @@ const claudeScopePrecedence = ["local", "project", "user", "managed", "synced"];
  * other projects are dropped and the most specific applicable row decides
  * enablement (QCLI-371 review: a foreign local row read as installed, and a
  * this-project disabled row could be masked by an enabled user row).
+ *
+ * "Most specific" is the scope first, then, between two applicable rows of
+ * the SAME scope, the deeper projectPath (QCLI-379, ruling 29, matching
+ * lore-cli dc09ca98): an enabled local row for /p/outer and a disabled one
+ * for /p/outer/inner both apply at /p/outer/inner, and the inner one decides
+ * there whichever order the runtime lists them in. A row with no projectPath
+ * is the least specific.
  */
 function decodeClaude(
   parsed: unknown,
@@ -190,22 +197,31 @@ function decodeClaude(
 ): readonly ListedAgentPlugin[] | undefined {
   if (!Array.isArray(parsed)) return undefined;
   const here = canonical(root);
-  const byId = new Map<string, { rank: number; listed: ListedAgentPlugin }>();
+  const byId = new Map<
+    string,
+    { rank: number; depth: number; listed: ListedAgentPlugin }
+  >();
   let decodable = 0;
   for (const row of parsed) {
     if (!isRecord(row) || typeof row.id !== "string") continue;
     decodable += 1;
     const scope = typeof row.scope === "string" ? row.scope : "user";
+    let depth = 0;
     if (typeof row.projectPath === "string") {
       const project = canonical(row.projectPath);
       if (here !== project && !here.startsWith(`${project}${sep}`)) continue;
+      depth = project.length;
     }
     const rank = claudeScopePrecedence.indexOf(scope);
     const effectiveRank = rank < 0 ? claudeScopePrecedence.length : rank;
     const listed = toListed(row.id, row, scope);
     const current = byId.get(row.id);
-    if (listed && (!current || effectiveRank < current.rank))
-      byId.set(row.id, { rank: effectiveRank, listed });
+    const moreSpecific =
+      !current ||
+      effectiveRank < current.rank ||
+      (effectiveRank === current.rank && depth > current.depth);
+    if (listed && moreSpecific)
+      byId.set(row.id, { rank: effectiveRank, depth, listed });
   }
   // Rows present but none readable means the shape moved, not that nothing
   // is installed: not-detectable, never not-installed.
