@@ -18,6 +18,9 @@
  * from both CLIs (ADR ruling (d)). Keep them identical: an OSC needs its
  * terminator, so an unterminated one loses only its ESC and never swallows
  * the diagnostic text after it.
+ *
+ * A third pass drops the Unicode FORMAT characters that can forge what a
+ * printed line shows (QCLI-382, OPAG-453 F5). See unicodeFormatForgery.
  */
 export function printable(text: string): string {
   return (
@@ -31,10 +34,30 @@ export function printable(text: string): string {
       )
       // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control bytes is the purpose
       .replace(/[\x00-\x1f\x7f-\x9f]/g, "")
+      .replace(unicodeFormatForgery, "")
       .replace(/\s+/g, " ")
       .trim()
   );
 }
+
+/**
+ * The Unicode format characters printable removes (QCLI-382, OPAG-453 F5, as
+ * narrowed by opum-agent 2026-09-26T19:48:58Z): the bidi embeddings and
+ * overrides U+202A-U+202E (an RLO reverses the rest of a line on screen), the
+ * bidi isolates U+2066-U+2069, and the invisible U+200B (zero-width space),
+ * U+2060 (word joiner) and U+FEFF (BOM / zero-width no-break space). It KEEPS
+ * U+200C (ZWNJ), U+200D (ZWJ), U+200E (LRM), U+200F (RLM) and U+061C (ALM),
+ * which carry meaning in emoji sequences and in Persian, Indic and
+ * right-to-left text. The regex is lore-cli's UNICODE_FORMAT_FORGERY
+ * (src/errors.ts:206 at f2d3223c, LCLI-607, opum-ai/lore-cli#307) byte for
+ * byte; change one only together with the other (ADR ruling (d)).
+ *
+ * JS \s matches U+FEFF, so on printable's path the leading whitespace
+ * collapse turns a U+FEFF into a space before this pass sees it, in lore-cli's
+ * plugin printable too. This constant is where its removal is pinned.
+ */
+export const unicodeFormatForgery =
+  /[\u202A-\u202E\u2066-\u2069\u200B\u2060\uFEFF]/g;
 
 /**
  * The agent runtimes whose marketplace plugin Quest checks (QCLI-371, opum-doc
@@ -50,9 +73,13 @@ export const marketplaceRepository = "opum-ai/opum-marketplace";
 
 /** A scope goes into a command a user may paste into a shell, and into the
  * update's argv, only when it is a plain token (QCLI-380). Every scope Claude
- * reports (local, project, user, managed, synced) is one. */
+ * reports (local, project, user, managed, synced) is one. It must START with
+ * a letter or digit: a dash-led value such as `--help` or `-x` would be parsed
+ * as an option of the runtime's CLI rather than as the scope's value
+ * (QCLI-382, OPAG-453 F4). lore-cli's isPlainScope regex at 46133fc0
+ * (src/core/agent-plugins.ts:126, LCLI-593) byte for byte. */
 export function plainScope(scope: string | undefined): string | undefined {
-  return scope !== undefined && /^[A-Za-z0-9_-]+$/.test(scope)
+  return scope !== undefined && /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(scope)
     ? scope
     : undefined;
 }
