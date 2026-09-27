@@ -8,6 +8,12 @@ history; this file is the forward-looking record.
 
 ### Changed
 
+- **Publishing refuses unless lore is at the same version** (QCLI-386,
+  constitution Article 3 clause 6). Both publishers read `@opum-ai/lore`'s
+  `package.json` on `opum-ai/lore-cli`'s `main`, dry run included, and refuse
+  on a mismatch or on any failure to read it.
+  `scripts/qualification/version-parity.mjs --require` runs the same check on
+  its own. Release tooling only.
 - **A release is staged under the `release-candidate` dist-tag, and `latest`
   moves in a separate step** (QCLI-385, constitution Article 3 clause 5). Both
   publishers now pass `--tag release-candidate` on every `npm publish`, so

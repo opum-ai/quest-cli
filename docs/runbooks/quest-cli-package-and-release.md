@@ -866,6 +866,25 @@ wrapper first resolved from a plain read at 16:04:06Z, about a minute after
 through paths that see a write before the public read does. So they cannot
 be the last word on whether a consumer can install.
 
+## lore and quest publish at one version, or not at all
+
+Constitution Article 3 clause 6, QCLI-386. Before anything else, and in dry
+runs too, both publishers compare this checkout's `package.json` version with
+`@opum-ai/lore`'s `package.json` on `opum-ai/lore-cli`'s `main`, read through
+the GitHub contents API. They refuse on a mismatch, and on any failure to read
+the peer: a 404, a network error, something that is not lore's manifest, or a
+missing version. The local publisher does this inline. `release.yml` runs
+`node scripts/qualification/version-parity.mjs --require` before its first
+`npm publish`, and the same command answers the question on its own. lore-cli
+runs the mirror check against `quest-cli`.
+
+It reads `main`, not the registry or a tag, on purpose. With the registry,
+whichever side stages first would see the other still on the old number, so
+neither could ever go first. A tag would force a tag order across the two
+repositories. So a paired release promotes both `dev` branches to `main` at
+the shared version before either side publishes. There is no override flag.
+Changing the rule means amending Article 3.
+
 ## Stage, qualify, promote: `latest` moves last
 
 Constitution Article 3 clause 5 (opum-agent `docs/reference/opum-project-constitution.md`,
