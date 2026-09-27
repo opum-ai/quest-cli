@@ -19,6 +19,13 @@ history; this file is the forward-looking record.
   restores the tags that run moved, and `--rollback <record>` restores all of
   them. Release tooling only; no command, flag, envelope or exit code of
   `quest` changed.
+- **Moving `latest` requires opum-cli-e2e's verdict on the staged pair**
+  (QCLI-388). `scripts/promote-release.mjs` reads
+  `receipts/pair/<version>.json` from opum-cli-e2e's `main` and refuses unless
+  it is `QUALIFIED`, names quest and lore at the same version, and was taken
+  from registry installs. Every recorded `distIntegrity` must also match what
+  npm serves when the promotion runs. A missing or unreadable receipt refuses.
+  Rolling back is never gated. Release tooling only.
 
 ### Fixed
 

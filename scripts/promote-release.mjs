@@ -16,6 +16,11 @@
 // the registry's current `latest` is the NEW version, and recording that as
 // the prior value would make the rollback a no-op.
 //
+// Promotion also refuses without opum-cli-e2e's pair receipt for this
+// version (QCLI-388, scripts/qualification/pair-receipt.mjs): the verdict on
+// the staged pair is read from the record, never taken from a message.
+// --rollback is deliberately not gated on it.
+//
 // Usage:
 //   node scripts/promote-release.mjs --record <path>             # dry run
 //   node scripts/promote-release.mjs --record <path> --promote   # move latest
@@ -38,7 +43,9 @@ import {
   STAGE_TAG,
   tokenShape,
 } from "./publish-release.mjs";
+import { describeOverride } from "./qualification/e2e-receipt.mjs";
 import { REQUIRED_PLATFORMS } from "./qualification/native-execution-receipt.mjs";
+import { requirePairQualification } from "./qualification/pair-receipt.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -284,6 +291,27 @@ async function main(argv) {
     );
     for (const entry of record.packages)
       console.log(`  ${entry.name}  ${entry.priorLatest}`);
+
+    // QCLI-388, promote only: opum-cli-e2e's verdict on the STAGED pair,
+    // installed from the registry, read here rather than relayed. Dry runs
+    // too, so a dry run answers "would this promote". --rollback never
+    // reaches this branch: restoring prior tags must always be possible.
+    const pair = await requirePairQualification({
+      version,
+      packages: RELEASE_PACKAGES,
+    });
+    if (!pair.ok) {
+      console.error(
+        `Refusing to promote ${version}: no opum-cli-e2e pair receipt qualifies the staged pair as npm serves it now.`,
+      );
+      for (const problem of pair.problems) console.error(`  - ${problem}`);
+      process.exit(1);
+    }
+    if (pair.override)
+      console.log(describeOverride(pair.override, pair.source));
+    console.log(
+      `Pair receipt ${pair.source} qualifies quest ${version} with lore ${version}, and all ${RELEASE_PACKAGES.length} tarballs npm serves match it.`,
+    );
     if (!act) {
       console.log(
         `\nDry run only. Re-run with --promote to write ${recordPath} and move ${PROMOTE_TAG}.`,
