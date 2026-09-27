@@ -262,6 +262,7 @@
 - 2026-09-17T18:56:11-05:00 8fabbdc4853a08a71de748f189e497487c4e200a docs(QCLI-334): document dev->main promotion mechanics in the release runbook (#187)
 - 2026-09-18T22:49:00-05:00 25909d18764325d8d3fba02689d74ca19bb9a84b chore(QCLI-354): record fleet-wide dotted-alias sweep for OPAG-276 (#213)
 - 2026-09-18T23:15:23-05:00 53c8c24dab20eb10b031936b24e90e7259a7f29f chore(QCLI-352): close the handoff note as read by the successor (#216)
+- 2026-09-22T18:18:02-05:00 73617b596992f11ca41981b708a6369439ce5637 chore(QCLI-361): move the lore check gate to lore 0.9.0 and re-export the schemas (#236)
 
 ## docs/adr
 
@@ -300,6 +301,16 @@
 - 2026-09-15T09:33:48-05:00 0a480d668df92b88405e3c7123b9f45175cfe522 fix(QCLI-299): gate the wrapper publish on a consumer-side read (#120)
 - 2026-09-16T17:05:13-05:00 95b53569e041e66423633684bed6c68cece1e006 docs(QCLI-319): restore the Unreleased heading; make release prep leave a successor (#152)
 - 2026-09-18T19:44:40-05:00 a94c8724dbcb8923db33e59aba7e17ad82bfaf05 chore(QCLI-347): close the 0.9.0 release and record what the publish taught (#205)
+- 2026-09-24T21:54:05-05:00 bd408df95458c09cbccc12f932f2d00b9f87d12e feat(QCLI-366): refuse to publish without an opum-cli-e2e qualification receipt (#254)
+- 2026-09-24T22:27:01-05:00 213d10f66a20f6212928ae5b9c56955873faa1a6 fix(QCLI-368): pin win32 package files to LF; fail a release on any tarball mismatch (#256)
+- 2026-09-25T11:11:11-05:00 8bc03d3a0eb1eb5938c4978727fc5dc9770a2053 fix(QCLI-349): report a locked Keychain entry as present, not as a missing token (#270)
+- 2026-09-25T11:34:37-05:00 d739f60f6917f0bedd54e0d092fae98f490fbcda fix(QCLI-350): name what the publisher verified, and name SLOW as a third state (#273)
+- 2026-09-25T11:53:08-05:00 22b47204552c9adac595070b71a18977d78b58ef fix(QCLI-304): make the wrapper's post-publish consumer read testable, and drive it (#275)
+- 2026-09-25T12:14:20-05:00 86d931b43a2ed8924d5d4b5e645efc011739d111 fix(QCLI-292): gate bun.lock's platform pins against the version on the bump PR (#277)
+- 2026-09-26T19:53:44-05:00 654274ab0fc9e66b56f04699ae62eb6e161fcb8d feat(QCLI-385): stage releases under release-candidate; move latest as a recorded, reversible step (#306)
+- 2026-09-26T20:09:19-05:00 1b6edff973536a440a982897dd6195a8558c9302 feat(QCLI-388): gate the latest move on opum-cli-e2e's pair receipt (#307)
+- 2026-09-26T20:15:31-05:00 481f4654f5fd205b2de2af51b83341c6c76517ed feat(QCLI-386): refuse to publish unless lore is at the same version (#308)
+- 2026-09-26T22:13:30-05:00 a2d635507c8b241fcadee644d3255eda42c60276 fix(QCLI-390): rollback may only undo its own promotion; restore a failed tag move too (#316)
 
 ## docs/specs
 
