@@ -156,6 +156,21 @@ export function evaluateReceipt(
         `${name}: named in the receipt but not part of this release`,
       );
 
+  const verdict = evaluateVerdict(doc);
+  problems.push(...verdict.problems);
+  return {
+    ok: problems.length === 0,
+    problems,
+    override: verdict.override,
+  };
+}
+
+/**
+ * The verdict half every opum-cli-e2e receipt shares, the per-product and
+ * the pair receipt (QCLI-388) alike: QUALIFIED, or a well-formed override.
+ */
+export function evaluateVerdict(doc) {
+  const problems = [];
   // An override is a signed waiver, not a truthy value: it must carry the four
   // fields the agreed format names, each a non-empty string, or it waives
   // nothing and its banner would print an empty object.
@@ -182,7 +197,7 @@ export function evaluateReceipt(
     problems.push(
       `verdict is ${JSON.stringify(doc.verdict)}, not "QUALIFIED", and the receipt carries no override`,
     );
-  return { ok: problems.length === 0, problems, override };
+  return { problems, override };
 }
 
 /**
@@ -191,9 +206,8 @@ export function evaluateReceipt(
  */
 export async function fetchReceipt(
   version,
-  { execFile: execFileFn = execFile } = {},
+  { execFile: execFileFn = execFile, path = receiptPath(version) } = {},
 ) {
-  const path = receiptPath(version);
   try {
     const { stdout } = await execFileFn(
       "gh",

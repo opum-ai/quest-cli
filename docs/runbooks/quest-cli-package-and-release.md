@@ -893,7 +893,16 @@ publish no longer moves `latest`:
    ```
 
    It reads all seven packages' dist-tags anonymously and refuses unless
-   `release-candidate` is the version on every one. It writes each package's
+   `release-candidate` is the version on every one. It also refuses, dry run
+   included, unless opum-cli-e2e's pair receipt `receipts/pair/<version>.json`
+   on its `main` qualifies this pair (QCLI-388, opum-agent ruling A on
+   OPAG-465; schema in opum-cli-e2e's `receipts/README.md`, "Pair receipts").
+   The receipt must be `QUALIFIED` or carry a four-field override, which is
+   printed verbatim. It must name quest and lore at this one version, with
+   `pair.quest.commit` equal to npm's `gitHead`, and installs from the
+   registry. Its seven `distIntegrity` values must equal what npm serves at
+   that moment. A relayed "it passed" is not a substitute. `--rollback` is not
+   gated on the receipt. It writes each package's
    prior `latest` to `<path>` before any tag moves, then moves `latest`
    platforms first and wrapper last. It passes only when an anonymous re-read
    shows `latest` at the version on all seven. The record is written once: a
