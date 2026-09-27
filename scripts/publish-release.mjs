@@ -65,6 +65,7 @@ import {
   describeVersionState,
   waitForConsumerVisibility,
 } from "./qualification/registry-visibility.mjs";
+import { requireVersionParity } from "./qualification/version-parity.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -528,6 +529,16 @@ async function main(argv) {
   const commit = (
     await execFile("git", ["rev-parse", "HEAD"], { cwd: root })
   ).stdout.trim();
+
+  // QCLI-386, constitution Article 3.6: lore and quest publish at one
+  // version or not at all. First, and in dry runs too, because a mismatched
+  // pair is a release that must not happen whatever else is in order.
+  const parity = await requireVersionParity({ version });
+  if (!parity.ok) {
+    console.error(`Refusing to publish ${version}: ${parity.problem}`);
+    process.exit(1);
+  }
+  console.log(parity.message);
 
   // Same gate as CI: the receipt must bind THIS commit and version, and every
   // digest is re-derived from the artifact on disk rather than trusted.

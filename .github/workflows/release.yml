@@ -150,6 +150,15 @@ jobs:
       - name: Gate on release provenance
         run: node scripts/qualification/release-provenance.mjs --pre
 
+      # QCLI-386, constitution Article 3.6: refuse unless lore-cli's
+      # package.json on its main names this same version. lore-cli runs the
+      # mirror check. Public repository, so the job's own token reads it; any
+      # read failure refuses.
+      - name: Gate on lore/quest version parity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/qualification/version-parity.mjs --require
+
       # Fail on the credential BEFORE touching the registry, and say which
       # fault it is. npm returns E404 on PUT both for a token that cannot write
       # to the scope and for one that is not a token at all, so the publish
