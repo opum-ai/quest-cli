@@ -12,7 +12,8 @@
 //   2. verdict is QUALIFIED, or a four-field override (printed verbatim)
 //   3. pair.quest.version AND pair.lore.version are the version being
 //      promoted -- Article 3.1 gives both the one number -- and
-//      pair.quest.commit is the gitHead npm records for that version
+//      pair.quest.commit is what the v<version> tag peels to, and npm's
+//      gitHead too when npm recorded one (QCLI-393)
 //   4. pair.quest.tarballs names exactly the seven archives, and each
 //      distIntegrity is what npm serves for that package right now
 //
@@ -47,8 +48,8 @@ const isObject = (value) =>
 
 /**
  * Pure verdict over a pair receipt and what the registry serves now.
- * `observed.integrities` is keyed by tarball name; `observed.gitHead` is the
- * commit npm records for the wrapper at this version.
+ * `observed.integrities` is keyed by tarball name; `observed.commit` is what
+ * the v<version> tag peels to, and `observed.gitHead` npm's gitHead or null.
  */
 export function evaluatePairReceipt(doc, { version, observed }) {
   if (!isObject(doc))
@@ -75,9 +76,16 @@ export function evaluatePairReceipt(doc, { version, observed }) {
     problems.push(
       `pair.lore.version is ${JSON.stringify(lore.version)}; Article 3 pairs quest ${version} with lore ${version}`,
     );
-  if (!observed.gitHead || quest.commit !== observed.gitHead)
+  // Condition 3 (opum-agent ruling on QCLI-393): the receipt's commit must be
+  // what the v<version> tag peels to -- an unreadable tag refuses -- and, if
+  // npm recorded a gitHead, that too. Either disagreement refuses.
+  if (!observed.commit || quest.commit !== observed.commit)
     problems.push(
-      `pair.quest.commit is ${JSON.stringify(quest.commit)}, npm records gitHead ${JSON.stringify(observed.gitHead ?? null)} for ${version}`,
+      `pair.quest.commit is ${JSON.stringify(quest.commit)}, ${observed.commitSource ?? `v${version}`} resolves to ${JSON.stringify(observed.commit ?? null)}${observed.commitError ? ` (${observed.commitError})` : ""}`,
+    );
+  if (observed.gitHead && quest.commit !== observed.gitHead)
+    problems.push(
+      `pair.quest.commit is ${JSON.stringify(quest.commit)}, npm records gitHead ${JSON.stringify(observed.gitHead)} for @opum-ai/quest@${version}`,
     );
   if (doc.installedFrom?.quest?.source !== "registry")
     problems.push(
@@ -122,44 +130,155 @@ export function evaluatePairReceipt(doc, { version, observed }) {
 }
 
 /**
- * What the registry serves for the seven packages at this version, read at
- * promotion time. A package that cannot be read is simply absent from the
- * result, which the verdict then reports; it is never guessed.
+ * One version's registry metadata as an object, or null (QCLI-393). Read
+ * WHOLE, as lore-cli's reader does, rather than by naming fields: npm 12
+ * changes the answer's shape with how many named fields exist. 0.11.0 was
+ * published from tarballs, which records no gitHead, so a two-field read came
+ * back as a bare `["sha512-..."]` and parsed as "npm serves nothing" for all
+ * seven -- a uniform null from the reader, not the registry. A whole-version
+ * view is one object, wrapped in a one-element array by npm 12.
+ */
+export async function viewVersion(
+  name,
+  version,
+  { execFile: execFileFn = execFile } = {},
+) {
+  const { stdout } = await execFileFn(
+    "npm",
+    ["view", `${name}@${version}`, "--json", "--prefer-online"],
+    { maxBuffer: 16 * 1024 * 1024 },
+  );
+  const parsed = JSON.parse(stdout);
+  const view = Array.isArray(parsed)
+    ? parsed.length === 1
+      ? parsed[0]
+      : null
+    : parsed;
+  return isObject(view) ? view : null;
+}
+
+/** Annotated tags can in principle point at other tags; nothing legitimate nests this deep. */
+export const MAX_PEEL_DEPTH = 8;
+const SHA1_HEX = /^[0-9a-f]{40}$/;
+const OWN_REPOSITORY = "opum-ai/quest-cli";
+const firstLine = (error) =>
+  String(error?.stderr || error?.message || error)
+    .trim()
+    .split("\n")[0];
+
+/**
+ * The commit `v<version>` peels to on quest-cli, dereferenced EXPLICITLY
+ * (opum-agent ruling on QCLI-393; the same function as lore-cli's
+ * resolveTagCommit). quest's release tags are annotated: refs/tags/v0.11.0
+ * names tag object 84cc917, which names commit eb1d9f4. Comparing with the
+ * ref's own sha would never match. So: read the exact ref, follow
+ * git/tags/<sha> while the object is a tag, up to MAX_PEEL_DEPTH, and accept
+ * ONLY a commit. Fails closed, with the reason, on a missing tag, a ref that
+ * is not exactly refs/tags/v<version>, a malformed answer, a peel that ends
+ * on anything but a commit, or a chain too deep. No fallback to any branch.
+ */
+export async function resolveTagCommit(
+  version,
+  { execFile: execFileFn = execFile } = {},
+) {
+  const ref = `refs/tags/v${version}`;
+  const chain = [];
+  const fail = (error) => ({ commit: null, chain, error });
+  const read = async (path) => {
+    const { stdout } = await execFileFn("gh", [
+      "api",
+      "--hostname",
+      "github.com",
+      `repos/${OWN_REPOSITORY}/${path}`,
+    ]);
+    return JSON.parse(stdout);
+  };
+  let object;
+  try {
+    const answer = await read(`git/ref/tags/v${version}`);
+    if (!isObject(answer) || answer.ref !== ref)
+      return fail(
+        `asked for ${ref}, the API answered ${JSON.stringify(isObject(answer) ? answer.ref : answer)}`,
+      );
+    object = answer.object;
+  } catch (error) {
+    return fail(`${ref} could not be read (${firstLine(error)})`);
+  }
+  for (let depth = 0; ; depth++) {
+    if (
+      !isObject(object) ||
+      typeof object.type !== "string" ||
+      !SHA1_HEX.test(String(object.sha))
+    )
+      return fail(
+        `${ref} resolves to a malformed object ${JSON.stringify(object)}`,
+      );
+    chain.push(`${object.type} ${object.sha}`);
+    if (object.type === "commit") return { commit: object.sha, chain };
+    if (object.type !== "tag")
+      return fail(
+        `${ref} peels to a ${object.type} ${object.sha}, not a commit (chain: ${chain.join(" -> ")})`,
+      );
+    if (depth >= MAX_PEEL_DEPTH)
+      return fail(
+        `${ref} is still a tag after ${MAX_PEEL_DEPTH} dereferences (chain: ${chain.join(" -> ")})`,
+      );
+    try {
+      const tag = await read(`git/tags/${object.sha}`);
+      if (!isObject(tag) || tag.sha !== object.sha)
+        return fail(
+          `asked for tag object ${object.sha} under ${ref}, the API answered for ${JSON.stringify(isObject(tag) ? tag.sha : tag)}`,
+        );
+      object = tag.object;
+    } catch (error) {
+      return fail(
+        `tag object ${object.sha} under ${ref} could not be read (${firstLine(error)})`,
+      );
+    }
+  }
+}
+
+/**
+ * What the registry serves for the seven packages at this version, and the
+ * commit the release resolves to. A package that cannot be read is absent
+ * from the result, which the verdict then reports; it is never guessed.
  */
 export async function observeRegistry(
   version,
   packages,
-  { execFile: execFileFn = execFile } = {},
+  {
+    execFile: execFileFn = execFile,
+    resolveCommit = (v) => resolveTagCommit(v, { execFile: execFileFn }),
+  } = {},
 ) {
   const integrities = {};
   let gitHead = null;
   for (const name of packages) {
     try {
-      const { stdout } = await execFileFn("npm", [
-        "view",
-        `${name}@${version}`,
-        "dist.integrity",
-        "gitHead",
-        "--json",
-      ]);
-      // npm 12 answers an exact-version view with a ONE-element array, and an
-      // older npm with the bare object (measured on 0.10.0, npm 12.0.2).
-      // Anything else is not one version's metadata, so it is not read.
-      const parsed = JSON.parse(stdout);
-      const view = Array.isArray(parsed)
-        ? parsed.length === 1
-          ? parsed[0]
-          : {}
-        : parsed;
-      if (typeof view["dist.integrity"] === "string")
-        integrities[tarballName(name, version)] = view["dist.integrity"];
-      if (name === "@opum-ai/quest" && typeof view.gitHead === "string")
+      const view = await viewVersion(name, version, { execFile: execFileFn });
+      const integrity = isObject(view?.dist) ? view.dist.integrity : undefined;
+      if (typeof integrity === "string")
+        integrities[tarballName(name, version)] = integrity;
+      // By presence, not value: a tarball publish records no gitHead at all.
+      if (
+        name === "@opum-ai/quest" &&
+        view &&
+        Object.hasOwn(view, "gitHead") &&
+        typeof view.gitHead === "string"
+      )
         gitHead = view.gitHead;
     } catch {
       // Left absent on purpose: see above.
     }
   }
-  return { integrities, gitHead };
+  const peeled = await resolveCommit(version);
+  return {
+    integrities,
+    gitHead,
+    commit: peeled.commit,
+    commitSource: `${OWN_REPOSITORY} tag v${version}`,
+    ...(peeled.error ? { commitError: peeled.error } : {}),
+  };
 }
 
 /** The whole gate: fetch the pair receipt, read the registry, compare. */
