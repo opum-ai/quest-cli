@@ -4,7 +4,27 @@ Records start here, at 0.5.0. Earlier releases are documented in
 `docs/reference/quest-cli-release-truth.md` and in each release's own PR
 history; this file is the forward-looking record.
 
+Each version heading is dated with the UTC day `@opum-ai/quest` reached npm, read
+from the registry's `time` field. 0.6.1 and 0.8.0 never reached npm, so each is
+dated by its own tag. No date here is inferred (QCLI-398).
+
 ## Unreleased
+
+### Added
+
+- **Promoting `latest` now cuts the GitHub Release too** (QCLI-398, opum-agent
+  OPAG-646). GitHub Releases had stopped at v0.6.0 because no release step
+  created one, so `releases/latest` still read v0.6.0 after 0.11.0 shipped.
+  `scripts/promote-release.mjs --promote` now creates the `v<version>` release
+  from this file's section once `latest` is verified moved, and marks it
+  latest. It refuses before any tag moves, dry runs included, if the section
+  is missing or empty, or if `gh` cannot read the release (missing, logged
+  out or offline). A failure found only after `latest` has moved could not be
+  undone. `--rollback` does not touch releases.
+  `scripts/github-release.mjs --version <v> --create` is the same step on its
+  own, for backfill or repair. It never creates a tag and never rewrites an
+  existing release's notes. Version headings here now carry dates. Release
+  tooling only.
 
 ### Fixed
 
@@ -26,7 +46,7 @@ history; this file is the forward-looking record.
   part way through now restores the failed package too, because the write
   may have landed before the error. Release tooling only.
 
-## 0.11.0
+## 0.11.0 - 2026-09-27
 
 The first release under constitution Article 3 (opum-ai/opum-agent
 `docs/reference/opum-project-constitution.md`, ratified 2026-09-27): quest and
@@ -153,7 +173,7 @@ command, flag or envelope.
   pins to `package.json` and names `bun install` as the fix. Release tooling
   only.
 
-## 0.10.0
+## 0.10.0 - 2026-09-24
 
 This release is minor rather than patch for one reason: the managed-block
 change below makes `quest agents --check` report `drift` (exit 6) against every
@@ -179,7 +199,7 @@ only source file changed since 0.9.0 is `src/application/agents/agent-instructio
   `quest agents --update-instructions`. That is a real content change, not a
   version-only difference, so it is not exempt.
 
-## 0.9.0
+## 0.9.0 - 2026-09-19
 
 Ships the 0.8.0 section below along with everything here: 0.8.0 was frozen and
 tagged but never published, so its content reaches consumers for the first
@@ -257,7 +277,7 @@ replaced by a check.
   applied -- previously a caller could not tell from the message whether a
   multi-flag edit had partially landed.
 
-## 0.8.0
+## 0.8.0 - 2026-09-17 (tagged, never published)
 
 Version frozen 2026-09-17, **tagged and never published**. Its content ships
 under 0.9.0 instead, together with the work that landed after the freeze; see
@@ -527,7 +547,7 @@ and nothing in this file should be read as evidence that it happened.
   here (`**Status: 0.6.0 released.**`) carries no package name on its line and
   the shared clause would have missed the defect it exists for (QCLI-307).
 
-## 0.7.1
+## 0.7.1 - 2026-09-15
 
 Version frozen 2026-09-15. **Breaks lockstep with `@opum-ai/lore`, once and
 deliberately, as 0.6.2 did:** lore stays at 0.7.0 and nothing in lore
@@ -608,7 +628,7 @@ as evidence that it happened.
   so the job runs lore against a shim over `bun run src/cli/main.ts` from the
   same checkout and asserts that is what PATH resolved to (QCLI-301).
 
-## 0.7.0
+## 0.7.0 - 2026-09-15
 
 Version frozen 2026-09-15, in lockstep with `@opum-ai/lore` 0.7.0 -- the
 pairing convention every release has held since 0.5.0, resumed after 0.6.2
@@ -733,7 +753,7 @@ that binds to the CLI's own declaration does not need one.
   ladder, still reachable only via `pause`/`start`) -- a naming fix, not a
   new transition (QCLI-287).
 
-## 0.6.2
+## 0.6.2 - 2026-09-14
 
 Breaks lockstep with `@opum-ai/lore`, once, deliberately -- the pairing
 convention every release has held since 0.5.0 otherwise. `v0.6.1` was
@@ -895,7 +915,17 @@ breaking section before upgrading.
   version.** Affects 0.3.0 through 0.6.0 and the never-published `v0.6.1`
   tag. See `docs/runbooks/quest-cli-package-and-release.md`.
 
-## 0.6.0
+## 0.6.1 - 2026-09-13 (tagged, never published)
+
+Tagged at `1fa0fef` and **never published**. Every publish attempt failed a
+registry E404 before writing anything: `actions/setup-node` exported a
+placeholder `NODE_AUTH_TOKEN` that defeated OIDC trusted publishing. That was
+a CI-only defect with no content change of its own. No package reached npm
+under this number. The content it would have carried shipped as 0.6.2 (see
+that entry). The `v0.6.1` tag stays where it is and is not re-pointed,
+because `quest-web`'s CI cites this repository's tags.
+
+## 0.6.0 - 2026-09-09
 
 Lockstep with `@opum-ai/lore` 0.6.0, same pairing convention as every release
 since 0.5.0. Minor, not patch: new instruction-file targets and a changed
@@ -948,7 +978,7 @@ verified by the existing test suite needing zero edits across all of it.
   and says so directly instead of repeating advice that already failed
   (QCLI-256).
 
-## 0.5.0
+## 0.5.0 - 2026-09-08
 
 **The jump from 0.4.x to 0.5.0 is a lockstep version sync with `@opum-ai/lore`
 0.5.0, not a breaking change.** From this release on, Quest and Lore move
