@@ -38,6 +38,11 @@ export function validateRecord(
   options?: { version?: string; packages?: readonly string[] },
 ): { ok: boolean; problems: string[] };
 
+export function checkRollbackState(options: {
+  record: PromotionRecord;
+  readTags?: ReadTags;
+}): Promise<{ ok: boolean; problems: string[] }>;
+
 export function promote(options: {
   record: PromotionRecord;
   setTag: SetTag;

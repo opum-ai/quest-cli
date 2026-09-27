@@ -147,9 +147,49 @@ export function validateRecord(
     problems.push(
       `record names ${JSON.stringify(names)}, expected ${JSON.stringify(packages)}`,
     );
+  // QCLI-390 (S1, from lore-cli's review of its mirror): a rollback sets
+  // `latest` to exactly these values with no receipt, so each must be a
+  // real version that is not the one being rolled back -- never a tag name
+  // or an arbitrary number written into the file by hand.
   for (const entry of record?.packages ?? [])
     if (typeof entry?.priorLatest !== "string")
       problems.push(`record has no prior ${PROMOTE_TAG} for ${entry?.name}`);
+    else if (!STRICT_SEMVER.test(entry.priorLatest))
+      problems.push(
+        `record's prior ${PROMOTE_TAG} for ${entry.name} is ${JSON.stringify(entry.priorLatest)}, not a version`,
+      );
+    else if (entry.priorLatest === record.version)
+      problems.push(
+        `record's prior ${PROMOTE_TAG} for ${entry.name} is the release version itself`,
+      );
+  return { ok: problems.length === 0, problems };
+}
+
+const STRICT_SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+
+/**
+ * QCLI-390 (S1): a rollback may only UNDO this record's promotion. Every
+ * package's current `latest` must be the record's version (moved) or its
+ * recorded prior value (never moved, or already restored). Anything else
+ * means `latest` has moved on since -- rolling an old record back would
+ * silently downgrade it. An unreadable tag set refuses.
+ */
+export async function checkRollbackState({ record, readTags = readDistTags }) {
+  const problems = [];
+  for (const { name, priorLatest } of record.packages) {
+    let tags;
+    try {
+      tags = await readTags(name);
+    } catch (error) {
+      problems.push(`${name}: dist-tags unreadable (${error.message})`);
+      continue;
+    }
+    const current = tags[PROMOTE_TAG];
+    if (current !== record.version && current !== priorLatest)
+      problems.push(
+        `${name}: ${PROMOTE_TAG} is ${JSON.stringify(current ?? null)}, neither ${record.version} nor the recorded prior ${priorLatest}; this record no longer describes the registry`,
+      );
+  }
   return { ok: problems.length === 0, problems };
 }
 
@@ -170,8 +210,11 @@ export async function promote({ record, setTag, log = () => {} }) {
       const restored = await rollback({
         record: {
           ...record,
-          packages: record.packages.filter((entry) =>
-            moved.includes(entry.name),
+          // The failed package too (QCLI-390, S2): a write that errored
+          // may still have been applied (a timeout after the registry
+          // accepted it), and restoring a tag that never moved is a no-op.
+          packages: record.packages.filter(
+            (entry) => moved.includes(entry.name) || entry.name === name,
           ),
         },
         setTag,
@@ -258,9 +301,13 @@ async function main(argv) {
   if (rollbackPath) {
     record = JSON.parse(await readFile(rollbackPath, "utf8"));
     const valid = validateRecord(record);
-    if (!valid.ok) {
+    const state = valid.ok
+      ? await checkRollbackState({ record })
+      : { ok: true, problems: [] };
+    if (!valid.ok || !state.ok) {
       console.error(`Refusing to roll back from ${rollbackPath}:`);
-      for (const problem of valid.problems) console.error(`  - ${problem}`);
+      for (const problem of [...valid.problems, ...state.problems])
+        console.error(`  - ${problem}`);
       process.exit(1);
     }
   } else {
