@@ -928,6 +928,16 @@ publish no longer moves `latest`:
    rerun reuses it rather than re-reading priors, because after a partial move
    the registry's `latest` is already the new version. Keep the file until
    lore's promotion has also succeeded.
+
+   Once `latest` is verified, the same run cuts the GitHub Release
+   `v<version>`, titled `Quest CLI <version>`, from this version's
+   `CHANGELOG.md` section, and marks it latest (QCLI-398). It refuses before
+   any tag moves, dry run included, if that section is missing or empty. If
+   only the release step fails, `latest` has still moved. Do not roll back;
+   repair it with `node scripts/github-release.mjs --version <version>
+   --create`. That script never creates a tag and never rewrites an existing
+   release's notes. GitHub Releases had stopped at v0.6.0 because no step cut
+   them. v0.7.0 to v0.11.0 were backfilled on 2026-09-27.
 4. **Roll back the tags, never the versions.** A failure part way through
    restores the tags that run moved. If lore's promotion fails after quest's
    succeeded, restore quest too:

@@ -21,6 +21,12 @@
 // the staged pair is read from the record, never taken from a message.
 // --rollback is deliberately not gated on it.
 //
+// Once `latest` is verified moved, the same run cuts the GitHub Release for
+// v<version> from CHANGELOG.md (QCLI-398, scripts/github-release.mjs): GitHub
+// had stopped at v0.6.0 because no step did. A missing CHANGELOG section
+// refuses before any tag moves, dry runs included. --rollback leaves
+// releases alone.
+//
 // Usage:
 //   node scripts/promote-release.mjs --record <path>             # dry run
 //   node scripts/promote-release.mjs --record <path> --promote   # move latest
@@ -36,6 +42,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { ensureGitHubRelease, releaseNotesFor } from "./github-release.mjs";
 import {
   describeKeychainState,
   isValidGranularTokenShape,
@@ -298,6 +305,7 @@ async function main(argv) {
   ).version;
 
   let record;
+  let release;
   if (rollbackPath) {
     record = JSON.parse(await readFile(rollbackPath, "utf8"));
     const valid = validateRecord(record);
@@ -359,7 +367,24 @@ async function main(argv) {
     console.log(
       `Pair receipt ${pair.source} qualifies quest ${version} with lore ${version}, and all ${RELEASE_PACKAGES.length} tarballs npm serves match it.`,
     );
+    // QCLI-398: the GitHub Release is cut after `latest` moves, so its notes
+    // must exist BEFORE anything moves; finding no section afterwards would
+    // leave a promoted version with no release.
+    release = await releaseNotesFor(version);
+    if (!release) {
+      console.error(
+        `Refusing to promote ${version}: CHANGELOG.md has no non-empty "## ${version}" section for its GitHub Release.`,
+      );
+      process.exit(1);
+    }
     if (!act) {
+      const planned = await ensureGitHubRelease({
+        version,
+        ...release,
+        dryRun: true,
+      });
+      console.log(`GitHub Release: ${planned.detail}.`);
+      if (!planned.ok) process.exit(1);
       console.log(
         `\nDry run only. Re-run with --promote to write ${recordPath} and move ${PROMOTE_TAG}.`,
       );
@@ -461,6 +486,17 @@ async function main(argv) {
     console.log(
       `\nPromoted: ${PROMOTE_TAG} reads ${record.version} on all ${record.packages.length} packages (anonymous registry read, ${check.attempts} check${check.attempts === 1 ? "" : "s"}). Rollback: --rollback ${recordPath}`,
     );
+    const cut = await ensureGitHubRelease({
+      version: record.version,
+      ...release,
+    });
+    if (!cut.ok) {
+      console.error(
+        `\nGitHub Release NOT cut: ${cut.detail}. npm ${PROMOTE_TAG} moved and is verified -- do NOT roll back for this. Repair with: node scripts/github-release.mjs --version ${record.version} --create`,
+      );
+      process.exit(1);
+    }
+    console.log(`GitHub Release: ${cut.detail}.`);
   } finally {
     if (npmrcDir) await rm(npmrcDir, { recursive: true, force: true });
   }
