@@ -54,6 +54,7 @@ export function resolveToken(options?: {
   findKeychainPassword?: (service: string) => Promise<KeychainRead>;
 }): Promise<ResolvedToken>;
 
+/** False only on npm's E404; any other failed read throws rather than reading as absent. */
 export function isPublished(
   pkgName: string,
   version: string,

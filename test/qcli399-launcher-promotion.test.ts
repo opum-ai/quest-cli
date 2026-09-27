@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import {
+  checkFinalLauncherSlot,
   checkServedLauncher,
   publishFinalLauncher,
   verifyFinalLauncher,
@@ -219,6 +220,42 @@ test("an X on npm whose integrity cannot be read says retry at the same version,
     "could not be read; re-run the promotion at the same version",
   );
   expect(calls).toEqual(["recheck"]);
+});
+
+test("the pre-flight slot check: absent and qualified pass, foreign and unreadable refuse, before any tag moves", async () => {
+  const slot = (published: boolean, actual: string | null) =>
+    checkFinalLauncherSlot({
+      version: X,
+      finalTarball: "/bundle/final/opum-ai-quest-9.9.9.tgz",
+      alreadyPublished: async () => published,
+      holds: async () => ({
+        ok: actual === "sha512-final",
+        expected: "sha512-final",
+        actual,
+      }),
+    });
+  expect(await slot(false, null)).toBe("absent");
+  expect(await slot(true, "sha512-final")).toBe("qualified");
+  await expect(slot(true, "sha512-other")).rejects.toThrow(
+    "not the qualified sha512-final; this needs a new version",
+  );
+  await expect(slot(true, null)).rejects.toThrow(
+    "re-run the promotion at the same version",
+  );
+});
+
+test("the pre-flight slot check refuses when the registry cannot say whether X exists", async () => {
+  await expect(
+    checkFinalLauncherSlot({
+      version: X,
+      finalTarball: "/bundle/final/opum-ai-quest-9.9.9.tgz",
+      alreadyPublished: async () => {
+        throw new Error(
+          "could not tell whether @opum-ai/quest@9.9.9 is on the registry: ETIMEDOUT",
+        );
+      },
+    }),
+  ).rejects.toThrow("ETIMEDOUT");
 });
 
 test("step 7: npm serving X as the final tarball passes; other bytes fail at once", async () => {

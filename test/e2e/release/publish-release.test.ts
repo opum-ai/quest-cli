@@ -174,7 +174,7 @@ test("no Keychain state description carries the token value", async () => {
   expect(describeKeychainState(resolved.keychain)).not.toContain(TOKEN);
 });
 
-test("isPublished is true when npm view resolves the exact version, false on any failure", async () => {
+test("isPublished is true when npm view resolves the exact version, false only on E404", async () => {
   const calls: unknown[] = [];
   const publishedResult = await isPublished(
     "@opum-ai/quest-linux-x64",
@@ -201,6 +201,39 @@ test("isPublished is true when npm view resolves the exact version, false on any
     },
   );
   expect(unpublishedResult).toBe(false);
+
+  // npm 12.1.0's two absences: an unknown version of a known package, and an
+  // unknown package. Both carry E404 on stderr, exit 1.
+  for (const stderr of [
+    "npm error code E404\nnpm error 404 No match found for version 0.6.2\n",
+    "npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@opum-ai%2fquest-linux-x64 - Not found\n",
+  ])
+    expect(
+      await isPublished("@opum-ai/quest-linux-x64", "0.6.2", {
+        execFile: async () => {
+          throw Object.assign(new Error("Command failed: npm view"), {
+            stderr,
+          });
+        },
+      }),
+    ).toBe(false);
+});
+
+test("isPublished throws on a failed read that is not E404, instead of reading it as absent", async () => {
+  // lore-cli LCLI-621: an ETIMEDOUT read as absent turns the pre-flight that
+  // relies on this into a no-op.
+  await expect(
+    isPublished("@opum-ai/quest-linux-x64", "0.6.2", {
+      execFile: async () => {
+        throw Object.assign(new Error("Command failed: npm view"), {
+          stderr:
+            "npm error code ETIMEDOUT\nnpm error network request to https://registry.npmjs.org/@opum-ai%2fquest-linux-x64 failed, reason: ETIMEDOUT\n",
+        });
+      },
+    }),
+  ).rejects.toThrow(
+    "could not tell whether @opum-ai/quest-linux-x64@0.6.2 is on the registry: npm error code ETIMEDOUT",
+  );
 });
 
 /**

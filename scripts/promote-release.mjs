@@ -397,6 +397,35 @@ export async function checkServedLauncher({
 }
 
 /**
+ * Whether X is already on npm, and if so whether as the qualified final
+ * launcher. Throws on a foreign X, on an X whose integrity cannot be read,
+ * and on a registry that cannot say whether X exists at all. Run before any
+ * tag moves, so a foreign X refuses with nothing written (as lore-cli's
+ * LCLI-621 does), and again at the publish, which a concurrent write could
+ * still race.
+ */
+export async function checkFinalLauncherSlot({
+  version,
+  finalTarball,
+  alreadyPublished = (name, v) => isPublished(name, v),
+  holds = (name, v, tarball) => registryHoldsTarball(name, v, tarball),
+}) {
+  if (!(await alreadyPublished(LAUNCHER, version))) return "absent";
+  const held = await holds(LAUNCHER, version, finalTarball);
+  // An unreadable integrity is lag or a failed read, not a mismatch: the
+  // remedy is a rerun at the same version (Article 3 clause 5).
+  if (!held.ok && held.actual == null)
+    throw new Error(
+      `${LAUNCHER}@${version} is on the registry but its dist.integrity could not be read; re-run the promotion at the same version`,
+    );
+  if (!held.ok)
+    throw new Error(
+      `${LAUNCHER}@${version} is already on the registry as ${held.actual}, not the qualified ${held.expected}; this needs a new version, not a rerun`,
+    );
+  return "qualified";
+}
+
+/**
  * Publishes the final X launcher onto `latest`, or -- on a rerun after it
  * already landed -- confirms npm holds exactly those bytes and moves the tag.
  * Step 6 runs first, every time, so nothing irreversible happens on a
@@ -416,18 +445,13 @@ export async function publishFinalLauncher({
     throw new Error(
       `the launcher substitution check no longer holds against the registry: ${again.problems.join("; ")}`,
     );
-  if (await alreadyPublished(LAUNCHER, version)) {
-    const held = await holds(LAUNCHER, version, finalTarball);
-    // An unreadable integrity is lag or a failed read, not a mismatch: the
-    // remedy is a rerun at the same version (Article 3 clause 5).
-    if (!held.ok && held.actual == null)
-      throw new Error(
-        `${LAUNCHER}@${version} is on the registry but its dist.integrity could not be read; re-run the promotion at the same version`,
-      );
-    if (!held.ok)
-      throw new Error(
-        `${LAUNCHER}@${version} is already on the registry as ${held.actual}, not the qualified ${held.expected}; this needs a new version, not a rerun`,
-      );
+  const slot = await checkFinalLauncherSlot({
+    version,
+    finalTarball,
+    alreadyPublished,
+    holds,
+  });
+  if (slot === "qualified") {
     await setTag(LAUNCHER, version, PROMOTE_TAG);
     return "already published as the qualified bytes; tag moved";
   }
@@ -644,6 +668,22 @@ async function main(argv) {
     console.log(
       `npm serves ${LAUNCHER}@${launcherVersion} as the qualified rc, and ${qualified.launcher.final.filename} differs from it only by the version string.`,
     );
+    // Before any tag moves: an X already on npm must be the qualified final
+    // launcher, or the platforms' `latest` would move and then roll back.
+    try {
+      const slot = await checkFinalLauncherSlot({
+        version,
+        finalTarball: qualified.launcher.final.path,
+      });
+      console.log(
+        slot === "absent"
+          ? `${LAUNCHER}@${version} is not on npm yet; promotion publishes it.`
+          : `${LAUNCHER}@${version} is already on npm as the qualified final launcher; promotion moves its tag.`,
+      );
+    } catch (error) {
+      console.error(`Refusing to promote ${version}: ${error.message}.`);
+      process.exit(1);
+    }
 
     // QCLI-398: the GitHub Release is cut after `latest` moves, so its notes
     // must exist BEFORE anything moves; finding no section afterwards would

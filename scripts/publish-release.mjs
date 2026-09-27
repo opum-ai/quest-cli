@@ -280,8 +280,19 @@ export async function isPublished(
   try {
     await execFileFn("npm", ["view", `${pkgName}@${version}`, "version"]);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // Only npm's own "not there" is absence: E404 for an unknown package,
+    // "No match found for version" for an unknown version of a known one
+    // (both measured on npm 12.1.0). Anything else -- ETIMEDOUT, a 5xx, a
+    // missing npm -- is an unanswered question, and reading it as absent
+    // turns the pre-flight that relies on this into a no-op (lore-cli,
+    // LCLI-621).
+    const text = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
+    if (/\bE404\b|\b404 Not Found\b|No match found for version/.test(text))
+      return false;
+    throw new Error(
+      `could not tell whether ${pkgName}@${version} is on the registry: ${text.trim().split("\n")[0]}`,
+    );
   }
 }
 

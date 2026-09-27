@@ -100,6 +100,13 @@ export function checkServedLauncher(options: {
   }) => Promise<Checked>;
 }): Promise<Checked>;
 
+export function checkFinalLauncherSlot(options: {
+  version: string;
+  finalTarball: string;
+  alreadyPublished?: (name: string, version: string) => Promise<boolean>;
+  holds?: (name: string, version: string, tarball: string) => Promise<Held>;
+}): Promise<"absent" | "qualified">;
+
 export function publishFinalLauncher(options: {
   version: string;
   finalTarball: string;
