@@ -6,6 +6,17 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
+### Fixed
+
+- **`scripts/promote-release.mjs --rollback` can only undo its own
+  promotion** (QCLI-390, from lore-cli's review of its mirror). A record's
+  prior `latest` values must be versions, not tag names, and must differ from
+  the release. The rollback refuses unless every package's current `latest`
+  is the release or its recorded prior value, so an old record cannot
+  silently downgrade `latest` after it has moved on. A tag move that fails
+  part way through now restores the failed package too, because the write
+  may have landed before the error. Release tooling only.
+
 ## 0.11.0
 
 The first release under constitution Article 3 (opum-ai/opum-agent

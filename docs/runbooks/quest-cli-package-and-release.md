@@ -936,6 +936,12 @@ publish no longer moves `latest`:
    node scripts/promote-release.mjs --rollback <path>
    ```
 
+   The rollback refuses unless every package's current `latest` is the
+   release or its recorded prior value, and every recorded prior value must
+   be a version other than the release (QCLI-390). So it can only undo that
+   record's promotion. A mid-way failure restores the failed package as well,
+   because its write may have landed before the error.
+
    Then retry at the same version. Never unpublish, and never skip the failed
    side to a different number.
 
