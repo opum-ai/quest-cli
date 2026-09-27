@@ -263,6 +263,7 @@
 - 2026-09-18T22:49:00-05:00 25909d18764325d8d3fba02689d74ca19bb9a84b chore(QCLI-354): record fleet-wide dotted-alias sweep for OPAG-276 (#213)
 - 2026-09-18T23:15:23-05:00 53c8c24dab20eb10b031936b24e90e7259a7f29f chore(QCLI-352): close the handoff note as read by the successor (#216)
 - 2026-09-22T18:18:02-05:00 73617b596992f11ca41981b708a6369439ce5637 chore(QCLI-361): move the lore check gate to lore 0.9.0 and re-export the schemas (#236)
+- 2026-09-27T00:11:47-05:00 65b831581b48224101381ebb466d8dbc7041c211 chore(QCLI-387): quest 0.11.0 latest moved; close the release (#324)
 
 ## docs/adr
 
