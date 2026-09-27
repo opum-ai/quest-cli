@@ -181,6 +181,13 @@ jobs:
       # Platform packages first: the root's optionalDependencies name them, so
       # publishing the root first would briefly advertise versions that do not
       # exist.
+      #
+      # Every publish here STAGES under the release-candidate dist-tag
+      # (constitution Article 3 clause 5, QCLI-385). A bare `npm publish` moves
+      # latest as a side effect; latest moves only through
+      # scripts/promote-release.mjs, after opum-cli-e2e qualifies the staged
+      # pair from registry installs. test/qcli385-stage-under-release-candidate
+      # fails on any `npm publish` line in this file without the tag.
       - name: Publish the platform packages
         env:
           # CORRECTED 2026-09-13 (lore-cli, reading npm's own source --
@@ -211,7 +218,7 @@ jobs:
           # package directory, which repacks the working tree (QCLI-368).
           for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64; do
             echo "::group::@opum-ai/quest-${target}"
-            npm publish "candidate/tarballs/opum-ai-quest-${target}-${version}.tgz" --access public $DRY
+            npm publish "candidate/tarballs/opum-ai-quest-${target}-${version}.tgz" --access public --tag release-candidate $DRY
             echo "::endgroup::"
           done
 
@@ -244,7 +251,7 @@ jobs:
           unset NODE_AUTH_TOKEN
           version=$(node -p "require('./package.json').version")
           echo "::group::@opum-ai/quest"
-          npm publish "candidate/tarballs/opum-ai-quest-${version}.tgz" --access public $DRY
+          npm publish "candidate/tarballs/opum-ai-quest-${version}.tgz" --access public --tag release-candidate $DRY
           echo "::endgroup::"
 
       # Retries, because npm's CDN does not serve a version the instant the

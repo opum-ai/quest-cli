@@ -70,6 +70,31 @@ const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const KEYCHAIN_SERVICE = "npm-opum-ai-publish";
+
+/**
+ * Constitution Article 3 clause 5 (QCLI-385): a release is STAGED under this
+ * dist-tag, never published straight to `latest`. opum-cli-e2e qualifies the
+ * staged pair from clean registry installs, and only then does
+ * scripts/promote-release.mjs move `latest`. `npm publish` with no `--tag`
+ * moves `latest` as a side effect, so every publish this script makes -- the
+ * `--diagnose-staged` re-attempt included, which is a real write -- goes
+ * through publishArgs rather than spelling its own argument list.
+ */
+export const STAGE_TAG = "release-candidate";
+
+/** The one argument list for every `npm publish` this script runs. */
+export function publishArgs(tarball, { dryRun = false, otp } = {}) {
+  return [
+    "publish",
+    tarball,
+    "--access",
+    "public",
+    "--tag",
+    STAGE_TAG,
+    ...(dryRun ? ["--dry-run"] : []),
+    ...(otp ? ["--otp", otp] : []),
+  ];
+}
 const REPOSITORY = "opum-ai/quest-cli";
 const QUALIFICATION_WORKFLOW =
   ".github/workflows/prepublication-qualification.yml";
@@ -453,7 +478,7 @@ export function describeVerifiedRelease({
   wrapperPublishedAt,
 }) {
   return [
-    `Published ${wrapperName}@${version}. Verified:`,
+    `Published ${wrapperName}@${version}. Staged under the ${STAGE_TAG} dist-tag; latest is unmoved until scripts/promote-release.mjs runs. Verified:`,
     `  - the ${platformCount} platform packages match the qualification receipt (${receiptChecks} registry check${receiptChecks === 1 ? "" : "s"})`,
     `  - all ${platformCount + 1} tarballs npm serves are byte-identical to the qualified bundle`,
     `  - ${wrapperName}@${version} resolves for an anonymous consumer${wrapperPublishedAt ? ` (published ${wrapperPublishedAt})` : ""}`,
@@ -604,16 +629,12 @@ async function main(argv) {
     };
 
     const publish = async (target) => {
-      const args = [
-        "publish",
-        target.tarball,
-        "--access",
-        "public",
-        ...(dryRun ? ["--dry-run"] : []),
+      const args = publishArgs(target.tarball, {
+        dryRun,
         // A stored token bypasses the interactive OTP requirement entirely;
         // sending --otp alongside one is unnecessary, not merely redundant.
-        ...(!token && otp ? ["--otp", otp] : []),
-      ];
+        otp: !token ? otp : undefined,
+      });
       process.stdout.write(`${target.name} ... `);
       try {
         await run(args, target.cwd, envOverrides);
@@ -694,13 +715,9 @@ async function main(argv) {
           const probe = await diagnoseStaged(target, {
             publish: (candidate) =>
               run(
-                [
-                  "publish",
-                  candidate.tarball,
-                  "--access",
-                  "public",
-                  ...(!token && otp ? ["--otp", otp] : []),
-                ],
+                publishArgs(candidate.tarball, {
+                  otp: !token ? otp : undefined,
+                }),
                 candidate.cwd,
                 envOverrides,
               ),

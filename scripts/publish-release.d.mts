@@ -197,3 +197,10 @@ export function registryHoldsTarball(
     ) => Promise<{ stdout: string; stderr: string }>;
   },
 ): Promise<HeldTarball>;
+
+/** Constitution Article 3 clause 5 (QCLI-385): every publish stages here. */
+export const STAGE_TAG: "release-candidate";
+export function publishArgs(
+  tarball: string,
+  options?: { dryRun?: boolean; otp?: string },
+): string[];
