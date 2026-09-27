@@ -43,8 +43,18 @@ name: lore check
 #     0.8.0 -> 0.9.0 this way: `lore schema export` under 0.9.0 added a
 #     profileDigest stamp to all seven schemas and a new arc.schema.json, and
 #     that tree measured exit 0 under 0.9.0 AND under 0.8.0, 2026-09-22.
-#   - Two steps otherwise: land the regeneration alone first, then move the
+#   - Two steps when the regenerated tree passes the old pin but the new pin
+#     reds the old tree: land the regeneration alone first, then move the
 #     number (QCLI-356, 0.7.0 -> 0.8.0). Measure the old pin before choosing.
+#   - Same PR, when the regenerated tree FAILS the old pin. No order of two
+#     landings is green then, so the change must be atomic. QCLI-394 moved
+#     0.9.2 -> 0.11.0 this way: the export restamped all eight profileDigests
+#     and added constitution and constants, and 0.9.2 exits 7 on that tree
+#     (schema-unattributable on the two new files), 2026-09-27.
+#     (Corrected by QCLI-394: this list used to say "two steps otherwise",
+#     which read as covering this case. Both precedents it was written from
+#     had a regenerated tree that passed the old pin, so the third case was
+#     never measured when the rule was worded.)
 # Run the new lore with `npx --yes @opum-ai/lore@<version>` rather than upgrading
 # the shared global binary. A `lore check` exit 7 (indeterminate: a schema it
 # cannot attribute) means stop and report -- never delete or re-export past it.
@@ -137,7 +147,7 @@ jobs:
           echo "quest on PATH: $resolved (reports $reported, package.json $packaged)"
 
       - name: Install the pinned lore release
-        run: npm install -g @opum-ai/lore@0.9.2
+        run: npm install -g @opum-ai/lore@0.11.0
 
       - name: lore check
         run: lore check
