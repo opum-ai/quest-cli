@@ -24,10 +24,16 @@
 
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+
+import {
+  checkLauncherEquivalence,
+  launcherRcVersion,
+  nextRcNumber,
+} from "./qualification/launcher-equivalence.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -91,6 +97,7 @@ export async function buildCandidateBundle({
   out,
   releaseRef = false,
   directory = root,
+  rcNumber = 1,
 } = {}) {
   if (!COMMIT_HEX.test(String(commit ?? "")))
     throw new Error(`source commit is not a 40-hex commit id: ${commit}`);
@@ -98,6 +105,11 @@ export async function buildCandidateBundle({
   const version = JSON.parse(
     await readFile(join(directory, "package.json"), "utf8"),
   ).version;
+  // QCLI-399 (Article 3 clause 5, ODOC-302): the root launcher stages as
+  // X-rc.N and reaches `latest` by a fresh publish of X, so the bundle packs it
+  // twice. package.json on the branch stays at X; the rc version exists only in
+  // the staged launcher.
+  const rcVersion = launcherRcVersion(version, rcNumber);
 
   // Every platform, or none. A five-platform bundle would produce a coverage
   // failure downstream that reads like a product defect rather than a build
@@ -180,20 +192,45 @@ export async function buildCandidateBundle({
     );
   const artifactProvenance = rebuilt.length ? "rebuilt" : "committed";
 
+  // tarballs/ holds exactly what stages under release-candidate: the rc
+  // launcher and the six platforms. final/ holds the X launcher, which is never
+  // staged and is published to `latest` only by promote-release.mjs.
   const tarballs = join(out, "tarballs");
+  const final = join(out, "final");
   await rm(out, { recursive: true, force: true });
   await mkdir(tarballs, { recursive: true });
+  await mkdir(final, { recursive: true });
   await mkdir(join(out, "evidence"), { recursive: true });
 
   const digests = [];
   const packages = [];
 
-  const rootRow = await pack(directory, tarballs, "package/bin/quest.cjs");
-  if (rootRow.filename !== tarballName("@opum-ai/quest", version))
-    throw new Error(
-      `root archive is ${rootRow.filename}, expected ${tarballName("@opum-ai/quest", version)}`,
+  const packLauncher = async (asVersion, into) => {
+    await writeFile(
+      rootPackagePath,
+      `${JSON.stringify({ ...rootPackage, version: asVersion }, null, 2)}\n`,
     );
-  digests.push(rootRow);
+    const row = await pack(directory, into, "package/bin/quest.cjs");
+    if (row.filename !== tarballName("@opum-ai/quest", asVersion))
+      throw new Error(
+        `root archive is ${row.filename}, expected ${tarballName("@opum-ai/quest", asVersion)}`,
+      );
+    return row;
+  };
+  const rcRow = await packLauncher(rcVersion, tarballs);
+  const finalRow = await packLauncher(version, final);
+  await writeFile(rootPackagePath, originalRootPackage);
+  const equivalence = await checkLauncherEquivalence({
+    rcTarball: join(tarballs, rcRow.filename),
+    finalTarball: join(final, finalRow.filename),
+    rcVersion,
+    version,
+  });
+  if (!equivalence.ok)
+    throw new Error(
+      `the ${version} launcher is not the ${rcVersion} launcher with only its version substituted (Article 3 clause 5):\n  ${equivalence.problems.join("\n  ")}`,
+    );
+  digests.push(rcRow);
 
   for (const platform of REQUIRED_PLATFORMS) {
     const name = `@opum-ai/quest-${platform}`;
@@ -211,6 +248,10 @@ export async function buildCandidateBundle({
     `${digests.map((row) => `${row.digest}  ${row.filename}`).join("\n")}\n`,
   );
   await writeFile(
+    join(final, "sha256.txt"),
+    `${finalRow.digest}  ${finalRow.filename}\n`,
+  );
+  await writeFile(
     join(out, "evidence", "package-metadata.json"),
     `${JSON.stringify(
       {
@@ -222,13 +263,77 @@ export async function buildCandidateBundle({
         artifactProvenance,
         ...(rebuilt.length ? { rebuiltPlatforms: rebuilt } : {}),
         packages,
+        // QCLI-399: which launcher stages and which one reaches latest.
+        launcher: {
+          name: "@opum-ai/quest",
+          stagedVersion: rcVersion,
+          stagedTarball: rcRow.filename,
+          finalVersion: version,
+          finalTarball: `final/${finalRow.filename}`,
+          finalSha256: finalRow.digest,
+          equivalence:
+            "identical after substituting the staged version for the final one",
+        },
       },
       null,
       2,
     )}\n`,
   );
   await writeFile(rootPackagePath, originalRootPackage);
-  return { version, commit, out, packages, digests, artifactProvenance };
+  return {
+    version,
+    rcVersion,
+    commit,
+    out,
+    packages,
+    digests,
+    final: finalRow,
+    artifactProvenance,
+  };
+}
+
+/**
+ * The rc number this bundle's launcher stages as (QCLI-399). An explicit
+ * --launcher-rc wins. Otherwise it is one past the highest X-rc.N the registry
+ * already carries, because a published rc is immutable. On a release ref an
+ * unreadable registry refuses: guessing 1 could collide with a staged rc. Off
+ * a release ref nothing publishes, so 1 is safe.
+ */
+export async function resolveRcNumber({
+  version,
+  explicit,
+  releaseRef,
+  readVersions = async () =>
+    JSON.parse(
+      (
+        await execFile("npm", [
+          "view",
+          "@opum-ai/quest",
+          "versions",
+          "--json",
+          "--prefer-online",
+        ])
+      ).stdout,
+    ),
+}) {
+  if (explicit !== undefined) {
+    if (!/^[1-9]\d*$/.test(explicit))
+      throw new Error(`--launcher-rc must be an integer >= 1, got ${explicit}`);
+    return Number(explicit);
+  }
+  try {
+    const versions = await readVersions();
+    return nextRcNumber(
+      version,
+      Array.isArray(versions) ? versions : [versions],
+    );
+  } catch (error) {
+    if (releaseRef)
+      throw new Error(
+        `cannot read @opum-ai/quest's published versions to pick the launcher rc number; pass --launcher-rc <n>: ${String(error?.message ?? error).split("\n")[0]}`,
+      );
+    return 1;
+  }
 }
 
 async function main(argv) {
@@ -245,13 +350,23 @@ async function main(argv) {
     process.env.GITHUB_SHA ??
     (await execFile("git", ["rev-parse", "HEAD"], { cwd: root })).stdout.trim();
   const out = resolve(flag("--out") ?? join(root, "candidate"));
+  const releaseRef = (process.env.GITHUB_REF ?? "").startsWith("refs/tags/v");
+  const version = JSON.parse(
+    await readFile(join(root, "package.json"), "utf8"),
+  ).version;
+  const rcNumber = await resolveRcNumber({
+    version,
+    explicit: flag("--launcher-rc"),
+    releaseRef,
+  });
   const built = await buildCandidateBundle({
     commit,
     out,
-    releaseRef: (process.env.GITHUB_REF ?? "").startsWith("refs/tags/v"),
+    releaseRef,
+    rcNumber,
   });
   console.log(
-    `Candidate bundle for ${built.version} at ${commit.slice(0, 7)}: ${built.digests.length} archives in ${out}`,
+    `Candidate bundle for ${built.version} at ${commit.slice(0, 7)}: ${built.digests.length} staged archives (launcher ${built.rcVersion}) and the ${built.version} launcher in ${out}`,
   );
 }
 

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
@@ -14,6 +14,7 @@ async function run(
   const { stdout } = await execFile(command, [...args], { cwd });
   return stdout;
 }
+
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -53,6 +54,12 @@ async function fixture(
       bin: { quest: "./bin/quest.cjs" },
       files: ["bin/quest.cjs", "LICENSE"],
       questPlatformPackages: { stale: "values" },
+      optionalDependencies: Object.fromEntries(
+        REQUIRED_PLATFORMS.map((platform) => [
+          `@opum-ai/quest-${platform}`,
+          version,
+        ]),
+      ),
     }),
   );
   for (const platform of REQUIRED_PLATFORMS) {
@@ -101,11 +108,30 @@ test("the bundle matches the consumer's contract exactly", async () => {
     for (const row of metadata.packages)
       expect(row.name).toMatch(/^@opum-ai\/quest-(.+)$/);
 
-    // The root tarball's filename is matched by name downstream.
+    // The root tarball's filename is matched by name downstream. Since
+    // QCLI-399 (Article 3 clause 5, ODOC-302) the STAGED launcher is X-rc.N,
+    // and the X launcher sits apart in final/: it is never staged.
     const names = built.digests.map(
       (row: { filename: string }) => row.filename,
     );
-    expect(names).toContain("opum-ai-quest-9.9.9.tgz");
+    expect(names).toContain("opum-ai-quest-9.9.9-rc.1.tgz");
+    expect(names).not.toContain("opum-ai-quest-9.9.9.tgz");
+    expect(built.rcVersion).toBe("9.9.9-rc.1");
+    expect(metadata.launcher).toMatchObject({
+      stagedVersion: "9.9.9-rc.1",
+      stagedTarball: "opum-ai-quest-9.9.9-rc.1.tgz",
+      finalVersion: "9.9.9",
+      finalTarball: "final/opum-ai-quest-9.9.9.tgz",
+    });
+    const finalLines = (
+      await readFile(join(out, "final", "sha256.txt"), "utf8")
+    )
+      .trim()
+      .split("\n");
+    expect(finalLines).toEqual([
+      `${sha256(await readFile(join(out, "final", "opum-ai-quest-9.9.9.tgz")))}  opum-ai-quest-9.9.9.tgz`,
+    ]);
+    expect(metadata.launcher.finalSha256).toBe(built.final.digest);
 
     // sha256.txt lines are '<digest>  <filename>' and must be true of the
     // bytes on disk, not merely internally consistent.
@@ -184,18 +210,29 @@ test("the packed root carries re-derived digests, and the working tree is left u
     // The digests must be re-derived from the binaries actually present, or a
     // bundle assembled from separately-built artifacts advertises the previous
     // release's values.
-    const packed = join(out, "tarballs", "opum-ai-quest-9.9.9.tgz");
-    const extracted = join(out, "root");
-    await mkdir(extracted, { recursive: true });
-    await execFile("tar", ["xzf", packed, "-C", extracted]);
-    const shipped = JSON.parse(
-      await readFile(join(extracted, "package", "package.json"), "utf8"),
-    );
-    for (const platform of REQUIRED_PLATFORMS)
-      expect(shipped.questPlatformPackages[`@opum-ai/quest-${platform}`]).toBe(
-        sha256(`binary for ${platform}`),
+    // Both launchers: the staged rc and the X that reaches latest.
+    for (const [packed, version] of [
+      [join(out, "tarballs", "opum-ai-quest-9.9.9-rc.1.tgz"), "9.9.9-rc.1"],
+      [join(out, "final", "opum-ai-quest-9.9.9.tgz"), "9.9.9"],
+    ] as const) {
+      const extracted = join(out, `root-${version}`);
+      await mkdir(extracted, { recursive: true });
+      await execFile("tar", ["xzf", packed, "-C", extracted]);
+      const shipped = JSON.parse(
+        await readFile(join(extracted, "package", "package.json"), "utf8"),
       );
-    expect(shipped.questPlatformPackages.stale).toBeUndefined();
+      expect(shipped.version).toBe(version);
+      for (const platform of REQUIRED_PLATFORMS) {
+        expect(
+          shipped.questPlatformPackages[`@opum-ai/quest-${platform}`],
+        ).toBe(sha256(`binary for ${platform}`));
+        // The rc launcher pins the platforms at exactly X, not at the rc.
+        expect(shipped.optionalDependencies[`@opum-ai/quest-${platform}`]).toBe(
+          "9.9.9",
+        );
+      }
+      expect(shipped.questPlatformPackages.stale).toBeUndefined();
+    }
 
     // And the repository is left exactly as it was found. A build step that
     // mutates the working tree eventually has that mutation swept into an
