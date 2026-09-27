@@ -6,7 +6,65 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
+## 0.11.0
+
+The first release under constitution Article 3 (opum-ai/opum-agent
+`docs/reference/opum-project-constitution.md`, ratified 2026-09-27): quest and
+lore ship as a pair at one version number. lore 0.11.0 skips 0.10.0 to meet
+it. Both are staged under the `release-candidate` dist-tag and qualified
+together by opum-cli-e2e from registry installs. Only then does `latest`
+move, quest first. It is minor rather than patch for two reasons. `quest init`
+and `quest agents` gain opum-quest plugin detection and update. And a bare
+`quest agents --check` in a Claude-only or Gemini-only project now exits 6
+where it used to exit 0 (QCLI-373, below). Nothing else changed in any
+command, flag or envelope.
+
+### Added
+
+- **`quest init` and `quest agents` detect the opum-quest marketplace plugin**
+  (QCLI-371, with QCLI-378 to QCLI-384 closing parity with lore-cli). When the
+  Claude or Codex target is selected, they read `claude plugin list --json` or
+  `codex plugin list --json` and report the plugin as installed, disabled, not
+  installed or not detectable, with a remedy. Neither ever installs or enables
+  it. `quest agents --update-instructions` with an explicit `--target` updates
+  an installed plugin and converges on the marketplace, and the skill is drawn
+  from the marketplace source so the two copies cannot drift apart. The rules
+  match lore-cli's:
+  - Claude scopes rank managed > local > project > user > synced. Between two
+    rows of one scope, the deeper `projectPath` decides (QCLI-379). A managed
+    row decides and is never updated (QCLI-381).
+  - A scope that cannot be named as a plain token gets no command at all:
+    the update is reported not run, and the remedy is prose (QCLI-383). A
+    token must start with a letter or digit (QCLI-382).
+  - Every not-run report carries an `updateDetail`, and the Codex wording
+    follows how far the update got (QCLI-384).
+  - Runtime text is stripped of ANSI, control and bidi/invisible format
+    characters before any output mode. `--scope` reaches a remedy or an
+    argv only as a plain token. Plugin output is read up to 1 MiB (QCLI-380,
+    QCLI-382).
+  - The list deadline (15s) ends the runtime's whole process group, so a
+    grandchild holding the pipes cannot keep `quest` alive (QCLI-378).
+    `QUEST_AGENT_PLUGINS_TIMEOUT_MS` and `QUEST_AGENT_PLUGINS_UPDATE_TIMEOUT_MS`
+    override the list and per-step update deadlines.
+
 ### Changed
+
+- **A bare `quest agents --check` no longer reports on the wrong file**
+  (QCLI-373). With no `--target` it still checks the Codex block, because the
+  Codex managed block tells CI to run it that way. But in a project whose
+  Quest block lives only in `CLAUDE.md` or `GEMINI.md`, it now exits 6 and
+  names the `--target` to use, instead of exiting 0 about an `AGENTS.md` that
+  was never the point.
+- **Publishing refuses without an opum-cli-e2e qualification receipt, and
+  publishes the qualified bytes** (QCLI-366, QCLI-368). The publisher reads
+  `receipts/quest/<version>.json` from opum-cli-e2e's `main` and refuses,
+  dry run included, unless it binds this version, commit, qualification run
+  and all seven candidate-bundle tarballs. The seven bundle tarballs are then
+  published byte for byte instead of a repack of the working tree. After
+  publishing, npm's `dist.integrity` must match every bundle file.
+  `.gitattributes` pins the platform packages' LICENSE and package.json to LF,
+  which the Windows runners' checkout had turned into CRLF. Release tooling
+  only.
 
 - **Publishing refuses unless lore is at the same version** (QCLI-386,
   constitution Article 3 clause 6). Both publishers read `@opum-ai/lore`'s
@@ -35,6 +93,11 @@ history; this file is the forward-looking record.
 
 ### Fixed
 
+- **`task edit --if-revision` reports a stale edit as a conflict** (QCLI-374).
+  A stale revision is now refused with exit 5 before the patch is folded. A
+  concurrent removal of the same value used to surface as an exit-6
+  validation miss rather than the conflict it is. Callers that retry on exit
+  5 now retry.
 - **`scripts/publish-release.mjs` no longer reports a locked Keychain entry as
   a missing token** (QCLI-349). It used to treat every `security` failure the
   same way and print "no stored token found", which points at the wrong fix. A
