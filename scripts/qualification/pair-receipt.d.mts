@@ -9,6 +9,9 @@ export function tarballName(pkgName: string, version: string): string;
 export interface RegistryObservation {
   readonly integrities: Record<string, string>;
   readonly gitHead: string | null;
+  readonly commit: string | null;
+  readonly commitSource?: string;
+  readonly commitError?: string;
 }
 
 export interface PairVerdict {
@@ -22,16 +25,35 @@ export function evaluatePairReceipt(
   facts: { version: string; observed: RegistryObservation },
 ): PairVerdict;
 
+export function viewVersion(
+  name: string,
+  version: string,
+  options?: { execFile?: ExecFile },
+): Promise<Record<string, unknown> | null>;
+
+export const MAX_PEEL_DEPTH: number;
+
+export function resolveTagCommit(
+  version: string,
+  options?: { execFile?: ExecFile },
+): Promise<{ commit: string | null; chain: string[]; error?: string }>;
+
 export function observeRegistry(
   version: string,
   packages: readonly string[],
   options?: {
-    execFile?: (
-      command: string,
-      args: readonly string[],
-    ) => Promise<{ stdout: string; stderr?: string }>;
+    execFile?: ExecFile;
+    resolveCommit?: (
+      version: string,
+    ) => Promise<{ commit: string | null; error?: string }>;
   },
 ): Promise<RegistryObservation>;
+
+type ExecFile = (
+  command: string,
+  args: readonly string[],
+  options?: Record<string, unknown>,
+) => Promise<{ stdout: string; stderr?: string }>;
 
 export function requirePairQualification(options: {
   version: string;

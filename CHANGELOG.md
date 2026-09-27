@@ -8,6 +8,15 @@ history; this file is the forward-looking record.
 
 ### Fixed
 
+- **The `latest`-move gate reads a tarball-published release correctly**
+  (QCLI-393). A tarball publish records no `gitHead`, and npm 12 then
+  answers a two-field `npm view` with a bare value. The reader parsed that as
+  "npm serves nothing" for all seven packages and refused 0.11.0's
+  promotion. It now reads each version's whole metadata, as lore-cli's reader
+  does. It takes the release commit from the `v<version>` tag, dereferenced
+  through the annotated tag object, and refuses if the tag cannot be read. A
+  `gitHead`, when npm records one, must agree as well. Release tooling only.
+
 - **`scripts/promote-release.mjs --rollback` can only undo its own
   promotion** (QCLI-390, from lore-cli's review of its mirror). A record's
   prior `latest` values must be versions, not tag names, and must differ from
