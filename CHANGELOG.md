@@ -5,8 +5,8 @@ Records start here, at 0.5.0. Earlier releases are documented in
 history; this file is the forward-looking record.
 
 Each version heading is dated with the UTC day `@opum-ai/quest` reached npm, read
-from the registry's `time` field. 0.8.0 never reached npm, so its date is that of
-its `v0.8.0` tag. No date here is inferred (QCLI-398).
+from the registry's `time` field. 0.6.1 and 0.8.0 never reached npm, so each is
+dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
@@ -912,6 +912,16 @@ breaking section before upgrading.
   runs they point to) **and cannot be repaired -- npm forbids republishing a
   version.** Affects 0.3.0 through 0.6.0 and the never-published `v0.6.1`
   tag. See `docs/runbooks/quest-cli-package-and-release.md`.
+
+## 0.6.1 - 2026-09-13 (tagged, never published)
+
+Tagged at `1fa0fef` and **never published**. Every publish attempt failed a
+registry E404 before writing anything: `actions/setup-node` exported a
+placeholder `NODE_AUTH_TOKEN` that defeated OIDC trusted publishing. That was
+a CI-only defect with no content change of its own. No package reached npm
+under this number. The content it would have carried shipped as 0.6.2 (see
+that entry). The `v0.6.1` tag stays where it is and is not re-pointed,
+because `quest-web`'s CI cites this repository's tags.
 
 ## 0.6.0 - 2026-09-09
 

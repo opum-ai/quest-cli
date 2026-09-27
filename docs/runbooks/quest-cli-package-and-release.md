@@ -937,7 +937,7 @@ publish no longer moves `latest`:
    repair it with `node scripts/github-release.mjs --version <version>
    --create`. That script never creates a tag and never rewrites an existing
    release's notes. GitHub Releases had stopped at v0.6.0 because no step cut
-   them. v0.7.0 to v0.11.0 were backfilled on 2026-09-27.
+   them. v0.6.1 to v0.11.0 were backfilled on 2026-09-27, so every tag has one.
 4. **Roll back the tags, never the versions.** A failure part way through
    restores the tags that run moved. If lore's promotion fails after quest's
    succeeded, restore quest too:
