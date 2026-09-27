@@ -5,6 +5,12 @@ export const PROMOTE_TAG: "latest";
 export const RECORD_KIND: "quest.promotion-record.v1";
 export const RELEASE_PACKAGES: readonly string[];
 
+/** QCLI-399: the one non-staging publish, the final X launcher onto latest. */
+export function launcherPublishArgs(
+  tarball: string,
+  options?: { otp?: string },
+): string[];
+
 export type DistTags = Readonly<Record<string, string>>;
 export type ReadTags = (name: string) => Promise<DistTags>;
 export type SetTag = (name: string, version: string, tag: string) => Promise<unknown>;
@@ -24,6 +30,7 @@ export function readDistTags(
 
 export function planPromotion(options: {
   version: string;
+  launcherVersion?: string;
   packages?: readonly string[];
   readTags?: ReadTags;
   now?: () => Date;
@@ -46,6 +53,7 @@ export function checkRollbackState(options: {
 export function promote(options: {
   record: PromotionRecord;
   setTag: SetTag;
+  publishLauncher?: () => Promise<string>;
   log?: (line: string) => void;
 }): Promise<
   | { ok: true; moved: string[] }
@@ -62,6 +70,54 @@ export function rollback(options: {
   setTag: SetTag;
   log?: (line: string) => void;
 }): Promise<{ ok: boolean; failed: string[] }>;
+
+type Checked = { ok: boolean; problems: string[] };
+type Held = { ok: boolean; expected: string; actual: string | null };
+
+export function downloadServedTarball(
+  spec: string,
+  into: string,
+  options?: {
+    execFile?: (
+      command: string,
+      args: readonly string[],
+      options?: Record<string, unknown>,
+    ) => Promise<{ stdout: string; stderr?: string }>;
+  },
+): Promise<string>;
+
+export function checkServedLauncher(options: {
+  version: string;
+  launcherVersion: string;
+  qualifiedRc: string;
+  finalTarball: string;
+  download?: (spec: string, into: string) => Promise<string>;
+  checkEquivalence?: (options: {
+    rcTarball: string;
+    finalTarball: string;
+    rcVersion: string;
+    version: string;
+  }) => Promise<Checked>;
+}): Promise<Checked>;
+
+export function publishFinalLauncher(options: {
+  version: string;
+  finalTarball: string;
+  recheck: () => Promise<Checked>;
+  publish: (tarball: string) => Promise<unknown>;
+  setTag: SetTag;
+  alreadyPublished?: (name: string, version: string) => Promise<boolean>;
+  holds?: (name: string, version: string, tarball: string) => Promise<Held>;
+}): Promise<string>;
+
+export function verifyFinalLauncher(options: {
+  version: string;
+  finalTarball: string;
+  holds?: (name: string, version: string, tarball: string) => Promise<Held>;
+  attempts?: number;
+  delayMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<Checked>;
 
 export function verifyTags(options: {
   expected: Readonly<Record<string, string>>;

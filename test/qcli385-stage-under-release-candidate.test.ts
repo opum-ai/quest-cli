@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
+  launcherPublishArgs,
   PROMOTE_TAG,
   type PromotionRecord,
   planPromotion,
@@ -24,6 +25,7 @@ import { publishArgs, STAGE_TAG } from "../scripts/publish-release.mjs";
 
 const repo = join(import.meta.dir, "..");
 const VERSION = "9.9.9";
+const LAUNCHER_VERSION = "9.9.9-rc.1";
 const PRIOR = "9.8.0";
 
 test("the stage tag is release-candidate, never latest", () => {
@@ -51,6 +53,24 @@ test("every npm publish in the local publisher goes through publishArgs", async 
   expect(source.match(/publishArgs\(/g)?.length).toBeGreaterThanOrEqual(3);
 });
 
+test("QCLI-399: the one publish that does not stage is the X launcher, onto latest, in promote-release only", async () => {
+  const source = await readFile(
+    join(repo, "scripts", "promote-release.mjs"),
+    "utf8",
+  );
+  // One literal, inside launcherPublishArgs, and one caller of it.
+  expect(source.match(/"publish",/g)?.length).toBe(1);
+  expect(source.match(/launcherPublishArgs\(/g)?.length).toBe(2);
+  const args = launcherPublishArgs("final/opum-ai-quest-9.9.9.tgz");
+  expect(args.slice(0, 2)).toEqual([
+    "publish",
+    "final/opum-ai-quest-9.9.9.tgz",
+  ]);
+  expect(args[args.indexOf("--tag") + 1]).toBe("latest");
+  // Its one caller publishes the bundle's final/ launcher.
+  expect(source).toContain("finalTarball: final.path");
+});
+
 test("every npm publish in release.yml stages under release-candidate", async () => {
   const workflow = await readFile(
     join(repo, ".github", "workflows", "release.yml"),
@@ -65,14 +85,16 @@ test("every npm publish in release.yml stages under release-candidate", async ()
     expect(line).toContain("--tag release-candidate");
 });
 
-const staged = (latest: string) => async () => ({
-  "release-candidate": VERSION,
+// QCLI-399: the launcher is staged at its rc, the platforms at X.
+const staged = (latest: string) => async (name: string) => ({
+  "release-candidate": name === "@opum-ai/quest" ? LAUNCHER_VERSION : VERSION,
   latest,
 });
 
 test("planPromotion records every prior latest when all seven are staged", async () => {
   const plan = await planPromotion({
     version: VERSION,
+    launcherVersion: LAUNCHER_VERSION,
     readTags: staged(PRIOR),
     now: () => new Date("2026-09-27T00:00:00Z"),
   });
@@ -91,10 +113,11 @@ test("planPromotion records every prior latest when all seven are staged", async
 test("planPromotion refuses when any one package is not staged at the version", async () => {
   const plan = await planPromotion({
     version: VERSION,
+    launcherVersion: LAUNCHER_VERSION,
     readTags: async (name) =>
       name === "@opum-ai/quest-win32-arm64"
         ? { "release-candidate": "0.2.9", latest: PRIOR }
-        : { "release-candidate": VERSION, latest: PRIOR },
+        : await staged(PRIOR)(name),
   });
   expect(plan.ok).toBe(false);
   if (plan.ok) return;
@@ -117,6 +140,7 @@ test("planPromotion refuses an unreadable tag set rather than treating it as emp
 test("a rerun reusing the first record accepts packages already promoted", async () => {
   const plan = await planPromotion({
     version: VERSION,
+    launcherVersion: LAUNCHER_VERSION,
     readTags: staged(VERSION),
     resuming: true,
   });
@@ -126,6 +150,7 @@ test("a rerun reusing the first record accepts packages already promoted", async
 test("planPromotion refuses to record the new version as the prior one", async () => {
   const plan = await planPromotion({
     version: VERSION,
+    launcherVersion: LAUNCHER_VERSION,
     readTags: staged(VERSION),
   });
   expect(plan.ok).toBe(false);
@@ -148,14 +173,29 @@ function fakeRegistry(failOn?: string) {
     writes.push(`${name}=${version}`);
     tags.set(name, version);
   };
-  return { tags, writes, setTag };
+  // QCLI-399: the launcher reaches latest by a publish of X, not a tag move.
+  const publishLauncher = async () => {
+    if (failOn === "@opum-ai/quest") throw new Error("E403 on publish");
+    writes.push(`publish @opum-ai/quest@${VERSION} --tag latest`);
+    tags.set("@opum-ai/quest", VERSION);
+    return "published";
+  };
+  return { tags, writes, setTag, publishLauncher };
 }
 
-test("promote moves latest on all seven, platforms first and the wrapper last", async () => {
+test("promote moves latest on all seven: platforms by dist-tag, then the launcher by a publish of X", async () => {
   const registry = fakeRegistry();
-  const outcome = await promote({ record, setTag: registry.setTag });
+  const outcome = await promote({
+    record,
+    setTag: registry.setTag,
+    publishLauncher: registry.publishLauncher,
+  });
   expect(outcome.ok).toBe(true);
-  expect(registry.writes.at(-1)).toBe(`@opum-ai/quest=${VERSION}`);
+  expect(registry.writes.at(-1)).toBe(
+    `publish @opum-ai/quest@${VERSION} --tag latest`,
+  );
+  expect(registry.writes).not.toContain(`@opum-ai/quest=${VERSION}`);
+  expect(registry.writes).toHaveLength(RELEASE_PACKAGES.length);
   expect([...registry.tags.values()].every((value) => value === VERSION)).toBe(
     true,
   );
@@ -178,9 +218,44 @@ test("a failure part way through restores exactly the tags that run moved", asyn
   ).toBe(false);
 });
 
+test("QCLI-399: a failed launcher publish restores every latest, the launcher's included", async () => {
+  const registry = fakeRegistry("@opum-ai/quest");
+  const outcome = await promote({
+    record,
+    setTag: registry.setTag,
+    publishLauncher: registry.publishLauncher,
+  });
+  expect(outcome.ok).toBe(false);
+  if (outcome.ok) return;
+  expect(outcome.failed).toBe("@opum-ai/quest");
+  expect(outcome.moved).toHaveLength(RELEASE_PACKAGES.length - 1);
+  expect(outcome.restored.ok).toBe(true);
+  expect([...registry.tags.values()].every((value) => value === PRIOR)).toBe(
+    true,
+  );
+  // Restored by a dist-tag move to the prior version, never by unpublishing.
+  expect(registry.writes.at(-1)).toBe(`@opum-ai/quest=${PRIOR}`);
+});
+
+test("QCLI-399: without a launcher publisher the promotion refuses and rolls back rather than tag-moving X", async () => {
+  const registry = fakeRegistry();
+  const outcome = await promote({ record, setTag: registry.setTag });
+  expect(outcome.ok).toBe(false);
+  if (outcome.ok) return;
+  expect(outcome.failed).toBe("@opum-ai/quest");
+  expect(registry.writes).not.toContain(`@opum-ai/quest=${VERSION}`);
+  expect([...registry.tags.values()].every((value) => value === PRIOR)).toBe(
+    true,
+  );
+});
+
 test("rollback restores every recorded prior value after a full promotion", async () => {
   const registry = fakeRegistry();
-  await promote({ record, setTag: registry.setTag });
+  await promote({
+    record,
+    setTag: registry.setTag,
+    publishLauncher: registry.publishLauncher,
+  });
   const outcome = await rollback({ record, setTag: registry.setTag });
   expect(outcome.ok).toBe(true);
   expect([...registry.tags.values()].every((value) => value === PRIOR)).toBe(

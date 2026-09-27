@@ -15,7 +15,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { expectedTarballNames } from "./e2e-receipt.mjs";
+import { expectedTarballNames, isLauncherVersionOf } from "./e2e-receipt.mjs";
 import { REQUIRED_PLATFORMS } from "./native-execution-receipt.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -58,24 +58,29 @@ export function packageNames() {
  * Every published tarball against its bundle file. An unreadable integrity is
  * retried, because the registry's read API lags its writes; a DIFFERENT
  * integrity is not, because no amount of waiting changes published bytes.
+ *
+ * QCLI-399: the launcher stages as `launcherVersion` (X-rc.N), so that is the
+ * version its integrity is read at; the platforms are read at `version`.
  */
 export async function verifyRegistryHoldsBundle({
   bundleDir,
   version,
+  launcherVersion,
   attempts = 6,
   delayMs = 15_000,
   check = registryHoldsTarball,
   sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
 }) {
   const names = packageNames();
-  const files = expectedTarballNames(version);
+  const files = expectedTarballNames(version, launcherVersion);
+  const versionOf = (index) => (index === 0 ? launcherVersion : version);
   const results = {};
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     for (const [index, name] of names.entries())
       if (!results[name]?.ok && results[name]?.actual == null)
         results[name] = await check(
           name,
-          version,
+          versionOf(index),
           join(bundleDir, "tarballs", files[index]),
         );
     const unread = names.filter((name) => results[name].actual == null);
@@ -83,13 +88,30 @@ export async function verifyRegistryHoldsBundle({
     await sleep(delayMs);
   }
   const problems = names
-    .filter((name) => !results[name].ok)
-    .map((name) =>
+    .map((name, index) => [name, `${name}@${versionOf(index)}`])
+    .filter(([name]) => !results[name].ok)
+    .map(([name, specifier]) =>
       results[name].actual == null
-        ? `${name}@${version}: npm returned no dist.integrity`
-        : `${name}@${version}: npm serves ${results[name].actual}, the qualified bundle file is ${results[name].expected}`,
+        ? `${specifier}: npm returned no dist.integrity`
+        : `${specifier}: npm serves ${results[name].actual}, the qualified bundle file is ${results[name].expected}`,
     );
   return { ok: problems.length === 0, problems, results };
+}
+
+/** The staged launcher version a bundle records, checked against the release. */
+export async function bundleLauncherVersion(bundleDir, version) {
+  const metadata = JSON.parse(
+    await readFile(
+      join(bundleDir, "evidence", "package-metadata.json"),
+      "utf8",
+    ),
+  );
+  const staged = metadata?.launcher?.stagedVersion;
+  if (!isLauncherVersionOf(version, staged))
+    throw new Error(
+      `the bundle's launcher.stagedVersion is ${JSON.stringify(staged)}, not ${version}-rc.<N>`,
+    );
+  return staged;
 }
 
 async function main(argv) {
@@ -101,9 +123,12 @@ async function main(argv) {
     return value;
   };
   const version = flag("--version");
+  const bundleDir = flag("--bundle");
+  const launcherVersion = await bundleLauncherVersion(bundleDir, version);
   const verdict = await verifyRegistryHoldsBundle({
-    bundleDir: flag("--bundle"),
+    bundleDir,
     version,
+    launcherVersion,
   });
   if (!verdict.ok) {
     console.error(
@@ -113,7 +138,7 @@ async function main(argv) {
     process.exit(1);
   }
   console.log(
-    `npm serves all ${packageNames().length} ${version} tarballs byte-identical to the qualified bundle.`,
+    `npm serves all ${packageNames().length} staged tarballs (platforms ${version}, launcher ${launcherVersion}) byte-identical to the qualified bundle.`,
   );
 }
 

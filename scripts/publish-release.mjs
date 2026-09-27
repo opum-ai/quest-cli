@@ -53,6 +53,7 @@ import {
 import {
   describeOverride,
   requireQualification,
+  tarballName,
 } from "./qualification/e2e-receipt.mjs";
 import {
   REQUIRED_PLATFORMS,
@@ -372,6 +373,8 @@ export async function verifyPublishedRelease({
   receipt,
   receiptPath,
   wrapperName,
+  // QCLI-399: the launcher stages at its own X-rc.N, not at the platforms' X.
+  wrapperVersion = version,
   verifyBundle,
   waitForReceipt = waitForPublished,
   // Passed through to the consumer gate: `fetchImpl`, `now`, `sleep` and so on.
@@ -401,10 +404,14 @@ export async function verifyPublishedRelease({
           "Do NOT run npm unpublish.\n\nPer-package state, read from the public registry just now:",
       );
       const { lines } = await describeUnresolved(
-        [...receipt.platforms.map((entry) => entry.packageName), wrapperName],
+        receipt.platforms.map((entry) => entry.packageName),
         version,
       );
-      for (const line of lines) logError(line);
+      const { lines: wrapperLines } = await describeUnresolved(
+        [wrapperName],
+        wrapperVersion,
+      );
+      for (const line of [...lines, ...wrapperLines]) logError(line);
       logError(
         "\nOnce every line above reads public, re-run just the verification:\n" +
           `  node scripts/qualification/native-execution-receipt.mjs --verify-published ${version} --receipt ${receiptPath}\n`,
@@ -433,22 +440,22 @@ export async function verifyPublishedRelease({
   // early. On 0.9.0 the old success line printed while an anonymous read
   // of the wrapper still returned 404.
   log(
-    `\nConfirming ${wrapperName}@${version} resolves for a consumer, with the same anonymous read that gated the platform packages...`,
+    `\nConfirming ${wrapperName}@${wrapperVersion} resolves for a consumer, with the same anonymous read that gated the platform packages...`,
   );
   // `read` is dropped so the wrapper is always checked by the plain HTTPS read.
   const { read: _read, ...gateOptions } = consumerOptions;
   const wrapperVisibility = await waitForConsumerVisibility(
     [wrapperName],
-    version,
+    wrapperVersion,
     gateOptions,
   );
   if (!wrapperVisibility.ok) {
     logError(
-      `\n${wrapperName}@${version} does not resolve for a consumer after ${wrapperVisibility.attempts} check(s) across the full wait window.\n` +
+      `\n${wrapperName}@${wrapperVersion} does not resolve for a consumer after ${wrapperVisibility.attempts} check(s) across the full wait window.\n` +
         "Its publish returned success and npm's own client reads it with the qualified integrity, so this is\n" +
         "NOT a verified release yet. Do NOT run npm unpublish.\n\nState, read from the public registry just now:",
     );
-    const { lines } = await describeUnresolved([wrapperName], version);
+    const { lines } = await describeUnresolved([wrapperName], wrapperVersion);
     for (const line of lines) logError(line);
     return { ok: false, stage: "wrapper" };
   }
@@ -456,6 +463,7 @@ export async function verifyPublishedRelease({
     describeVerifiedRelease({
       version,
       wrapperName,
+      wrapperVersion,
       platformCount: receipt.platforms.length,
       receiptChecks: wait.attempts,
       wrapperPublishedAt:
@@ -474,15 +482,16 @@ export async function verifyPublishedRelease({
 export function describeVerifiedRelease({
   version,
   wrapperName,
+  wrapperVersion = version,
   platformCount,
   receiptChecks,
   wrapperPublishedAt,
 }) {
   return [
-    `Published ${wrapperName}@${version}. Staged under the ${STAGE_TAG} dist-tag; latest is unmoved until scripts/promote-release.mjs runs. Verified:`,
+    `Staged ${version}: the ${platformCount} platform packages at ${version} and ${wrapperName}@${wrapperVersion}, under the ${STAGE_TAG} dist-tag. latest is unmoved until scripts/promote-release.mjs runs, which publishes ${wrapperName}@${version} itself. Verified:`,
     `  - the ${platformCount} platform packages match the qualification receipt (${receiptChecks} registry check${receiptChecks === 1 ? "" : "s"})`,
     `  - all ${platformCount + 1} tarballs npm serves are byte-identical to the qualified bundle`,
-    `  - ${wrapperName}@${version} resolves for an anonymous consumer${wrapperPublishedAt ? ` (published ${wrapperPublishedAt})` : ""}`,
+    `  - ${wrapperName}@${wrapperVersion} resolves for an anonymous consumer${wrapperPublishedAt ? ` (published ${wrapperPublishedAt})` : ""}`,
   ].join("\n");
 }
 
@@ -583,14 +592,14 @@ async function main(argv) {
   }
   if (qualified.override)
     console.log(describeOverride(qualified.override, qualified.source));
+  // QCLI-399: the launcher stages at its rc version; the X launcher in the
+  // bundle's final/ is published only by scripts/promote-release.mjs.
+  const launcherVersion = qualified.launcher.stagedVersion;
   console.log(
-    `opum-cli-e2e receipt ${qualified.source} binds ${version} at ${commit.slice(0, 7)}, run ${qualificationRun}, and all ${Object.keys(qualified.bundle.tarballs).length} tarballs. Publishing those files byte-for-byte.`,
+    `opum-cli-e2e receipt ${qualified.source} binds ${version} at ${commit.slice(0, 7)}, run ${qualificationRun}, and all ${Object.keys(qualified.bundle.tarballs).length} staged tarballs, the launcher at ${launcherVersion}. Staging those files byte-for-byte.`,
   );
-  const tarballFor = (name) =>
-    join(
-      qualified.bundle.directory,
-      `${name.replace("@", "").replace("/", "-")}-${version}.tgz`,
-    );
+  const tarballFor = (name, atVersion) =>
+    join(qualified.bundle.directory, tarballName(name, atVersion));
 
   const { token, source, keychain } = await resolveToken();
   let tempNpmrcDir;
@@ -631,12 +640,14 @@ async function main(argv) {
     const platforms = REQUIRED_PLATFORMS.map((platform) => ({
       name: `@opum-ai/quest-${platform}`,
       cwd: root,
-      tarball: tarballFor(`@opum-ai/quest-${platform}`),
+      version,
+      tarball: tarballFor(`@opum-ai/quest-${platform}`, version),
     }));
     const wrapper = {
       name: "@opum-ai/quest",
       cwd: root,
-      tarball: tarballFor("@opum-ai/quest"),
+      version: launcherVersion,
+      tarball: tarballFor("@opum-ai/quest", launcherVersion),
     };
 
     const publish = async (target) => {
@@ -666,14 +677,18 @@ async function main(argv) {
       wrapper,
       publish,
       alreadyPublished: async (name) => {
-        if (dryRun || !(await isPublished(name, version))) return false;
         const target = [...platforms, wrapper].find(
           (candidate) => candidate.name === name,
         );
-        const held = await registryHoldsTarball(name, version, target.tarball);
+        if (dryRun || !(await isPublished(name, target.version))) return false;
+        const held = await registryHoldsTarball(
+          name,
+          target.version,
+          target.tarball,
+        );
         if (!held.ok) {
           console.error(
-            `\nRefusing to continue: ${name}@${version} is already on the registry, but not as the qualified tarball.\n` +
+            `\nRefusing to continue: ${name}@${target.version} is already on the registry, but not as the qualified tarball.\n` +
               `  registry  ${held.actual}\n  qualified ${held.expected}\n` +
               "It was published outside this gate. A version cannot be republished; this needs a new version, not a rerun. Do NOT run npm unpublish.",
           );
@@ -709,7 +724,7 @@ async function main(argv) {
       console.error(
         `\nTHE WRAPPER WAS NOT PUBLISHED. ${outcome.visibility.missing.length} of ${platforms.length} platform packages did not resolve for a consumer` +
           ` after ${outcome.visibility.attempts} check(s) across the full wait window.\n` +
-          `@opum-ai/quest@${version} is NOT on the registry, so nothing is advertising an optionalDependency that does not resolve.\n` +
+          `@opum-ai/quest@${launcherVersion} is NOT on the registry, so nothing is advertising an optionalDependency that does not resolve.\n` +
           "That is this gate working, not a new failure: an install inside that window succeeds and leaves no binary.\n" +
           "Do NOT run npm unpublish.\n\nPer-package state, read from the public registry just now:",
       );
@@ -763,9 +778,14 @@ async function main(argv) {
       receipt,
       receiptPath,
       wrapperName: wrapper.name,
+      wrapperVersion: launcherVersion,
       // QCLI-368: the executables matching is not the tarballs matching.
       verifyBundle: (target) =>
-        verifyRegistryHoldsBundle({ bundleDir, version: target }),
+        verifyRegistryHoldsBundle({
+          bundleDir,
+          version: target,
+          launcherVersion,
+        }),
     });
     if (!verified.ok) process.exit(1);
   } finally {

@@ -5,6 +5,8 @@ import type { FetchedReceipt } from "./e2e-receipt.d.mts";
 export const PAIR_RECEIPT_KIND: "opum.pair-qualification-receipt.v1";
 export function pairReceiptPath(version: string): string;
 export function tarballName(pkgName: string, version: string): string;
+/** The receipt's pair.quest.launcherVersion when it is an rc of `version`. */
+export function receiptLauncherVersion(doc: unknown, version: string): string | null;
 
 export interface RegistryObservation {
   readonly integrities: Record<string, string>;
@@ -42,6 +44,7 @@ export function observeRegistry(
   version: string,
   packages: readonly string[],
   options?: {
+    launcherVersion?: string | null;
     execFile?: ExecFile;
     resolveCommit?: (
       version: string,
@@ -59,5 +62,10 @@ export function requirePairQualification(options: {
   version: string;
   packages: readonly string[];
   fetch?: (version: string) => Promise<FetchedReceipt>;
-  observe?: (version: string) => Promise<RegistryObservation>;
-}): Promise<PairVerdict & { readonly source: string }>;
+  observe?: (
+    version: string,
+    launcherVersion: string | null,
+  ) => Promise<RegistryObservation>;
+}): Promise<
+  PairVerdict & { readonly source: string; readonly launcherVersion?: string | null }
+>;

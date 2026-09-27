@@ -20,9 +20,16 @@ export function registryHoldsTarball(
 
 export function packageNames(): string[];
 
+export function bundleLauncherVersion(
+  bundleDir: string,
+  version: string,
+): Promise<string>;
+
 export function verifyRegistryHoldsBundle(options: {
   bundleDir: string;
   version: string;
+  /** QCLI-399: the version the launcher was staged at, X-rc.N. */
+  launcherVersion: string;
   attempts?: number;
   delayMs?: number;
   check?: (

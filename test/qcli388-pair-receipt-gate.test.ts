@@ -20,8 +20,9 @@ import {
  */
 
 const V = "9.9.9";
+const LV = "9.9.9-rc.1";
 const HEAD = "a".repeat(40);
-const names = expectedTarballNames(V);
+const names = expectedTarballNames(V, LV);
 const integrity = (name: string) => `sha512-${name}`;
 const observed = {
   gitHead: null,
@@ -39,6 +40,7 @@ function receipt(overrides: Record<string, unknown> = {}) {
       quest: {
         version: V,
         commit: HEAD,
+        launcherVersion: LV,
         tarballs: Object.fromEntries(
           names.map((name) => [
             name,
@@ -205,6 +207,8 @@ const QUEST_PACKAGES = [
 ];
 const integrityOf = (name: string) => `sha512-${name}`;
 
+const npmViews: string[] = [];
+
 function liveShapes({
   gitHead,
   peelTo = RELEASE,
@@ -216,10 +220,12 @@ function liveShapes({
 } = {}) {
   return async (command: string, args: readonly string[]) => {
     if (command === "npm") {
-      const name = String(args[1]).replace(/@9\.9\.9$/, "");
+      const [, name, version] =
+        /^(.+)@(9\.9\.9(?:-rc\.\d+)?)$/.exec(String(args[1])) ?? [];
+      npmViews.push(String(args[1]));
       const meta: Record<string, unknown> = {
         name,
-        version: V,
+        version,
         dist: { integrity: integrityOf(name) },
       };
       if (gitHead) meta.gitHead = gitHead;
@@ -254,7 +260,7 @@ function pairReceiptFor(commit: string) {
   doc.pair.quest.commit = commit;
   doc.pair.quest.tarballs = Object.fromEntries(
     QUEST_PACKAGES.map((name) => [
-      `${name.replace("@", "").replace("/", "-")}-${V}.tgz`,
+      `${name.replace("@", "").replace("/", "-")}-${name === "@opum-ai/quest" ? LV : V}.tgz`,
       { sha256: "c".repeat(64), distIntegrity: integrityOf(name) },
     ]),
   );
@@ -266,13 +272,15 @@ async function gate(execFile: ReturnType<typeof liveShapes>, commit = RELEASE) {
     version: V,
     packages: QUEST_PACKAGES,
     fetch: async () => ({ doc: pairReceiptFor(commit), source: "fixture" }),
-    observe: (v) => observeRegistry(v, QUEST_PACKAGES, { execFile }),
+    observe: (v, launcherVersion) =>
+      observeRegistry(v, QUEST_PACKAGES, { execFile, launcherVersion }),
   });
 }
 
 test("QCLI-393: the tarball-published shape (no gitHead, annotated tag) reads all seven and passes", async () => {
   const observed = await observeRegistry(V, QUEST_PACKAGES, {
     execFile: liveShapes(),
+    launcherVersion: LV,
   });
   expect(Object.keys(observed.integrities)).toHaveLength(7);
   expect(observed.gitHead).toBeNull();
@@ -345,4 +353,66 @@ test("the gate sits on the promote path only: --rollback never reaches it", asyn
   expect(source.indexOf("requirePairQualification(")).toBeLessThan(
     source.indexOf("Dry run only. Re-run with --promote"),
   );
+});
+
+// QCLI-399, opum-cli-e2e TASK-126 (receipts/README.md blob 241ac885), reader
+// step 5: the launcher entry is keyed, read and verified at launcherVersion.
+
+test("QCLI-399: a missing or malformed launcherVersion refuses", () => {
+  for (const launcherVersion of [undefined, V, "9.9.8-rc.1", "9.9.9-rc.0"]) {
+    const doc = receipt();
+    (doc.pair.quest as Record<string, unknown>).launcherVersion =
+      launcherVersion;
+    const result = verdictOf(doc);
+    expect({ launcherVersion, ok: result.ok }).toEqual({
+      launcherVersion,
+      ok: false,
+    });
+    expect(result.problems[0]).toContain("pair.quest.launcherVersion");
+  }
+});
+
+test("QCLI-399: the launcher entry keyed at X instead of its rc refuses", () => {
+  const doc = receipt();
+  const tarballs = doc.pair.quest.tarballs as Record<string, unknown>;
+  tarballs["opum-ai-quest-9.9.9.tgz"] = tarballs[names[0] as string];
+  delete tarballs[names[0] as string];
+  const result = verdictOf(doc);
+  expect(result.ok).toBe(false);
+  expect(result.problems.join("\n")).toContain(
+    "opum-ai-quest-9.9.9-rc.1.tgz: not in the pair receipt",
+  );
+});
+
+test("QCLI-399: the registry is read for the launcher at launcherVersion, the platforms at X", async () => {
+  npmViews.length = 0;
+  const result = await gate(liveShapes());
+  expect(result.ok).toBe(true);
+  expect(result.launcherVersion).toBe(LV);
+  expect(npmViews).toContain("@opum-ai/quest@9.9.9-rc.1");
+  expect(npmViews).not.toContain("@opum-ai/quest@9.9.9");
+  expect(npmViews.filter((spec) => spec.endsWith("@9.9.9"))).toHaveLength(6);
+});
+
+test("QCLI-399: an rc npm no longer serves as qualified refuses", async () => {
+  const doc = pairReceiptFor(RELEASE);
+  (doc.pair.quest.tarballs as Record<string, { distIntegrity: string }>)[
+    "opum-ai-quest-9.9.9-rc.1.tgz"
+  ] = {
+    distIntegrity: "sha512-something-else",
+  };
+  const result = await requirePairQualification({
+    version: V,
+    packages: QUEST_PACKAGES,
+    fetch: async () => ({ doc, source: "fixture" }),
+    observe: (v, launcherVersion) =>
+      observeRegistry(v, QUEST_PACKAGES, {
+        execFile: liveShapes(),
+        launcherVersion,
+      }),
+  });
+  expect(result.ok).toBe(false);
+  expect(result.problems).toEqual([
+    "opum-ai-quest-9.9.9-rc.1.tgz: qualified sha512-something-else, npm serves sha512-@opum-ai/quest",
+  ]);
 });

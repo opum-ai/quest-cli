@@ -251,6 +251,10 @@ jobs:
         if: ${{ inputs.publish == true }}
         run: node scripts/qualification/require-platform-visibility.mjs
 
+      # QCLI-399, Article 3 clause 5 as amended by ODOC-302: the launcher
+      # stages as X-rc.N, the version the bundle recorded and opum-cli-e2e
+      # qualified. The X launcher in candidate/final/ is never staged; only
+      # scripts/promote-release.mjs publishes it, straight to latest.
       - name: Publish the wrapper
         env:
           NPM_CONFIG_LOGLEVEL: verbose
@@ -258,9 +262,9 @@ jobs:
         run: |
           set -euo pipefail
           unset NODE_AUTH_TOKEN
-          version=$(node -p "require('./package.json').version")
-          echo "::group::@opum-ai/quest"
-          npm publish "candidate/tarballs/opum-ai-quest-${version}.tgz" --access public --tag release-candidate $DRY
+          launcher=$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")
+          echo "::group::@opum-ai/quest@${launcher}"
+          npm publish "candidate/tarballs/opum-ai-quest-${launcher}.tgz" --access public --tag release-candidate $DRY
           echo "::endgroup::"
 
       # Retries, because npm's CDN does not serve a version the instant the
@@ -293,14 +297,16 @@ jobs:
         run: |
           set -uo pipefail
           version=$(node -p "require('./package.json').version")
-          names="quest quest-darwin-arm64 quest-darwin-x64 quest-linux-arm64 quest-linux-x64 quest-win32-arm64 quest-win32-x64"
+          launcher=$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")
+          # The launcher is staged at its rc version (QCLI-399), the platforms at X.
+          specs="quest@${launcher} quest-darwin-arm64@${version} quest-darwin-x64@${version} quest-linux-arm64@${version} quest-linux-x64@${version} quest-win32-arm64@${version} quest-win32-x64@${version}"
           max_attempts=12
           delay=15
           elapsed=0
           for attempt in $(seq 1 "$max_attempts"); do
             missing=""
-            for name in $names; do
-              npm view "@opum-ai/${name}@${version}" version >/dev/null 2>&1 || missing="${missing} ${name}"
+            for spec in $specs; do
+              npm view "@opum-ai/${spec}" version >/dev/null 2>&1 || missing="${missing} ${spec}"
             done
             if [ -z "$missing" ]; then
               echo "all seven packages visible on the registry (after ${attempt} checks, ~${elapsed}s elapsed)"
@@ -348,4 +354,6 @@ jobs:
       # lag: the step above has already waited for propagation.
       - name: Verify the registry's provenance matches what was released
         if: ${{ inputs.publish == true }}
-        run: node scripts/qualification/release-provenance.mjs --post
+        run: |
+          node scripts/qualification/release-provenance.mjs --post \
+            --version "$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")"

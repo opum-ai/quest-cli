@@ -124,6 +124,8 @@ export function verifyPublishedRelease(options: {
   receipt: { readonly platforms: readonly { readonly packageName: string }[] };
   receiptPath: string;
   wrapperName: string;
+  /** QCLI-399: the launcher's staged X-rc.N; defaults to `version`. */
+  wrapperVersion?: string;
   verifyBundle: (
     version: string,
   ) => Promise<{ ok: boolean; problems: readonly string[] }>;
@@ -152,6 +154,7 @@ export function verifyPublishedRelease(options: {
 export function describeVerifiedRelease(options: {
   version: string;
   wrapperName: string;
+  wrapperVersion?: string;
   platformCount: number;
   receiptChecks: number;
   wrapperPublishedAt: string | null;

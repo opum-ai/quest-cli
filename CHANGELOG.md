@@ -10,6 +10,28 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
+### Changed
+
+- **The root launcher reaches `latest` by a fresh publish, so npm shows its
+  readme** (QCLI-399; constitution Article 3 clause 5 as amended by ODOC-302,
+  opum-agent OPAG-474). A dist-tag move never makes npm derive a packument
+  readme, so every `@opum-ai/quest` release so far has shown an empty package
+  page. The launcher now stages as `X-rc.N` under `release-candidate`, and
+  opum-cli-e2e qualifies it there. `scripts/promote-release.mjs` then
+  publishes the X launcher straight onto `latest`, from the same qualified
+  bundle. The six platform packages still stage at X and move `latest` by
+  dist-tag. The rc and X launchers may differ only by the version string.
+  `scripts/qualification/launcher-equivalence.mjs` checks that by unpacking
+  both and comparing every entry's path, mode, and bytes after substitution.
+  The check runs when the bundle is built, when it is staged, and twice at
+  promotion against the rc npm serves: before any tag moves, and just before
+  the publish. Both receipt readers take opum-cli-e2e's TASK-126 fields:
+  `launcherVersion`, and pass 1's `launcherSubstitution` (`MATCH`, and the X
+  launcher's sha256). An override does not waive the substitution.
+  `promote-release.mjs` now requires `--qualification-run <id>`. A failure
+  restores every `latest` this run moved by dist-tag, the launcher's
+  included. Paired with lore-cli LCLI-621. Release tooling only.
+
 ### Added
 
 - **Promoting `latest` now cuts the GitHub Release too** (QCLI-398, opum-agent
