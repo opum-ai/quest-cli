@@ -943,7 +943,10 @@ LCLI-621, and the receipt fields are opum-cli-e2e's (TASK-126,
    script downloads that run's `quest-candidate-bundle` again, because the X
    launcher that publishes is the bundle's `final/` tarball. It gates the
    bundle on the pass-1 receipt against the commit the `v<version>` tag peels
-   to, exactly as the publisher did.
+   to, exactly as the publisher did. The bundle artifact is kept for 90 days,
+   GitHub's maximum. Promote before it expires: after that, the only way
+   forward is a new qualification run, which takes `rc.N+1` and needs both
+   receipts again.
 
    It refuses, dry run included, unless opum-cli-e2e's pair receipt
    `receipts/pair/<version>.json` on its `main` qualifies this pair (QCLI-388,

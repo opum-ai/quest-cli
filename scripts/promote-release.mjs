@@ -418,6 +418,12 @@ export async function publishFinalLauncher({
     );
   if (await alreadyPublished(LAUNCHER, version)) {
     const held = await holds(LAUNCHER, version, finalTarball);
+    // An unreadable integrity is lag or a failed read, not a mismatch: the
+    // remedy is a rerun at the same version (Article 3 clause 5).
+    if (!held.ok && held.actual == null)
+      throw new Error(
+        `${LAUNCHER}@${version} is on the registry but its dist.integrity could not be read; re-run the promotion at the same version`,
+      );
     if (!held.ok)
       throw new Error(
         `${LAUNCHER}@${version} is already on the registry as ${held.actual}, not the qualified ${held.expected}; this needs a new version, not a rerun`,

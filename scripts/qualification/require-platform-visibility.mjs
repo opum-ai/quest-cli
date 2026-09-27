@@ -94,7 +94,7 @@ export async function requirePlatformVisibility({
     `\nTHE WRAPPER WAS NOT PUBLISHED. ${visibility.missing.length} of ${names.length}` +
       ` platform packages did not resolve for a consumer after ${visibility.attempts}` +
       " check(s) across the full wait window.\n" +
-      `@opum-ai/quest@${version} is NOT on the registry, so nothing is advertising an` +
+      "The @opum-ai/quest launcher rc is NOT on the registry, so nothing is advertising an" +
       " optionalDependency that does not resolve.\n" +
       "That is this gate working, not a new failure. Do NOT run npm unpublish.\n\n" +
       "Per-package state, read from the public registry just now:",

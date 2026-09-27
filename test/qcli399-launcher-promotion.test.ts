@@ -152,10 +152,12 @@ function publisher({
   recheck = { ok: true, problems: [] as string[] },
   published = false,
   held = true,
+  unreadable = false,
 }: {
   recheck?: { ok: boolean; problems: string[] };
   published?: boolean;
   held?: boolean;
+  unreadable?: boolean;
 } = {}) {
   const calls: string[] = [];
   const run = () =>
@@ -174,9 +176,9 @@ function publisher({
       },
       alreadyPublished: async () => published,
       holds: async () => ({
-        ok: held,
+        ok: held && !unreadable,
         expected: "sha512-final",
-        actual: held ? "sha512-final" : "sha512-other",
+        actual: unreadable ? null : held ? "sha512-final" : "sha512-other",
       }),
     });
   return { calls, run };
@@ -208,6 +210,14 @@ test("a rerun after X landed as the qualified bytes moves the tag instead of rep
 test("an X already on npm as other bytes refuses, and neither publishes nor tags", async () => {
   const { calls, run } = publisher({ published: true, held: false });
   await expect(run()).rejects.toThrow("not the qualified sha512-final");
+  expect(calls).toEqual(["recheck"]);
+});
+
+test("an X on npm whose integrity cannot be read says retry at the same version, not bump it", async () => {
+  const { calls, run } = publisher({ published: true, unreadable: true });
+  await expect(run()).rejects.toThrow(
+    "could not be read; re-run the promotion at the same version",
+  );
   expect(calls).toEqual(["recheck"]);
 });
 

@@ -123,6 +123,39 @@ test("declared versions: two launchers that both say X substitute nothing and ar
   );
 });
 
+test("platform pins: an rc pinning its platforms at X-rc.N is refused, though it substitutes to X", async () => {
+  const pinned = (pin: string): Tree => ({
+    ...launcher(RC),
+    "package.json": {
+      body: `${JSON.stringify({ name: "@opum-ai/quest", version: RC, optionalDependencies: { "@opum-ai/quest-linux-x64": pin } }, null, 2)}\n`,
+    },
+  });
+  const out = await compare(pinned(RC), launcher(X));
+  expect(out).toEqual({
+    ok: false,
+    problems: [
+      'the rc launcher pins @opum-ai/quest-linux-x64 at "9.9.9-rc.1", expected exactly 9.9.9',
+    ],
+  });
+  const none = await compare(
+    {
+      ...launcher(RC),
+      "package.json": {
+        body: `${JSON.stringify({ name: "@opum-ai/quest", version: RC }, null, 2)}\n`,
+      },
+    },
+    {
+      ...launcher(X),
+      "package.json": {
+        body: `${JSON.stringify({ name: "@opum-ai/quest", version: X }, null, 2)}\n`,
+      },
+    },
+  );
+  expect(none.problems).toEqual([
+    "the rc launcher's package.json pins no platform packages in optionalDependencies",
+  ]);
+});
+
 test("declared versions: an rc that is not an rc of X is refused before unpacking", async () => {
   const out = await compare(launcher(RC), launcher(X), {
     rcVersion: "9.9.8-rc.1",

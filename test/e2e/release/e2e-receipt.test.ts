@@ -525,3 +525,18 @@ test("QCLI-399: a bundle without a launcher block, or with a wrong one, refuses"
     "final/ must hold exactly",
   );
 });
+
+test("QCLI-399: a MATCH that still lists mismatches is refused", async () => {
+  const result = await gate(
+    receipt({
+      launcherSubstitution: {
+        ...receipt().launcherSubstitution,
+        mismatches: ["package/README.md"],
+      },
+    }),
+  );
+  expect(result.ok).toBe(false);
+  expect(result.problems).toEqual([
+    'launcherSubstitution.verdict is "MATCH" but lists 1 mismatch(es); a MATCH has none',
+  ]);
+});

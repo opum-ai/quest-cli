@@ -58,8 +58,9 @@ test("QCLI-399: the one publish that does not stage is the X launcher, onto late
     join(repo, "scripts", "promote-release.mjs"),
     "utf8",
   );
-  // One literal, inside launcherPublishArgs, and one caller of it.
-  expect(source.match(/"publish",/g)?.length).toBe(1);
+  // One literal, inside launcherPublishArgs, and one caller of it. Any quote
+  // style counts, so a publish spelled 'publish' or `publish` cannot slip past.
+  expect(source.match(/["'`]publish["'`]/g)?.length).toBe(1);
   expect(source.match(/launcherPublishArgs\(/g)?.length).toBe(2);
   const args = launcherPublishArgs("final/opum-ai-quest-9.9.9.tgz");
   expect(args.slice(0, 2)).toEqual([

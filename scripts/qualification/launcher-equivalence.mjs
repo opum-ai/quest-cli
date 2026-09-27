@@ -172,6 +172,27 @@ export async function checkLauncherEquivalence({
           `the ${role} launcher's package.json declares ${JSON.stringify(declared)}, expected ${expected}`,
         );
     }
+    // The rc must pin every platform at exactly X, the only version the
+    // platforms stage at. The substitution cannot see this: an rc pinning
+    // X-rc.N substitutes to X and matches, yet installs no binary. (Matches
+    // lore-cli LCLI-621's clause.)
+    const rcManifest = trees.rc.get("package/package.json");
+    const pins = rcManifest
+      ? JSON.parse(rcManifest.bytes.toString("utf8")).optionalDependencies
+      : undefined;
+    const pinned =
+      pins && typeof pins === "object" && !Array.isArray(pins)
+        ? Object.entries(pins)
+        : [];
+    if (!pinned.length)
+      problems.push(
+        "the rc launcher's package.json pins no platform packages in optionalDependencies",
+      );
+    for (const [name, pin] of pinned)
+      if (pin !== version)
+        problems.push(
+          `the rc launcher pins ${name} at ${JSON.stringify(pin)}, expected exactly ${version}`,
+        );
     problems.push(
       ...compareTrees(trees.rc, trees.final, { rcVersion, version }),
     );

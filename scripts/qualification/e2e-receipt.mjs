@@ -290,6 +290,14 @@ function evaluateLauncher(doc, { version, launcherVersion, finalTarball }) {
     );
     return problems;
   }
+  if (
+    substitution.verdict === "MATCH" &&
+    Array.isArray(substitution.mismatches) &&
+    substitution.mismatches.length
+  )
+    problems.push(
+      `launcherSubstitution.verdict is "MATCH" but lists ${substitution.mismatches.length} mismatch(es); a MATCH has none`,
+    );
   if (substitution.verdict !== "MATCH")
     problems.push(
       `launcherSubstitution.verdict is ${JSON.stringify(substitution.verdict)}, not "MATCH"${Array.isArray(substitution.mismatches) && substitution.mismatches.length ? `: ${substitution.mismatches.map((entry) => JSON.stringify(entry)).join("; ")}` : ""}`,
