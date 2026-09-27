@@ -17,8 +17,10 @@ dated by its own tag. No date here is inferred (QCLI-398).
   created one, so `releases/latest` still read v0.6.0 after 0.11.0 shipped.
   `scripts/promote-release.mjs --promote` now creates the `v<version>` release
   from this file's section once `latest` is verified moved, and marks it
-  latest. A missing or empty section refuses before any tag moves, dry runs
-  included. `--rollback` does not touch releases.
+  latest. It refuses before any tag moves, dry runs included, if the section
+  is missing or empty, or if `gh` cannot read the release (missing, logged
+  out or offline). A failure found only after `latest` has moved could not be
+  undone. `--rollback` does not touch releases.
   `scripts/github-release.mjs --version <v> --create` is the same step on its
   own, for backfill or repair. It never creates a tag and never rewrites an
   existing release's notes. Version headings here now carry dates. Release

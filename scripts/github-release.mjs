@@ -86,6 +86,9 @@ export async function ensureGitHubRelease({
     exists = true;
   } catch (error) {
     const detail = String(error?.stderr || error?.message || error);
+    // gh prints "release not found" for a missing repository too. The
+    // repository is a constant here, so that case is an access loss, and the
+    // create that follows fails closed on it rather than succeeding.
     if (!/release not found/i.test(detail))
       return {
         ok: false,
@@ -134,8 +137,9 @@ export async function ensureGitHubRelease({
       detail: `would create release ${tag} "${title}" (${Buffer.byteLength(notes)} bytes of notes)${latest ? ", marked latest" : ""}`,
     };
 
-  const dir = await mkdtemp(join(tmpdir(), "quest-release-notes-"));
+  let dir;
   try {
+    dir = await mkdtemp(join(tmpdir(), "quest-release-notes-"));
     const notesFile = join(dir, "notes.md");
     await writeFile(notesFile, `${notes}\n`);
     await execFileFn("gh", [
@@ -165,7 +169,7 @@ export async function ensureGitHubRelease({
       detail: `could not create release ${tag}: ${detail}`,
     };
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    if (dir) await rm(dir, { recursive: true, force: true });
   }
 }
 

@@ -377,14 +377,22 @@ async function main(argv) {
       );
       process.exit(1);
     }
+    // A read of the release, on --promote as well as the dry run: a gh that
+    // is missing, logged out or offline refuses here, before any tag moves,
+    // instead of being found after `latest` has already moved.
+    const planned = await ensureGitHubRelease({
+      version,
+      ...release,
+      dryRun: true,
+    });
+    console.log(`GitHub Release: ${planned.detail}.`);
+    if (!planned.ok) {
+      console.error(
+        `Refusing to promote ${version}: the GitHub Release step could not be checked, so it would fail after ${PROMOTE_TAG} moves.`,
+      );
+      process.exit(1);
+    }
     if (!act) {
-      const planned = await ensureGitHubRelease({
-        version,
-        ...release,
-        dryRun: true,
-      });
-      console.log(`GitHub Release: ${planned.detail}.`);
-      if (!planned.ok) process.exit(1);
       console.log(
         `\nDry run only. Re-run with --promote to write ${recordPath} and move ${PROMOTE_TAG}.`,
       );
@@ -486,20 +494,25 @@ async function main(argv) {
     console.log(
       `\nPromoted: ${PROMOTE_TAG} reads ${record.version} on all ${record.packages.length} packages (anonymous registry read, ${check.attempts} check${check.attempts === 1 ? "" : "s"}). Rollback: --rollback ${recordPath}`,
     );
-    const cut = await ensureGitHubRelease({
-      version: record.version,
-      ...release,
-    });
-    if (!cut.ok) {
-      console.error(
-        `\nGitHub Release NOT cut: ${cut.detail}. npm ${PROMOTE_TAG} moved and is verified -- do NOT roll back for this. Repair with: node scripts/github-release.mjs --version ${record.version} --create`,
-      );
-      process.exit(1);
-    }
-    console.log(`GitHub Release: ${cut.detail}.`);
   } finally {
     if (npmrcDir) await rm(npmrcDir, { recursive: true, force: true });
   }
+
+  // QCLI-398: reached only after a verified promotion (every other path in
+  // the try returns or exits). The release is cut after the finally, so the
+  // npm token file is already gone: gh does not need it, and process.exit
+  // below would skip a finally.
+  const cut = await ensureGitHubRelease({
+    version: record.version,
+    ...release,
+  });
+  if (!cut.ok) {
+    console.error(
+      `\nGitHub Release NOT cut: ${cut.detail}. npm ${PROMOTE_TAG} moved and is verified -- do NOT roll back for this. Repair with: node scripts/github-release.mjs --version ${record.version} --create`,
+    );
+    process.exit(1);
+  }
+  console.log(`GitHub Release: ${cut.detail}.`);
 }
 
 if (

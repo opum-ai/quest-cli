@@ -197,3 +197,89 @@ test("failure: an unreadable release state refuses rather than assuming absent",
   expect(out.ok).toBe(false);
   expect(calls.some((args) => args[1] === "create")).toBe(false);
 });
+
+// Review findings on d4e79ed: the ORDER inside promote-release.mjs main() is
+// what the CHANGELOG entry claims, and no unit test of ensureGitHubRelease
+// can see it. Read the source layout, as qcli388's gate-placement test does.
+const promoteSource = readFileSync(
+  new URL("../scripts/promote-release.mjs", import.meta.url),
+  "utf8",
+);
+const mainSource = promoteSource.slice(
+  promoteSource.indexOf("async function main("),
+);
+
+test("order: notes and the gh preflight precede the dry-run exit, the record write and every tag move", () => {
+  const notes = mainSource.indexOf("releaseNotesFor(version)");
+  const preflight = mainSource.indexOf("dryRun: true");
+  expect(notes).toBeGreaterThan(-1);
+  expect(preflight).toBeGreaterThan(notes);
+  for (const later of [
+    "Dry run only. Re-run with --promote",
+    'flag: "wx"',
+    "await promote({",
+  ])
+    expect(preflight).toBeLessThan(mainSource.indexOf(later));
+  // The preflight is not inside the dry-run-only branch: --promote runs it too.
+  expect(
+    mainSource.slice(preflight, mainSource.indexOf("if (!act) {")),
+  ).not.toContain("return;");
+  expect(mainSource.indexOf("dryRun: true")).toBeLessThan(
+    mainSource.indexOf("if (!act) {"),
+  );
+});
+
+test("order: --rollback never reaches a release call", () => {
+  const start = mainSource.indexOf("if (rollbackPath) {\n      console.log(");
+  expect(start).toBeGreaterThan(-1);
+  const branch = mainSource.slice(start, mainSource.indexOf("return;", start));
+  expect(branch).toContain("rollback({ record, setTag, log })");
+  expect(branch).not.toContain("GitHubRelease");
+});
+
+test("order: the release is cut after the promotion is verified and after the token file is removed", () => {
+  const cut = mainSource.lastIndexOf("ensureGitHubRelease(");
+  expect(cut).toBeGreaterThan(mainSource.indexOf("verifyTags({ expected })"));
+  expect(cut).toBeGreaterThan(mainSource.indexOf("} finally {"));
+  expect(mainSource.slice(cut)).toContain("do NOT roll back");
+  expect(mainSource.slice(cut)).not.toContain("rollback({");
+});
+
+test("dry run against an existing release: would mark latest, no edit", async () => {
+  const { calls, execFile } = gh(() => {});
+  const out = await ensureGitHubRelease({
+    version: "1.2.3",
+    notes: "N",
+    dryRun: true,
+    execFile,
+  });
+  expect(out).toMatchObject({ ok: true, action: "would-mark-latest" });
+  expect(calls.map((args) => args[1])).toEqual(["view"]);
+});
+
+test("failure: an existing release that cannot be marked latest is returned, not thrown", async () => {
+  const { execFile } = gh((args) => {
+    if (args[1] === "edit")
+      throw Object.assign(new Error("exit 1"), { stderr: "HTTP 403\n" });
+  });
+  const out = await ensureGitHubRelease({
+    version: "1.2.3",
+    notes: "N",
+    execFile,
+  });
+  expect(out.ok).toBe(false);
+  expect(out.detail).toContain("could not be marked latest");
+});
+
+test("classification: 'release not found' only in the message (empty stderr) still reads as absent", async () => {
+  const { calls, execFile } = gh((args) => {
+    if (args[1] === "view") throw new Error("release not found");
+  });
+  const out = await ensureGitHubRelease({
+    version: "1.2.3",
+    notes: "N",
+    execFile,
+  });
+  expect(out).toMatchObject({ ok: true, action: "created" });
+  expect(calls.some((args) => args[1] === "create")).toBe(true);
+});
