@@ -432,6 +432,9 @@
         "in-progress",
         "done"
       ]
+    },
+    "qcli394Bogus": {
+      "type": "string"
     }
   },
   "required": [
