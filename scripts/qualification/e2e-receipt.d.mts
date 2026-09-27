@@ -37,9 +37,15 @@ export interface FetchedReceipt {
   readonly error?: string;
 }
 
+export function evaluateVerdict(doc: { verdict?: unknown; override?: unknown }): {
+  problems: string[];
+  override: Record<string, unknown> | null;
+};
+
 export function fetchReceipt(
   version: string,
   options?: {
+    path?: string;
     execFile?: (
       command: string,
       args: readonly string[],
