@@ -365,6 +365,8 @@ below. Neither route changes step 1, which is required either way.
 
    The workflow fetches the receipt from the qualification run for that exact
    commit rather than accepting one as input, and refuses to publish without
+   it. Both routes STAGE the release under `release-candidate` and leave
+   `latest` alone; see "Stage, qualify, promote" below for the step that moves
    it. Platform packages publish before the root, so the root never briefly
    advertises `optionalDependencies` that do not exist. Then clean-install from the registry and repeat the
    public version, manifest, task, projection, and migration smokes. Only this
@@ -863,6 +865,55 @@ wrapper first resolved from a plain read at 16:04:06Z, about a minute after
 "verified" (packument `time.modified` 16:03:39Z). The first two checks read
 through paths that see a write before the public read does. So they cannot
 be the last word on whether a consumer can install.
+
+## Stage, qualify, promote: `latest` moves last
+
+Constitution Article 3 clause 5 (opum-agent `docs/reference/opum-project-constitution.md`,
+ratified 2026-09-27) and QCLI-385. lore and quest release as a pair, and a
+publish no longer moves `latest`:
+
+1. **Stage.** Both publishers (`scripts/publish-release.mjs` and
+   `release.yml`) run every `npm publish` with `--tag release-candidate`. A
+   bare `npm publish` would move `latest` as a side effect, so the local
+   publisher builds every argument list through one `publishArgs` helper, the
+   `--diagnose-staged` re-attempt included, and
+   `test/qcli385-stage-under-release-candidate.test.ts` fails on a tagless
+   publish in either file. After staging, `latest` still names the previous
+   release, and `npm install @opum-ai/quest@release-candidate` installs the
+   new one.
+2. **Qualify.** opum-cli-e2e qualifies the staged lore/quest pair from clean
+   registry installs. That is a second pass, after the bundle receipt the
+   publisher already required (see "Publishing locally when CI cannot").
+3. **Promote.** Only on the orchestrator's go after that PASS, quest first and
+   then lore:
+
+   ```sh
+   node scripts/promote-release.mjs --record <path>             # dry run
+   node scripts/promote-release.mjs --record <path> --promote
+   ```
+
+   It reads all seven packages' dist-tags anonymously and refuses unless
+   `release-candidate` is the version on every one. It writes each package's
+   prior `latest` to `<path>` before any tag moves, then moves `latest`
+   platforms first and wrapper last. It passes only when an anonymous re-read
+   shows `latest` at the version on all seven. The record is written once: a
+   rerun reuses it rather than re-reading priors, because after a partial move
+   the registry's `latest` is already the new version. Keep the file until
+   lore's promotion has also succeeded.
+4. **Roll back the tags, never the versions.** A failure part way through
+   restores the tags that run moved. If lore's promotion fails after quest's
+   succeeded, restore quest too:
+
+   ```sh
+   node scripts/promote-release.mjs --rollback <path>
+   ```
+
+   Then retry at the same version. Never unpublish, and never skip the failed
+   side to a different number.
+
+Auth for promotion is the publisher's: the stored token, else `--otp`. Moving
+a dist-tag is a registry write and needs the same owner authorization as a
+publish.
 
 ## Rollback
 

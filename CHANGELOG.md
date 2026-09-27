@@ -6,6 +6,20 @@ history; this file is the forward-looking record.
 
 ## Unreleased
 
+### Changed
+
+- **A release is staged under the `release-candidate` dist-tag, and `latest`
+  moves in a separate step** (QCLI-385, constitution Article 3 clause 5). Both
+  publishers now pass `--tag release-candidate` on every `npm publish`, so
+  publishing leaves `latest` where it was. `scripts/promote-release.mjs` moves
+  `latest` after opum-cli-e2e has qualified the staged lore/quest pair from
+  registry installs. It refuses unless all seven packages are staged at the
+  version, and it records every prior `latest` before moving any tag. It moves
+  the platform packages first and the wrapper last. A failure part way through
+  restores the tags that run moved, and `--rollback <record>` restores all of
+  them. Release tooling only; no command, flag, envelope or exit code of
+  `quest` changed.
+
 ### Fixed
 
 - **`scripts/publish-release.mjs` no longer reports a locked Keychain entry as
