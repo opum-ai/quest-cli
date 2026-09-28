@@ -60,13 +60,26 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 - **`quest browser` exits when its workspace is deleted** (QCLI-348,
   reported by opum-cli-e2e). A browser started as a daemon ran with no upper
-  bound. Four were found alive, the oldest for 44 hours, each with a deleted
-  working directory and one per qualification run. The server now checks
+  bound, even after its workspace was deleted. The server now checks
   every 2 seconds that the workspace root it was started against still
   exists. When it is definitely gone, the server closes its connections and
   the process exits. Any other read failure keeps it running. By ruling
   there is no parent-death watch, because a person may detach the server on
-  purpose. `quest help browser` states both conditions.
+  purpose. `quest help browser` states both conditions. At fix time, 16
+  leaked harness daemons, up to 11 days old, still had their workspaces on
+  disk. The "deleted working directory" in the original report was measured
+  false. They predate opum-cli-e2e's harness fix and were reaped.
+
+- **The GitHub Release step refuses an existing release it cannot vouch
+  for** (QCLI-401, paired with lore-cli LCLI-622). QCLI-398's cut treated any
+  existing `vX` as done and marked it latest. It never read the release's
+  notes or state. It now reads `body`, `isDraft` and `isPrerelease` in the
+  same `gh release view` call. It refuses a draft, a prerelease, or notes
+  that differ from the CHANGELOG section after CRLF normalisation and
+  trimming. `promote-release.mjs` runs this check before any tag moves, on
+  the dry run and on `--promote`, so it refuses there. None of the three
+  cases is ever edited, so a person has to repair it. An existing published
+  release with matching notes is still marked latest. Release tooling only.
 
 - **A repeated unknown flag is reported as unrecognized, not as an arity
   error** (QCLI-355, reported by opum-cli-e2e). `task edit T-1 --add-ac a

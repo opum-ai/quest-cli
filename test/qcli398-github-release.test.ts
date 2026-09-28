@@ -77,12 +77,21 @@ test("title: a never-published heading says so", () => {
   ).toBe("Quest CLI 0.0.9 (tagged, never published)");
 });
 
+// QCLI-401: `release view` now reads the release's state, so an existing
+// release is stubbed as a published one whose notes match "N" -- the state
+// in which these QCLI-398 cases were always meant to hold.
+const PUBLISHED_N = JSON.stringify({
+  tagName: "v1.2.3",
+  body: "N\n",
+  isDraft: false,
+  isPrerelease: false,
+});
 const gh = (respond: (args: readonly string[]) => void) => {
   const calls: string[][] = [];
   const execFile: ExecFile = async (_file, args) => {
     calls.push([...args]);
     respond(args);
-    return { stdout: "" };
+    return { stdout: args[1] === "view" ? PUBLISHED_N : "" };
   };
   return { calls, execFile };
 };
