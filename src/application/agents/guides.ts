@@ -170,6 +170,19 @@ are read from file names, while milestones and decisions share a single
 way -- an unreadable or unparseable document on some unrelated branch is
 skipped, and the remaining refs are still consulted.
 
+## Type and priority come from the workspace's vocabulary
+
+A workspace can declare the values \`--type\` and \`--priority\` accept, in the
+\`[tasks]\` table of \`.quest/workspace.toml\`. \`quest init\` writes the canonical
+default: types \`feature\`, \`bug\`, \`chore\`, \`docs\`, \`enhancement\`, \`spike\`, and
+priorities \`low\`, \`medium\`, \`high\`, \`critical\`. \`task create\`, \`task edit\` and
+\`task edit-batch\` refuse any other value with exit 6. A value that differs only
+in case is accepted and stored in the configured spelling. Read the set
+before you write: \`quest manifest --json\` reports it as \`data.taskVocabulary\`,
+where \`null\` means the field is open and accepts anything. A workspace
+without a \`[tasks]\` table is open on both fields. \`quest doctor\` reports an
+existing record whose value falls outside the set, and nothing rewrites it.
+
 ## Dependencies must already exist
 
 \`--dependency\`/\`--parent\` validate against real records at creation time, so a

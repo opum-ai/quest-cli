@@ -21,6 +21,14 @@ import {
   WorkspaceError,
 } from "../../../src/application/workspaces/workspaces.ts";
 
+/** QCLI-330: what init writes into every fresh workspace. */
+const DEFAULT_TASKS_TOML =
+  '\n[tasks]\ntypes = ["feature", "bug", "chore", "docs", "enhancement", "spike"]\npriorities = ["low", "medium", "high", "critical"]\n';
+const DEFAULT_VOCABULARY = {
+  types: ["feature", "bug", "chore", "docs", "enhancement", "spike"],
+  priorities: ["low", "medium", "high", "critical"],
+};
+
 async function command(path: string, ...args: string[]): Promise<void> {
   const process = Bun.spawn(["git", "-C", path, ...args], {
     stdout: "ignore",
@@ -46,7 +54,7 @@ test("initialization writes only its declared authored path in a non-bare worktr
     const port = new LocalWorkspacePort();
     await initializeWorkspace(port, root);
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
-      "schemaVersion = 1\n",
+      `schemaVersion = 1\n${DEFAULT_TASKS_TOML}`,
     );
     await expect(initializeWorkspace(port, root)).rejects.toMatchObject({
       code: "already_initialized",
@@ -87,7 +95,7 @@ test("current-worktree identity is deterministic from a nested directory", async
       (await port.inspect(root)).worktreePath,
     );
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
-      "schemaVersion = 1\n",
+      `schemaVersion = 1\n${DEFAULT_TASKS_TOML}`,
     );
     await expect(
       readFile(join(nested, ".quest/workspace.toml"), "utf8"),
@@ -168,12 +176,13 @@ test("declared name and taskIdPrefix round-trip through initialization and confi
       taskIdPrefix: "QCLI",
     });
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
-      'schemaVersion = 1\nname = "My \\"Special\\" Project"\ntaskIdPrefix = "QCLI"\n',
+      `schemaVersion = 1\nname = "My \\"Special\\" Project"\ntaskIdPrefix = "QCLI"\n${DEFAULT_TASKS_TOML}`,
     );
     expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
       schemaVersion: 1,
       name: 'My "Special" Project',
       taskIdPrefix: "QCLI",
+      taskVocabulary: DEFAULT_VOCABULARY,
     });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -190,13 +199,14 @@ test("agentSkillSource round-trips as an [agents] table without disturbing the f
       agentSkillSource: "plugin",
     });
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
-      'schemaVersion = 1\nname = "Quest"\ntaskIdPrefix = "QCLI"\n\n[agents]\nskill_source = "plugin"\n',
+      `schemaVersion = 1\nname = "Quest"\ntaskIdPrefix = "QCLI"\n\n[agents]\nskill_source = "plugin"\n${DEFAULT_TASKS_TOML}`,
     );
     expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
       schemaVersion: 1,
       name: "Quest",
       taskIdPrefix: "QCLI",
       agentSkillSource: "plugin",
+      taskVocabulary: DEFAULT_VOCABULARY,
     });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -231,13 +241,14 @@ test('agents.skill_source = "none" round-trips as a first-class value, not an in
       agentSkillSource: "none",
     });
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
-      'schemaVersion = 1\nname = "Quest"\ntaskIdPrefix = "QCLI"\n\n[agents]\nskill_source = "none"\n',
+      `schemaVersion = 1\nname = "Quest"\ntaskIdPrefix = "QCLI"\n\n[agents]\nskill_source = "none"\n${DEFAULT_TASKS_TOML}`,
     );
     expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
       schemaVersion: 1,
       name: "Quest",
       taskIdPrefix: "QCLI",
       agentSkillSource: "none",
+      taskVocabulary: DEFAULT_VOCABULARY,
     });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -270,6 +281,7 @@ test("reconfigureWorkspace changes agentSkillSource independently of name/taskId
       schemaVersion: 1,
       name: "Old",
       taskIdPrefix: "OLD",
+      taskVocabulary: DEFAULT_VOCABULARY,
     });
 
     await reconfigureWorkspace(port, root, { agentSkillSource: "plugin" });
@@ -278,6 +290,7 @@ test("reconfigureWorkspace changes agentSkillSource independently of name/taskId
       name: "Old",
       taskIdPrefix: "OLD",
       agentSkillSource: "plugin",
+      taskVocabulary: DEFAULT_VOCABULARY,
     });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -289,6 +302,9 @@ test("a workspace initialized before name/taskIdPrefix existed reads back with n
   try {
     const port = new LocalWorkspacePort();
     await initializeWorkspace(port, root);
+    // Init now writes the [tasks] table (QCLI-330), so the pre-field file
+    // this test is about is written by hand, the way an older Quest left it.
+    await writeFile(join(root, ".quest/workspace.toml"), "schemaVersion = 1\n");
     expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
       schemaVersion: 1,
     });
@@ -313,6 +329,7 @@ test("reconfigureWorkspace changes a declared field without touching an existing
       schemaVersion: 1,
       name: "Old",
       taskIdPrefix: "NEW",
+      taskVocabulary: DEFAULT_VOCABULARY,
     });
     expect(await readFile(taskPath, "utf8")).toBe('{"id":"OLD-1"}\n');
   } finally {
@@ -353,6 +370,7 @@ test("reconfigureWorkspace adopts a workspace whose config file alone went missi
     expect(await resolveWorkspaceConfiguration(port, root)).toEqual({
       schemaVersion: 1,
       taskIdPrefix: "NEW",
+      taskVocabulary: DEFAULT_VOCABULARY,
     });
     expect(await readFile(taskPath, "utf8")).toBe('{"id":"OLD-1"}\n');
   } finally {

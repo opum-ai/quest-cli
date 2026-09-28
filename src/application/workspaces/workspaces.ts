@@ -2,6 +2,10 @@ import { join } from "node:path";
 
 import { canonicalIdPrefixPattern } from "../../domain/records.ts";
 import {
+  defaultTaskVocabulary,
+  type TaskVocabulary,
+} from "../../domain/tasks/vocabulary.ts";
+import {
   WorkspaceError,
   type AgentSkillSource,
   type WorkspaceConfiguration,
@@ -31,6 +35,9 @@ export interface WorkspaceInitializationInput {
   readonly name?: string;
   readonly taskIdPrefix?: string;
   readonly agentSkillSource?: AgentSkillSource;
+  /** QCLI-330. `initializeWorkspace` and `reconfigureWorkspace` supply the
+   * canonical default when this is absent; see each for exactly when. */
+  readonly taskVocabulary?: TaskVocabulary;
 }
 
 export const workspaceConfigurationPath = ".quest/workspace.toml";
@@ -53,7 +60,19 @@ function serializeConfiguration(input: WorkspaceInitializationInput): string {
       "[agents]",
       `skill_source = ${tomlStringLiteral(input.agentSkillSource)}`,
     );
+  const vocabulary = input.taskVocabulary;
+  if (vocabulary?.types !== undefined || vocabulary?.priorities !== undefined) {
+    lines.push("", "[tasks]");
+    if (vocabulary.types !== undefined)
+      lines.push(`types = ${tomlStringArray(vocabulary.types)}`);
+    if (vocabulary.priorities !== undefined)
+      lines.push(`priorities = ${tomlStringArray(vocabulary.priorities)}`);
+  }
   return `${lines.join("\n")}\n`;
+}
+
+function tomlStringArray(values: readonly string[]): string {
+  return `[${values.map(tomlStringLiteral).join(", ")}]`;
 }
 
 /** Validates an operator-supplied relative Quest path before any write. */
@@ -103,9 +122,13 @@ export async function initializeWorkspace(
       "stray_content",
       "This directory holds Quest task records but no workspace.toml. Refusing to treat it as a fresh workspace.",
     );
+  // QCLI-330: a fresh workspace starts on the canonical vocabulary.
   await port.writeInitialization(
     identity.worktreePath,
-    serializeConfiguration(input),
+    serializeConfiguration({
+      ...input,
+      taskVocabulary: input.taskVocabulary ?? defaultTaskVocabulary,
+    }),
   );
   return identity;
 }
@@ -139,14 +162,40 @@ export async function reconfigureWorkspace(
   const current = configured
     ? await port.readConfiguration(identity.worktreePath)
     : ({ schemaVersion: 1 } as const);
-  await port.writeConfiguration(
-    identity.worktreePath,
-    serializeConfiguration({
-      name: input.name ?? current.name,
-      taskIdPrefix: input.taskIdPrefix ?? current.taskIdPrefix,
-      agentSkillSource: input.agentSkillSource ?? current.agentSkillSource,
-    }),
-  );
+  // QCLI-330: re-running init ADDS the canonical default to a workspace
+  // that configures neither field, and never touches one that configures
+  // either: a workspace that declared only `types` left `priorities` open
+  // on purpose, and filling it in would overrule that.
+  const next: WorkspaceInitializationInput = {
+    name: input.name ?? current.name,
+    taskIdPrefix: input.taskIdPrefix ?? current.taskIdPrefix,
+    agentSkillSource: input.agentSkillSource ?? current.agentSkillSource,
+    taskVocabulary:
+      input.taskVocabulary ?? current.taskVocabulary ?? defaultTaskVocabulary,
+  };
+  // serializeConfiguration rewrites the WHOLE file, dropping comments and
+  // any table Quest does not serialize, so a no-op reconfigure must not
+  // write at all (reviewer finding 3): a reconfigure that changes nothing
+  // is the run that must change nothing, not even the file's comments.
+  const pick = (c: WorkspaceInitializationInput) => ({
+    name: c.name,
+    taskIdPrefix: c.taskIdPrefix,
+    agentSkillSource: c.agentSkillSource,
+    taskVocabulary: c.taskVocabulary,
+  });
+  if (
+    JSON.stringify(pick(next)) !==
+    JSON.stringify({
+      name: current.name,
+      taskIdPrefix: current.taskIdPrefix,
+      agentSkillSource: current.agentSkillSource,
+      taskVocabulary: current.taskVocabulary,
+    })
+  )
+    await port.writeConfiguration(
+      identity.worktreePath,
+      serializeConfiguration(next),
+    );
   return identity;
 }
 

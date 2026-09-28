@@ -1,3 +1,5 @@
+import type { TaskVocabulary } from "../domain/tasks/vocabulary.ts";
+
 /** Stable identity for a checkout. `commonDirectory` identifies the clone;
  * `worktreePath` identifies this particular worktree inside that clone. */
 export interface WorkspaceIdentity {
@@ -14,7 +16,13 @@ export type WorkspaceFailure =
   | "stray_content"
   | "registry_conflict"
   | "registry_invalid"
-  | "invalid_configuration";
+  | "invalid_configuration"
+  /**
+   * QCLI-330: a `[tasks]` table that cannot be read. Kept distinct from
+   * `invalid_configuration` so the CLI can carry it instead of throwing:
+   * write paths refuse with it, reads carry on (see TaskVocabularyContext).
+   */
+  | "invalid_task_vocabulary";
 
 export class WorkspaceError extends Error {
   constructor(
@@ -51,6 +59,10 @@ export interface WorkspaceConfiguration {
   readonly name?: string;
   readonly taskIdPrefix?: string;
   readonly agentSkillSource?: AgentSkillSource;
+  /** QCLI-330: the `[tasks]` table's `types`/`priorities`. Absent, or a
+   * field absent within it, means that field is open. Stored as a TOML
+   * table for the same reason `[agents]` is: an older Quest ignores it. */
+  readonly taskVocabulary?: TaskVocabulary;
 }
 
 export interface WorkspacePort {
