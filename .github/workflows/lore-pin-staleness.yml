@@ -1,0 +1,48 @@
+name: lore pin staleness
+
+# QCLI-358. Ruled in opum-doc
+# docs/adr/detect-a-stale-lore-pin-without-touching-a-required-ci-context.md.
+#
+# The `lore check` gate (lore-check.yml) runs AT its pinned lore, so it is
+# self-consistent by construction: it stays green as the pin falls behind,
+# and nothing inside that run can know a newer lore exists. This workflow is
+# the outside view. It compares the pin with npm's latest lore, exports the
+# schemas under both to tell "behind" from "behind AND schema-changing", and
+# keeps ONE issue labelled lore-pin-stale in step with the verdict: opened or
+# updated while behind, closed once current.
+#
+# It is deliberately NOT a required context and never runs on a pull request
+# or push. It reads npm, and a network read in a required context gating
+# promotion would make that context flaky, which teaches people to re-run
+# until green (ruled out by opum-agent, 2026-09-19). A failure here changes
+# nothing that gates a merge. The reasoning lives in the script's header too:
+# scripts/lore-pin-staleness.mjs.
+
+on:
+  schedule:
+    - cron: "23 7 * * 1" # Mondays 07:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: lore-pin-staleness
+  cancel-in-progress: false
+
+jobs:
+  staleness:
+    name: lore pin staleness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 24
+      - name: Compare the pin with npm latest and sync the issue
+        run: node scripts/lore-pin-staleness.mjs --issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
