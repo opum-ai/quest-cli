@@ -58,6 +58,18 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **`quest browser` exits when its workspace is deleted** (QCLI-348,
+  reported by opum-cli-e2e). A browser started as a daemon ran with no upper
+  bound, even after its workspace was deleted. The server now checks
+  every 2 seconds that the workspace root it was started against still
+  exists. When it is definitely gone, the server closes its connections and
+  the process exits. Any other read failure keeps it running. By ruling
+  there is no parent-death watch, because a person may detach the server on
+  purpose. `quest help browser` states both conditions. At fix time, 16
+  leaked harness daemons, up to 11 days old, still had their workspaces on
+  disk. The "deleted working directory" in the original report was measured
+  false. They predate opum-cli-e2e's harness fix and were reaped.
+
 - **The GitHub Release step refuses an existing release it cannot vouch
   for** (QCLI-401, paired with lore-cli LCLI-622). QCLI-398's cut treated any
   existing `vX` as done and marked it latest. It never read the release's

@@ -2052,12 +2052,25 @@ export async function runQuest(
           "usage",
           "browser --port must be an integer from 0 through 65535.",
         );
+      const workspaceRoot = await resolvedRoot();
       const started = await startBrowserServer(
         {
           tasks: await taskReader(),
           planning: await planningService(),
         },
-        { port },
+        {
+          port,
+          // QCLI-348: only a definite "not there" stops the server. Any other
+          // stat failure (permissions, a transient I/O error) keeps it up.
+          workspace: {
+            exists: () =>
+              stat(workspaceRoot).then(
+                () => true,
+                (error: NodeJS.ErrnoException) =>
+                  error.code !== "ENOENT" && error.code !== "ENOTDIR",
+              ),
+          },
+        },
       );
       return output(
         {
