@@ -121,6 +121,18 @@ dated by its own tag. No date here is inferred (QCLI-398).
   part way through now restores the failed package too, because the write
   may have landed before the error. Release tooling only.
 
+- **`scripts/promote-release.mjs` refuses to move `latest` backwards, or onto
+  a prerelease** (QCLI-402, twin of lore-cli LCLI-631; opum-doc ADR
+  `refuse-a-lore-quest-promotion-that-would-move-npm-latest-backwards` and
+  its Amendment 1). The dry run and `--promote` both check this before any
+  tag moves. A fresh plan now validates the record it would write with the
+  release version. It refuses when any package's current `latest` is newer
+  than the release, or when the version is not plain X.Y.Z. Either record
+  could otherwise be written and then be neither resumable nor rollbackable.
+  The refusal names both versions. It says that a backport or a prerelease
+  belongs on a non-`latest` dist-tag through a separate path that is not
+  built. An equal version keeps its existing behaviour. Release tooling only.
+
 ## 0.11.0 - 2026-09-27
 
 The first release under constitution Article 3 (opum-ai/opum-agent

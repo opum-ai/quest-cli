@@ -173,16 +173,43 @@ export async function planPromotion({
     entries.push({ name, priorLatest: tags[PROMOTE_TAG] ?? null });
   }
   if (problems.length) return { ok: false, problems };
-  return {
-    ok: true,
-    record: {
-      schemaVersion: 1,
-      kind: RECORD_KIND,
-      version,
-      recordedAt: now().toISOString(),
-      packages: entries,
-    },
+  const record = {
+    schemaVersion: 1,
+    kind: RECORD_KIND,
+    version,
+    recordedAt: now().toISOString(),
+    packages: entries,
   };
+  // QCLI-402 (twin of lore-cli LCLI-631; opum-doc ADR
+  // refuse-a-lore-quest-promotion-that-would-move-npm-latest-backwards and its
+  // Amendment 1): a fresh record must be one resume and rollback would accept,
+  // or `latest` could move onto a record that can be neither resumed nor
+  // rolled back. validateRecord is the one gate: it refuses a version that is
+  // not plain X.Y.Z and a prior newer than the version. The headlines below
+  // only explain its refusal; they never refuse on their own. A resumed run
+  // keeps the record the first run wrote, which main() has already validated.
+  if (!resuming) {
+    const valid = validateRecord(record, { version, packages });
+    if (!valid.ok) {
+      const plain = typeof version === "string" && STRICT_SEMVER.test(version);
+      const headlines = plain
+        ? entries
+            .filter(
+              (entry) =>
+                STRICT_SEMVER.test(entry.priorLatest) &&
+                compareReleaseVersions(entry.priorLatest, version) > 0,
+            )
+            .map(
+              (entry) =>
+                `${entry.name}: ${version} is older than the current ${PROMOTE_TAG} ${entry.priorLatest}, so promoting it would move ${PROMOTE_TAG} backwards. Backports are not a promote use case: an older version belongs on a non-${PROMOTE_TAG} dist-tag through a separate path that is not built`,
+            )
+        : [
+            `${version} is not a plain X.Y.Z release, and ${PROMOTE_TAG} only ever takes a release. A prerelease, like a backport, belongs on a non-${PROMOTE_TAG} dist-tag through a separate path that is not built`,
+          ];
+      return { ok: false, problems: [...headlines, ...valid.problems] };
+    }
+  }
+  return { ok: true, record };
 }
 
 /** Rejects a record that is not one this script wrote for this release. */
