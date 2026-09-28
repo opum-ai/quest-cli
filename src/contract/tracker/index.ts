@@ -171,6 +171,11 @@ export interface TrackerTask extends TrackerSummary {
   readonly finalSummary?: string;
   readonly references?: readonly string[];
   readonly modifiedFiles?: readonly string[];
+  /**
+   * QCLI-331: why a task at the closed status was retired. `survivor` names
+   * the task that carries the work forward (duplicate/superseded only).
+   */
+  readonly resolution?: { readonly kind: string; readonly survivor?: string };
 }
 export interface TrackerManifestCommand {
   readonly name: string;
@@ -182,9 +187,22 @@ export interface TrackerManifestCommand {
 }
 export interface TrackerStatusFlow {
   readonly statuses: readonly string[];
+  /**
+   * The ladder's terminal statuses, always a subset of `statuses`. It does
+   * NOT list `closedStatus` yet (QCLI-331): decide "is this task finished"
+   * by membership here OR equality with `closedStatus`, never by a `"Done"`
+   * literal. `closedStatus` joins this list in a later release.
+   */
   readonly terminalStatuses: readonly string[];
   /** QCLI-229: absent when the workspace has pause/start disabled. */
   readonly pausedStatus?: string;
+  /**
+   * QCLI-331: the second terminal status, reached only by `task close`;
+   * absent when the workspace has close disabled.
+   */
+  readonly closedStatus?: string;
+  /** QCLI-331: the resolution kinds `task close` accepts. */
+  readonly resolutions?: readonly string[];
 }
 export interface TrackerCreateInput {
   readonly title: string;

@@ -86,6 +86,7 @@ export interface CommandManifestEntry {
     | "task complete"
     | "task archive"
     | "task demote"
+    | "task close"
     | "draft create"
     | "draft list"
     | "draft view"
@@ -515,6 +516,14 @@ export const commandManifest = {
       kind: "task.demoted",
       mutates: true,
       filters: ["to"],
+    },
+    {
+      // QCLI-331: the second terminal status, with a required resolution.
+      name: "task close",
+      schemaVersion: 1,
+      kind: "task.closed",
+      mutates: true,
+      fields: ["finalSummary", "resolution"],
     },
     {
       name: "draft create",

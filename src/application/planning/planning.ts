@@ -5,6 +5,7 @@ import {
   milestone,
 } from "../../domain/planning/planning.ts";
 import {
+  aliasKey,
   RecordConflictError,
   RecordValidationError,
 } from "../../domain/records.ts";
@@ -14,7 +15,10 @@ import {
   isOffFlowStatus,
   isRetiredPausedStatus,
   type LifecyclePolicy,
+  resolutionProblem,
   TASK_LOCATIONS,
+  type TaskResolution,
+  type TaskState,
 } from "../../domain/tasks/tasks.ts";
 import type { TaskReader } from "../tasks/tasks.ts";
 
@@ -114,6 +118,28 @@ export interface PlanningDoctorReport {
         readonly status: string;
         readonly hint: string;
       }
+    | {
+        /**
+         * QCLI-331: a resolution that breaks its own rules -- a closed
+         * record with none or a malformed one, or a resolution on a record
+         * that is not closed. Reported, never rewritten: the record was
+         * hand-edited, and only its author knows which half is right.
+         */
+        readonly code: "task_resolution_invalid";
+        readonly taskId: string;
+        readonly status: string;
+        /** Absent when the record at the closed status carries none. */
+        readonly resolution?: TaskResolution;
+        readonly hint: string;
+      }
+    | {
+        /** QCLI-331: a well-formed resolution whose survivor names no task. */
+        readonly code: "task_resolution_survivor_not_found";
+        readonly taskId: string;
+        readonly status: string;
+        readonly survivor: string;
+        readonly hint: string;
+      }
   )[];
 }
 
@@ -141,6 +167,54 @@ function sortedCounts(
   return Object.fromEntries(
     Object.entries(values).sort(([left], [right]) => left.localeCompare(right)),
   );
+}
+
+/**
+ * QCLI-331's doctor half. Every location is checked, unlike
+ * `task_status_off_flow`: a closed record lives in completed/ by design, so
+ * an active-only scan would miss exactly the records this is about. Shape
+ * comes from the domain's `resolutionProblem`, the same predicate
+ * `task close` refuses with, so doctor and close cannot disagree on what a
+ * valid resolution is. A survivor is only looked up when the shape is
+ * otherwise valid, so one bad record is one issue, not two.
+ */
+function resolutionIssues(
+  tasks: readonly TaskState[],
+  lifecycle: LifecyclePolicy,
+): PlanningDoctorReport["issues"] {
+  const known = new Set(
+    tasks.flatMap((task) => [task.id, ...task.aliases].map(aliasKey)),
+  );
+  const issues: PlanningDoctorReport["issues"][number][] = [];
+  for (const task of [...tasks].sort((a, b) => a.id.localeCompare(b.id))) {
+    const problem = resolutionProblem(task, lifecycle);
+    if (problem !== undefined) {
+      issues.push({
+        code: "task_resolution_invalid",
+        taskId: task.id,
+        status: task.status,
+        ...(task.resolution === undefined
+          ? {}
+          : { resolution: task.resolution }),
+        hint:
+          `${task.id} ${problem}. ` +
+          (task.status === lifecycle.closedStatus
+            ? `Reopen it with \`quest task demote ${task.id} --to "${lifecycle.statuses[0]}"\`, then close it again with \`quest task close ${task.id} --resolution <duplicate|superseded|wont-do>\`.`
+            : "Only `quest task close` writes a resolution; the field was edited by hand, and doctor does not guess which half is right."),
+      });
+      continue;
+    }
+    const survivor = task.resolution?.survivor;
+    if (survivor !== undefined && !known.has(aliasKey(survivor)))
+      issues.push({
+        code: "task_resolution_survivor_not_found",
+        taskId: task.id,
+        status: task.status,
+        survivor,
+        hint: `${task.id}'s survivor ${survivor} names no task in any location. Reopen it with \`quest task demote ${task.id} --to "${lifecycle.statuses[0]}"\` and close it again naming a survivor that exists.`,
+      });
+  }
+  return issues;
 }
 
 /** Typed planning records. CLI wiring deliberately remains at the composition root. */
@@ -536,7 +610,14 @@ export class PlanningService {
             `; no transition command can leave it.`,
       }))
       .sort((left, right) => left.taskId.localeCompare(right.taskId));
-    const issues = [...milestoneIssues, ...offFlowIssues];
+    const issues = [
+      ...milestoneIssues,
+      ...offFlowIssues,
+      ...resolutionIssues(
+        records.map((record) => ("task" in record ? record.task : record)),
+        lifecycle,
+      ),
+    ];
     return { healthy: issues.length === 0, issues };
   }
   /**

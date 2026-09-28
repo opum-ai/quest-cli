@@ -498,6 +498,13 @@ test("the live manifest is non-empty and matches its result golden", () => {
       filters: ["to"],
     },
     {
+      name: "task close",
+      schemaVersion: 1,
+      kind: "task.closed",
+      mutates: true,
+      fields: ["finalSummary", "resolution"],
+    },
+    {
       name: "draft create",
       schemaVersion: 1,
       kind: "draft.created",

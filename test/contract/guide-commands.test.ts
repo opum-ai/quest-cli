@@ -43,6 +43,12 @@ const PLACEHOLDERS: Readonly<Record<string, string>> = {
   // it never touches T-1's own checklist -- which task-finalization's guide
   // still depends on later in this same run.
   "<checklist-id>": "T-4",
+  // QCLI-331: task-finalization's close recipes retire two never-worked
+  // tasks the creation guide made, leaving T-1's completion path untouched.
+  "<duplicate-id>": "T-3",
+  "<survivor-id>": "T-1",
+  "<abandoned-id>": "T-4",
+  "<why it will not be done>": "overtaken by events",
 };
 
 /** How many fenced recipes each guide is expected to carry. */
@@ -50,7 +56,7 @@ const EXPECTED_RECIPES: Readonly<Record<string, number>> = {
   overview: 0,
   "task-creation": 8,
   "task-execution": 3,
-  "task-finalization": 4,
+  "task-finalization": 6,
   workspace: 0,
 };
 

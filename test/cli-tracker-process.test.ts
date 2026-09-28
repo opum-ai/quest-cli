@@ -1083,6 +1083,16 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ...actor,
         "--plain",
       ],
+      // Runs after demote in manifest order, so `created` is back at To Do.
+      "task close": [
+        "task",
+        "close",
+        created,
+        "--resolution",
+        "wont-do",
+        ...actor,
+        "--plain",
+      ],
       "draft create": ["draft", "create", "Plain draft", ...actor, "--plain"],
       "draft list": ["draft", "list", "--plain"],
       "draft view": ["draft", "view", draft, "--plain"],

@@ -42,6 +42,46 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Added
 
+- **A second terminal status, "Closed", for work whose outcome did not
+  happen** (QCLI-331; opum-doc ADR
+  `add-a-second-terminal-task-status-for-duplicate-superseded-and-wont-do-outcomes`).
+  Retiring a never-worked duplicate used to mean stepping it through
+  In Progress to Done, recording a start and a completion that never
+  happened. `quest task close <id> --resolution <duplicate|superseded|wont-do>
+  [--survivor <id>] [--final-summary "text"]` now retires it directly from
+  To Do, In Progress, or the paused status. It refuses from Done or Closed.
+  The resolution is required and is stored on the record as
+  `resolution: {kind, survivor?}`. `duplicate` and `superseded` require
+  `--survivor`. It must name an existing task other than this one, and it is
+  stored by canonical id. A survivor that names no task exits 3, and one that
+  names the task itself exits 6. `wont-do` takes no survivor. The record moves
+  to completed/, with envelope kind `task.closed`. Blocking gates do not hold
+  it, because it claims no completion. `quest task demote` reopens a Closed
+  task to any non-terminal status and withdraws its resolution.
+  `task edit --status Closed` and a `resolution` edit patch are refused. The
+  To Do -> Done refusal now names `quest task close`.
+  `task status-flow`'s `data` gains `closedStatus` and `resolutions`.
+  `terminalStatuses` is unchanged: it still lists only the ladder's terminal
+  statuses and stays a subset of `statuses`, because every published lore-cli
+  refuses the tracker as drift otherwise. **A consumer must read `closedStatus`
+  alongside `terminalStatuses` to know every terminal status**, and must not
+  compare a status to `"Done"`. `terminalStatuses` will gain `"Closed"` in a
+  later release, once a lore that tolerates it is the floor. The manifest
+  advertises `task close`. The advertised field lists of `task status-flow`
+  and `task view` are unchanged, because the tracker adapter's probe matches
+  them exactly. Inside quest, Closed counts as terminal: `task list --ready`
+  treats a Closed dependency as satisfied, and `task list --status Closed`
+  finds closed tasks. `quest doctor` reports three inconsistent shapes, and
+  never rewrites them, under two new issue codes. `task_resolution_invalid`
+  covers a Closed record whose resolution is missing or malformed, and a
+  resolution on a record that is not Closed. `task_resolution_survivor_not_found`
+  covers a survivor that names no task. The task-finalization and overview
+  guides say when to close rather than complete. The change is prospective:
+  records retired by the old workaround are not rewritten or migrated, and a
+  record without `resolution` reads and round-trips unchanged. The heading
+  is non-breaking: no existing command, field, or exit code changes. Only two
+  refusal messages change wording, to name `quest task close`.
+
 - **A breaking CHANGELOG section can no longer ship under a patch bump**
   (QCLI-328; opum-doc ADR
   `gate-release-prep-on-a-breaking-changelog-entry-at-a-patch-bump`). The
