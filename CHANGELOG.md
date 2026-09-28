@@ -50,6 +50,16 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **A repeated unknown flag is reported as unrecognized, not as an arity
+  error** (QCLI-355, reported by opum-cli-e2e). `task edit T-1 --add-ac a
+  --add-ac b` answered "--add-ac may only be provided once.", which implies
+  the flag exists, so the caller retried it one occurrence per call. The
+  parser now defers the repeat check until the command's accepted flags are
+  known. An unknown flag gets the same "Unrecognized flag ... Nothing was
+  written ... Accepted flags: ..." message however often it is passed. A
+  repeated flag the command does accept still reports "may only be provided
+  once." This applies to every command.
+
 - **The `latest`-move gate reads a tarball-published release correctly**
   (QCLI-393). A tarball publish records no `gitHead`, and npm 12 then
   answers a two-field `npm view` with a bare value. The reader parsed that as
