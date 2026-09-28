@@ -69,6 +69,11 @@ async function runSourceGates() {
   await attempt(() =>
     command("lockfile_pins", "bun", ["run", "check:lockfile"]),
   );
+  // QCLI-328: a breaking CHANGELOG section at a patch-level bump is refused
+  // on the bump PR itself, before anyone chooses the number again (0.6.2).
+  await attempt(() =>
+    command("breaking_bump", "bun", ["run", "check:breaking-bump"]),
+  );
   await attempt(() =>
     command("package_artifact_delivery", "bun", [
       "run",

@@ -218,6 +218,21 @@ heading to be recorded under, and nobody noticed until a consumer reported it
 could not detect one of them by any means. An absent section is invisible in
 a way a wrong section is not: nothing reads as missing.
 
+**A breaking section needs at least a minor bump, and the bump PR is gated on
+it (QCLI-328).** 0.6.2's entry correctly carried `### Changed (breaking)` and
+still shipped as a patch. `scripts/check-breaking-bump.mjs` (`bun run
+check:breaking-bump`) runs as the `breaking_bump` source gate. It reads the
+notes that belong to `package.json`'s version: `## <version>` once step 5 has
+run, otherwise `## Unreleased`, which is the state on the bump PR. If those
+notes carry a `### ... (breaking)` heading and the step from the version
+heading below is patch-level, it fails. Before choosing the number, run it
+with `--next <x.y.z>` to check a proposed version against `## Unreleased`.
+Ruled in opum-doc
+`docs/adr/gate-release-prep-on-a-breaking-changelog-entry-at-a-patch-bump.md`.
+lore-cli runs the same check over its own CHANGELOG, and because the pair
+shares one version, a breaking entry on either side forces the pair to at
+least minor.
+
 ### Why strings first, then bytes
 
 The Prerequisites bullet above says platform binaries are built "locally,
