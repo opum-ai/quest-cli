@@ -20,6 +20,10 @@ import {
   type TaskResolution,
   type TaskState,
 } from "../../domain/tasks/tasks.ts";
+import {
+  type TaskVocabulary,
+  vocabularyDrift,
+} from "../../domain/tasks/vocabulary.ts";
 import type { TaskReader } from "../tasks/tasks.ts";
 
 export type {
@@ -140,6 +144,20 @@ export interface PlanningDoctorReport {
         readonly survivor: string;
         readonly hint: string;
       }
+    | {
+        /**
+         * QCLI-330: a stored `type` or `priority` outside the workspace's
+         * configured set. Reported, never rewritten: the ADR keeps history
+         * as written. `normalizesTo` is present when only case differs, so
+         * a caller can tell a spelling from a genuinely foreign value.
+         */
+        readonly code: "task_vocabulary_off_set";
+        readonly taskId: string;
+        readonly field: "type" | "priority";
+        readonly value: string;
+        readonly normalizesTo?: string;
+        readonly hint: string;
+      }
   )[];
 }
 
@@ -167,6 +185,41 @@ function sortedCounts(
   return Object.fromEntries(
     Object.entries(values).sort(([left], [right]) => left.localeCompare(right)),
   );
+}
+
+/**
+ * QCLI-330's doctor half. Every location is checked, like
+ * resolutionIssues: the question is whether a stored value is in the set, and
+ * a completed record's value is as stored as an active one's. An open field
+ * (absent from the vocabulary) reports nothing, which is what keeps an
+ * unconfigured workspace's doctor exactly as it was.
+ */
+function vocabularyIssues(
+  tasks: readonly TaskState[],
+  vocabulary: TaskVocabulary,
+): PlanningDoctorReport["issues"] {
+  const issues: PlanningDoctorReport["issues"][number][] = [];
+  for (const task of [...tasks].sort((a, b) => a.id.localeCompare(b.id)))
+    for (const drift of vocabularyDrift(task, vocabulary)) {
+      const allowed =
+        (drift.field === "type" ? vocabulary.types : vocabulary.priorities) ??
+        [];
+      issues.push({
+        code: "task_vocabulary_off_set",
+        taskId: task.id,
+        field: drift.field,
+        value: drift.value,
+        ...(drift.normalizesTo === undefined
+          ? {}
+          : { normalizesTo: drift.normalizesTo }),
+        hint:
+          `${task.id} has ${drift.field} ${JSON.stringify(drift.value)}, outside the configured set (${allowed.join(", ")}). ` +
+          (drift.normalizesTo === undefined
+            ? `Nothing rewrites it. \`quest task edit ${task.id} --${drift.field} <value>\` sets an allowed one, or add the value to [tasks] in .quest/workspace.toml.`
+            : `Only case differs; \`quest task edit ${task.id} --${drift.field} ${drift.normalizesTo}\` stores the configured spelling. Nothing rewrites it for you.`),
+      });
+    }
+  return issues;
 }
 
 /**
@@ -555,6 +608,7 @@ export class PlanningService {
   async doctor(
     tasks: TaskReader,
     lifecycle: LifecyclePolicy = defaultLifecyclePolicy,
+    vocabulary: TaskVocabulary = {},
   ): Promise<PlanningDoctorReport> {
     const [planning, taskSnapshot] = await Promise.all([
       this.repository.read(),
@@ -616,6 +670,10 @@ export class PlanningService {
       ...resolutionIssues(
         records.map((record) => ("task" in record ? record.task : record)),
         lifecycle,
+      ),
+      ...vocabularyIssues(
+        records.map((record) => ("task" in record ? record.task : record)),
+        vocabulary,
       ),
     ];
     return { healthy: issues.length === 0, issues };

@@ -2,6 +2,10 @@ import { join } from "node:path";
 
 import { canonicalIdPrefixPattern } from "../../domain/records.ts";
 import {
+  defaultTaskVocabulary,
+  type TaskVocabulary,
+} from "../../domain/tasks/vocabulary.ts";
+import {
   WorkspaceError,
   type AgentSkillSource,
   type WorkspaceConfiguration,
@@ -31,6 +35,9 @@ export interface WorkspaceInitializationInput {
   readonly name?: string;
   readonly taskIdPrefix?: string;
   readonly agentSkillSource?: AgentSkillSource;
+  /** QCLI-330. `initializeWorkspace` and `reconfigureWorkspace` supply the
+   * canonical default when this is absent; see each for exactly when. */
+  readonly taskVocabulary?: TaskVocabulary;
 }
 
 export const workspaceConfigurationPath = ".quest/workspace.toml";
@@ -53,7 +60,19 @@ function serializeConfiguration(input: WorkspaceInitializationInput): string {
       "[agents]",
       `skill_source = ${tomlStringLiteral(input.agentSkillSource)}`,
     );
+  const vocabulary = input.taskVocabulary;
+  if (vocabulary?.types !== undefined || vocabulary?.priorities !== undefined) {
+    lines.push("", "[tasks]");
+    if (vocabulary.types !== undefined)
+      lines.push(`types = ${tomlStringArray(vocabulary.types)}`);
+    if (vocabulary.priorities !== undefined)
+      lines.push(`priorities = ${tomlStringArray(vocabulary.priorities)}`);
+  }
   return `${lines.join("\n")}\n`;
+}
+
+function tomlStringArray(values: readonly string[]): string {
+  return `[${values.map(tomlStringLiteral).join(", ")}]`;
 }
 
 /** Validates an operator-supplied relative Quest path before any write. */
@@ -103,9 +122,13 @@ export async function initializeWorkspace(
       "stray_content",
       "This directory holds Quest task records but no workspace.toml. Refusing to treat it as a fresh workspace.",
     );
+  // QCLI-330: a fresh workspace starts on the canonical vocabulary.
   await port.writeInitialization(
     identity.worktreePath,
-    serializeConfiguration(input),
+    serializeConfiguration({
+      ...input,
+      taskVocabulary: input.taskVocabulary ?? defaultTaskVocabulary,
+    }),
   );
   return identity;
 }
@@ -145,6 +168,14 @@ export async function reconfigureWorkspace(
       name: input.name ?? current.name,
       taskIdPrefix: input.taskIdPrefix ?? current.taskIdPrefix,
       agentSkillSource: input.agentSkillSource ?? current.agentSkillSource,
+      // QCLI-330: re-running init ADDS the canonical default to a workspace
+      // that configures neither field, and never touches one that
+      // configures either: a workspace that declared only `types` left
+      // `priorities` open on purpose, and filling it in would overrule
+      // that. serializeConfiguration writes only the fields it is given,
+      // so dropping this line would ALSO erase a configured table.
+      taskVocabulary:
+        input.taskVocabulary ?? current.taskVocabulary ?? defaultTaskVocabulary,
     }),
   );
   return identity;

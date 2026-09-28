@@ -19,6 +19,10 @@ interface ProcessResult {
   readonly stdout: string;
 }
 
+/** QCLI-330: what init writes into every fresh workspace. */
+const DEFAULT_TASKS_TOML =
+  '\n[tasks]\ntypes = ["feature", "bug", "chore", "docs", "enhancement", "spike"]\npriorities = ["low", "medium", "high", "critical"]\n';
+
 async function run(
   cwd: string,
   ...arguments_: readonly string[]
@@ -97,7 +101,7 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
       data: { instructions: { state: "current" } },
     });
     expect(await readFile(join(root, ".quest", "workspace.toml"), "utf8")).toBe(
-      "schemaVersion = 1\n",
+      `schemaVersion = 1\n${DEFAULT_TASKS_TOML}`,
     );
     const currentInstructions = await readFile(join(root, "AGENTS.md"), "utf8");
     expect(currentInstructions).toStartWith(authored);
@@ -111,7 +115,7 @@ test("the executable safely bootstraps a clean worktree and preserves authored C
       hint: expect.stringContaining("--reconfigure"),
     });
     expect(await readFile(join(root, ".quest", "workspace.toml"), "utf8")).toBe(
-      "schemaVersion = 1\n",
+      `schemaVersion = 1\n${DEFAULT_TASKS_TOML}`,
     );
 
     // A version-only difference does not gate CI (QCLI-228): agents --check
@@ -200,12 +204,18 @@ test("quest init --reconfigure changes the declared task-id-prefix without touch
   }
 });
 
-test("quest init --reconfigure requires --name and/or --task-id-prefix, and refuses on a directory that was never initialized (QCLI-161)", async () => {
+test("quest init --reconfigure refuses on a directory that was never initialized, bare or with a field (QCLI-161, QCLI-330)", async () => {
   const root = await repository();
   try {
+    // Bare --reconfigure was a usage error before QCLI-330 gave it a meaning
+    // (adopt the default [tasks] vocabulary). It must still write nothing on
+    // a directory that holds no workspace at all.
     const bare = await run(root, "init", "--reconfigure", "--json");
-    expect(bare).toMatchObject({ exitCode: 2, stdout: "" });
-    expect(JSON.parse(bare.stderr)).toMatchObject({ error_type: "usage" });
+    expect(bare).toMatchObject({ exitCode: 6, stdout: "" });
+    expect(JSON.parse(bare.stderr)).toMatchObject({ error_type: "validation" });
+    await expect(
+      readFile(join(root, ".quest/workspace.toml")),
+    ).rejects.toThrow();
 
     const neverInitialized = await run(
       root,
@@ -557,7 +567,7 @@ test("--skill-source plugin given alongside --agent-instructions on the same cal
     expect(initializedBody.data.skill).toBeUndefined();
     await expect(readFile(skillFile, "utf8")).rejects.toThrow();
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
-      'schemaVersion = 1\n\n[agents]\nskill_source = "plugin"\n',
+      `schemaVersion = 1\n\n[agents]\nskill_source = "plugin"\n${DEFAULT_TASKS_TOML}`,
     );
 
     // Nothing was ever written, so a bare `agents --check` reports clean --
@@ -604,7 +614,7 @@ test("--skill-source none stops the Claude-provider skill file being written on 
     expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain("quest");
     await expect(readFile(skillFile, "utf8")).rejects.toThrow();
     expect(await readFile(join(root, ".quest/workspace.toml"), "utf8")).toBe(
-      'schemaVersion = 1\n\n[agents]\nskill_source = "none"\n',
+      `schemaVersion = 1\n\n[agents]\nskill_source = "none"\n${DEFAULT_TASKS_TOML}`,
     );
 
     // --target codex is public product surface and keeps working: update and
@@ -1239,7 +1249,7 @@ test("--name configures the workspace without changing task ID generation", asyn
       data: { configuration: { name: "My Project" } },
     });
     expect(await readFile(join(cwd, ".quest", "workspace.toml"), "utf8")).toBe(
-      'schemaVersion = 1\nname = "My Project"\n',
+      `schemaVersion = 1\nname = "My Project"\n${DEFAULT_TASKS_TOML}`,
     );
 
     const created = await run(
@@ -1261,14 +1271,14 @@ test("--name configures the workspace without changing task ID generation", asyn
   }
 });
 
-test("init with no name/agent-instructions flags keeps writing the legacy schemaVersion-only file", async () => {
+test("init with no name/agent-instructions flags writes schemaVersion plus the default [tasks] vocabulary (QCLI-330), and ids keep the T prefix", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "quest-init-legacy-"));
   try {
     await Bun.spawn(["git", "init", "-q"], { cwd }).exited;
     const init = await run(cwd, "init", "--json");
     expect(init.exitCode).toBe(0);
     expect(await readFile(join(cwd, ".quest", "workspace.toml"), "utf8")).toBe(
-      "schemaVersion = 1\n",
+      `schemaVersion = 1\n${DEFAULT_TASKS_TOML}`,
     );
 
     const created = await run(

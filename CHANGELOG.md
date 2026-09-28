@@ -42,6 +42,36 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Added
 
+- **Workspace-configured `type` and `priority` vocabulary** (QCLI-330; opum-doc
+  ADR "Make quest's type and priority vocabulary workspace-configured, with a
+  canonical default", with the orchestrator's option-A ruling). Both fields
+  were free strings with no control at all. A workspace can now declare
+  `types` and `priorities` in a `[tasks]` table in `.quest/workspace.toml`.
+  `quest init` writes the canonical default: types `feature`, `bug`, `chore`,
+  `docs`, `enhancement`, `spike`, and priorities `low`, `medium`, `high`,
+  `critical`.
+  - `task create`, `task edit` and `task edit-batch` check only a value the
+    write actually carries. A case-only difference is stored in the
+    configured spelling. Any other value exits 6, nothing is written, and
+    `input.allowed` lists the set. In a batch, only the offending item fails.
+  - `quest manifest --json` reports the set as `data.taskVocabulary`, with
+    `null` for an open field and never an empty list.
+  - `quest doctor` reports each stored value outside the set as
+    `task_vocabulary_off_set` (id, field, value, and `normalizesTo` when only
+    case differs), in every location, and rewrites nothing.
+  - A malformed `[tasks]` table fails closed instead of reading as open.
+  - **An existing workspace is unchanged until it opts in.** With no `[tasks]`
+    table, both fields stay open: no write is refused and doctor reports
+    nothing. Backlog migration is never validated. `quest init --reconfigure`,
+    now accepted bare, adds the default to a workspace that configures
+    neither field and never changes a configured set.
+  - Status is still not read from `workspace.toml`. This is the first
+    vocabulary a workspace configures, not a second use of an existing
+    mechanism.
+  - quest-cli's own workspace adopts the default. Its doctor now reports its
+    11 historical `type = "task"` records and 4 case-only priorities, as
+    written.
+
 - **A second terminal status, "Closed", for work whose outcome did not
   happen** (QCLI-331; opum-doc ADR
   `add-a-second-terminal-task-status-for-duplicate-superseded-and-wont-do-outcomes`).

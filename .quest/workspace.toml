@@ -4,3 +4,7 @@ taskIdPrefix = "QCLI"
 
 [agents]
 skill_source = "plugin"
+
+[tasks]
+types = ["feature", "bug", "chore", "docs", "enhancement", "spike"]
+priorities = ["low", "medium", "high", "critical"]

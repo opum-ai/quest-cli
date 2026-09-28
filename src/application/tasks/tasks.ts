@@ -32,8 +32,18 @@ import {
 } from "../../domain/tasks/tasks.ts";
 import type { MigrationTransactionRepository } from "../../ports/backlog-import.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
+import {
+  resolveVocabularyPatch,
+  type TaskVocabulary,
+} from "../../domain/tasks/vocabulary.ts";
 import { type EditPatchVocabulary, foldEditPatch } from "./edit-patch.ts";
 
+/** Re-exported so the CLI can read and report the vocabulary without importing the domain. */
+export {
+  defaultTaskVocabulary,
+  type TaskVocabulary,
+  VocabularyValueError,
+} from "../../domain/tasks/vocabulary.ts";
 /** Re-exported so the CLI can validate `--resolution` without importing the domain. */
 export { taskResolutionKinds, type TaskResolutionKind };
 
@@ -346,6 +356,12 @@ export class TaskService {
     batchRepository?: BatchTaskRepository,
     /** Injected so tests can pin task timestamps (QCLI-137). */
     private readonly now: () => Date = () => new Date(),
+    /**
+     * QCLI-330: the workspace's configured type/priority sets. Empty is the
+     * open default, so every caller that does not read workspace.toml --
+     * migration included -- keeps today's unvalidated behaviour.
+     */
+    private readonly taskVocabulary: TaskVocabulary = {},
   ) {
     // Blocker #4 (fourth pass): the batch port is injected as a real typed
     // constructor argument; no structural `as unknown` casting anywhere.
@@ -469,7 +485,14 @@ export class TaskService {
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
     const located = this.taskRecords(snapshot);
-    const task = this.stamped(createTask(id, input, this.lifecycle), true);
+    const task = this.stamped(
+      createTask(
+        id,
+        resolveVocabularyPatch(input, this.taskVocabulary),
+        this.lifecycle,
+      ),
+      true,
+    );
     // Checked before canonicalization so reusing an id retired to
     // completed/archived storage still reports the specific
     // task_already_exists rather than the generic duplicate-id rejection
@@ -638,6 +661,10 @@ export class TaskService {
     return this.taskRecords(snapshot)
       .map((record) => record.task)
       .sort((a, b) => a.id.localeCompare(b.id));
+  }
+  /** QCLI-330: the configured type/priority sets doctor and the manifest report. */
+  get vocabulary(): TaskVocabulary {
+    return this.taskVocabulary;
   }
   /** The configured lifecycle policy; status-flow reports it, never a hardcoded copy. */
   get lifecycle(): LifecyclePolicy {
@@ -1127,7 +1154,9 @@ export class TaskService {
     // patch could set one the strict close-time rules never saw.
     if ("resolution" in unsafe)
       throw new RecordValidationError("task_resolution_managed");
-    const authorizedPatch = unsafe;
+    // QCLI-330: only a type/priority this edit WRITES is checked, so an edit
+    // to anything else on a record holding a legacy value still lands.
+    const authorizedPatch = resolveVocabularyPatch(unsafe, this.taskVocabulary);
     if (
       authorizedPatch.status !== undefined &&
       authorizedPatch.status !== task.status
@@ -1367,11 +1396,14 @@ export class TaskService {
             throw new RecordValidationError("task_not_found");
           const current = workingTasks[slot];
           const location = workingLocations[slot];
-          const unsafe = foldEditPatch(
-            current,
-            (item.patch ?? {}) as EditPatchVocabulary,
-            (status) => this.resolveStatus(status),
-          ) as Partial<TaskState>;
+          const unsafe = resolveVocabularyPatch(
+            foldEditPatch(
+              current,
+              (item.patch ?? {}) as EditPatchVocabulary,
+              (status) => this.resolveStatus(status),
+            ) as Partial<TaskState>,
+            this.taskVocabulary,
+          );
           if ("gates" in unsafe || "gateEvents" in unsafe)
             throw new RecordValidationError("task_gate_events_managed");
           if ("resolution" in unsafe)

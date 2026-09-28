@@ -1,3 +1,4 @@
+import type { TaskVocabulary } from "../domain/tasks/vocabulary.ts";
 import { commandHelp } from "./command-help.ts";
 import { flagParameter, positionalParameters } from "./command-parameters.ts";
 import {
@@ -699,10 +700,23 @@ function withParameters(entries: typeof commandManifest.commands) {
   });
 }
 
-export function manifestResult() {
+/**
+ * QCLI-330: `data.taskVocabulary` carries the workspace's configured sets, so
+ * a consumer can validate a value before writing it. A field that is OPEN is
+ * `null`, never `[]`: open and configured are different facts, and an empty
+ * list would read as "nothing is allowed" (opum-agent OPAG-177 depends on
+ * telling them apart). Outside a workspace both are null, since nothing is
+ * enforced there. The key sits inside `data`, never at the top level, so the
+ * envelope's key order is untouched.
+ */
+export function manifestResult(vocabulary: TaskVocabulary = {}) {
   return success("manifest.registry", {
     ...commandManifest,
     commands: withParameters(commandManifest.commands),
+    taskVocabulary: {
+      types: vocabulary.types ?? null,
+      priorities: vocabulary.priorities ?? null,
+    },
   });
 }
 

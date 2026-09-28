@@ -10,6 +10,10 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
+  type TaskVocabulary,
+  vocabularyListProblem,
+} from "../../domain/tasks/vocabulary.ts";
+import {
   WorkspaceError,
   type WorkspaceConfiguration,
   type WorkspaceIdentity,
@@ -44,6 +48,50 @@ function tomlTableString(
       ? rest.slice(0, nextHeader.index)
       : rest;
   return tomlString(body, key);
+}
+
+/**
+ * QCLI-330: the `[tasks]` table's `types` and `priorities` arrays. This is
+ * the one table Quest reads through a real TOML parser, because the values
+ * are arrays and the line-matching helpers above read only strings. A
+ * malformed table fails closed: reading it as "open" would switch off the
+ * validation the workspace asked for, silently.
+ */
+function tomlTaskVocabulary(content: string): TaskVocabulary | undefined {
+  if (!/^\[tasks\]\s*$/mu.test(content)) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = Bun.TOML.parse(content);
+  } catch {
+    throw new WorkspaceError(
+      "invalid_configuration",
+      ".quest/workspace.toml: the [tasks] table could not be parsed as TOML.",
+    );
+  }
+  const table = (parsed as { tasks?: unknown }).tasks;
+  if (table === null || typeof table !== "object" || Array.isArray(table))
+    throw new WorkspaceError(
+      "invalid_configuration",
+      ".quest/workspace.toml: [tasks] must be a table.",
+    );
+  const vocabulary: {
+    types?: readonly string[];
+    priorities?: readonly string[];
+  } = {};
+  for (const key of ["types", "priorities"] as const) {
+    const value = (table as Record<string, unknown>)[key];
+    if (value === undefined) continue;
+    const problem = vocabularyListProblem(value);
+    if (problem !== undefined)
+      throw new WorkspaceError(
+        "invalid_configuration",
+        `.quest/workspace.toml: tasks.${key} ${problem}.`,
+      );
+    vocabulary[key] = value as readonly string[];
+  }
+  return vocabulary.types === undefined && vocabulary.priorities === undefined
+    ? undefined
+    : vocabulary;
 }
 
 async function git(path: string, args: readonly string[]): Promise<string> {
@@ -202,11 +250,13 @@ export class LocalWorkspacePort implements WorkspacePort {
         "invalid_configuration",
         `.quest/workspace.toml: agents.skill_source must be "repo", "plugin", or "none", got "${agentSkillSourceRaw}".`,
       );
+    const taskVocabulary = tomlTaskVocabulary(content);
     return {
       schemaVersion: 1,
       ...(name ? { name } : {}),
       ...(taskIdPrefix ? { taskIdPrefix } : {}),
       ...(agentSkillSourceRaw ? { agentSkillSource: agentSkillSourceRaw } : {}),
+      ...(taskVocabulary ? { taskVocabulary } : {}),
     };
   }
 

@@ -60,7 +60,9 @@ import {
   SurvivorNotFoundError,
   type TaskResolutionKind,
   type TaskService,
+  type TaskVocabulary,
   taskResolutionKinds,
+  VocabularyValueError,
 } from "../application/tasks/tasks.ts";
 import {
   type AgentSkillSource,
@@ -1324,7 +1326,32 @@ export async function runQuest(
     let root: Promise<string> | undefined;
     const resolvedRoot = () => (root ??= taskStoreRoot());
     const git = createGitPort();
-    const taskService = async () => createTaskService(await resolvedRoot());
+    // QCLI-330: read once per invocation. Only "no workspace.toml here" (or
+    // the QUEST_TASK_STORE override, which has none) reads as open; a
+    // malformed [tasks] table is RETHROWN, because swallowing it the way
+    // configuredTaskIdPrefix swallows a bad prefix would switch validation
+    // off without saying so.
+    let taskVocabulary: Promise<TaskVocabulary> | undefined;
+    const configuredTaskVocabulary = () =>
+      (taskVocabulary ??= (async () => {
+        if (process.env.QUEST_TASK_STORE !== undefined) return {};
+        try {
+          const configuration = await resolveWorkspaceConfiguration(
+            createWorkspacePort(),
+            process.cwd(),
+          );
+          return configuration.taskVocabulary ?? {};
+        } catch (error) {
+          if (
+            error instanceof WorkspaceError &&
+            error.code === "invalid_configuration"
+          )
+            throw error;
+          return {};
+        }
+      })());
+    const taskService = async () =>
+      createTaskService(await resolvedRoot(), await configuredTaskVocabulary());
     const taskReader = async () => createTaskReader(await resolvedRoot());
     const planningService = async () =>
       createPlanningService(await resolvedRoot());
@@ -1458,17 +1485,12 @@ export async function runQuest(
           `--skill-source must be "repo", "plugin", or "none", got "${skillSourceValue}".`,
         );
       const agentSkillSource = skillSourceValue as AgentSkillSource | undefined;
+      // QCLI-330: a bare --reconfigure is no longer a usage error. It is how
+      // an existing workspace adopts the default [tasks] vocabulary (added
+      // only when neither field is configured; a configured set is left
+      // exactly as it is). A never-initialized directory still refuses, as
+      // not_initialized, from reconfigureWorkspace itself.
       const reconfigure = parsed.values.has("--reconfigure");
-      if (
-        reconfigure &&
-        !parsed.values.has("--name") &&
-        !parsed.values.has("--task-id-prefix") &&
-        !parsed.values.has("--skill-source")
-      )
-        return failure(
-          "usage",
-          "--reconfigure requires --name, --task-id-prefix, and/or --skill-source.",
-        );
       const explicitFlagsGiven =
         parsed.values.has("--agent-instructions") ||
         parsed.values.has("--name") ||
@@ -1958,7 +1980,10 @@ export async function runQuest(
           [],
           "manifest accepts only --json and --plain.",
         );
-      return output(manifestResult(), modeFor(parsed));
+      return output(
+        manifestResult(await configuredTaskVocabulary()),
+        modeFor(parsed),
+      );
     }
     if (arguments_[0] === "board" && arguments_[1] === "export") {
       const target = arguments_[2];
@@ -2021,6 +2046,7 @@ export async function runQuest(
             : await planning.doctor(
                 await taskReader(),
                 (await taskService()).lifecycle,
+                (await taskService()).vocabulary,
               );
       const kind =
         arguments_[0] === "overview"
@@ -3682,6 +3708,22 @@ export async function runQuest(
         {
           input: { survivor: error.survivor },
           hint: "Pass the id of the task that carries the work forward; `quest search` or `quest task list --include-archived` finds it.",
+        },
+      );
+    // QCLI-330: exit 6 like any other value the record's own rules refuse,
+    // with the allowed set in `input` so a caller can correct the value
+    // without a second round trip to `quest manifest`.
+    if (error instanceof VocabularyValueError)
+      return failure(
+        "validation",
+        `--${error.field} ${JSON.stringify(error.value)} is not in this workspace's configured ${error.field} set. Nothing was written.`,
+        {
+          input: {
+            field: error.field,
+            value: error.value,
+            allowed: error.allowed,
+          },
+          hint: `Use one of: ${error.allowed.join(", ")}. A value differing only in case is accepted and stored in the configured spelling. The set is the [tasks] table in .quest/workspace.toml; \`quest manifest --json\` reports it as data.taskVocabulary.`,
         },
       );
     if (error instanceof RemovalValueNotFoundError)

@@ -1,3 +1,5 @@
+import type { TaskVocabulary } from "../domain/tasks/vocabulary.ts";
+
 /** Stable identity for a checkout. `commonDirectory` identifies the clone;
  * `worktreePath` identifies this particular worktree inside that clone. */
 export interface WorkspaceIdentity {
@@ -51,6 +53,10 @@ export interface WorkspaceConfiguration {
   readonly name?: string;
   readonly taskIdPrefix?: string;
   readonly agentSkillSource?: AgentSkillSource;
+  /** QCLI-330: the `[tasks]` table's `types`/`priorities`. Absent, or a
+   * field absent within it, means that field is open. Stored as a TOML
+   * table for the same reason `[agents]` is: an older Quest ignores it. */
+  readonly taskVocabulary?: TaskVocabulary;
 }
 
 export interface WorkspacePort {
