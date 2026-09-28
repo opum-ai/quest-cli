@@ -64,10 +64,14 @@ dated by its own tag. No date here is inferred (QCLI-398).
     inline `tasks = {...}` and dotted `tasks.priorities = [...]` all count as
     configured. A table that cannot be read -- bad TOML, a non-table, an
     empty list, or a table declaring neither `types` nor `priorities` --
-    makes every write exit 6 with the problem, while `task list`/`view`,
-    `manifest` (which lore-cli probes with) and `doctor` carry on; doctor
-    reports it as `task_vocabulary_invalid`. Unrelated configuration errors,
-    like a bad `agents.skill_source`, never leak into the vocabulary.
+    makes `task create`, `task edit` and `task edit-batch` exit 6 with the
+    problem. The other writes (`task complete`, `close`, `start`, draft
+    create/promote) carry no type or priority value of their own and
+    deliberately carry on; `task list`/`view`, `manifest` (which lore-cli
+    probes with) and `doctor` also carry on, with doctor reporting the table
+    as `task_vocabulary_invalid`. Unrelated configuration errors, like a bad
+    `agents.skill_source`, never leak into the vocabulary, and a bad
+    skill_source cannot mask a broken table into reading as open.
   - **An existing workspace is unchanged until it opts in.** With no `[tasks]`
     table, both fields stay open: no write is refused and doctor reports
     nothing. Backlog migration is never validated, so imported values are

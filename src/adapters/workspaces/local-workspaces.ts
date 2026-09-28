@@ -80,7 +80,13 @@ function tomlTaskVocabulary(content: string): TaskVocabulary | undefined {
   try {
     parsed = Bun.TOML.parse(content);
   } catch {
-    if (!/^\s*\[\s*"?tasks"?\s*\]/mu.test(content)) return undefined;
+    // The file does not parse, so presence is a best-effort line heuristic
+    // that must recognise EVERY spelling a parsed file can carry -- a
+    // bracketed section, an inline `tasks = {...}` or a dotted
+    // `tasks.priorities = [...]` -- or a doubly-broken file would read as
+    // open and be overwritten by `init --reconfigure`.
+    if (!/^\s*(\[\s*"?tasks"?\s*\]|tasks\s*[.=])/mu.test(content))
+      return undefined;
     throw new WorkspaceError(
       "invalid_task_vocabulary",
       ".quest/workspace.toml: the [tasks] table could not be parsed as TOML.",
@@ -258,6 +264,10 @@ export class LocalWorkspacePort implements WorkspacePort {
     }
     const name = tomlString(content, "name");
     const taskIdPrefix = tomlString(content, "taskIdPrefix");
+    // QCLI-330: the vocabulary is computed BEFORE the skill_source check so
+    // an unrelated configuration error can never mask a broken [tasks]
+    // table into reading as open (reviewer finding 2, second pass).
+    const taskVocabulary = tomlTaskVocabulary(content);
     const agentSkillSourceRaw = tomlTableString(
       content,
       "agents",
@@ -273,7 +283,6 @@ export class LocalWorkspacePort implements WorkspacePort {
         "invalid_configuration",
         `.quest/workspace.toml: agents.skill_source must be "repo", "plugin", or "none", got "${agentSkillSourceRaw}".`,
       );
-    const taskVocabulary = tomlTaskVocabulary(content);
     return {
       schemaVersion: 1,
       ...(name ? { name } : {}),

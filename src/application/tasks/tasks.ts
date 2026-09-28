@@ -1125,6 +1125,9 @@ export class TaskService {
     options?: TaskEditOptions,
   ): Promise<TaskMutationResult> {
     // A broken [tasks] table refuses the write before anything else is read.
+    // This is the one guard that runs before the QCLI-277 check below, so
+    // that comment's "checked first" reads "first after this"; a stale
+    // precondition is still answered before any task work.
     if (this.configuredVocabularyProblem !== undefined)
       throw new RecordValidationError(this.configuredVocabularyProblem);
     // QCLI-277: checked first, before task resolution or any other work, so

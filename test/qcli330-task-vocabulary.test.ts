@@ -590,3 +590,47 @@ test("migration imports priority and type verbatim, never validated, and doctor 
     },
   ]);
 });
+
+test("a syntactically invalid workspace.toml fails closed only when a tasks declaration of any spelling is present", async () => {
+  // A dotted tasks line in an unparseable file: still a declared vocabulary,
+  // so writes refuse and a reconfigure can never overwrite it.
+  const dotted = await workspace();
+  await writeToml(
+    dotted,
+    'schemaVersion = 1\nname = "broken\ntasks.priorities = ["p0", "p1"]\n',
+  );
+  expect(create(dotted, "a", "--priority", "p9").exitCode).toBe(6);
+  expect(quest(dotted, ["task", "list", "--json"]).exitCode).toBe(0);
+  expect(manifestVocabulary(dotted)).toEqual({ types: null, priorities: null });
+  const reconfigure = quest(dotted, ["init", "--reconfigure", "--json"]);
+  expect(reconfigure.exitCode).toBe(6);
+  expect(await readFile(tomlPath(dotted), "utf8")).toBe(
+    'schemaVersion = 1\nname = "broken\ntasks.priorities = ["p0", "p1"]\n',
+  );
+
+  // The inline spelling is the same shape.
+  const inline = await workspace();
+  await writeToml(inline, 'tasks = { priorities = ["p0", "p1"] }\nx = [1, 2\n');
+  expect(create(inline, "a", "--priority", "p9").exitCode).toBe(6);
+  expect(quest(inline, ["task", "list", "--json"]).exitCode).toBe(0);
+
+  // Invalid TOML with NO tasks declaration anywhere stays open, exactly as
+  // it was before QCLI-330.
+  const unrelated = await workspace();
+  await writeToml(unrelated, 'schemaVersion = 1\nname = "broken\n');
+  const created = create(unrelated, "a", "--type", "anything");
+  expect(created.exitCode).toBe(0);
+  expect(quest(unrelated, ["task", "list", "--json"]).exitCode).toBe(0);
+});
+
+test("a bad agents.skill_source cannot mask a broken [tasks] table into reading as open", async () => {
+  const root = await workspace();
+  await writeToml(
+    root,
+    'schemaVersion = 1\n\n[agents]\nskill_source = "bogus"\n\n[tasks]\ntypes = []\n',
+  );
+  const refused = create(root, "a", "--type", "bug");
+  expect(refused.exitCode).toBe(6);
+  expect(JSON.parse(refused.stderr).message).toContain("must not be empty");
+  expect(quest(root, ["task", "list", "--json"]).exitCode).toBe(0);
+});
