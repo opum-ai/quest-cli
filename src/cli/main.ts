@@ -528,6 +528,24 @@ function usageFailure(
   );
 }
 
+/**
+ * QCLI-353: refuses a flag-shaped first argument where a command takes a
+ * positional title or id. Without this, `task create --title "x"` took
+ * `--title` as the title, `"x"` then made the flag list unparseable, and
+ * usageFailure had nothing to name. Returns undefined when `first` is fine.
+ */
+function flagShapedPositional(
+  command: string,
+  first: string | undefined,
+  placeholder: string,
+): InvocationResult | undefined {
+  if (!first?.startsWith("--")) return undefined;
+  return failure(
+    "usage",
+    `quest ${command} takes the ${placeholder} as its first argument, but got the flag-shaped ${JSON.stringify(first)}. Nothing was run. Usage: quest ${command} <${placeholder}> [flags].`,
+  );
+}
+
 /** Resolves the bare `quest agents` command's persisted skill-source setting.
  * An uninitialized workspace (no `quest init` yet) defaults to today's
  * behavior ("repo") rather than failing `agents --check` outright, since
@@ -2090,6 +2108,17 @@ export async function runQuest(
       const group = arguments_[0];
       const action = arguments_[1];
       const rest = arguments_.slice(2);
+      if (
+        ["create", "view", "edit", "delete"].includes(action ?? "") ||
+        (group === "milestone" && action === "archive")
+      ) {
+        const refused = flagShapedPositional(
+          `${group} ${action}`,
+          rest[0],
+          action === "create" ? "title" : `${group} id`,
+        );
+        if (refused) return refused;
+      }
       const isMilestone = group === "milestone";
       const parsed = flags(
         rest.slice(
@@ -2374,6 +2403,14 @@ export async function runQuest(
     if (arguments_[0] === "draft") {
       const action = arguments_[1];
       const rest = arguments_.slice(2);
+      if (["create", "view", "promote", "archive"].includes(action ?? "")) {
+        const refused = flagShapedPositional(
+          `draft ${action}`,
+          rest[0],
+          action === "create" ? "title" : "draft id",
+        );
+        if (refused) return refused;
+      }
       const parsed = flags(
         rest.slice(
           action === "create" ||
@@ -2510,6 +2547,25 @@ export async function runQuest(
       return failure("usage", "Unknown or missing Quest command.");
     const command = arguments_[1];
     const rest = arguments_.slice(2);
+    if (
+      [
+        "create",
+        "view",
+        "edit",
+        "complete",
+        "archive",
+        "pause",
+        "start",
+        "demote",
+      ].includes(command ?? "")
+    ) {
+      const refused = flagShapedPositional(
+        `task ${command}`,
+        rest[0],
+        command === "create" ? "title" : "task id",
+      );
+      if (refused) return refused;
+    }
     if (
       ["complete", "archive", "pause", "start"].includes(command ?? "") &&
       rest[0]
