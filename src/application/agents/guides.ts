@@ -47,6 +47,7 @@ read, edit or complete tracker state, so writes stay attributed and consistent.
 - \`task edit-batch\`             Apply a batch of task edits from a JSONL operations file
 - \`task pause\` / \`start\`        Park an In Progress task, or bring it back
 - \`task complete\` / \`archive\` / \`demote\`   Move a task through its terminal or prior status
+- \`task close\`                  Retire a never-worked task as a duplicate, superseded, or won't-do
 - \`task status-flow\`            Print the configured task status set and terminal statuses
 - \`task binding\`                Bind an agent to a task under the Opum workflow contract
 - \`draft create/list/view/promote/archive\`   Draft lifecycle (an idea not yet promoted to a task)
@@ -313,6 +314,35 @@ those two are not. A throwaway probe task is archived like any other. (\`quest
 cleanup\` is unrelated to tasks — it removes closed, unreferenced milestones
 and superseded decisions.)
 
+## When the outcome did not happen: close, do not complete
+
+\`quest task complete\` asserts the outcome happened. When it did not -- the
+task duplicates another, a later task superseded it, or it will not be done --
+retire it with \`quest task close\` instead:
+
+\`\`\`
+quest task close <duplicate-id> --resolution duplicate --survivor <survivor-id> \\
+  --actor <actor> --actor-kind human --json
+quest task close <abandoned-id> --resolution wont-do --final-summary "<why it will not be done>" \\
+  --actor <actor> --actor-kind human --json
+\`\`\`
+
+\`--resolution\` is required: \`duplicate\` and \`superseded\` also take
+\`--survivor <id>\`, the task that carries the work forward, and \`wont-do\`
+takes none. Close works straight from To Do, In Progress, or the paused status,
+so do not step a never-worked task through In Progress to reach Done: that
+records a start that never happened and a completion that never happened, and
+the status field cannot say otherwise. The record reaches "Closed", a second
+terminal status beside Done, and moves to completed/. \`quest task demote\`
+reopens it and withdraws the resolution.
+
+Records already retired by the old In-Progress-then-Done workaround stay as they
+are: nothing requires rewriting them. When you need to know whether a task is
+finished, never compare against "Done". Read \`quest task status-flow\` and
+treat a task as finished when its status is in \`terminalStatuses\` OR equals
+\`closedStatus\`. \`terminalStatuses\` does not list Closed yet; it will in a
+later release.
+
 An In Progress task that is paused rather than closed does not go through
 demote: \`quest task pause <id>\` parks it at the configured paused status
 ("Paused" by default) without erasing that work was started, and \`quest task
@@ -322,7 +352,7 @@ sanctioned exit too, \`quest doctor\` names any such record, and nothing
 migrates it silently (QCLI-302).
 
 Status and on-disk location are deliberately independent (QCLI-221): only
-\`task complete\`/\`archive\`/\`demote\` relocate a record. \`task edit --status
+\`task complete\`/\`close\`/\`archive\`/\`demote\` relocate a record. \`task edit --status
 <terminal>\` sets the status field in place and does not move it -- it stays
 wherever it already was. Two tasks sharing the same terminal status can
 legitimately live in different storage locations depending on which command

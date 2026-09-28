@@ -141,7 +141,7 @@ export const commandHelp: Record<
   },
   "task status-flow": {
     summary:
-      "Print the configured task status set, terminal statuses, and the paused status (if the workspace has one configured) reached only via `task pause`/`task start`.",
+      'Print the configured task status set, terminal statuses, the paused status (if the workspace has one configured) reached only via `task pause`/`task start`, and the closed status with its resolutions (QCLI-331). `terminalStatuses` lists the ladder\'s terminal statuses and is always a subset of `statuses`: "Done" asserts the outcome happened. `closedStatus` ("Closed" by default) is a second terminal status, reached only by `task close`, saying the task was retired without its outcome (duplicate, superseded, or wont-do); it is NOT in `terminalStatuses` yet and joins it in a later release. Decide whether a task is finished by membership in `terminalStatuses` or equality with `closedStatus`, never by comparing to "Done".',
     usage: "quest task status-flow",
     flags: [],
   },
@@ -372,10 +372,17 @@ export const commandHelp: Record<
   },
   "task demote": {
     summary:
-      "Demote a task to an explicit earlier status (--to is required; omitting it is a usage error and nothing mutates). Also reaches back from Done/archived into an active status. Never reaches the paused status -- use `task start` to leave it.",
+      "Demote a task to an explicit earlier status (--to is required; omitting it is a usage error and nothing mutates). Also reaches back from Done/archived into an active status, and reopens a Closed task to any non-terminal status, withdrawing its resolution (QCLI-331). Never reaches the paused status -- use `task start` to leave it.",
     usage:
       'quest task demote <id> --to "<status>" --actor <name> --actor-kind human',
     flags: ["--to", ...ACTOR_FLAGS],
+  },
+  "task close": {
+    summary:
+      'Retire a task that was never worked, or whose outcome did not happen, at the closed status ("Closed" by default) with a REQUIRED --resolution: duplicate, superseded, or wont-do (QCLI-331). duplicate and superseded also require --survivor <id>, the task that carries the work forward; it must already exist in some location and must not be the task itself; wont-do takes no survivor. Legal straight from To Do, In Progress, or the paused status -- there is no In Progress step to fake -- and refused from Done or Closed. Use this instead of stepping a task through In Progress to Done: Done asserts the outcome happened, Closed says it was retired without it. The record moves to completed/ like `task complete`, blocking gates do not hold it (it claims no completion), and a dependency on a Closed task counts as satisfied. --final-summary is an optional plain replace, as on `task complete`. `task demote` reopens a Closed task and withdraws its resolution; `task edit --status Closed` is refused.',
+    usage:
+      'quest task close <id> --resolution <duplicate|superseded|wont-do> [--survivor <id>] [--final-summary "text"] --actor <name> --actor-kind human',
+    flags: ["--resolution", "--survivor", "--final-summary", ...ACTOR_FLAGS],
   },
   "draft create": {
     summary: "Create a draft (a task idea not yet promoted into the tracker).",

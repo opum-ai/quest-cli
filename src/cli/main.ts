@@ -55,7 +55,13 @@ import {
   RecordDuplicateIdentityError,
 } from "../application/tasks/local-task-repository.ts";
 import { RemovalValueNotFoundError } from "../application/tasks/edit-patch.ts";
-import type { LocatedDraft, TaskService } from "../application/tasks/tasks.ts";
+import {
+  type LocatedDraft,
+  SurvivorNotFoundError,
+  type TaskResolutionKind,
+  type TaskService,
+  taskResolutionKinds,
+} from "../application/tasks/tasks.ts";
 import {
   type AgentSkillSource,
   initializeWorkspace,
@@ -2557,6 +2563,7 @@ export async function runQuest(
         "pause",
         "start",
         "demote",
+        "close",
       ].includes(command ?? "")
     ) {
       const refused = flagShapedPositional(
@@ -2635,6 +2642,80 @@ export async function runQuest(
       return unresolved
         ? { ...result, stderr: `${completionWarning(data, unresolved)}\n` }
         : result;
+    }
+    if (command === "close" && rest[0]) {
+      // QCLI-331: the second terminal status. Built outside the shared
+      // dispatcher like complete/demote, so it applies withCheckPositions too.
+      const parsed = flags(rest.slice(1));
+      const closeFlags = [
+        "--resolution",
+        "--survivor",
+        "--final-summary",
+        "--actor",
+        "--actor-kind",
+        "--accountable-human",
+      ];
+      if (!parsed || !only(parsed, closeFlags))
+        return usageFailure(
+          parsed,
+          closeFlags,
+          "task close requires a reference, --resolution <kind>, and an explicit actor.",
+        );
+      const resolution = one(parsed, "--resolution");
+      const kinds: readonly string[] = taskResolutionKinds;
+      if (resolution === undefined || !kinds.includes(resolution))
+        return failure(
+          "usage",
+          resolution === undefined
+            ? `task close requires --resolution <${kinds.join("|")}>.`
+            : `task close --resolution must be one of ${kinds.join(", ")}; got "${resolution}".`,
+          {
+            hint: "duplicate and superseded also take --survivor <id>, the task that carries the work forward; wont-do takes no survivor.",
+          },
+        );
+      // Decidable from argv alone, so these are usage errors like the other
+      // flag-combination checks; the domain enforces the same rule for any
+      // non-CLI caller.
+      const survivor = one(parsed, "--survivor");
+      if (resolution === "wont-do" && survivor !== undefined)
+        return failure(
+          "usage",
+          "task close --resolution wont-do takes no --survivor: nothing carries the work forward. Nothing was written.",
+          {
+            hint: "If another task does carry it forward, the resolution is duplicate or superseded, not wont-do.",
+          },
+        );
+      if (resolution !== "wont-do" && survivor === undefined)
+        return failure(
+          "usage",
+          `task close --resolution ${resolution} requires --survivor <id>: the task that carries the work forward. Nothing was written.`,
+        );
+      const writeActor = actor(parsed);
+      if (!writeActor)
+        return failure(
+          "denied",
+          "Tracker writes require an explicit actor declaration.",
+        );
+      const tasks = await taskService();
+      const finalSummary = one(parsed, "--final-summary");
+      const data = withCheckPositions(
+        recordFromMutation(
+          await tasks.close(
+            rest[0],
+            {
+              kind: resolution as TaskResolutionKind,
+              ...(survivor === undefined ? {} : { survivor }),
+              ...(finalSummary === undefined ? {} : { finalSummary }),
+            },
+            crypto.randomUUID(),
+          ),
+          "task",
+        ),
+      );
+      return output(
+        { schemaVersion: 1, kind: "task.closed", data },
+        modeFor(parsed),
+      );
     }
     if (command === "demote" && rest[0]) {
       const parsed = flags(rest.slice(1));
@@ -3330,6 +3411,11 @@ export async function runQuest(
               return failure(
                 "usage",
                 `Invalid status value in operations item at line ${index + 1}.`,
+                {
+                  // QCLI-331: the two off-ladder statuses each have one
+                  // command that reaches them; a batch patch is neither.
+                  hint: 'A batch patch sets only a ladder status ("To Do", "In Progress", "Done"). "Paused" is reached only by `quest task pause <id>`, and "Closed" only by `quest task close <id> --resolution <duplicate|superseded|wont-do>`.',
+                },
               );
           } else if (patchKey === "ordinal") {
             if (!Number.isFinite(fieldValue))
@@ -3587,6 +3673,17 @@ export async function runQuest(
     // composes its own message (record id plus the delimited unmatched value)
     // rather than being mapped from a bare code here, because both halves are
     // per-call facts a fixed sentence cannot carry.
+    // QCLI-331: a survivor that names no task is a not-found about the
+    // SURVIVOR, not the task being closed -- the input says which.
+    if (error instanceof SurvivorNotFoundError)
+      return failure(
+        "not_found",
+        `task close --survivor ${JSON.stringify(error.survivor)} names no task in any location (active, completed, or archived). Nothing was written.`,
+        {
+          input: { survivor: error.survivor },
+          hint: "Pass the id of the task that carries the work forward; `quest search` or `quest task list --include-archived` finds it.",
+        },
+      );
     if (error instanceof RemovalValueNotFoundError)
       return failure("validation", error.message, {
         input: {

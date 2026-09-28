@@ -2,6 +2,7 @@ import { RecordValidationError } from "../../domain/records.ts";
 import {
   canonicalizeTaskLinks,
   closeMilestoneReference,
+  closeTask,
   createDraft,
   createTask,
   createTaskLinkSession,
@@ -21,8 +22,10 @@ import {
   statusKey,
   type TaskInput,
   type TaskLocation,
+  type TaskResolutionKind,
   type TaskState,
   type TaskStatus,
+  taskResolutionKinds,
   taskState,
   transitionTask,
   unresolvedAtCompletion,
@@ -30,6 +33,30 @@ import {
 import type { MigrationTransactionRepository } from "../../ports/backlog-import.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
 import { type EditPatchVocabulary, foldEditPatch } from "./edit-patch.ts";
+
+/** Re-exported so the CLI can validate `--resolution` without importing the domain. */
+export { taskResolutionKinds, type TaskResolutionKind };
+
+/**
+ * `task close --survivor <id>` named no task in any location (QCLI-331).
+ * A not-found, not a validation failure: the same command line succeeds
+ * once the survivor exists. Carries the reference so the CLI can echo it.
+ */
+export class SurvivorNotFoundError extends Error {
+  constructor(readonly survivor: string) {
+    super("survivor_not_found");
+    this.name = "SurvivorNotFoundError";
+  }
+}
+
+/** What `TaskService.close` needs beyond the task reference. */
+export interface TaskCloseRequest {
+  readonly kind: TaskResolutionKind;
+  /** Required for duplicate/superseded, refused for wont-do. Any alias resolves. */
+  readonly survivor?: string;
+  /** A plain replace, exactly as `complete`'s (QCLI-270). */
+  readonly finalSummary?: string;
+}
 
 /** The authoritative store is Git-backed in production; query methods deliberately have no write capability. */
 export interface TaskReader {
@@ -631,17 +658,17 @@ export class TaskService {
     reference: string,
     destination: TaskLocation,
     operationId: string,
-    transform: (task: TaskState) => TaskState = (task) => task,
+    transform: (task: TaskState, all: readonly TaskState[]) => TaskState = (
+      task,
+    ) => task,
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
     const records = this.taskRecords(snapshot);
-    const selected = findTask(
-      records.map((record) => record.task),
-      reference,
-    );
+    const all = records.map((record) => record.task);
+    const selected = findTask(all, reference);
     const current = records.find((record) => record.task.id === selected.id);
     if (!current) throw new RecordValidationError("task_not_found");
-    const task = this.stamped(transform(current.task));
+    const task = this.stamped(transform(current.task, all));
     if (current.location === destination)
       throw new RecordValidationError("task_lifecycle_already_at_destination");
     const result = await this.lifecycleRepository().writeLifecycle({
@@ -697,6 +724,46 @@ export class TaskService {
       return unresolved === undefined
         ? withSummary
         : taskState({ ...withSummary, unresolvedAtCompletion: unresolved });
+    });
+  }
+  /**
+   * Retires a task at the closed status with a resolution and retains it
+   * beside completed work (QCLI-331). The survivor resolves by id or alias
+   * across EVERY location -- a duplicate of an archived task is still a
+   * duplicate -- and is stored by its canonical id, so a later alias change
+   * cannot orphan it. No `unresolvedAtCompletion` is recorded: that field
+   * describes a completion, and closing asserts none.
+   */
+  async close(
+    reference: string,
+    request: TaskCloseRequest,
+    operationId: string,
+  ): Promise<TaskMutationResult> {
+    return this.moveTask(reference, "completed", operationId, (task, all) => {
+      let survivor: string | undefined;
+      if (request.survivor !== undefined) {
+        try {
+          survivor = findTask(all, request.survivor).id;
+        } catch (error) {
+          if (
+            error instanceof RecordValidationError &&
+            error.message === "task_not_found"
+          )
+            throw new SurvivorNotFoundError(request.survivor);
+          throw error;
+        }
+      }
+      const closed = closeTask(
+        task,
+        {
+          kind: request.kind,
+          ...(survivor === undefined ? {} : { survivor }),
+        },
+        this.lifecycle,
+      );
+      return request.finalSummary === undefined
+        ? closed
+        : taskState({ ...closed, finalSummary: request.finalSummary });
     });
   }
   async archive(
@@ -1056,6 +1123,10 @@ export class TaskService {
     // sets them would be silently overwritten. Reject rather than no-op.
     if ("createdAt" in unsafe || "updatedAt" in unsafe)
       throw new RecordValidationError("task_timestamps_managed");
+    // QCLI-331: close writes a resolution and demote withdraws it; a direct
+    // patch could set one the strict close-time rules never saw.
+    if ("resolution" in unsafe)
+      throw new RecordValidationError("task_resolution_managed");
     const authorizedPatch = unsafe;
     if (
       authorizedPatch.status !== undefined &&
@@ -1303,6 +1374,8 @@ export class TaskService {
           ) as Partial<TaskState>;
           if ("gates" in unsafe || "gateEvents" in unsafe)
             throw new RecordValidationError("task_gate_events_managed");
+          if ("resolution" in unsafe)
+            throw new RecordValidationError("task_resolution_managed");
           if (unsafe.status !== undefined && unsafe.status !== current.status)
             transitionTask(current, unsafe.status, this.lifecycle);
           const rawNext = this.stamped(
@@ -1384,9 +1457,14 @@ export class TaskService {
    * legal way in (QCLI-229).
    */
   private resolveFilterStatus(status: string): TaskStatus {
-    const paused = this.lifecycle.pausedStatus;
-    if (paused !== undefined && statusKey(paused) === statusKey(status))
-      return paused;
+    // QCLI-331: the same reasoning reaches the closed status -- `task close`
+    // assigns it, so `task list --status Closed` must find what it assigned.
+    for (const offLadder of [
+      this.lifecycle.pausedStatus,
+      this.lifecycle.closedStatus,
+    ])
+      if (offLadder !== undefined && statusKey(offLadder) === statusKey(status))
+        return offLadder;
     return this.resolveStatus(status);
   }
   async ready(now: Date): Promise<ReadySet> {

@@ -44,12 +44,67 @@ export interface LifecyclePolicy {
    * distinct value. Default-on so the fix applies without configuration.
    */
   readonly pausedStatus?: TaskStatus;
+  /**
+   * A second terminal status, OFF the ladder, reached only through
+   * `quest task close` and always paired with a {@link TaskResolution}
+   * (QCLI-331, opum-doc ADR "Add a second terminal task status for
+   * duplicate, superseded and wont-do outcomes"). It says the task is
+   * finished with, never that its outcome happened -- that stays the one
+   * meaning of `terminalStatuses`. `terminalStatuses` keeps naming the
+   * LADDER's terminal statuses (so `complete` still walks to Done); a
+   * consumer asking "is this task finished" reads
+   * {@link allTerminalStatuses}, never a `"Done"` literal. Absent disables
+   * `task close` for the workspace.
+   */
+  readonly closedStatus?: TaskStatus;
 }
 export const defaultLifecyclePolicy: LifecyclePolicy = {
   statuses: taskStatuses,
   terminalStatuses: ["Done"],
   pausedStatus: "Paused",
+  closedStatus: "Closed",
 };
+
+/**
+ * Why a task reached the closed status (QCLI-331). `duplicate` and
+ * `superseded` name the surviving task that carries the work forward;
+ * `wont-do` names none, because nothing does.
+ */
+export const taskResolutionKinds = [
+  "duplicate",
+  "superseded",
+  "wont-do",
+] as const;
+export type TaskResolutionKind = (typeof taskResolutionKinds)[number];
+/** The kinds that must name a survivor; `wont-do` must not. */
+const survivorRequiredKinds: readonly string[] = ["duplicate", "superseded"];
+
+/**
+ * A resolution as STORED. Read leniently on purpose -- any non-empty `kind`,
+ * any non-empty `survivor` -- so a hand-edited record with a bad resolution
+ * stays readable and `quest doctor` can name it ({@link resolutionProblem})
+ * instead of every command refusing the whole workspace, which is what a
+ * strict read-time schema would do. The strict shape is enforced where a
+ * resolution is WRITTEN: {@link closeTask} is its only producer, and
+ * `task edit` refuses the field as managed.
+ */
+export interface TaskResolution {
+  readonly kind: string;
+  readonly survivor?: string;
+}
+
+/**
+ * Every status meaning "this task is finished with": the ladder's terminal
+ * statuses plus the closed status (QCLI-331). Readiness, and any other
+ * "is it finished" question, reads this -- never a `"Done"` literal.
+ */
+export function allTerminalStatuses(
+  policy: LifecyclePolicy = defaultLifecyclePolicy,
+): readonly TaskStatus[] {
+  return policy.closedStatus === undefined
+    ? policy.terminalStatuses
+    : [...policy.terminalStatuses, policy.closedStatus];
+}
 
 /**
  * Paused-status literals an earlier release parked records at by default.
@@ -76,21 +131,27 @@ export function isRetiredPausedStatus(
   return (
     retiredPausedStatuses.includes(status) &&
     !policy.statuses.includes(status) &&
-    status !== policy.pausedStatus
+    status !== policy.pausedStatus &&
+    status !== policy.closedStatus
   );
 }
 
 /**
- * True when a record's status is on neither the ladder nor the paused slot,
- * so `transitionTask`, `pauseTask` and (unless it is a retired paused
- * literal) `startTask` all refuse to move it (QCLI-302). `doctor` reports
- * such records; nothing else in the lifecycle can see them.
+ * True when a record's status is on neither the ladder, the paused slot,
+ * nor the closed slot, so `transitionTask`, `pauseTask` and (unless it is a
+ * retired paused literal) `startTask` all refuse to move it (QCLI-302).
+ * `doctor` reports such records; nothing else in the lifecycle can see
+ * them. The closed status is on-flow: `task demote` leaves it (QCLI-331).
  */
 export function isOffFlowStatus(
   status: TaskStatus,
   policy: LifecyclePolicy = defaultLifecyclePolicy,
 ): boolean {
-  return !policy.statuses.includes(status) && status !== policy.pausedStatus;
+  return (
+    !policy.statuses.includes(status) &&
+    status !== policy.pausedStatus &&
+    status !== policy.closedStatus
+  );
 }
 
 function lifecyclePolicy(policy: LifecyclePolicy): LifecyclePolicy {
@@ -115,6 +176,20 @@ function lifecyclePolicy(policy: LifecyclePolicy): LifecyclePolicy {
     if (policy.statuses.includes(policy.pausedStatus))
       throw new RecordValidationError(
         "Lifecycle paused status must not collide with a ladder status.",
+      );
+  }
+  if (policy.closedStatus !== undefined) {
+    if (!policy.closedStatus.trim())
+      throw new RecordValidationError(
+        "Lifecycle closed status cannot be blank.",
+      );
+    if (policy.statuses.includes(policy.closedStatus))
+      throw new RecordValidationError(
+        "Lifecycle closed status must not collide with a ladder status.",
+      );
+    if (policy.closedStatus === policy.pausedStatus)
+      throw new RecordValidationError(
+        "Lifecycle closed status must not collide with the paused status.",
       );
   }
   return policy;
@@ -227,6 +302,12 @@ export interface TaskState {
    * alone, by design.
    */
   readonly unresolvedAtCompletion?: UnresolvedAtCompletion;
+  /**
+   * QCLI-331: why a task at the closed status was retired. Written only by
+   * `closeTask`, cleared by `demoteTask` out of the closed status. Absent on
+   * every record that predates it -- prospective only, nothing is migrated.
+   */
+  readonly resolution?: TaskResolution;
 }
 
 export interface TaskInput
@@ -247,6 +328,7 @@ export interface TaskInput
     | "gates"
     | "gateEvents"
     | "unresolvedAtCompletion"
+    | "resolution"
   > {
   readonly status?: TaskStatus;
   readonly aliases?: readonly string[];
@@ -378,6 +460,13 @@ const taskSchema = z.object({
       ),
     })
     .optional(),
+  // Lenient on read by design; see TaskResolution for why.
+  resolution: z
+    .object({
+      kind: z.string().min(1),
+      survivor: z.string().min(1).optional(),
+    })
+    .optional(),
 });
 
 function unique(values: readonly string[], name: string): void {
@@ -398,8 +487,44 @@ export function resolveConfiguredStatus(
   const match = configured.statuses.find(
     (status) => statusKey(status) === statusKey(requested),
   );
+  // QCLI-331: the closed status IS configured, just off the ladder, so name
+  // the one command that reaches it rather than calling it unconfigured.
+  if (
+    !match &&
+    configured.closedStatus !== undefined &&
+    statusKey(configured.closedStatus) === statusKey(requested)
+  )
+    throw new RecordValidationError(
+      `"${configured.closedStatus}" is reached only through \`quest task close <id> --resolution <${taskResolutionKinds.join("|")}>\`, never a status edit.`,
+    );
   if (!match) throw new RecordValidationError("Task status is not configured.");
   return match;
+}
+
+/**
+ * The first rule a resolution breaks, as a sentence, or undefined when it
+ * breaks none (QCLI-331). One predicate for both `closeTask` (which refuses
+ * with it) and `doctor` (which reports it), so the two can never disagree on
+ * what a valid resolution is. `survivor` is compared to the task's own id by
+ * alias key, so a different spelling of the same id is still "itself".
+ */
+export function resolutionShapeProblem(
+  taskId: string,
+  resolution: TaskResolution,
+): string | undefined {
+  if (!(taskResolutionKinds as readonly string[]).includes(resolution.kind))
+    return `resolution kind "${resolution.kind}" is not one of ${taskResolutionKinds.join(", ")}`;
+  const needsSurvivor = survivorRequiredKinds.includes(resolution.kind);
+  if (needsSurvivor && resolution.survivor === undefined)
+    return `resolution "${resolution.kind}" requires a survivor: the id of the task that carries the work forward`;
+  if (!needsSurvivor && resolution.survivor !== undefined)
+    return `resolution "${resolution.kind}" takes no survivor: nothing carries the work forward`;
+  if (
+    resolution.survivor !== undefined &&
+    aliasKey(resolution.survivor) === aliasKey(taskId)
+  )
+    return `a task cannot be its own survivor (${taskId})`;
+  return undefined;
 }
 
 function normalizeCheckList(list: TaskCheckList): readonly TaskCheckItem[] {
@@ -568,6 +693,12 @@ export function transitionTask(
     throw new RecordValidationError(
       `Task ${task.id} is "${task.status}", ${task.status === configured.pausedStatus ? "the paused status" : "a retired paused status"}, which is off the status ladder. Bring it back with \`quest task start ${task.id}\`, then retry.`,
     );
+  // QCLI-331: the closed status is terminal and off the ladder; demote is
+  // its one exit, exactly as start is the paused status's.
+  if (position < 0 && task.status === configured.closedStatus)
+    throw new RecordValidationError(
+      `Task ${task.id} is "${task.status}", a terminal status reached by \`quest task close\`, which is off the status ladder. Reopen it with \`quest task demote ${task.id} --to "${configured.statuses[0]}"\`, then retry.`,
+    );
   if (position < 0)
     throw new RecordValidationError(
       "Task transition uses an unconfigured status.",
@@ -575,7 +706,14 @@ export function transitionTask(
   const resolved = resolveConfiguredStatus(next, policy);
   if (configured.statuses.indexOf(resolved) !== position + 1)
     throw new RecordValidationError(
-      `Illegal task transition: ${task.status} -> ${resolved}.`,
+      `Illegal task transition: ${task.status} -> ${resolved}.` +
+        // QCLI-331: a refused walk to a terminal status is exactly where a
+        // session retiring never-worked work used to reach for the
+        // In-Progress-then-Done workaround, so name the real way out here.
+        (configured.terminalStatuses.includes(resolved) &&
+        configured.closedStatus !== undefined
+          ? ` To retire a task that was never worked (a duplicate, superseded, or won't-do), use \`quest task close ${task.id} --resolution <${taskResolutionKinds.join("|")}>\`.`
+          : ""),
     );
   if (
     configured.terminalStatuses.includes(resolved) &&
@@ -648,6 +786,80 @@ export function startTask(
 }
 
 /**
+ * Retires a task at the closed status with a required resolution
+ * (QCLI-331). Legal from every NON-terminal status a task can hold -- any
+ * non-terminal ladder status, the paused status, a retired paused literal
+ * -- so a never-worked duplicate goes straight from To Do without the
+ * In Progress step that would claim someone started it. Refused from a
+ * terminal status (Done, or already closed): Done asserts the outcome
+ * happened, and closing it would contradict that rather than retire it.
+ *
+ * Blocking gates do NOT block this. A gate gates completion EVIDENCE, and
+ * closing asserts no completion, so there is nothing for a gate to hold.
+ *
+ * Callers own survivor existence (it needs the whole collection) and the
+ * storage move; this validates the resolution's own shape and returns the
+ * status-updated record.
+ */
+export function closeTask(
+  task: TaskState,
+  resolution: TaskResolution,
+  policy = defaultLifecyclePolicy,
+): TaskState {
+  const configured = lifecyclePolicy(policy);
+  const closed = configured.closedStatus;
+  if (!closed) throw new RecordValidationError("closed_status_not_configured");
+  if (allTerminalStatuses(configured).includes(task.status))
+    throw new RecordValidationError(
+      task.status === closed
+        ? `Task ${task.id} is already "${closed}". To change its resolution, reopen it with \`quest task demote ${task.id} --to "${configured.statuses[0]}"\`, then close it again.`
+        : `Task ${task.id} is "${task.status}", a terminal status that asserts its outcome happened; \`quest task close\` retires only a task that has not finished. If it should not have been completed, reopen it with \`quest task demote ${task.id} --to "<status>"\` first.`,
+    );
+  const onLadder =
+    configured.statuses.includes(task.status) ||
+    task.status === configured.pausedStatus ||
+    isRetiredPausedStatus(task.status, configured);
+  if (!onLadder)
+    throw new RecordValidationError(
+      "Task transition uses an unconfigured status.",
+    );
+  const problem = resolutionShapeProblem(task.id, resolution);
+  if (problem)
+    throw new RecordValidationError(`Cannot close ${task.id}: ${problem}.`);
+  return taskState({
+    ...task,
+    status: closed,
+    resolution: {
+      kind: resolution.kind,
+      ...(resolution.survivor === undefined
+        ? {}
+        : { survivor: resolution.survivor }),
+    },
+  });
+}
+
+/**
+ * What is wrong with a record's resolution, relative to its status, or
+ * undefined when nothing is (QCLI-331). `quest doctor` reports it; nothing
+ * rewrites it. Survivor EXISTENCE is not checked here -- it needs the whole
+ * collection -- so doctor checks that separately.
+ */
+export function resolutionProblem(
+  task: TaskState,
+  policy = defaultLifecyclePolicy,
+): string | undefined {
+  const closed = policy.closedStatus;
+  const isClosed = closed !== undefined && task.status === closed;
+  if (!isClosed)
+    return task.resolution === undefined
+      ? undefined
+      : `carries a resolution while at "${task.status}", not the closed status`;
+  if (task.resolution === undefined) return `is "${closed}" with no resolution`;
+  const shape = resolutionShapeProblem(task.id, task.resolution);
+  return shape === undefined ? undefined : `is "${closed}" but its ${shape}`;
+}
+
+/**
  * The non-terminal statuses `demoteTask` may legally target from a given
  * current status and storage location (QCLI-229). A task already stored at
  * `"tasks"` may only move strictly earlier on the ladder (walking back to a
@@ -665,6 +877,12 @@ export function legalDemoteTargets(
 ): readonly TaskStatus[] {
   const configured = lifecyclePolicy(policy);
   if (configured.pausedStatus && status === configured.pausedStatus) return [];
+  // QCLI-331: a closed task was never done, so reopening it to ANY
+  // non-terminal ladder status is legitimate, wherever it is stored.
+  if (configured.closedStatus && status === configured.closedStatus)
+    return configured.statuses.filter(
+      (candidate) => !configured.terminalStatuses.includes(candidate),
+    );
   const position = configured.statuses.indexOf(status);
   if (position < 0) return [];
   const ceiling = location === "tasks" ? position : position + 1;
@@ -693,6 +911,13 @@ export function demoteTask(
         ? `Illegal task demotion: ${task.status} -> ${resolved}. Legal targets from ${task.status}: ${legal.join(", ")}.`
         : `Illegal task demotion: ${task.status} has no earlier status to demote to.`,
     );
+  // QCLI-331: reopening a closed task withdraws its resolution with it; a
+  // resolution never survives off the closed status, and a demote from any
+  // other status leaves the record's fields exactly as they were.
+  if (task.status === policy.closedStatus) {
+    const { resolution: _withdrawn, ...reopened } = task;
+    return taskState({ ...reopened, status: resolved });
+  }
   return taskState({ ...task, status: resolved });
 }
 
@@ -1043,6 +1268,9 @@ export function evaluateReadySet(
   const configured = lifecyclePolicy(policy);
   const links = validateTaskGraph(tasks);
   const byId = new Map(tasks.map((task) => [task.id, task]));
+  // A dependency is satisfied by ANY terminal status, closed included: the
+  // ADR has consumers read terminal membership, never a Done literal (QCLI-331).
+  const finished = allTerminalStatuses(configured);
   const ready: CanonicalId[] = [];
   const excluded: ReadinessReason[] = [];
   for (const task of [...tasks].sort((a, b) => a.id.localeCompare(b.id))) {
@@ -1053,10 +1281,7 @@ export function evaluateReadySet(
     if (
       (links.get(task.id) ?? []).some((id) => {
         const dependency = byId.get(id);
-        return (
-          !dependency ||
-          !configured.terminalStatuses.includes(dependency.status)
-        );
+        return !dependency || !finished.includes(dependency.status);
       })
     ) {
       excluded.push({ taskId: task.id, reason: "dependency_incomplete" });

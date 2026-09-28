@@ -2,10 +2,11 @@ import {
   foldEditPatch,
   type EditPatchVocabulary as TrackerEditPatch,
 } from "../../../application/tasks/edit-patch.ts";
-import type {
-  TaskListQuery,
-  TaskService,
-  TaskWriteConflict,
+import {
+  type TaskListQuery,
+  type TaskService,
+  type TaskWriteConflict,
+  taskResolutionKinds,
 } from "../../../application/tasks/tasks.ts";
 
 type TrackerTask = Awaited<ReturnType<TaskService["view"]>>;
@@ -146,6 +147,14 @@ export type TaskCommandResponse =
         readonly terminalStatuses: readonly string[];
         /** QCLI-229: absent when the workspace has pause/start disabled. */
         readonly pausedStatus?: string;
+        /**
+         * QCLI-331: the terminal status `task close` reaches. NOT listed in
+         * `terminalStatuses` yet (see the status-flow case below), so a
+         * consumer needs both to know every terminal status. Absent, with
+         * `resolutions`, when the workspace has close disabled.
+         */
+        readonly closedStatus?: string;
+        readonly resolutions?: readonly string[];
       };
     }
   | {
@@ -285,9 +294,21 @@ export async function dispatchTrackerTaskCommand(
         kind: "task.status-flow",
         data: {
           statuses: tasks.lifecycle.statuses,
+          // QCLI-331 (shape B): the LADDER's terminal statuses only, so
+          // `terminalStatuses` stays a subset of `statuses`. Every published
+          // lore-cli refuses the tracker as drift when it is not, before every
+          // tracker operation. The closed status is reported beside it as
+          // `closedStatus`; it joins `terminalStatuses` in a later release,
+          // once a tolerant lore is the floor.
           terminalStatuses: tasks.lifecycle.terminalStatuses,
           ...(tasks.lifecycle.pausedStatus !== undefined
             ? { pausedStatus: tasks.lifecycle.pausedStatus }
+            : {}),
+          ...(tasks.lifecycle.closedStatus !== undefined
+            ? {
+                closedStatus: tasks.lifecycle.closedStatus,
+                resolutions: taskResolutionKinds,
+              }
             : {}),
         },
       };
