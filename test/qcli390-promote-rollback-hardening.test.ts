@@ -39,6 +39,60 @@ test("S1: a prior latest equal to the release version is refused", () => {
   expect(validateRecord(withPrior(V)).ok).toBe(false);
 });
 
+test("QCLI-391: a prior latest newer than the release is refused, with its own message", () => {
+  // The QCLI-390 hole: "9.10.0" in a 9.9.9 record is strict X.Y.Z, is not
+  // the release, and passes checkRollbackState while latest reads 9.9.9.
+  for (const newer of ["9.10.0", "10.0.0", "9.9.10"]) {
+    const verdict = validateRecord(withPrior(newer));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.problems[0]).toContain(
+      `is ${newer}, newer than the release ${V}; a rollback may only move latest backwards`,
+    );
+  }
+});
+
+test("QCLI-391: equal stays refused, older passes, and order is numeric, not lexical", () => {
+  expect(validateRecord(withPrior(V)).ok).toBe(false);
+  for (const older of ["9.9.8", "9.8.0", "0.0.0"])
+    expect(validateRecord(withPrior(older)).ok).toBe(true);
+  // Lexically "0.9.0" > "0.10.0"; numerically it is older, so it passes.
+  const ten = { ...withPrior("0.9.0"), version: "0.10.0" };
+  expect(validateRecord(ten)).toEqual({ ok: true, problems: [] });
+  expect(validateRecord({ ...withPrior("0.10.0"), version: "0.9.0" }).ok).toBe(
+    false,
+  );
+  // Past 2^53, where Number() would call these equal.
+  expect(
+    validateRecord({
+      ...withPrior("0.0.9007199254740993"),
+      version: "0.0.9007199254740992",
+    }).ok,
+  ).toBe(false);
+});
+
+test("QCLI-391: a record whose own version is not X.Y.Z is refused without comparing", () => {
+  for (const version of ["latest", "v9.9.9", "9.9.9-rc.1", undefined]) {
+    const verdict = validateRecord({ ...record, version });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.problems).toEqual([
+      `record's version is ${JSON.stringify(version)}, not a plain X.Y.Z release`,
+    ]);
+  }
+});
+
+test("QCLI-391: a non-string version is refused, not coerced into a comparison that throws", () => {
+  // From lore-cli's LCLI-617 cross-read: STRICT_SEMVER.test(["9.9.9"])
+  // coerces the array to "9.9.9" and passes, and the less-than rule then
+  // throws inside compareReleaseVersions instead of refusing the record.
+  for (const version of [["9.9.9"], 999, { toString: () => "9.9.9" }]) {
+    const verdict = validateRecord({ ...record, version });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.problems).toEqual([
+      `record's version is ${JSON.stringify(version)}, not a plain X.Y.Z release`,
+    ]);
+  }
+});
+
 test("S1: a well-formed record still validates", () => {
   expect(validateRecord(record, { version: V })).toEqual({
     ok: true,
