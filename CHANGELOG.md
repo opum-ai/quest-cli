@@ -58,6 +58,17 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **The GitHub Release step refuses an existing release it cannot vouch
+  for** (QCLI-401, paired with lore-cli LCLI-622). QCLI-398's cut treated any
+  existing `vX` as done and marked it latest. It never read the release's
+  notes or state. It now reads `body`, `isDraft` and `isPrerelease` in the
+  same `gh release view` call. It refuses a draft, a prerelease, or notes
+  that differ from the CHANGELOG section after CRLF normalisation and
+  trimming. `promote-release.mjs` runs this check before any tag moves, on
+  the dry run and on `--promote`, so it refuses there. None of the three
+  cases is ever edited, so a person has to repair it. An existing published
+  release with matching notes is still marked latest. Release tooling only.
+
 - **A repeated unknown flag is reported as unrecognized, not as an arity
   error** (QCLI-355, reported by opum-cli-e2e). `task edit T-1 --add-ac a
   --add-ac b` answered "--add-ac may only be provided once.", which implies

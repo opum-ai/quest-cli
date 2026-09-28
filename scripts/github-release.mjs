@@ -13,6 +13,9 @@
 //
 // It never creates a tag (`--verify-tag`), never edits an existing release's
 // body, and pins the host (`-R github.com/...`) so GH_HOST cannot redirect it.
+// An existing release counts as done only when it is published and carries
+// these notes (QCLI-401, paired with lore-cli LCLI-622). A draft, a
+// prerelease, or different notes is refused and left for a person to repair.
 
 import { execFile as execFileCallback } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -55,9 +58,14 @@ export function releaseTitle(version, heading = "") {
     : `Quest CLI ${version}`;
 }
 
+/** Notes compared as GitHub may store them: CRLF line ends, outer whitespace. */
+const normaliseNotes = (text) => text.replace(/\r\n/g, "\n").trim();
+
 /**
  * Creates the release for v<version>, or confirms one exists. Never edits an
- * existing release's notes. When `latest` is asked for and the release already
+ * existing release's notes. An existing release must be published (not a
+ * draft or prerelease) and carry `notes`, or the result is a failure
+ * (QCLI-401). When `latest` is asked for and the release already
  * exists, it is marked latest, because that is the state a finished release
  * must leave behind. Returns {ok, action, detail}; every failure is returned,
  * never thrown, so a caller that has already moved npm `latest` can report it
@@ -74,15 +82,32 @@ export async function ensureGitHubRelease({
   const tag = `v${version}`;
   const repo = ["-R", RELEASE_REPOSITORY];
   let exists;
+  let state;
   try {
-    await execFileFn("gh", [
+    const { stdout } = await execFileFn("gh", [
       "release",
       "view",
       tag,
       ...repo,
       "--json",
-      "tagName",
+      "tagName,body,isDraft,isPrerelease",
     ]);
+    try {
+      state = JSON.parse(stdout);
+    } catch {
+      state = undefined;
+    }
+    if (
+      state === null ||
+      typeof state !== "object" ||
+      Array.isArray(state) ||
+      typeof state.body !== "string"
+    )
+      return {
+        ok: false,
+        action: "none",
+        detail: `could not read release ${tag}: gh release view did not return its state`,
+      };
     exists = true;
   } catch (error) {
     const detail = String(error?.stderr || error?.message || error);
@@ -99,6 +124,20 @@ export async function ensureGitHubRelease({
   }
 
   if (exists) {
+    // QCLI-401: refused, never repaired. Publishing a draft or rewriting a
+    // release body is a decision for a person, not for a release script.
+    if (state.isDraft !== false || state.isPrerelease !== false)
+      return {
+        ok: false,
+        action: "none",
+        detail: `release ${tag} exists but is a ${state.isDraft !== false ? "draft" : "prerelease"}; publish or delete it by hand, then re-run`,
+      };
+    if (normaliseNotes(state.body) !== normaliseNotes(notes))
+      return {
+        ok: false,
+        action: "none",
+        detail: `release ${tag} exists but its notes differ from the CHANGELOG section; it is never edited here, so reconcile it by hand, then re-run`,
+      };
     if (!latest)
       return {
         ok: true,
