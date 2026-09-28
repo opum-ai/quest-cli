@@ -75,7 +75,9 @@ test("status-flow reports the configured policy and list matches statuses case-i
         expect.objectContaining({ id: "T-1", status: "To Do" }),
       ]);
     }
-    const unknown = await run(["task", "list", "--status", "Paused", "--json"]);
+    // Not "Paused": that was "Blocked" until QCLI-287's rename made it the
+    // configured paused status, which a list filter accepts (QCLI-392).
+    const unknown = await run(["task", "list", "--status", "Parked", "--json"]);
     expect(unknown.exitCode).toBe(6);
     expect(unknown.stdout).toBe("");
     expect(diagnostic(unknown)).toEqual({
