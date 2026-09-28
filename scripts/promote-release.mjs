@@ -81,6 +81,7 @@ import {
   requirePairQualification,
   resolveTagCommit,
 } from "./qualification/pair-receipt.mjs";
+import { REGISTRY_PINS } from "./qualification/registry-visibility.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -107,6 +108,7 @@ export function launcherPublishArgs(tarball, { otp } = {}) {
     "public",
     "--tag",
     PROMOTE_TAG,
+    ...REGISTRY_PINS,
     ...(otp ? ["--otp", otp] : []),
   ];
 }
@@ -337,7 +339,15 @@ export async function downloadServedTarball(
 ) {
   const { stdout } = await execFileFn(
     "npm",
-    ["pack", spec, "--pack-destination", into, "--json", "--prefer-online"],
+    [
+      "pack",
+      spec,
+      "--pack-destination",
+      into,
+      "--json",
+      "--prefer-online",
+      ...REGISTRY_PINS,
+    ],
     { maxBuffer: 32 * 1024 * 1024 },
   );
   const parsed = JSON.parse(stdout);
@@ -488,6 +498,47 @@ export async function verifyFinalLauncher({
             : `${LAUNCHER}@${version}: npm serves ${held.actual}, the qualified final launcher is ${held.expected}`,
         ],
       };
+}
+
+/**
+ * QCLI-400, for QCLI-399 AC3 / OPAG-474 AC3: the byte count of npm's
+ * PACKAGE-LEVEL readme for the launcher, the field a dist-tag move never
+ * re-derived and only a publish onto `latest` does. Measured 2026-09-28 on
+ * 0.11.0: the packument carries `readme` as a present, EMPTY string, and
+ * `npm view @opum-ai/quest readme` prints nothing with exit 0 -- so 0 bytes
+ * is that failure, and an error is not. Re-read until non-empty or the
+ * attempts run out, because the field lags a publish (lore-cli LCLI-460
+ * measured ~25 minutes). An unreadable read reports null, never 0.
+ */
+export async function readBackReadme({
+  execFile: execFileFn = execFile,
+  attempts = 10,
+  delayMs = 15_000,
+  sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
+} = {}) {
+  let bytes = null;
+  let error;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const { stdout } = await execFileFn("npm", [
+        "view",
+        LAUNCHER,
+        "readme",
+        "--prefer-online",
+        ...REGISTRY_PINS,
+      ]);
+      // npm prints the field and one newline, and nothing for an empty one.
+      bytes = Buffer.byteLength(String(stdout).replace(/\r?\n$/, ""), "utf8");
+      error = undefined;
+      if (bytes > 0) return { bytes, attempts: attempt };
+    } catch (failure) {
+      error = String(failure?.stderr || failure?.message || failure)
+        .trim()
+        .split("\n")[0];
+    }
+    if (attempt < attempts) await sleep(delayMs);
+  }
+  return { bytes, attempts, ...(error ? { error } : {}) };
 }
 
 /**
@@ -758,6 +809,7 @@ async function main(argv) {
         "add",
         `${name}@${target}`,
         tag,
+        ...REGISTRY_PINS,
         ...(!token && otp ? ["--otp", otp] : []),
       ],
       { env },
@@ -868,6 +920,26 @@ async function main(argv) {
     process.exit(1);
   }
   console.log(`GitHub Release: ${cut.detail}.`);
+
+  // QCLI-400: report only. The promotion is complete and verified, and the
+  // field lags a publish, so a non-zero exit here would invite a rollback
+  // for what is usually lag -- the same call lore-cli made (LCLI-621).
+  const readme = await readBackReadme();
+  const readCommand = `npm view ${LAUNCHER} readme | wc -c`;
+  if (readme.bytes > 0)
+    console.log(
+      `README read-back (QCLI-399 AC3): npm's package-level readme for ${LAUNCHER} is ${readme.bytes} bytes (read ${readme.attempts} time(s)).`,
+    );
+  else
+    console.warn(
+      [
+        "",
+        `WARNING: npm serves NO package-level readme for ${LAUNCHER} yet (QCLI-399 AC3): ${readme.bytes === null ? `unreadable (${readme.error ?? "no answer"})` : "0 bytes"} after ${readme.attempts} read(s).`,
+        "The promotion is complete and verified; do NOT roll back or unpublish for this. The field lags a",
+        `publish (~25 minutes measured by lore-cli), so re-measure with \`${readCommand}\` and record the count on QCLI-399.`,
+        `Still 0 after that window means the publish of ${record.version} did not populate the packument readme.`,
+      ].join("\n"),
+    );
 }
 
 if (

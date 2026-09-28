@@ -26,6 +26,7 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { REGISTRY_PINS } from "./registry-visibility.mjs";
 
 const mode = process.argv[2];
 if (mode !== "--pre" && mode !== "--post") {
@@ -112,7 +113,7 @@ let published = "";
 try {
   published = execFileSync(
     "npm",
-    ["view", `${name}@${postVersion}`, "gitHead", "--silent"],
+    ["view", `${name}@${postVersion}`, "gitHead", "--silent", ...REGISTRY_PINS],
     { encoding: "utf8" },
   ).trim();
 } catch (error) {

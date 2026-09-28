@@ -35,6 +35,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { REGISTRY_PINS } from "./registry-visibility.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
@@ -244,6 +245,7 @@ export async function verifyPublished(receipt, version) {
           "view",
           specifier,
           "dist.tarball",
+          ...REGISTRY_PINS,
         ]);
         tarball = stdout.trim();
       } catch {

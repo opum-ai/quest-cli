@@ -38,6 +38,7 @@ import {
   LAUNCHER,
   tarballName,
 } from "./e2e-receipt.mjs";
+import { REGISTRY_PINS } from "./registry-visibility.mjs";
 
 const execFile = promisify(execFileCallback);
 
@@ -168,7 +169,13 @@ export async function viewVersion(
 ) {
   const { stdout } = await execFileFn(
     "npm",
-    ["view", `${name}@${version}`, "--json", "--prefer-online"],
+    [
+      "view",
+      `${name}@${version}`,
+      "--json",
+      "--prefer-online",
+      ...REGISTRY_PINS,
+    ],
     { maxBuffer: 16 * 1024 * 1024 },
   );
   const parsed = JSON.parse(stdout);

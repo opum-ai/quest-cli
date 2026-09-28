@@ -28,6 +28,8 @@ export interface ConsumerReadOptions {
 }
 
 export const CONSUMER_REGISTRY: string;
+/** Both pins, for every npm call that reaches the registry (QCLI-400). */
+export const REGISTRY_PINS: readonly string[];
 export const PUBLISHER_EARLY_LAG_MS: number;
 
 export function packumentUrl(pkgName: string, registry?: string): string;

@@ -13,6 +13,7 @@ import {
   resolveToken,
   tokenShape,
 } from "../../../scripts/publish-release.mjs";
+import { REGISTRY_PINS } from "../../../scripts/qualification/registry-visibility.mjs";
 
 /**
  * QCLI-285. These attack the two things that made a sibling repo's own
@@ -188,7 +189,10 @@ test("isPublished is true when npm view resolves the exact version, false only o
   );
   expect(publishedResult).toBe(true);
   expect(calls).toEqual([
-    ["npm", ["view", "@opum-ai/quest-linux-x64@0.6.2", "version"]],
+    [
+      "npm",
+      ["view", "@opum-ai/quest-linux-x64@0.6.2", "version", ...REGISTRY_PINS],
+    ],
   ]);
 
   const unpublishedResult = await isPublished(

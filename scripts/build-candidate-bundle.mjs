@@ -34,6 +34,7 @@ import {
   launcherRcVersion,
   nextRcNumber,
 } from "./qualification/launcher-equivalence.mjs";
+import { REGISTRY_PINS } from "./qualification/registry-visibility.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -312,6 +313,7 @@ export async function resolveRcNumber({
           "versions",
           "--json",
           "--prefer-online",
+          ...REGISTRY_PINS,
         ])
       ).stdout,
     ),

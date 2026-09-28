@@ -64,6 +64,7 @@ import {
   classifyPublishError,
   classifyVersion,
   describeVersionState,
+  REGISTRY_PINS,
   waitForConsumerVisibility,
 } from "./qualification/registry-visibility.mjs";
 import { requireVersionParity } from "./qualification/version-parity.mjs";
@@ -93,6 +94,7 @@ export function publishArgs(tarball, { dryRun = false, otp } = {}) {
     "public",
     "--tag",
     STAGE_TAG,
+    ...REGISTRY_PINS,
     ...(dryRun ? ["--dry-run"] : []),
     ...(otp ? ["--otp", otp] : []),
   ];
@@ -278,7 +280,12 @@ export async function isPublished(
   { execFile: execFileFn = execFile } = {},
 ) {
   try {
-    await execFileFn("npm", ["view", `${pkgName}@${version}`, "version"]);
+    await execFileFn("npm", [
+      "view",
+      `${pkgName}@${version}`,
+      "version",
+      ...REGISTRY_PINS,
+    ]);
     return true;
   } catch (error) {
     // Only npm's own "not there" is absence: E404 for an unknown package,
