@@ -143,12 +143,15 @@ async function npmSpawns() {
 // reading "...REGISTRY_PINS" does not satisfy this (review finding 1a).
 const PINNED = /[[,]\s*\.\.\.REGISTRY_PINS\s*[,\]]/;
 // `npm pack` of the working directory: no package spec, every word a flag.
+// A value is admitted only after a flag that takes one (review a2): a bare
+// identifier or ${x} anywhere else could be a package spec, which fetches.
 const LOCAL_PACK_LIST =
-  /^\[\s*["']pack["']\s*(?:,\s*["']--[\w-]+["']\s*(?:,\s*[\w.]+\s*)?)*,?\s*\]$/;
-const LOCAL_PACK_TEMPLATE = /^pack(?:\s+(?:--[\w-]+|\$\{\w+\}))*$/;
+  /^\[\s*["']pack["']\s*(?:,\s*(?:["']--(?:cache|pack-destination)["']\s*,\s*[\w.]+|["']--[\w-]+["']))*\s*,?\s*\]$/;
+const LOCAL_PACK_TEMPLATE =
+  /^pack(?:\s+(?:--(?:cache|pack-destination)\s+\$\{\w+\}|--[\w-]+))*$/;
 // Non-literal argument lists, each built by a function a test below pins.
 const BUILT_ELSEWHERE = [
-  { file: "scripts/publish-release.mjs", body: "args" }, // publishArgs
+  { file: "scripts/publish-release.mjs", body: "publishArgs(tarball" },
   { file: "scripts/promote-release.mjs", body: "launcherPublishArgs(tarball" },
 ];
 

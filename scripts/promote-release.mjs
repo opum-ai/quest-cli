@@ -910,11 +910,25 @@ async function main(argv) {
     if (npmrcDir) await rm(npmrcDir, { recursive: true, force: true });
   }
 
-  // QCLI-400: report only, and BEFORE the GitHub Release, so a failed cut
-  // (which exits) cannot skip it: npm `latest` has already moved by here.
-  // The promotion is complete and verified, and the field lags a publish,
-  // so a non-zero exit would invite a rollback for what is usually lag --
-  // the same call lore-cli made (LCLI-621).
+  // QCLI-398: reached only after a verified promotion (every other path in
+  // the try returns or exits). The release is cut after the finally, so the
+  // npm token file is already gone: gh does not need it, and process.exit
+  // below would skip a finally.
+  const cut = await ensureGitHubRelease({
+    version: record.version,
+    ...release,
+  });
+  if (cut.ok) console.log(`GitHub Release: ${cut.detail}.`);
+  else
+    console.error(
+      `\nGitHub Release NOT cut: ${cut.detail}. npm ${PROMOTE_TAG} moved and is verified -- do NOT roll back for this. Repair with: node scripts/github-release.mjs --version ${record.version} --create`,
+    );
+
+  // QCLI-400: report only, AFTER the release cut so its retries cannot
+  // delay it, and before a failed cut exits so it cannot be skipped. The
+  // promotion is complete and verified, and the field lags a publish, so a
+  // non-zero exit would invite a rollback for what is usually lag -- the
+  // same call lore-cli made (LCLI-621).
   const readme = await readBackReadme();
   if (readme.bytes > 0)
     console.log(
@@ -926,28 +940,14 @@ async function main(argv) {
         "",
         `WARNING: npm serves NO package-level readme for ${LAUNCHER} yet (QCLI-399 AC3): ${readme.bytes === null ? "unreadable" : "0 bytes"}${readme.error ? ` (last read failed: ${readme.error})` : ""} after ${readme.attempts} read(s).`,
         "The promotion is complete and verified; do NOT roll back or unpublish for this. The field lags a",
-        "publish (~25 minutes measured by lore-cli). Re-measure with the same pinned read and record the",
-        "count on QCLI-399:",
+        "publish (~25 minutes measured by lore-cli). Re-measure, from the repository root, with the same",
+        "pinned read and record the count on QCLI-399:",
         `    ${README_RECHECK}`,
         `Still 0 after that window means the publish of ${record.version} did not populate the packument readme.`,
       ].join("\n"),
     );
 
-  // QCLI-398: reached only after a verified promotion (every other path in
-  // the try returns or exits). The release is cut after the finally, so the
-  // npm token file is already gone: gh does not need it, and process.exit
-  // below would skip a finally.
-  const cut = await ensureGitHubRelease({
-    version: record.version,
-    ...release,
-  });
-  if (!cut.ok) {
-    console.error(
-      `\nGitHub Release NOT cut: ${cut.detail}. npm ${PROMOTE_TAG} moved and is verified -- do NOT roll back for this. Repair with: node scripts/github-release.mjs --version ${record.version} --create`,
-    );
-    process.exit(1);
-  }
-  console.log(`GitHub Release: ${cut.detail}.`);
+  if (!cut.ok) process.exit(1);
 }
 
 if (

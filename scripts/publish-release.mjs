@@ -103,12 +103,18 @@ const REPOSITORY = "opum-ai/quest-cli";
 const QUALIFICATION_WORKFLOW =
   ".github/workflows/prepublication-qualification.yml";
 
-async function run(args, cwd, envOverrides = {}) {
-  const { stdout, stderr } = await execFile("npm", args, {
-    cwd,
-    maxBuffer: 32 * 1024 * 1024,
-    env: { ...process.env, ...envOverrides },
-  });
+// Builds its own argument list, so every npm spawn in this file is a pinned
+// publishArgs list; there is no argv parameter for a caller to fill.
+async function runPublish(tarball, options, cwd, envOverrides = {}) {
+  const { stdout, stderr } = await execFile(
+    "npm",
+    publishArgs(tarball, options),
+    {
+      cwd,
+      maxBuffer: 32 * 1024 * 1024,
+      env: { ...process.env, ...envOverrides },
+    },
+  );
   return `${stdout}${stderr}`;
 }
 
@@ -669,15 +675,15 @@ async function main(argv) {
     };
 
     const publish = async (target) => {
-      const args = publishArgs(target.tarball, {
+      const options = {
         dryRun,
         // A stored token bypasses the interactive OTP requirement entirely;
         // sending --otp alongside one is unnecessary, not merely redundant.
         otp: !token ? otp : undefined,
-      });
+      };
       process.stdout.write(`${target.name} ... `);
       try {
-        await run(args, target.cwd, envOverrides);
+        await runPublish(target.tarball, options, target.cwd, envOverrides);
         console.log(dryRun ? "ok (dry run)" : "published");
       } catch (error) {
         console.log("FAILED");
@@ -758,10 +764,9 @@ async function main(argv) {
           const target = platforms.find((candidate) => candidate.name === name);
           const probe = await diagnoseStaged(target, {
             publish: (candidate) =>
-              run(
-                publishArgs(candidate.tarball, {
-                  otp: !token ? otp : undefined,
-                }),
+              runPublish(
+                candidate.tarball,
+                { otp: !token ? otp : undefined },
                 candidate.cwd,
                 envOverrides,
               ),
