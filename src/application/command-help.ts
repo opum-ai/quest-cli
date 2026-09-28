@@ -513,7 +513,7 @@ export const commandHelp: Record<
   },
   browser: {
     summary:
-      "Start a local read-only web server showing the overview and board.",
+      "Start a local read-only web server showing the overview and board. It runs until it is stopped, or until the workspace root it was started against no longer exists, which it checks every 2 seconds (QCLI-348). It does not stop when its parent process exits.",
     usage: "quest browser [--port 4173]",
     flags: ["--port"],
   },

@@ -24,7 +24,23 @@ export interface BrowserServerOptions {
   readonly host?: string;
   /** The port is deliberately caller-controlled; use 0 for an ephemeral port. */
   readonly port?: number;
+  /**
+   * The workspace the server was started against (QCLI-348). While the server
+   * runs, `exists` is polled every `pollIntervalMs`. Once it answers false,
+   * the server closes itself and every open connection, so a server started
+   * as a daemon does not outlive a deleted workspace. Harness runs left such
+   * daemons alive for days with deleted working directories. Only a definite
+   * "gone" closes it. There is deliberately no parent-death watch, because a
+   * person may detach the server on purpose (orchestrator ruling,
+   * 2026-09-28).
+   */
+  readonly workspace?: {
+    readonly exists: () => Promise<boolean>;
+    readonly pollIntervalMs?: number;
+  };
 }
+
+export const defaultWorkspacePollIntervalMs = 2000;
 
 export interface StartedBrowserServer {
   readonly host: string;
@@ -125,13 +141,32 @@ export async function startBrowserServer(
     );
     throw new Error("browser_server_address_unavailable");
   }
-  return {
-    host,
-    port: address.port,
-    server,
-    close: () =>
-      new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      ),
+  let watch: ReturnType<typeof setInterval> | undefined;
+  const close = () => {
+    if (watch !== undefined) clearInterval(watch);
+    watch = undefined;
+    return new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+      server.closeAllConnections();
+    });
   };
+  const workspace = options.workspace;
+  if (workspace) {
+    let checking = false;
+    watch = setInterval(() => {
+      if (checking) return;
+      checking = true;
+      workspace
+        .exists()
+        .then((exists) => (exists ? undefined : close()))
+        .catch(() => undefined)
+        .finally(() => {
+          checking = false;
+        });
+    }, workspace.pollIntervalMs ?? defaultWorkspacePollIntervalMs);
+    // The watch never keeps the process alive: the listening socket does,
+    // and closing it is what lets a daemon exit.
+    watch.unref();
+  }
+  return { host, port: address.port, server, close };
 }

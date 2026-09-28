@@ -58,6 +58,16 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **`quest browser` exits when its workspace is deleted** (QCLI-348,
+  reported by opum-cli-e2e). A browser started as a daemon ran with no upper
+  bound. Four were found alive, the oldest for 44 hours, each with a deleted
+  working directory and one per qualification run. The server now checks
+  every 2 seconds that the workspace root it was started against still
+  exists. When it is definitely gone, the server closes its connections and
+  the process exits. Any other read failure keeps it running. By ruling
+  there is no parent-death watch, because a person may detach the server on
+  purpose. `quest help browser` states both conditions.
+
 - **A repeated unknown flag is reported as unrecognized, not as an arity
   error** (QCLI-355, reported by opum-cli-e2e). `task edit T-1 --add-ac a
   --add-ac b` answered "--add-ac may only be provided once.", which implies
