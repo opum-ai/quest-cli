@@ -70,6 +70,14 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **`task list --status Paused` lists the paused tasks** (QCLI-392). The
+  status filter checked only the ladder statuses, so the paused status that
+  `task pause` assigns was refused as "Task status is not configured."
+  `--status` and `--exclude-status` now also accept the configured paused
+  status, in any case. Any other unknown status is still refused with exit 6.
+  `task edit --status Paused` is still refused, because `task pause` remains
+  the only way in.
+
 - **`quest browser` exits when its workspace is deleted** (QCLI-348,
   reported by opum-cli-e2e). A browser started as a daemon ran with no upper
   bound, even after its workspace was deleted. The server now checks

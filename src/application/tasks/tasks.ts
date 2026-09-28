@@ -18,6 +18,7 @@ import {
   resolveConfiguredStatus,
   searchTasks,
   startTask,
+  statusKey,
   type TaskInput,
   type TaskLocation,
   type TaskState,
@@ -511,9 +512,13 @@ export class TaskService {
     // caller cannot silently ask for an empty list.
     if (query.unassigned && query.assignees?.length)
       throw new RecordValidationError("assignee_filter_conflict");
-    const status = query.status ? this.resolveStatus(query.status) : undefined;
+    const status = query.status
+      ? this.resolveFilterStatus(query.status)
+      : undefined;
     const excludeStatuses = query.excludeStatuses?.length
-      ? new Set(query.excludeStatuses.map((value) => this.resolveStatus(value)))
+      ? new Set(
+          query.excludeStatuses.map((value) => this.resolveFilterStatus(value)),
+        )
       : undefined;
     // One snapshot feeds both the listing and the ready set, so readiness can
     // never describe a different revision than the rows it selects.
@@ -1370,6 +1375,19 @@ export class TaskService {
 
   resolveStatus(status: string): TaskStatus {
     return resolveConfiguredStatus(status, this.lifecycle);
+  }
+
+  /**
+   * A list filter may also name the paused status (QCLI-392): `task pause`
+   * assigns it, so a caller must be able to find what it assigned. Writes
+   * keep `resolveStatus`, which refuses it, since `task pause` is the only
+   * legal way in (QCLI-229).
+   */
+  private resolveFilterStatus(status: string): TaskStatus {
+    const paused = this.lifecycle.pausedStatus;
+    if (paused !== undefined && statusKey(paused) === statusKey(status))
+      return paused;
+    return this.resolveStatus(status);
   }
   async ready(now: Date): Promise<ReadySet> {
     // QCLI-249: readAll().tasks only holds the "tasks" location, which
