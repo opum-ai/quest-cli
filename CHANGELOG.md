@@ -42,6 +42,18 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Added
 
+- **A breaking CHANGELOG section can no longer ship under a patch bump**
+  (QCLI-328; opum-doc ADR
+  `gate-release-prep-on-a-breaking-changelog-entry-at-a-patch-bump`). The
+  motivating case is 0.6.2. Its entry correctly called its envelope change
+  breaking, and it shipped as a patch, so the version number gave consumers
+  no signal. `bun run check:breaking-bump` now runs as a source gate. It reads
+  the notes for `package.json`'s version: `## <version>`, or `## Unreleased`
+  on the bump PR before the changelog is finalized. It fails when those notes
+  carry a `### ... (breaking)` heading and the bump from the previous version
+  heading is patch-level. `--next <x.y.z>` checks a proposed number during
+  release prep. lore-cli mirrors the check. Release tooling only.
+
 - **Promoting `latest` now cuts the GitHub Release too** (QCLI-398, opum-agent
   OPAG-646). GitHub Releases had stopped at v0.6.0 because no release step
   created one, so `releases/latest` still read v0.6.0 after 0.11.0 shipped.
