@@ -45,6 +45,9 @@ export function validateRecord(
   options?: { version?: string; packages?: readonly string[] },
 ): { ok: boolean; problems: string[] };
 
+/** Orders two plain X.Y.Z versions exactly: negative, zero or positive. */
+export function compareReleaseVersions(a: string, b: string): number;
+
 export function checkRollbackState(options: {
   record: PromotionRecord;
   readTags?: ReadTags;

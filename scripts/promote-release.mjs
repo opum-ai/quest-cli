@@ -202,6 +202,14 @@ export function validateRecord(
     problems.push(
       `record names ${JSON.stringify(names)}, expected ${JSON.stringify(packages)}`,
     );
+  // QCLI-391 (paired with lore-cli LCLI-617): the less-than rule below
+  // compares against record.version, and --rollback validates without
+  // {version}, so its shape is checked here rather than assumed.
+  const comparable = STRICT_SEMVER.test(record?.version ?? "");
+  if (!comparable)
+    problems.push(
+      `record's version is ${JSON.stringify(record?.version)}, not a plain X.Y.Z release`,
+    );
   // QCLI-390 (S1, from lore-cli's review of its mirror): a rollback sets
   // `latest` to exactly these values with no receipt, so each must be a
   // real version that is not the one being rolled back -- never a tag name
@@ -217,10 +225,38 @@ export function validateRecord(
       problems.push(
         `record's prior ${PROMOTE_TAG} for ${entry.name} is the release version itself`,
       );
+    // QCLI-391: promotion never moves `latest` backwards, so a genuine
+    // record's prior is always older. A newer one ("5.7.0" in a 5.6.7
+    // record) passes every check above and checkRollbackState, and would
+    // move `latest` onto a version no receipt qualified.
+    else if (
+      comparable &&
+      compareReleaseVersions(entry.priorLatest, record.version) > 0
+    )
+      problems.push(
+        `record's prior ${PROMOTE_TAG} for ${entry.name} is ${entry.priorLatest}, newer than the release ${record.version}; a rollback may only move ${PROMOTE_TAG} backwards`,
+      );
   return { ok: problems.length === 0, problems };
 }
 
 const STRICT_SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+
+/**
+ * Orders two STRICT_SEMVER versions: negative, zero or positive. Each
+ * component compares by length, then lexically -- exact numeric order at any
+ * size, since the grammar forbids leading zeros; Number() would not be past
+ * 2^53. The same comparison as lore-cli's LCLI-617, so the pair's verdicts
+ * cannot diverge on a large component.
+ */
+export function compareReleaseVersions(a, b) {
+  const [left, right] = [a.split("."), b.split(".")];
+  for (let i = 0; i < 3; i++) {
+    if (left[i].length !== right[i].length)
+      return left[i].length - right[i].length;
+    if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
+  }
+  return 0;
+}
 
 /**
  * QCLI-390 (S1): a rollback may only UNDO this record's promotion. Every
