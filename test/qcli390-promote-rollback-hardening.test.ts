@@ -80,6 +80,19 @@ test("QCLI-391: a record whose own version is not X.Y.Z is refused without compa
   }
 });
 
+test("QCLI-391: a non-string version is refused, not coerced into a comparison that throws", () => {
+  // From lore-cli's LCLI-617 cross-read: STRICT_SEMVER.test(["9.9.9"])
+  // coerces the array to "9.9.9" and passes, and the less-than rule then
+  // throws inside compareReleaseVersions instead of refusing the record.
+  for (const version of [["9.9.9"], 999, { toString: () => "9.9.9" }]) {
+    const verdict = validateRecord({ ...record, version });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.problems).toEqual([
+      `record's version is ${JSON.stringify(version)}, not a plain X.Y.Z release`,
+    ]);
+  }
+});
+
 test("S1: a well-formed record still validates", () => {
   expect(validateRecord(record, { version: V })).toEqual({
     ok: true,

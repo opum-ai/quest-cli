@@ -204,8 +204,11 @@ export function validateRecord(
     );
   // QCLI-391 (paired with lore-cli LCLI-617): the less-than rule below
   // compares against record.version, and --rollback validates without
-  // {version}, so its shape is checked here rather than assumed.
-  const comparable = STRICT_SEMVER.test(record?.version ?? "");
+  // {version}, so its shape is checked here rather than assumed. The typeof
+  // comes first because RegExp.test coerces: ["9.9.9"] would pass and then
+  // throw in compareReleaseVersions (lore-cli's check, adopted verbatim).
+  const comparable =
+    typeof record?.version === "string" && STRICT_SEMVER.test(record.version);
   if (!comparable)
     problems.push(
       `record's version is ${JSON.stringify(record?.version)}, not a plain X.Y.Z release`,
