@@ -133,6 +133,14 @@ dated by its own tag. No date here is inferred (QCLI-398).
   belongs on a non-`latest` dist-tag through a separate path that is not
   built. An equal version keeps its existing behaviour. Release tooling only.
 
+- **Completing a paused task names the way back** (QCLI-397). `task complete`
+  on a Paused task refused with "Task transition uses an unconfigured status."
+  Paused is configured; it is just off the status ladder. The refusal now
+  reads `Task <id> is "Paused", the paused status, which is off the status
+  ladder. Bring it back with quest task start <id>, then retry.` The same
+  message applies to `task edit --status` and to a retired paused literal
+  such as "Blocked". The exit code (6) and the refusal itself are unchanged.
+
 ## 0.11.0 - 2026-09-27
 
 The first release under constitution Article 3 (opum-ai/opum-agent

@@ -558,6 +558,16 @@ export function transitionTask(
 ): TaskState {
   const configured = lifecyclePolicy(policy);
   const position = configured.statuses.indexOf(task.status);
+  // QCLI-397: a paused task is off the ladder by design, not unconfigured,
+  // so name its status and the one legal way back instead.
+  if (
+    position < 0 &&
+    (task.status === configured.pausedStatus ||
+      isRetiredPausedStatus(task.status, configured))
+  )
+    throw new RecordValidationError(
+      `Task ${task.id} is "${task.status}", ${task.status === configured.pausedStatus ? "the paused status" : "a retired paused status"}, which is off the status ladder. Bring it back with \`quest task start ${task.id}\`, then retry.`,
+    );
   if (position < 0)
     throw new RecordValidationError(
       "Task transition uses an unconfigured status.",
