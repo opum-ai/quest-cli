@@ -16,7 +16,13 @@ export type WorkspaceFailure =
   | "stray_content"
   | "registry_conflict"
   | "registry_invalid"
-  | "invalid_configuration";
+  | "invalid_configuration"
+  /**
+   * QCLI-330: a `[tasks]` table that cannot be read. Kept distinct from
+   * `invalid_configuration` so the CLI can carry it instead of throwing:
+   * write paths refuse with it, reads carry on (see TaskVocabularyContext).
+   */
+  | "invalid_task_vocabulary";
 
 export class WorkspaceError extends Error {
   constructor(

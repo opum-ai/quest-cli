@@ -16,6 +16,20 @@ export interface TaskVocabulary {
   readonly priorities?: readonly string[];
 }
 
+/**
+ * What one configuration read learned about the vocabulary (QCLI-330,
+ * reviewer finding 2). `problem` is set when the workspace declares a
+ * `[tasks]` table that cannot be read. It is CARRIED, never thrown: the
+ * write paths refuse with it, the manifest reports both fields open, and
+ * doctor reports the problem -- while every read command carries on,
+ * because the manifest is lore-cli's probe and a broken table must not
+ * break it.
+ */
+export interface TaskVocabularyContext {
+  readonly vocabulary: TaskVocabulary;
+  readonly problem?: string;
+}
+
 /** The set `quest init` writes into a fresh workspace. */
 export const defaultTaskVocabulary = {
   types: ["feature", "bug", "chore", "docs", "enhancement", "spike"],
@@ -29,7 +43,14 @@ const configuredKey = {
   priority: "priorities",
 } as const satisfies Record<TaskVocabularyField, keyof TaskVocabulary>;
 
-/** The comparison key: the same trim-and-lowercase `task list` filters by. */
+/**
+ * The comparison key: the same trim-and-lowercase `task list` filters by
+ * (`fold` in src/application/tasks/tasks.ts). It deliberately uses the
+ * same locale-sensitive lowering as that fold rather than `toLowerCase()`,
+ * because a value normalized here must compare equal under the fold that
+ * filters listings; a divergence under a non-en-US locale would be worse
+ * than the shared, consistent behaviour.
+ */
 export function vocabularyKey(value: string): string {
   return value.trim().toLocaleLowerCase();
 }

@@ -1,5 +1,12 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -324,7 +331,11 @@ test("ruling constraint 2: re-running init ADDS the default to a workspace that 
     types: DEFAULT_TYPES,
     priorities: DEFAULT_PRIORITIES,
   });
-  expect(await readFile(tomlPath(root), "utf8")).toContain('name = "Kept"');
+  const toml = await readFile(tomlPath(root), "utf8");
+  expect(toml).toContain('name = "Kept"');
+  expect(toml).toContain(
+    '[tasks]\ntypes = ["feature", "bug", "chore", "docs", "enhancement", "spike"]\npriorities = ["low", "medium", "high", "critical"]\n',
+  );
 });
 
 test("ruling constraint 2: re-running init never changes a configured set, including one that configures a single field", async () => {
@@ -333,7 +344,12 @@ test("ruling constraint 2: re-running init never changes a configured set, inclu
     root,
     'schemaVersion = 1\n\n[tasks]\ntypes = ["story", "defect"]\n',
   );
+  const before = await readFile(tomlPath(root), "utf8");
+  // A bare reconfigure that changes nothing writes nothing at all.
   expect(quest(root, ["init", "--reconfigure", "--json"]).exitCode).toBe(0);
+  expect(await readFile(tomlPath(root), "utf8")).toBe(before);
+  // A --name change writes (name was absent), and the single configured
+  // field survives the rewrite; priorities stay open.
   expect(
     quest(root, ["init", "--reconfigure", "--name", "Renamed", "--json"])
       .exitCode,
@@ -342,6 +358,10 @@ test("ruling constraint 2: re-running init never changes a configured set, inclu
     types: ["story", "defect"],
     priorities: null,
   });
+  const rewritten = await readFile(tomlPath(root), "utf8");
+  expect(rewritten).toContain('name = "Renamed"');
+  expect(rewritten).toContain('types = ["story", "defect"]');
+  expect(rewritten).not.toContain("priorities");
 });
 
 test("a malformed [tasks] table fails closed instead of reading as open", async () => {
@@ -362,4 +382,211 @@ test("a malformed [tasks] table fails closed instead of reading as open", async 
   expect(
     JSON.parse(quest(root, ["task", "list", "--json"]).stdout).data,
   ).toEqual([]);
+});
+
+test("reviewer finding 1: every valid TOML spelling of a [tasks] table reads as configured, and a bare reconfigure never overwrites it", async () => {
+  const spellings = [
+    'schemaVersion = 1\n\n[tasks] # our set\npriorities = ["p0", "p1"]\n',
+    'schemaVersion = 1\n\n[ tasks ]\npriorities = ["p0", "p1"]\n',
+    'schemaVersion = 1\n\n["tasks"]\npriorities = ["p0", "p1"]\n',
+    'schemaVersion = 1\ntasks = { priorities = ["p0", "p1"] }\n',
+    'schemaVersion = 1\ntasks.priorities = ["p0", "p1"]\n',
+  ];
+  for (const spelling of spellings) {
+    const root = await workspace();
+    await writeToml(root, spelling);
+    const refused = create(root, "a", "--priority", "p9");
+    expect(refused.exitCode).toBe(6);
+    expect(JSON.parse(refused.stderr).input).toMatchObject({
+      field: "priority",
+      value: "p9",
+      allowed: ["p0", "p1"],
+    });
+    expect(manifestVocabulary(root)).toEqual({
+      types: null,
+      priorities: ["p0", "p1"],
+    });
+    expect(quest(root, ["init", "--reconfigure", "--json"]).exitCode).toBe(0);
+    // The exact overwrite the reviewer found: bytes must be untouched.
+    expect(await readFile(tomlPath(root), "utf8")).toBe(spelling);
+  }
+});
+
+test("a [tasks] table that declares neither types nor priorities (including a misspelled key) is refused on writes, survives reads, and names itself in doctor", async () => {
+  for (const table of ['type = ["bug"]\n', 'priority = ["high"]\n']) {
+    const root = await workspace();
+    await writeToml(root, `schemaVersion = 1\n\n[tasks]\n${table}`);
+    const refused = create(root, "a", "--type", "bug");
+    expect(refused.exitCode).toBe(6);
+    expect(JSON.parse(refused.stderr).message).toContain("neither");
+    expect(
+      JSON.parse(quest(root, ["task", "list", "--json"]).stdout).data,
+    ).toEqual([]);
+    expect(manifestVocabulary(root)).toEqual({ types: null, priorities: null });
+    const doctor = JSON.parse(quest(root, ["doctor", "--json"]).stdout).data;
+    expect(doctor.healthy).toBe(false);
+    expect(doctor.issues.map((issue: { code: string }) => issue.code)).toEqual([
+      "task_vocabulary_invalid",
+    ]);
+  }
+  // A non-table under `tasks` is the same shape of failure.
+  const root = await workspace();
+  await writeToml(root, 'schemaVersion = 1\ntasks = "nope"\n');
+  expect(create(root, "a", "--type", "bug").exitCode).toBe(6);
+  expect(quest(root, ["task", "list", "--json"]).exitCode).toBe(0);
+});
+
+test("reviewer finding 2: a bad agents.skill_source never fails task reads or writes when no [tasks] table exists, and agents --check still refuses it", async () => {
+  const root = await workspace();
+  await writeToml(
+    root,
+    'schemaVersion = 1\n\n[agents]\nskill_source = "bogus"\n',
+  );
+  expect(quest(root, ["task", "list", "--json"]).exitCode).toBe(0);
+  expect(manifestVocabulary(root)).toEqual({ types: null, priorities: null });
+  const created = create(root, "a", "--type", "anything");
+  expect(created.exitCode).toBe(0);
+  expect(JSON.parse(quest(root, ["doctor", "--json"]).stdout).data).toEqual({
+    healthy: true,
+    issues: [],
+  });
+  // The vocabulary fix must not have weakened the agents check's own guard.
+  const agents = quest(root, [
+    "agents",
+    "--check",
+    "--target",
+    "claude",
+    "--json",
+  ]);
+  expect(agents.exitCode).toBe(6);
+});
+
+test("a malformed [tasks] table refuses every write, while every read carries on and doctor names the problem", async () => {
+  const root = await workspace();
+  await writeToml(root, "schemaVersion = 1\n");
+  expect(create(root, "a").exitCode).toBe(0);
+  await writeToml(root, "schemaVersion = 1\n\n[tasks]\ntypes = []\n");
+
+  expect(quest(root, ["task", "list", "--json"]).exitCode).toBe(0);
+  expect(quest(root, ["task", "view", "T-1", "--json"]).exitCode).toBe(0);
+  expect(manifestVocabulary(root)).toEqual({ types: null, priorities: null });
+
+  const doctor = JSON.parse(quest(root, ["doctor", "--json"]).stdout).data;
+  expect(doctor.healthy).toBe(false);
+  expect(doctor.issues).toEqual([
+    expect.objectContaining({
+      code: "task_vocabulary_invalid",
+    }),
+  ]);
+
+  const refused = create(root, "b", "--type", "bug");
+  expect(refused.exitCode).toBe(6);
+  expect(JSON.parse(refused.stderr).message).toContain("must not be empty");
+  const edit = quest(root, [
+    "task",
+    "edit",
+    "T-1",
+    "--title",
+    "renamed",
+    ...ACTOR,
+    "--json",
+  ]);
+  expect(edit.exitCode).toBe(6);
+  const operations = join(root, "ops.jsonl");
+  await writeFile(
+    operations,
+    JSON.stringify({
+      reference: "T-1",
+      operationId: "o1",
+      patch: { title: "x" },
+    }),
+  );
+  const batch = quest(root, [
+    "task",
+    "edit-batch",
+    "--file",
+    operations,
+    ...ACTOR,
+    "--json",
+  ]);
+  expect(batch.exitCode).toBe(6);
+  // Nothing was written by any of the refusals.
+  expect(
+    JSON.parse(quest(root, ["task", "list", "--json"]).stdout).data,
+  ).toEqual([expect.objectContaining({ id: "T-1", title: "a" })]);
+});
+
+test("reviewer finding 3: a reconfigure that changes nothing writes nothing, so comments and unknown tables survive", async () => {
+  const root = await workspace();
+  const authored =
+    '# leading comment\nschemaVersion = 1\nname = "Kept"\n\n# our vocabulary\n[tasks]\ntypes = ["story"]\n\n[projection]\nowner = "someone"\n';
+  await writeToml(root, authored);
+  expect(quest(root, ["init", "--reconfigure", "--json"]).exitCode).toBe(0);
+  expect(await readFile(tomlPath(root), "utf8")).toBe(authored);
+  expect(
+    quest(root, ["init", "--reconfigure", "--name", "Kept", "--json"]).exitCode,
+  ).toBe(0);
+  expect(await readFile(tomlPath(root), "utf8")).toBe(authored);
+});
+
+test("migration imports priority and type verbatim, never validated, and doctor reports them", async () => {
+  const root = await workspace();
+  const source = await tempRoot();
+  const tasks = join(source, "backlog", "tasks");
+  await mkdir(tasks, { recursive: true });
+  await writeFile(
+    join(tasks, "TASK-1.md"),
+    "---\nid: TASK-1\ntitle: Imported verbatim\nstatus: To Do\npriority: High\ntype: Story\n---\n",
+  );
+  const preview = JSON.parse(
+    quest(root, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      source,
+      "--json",
+    ]).stdout,
+  );
+  expect(preview.kind).toBe("migration.backlog-preview");
+  const applied = quest(root, [
+    "migration",
+    "backlog",
+    "apply",
+    "--source",
+    source,
+    "--digest",
+    preview.data.digest,
+    ...ACTOR,
+    "--json",
+  ]);
+  expect(applied.exitCode).toBe(0);
+  const imported = JSON.parse(
+    quest(root, ["task", "view", "T-1", "--json"]).stdout,
+  ).data;
+  expect(imported).toMatchObject({ priority: "High", type: "Story" });
+  const doctor = JSON.parse(quest(root, ["doctor", "--json"]).stdout).data;
+  const issues = doctor.issues
+    .filter(
+      (issue: { code: string }) => issue.code === "task_vocabulary_off_set",
+    )
+    .map(({ hint, ...rest }: { hint: string }) => {
+      expect(hint.length).toBeGreaterThan(0);
+      return rest;
+    });
+  expect(issues).toEqual([
+    {
+      code: "task_vocabulary_off_set",
+      taskId: "T-1",
+      field: "type",
+      value: "Story",
+    },
+    {
+      code: "task_vocabulary_off_set",
+      taskId: "T-1",
+      field: "priority",
+      value: "High",
+      normalizesTo: "high",
+    },
+  ]);
 });

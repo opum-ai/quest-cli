@@ -162,22 +162,40 @@ export async function reconfigureWorkspace(
   const current = configured
     ? await port.readConfiguration(identity.worktreePath)
     : ({ schemaVersion: 1 } as const);
-  await port.writeConfiguration(
-    identity.worktreePath,
-    serializeConfiguration({
-      name: input.name ?? current.name,
-      taskIdPrefix: input.taskIdPrefix ?? current.taskIdPrefix,
-      agentSkillSource: input.agentSkillSource ?? current.agentSkillSource,
-      // QCLI-330: re-running init ADDS the canonical default to a workspace
-      // that configures neither field, and never touches one that
-      // configures either: a workspace that declared only `types` left
-      // `priorities` open on purpose, and filling it in would overrule
-      // that. serializeConfiguration writes only the fields it is given,
-      // so dropping this line would ALSO erase a configured table.
-      taskVocabulary:
-        input.taskVocabulary ?? current.taskVocabulary ?? defaultTaskVocabulary,
-    }),
-  );
+  // QCLI-330: re-running init ADDS the canonical default to a workspace
+  // that configures neither field, and never touches one that configures
+  // either: a workspace that declared only `types` left `priorities` open
+  // on purpose, and filling it in would overrule that.
+  const next: WorkspaceInitializationInput = {
+    name: input.name ?? current.name,
+    taskIdPrefix: input.taskIdPrefix ?? current.taskIdPrefix,
+    agentSkillSource: input.agentSkillSource ?? current.agentSkillSource,
+    taskVocabulary:
+      input.taskVocabulary ?? current.taskVocabulary ?? defaultTaskVocabulary,
+  };
+  // serializeConfiguration rewrites the WHOLE file, dropping comments and
+  // any table Quest does not serialize, so a no-op reconfigure must not
+  // write at all (reviewer finding 3): a reconfigure that changes nothing
+  // is the run that must change nothing, not even the file's comments.
+  const pick = (c: WorkspaceInitializationInput) => ({
+    name: c.name,
+    taskIdPrefix: c.taskIdPrefix,
+    agentSkillSource: c.agentSkillSource,
+    taskVocabulary: c.taskVocabulary,
+  });
+  if (
+    JSON.stringify(pick(next)) !==
+    JSON.stringify({
+      name: current.name,
+      taskIdPrefix: current.taskIdPrefix,
+      agentSkillSource: current.agentSkillSource,
+      taskVocabulary: current.taskVocabulary,
+    })
+  )
+    await port.writeConfiguration(
+      identity.worktreePath,
+      serializeConfiguration(next),
+    );
   return identity;
 }
 

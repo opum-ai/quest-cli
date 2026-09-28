@@ -13,7 +13,7 @@ import { LocalTaskRepository } from "../application/tasks/local-task-repository.
 import {
   defaultTaskLifecyclePolicy,
   TaskService,
-  type TaskVocabulary,
+  type TaskVocabularyContext,
 } from "../application/tasks/tasks.ts";
 
 /** The sole CLI composition root permitted to construct concrete adapters. */
@@ -131,8 +131,8 @@ export function createTaskBindingService(model: TaskBindingReadModel) {
 /** Sole composition root for the CLI task service with milestone closure capability. */
 export function createTaskService(
   root: string,
-  /** QCLI-330: the workspace's `[tasks]` table; omitted means open. */
-  vocabulary: TaskVocabulary = {},
+  /** QCLI-330: the workspace's `[tasks]` table, plus any problem reading it. */
+  context: TaskVocabularyContext = { vocabulary: {} },
 ): TaskService {
   const repository = new LocalTaskRepository(
     join(root, ".quest", "tasks"),
@@ -146,6 +146,7 @@ export function createTaskService(
     // Real typed batch capability port (QCLI-122 blocker #4): no casting.
     repository,
     undefined,
-    vocabulary,
+    context.vocabulary,
+    context.problem,
   );
 }

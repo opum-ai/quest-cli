@@ -60,7 +60,7 @@ import {
   SurvivorNotFoundError,
   type TaskResolutionKind,
   type TaskService,
-  type TaskVocabulary,
+  type TaskVocabularyContext,
   taskResolutionKinds,
   VocabularyValueError,
 } from "../application/tasks/tasks.ts";
@@ -1326,28 +1326,35 @@ export async function runQuest(
     let root: Promise<string> | undefined;
     const resolvedRoot = () => (root ??= taskStoreRoot());
     const git = createGitPort();
-    // QCLI-330: read once per invocation. Only "no workspace.toml here" (or
-    // the QUEST_TASK_STORE override, which has none) reads as open; a
-    // malformed [tasks] table is RETHROWN, because swallowing it the way
-    // configuredTaskIdPrefix swallows a bad prefix would switch validation
-    // off without saying so.
-    let taskVocabulary: Promise<TaskVocabulary> | undefined;
+    // QCLI-330: read once per invocation. A [tasks] table that cannot be read
+    // is CARRIED, never thrown (reviewer finding 2): the write paths refuse
+    // with the problem, the manifest reports both fields open, doctor reports
+    // the problem, and every read command carries on -- the manifest is
+    // lore-cli's probe, so a broken table must not break it. Any other
+    // workspace error (not initialized, a bad agents.skill_source) keeps its
+    // own behaviour and never leaks into the vocabulary.
+    let taskVocabulary: Promise<TaskVocabularyContext> | undefined;
     const configuredTaskVocabulary = () =>
       (taskVocabulary ??= (async () => {
-        if (process.env.QUEST_TASK_STORE !== undefined) return {};
+        if (process.env.QUEST_TASK_STORE !== undefined)
+          // The override names a raw task store and no workspace
+          // configuration is read from it (configuredTaskIdPrefix does the
+          // same), so the vocabulary is open even when the store happens to
+          // sit inside a real workspace.
+          return { vocabulary: {} };
         try {
           const configuration = await resolveWorkspaceConfiguration(
             createWorkspacePort(),
             process.cwd(),
           );
-          return configuration.taskVocabulary ?? {};
+          return { vocabulary: configuration.taskVocabulary ?? {} };
         } catch (error) {
           if (
             error instanceof WorkspaceError &&
-            error.code === "invalid_configuration"
+            error.code === "invalid_task_vocabulary"
           )
-            throw error;
-          return {};
+            return { vocabulary: {}, problem: error.message };
+          return { vocabulary: {} };
         }
       })());
     const taskService = async () =>
@@ -2047,6 +2054,7 @@ export async function runQuest(
                 await taskReader(),
                 (await taskService()).lifecycle,
                 (await taskService()).vocabulary,
+                (await taskService()).vocabularyProblem,
               );
       const kind =
         arguments_[0] === "overview"

@@ -146,6 +146,15 @@ export interface PlanningDoctorReport {
       }
     | {
         /**
+         * QCLI-330: the workspace declares a [tasks] table that cannot be
+         * read. Reported so doctor can name the problem without failing
+         * itself -- reads carry on, writes refuse (reviewer finding 2).
+         */
+        readonly code: "task_vocabulary_invalid";
+        readonly hint: string;
+      }
+    | {
+        /**
          * QCLI-330: a stored `type` or `priority` outside the workspace's
          * configured set. Reported, never rewritten: the ADR keeps history
          * as written. `normalizesTo` is present when only case differs, so
@@ -609,6 +618,7 @@ export class PlanningService {
     tasks: TaskReader,
     lifecycle: LifecyclePolicy = defaultLifecyclePolicy,
     vocabulary: TaskVocabulary = {},
+    vocabularyProblem?: string,
   ): Promise<PlanningDoctorReport> {
     const [planning, taskSnapshot] = await Promise.all([
       this.repository.read(),
@@ -675,6 +685,14 @@ export class PlanningService {
         records.map((record) => ("task" in record ? record.task : record)),
         vocabulary,
       ),
+      ...(vocabularyProblem === undefined
+        ? []
+        : [
+            {
+              code: "task_vocabulary_invalid" as const,
+              hint: vocabularyProblem,
+            },
+          ]),
     ];
     return { healthy: issues.length === 0, issues };
   }

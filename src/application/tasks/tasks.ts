@@ -42,6 +42,7 @@ import { type EditPatchVocabulary, foldEditPatch } from "./edit-patch.ts";
 export {
   defaultTaskVocabulary,
   type TaskVocabulary,
+  type TaskVocabularyContext,
   VocabularyValueError,
 } from "../../domain/tasks/vocabulary.ts";
 /** Re-exported so the CLI can validate `--resolution` without importing the domain. */
@@ -362,6 +363,13 @@ export class TaskService {
      * migration included -- keeps today's unvalidated behaviour.
      */
     private readonly taskVocabulary: TaskVocabulary = {},
+    /**
+     * QCLI-330 (reviewer finding 2): a [tasks] table the workspace declares
+     * but that cannot be read. Every WRITE refuses with it, as a
+     * RecordValidationError carrying the configuration message; reads carry
+     * on untouched, so a broken table breaks no read command.
+     */
+    private readonly configuredVocabularyProblem?: string,
   ) {
     // Blocker #4 (fourth pass): the batch port is injected as a real typed
     // constructor argument; no structural `as unknown` casting anywhere.
@@ -483,6 +491,8 @@ export class TaskService {
     input: TaskInput,
     operationId: string,
   ): Promise<TaskMutationResult> {
+    if (this.configuredVocabularyProblem !== undefined)
+      throw new RecordValidationError(this.configuredVocabularyProblem);
     const snapshot = await this.repository.readAll();
     const located = this.taskRecords(snapshot);
     const task = this.stamped(
@@ -665,6 +675,10 @@ export class TaskService {
   /** QCLI-330: the configured type/priority sets doctor and the manifest report. */
   get vocabulary(): TaskVocabulary {
     return this.taskVocabulary;
+  }
+  /** QCLI-330: the problem reading that vocabulary, when the workspace declares a broken [tasks] table. */
+  get vocabularyProblem(): string | undefined {
+    return this.configuredVocabularyProblem;
   }
   /** The configured lifecycle policy; status-flow reports it, never a hardcoded copy. */
   get lifecycle(): LifecyclePolicy {
@@ -1110,6 +1124,9 @@ export class TaskService {
     operationId: string,
     options?: TaskEditOptions,
   ): Promise<TaskMutationResult> {
+    // A broken [tasks] table refuses the write before anything else is read.
+    if (this.configuredVocabularyProblem !== undefined)
+      throw new RecordValidationError(this.configuredVocabularyProblem);
     // QCLI-277: checked first, before task resolution or any other work, so
     // a stale caller-supplied precondition changes nothing -- not even a
     // read. See TaskEditOptions for why this is a distinct check from the
@@ -1277,6 +1294,9 @@ export class TaskService {
       }
     | TaskWriteConflict
   > {
+    // A broken [tasks] table refuses the whole batch, like every other write.
+    if (this.configuredVocabularyProblem !== undefined)
+      throw new RecordValidationError(this.configuredVocabularyProblem);
     // Blocker #7 (third pass): the batch port is enforced by construction —
     // no unknown runtime casts.
     const repository = this.repository as LifecycleTaskRepository;

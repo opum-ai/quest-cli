@@ -53,45 +53,68 @@ function tomlTableString(
 /**
  * QCLI-330: the `[tasks]` table's `types` and `priorities` arrays. This is
  * the one table Quest reads through a real TOML parser, because the values
- * are arrays and the line-matching helpers above read only strings. A
- * malformed table fails closed: reading it as "open" would switch off the
- * validation the workspace asked for, silently.
+ * are arrays and the line-matching helpers above read only strings.
+ *
+ * Presence is decided from the PARSED document, never a line match
+ * (reviewer finding 1): `[ tasks ]`, `["tasks"]`, an inline
+ * `tasks = {...}` and dotted `tasks.priorities = [...]` are all valid TOML,
+ * and all mean a table is configured. A malformed `[tasks]` throws
+ * `invalid_task_vocabulary` -- the one error the CLI carries instead of
+ * throwing -- so a declared table never silently reads as open, which is
+ * what let `init --reconfigure` overwrite a configured set.
+ *
+ * The rest of the file keeps its lenient line-based reads, so an unrelated
+ * TOML problem leaves the vocabulary open rather than being attributed to
+ * `[tasks]` (reviewer finding 4). A file that does not parse at all fails
+ * closed only when a `[tasks]`-looking section is present; otherwise the
+ * vocabulary is open, exactly as it was before QCLI-330.
+ *
+ * A table that carries neither `types` nor `priorities` is refused too: it
+ * declares nothing, and reading it as open would be the same silent trap.
+ * Unknown keys beside a recognised one are ignored, the way `[agents]`
+ * ignores keys it does not read, so a newer Quest can extend the table
+ * without an older one failing on it.
  */
 function tomlTaskVocabulary(content: string): TaskVocabulary | undefined {
-  if (!/^\[tasks\]\s*$/mu.test(content)) return undefined;
   let parsed: unknown;
   try {
     parsed = Bun.TOML.parse(content);
   } catch {
+    if (!/^\s*\[\s*"?tasks"?\s*\]/mu.test(content)) return undefined;
     throw new WorkspaceError(
-      "invalid_configuration",
+      "invalid_task_vocabulary",
       ".quest/workspace.toml: the [tasks] table could not be parsed as TOML.",
     );
   }
   const table = (parsed as { tasks?: unknown }).tasks;
+  if (table === undefined) return undefined;
   if (table === null || typeof table !== "object" || Array.isArray(table))
     throw new WorkspaceError(
-      "invalid_configuration",
+      "invalid_task_vocabulary",
       ".quest/workspace.toml: [tasks] must be a table.",
+    );
+  const entries = table as Record<string, unknown>;
+  if (entries.types === undefined && entries.priorities === undefined)
+    throw new WorkspaceError(
+      "invalid_task_vocabulary",
+      '.quest/workspace.toml: [tasks] declares neither "types" nor "priorities"; a table that configures nothing cannot be read as open, or `quest init --reconfigure` would overwrite it. Remove the table to leave the fields open.',
     );
   const vocabulary: {
     types?: readonly string[];
     priorities?: readonly string[];
   } = {};
   for (const key of ["types", "priorities"] as const) {
-    const value = (table as Record<string, unknown>)[key];
+    const value = entries[key];
     if (value === undefined) continue;
     const problem = vocabularyListProblem(value);
     if (problem !== undefined)
       throw new WorkspaceError(
-        "invalid_configuration",
+        "invalid_task_vocabulary",
         `.quest/workspace.toml: tasks.${key} ${problem}.`,
       );
     vocabulary[key] = value as readonly string[];
   }
-  return vocabulary.types === undefined && vocabulary.priorities === undefined
-    ? undefined
-    : vocabulary;
+  return vocabulary;
 }
 
 async function git(path: string, args: readonly string[]): Promise<string> {
