@@ -159,6 +159,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/qualification/version-parity.mjs --require
 
+      # QCLI-403: one version means one bump level. A `### ... (breaking)`
+      # heading in EITHER CHANGELOG's notes for this version refuses a
+      # patch-level bump of the pair. lore-cli's CHANGELOG is read by ref on
+      # its main, the ref the parity gate above reads; an unreadable or
+      # sectionless CHANGELOG refuses. Here rather than in source-gates,
+      # because a network read would make that required context flaky.
+      - name: Gate the pair's bump level on both CHANGELOGs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/check-breaking-bump.mjs --pair
+
       # Fail on the credential BEFORE touching the registry, and say which
       # fault it is. npm returns E404 on PUT both for a token that cannot write
       # to the scope and for one that is not a token at all, so the publish
