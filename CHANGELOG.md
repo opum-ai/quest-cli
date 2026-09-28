@@ -78,6 +78,18 @@ dated by its own tag. No date here is inferred (QCLI-398).
   `task edit --status Paused` is still refused, because `task pause` remains
   the only way in.
 
+- **A flag where a title or id belongs is named, not swallowed** (QCLI-353,
+  reported by opum-agent). `quest task create --title "x"` used to fail with
+  only "task create received invalid arguments." The title is positional, so
+  `--title` became the title and the rest of the arguments could not be
+  parsed. Each command that takes a positional title or id now refuses a
+  first argument starting with `--` with exit 2, before anything runs. That
+  covers task create/view/edit/complete/archive/pause/start/demote, draft
+  create/view/promote/archive, and milestone and decision
+  create/view/edit/delete, plus milestone archive. The message names the
+  token and the usage, for example `quest task create <title> [flags]`.
+  A title can no longer begin with `--`.
+
 - **`quest browser` exits when its workspace is deleted** (QCLI-348,
   reported by opum-cli-e2e). A browser started as a daemon ran with no upper
   bound, even after its workspace was deleted. The server now checks
