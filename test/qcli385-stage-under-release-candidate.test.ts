@@ -50,7 +50,12 @@ test("every npm publish in the local publisher goes through publishArgs", async 
   // publish call spelling its own argument list, which is how a tagless
   // publish would come back.
   expect(source.match(/"publish",/g)?.length).toBe(1);
-  expect(source.match(/publishArgs\(/g)?.length).toBeGreaterThanOrEqual(3);
+  // QCLI-400: the definition, and its one spawn inside runPublish, which
+  // takes a tarball rather than an argument list.
+  expect(source.match(/publishArgs\(/g)?.length).toBe(2);
+  expect(source).toMatch(
+    /execFile\(\s*"npm",\s*publishArgs\(tarball, options\)/,
+  );
 });
 
 test("QCLI-399: the one publish that does not stage is the X launcher, onto latest, in promote-release only", async () => {

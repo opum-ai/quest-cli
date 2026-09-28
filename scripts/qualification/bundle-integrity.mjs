@@ -17,6 +17,7 @@ import { promisify } from "node:util";
 
 import { expectedTarballNames, isLauncherVersionOf } from "./e2e-receipt.mjs";
 import { REQUIRED_PLATFORMS } from "./native-execution-receipt.mjs";
+import { REGISTRY_PINS } from "./registry-visibility.mjs";
 
 const execFile = promisify(execFileCallback);
 
@@ -38,6 +39,7 @@ export async function registryHoldsTarball(
       "view",
       `${pkgName}@${version}`,
       "dist.integrity",
+      ...REGISTRY_PINS,
     ]);
     const actual = stdout.trim();
     return { ok: actual === expected, expected, actual };

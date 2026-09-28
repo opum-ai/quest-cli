@@ -40,6 +40,21 @@ const execFileDefault = promisify(execFileCallback);
 export const CONSUMER_REGISTRY = "https://registry.npmjs.org";
 
 /**
+ * QCLI-400: every npm call in the release scripts that reaches the registry
+ * passes both. npm prefers a configured `@opum-ai:registry` over
+ * `--registry` for a scoped package (measured on npm 12.1.0: a project
+ * .npmrc pointing the scope at a dead host fails the call with --registry
+ * alone, and succeeds with both), so the first flag by itself would let a
+ * scope registry in any npmrc receive a publish or answer a read. The same
+ * pair as lore-cli's REGISTRY_PINS (LCLI-621). Auth still resolves: every
+ * token this repository writes is keyed `//registry.npmjs.org/`.
+ */
+export const REGISTRY_PINS = Object.freeze([
+  `--registry=${CONSUMER_REGISTRY}/`,
+  `--@opum-ai:registry=${CONSUMER_REGISTRY}/`,
+]);
+
+/**
  * The settle margin, in milliseconds, applied after every platform package
  * first resolves consumer-side.
  *
@@ -207,7 +222,7 @@ export async function readStageList(
   try {
     const { stdout } = await execFile(
       "npm",
-      ["stage", "list", pkgName, "--json"],
+      ["stage", "list", pkgName, "--json", ...REGISTRY_PINS],
       { env: { ...process.env, ...env } },
     );
     const parsed = JSON.parse(stdout || "[]");

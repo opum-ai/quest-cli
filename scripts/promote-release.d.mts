@@ -117,6 +117,18 @@ export function publishFinalLauncher(options: {
   holds?: (name: string, version: string, tarball: string) => Promise<Held>;
 }): Promise<string>;
 
+export const README_RECHECK: string;
+
+export function readBackReadme(options?: {
+  execFile?: (
+    command: string,
+    args: readonly string[],
+  ) => Promise<{ stdout: string; stderr?: string }>;
+  attempts?: number;
+  delayMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<{ bytes: number | null; attempts: number; error?: string }>;
+
 export function verifyFinalLauncher(options: {
   version: string;
   finalTarball: string;

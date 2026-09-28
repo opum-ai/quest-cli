@@ -175,7 +175,7 @@ jobs:
           set +e
           unset NODE_AUTH_TOKEN
           echo "::group::whoami"
-          who=$(npm whoami 2>&1); code=$?
+          who=$(npm whoami --registry=https://registry.npmjs.org/ --@opum-ai:registry=https://registry.npmjs.org/ 2>&1); code=$?
           echo "$who"
           echo "::endgroup::"
           if [ $code -ne 0 ]; then
@@ -183,7 +183,7 @@ jobs:
           else
             echo "::notice::A stored credential authenticates as ${who}. An E404 on PUT below therefore means the token lacks write access to the @opum-ai scope, not that it is invalid."
             echo "::group::access"
-            npm access list packages "$who" 2>&1 | head -20
+            npm access list packages "$who" --registry=https://registry.npmjs.org/ --@opum-ai:registry=https://registry.npmjs.org/ 2>&1 | head -20
             echo "::endgroup::"
           fi
 
@@ -227,7 +227,7 @@ jobs:
           # package directory, which repacks the working tree (QCLI-368).
           for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64; do
             echo "::group::@opum-ai/quest-${target}"
-            npm publish "candidate/tarballs/opum-ai-quest-${target}-${version}.tgz" --access public --tag release-candidate $DRY
+            npm publish "candidate/tarballs/opum-ai-quest-${target}-${version}.tgz" --access public --tag release-candidate --registry=https://registry.npmjs.org/ --@opum-ai:registry=https://registry.npmjs.org/ $DRY
             echo "::endgroup::"
           done
 
@@ -264,7 +264,7 @@ jobs:
           unset NODE_AUTH_TOKEN
           launcher=$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")
           echo "::group::@opum-ai/quest@${launcher}"
-          npm publish "candidate/tarballs/opum-ai-quest-${launcher}.tgz" --access public --tag release-candidate $DRY
+          npm publish "candidate/tarballs/opum-ai-quest-${launcher}.tgz" --access public --tag release-candidate --registry=https://registry.npmjs.org/ --@opum-ai:registry=https://registry.npmjs.org/ $DRY
           echo "::endgroup::"
 
       # Retries, because npm's CDN does not serve a version the instant the
@@ -306,7 +306,7 @@ jobs:
           for attempt in $(seq 1 "$max_attempts"); do
             missing=""
             for spec in $specs; do
-              npm view "@opum-ai/${spec}" version >/dev/null 2>&1 || missing="${missing} ${spec}"
+              npm view "@opum-ai/${spec}" version --registry=https://registry.npmjs.org/ --@opum-ai:registry=https://registry.npmjs.org/ >/dev/null 2>&1 || missing="${missing} ${spec}"
             done
             if [ -z "$missing" ]; then
               echo "all seven packages visible on the registry (after ${attempt} checks, ~${elapsed}s elapsed)"
