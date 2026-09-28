@@ -132,6 +132,18 @@ Write acceptance criteria as outcomes someone else could verify without asking
 you what you meant. An id is allocated for you; pass \`--id\` only to reserve a
 specific one.
 
+A criterion also has to stay true until someone checks it. Do not put a count
+of anything the task does not control into a criterion: live processes, open
+pull requests, records in a directory, rows in a report. The world keeps moving
+while the task is open. "The three leaked daemons are reaped" goes false as
+soon as a fourth one starts. It is still clear and still checkable, but it is no
+longer true, so whoever checks it either ticks it against a stale number or
+cannot tick it at all. Write that kind of criterion to enumerate when it is
+checked, for example "every leaked daemon alive at fix time is reaped". A count
+of what the task itself produces is safe, such as the files it changes or the
+flags it adds. A count of live or external state is not safe. The problem is a
+number that goes stale, not numbers in general.
+
 ## Auto-allocated ids are refs-aware
 
 Omitting \`--id\` checks every local branch and remote-tracking ref for the same
