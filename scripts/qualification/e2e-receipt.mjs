@@ -31,6 +31,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { checkLauncherEquivalence } from "./launcher-equivalence.mjs";
 import { REQUIRED_PLATFORMS } from "./native-execution-receipt.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -38,6 +39,7 @@ const execFile = promisify(execFileCallback);
 export const RECEIPT_KIND = "opum.qualification-receipt.v1";
 export const RECEIPT_REPOSITORY = "opum-ai/opum-cli-e2e";
 export const PRODUCT = "quest";
+export const LAUNCHER = "@opum-ai/quest";
 
 const OVERRIDE_FIELDS = Object.freeze(["by", "reason", "task", "adr"]);
 const COMMIT_HEX = /^[0-9a-f]{40}$/;
@@ -47,12 +49,40 @@ export function receiptPath(version) {
   return `receipts/${PRODUCT}/${version}.json`;
 }
 
-/** The seven archives a quest release consists of, named as `npm pack` names them. */
-export function expectedTarballNames(version) {
+/**
+ * QCLI-399: is `launcherVersion` an rc of exactly `version`? opum-cli-e2e's
+ * receipts/README.md ("Root launcher rc-staging") validates it against
+ * ^<X>-rc\.[1-9][0-9]*$ with X taken from the release, never a bare pattern
+ * that an rc of some other release would also satisfy.
+ */
+export function isLauncherVersionOf(version, launcherVersion) {
+  const prefix = `${version}-rc.`;
+  return (
+    typeof launcherVersion === "string" &&
+    launcherVersion.startsWith(prefix) &&
+    /^[1-9][0-9]*$/.test(launcherVersion.slice(prefix.length))
+  );
+}
+
+/** `@opum-ai/quest-linux-x64` -> `opum-ai-quest-linux-x64-<v>.tgz`, as npm pack names it. */
+export function tarballName(pkgName, version) {
+  return `${pkgName.replace("@", "").replace("/", "-")}-${version}.tgz`;
+}
+
+/**
+ * The seven archives a quest release STAGES, named as `npm pack` names them:
+ * the root launcher at its rc version (QCLI-399) and the six platforms at X.
+ * The X launcher is not one of them; it is published only on promotion.
+ */
+export function expectedTarballNames(version, launcherVersion) {
+  if (!isLauncherVersionOf(version, launcherVersion))
+    throw new Error(
+      `the launcher version must be ${version}-rc.<N>, got ${JSON.stringify(launcherVersion)}`,
+    );
   return [
-    `opum-ai-quest-${version}.tgz`,
-    ...REQUIRED_PLATFORMS.map(
-      (platform) => `opum-ai-quest-${platform}-${version}.tgz`,
+    tarballName(LAUNCHER, launcherVersion),
+    ...REQUIRED_PLATFORMS.map((platform) =>
+      tarballName(`${LAUNCHER}-${platform}`, version),
     ),
   ];
 }
@@ -61,10 +91,19 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+async function digestTgz(directory) {
+  const digests = {};
+  for (const name of (await readdir(directory)).sort())
+    if (name.endsWith(".tgz"))
+      digests[name] = sha256(await readFile(join(directory, name)));
+  return digests;
+}
+
 /**
  * Reads a downloaded quest-candidate-bundle and re-derives every tarball
- * digest from the bytes on disk. The bundle's own sha256.txt is not consulted:
- * a document agreeing with itself proves nothing about the files beside it.
+ * digest from the bytes on disk, the never-staged X launcher in final/
+ * included. The bundle's own sha256.txt files are not consulted: a document
+ * agreeing with itself proves nothing about the files beside it.
  */
 export async function readBundle(bundleDir) {
   const metadata = JSON.parse(
@@ -74,11 +113,62 @@ export async function readBundle(bundleDir) {
     ),
   );
   const directory = join(bundleDir, "tarballs");
-  const tarballs = {};
-  for (const name of (await readdir(directory)).sort())
-    if (name.endsWith(".tgz"))
-      tarballs[name] = sha256(await readFile(join(directory, name)));
-  return { metadata, directory, tarballs };
+  const finalDirectory = join(bundleDir, "final");
+  return {
+    metadata,
+    directory,
+    tarballs: await digestTgz(directory),
+    finalDirectory,
+    final: await digestTgz(finalDirectory).catch(() => ({})),
+  };
+}
+
+/**
+ * QCLI-399: the bundle's launcher block, checked against the release rather
+ * than trusted. Returns the staged rc version and the final X launcher's
+ * file, or the problems that make them unusable.
+ */
+export function bundleLauncher(bundle, version) {
+  const launcher = bundle.metadata?.launcher;
+  if (!launcher || typeof launcher !== "object" || Array.isArray(launcher))
+    return {
+      ok: false,
+      problems: [
+        "bundle metadata has no launcher block; it predates root-launcher rc-staging (QCLI-399) and cannot be published",
+      ],
+    };
+  const problems = [];
+  const stagedVersion = launcher.stagedVersion;
+  if (launcher.name !== LAUNCHER)
+    problems.push(
+      `bundle launcher is ${JSON.stringify(launcher.name)}, not ${LAUNCHER}`,
+    );
+  if (!isLauncherVersionOf(version, stagedVersion))
+    problems.push(
+      `bundle launcher stages as ${JSON.stringify(stagedVersion)}, not ${version}-rc.<N>`,
+    );
+  if (launcher.finalVersion !== version)
+    problems.push(
+      `bundle launcher's final version is ${JSON.stringify(launcher.finalVersion)}, the release is ${version}`,
+    );
+  const finalName = tarballName(LAUNCHER, version);
+  const finalFiles = Object.keys(bundle.final ?? {});
+  if (finalFiles.length !== 1 || finalFiles[0] !== finalName)
+    problems.push(
+      `bundle final/ must hold exactly ${finalName}, holds ${JSON.stringify(finalFiles)}`,
+    );
+  if (problems.length) return { ok: false, problems };
+  return {
+    ok: true,
+    problems,
+    stagedVersion,
+    stagedTarball: join(bundle.directory, tarballName(LAUNCHER, stagedVersion)),
+    final: {
+      filename: finalName,
+      path: join(bundle.finalDirectory, finalName),
+      sha256: bundle.final[finalName],
+    },
+  };
 }
 
 /**
@@ -90,7 +180,7 @@ export async function readBundle(bundleDir) {
  */
 export function evaluateReceipt(
   doc,
-  { version, commit, releaseRunId, tarballs },
+  { version, commit, releaseRunId, tarballs, launcherVersion, finalTarball },
 ) {
   if (!doc || typeof doc !== "object" || Array.isArray(doc))
     return {
@@ -156,6 +246,10 @@ export function evaluateReceipt(
         `${name}: named in the receipt but not part of this release`,
       );
 
+  problems.push(
+    ...evaluateLauncher(doc, { version, launcherVersion, finalTarball }),
+  );
+
   const verdict = evaluateVerdict(doc);
   problems.push(...verdict.problems);
   return {
@@ -163,6 +257,64 @@ export function evaluateReceipt(
     problems,
     override: verdict.override,
   };
+}
+
+/**
+ * QCLI-399, opum-cli-e2e TASK-126 (receipts/README.md blob 241ac885, "Root
+ * launcher rc-staging"): the pass-1 receipt names the staged rc launcher and
+ * carries opum-cli-e2e's OWN substitution verdict over the bundle's rc and X
+ * launchers, with the X launcher's digest. An override waives the verdict
+ * field only; it does not waive this, because Article 3 clause 5 is what
+ * makes publishing X to `latest` legitimate at all.
+ */
+function evaluateLauncher(doc, { version, launcherVersion, finalTarball }) {
+  const problems = [];
+  // Against the release's X, which the receipt's own version must equal (a
+  // difference there is already its own problem, and is not reported twice).
+  if (!isLauncherVersionOf(version, doc.launcherVersion))
+    problems.push(
+      `launcherVersion must be ${version}-rc.<N>, got ${JSON.stringify(doc.launcherVersion)}`,
+    );
+  else if (doc.launcherVersion !== launcherVersion)
+    problems.push(
+      `receipt qualified launcher ${doc.launcherVersion}, the bundle stages ${launcherVersion}`,
+    );
+  const substitution = doc.launcherSubstitution;
+  if (
+    !substitution ||
+    typeof substitution !== "object" ||
+    Array.isArray(substitution)
+  ) {
+    problems.push(
+      `receipt has no launcherSubstitution, so nothing re-derived that the ${version} launcher is the qualified rc with only its version changed`,
+    );
+    return problems;
+  }
+  if (
+    substitution.verdict === "MATCH" &&
+    Array.isArray(substitution.mismatches) &&
+    substitution.mismatches.length
+  )
+    problems.push(
+      `launcherSubstitution.verdict is "MATCH" but lists ${substitution.mismatches.length} mismatch(es); a MATCH has none`,
+    );
+  if (substitution.verdict !== "MATCH")
+    problems.push(
+      `launcherSubstitution.verdict is ${JSON.stringify(substitution.verdict)}, not "MATCH"${Array.isArray(substitution.mismatches) && substitution.mismatches.length ? `: ${substitution.mismatches.map((entry) => JSON.stringify(entry)).join("; ")}` : ""}`,
+    );
+  const recordedFinal = substitution.finalTarball;
+  if (recordedFinal?.filename !== finalTarball?.filename)
+    problems.push(
+      `launcherSubstitution.finalTarball.filename is ${JSON.stringify(recordedFinal?.filename)}, the bundle's is ${JSON.stringify(finalTarball?.filename)}`,
+    );
+  if (
+    !SHA256_HEX.test(String(recordedFinal?.sha256 ?? "")) ||
+    recordedFinal.sha256 !== finalTarball?.sha256
+  )
+    problems.push(
+      `launcherSubstitution.finalTarball.sha256 is ${JSON.stringify(recordedFinal?.sha256)}, the bundle's ${finalTarball?.filename} is ${finalTarball?.sha256}`,
+    );
+  return problems;
 }
 
 /**
@@ -237,7 +389,9 @@ export async function fetchReceipt(
 
 /**
  * The whole gate: the bundle must be a release bundle of this commit and
- * version, carry exactly the seven archives, and match a receipt.
+ * version, carry exactly the seven archives to stage plus the X launcher,
+ * pass the launcher substitution check here as well as at build, and match a
+ * receipt.
  */
 export async function requireQualification({
   bundleDir,
@@ -245,6 +399,7 @@ export async function requireQualification({
   commit,
   releaseRunId,
   fetch = (v) => fetchReceipt(v),
+  checkEquivalence = checkLauncherEquivalence,
 }) {
   const problems = [];
   const bundle = await readBundle(bundleDir);
@@ -260,13 +415,30 @@ export async function requireQualification({
     problems.push(
       `bundle provenance is ${JSON.stringify(bundle.metadata.artifactProvenance)}; only a bundle of the committed binaries can be published`,
     );
-  const expected = expectedTarballNames(version);
+  const launcher = bundleLauncher(bundle, version);
+  if (!launcher.ok) {
+    problems.push(...launcher.problems);
+    return { ok: false, problems, override: null, bundle, source: null };
+  }
+  const expected = expectedTarballNames(version, launcher.stagedVersion);
   const present = Object.keys(bundle.tarballs);
   for (const name of expected)
     if (!present.includes(name)) problems.push(`bundle is missing ${name}`);
   for (const name of present)
     if (!expected.includes(name))
       problems.push(`bundle carries an unexpected archive ${name}`);
+  // Article 3 clause 5, checked mechanically on the exact files that publish,
+  // not only when the bundle was built.
+  if (present.includes(expected[0])) {
+    const equivalence = await checkEquivalence({
+      rcTarball: launcher.stagedTarball,
+      finalTarball: launcher.final.path,
+      rcVersion: launcher.stagedVersion,
+      version,
+    });
+    for (const problem of equivalence.problems)
+      problems.push(`launcher substitution: ${problem}`);
+  }
 
   const fetched = await fetch(version);
   if (!fetched.doc) {
@@ -278,6 +450,7 @@ export async function requireQualification({
       problems,
       override: null,
       bundle,
+      launcher,
       source: fetched.source,
     };
   }
@@ -286,6 +459,8 @@ export async function requireQualification({
     commit,
     releaseRunId,
     tarballs: bundle.tarballs,
+    launcherVersion: launcher.stagedVersion,
+    finalTarball: launcher.final,
   });
   problems.push(...verdict.problems);
   return {
@@ -293,6 +468,7 @@ export async function requireQualification({
     problems,
     override: verdict.override,
     bundle,
+    launcher,
     source: fetched.source,
   };
 }
@@ -344,7 +520,7 @@ async function main(argv) {
   }
   if (gate.override) console.log(describeOverride(gate.override, gate.source));
   console.log(
-    `opum-cli-e2e receipt ${gate.source} binds ${version} at ${commit.slice(0, 7)}, run ${releaseRunId}, and all ${Object.keys(gate.bundle.tarballs).length} tarballs.`,
+    `opum-cli-e2e receipt ${gate.source} binds ${version} at ${commit.slice(0, 7)}, run ${releaseRunId}, all ${Object.keys(gate.bundle.tarballs).length} staged tarballs (launcher ${gate.launcher.stagedVersion}), and the ${version} launcher.`,
   );
 }
 

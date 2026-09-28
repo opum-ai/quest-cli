@@ -16,6 +16,12 @@
 //      gitHead too when npm recorded one (QCLI-393)
 //   4. pair.quest.tarballs names exactly the seven archives, and each
 //      distIntegrity is what npm serves for that package right now
+//   5. (QCLI-399, TASK-126) pair.quest.launcherVersion is <version>-rc.<N>,
+//      and the launcher entry is keyed, read and verified at THAT version:
+//      the X launcher is not on the registry until promotion publishes it
+//
+// Steps 6 and 7 -- the substitution re-check against the rc npm serves, and
+// latest serving X afterwards -- are the promotion's, in promote-release.mjs.
 //
 // Also: installedFrom.quest.source must be "registry", because a verdict on
 // the candidate bundle is pass 1, not this. As with pass 1, a 403, a 404, a
@@ -28,6 +34,9 @@ import {
   evaluateVerdict,
   expectedTarballNames,
   fetchReceipt,
+  isLauncherVersionOf,
+  LAUNCHER,
+  tarballName,
 } from "./e2e-receipt.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -38,9 +47,12 @@ export function pairReceiptPath(version) {
   return `receipts/pair/${version}.json`;
 }
 
-/** `@opum-ai/quest-linux-x64` -> `opum-ai-quest-linux-x64-<v>.tgz`, as npm pack names it. */
-export function tarballName(pkgName, version) {
-  return `${pkgName.replace("@", "").replace("/", "-")}-${version}.tgz`;
+export { tarballName };
+
+/** The receipt's launcherVersion when it is an rc of `version`, else null. */
+export function receiptLauncherVersion(doc, version) {
+  const candidate = isObject(doc) ? doc.pair?.quest?.launcherVersion : null;
+  return isLauncherVersionOf(version, candidate) ? candidate : null;
 }
 
 const isObject = (value) =>
@@ -83,9 +95,16 @@ export function evaluatePairReceipt(doc, { version, observed }) {
     problems.push(
       `pair.quest.commit is ${JSON.stringify(quest.commit)}, ${observed.commitSource ?? `v${version}`} resolves to ${JSON.stringify(observed.commit ?? null)}${observed.commitError ? ` (${observed.commitError})` : ""}`,
     );
+  // Step 5: the launcher entry is verified at launcherVersion, not version.
+  const launcherVersion = receiptLauncherVersion(doc, version);
+  if (!launcherVersion)
+    problems.push(
+      `pair.quest.launcherVersion is ${JSON.stringify(quest.launcherVersion)}, not ${version}-rc.<N>`,
+    );
+  // observed.gitHead is read from the staged launcher, the only one on npm.
   if (observed.gitHead && quest.commit !== observed.gitHead)
     problems.push(
-      `pair.quest.commit is ${JSON.stringify(quest.commit)}, npm records gitHead ${JSON.stringify(observed.gitHead)} for @opum-ai/quest@${version}`,
+      `pair.quest.commit is ${JSON.stringify(quest.commit)}, npm records gitHead ${JSON.stringify(observed.gitHead)} for ${LAUNCHER}@${launcherVersion ?? quest.launcherVersion}`,
     );
   if (doc.installedFrom?.quest?.source !== "registry")
     problems.push(
@@ -97,7 +116,11 @@ export function evaluatePairReceipt(doc, { version, observed }) {
   const recorded = isObject(quest.tarballs) ? quest.tarballs : {};
   if (recorded !== quest.tarballs)
     problems.push("pair.quest.tarballs is not an object");
-  const expected = expectedTarballNames(version);
+  // Without a valid launcherVersion the launcher entry cannot be named, so
+  // only the platforms are checked and the problem above refuses.
+  const expected = launcherVersion
+    ? expectedTarballNames(version, launcherVersion)
+    : expectedTarballNames(version, `${version}-rc.1`).slice(1);
   for (const name of expected) {
     if (!Object.hasOwn(recorded, name)) {
       problems.push(
@@ -115,7 +138,7 @@ export function evaluatePairReceipt(doc, { version, observed }) {
       );
   }
   for (const name of Object.keys(recorded))
-    if (!expected.includes(name))
+    if (!expected.includes(name) && launcherVersion)
       problems.push(
         `${name}: named in the pair receipt but not part of this release`,
       );
@@ -247,6 +270,9 @@ export async function observeRegistry(
   version,
   packages,
   {
+    // QCLI-399: the launcher is read at its staged rc version. Null leaves it
+    // unread, which the verdict reports as not served.
+    launcherVersion = null,
     execFile: execFileFn = execFile,
     resolveCommit = (v) => resolveTagCommit(v, { execFile: execFileFn }),
   } = {},
@@ -254,14 +280,18 @@ export async function observeRegistry(
   const integrities = {};
   let gitHead = null;
   for (const name of packages) {
+    const atVersion = name === LAUNCHER ? launcherVersion : version;
+    if (!atVersion) continue;
     try {
-      const view = await viewVersion(name, version, { execFile: execFileFn });
+      const view = await viewVersion(name, atVersion, {
+        execFile: execFileFn,
+      });
       const integrity = isObject(view?.dist) ? view.dist.integrity : undefined;
       if (typeof integrity === "string")
-        integrities[tarballName(name, version)] = integrity;
+        integrities[tarballName(name, atVersion)] = integrity;
       // By presence, not value: a tarball publish records no gitHead at all.
       if (
-        name === "@opum-ai/quest" &&
+        name === LAUNCHER &&
         view &&
         Object.hasOwn(view, "gitHead") &&
         typeof view.gitHead === "string"
@@ -286,7 +316,8 @@ export async function requirePairQualification({
   version,
   packages,
   fetch = (v) => fetchReceipt(v, { path: pairReceiptPath(v) }),
-  observe = (v) => observeRegistry(v, packages),
+  observe = (v, launcherVersion) =>
+    observeRegistry(v, packages, { launcherVersion }),
 }) {
   const fetched = await fetch(version);
   if (!fetched.doc)
@@ -298,9 +329,10 @@ export async function requirePairQualification({
       override: null,
       source: fetched.source,
     };
+  const launcherVersion = receiptLauncherVersion(fetched.doc, version);
   const verdict = evaluatePairReceipt(fetched.doc, {
     version,
-    observed: await observe(version),
+    observed: await observe(version, launcherVersion),
   });
-  return { ...verdict, source: fetched.source };
+  return { ...verdict, launcherVersion, source: fetched.source };
 }

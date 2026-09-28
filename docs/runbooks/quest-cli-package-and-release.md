@@ -502,7 +502,16 @@ override is an `override` object that opum-cli-e2e writes into the receipt;
 it waives the verdict and nothing else, and is printed verbatim when used.
 There is no flag or variable that bypasses the gate.
 
-The seven bundle `.tgz` files are what gets published, byte-for-byte
+The seven tarballs that stage are the six platforms at X and the root launcher
+at `X-rc.N` (QCLI-399, see "Stage, qualify, promote" below). The bundle also
+carries the launcher at X in `final/`, which is never staged. So the receipt
+must also name `launcherVersion` (the bundle's `X-rc.N`) and carry
+opum-cli-e2e's own `launcherSubstitution` verdict of `MATCH`, naming
+`final/`'s file with its sha256 re-derived from the bytes. The publisher
+re-runs the substitution check on the downloaded bundle as well. An override
+does not waive the substitution.
+
+The seven staged `.tgz` files are what gets published, byte-for-byte
 (`npm publish <file>`), not a repack of `npm/*` in the working tree -- so the
 bytes on npm are the bytes opum-cli-e2e qualified. `release.yml` applies the
 same gate and publishes the same files; it reads the receipt with the
@@ -891,15 +900,34 @@ Constitution Article 3 clause 5 (opum-agent `docs/reference/opum-project-constit
 ratified 2026-09-27) and QCLI-385. lore and quest release as a pair, and a
 publish no longer moves `latest`:
 
+**The root launcher is the one exception to "`latest` moves by dist-tag"**
+(QCLI-399; Article 3 clause 5 as amended by ODOC-302, read at opum-doc
+`f322cff`). npm derives a package page's readme only when a version is
+published onto `latest`, never on a dist-tag move, so every launcher before
+this change shipped with an empty packument readme. So `@opum-ai/quest` stages
+as `X-rc.N` and reaches `latest` by a fresh publish of X. The qualified rc and
+the published X may differ only by the version string. That is checked
+mechanically: both are unpacked and compared entry by entry, with the same
+paths, the same modes, and the same bytes once every `X-rc.N` in the rc
+becomes X (`scripts/qualification/launcher-equivalence.mjs`). The check runs
+when the bundle is built, when it is staged, and twice more at promotion,
+against the rc npm serves. `package.json` on `dev` and `main` stays at X. The
+rc is the next unused `X-rc.N` on npm, because a published rc cannot be
+reused (`--launcher-rc <n>` on `build-candidate-bundle.mjs` overrides it). The
+six platform packages are unchanged. The flow is paired with lore-cli's
+LCLI-621, and the receipt fields are opum-cli-e2e's (TASK-126,
+`receipts/README.md` "Root launcher rc-staging").
+
 1. **Stage.** Both publishers (`scripts/publish-release.mjs` and
-   `release.yml`) run every `npm publish` with `--tag release-candidate`. A
+   `release.yml`) run every `npm publish` with `--tag release-candidate`: the
+   six platforms at X, then the launcher at the bundle's `X-rc.N`. A
    bare `npm publish` would move `latest` as a side effect, so the local
    publisher builds every argument list through one `publishArgs` helper, the
    `--diagnose-staged` re-attempt included, and
    `test/qcli385-stage-under-release-candidate.test.ts` fails on a tagless
    publish in either file. After staging, `latest` still names the previous
    release, and `npm install @opum-ai/quest@release-candidate` installs the
-   new one.
+   new one: the rc launcher, which pins the platforms at exactly X.
 2. **Qualify.** opum-cli-e2e qualifies the staged lore/quest pair from clean
    registry installs. That is a second pass, after the bundle receipt the
    publisher already required (see "Publishing locally when CI cannot").
@@ -907,27 +935,48 @@ publish no longer moves `latest`:
    then lore:
 
    ```sh
-   node scripts/promote-release.mjs --record <path>             # dry run
-   node scripts/promote-release.mjs --record <path> --promote
+   node scripts/promote-release.mjs --record <path> --qualification-run <run-id>             # dry run
+   node scripts/promote-release.mjs --record <path> --qualification-run <run-id> --promote
    ```
 
-   It reads all seven packages' dist-tags anonymously and refuses unless
-   `release-candidate` is the version on every one. It also refuses, dry run
-   included, unless opum-cli-e2e's pair receipt `receipts/pair/<version>.json`
-   on its `main` qualifies this pair (QCLI-388, opum-agent ruling A on
-   OPAG-465; schema in opum-cli-e2e's `receipts/README.md`, "Pair receipts").
-   The receipt must be `QUALIFIED` or carry a four-field override, which is
-   printed verbatim. It must name quest and lore at this one version, with
-   `pair.quest.commit` equal to npm's `gitHead`, and installs from the
-   registry. Its seven `distIntegrity` values must equal what npm serves at
-   that moment. A relayed "it passed" is not a substitute. `--rollback` is not
-   gated on the receipt. It writes each package's
-   prior `latest` to `<path>` before any tag moves, then moves `latest`
-   platforms first and wrapper last. It passes only when an anonymous re-read
-   shows `latest` at the version on all seven. The record is written once: a
-   rerun reuses it rather than re-reading priors, because after a partial move
-   the registry's `latest` is already the new version. Keep the file until
-   lore's promotion has also succeeded.
+   `--qualification-run` is the same run the publisher staged from. The
+   script downloads that run's `quest-candidate-bundle` again, because the X
+   launcher that publishes is the bundle's `final/` tarball. It gates the
+   bundle on the pass-1 receipt against the commit the `v<version>` tag peels
+   to, exactly as the publisher did. The bundle artifact is kept for 90 days,
+   GitHub's maximum. Promote before it expires: after that, the only way
+   forward is a new qualification run, which takes `rc.N+1` and needs both
+   receipts again.
+
+   It refuses, dry run included, unless opum-cli-e2e's pair receipt
+   `receipts/pair/<version>.json` on its `main` qualifies this pair (QCLI-388,
+   opum-agent ruling A on OPAG-465; schema in opum-cli-e2e's
+   `receipts/README.md`, "Pair receipts"). The receipt must be `QUALIFIED` or
+   carry a four-field override, which is printed verbatim. It must name quest
+   and lore at this one version, with `pair.quest.commit` equal to what the
+   tag peels to, and installs from the registry. `pair.quest.launcherVersion`
+   must be the bundle's `X-rc.N`. The launcher entry is keyed and read at
+   that version, the platforms at X. All seven `distIntegrity` values must
+   equal what npm serves at that moment. A relayed "it passed" is not a
+   substitute. `--rollback` is not gated on the receipt.
+
+   It then reads all seven packages' dist-tags anonymously and refuses unless
+   `release-candidate` is X on every platform and `X-rc.N` on the launcher.
+   It downloads the rc npm serves, requires it to be the bundle's rc byte for
+   byte, and requires `final/`'s X to equal it with only the version
+   substituted. It writes each package's prior `latest` to `<path>`, then
+   moves `latest` on the six platforms by dist-tag. It runs the download and
+   the substitution check again, then runs `npm publish final/<X>.tgz --tag
+   latest`. That is the only publish in the pipeline that does not stage, and
+   the qcli385 test holds it to one call site. It passes only when an
+   anonymous re-read shows `latest` at X on all seven and npm serves X with
+   `final/`'s integrity. A rerun after X already landed confirms npm holds
+   those exact bytes, then moves the tag instead of republishing. The record
+   is written once: a rerun reuses it rather than re-reading priors, because
+   after a partial move the registry's `latest` is already the new version.
+   Keep the file until lore's promotion has also succeeded. After the first
+   release under this flow, `npm view @opum-ai/quest readme` should be
+   non-empty. That is QCLI-399's AC3, and it can only be measured then.
 
    Once `latest` is verified, the same run cuts the GitHub Release
    `v<version>`, titled `Quest CLI <version>`, from this version's
@@ -940,8 +989,10 @@ publish no longer moves `latest`:
    release's notes. GitHub Releases had stopped at v0.6.0 because no step cut
    them. v0.6.1 to v0.11.0 were backfilled on 2026-09-27, so every tag has one.
 4. **Roll back the tags, never the versions.** A failure part way through
-   restores the tags that run moved. If lore's promotion fails after quest's
-   succeeded, restore quest too:
+   restores the tags that run moved, the launcher's included. A failed or
+   refused launcher publish moves its `latest` back to the prior version by
+   dist-tag. Once X is published, it stays on npm. If lore's promotion fails
+   after quest's succeeded, restore quest too:
 
    ```sh
    node scripts/promote-release.mjs --rollback <path>

@@ -82,7 +82,7 @@ function baseOptions(events: string[]) {
 }
 
 const isSuccessLine = (event: string) =>
-  event.startsWith(`log:Published ${WRAPPER}@${VERSION}.`);
+  event.startsWith(`log:Staged ${VERSION}:`);
 
 test("a wrapper whose write succeeded but whose public packument lacks the version is not verified until a plain read lists it", async () => {
   const events: string[] = [];
@@ -207,4 +207,35 @@ test("an earlier check failing stops before the wrapper is read, and prints no s
     expect(registry.reads()).toBe(0);
     expect(events.some(isSuccessLine)).toBe(false);
   }
+});
+
+// QCLI-399: the launcher stages as X-rc.N, so the consumer read has to look
+// for THAT version; a packument listing X alone must not satisfy it.
+test("the wrapper is read at its staged rc version, not at the platforms' version", async () => {
+  const RC = `${VERSION}-rc.1`;
+  const events: string[] = [];
+  const listing = (versions: string[]) => async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      versions: Object.fromEntries(versions.map((v) => [v, {}])),
+      time: Object.fromEntries(
+        versions.map((v) => [v, "2026-09-27T20:00:00.000Z"]),
+      ),
+    }),
+  });
+  const staged = await verifyPublishedRelease({
+    ...baseOptions(events),
+    wrapperVersion: RC,
+    consumerOptions: { fetchImpl: listing([RC]), ...fakeClock() },
+  });
+  expect(staged).toEqual({ ok: true, stage: "verified" });
+  expect(events.find(isSuccessLine)).toContain(`${WRAPPER}@${RC} resolves`);
+
+  const wrong = await verifyPublishedRelease({
+    ...baseOptions([]),
+    wrapperVersion: RC,
+    consumerOptions: { fetchImpl: listing([VERSION]), ...fakeClock() },
+  });
+  expect(wrong).toEqual({ ok: false, stage: "wrapper" });
 });

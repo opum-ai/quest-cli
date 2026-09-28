@@ -21,6 +21,25 @@
 // the staged pair is read from the record, never taken from a message.
 // --rollback is deliberately not gated on it.
 //
+// QCLI-399 (constitution Article 3 clause 5 as amended by ODOC-302, read at
+// opum-doc f322cff): the six platform packages still reach `latest` by a
+// dist-tag move, but the root launcher does not. It stages as X-rc.N and
+// reaches `latest` by a FRESH PUBLISH of X, because only a publish onto
+// `latest` makes npm derive the packument readme. The X published is the
+// never-staged launcher in the qualified candidate bundle's final/, fetched
+// here from --qualification-run and gated on the pass-1 receipt again. The
+// order, agreed with lore-cli (LCLI-621) and opum-cli-e2e (TASK-126):
+//   1. the pair receipt, the launcher entry read at launcherVersion
+//   2. the rc npm serves is the bundle's rc, and X is that rc with only its
+//      version substituted -- checked against the registry's bytes
+//   3. the platforms move `latest` by dist-tag
+//   4. the same check again, immediately before the publish
+//   5. `npm publish final/<X>.tgz --tag latest`, the one publish in this
+//      pipeline that does not stage (test/qcli385 holds it to exactly one)
+//   6. `latest` reads X on all seven, and npm serves X as the bundle's bytes
+// A failure restores every `latest` this run moved by dist-tag, the
+// launcher's included. Nothing is unpublished; retry at the same version.
+//
 // Once `latest` is verified moved, the same run cuts the GitHub Release for
 // v<version> from CHANGELOG.md (QCLI-398, scripts/github-release.mjs): GitHub
 // had stopped at v0.6.0 because no step did. A missing CHANGELOG section
@@ -28,14 +47,16 @@
 // releases alone.
 //
 // Usage:
-//   node scripts/promote-release.mjs --record <path>             # dry run
-//   node scripts/promote-release.mjs --record <path> --promote   # move latest
-//   node scripts/promote-release.mjs --rollback <path>           # restore it
+//   node scripts/promote-release.mjs --record <path> --qualification-run <id>             # dry run
+//   node scripts/promote-release.mjs --record <path> --qualification-run <id> --promote   # move latest
+//   node scripts/promote-release.mjs --rollback <path>                                    # restore it
 //
 // Auth is the publisher's: a stored granular token (Keychain, then
 // NPM_TOKEN) in a temp npmrc, else the interactive login with --otp.
 
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
+import { rmSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -45,14 +66,21 @@ import { promisify } from "node:util";
 import { ensureGitHubRelease, releaseNotesFor } from "./github-release.mjs";
 import {
   describeKeychainState,
+  isPublished,
   isValidGranularTokenShape,
+  qualifyBundle,
+  registryHoldsTarball,
   resolveToken,
   STAGE_TAG,
   tokenShape,
 } from "./publish-release.mjs";
-import { describeOverride } from "./qualification/e2e-receipt.mjs";
+import { describeOverride, LAUNCHER } from "./qualification/e2e-receipt.mjs";
+import { checkLauncherEquivalence } from "./qualification/launcher-equivalence.mjs";
 import { REQUIRED_PLATFORMS } from "./qualification/native-execution-receipt.mjs";
-import { requirePairQualification } from "./qualification/pair-receipt.mjs";
+import {
+  requirePairQualification,
+  resolveTagCommit,
+} from "./qualification/pair-receipt.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -63,8 +91,25 @@ export const RECORD_KIND = "quest.promotion-record.v1";
 /** Platforms first, wrapper last: the same order the publisher writes in. */
 export const RELEASE_PACKAGES = Object.freeze([
   ...REQUIRED_PLATFORMS.map((platform) => `@opum-ai/quest-${platform}`),
-  "@opum-ai/quest",
+  LAUNCHER,
 ]);
+
+/**
+ * The one `npm publish` in this pipeline that does not stage (QCLI-399): the
+ * bundle's final X launcher, straight onto `latest`. Every other publish goes
+ * through publish-release.mjs's publishArgs and stages under release-candidate.
+ */
+export function launcherPublishArgs(tarball, { otp } = {}) {
+  return [
+    "publish",
+    tarball,
+    "--access",
+    "public",
+    "--tag",
+    PROMOTE_TAG,
+    ...(otp ? ["--otp", otp] : []),
+  ];
+}
 
 /**
  * An anonymous read of one package's dist-tags. Throws on anything but a
@@ -89,6 +134,8 @@ export async function readDistTags(name, { fetchFn = fetch } = {}) {
  */
 export async function planPromotion({
   version,
+  // QCLI-399: the launcher is staged at its rc version, not at X.
+  launcherVersion,
   packages = RELEASE_PACKAGES,
   readTags = readDistTags,
   now = () => new Date(),
@@ -106,9 +153,10 @@ export async function planPromotion({
       problems.push(`${name}: dist-tags unreadable (${error.message})`);
       continue;
     }
-    if (tags[STAGE_TAG] !== version)
+    const staged = name === LAUNCHER ? launcherVersion : version;
+    if (!staged || tags[STAGE_TAG] !== staged)
       problems.push(
-        `${name}: ${STAGE_TAG} is ${JSON.stringify(tags[STAGE_TAG] ?? null)}, not ${version}; stage it with scripts/publish-release.mjs first`,
+        `${name}: ${STAGE_TAG} is ${JSON.stringify(tags[STAGE_TAG] ?? null)}, not ${staged ?? `${version}-rc.<N>`}; stage it with scripts/publish-release.mjs first`,
       );
     if (typeof tags[PROMOTE_TAG] !== "string")
       problems.push(
@@ -204,11 +252,30 @@ export async function checkRollbackState({ record, readTags = readDistTags }) {
  * Moves `latest` to the version, in record order. On the first failure it
  * restores every tag it already moved to the recorded prior value and stops,
  * so a half-promoted release is not left behind by this run.
+ *
+ * QCLI-399: the launcher, last in the record, is not tag-moved but handed to
+ * `publishLauncher`, which publishes X onto `latest`. Its failure rolls back
+ * exactly like a tag failure, the launcher's own `latest` included.
  */
-export async function promote({ record, setTag, log = () => {} }) {
+export async function promote({
+  record,
+  setTag,
+  publishLauncher,
+  log = () => {},
+}) {
   const moved = [];
   for (const { name } of record.packages) {
     try {
+      if (name === LAUNCHER) {
+        if (!publishLauncher)
+          throw new Error(
+            "the launcher reaches latest by a publish of X, and no publisher was given",
+          );
+        const how = await publishLauncher();
+        moved.push(name);
+        log(`${name}: ${PROMOTE_TAG} -> ${record.version} (${how})`);
+        continue;
+      }
       await setTag(name, record.version, PROMOTE_TAG);
       moved.push(name);
       log(`${name}: ${PROMOTE_TAG} -> ${record.version}`);
@@ -254,6 +321,175 @@ export async function rollback({ record, setTag, log = () => {} }) {
   return { ok: failed.length === 0, failed };
 }
 
+function sha256File(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+/**
+ * Downloads exactly what the registry serves for one package version, into
+ * `into`, and returns the file's path. `npm pack <spec>` fetches the
+ * published tarball and checks it against npm's own integrity.
+ */
+export async function downloadServedTarball(
+  spec,
+  into,
+  { execFile: execFileFn = execFile } = {},
+) {
+  const { stdout } = await execFileFn(
+    "npm",
+    ["pack", spec, "--pack-destination", into, "--json", "--prefer-online"],
+    { maxBuffer: 32 * 1024 * 1024 },
+  );
+  const parsed = JSON.parse(stdout);
+  const entry = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+  if (!entry?.filename) throw new Error(`npm pack ${spec} produced no archive`);
+  return join(into, entry.filename);
+}
+
+/**
+ * Pair-reader step 6 (opum-cli-e2e receipts/README.md blob 241ac885): what the
+ * registry serves at launcherVersion right now must be the rc the bundle
+ * qualified, and the X about to be published must be that rc with only its
+ * version substituted. Re-derived from the registry's bytes each time it is
+ * called, never from a recorded verdict. Every failure is returned.
+ */
+export async function checkServedLauncher({
+  version,
+  launcherVersion,
+  qualifiedRc,
+  finalTarball,
+  download = (spec, into) => downloadServedTarball(spec, into),
+  checkEquivalence = checkLauncherEquivalence,
+}) {
+  const scratch = await mkdtemp(join(tmpdir(), "quest-served-launcher-"));
+  try {
+    let served;
+    try {
+      served = await download(`${LAUNCHER}@${launcherVersion}`, scratch);
+    } catch (error) {
+      return {
+        ok: false,
+        problems: [
+          `${LAUNCHER}@${launcherVersion} could not be downloaded from the registry (${String(error?.message ?? error).split("\n")[0]})`,
+        ],
+      };
+    }
+    const problems = [];
+    const [servedDigest, qualifiedDigest] = [
+      sha256File(await readFile(served)),
+      sha256File(await readFile(qualifiedRc)),
+    ];
+    if (servedDigest !== qualifiedDigest)
+      problems.push(
+        `npm serves ${LAUNCHER}@${launcherVersion} as sha256 ${servedDigest}; the qualified bundle's rc is ${qualifiedDigest}`,
+      );
+    const equivalence = await checkEquivalence({
+      rcTarball: served,
+      finalTarball,
+      rcVersion: launcherVersion,
+      version,
+    });
+    problems.push(...equivalence.problems);
+    return { ok: problems.length === 0, problems };
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Whether X is already on npm, and if so whether as the qualified final
+ * launcher. Throws on a foreign X, on an X whose integrity cannot be read,
+ * and on a registry that cannot say whether X exists at all. Run before any
+ * tag moves, so a foreign X refuses with nothing written (as lore-cli's
+ * LCLI-621 does), and again at the publish, which a concurrent write could
+ * still race.
+ */
+export async function checkFinalLauncherSlot({
+  version,
+  finalTarball,
+  alreadyPublished = (name, v) => isPublished(name, v),
+  holds = (name, v, tarball) => registryHoldsTarball(name, v, tarball),
+}) {
+  if (!(await alreadyPublished(LAUNCHER, version))) return "absent";
+  const held = await holds(LAUNCHER, version, finalTarball);
+  // An unreadable integrity is lag or a failed read, not a mismatch: the
+  // remedy is a rerun at the same version (Article 3 clause 5).
+  if (!held.ok && held.actual == null)
+    throw new Error(
+      `${LAUNCHER}@${version} is on the registry but its dist.integrity could not be read; re-run the promotion at the same version`,
+    );
+  if (!held.ok)
+    throw new Error(
+      `${LAUNCHER}@${version} is already on the registry as ${held.actual}, not the qualified ${held.expected}; this needs a new version, not a rerun`,
+    );
+  return "qualified";
+}
+
+/**
+ * Publishes the final X launcher onto `latest`, or -- on a rerun after it
+ * already landed -- confirms npm holds exactly those bytes and moves the tag.
+ * Step 6 runs first, every time, so nothing irreversible happens on a
+ * re-derivation that no longer holds.
+ */
+export async function publishFinalLauncher({
+  version,
+  finalTarball,
+  recheck,
+  publish,
+  setTag,
+  alreadyPublished = (name, v) => isPublished(name, v),
+  holds = (name, v, tarball) => registryHoldsTarball(name, v, tarball),
+}) {
+  const again = await recheck();
+  if (!again.ok)
+    throw new Error(
+      `the launcher substitution check no longer holds against the registry: ${again.problems.join("; ")}`,
+    );
+  const slot = await checkFinalLauncherSlot({
+    version,
+    finalTarball,
+    alreadyPublished,
+    holds,
+  });
+  if (slot === "qualified") {
+    await setTag(LAUNCHER, version, PROMOTE_TAG);
+    return "already published as the qualified bytes; tag moved";
+  }
+  await publish(finalTarball);
+  return "published";
+}
+
+/**
+ * Pair-reader step 7's integrity half: npm serves X as the bundle's final
+ * tarball. The tag half is verifyTags. An unreadable integrity is retried,
+ * because the registry's read lags a publish; a different one is not.
+ */
+export async function verifyFinalLauncher({
+  version,
+  finalTarball,
+  holds = (name, v, tarball) => registryHoldsTarball(name, v, tarball),
+  attempts = 10,
+  delayMs = 15_000,
+  sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
+}) {
+  let held;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    held = await holds(LAUNCHER, version, finalTarball);
+    if (held.ok || held.actual != null) break;
+    if (attempt < attempts) await sleep(delayMs);
+  }
+  return held.ok
+    ? { ok: true, problems: [] }
+    : {
+        ok: false,
+        problems: [
+          held.actual == null
+            ? `${LAUNCHER}@${version}: npm returned no dist.integrity`
+            : `${LAUNCHER}@${version}: npm serves ${held.actual}, the qualified final launcher is ${held.expected}`,
+        ],
+      };
+}
+
 /**
  * Confirms the registry now serves the expected `latest` for every package.
  * A tag write returning success is not the registry serving it, so this
@@ -294,6 +530,7 @@ async function main(argv) {
   const rollbackPath = flag("--rollback");
   const recordPath = flag("--record");
   const otp = flag("--otp");
+  const qualificationRun = flag("--qualification-run");
   const act = argv.includes("--promote") || rollbackPath !== undefined;
   if (!rollbackPath && !recordPath)
     throw new Error(
@@ -306,6 +543,9 @@ async function main(argv) {
 
   let record;
   let release;
+  let qualified;
+  let bundleDir;
+  let launcherVersion;
   if (rollbackPath) {
     record = JSON.parse(await readFile(rollbackPath, "utf8"));
     const valid = validateRecord(record);
@@ -319,6 +559,66 @@ async function main(argv) {
       process.exit(1);
     }
   } else {
+    // QCLI-399: the X launcher that reaches latest is the qualified bundle's
+    // final/ tarball, so the bundle is fetched from the run and gated on the
+    // pass-1 receipt again -- against the commit the v<version> tag peels to.
+    if (!qualificationRun)
+      throw new Error(
+        "--qualification-run <id> is required: the prepublication-qualification run whose quest-candidate-bundle was staged, and whose final/ launcher is what publishes to latest",
+      );
+    const peeled = await resolveTagCommit(version);
+    if (!peeled.commit) {
+      console.error(`Refusing to promote ${version}: ${peeled.error}`);
+      process.exit(1);
+    }
+    bundleDir = await mkdtemp(join(tmpdir(), "quest-promote-bundle-"));
+    // On every exit, the refusals' process.exit included, which skips finally.
+    process.once("exit", () =>
+      rmSync(bundleDir, { recursive: true, force: true }),
+    );
+    qualified = await qualifyBundle({
+      runId: qualificationRun,
+      commit: peeled.commit,
+      version,
+      into: bundleDir,
+    });
+    if (!qualified.ok) {
+      console.error(
+        `Refusing to promote ${version}: the bundle from run ${qualificationRun} is not the qualified release of ${peeled.commit.slice(0, 7)}.`,
+      );
+      for (const problem of qualified.problems) console.error(`  - ${problem}`);
+      process.exit(1);
+    }
+    launcherVersion = qualified.launcher.stagedVersion;
+    console.log(
+      `Bundle from run ${qualificationRun} is the qualified ${version} at ${peeled.commit.slice(0, 7)} (${qualified.source}); launcher staged as ${launcherVersion}, ${qualified.launcher.final.filename} sha256 ${qualified.launcher.final.sha256}.`,
+    );
+
+    // QCLI-388, promote only: opum-cli-e2e's verdict on the STAGED pair,
+    // installed from the registry, read here rather than relayed. Dry runs
+    // too, so a dry run answers "would this promote". --rollback never
+    // reaches this branch: restoring prior tags must always be possible.
+    const pair = await requirePairQualification({
+      version,
+      packages: RELEASE_PACKAGES,
+    });
+    if (pair.ok && pair.launcherVersion !== launcherVersion)
+      pair.problems.push(
+        `the pair receipt qualified launcher ${pair.launcherVersion}, the bundle staged ${launcherVersion}`,
+      );
+    if (!pair.ok || pair.problems.length) {
+      console.error(
+        `Refusing to promote ${version}: no opum-cli-e2e pair receipt qualifies the staged pair as npm serves it now.`,
+      );
+      for (const problem of pair.problems) console.error(`  - ${problem}`);
+      process.exit(1);
+    }
+    if (pair.override)
+      console.log(describeOverride(pair.override, pair.source));
+    console.log(
+      `Pair receipt ${pair.source} qualifies quest ${version} with lore ${version}, and all ${RELEASE_PACKAGES.length} staged tarballs npm serves match it (launcher at ${launcherVersion}).`,
+    );
+
     const existing = await readFile(recordPath, "utf8").catch(() => null);
     if (existing) {
       record = JSON.parse(existing);
@@ -334,7 +634,11 @@ async function main(argv) {
     }
     // The staging precondition is checked on every run, a reused record
     // included: it is a fact about the registry now, not about the record.
-    const plan = await planPromotion({ version, resuming: Boolean(existing) });
+    const plan = await planPromotion({
+      version,
+      launcherVersion,
+      resuming: Boolean(existing),
+    });
     if (!plan.ok) {
       console.error(`Refusing to promote ${version}:`);
       for (const problem of plan.problems) console.error(`  - ${problem}`);
@@ -342,31 +646,45 @@ async function main(argv) {
     }
     record ??= plan.record;
     console.log(
-      `${version} is staged under ${STAGE_TAG} on all ${record.packages.length} packages. Prior ${PROMOTE_TAG}:`,
+      `${version} is staged under ${STAGE_TAG} on all ${record.packages.length} packages (the launcher as ${launcherVersion}). Prior ${PROMOTE_TAG}:`,
     );
     for (const entry of record.packages)
       console.log(`  ${entry.name}  ${entry.priorLatest}`);
 
-    // QCLI-388, promote only: opum-cli-e2e's verdict on the STAGED pair,
-    // installed from the registry, read here rather than relayed. Dry runs
-    // too, so a dry run answers "would this promote". --rollback never
-    // reaches this branch: restoring prior tags must always be possible.
-    const pair = await requirePairQualification({
+    // Step 6, before any tag moves; it runs again just before the publish.
+    const served = await checkServedLauncher({
       version,
-      packages: RELEASE_PACKAGES,
+      launcherVersion,
+      qualifiedRc: qualified.launcher.stagedTarball,
+      finalTarball: qualified.launcher.final.path,
     });
-    if (!pair.ok) {
+    if (!served.ok) {
       console.error(
-        `Refusing to promote ${version}: no opum-cli-e2e pair receipt qualifies the staged pair as npm serves it now.`,
+        `Refusing to promote ${version}: the ${version} launcher is not the rc npm serves with only its version substituted (Article 3 clause 5).`,
       );
-      for (const problem of pair.problems) console.error(`  - ${problem}`);
+      for (const problem of served.problems) console.error(`  - ${problem}`);
       process.exit(1);
     }
-    if (pair.override)
-      console.log(describeOverride(pair.override, pair.source));
     console.log(
-      `Pair receipt ${pair.source} qualifies quest ${version} with lore ${version}, and all ${RELEASE_PACKAGES.length} tarballs npm serves match it.`,
+      `npm serves ${LAUNCHER}@${launcherVersion} as the qualified rc, and ${qualified.launcher.final.filename} differs from it only by the version string.`,
     );
+    // Before any tag moves: an X already on npm must be the qualified final
+    // launcher, or the platforms' `latest` would move and then roll back.
+    try {
+      const slot = await checkFinalLauncherSlot({
+        version,
+        finalTarball: qualified.launcher.final.path,
+      });
+      console.log(
+        slot === "absent"
+          ? `${LAUNCHER}@${version} is not on npm yet; promotion publishes it.`
+          : `${LAUNCHER}@${version} is already on npm as the qualified final launcher; promotion moves its tag.`,
+      );
+    } catch (error) {
+      console.error(`Refusing to promote ${version}: ${error.message}.`);
+      process.exit(1);
+    }
+
     // QCLI-398: the GitHub Release is cut after `latest` moves, so its notes
     // must exist BEFORE anything moves; finding no section afterwards would
     // leave a promoted version with no release.
@@ -420,6 +738,10 @@ async function main(argv) {
       `//registry.npmjs.org/:_authToken=${token}\n`,
     );
     env.npm_config_userconfig = join(npmrcDir, ".npmrc");
+    // The token file must not outlive a process.exit inside the try below.
+    process.once("exit", () =>
+      rmSync(npmrcDir, { recursive: true, force: true }),
+    );
     console.log(`Auth: using a token from ${source}.`);
   } else {
     console.log(`Auth: no token -- ${describeKeychainState(keychain)}.`);
@@ -466,10 +788,31 @@ async function main(argv) {
       return;
     }
 
+    const final = qualified.launcher.final;
+    const publishLauncher = () =>
+      publishFinalLauncher({
+        version: record.version,
+        finalTarball: final.path,
+        // Step 6 again, immediately before the one irreversible write.
+        recheck: () =>
+          checkServedLauncher({
+            version: record.version,
+            launcherVersion,
+            qualifiedRc: qualified.launcher.stagedTarball,
+            finalTarball: final.path,
+          }),
+        publish: (tarball) =>
+          execFile(
+            "npm",
+            launcherPublishArgs(tarball, { otp: !token ? otp : undefined }),
+            { env, maxBuffer: 32 * 1024 * 1024 },
+          ),
+        setTag,
+      });
     console.log(
-      `\nMoving ${PROMOTE_TAG} to ${record.version}, platforms first:`,
+      `\nMoving ${PROMOTE_TAG} to ${record.version}: the platforms by dist-tag, then ${LAUNCHER}@${record.version} published onto ${PROMOTE_TAG} from ${final.filename}:`,
     );
-    const outcome = await promote({ record, setTag, log });
+    const outcome = await promote({ record, setTag, publishLauncher, log });
     if (!outcome.ok) {
       console.error(
         `\nPROMOTION FAILED at ${outcome.failed}. The ${outcome.moved.length} tag(s) this run moved were ` +
@@ -491,8 +834,20 @@ async function main(argv) {
       );
       process.exit(1);
     }
+    // Step 7: latest reads X (above), and X is the qualified final launcher.
+    const bytes = await verifyFinalLauncher({
+      version: record.version,
+      finalTarball: final.path,
+    });
+    if (!bytes.ok) {
+      for (const problem of bytes.problems) console.error(`  ${problem}`);
+      console.error(
+        `${PROMOTE_TAG} reads ${record.version} everywhere, but npm does not serve the qualified ${final.filename} as ${LAUNCHER}@${record.version}. Do NOT run npm unpublish.`,
+      );
+      process.exit(1);
+    }
     console.log(
-      `\nPromoted: ${PROMOTE_TAG} reads ${record.version} on all ${record.packages.length} packages (anonymous registry read, ${check.attempts} check${check.attempts === 1 ? "" : "s"}). Rollback: --rollback ${recordPath}`,
+      `\nPromoted: ${PROMOTE_TAG} reads ${record.version} on all ${record.packages.length} packages (anonymous registry read, ${check.attempts} check${check.attempts === 1 ? "" : "s"}), and npm serves ${LAUNCHER}@${record.version} as the qualified ${final.filename}. Rollback: --rollback ${recordPath}`,
     );
   } finally {
     if (npmrcDir) await rm(npmrcDir, { recursive: true, force: true });

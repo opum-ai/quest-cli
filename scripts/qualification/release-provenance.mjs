@@ -17,6 +17,9 @@
 //           published is exactly the commit that was released. This is the
 //           assertion that names the defect directly -- at this moment both
 //           halves exist and can be compared, which is not true later.
+//           `--version <v>` names the version to read: the launcher stages
+//           as X-rc.N (QCLI-399), so after staging @opum-ai/quest@X does not
+//           exist yet.
 //
 // Neither mode can repair an old release. The point is that a NEW one cannot
 // silently acquire a claim the repository contradicts.
@@ -38,6 +41,23 @@ const fail = (message) => {
 };
 
 const { name, version } = JSON.parse(readFileSync("package.json", "utf8"));
+const versionFlag = process.argv.indexOf("--version");
+const postVersion =
+  versionFlag === -1 ? version : process.argv[versionFlag + 1];
+// Only X itself or an rc of X: any other value would check another release.
+const rcPrefix = `${version}-rc.`;
+if (
+  postVersion !== version &&
+  !(
+    String(postVersion).startsWith(rcPrefix) &&
+    /^[1-9][0-9]*$/.test(String(postVersion).slice(rcPrefix.length))
+  )
+) {
+  console.error(
+    `--version must be ${version} or ${version}-rc.<N>, got ${postVersion}`,
+  );
+  process.exit(2);
+}
 const sha = process.env.GITHUB_SHA ?? git("rev-parse", "HEAD");
 const ref = process.env.GITHUB_REF ?? "";
 
@@ -92,12 +112,12 @@ let published = "";
 try {
   published = execFileSync(
     "npm",
-    ["view", `${name}@${version}`, "gitHead", "--silent"],
+    ["view", `${name}@${postVersion}`, "gitHead", "--silent"],
     { encoding: "utf8" },
   ).trim();
 } catch (error) {
   fail(
-    `Could not read gitHead for ${name}@${version} from the registry: ${error instanceof Error ? error.message : String(error)}`,
+    `Could not read gitHead for ${name}@${postVersion} from the registry: ${error instanceof Error ? error.message : String(error)}`,
   );
 }
 
@@ -106,15 +126,15 @@ if (!published) {
   // mismatch, but it is the absence of provenance, so say so loudly rather
   // than passing quietly.
   fail(
-    `${name}@${version} was published with no gitHead. The registry now records no provenance for it, and nothing later can add one.`,
+    `${name}@${postVersion} was published with no gitHead. The registry now records no provenance for it, and nothing later can add one.`,
   );
 }
 
 if (published !== sha)
   fail(
-    `${name}@${version} records gitHead ${published} but was released from ${sha}. The registry and this repository disagree about what built this version -- do not let this release stand as-is.`,
+    `${name}@${postVersion} records gitHead ${published} but was released from ${sha}. The registry and this repository disagree about what built this version -- do not let this release stand as-is.`,
   );
 
 console.log(
-  `Provenance post-check passed: ${name}@${version} gitHead == ${sha}.`,
+  `Provenance post-check passed: ${name}@${postVersion} gitHead == ${sha}.`,
 );
