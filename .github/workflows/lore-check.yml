@@ -67,7 +67,9 @@ name: lore check
 # as LCLI-504/508. A real detector has to compare this number against something
 # outside the run, and must NOT do it with a network read inside this job: a
 # flaky required check is worse than a stale one, because it teaches people to
-# re-run until green (opum-agent ruling, 2026-09-19).
+# re-run until green (opum-agent ruling, 2026-09-19). That detector now exists
+# OUTSIDE this job: lore-pin-staleness.yml, a weekly, non-required workflow
+# that keeps one `lore-pin-stale` issue in step with the pin (QCLI-358).
 #
 # DETERMINISM, AND ITS ONE LOAD-BEARING CAVEAT. `lore check` writes nothing, has
 # no LLM dependency, and reads the evaluation date from HEAD's committer date

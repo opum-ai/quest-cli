@@ -94,6 +94,18 @@ dated by its own tag. No date here is inferred (QCLI-398).
   heading is patch-level. `--next <x.y.z>` checks a proposed number during
   release prep. lore-cli mirrors the check. Release tooling only.
 
+- **The breaking-bump check reads lore-cli's CHANGELOG too, because the pair
+  shares one bump** (QCLI-403, same ADR). A breaking heading in lore's notes
+  for the paired version now refuses a patch-level bump of the pair, even
+  when quest's own notes carry none. `bun run check:breaking-bump:pair`
+  resolves lore-cli's `main` (or `--lore-ref <ref>`) to a commit and reads
+  `CHANGELOG.md` at that commit through the GitHub API. It accepts lore's
+  bracketed `## [x.y.z]` and `## [Unreleased]` headings, and it prints the
+  ref, the SHA and the section count it read. It fails closed: an unreadable
+  file, or one with no version section, refuses. `release.yml` runs it after
+  the version-parity gate and before the publish. The quest-only source gate
+  is unchanged and stays offline. Release tooling only.
+
 - **Promoting `latest` now cuts the GitHub Release too** (QCLI-398, opum-agent
   OPAG-646). GitHub Releases had stopped at v0.6.0 because no release step
   created one, so `releases/latest` still read v0.6.0 after 0.11.0 shipped.

@@ -8,8 +8,18 @@
 // is that check. It is ruled in opum-doc
 // docs/adr/gate-release-prep-on-a-breaking-changelog-entry-at-a-patch-bump.md.
 // Because lore and quest share one version (constitution Article 3 clause 1),
-// lore-cli runs the same check over its own CHANGELOG, and a breaking entry
-// in either forces the pair to at least minor.
+// a breaking entry in EITHER repository's CHANGELOG forces the pair to at
+// least minor, including the side that "did not change functionally". So
+// `--pair` also reads lore-cli's CHANGELOG by ref through the GitHub API and
+// applies the same rule to lore's notes for the same version (QCLI-403).
+// It fails closed: a lore CHANGELOG that cannot be read, or reads with no
+// version section, refuses rather than passing on nothing. lore-cli runs the
+// mirror of this against quest-cli.
+//
+// The quest-only form (no `--pair`) is the `breaking_bump` source gate and
+// stays offline, because a network read in a required context makes it
+// flaky. The pair form runs at release time instead: in release.yml beside
+// the version-parity gate, and by hand during release prep.
 //
 // Which notes belong to the package.json version depends on where release
 // prep has got to (see docs/runbooks/quest-cli-package-and-release.md):
@@ -21,17 +31,35 @@
 //
 //   node scripts/check-breaking-bump.mjs               # the package.json version
 //   node scripts/check-breaking-bump.mjs --next 0.12.0 # release prep, before the bump
+//   node scripts/check-breaking-bump.mjs --pair        # also lore-cli's CHANGELOG on its main
+//   node scripts/check-breaking-bump.mjs --pair --lore-ref dev --next 0.12.0
 
+import { execFile as execFileCallback } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
+const execFile = promisify(execFileCallback);
 const root = fileURLToPath(new URL("..", import.meta.url));
+
+/**
+ * The peer whose CHANGELOG `--pair` reads. `main` by default, the same ref
+ * the version-parity gate reads: a paired release has already reached one
+ * version on both sides' `main` before either side tags.
+ */
+export const LORE = Object.freeze({
+  repository: "opum-ai/lore-cli",
+  ref: "main",
+});
 
 /** A `### ...` heading marked `(breaking)`, e.g. `### Changed (breaking)`. */
 export const BREAKING_HEADING = /^###\s.*\(breaking\)/im;
 
-const VERSION_HEADING = /^## (\d+\.\d+\.\d+)(?:\s.*)?$/;
+// quest writes `## 1.4.0 - date` and `## Unreleased`; lore-cli writes Keep a
+// Changelog's bracketed `## [1.4.0] - date` and `## [Unreleased]`.
+const VERSION_HEADING = /^## \[?(\d+\.\d+\.\d+)\]?(?:\s.*)?$/;
+const UNRELEASED_HEADING = /^## \[?Unreleased\]?\s*$/;
 
 function parse(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
@@ -67,7 +95,11 @@ function sections(changelog) {
  * Problems with releasing `version` given `changelog`, plus what was read,
  * so a caller can tell a clean answer from one that read nothing.
  */
-export function breakingBumpProblems(changelog, version) {
+export function breakingBumpProblems(
+  changelog,
+  version,
+  { name = "CHANGELOG.md" } = {},
+) {
   const all = sections(changelog);
   const versioned = all.filter((section) => section.version !== null);
   const problems = [];
@@ -80,12 +112,12 @@ export function breakingBumpProblems(changelog, version) {
     previous = versioned[own + 1]?.version ?? null;
     source = notes.heading;
   } else {
-    notes = all.find((section) => /^## Unreleased\s*$/.test(section.heading));
+    notes = all.find((section) => UNRELEASED_HEADING.test(section.heading));
     previous = versioned[0]?.version ?? null;
-    source = "## Unreleased";
+    source = notes?.heading ?? "## Unreleased";
     if (!notes)
       problems.push(
-        `CHANGELOG.md has neither a "## ${version}" section nor a "## Unreleased" section to hold ${version}'s notes`,
+        `${name} has neither a "## ${version}" section nor a "## Unreleased" section to hold ${version}'s notes`,
       );
   }
   const breaking = notes ? BREAKING_HEADING.test(notes.body) : false;
@@ -106,6 +138,7 @@ export function breakingBumpProblems(changelog, version) {
     source,
     breaking,
     sectionsRead: all.length,
+    versionSectionsRead: versioned.length,
   };
 }
 
@@ -117,16 +150,147 @@ export async function checkBreakingBump({ directory = root, next } = {}) {
   return breakingBumpProblems(changelog, version);
 }
 
+/**
+ * lore-cli's CHANGELOG at `ref`, read at the commit the ref resolves to, so
+ * the answer names exactly what was read even if the branch moves. Every
+ * failure comes back as `text: null` with its cause, never thrown and never
+ * defaulted.
+ */
+export async function readLoreChangelog({
+  ref = LORE.ref,
+  execFile: run = execFile,
+} = {}) {
+  let sha = null;
+  try {
+    const gh = async (args) =>
+      (await run("gh", ["api", ...args], { maxBuffer: 16 * 1024 * 1024 }))
+        .stdout;
+    sha = (
+      await gh([
+        `repos/${LORE.repository}/commits/${encodeURIComponent(ref)}`,
+        "--jq",
+        ".sha",
+      ])
+    ).trim();
+    if (!/^[0-9a-f]{40}$/.test(sha)) {
+      const answered = sha;
+      sha = null;
+      return {
+        text: null,
+        ref,
+        sha,
+        error: `the ref resolved to ${JSON.stringify(answered.slice(0, 80))}, not a commit`,
+      };
+    }
+    const text = await gh([
+      "-H",
+      "Accept: application/vnd.github.raw",
+      `repos/${LORE.repository}/contents/CHANGELOG.md?ref=${sha}`,
+    ]);
+    return { text, ref, sha };
+  } catch (error) {
+    const detail = String(error?.stderr || error?.message || error)
+      .trim()
+      .split("\n")[0];
+    return { text: null, ref, sha, error: detail || "the read failed" };
+  }
+}
+
+/**
+ * The quest check plus the same rule over lore-cli's notes for the same
+ * version (QCLI-403). Refuses on any problem either side reports, and on a
+ * lore CHANGELOG that could not be read or holds no version section.
+ */
+export async function checkPairBreakingBump({
+  directory = root,
+  next,
+  loreRef = LORE.ref,
+  read = readLoreChangelog,
+} = {}) {
+  const quest = await checkBreakingBump({ directory, next });
+  const loreRead = await read({ ref: loreRef });
+  const where = `${LORE.repository}@${loreRead.ref}${loreRead.sha ? ` (${loreRead.sha})` : ""}`;
+  const problems = quest.problems.map((problem) => `quest: ${problem}`);
+  if (quest.sectionsRead === 0)
+    problems.push(
+      "quest: CHANGELOG.md has no ## sections; nothing was checked",
+    );
+  let lore = null;
+  if (loreRead.text === null)
+    problems.push(
+      `lore: the CHANGELOG could not be read at ${where}: ${loreRead.error}. The pair check refuses rather than passing on nothing read`,
+    );
+  else {
+    lore = breakingBumpProblems(loreRead.text, quest.version, {
+      name: `lore-cli's CHANGELOG.md at ${where}`,
+    });
+    if (lore.versionSectionsRead === 0)
+      problems.push(
+        `lore: the CHANGELOG at ${where} holds no parseable version section (${lore.sectionsRead} ## sections read), so there is nothing to compare ${quest.version} against`,
+      );
+    problems.push(
+      ...lore.problems.map((problem) => `lore (${where}): ${problem}`),
+    );
+  }
+  return {
+    quest,
+    lore,
+    loreRef: loreRead.ref,
+    loreSha: loreRead.sha,
+    problems,
+  };
+}
+
+/** One line saying what was read and what it decided. */
+export function describe(result, label = "") {
+  return (
+    `${label}${result.version}: read ${result.sectionsRead} CHANGELOG sections; its notes are ${result.source}, ` +
+    (result.breaking
+      ? `which carries a breaking heading, and ${result.previous} -> ${result.version} is a ${result.level} bump.`
+      : `with no breaking heading${result.level ? ` (${result.previous} -> ${result.version} is a ${result.level} bump)` : ""}.`)
+  );
+}
+
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const argv = process.argv.slice(2);
-  const at = argv.indexOf("--next");
-  const next = at === -1 ? undefined : argv[at + 1];
-  if (at !== -1 && (!next || !parse(next))) {
-    console.error("usage: check-breaking-bump.mjs [--next <x.y.z>]");
+  const value = (flag) => {
+    const at = argv.indexOf(flag);
+    return at === -1 ? { given: false } : { given: true, value: argv[at + 1] };
+  };
+  const nextFlag = value("--next");
+  const refFlag = value("--lore-ref");
+  const pair = argv.includes("--pair");
+  if (
+    (nextFlag.given && (!nextFlag.value || !parse(nextFlag.value))) ||
+    (refFlag.given &&
+      (!pair || !refFlag.value || refFlag.value.startsWith("--")))
+  ) {
+    console.error(
+      "usage: check-breaking-bump.mjs [--next <x.y.z>] [--pair [--lore-ref <ref>]]",
+    );
     process.exit(2);
+  }
+  const next = nextFlag.value;
+  if (pair) {
+    const result = await checkPairBreakingBump({
+      next,
+      loreRef: refFlag.value ?? LORE.ref,
+    });
+    if (result.problems.length) {
+      console.error(
+        "The pair's version bump does not match the CHANGELOGs:\n" +
+          result.problems.map((problem) => `  - ${problem}`).join("\n"),
+      );
+      process.exit(1);
+    }
+    console.log(describe(result.quest, "quest "));
+    console.log(
+      `${describe(result.lore, "lore ")} Read at ${LORE.repository}@${result.loreRef} (${result.loreSha}).`,
+    );
+    process.exit(0);
   }
   const result = await checkBreakingBump({ next });
   if (result.sectionsRead === 0) {
@@ -140,10 +304,5 @@ if (
     );
     process.exit(1);
   }
-  console.log(
-    `${result.version}: read ${result.sectionsRead} CHANGELOG sections; its notes are ${result.source}, ` +
-      (result.breaking
-        ? `which carries a breaking heading, and ${result.previous} -> ${result.version} is a ${result.level} bump.`
-        : `with no breaking heading${result.level ? ` (${result.previous} -> ${result.version} is a ${result.level} bump)` : ""}.`),
-  );
+  console.log(describe(result));
 }
