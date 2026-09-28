@@ -117,6 +117,8 @@ export function publishFinalLauncher(options: {
   holds?: (name: string, version: string, tarball: string) => Promise<Held>;
 }): Promise<string>;
 
+export const README_RECHECK: string;
+
 export function readBackReadme(options?: {
   execFile?: (
     command: string,

@@ -6,6 +6,8 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { REGISTRY_PINS } from "./registry-visibility.mjs";
+
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const requestedTarget = process.env.QUEST_QUALIFICATION_TARGET;
@@ -197,6 +199,10 @@ async function runCandidateSmoke() {
       root: sha256(await readFile(rootTarball)),
       platform: sha256(await readFile(platformTarball)),
     });
+    // Pinned although both tarballs are local: the root's optionalDependencies
+    // name @opum-ai packages, and npm resolves their packuments even when a
+    // local tarball supplies one (QCLI-400 review, measured on npm 12.1.0).
+    // Unpublished platforms 404 on the public registry, tolerated as optional.
     await command(
       "candidate_clean_install",
       "npm",
@@ -210,6 +216,7 @@ async function runCandidateSmoke() {
         cache,
         rootTarball,
         platformTarball,
+        ...REGISTRY_PINS,
       ],
       { cwd: install },
     );

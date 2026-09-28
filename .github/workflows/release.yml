@@ -175,7 +175,7 @@ jobs:
           set +e
           unset NODE_AUTH_TOKEN
           echo "::group::whoami"
-          who=$(npm whoami 2>&1); code=$?
+          who=$(npm whoami --registry=https://registry.npmjs.org/ --@opum-ai:registry=https://registry.npmjs.org/ 2>&1); code=$?
           echo "$who"
           echo "::endgroup::"
           if [ $code -ne 0 ]; then
@@ -183,7 +183,7 @@ jobs:
           else
             echo "::notice::A stored credential authenticates as ${who}. An E404 on PUT below therefore means the token lacks write access to the @opum-ai scope, not that it is invalid."
             echo "::group::access"
-            npm access list packages "$who" 2>&1 | head -20
+            npm access list packages "$who" --registry=https://registry.npmjs.org/ --@opum-ai:registry=https://registry.npmjs.org/ 2>&1 | head -20
             echo "::endgroup::"
           fi
 

@@ -67,76 +67,130 @@ test("both publish argument builders carry the pins", () => {
     expect(args).toEqual(expect.arrayContaining([...REGISTRY_PINS]));
 });
 
-/** Every `"npm", [ ... ]` argument list literal in scripts/, with its verb. */
-async function npmCallSites() {
-  const sites: { file: string; verb: string; body: string }[] = [];
-  const walk = async (dir: string): Promise<string[]> =>
-    (
-      await Promise.all(
-        (
-          await readdir(dir, { withFileTypes: true })
-        ).map((entry) =>
-          entry.isDirectory()
-            ? walk(join(dir, entry.name))
-            : entry.name.endsWith(".mjs")
-              ? [join(dir, entry.name)]
-              : [],
-        ),
-      )
-    ).flat();
+async function walk(dir: string): Promise<string[]> {
+  return (
+    await Promise.all(
+      (
+        await readdir(dir, { withFileTypes: true })
+      ).map((entry) =>
+        entry.isDirectory()
+          ? walk(join(dir, entry.name))
+          : entry.name.endsWith(".d.mts")
+            ? []
+            : [join(dir, entry.name)],
+      ),
+    )
+  ).flat();
+}
+
+type Spawn = { site: string; form: string; body: string };
+
+/**
+ * Every place a file in scripts/ spawns npm or npx, in any of the three
+ * forms the scripts use, so a spawn that is none of them is itself a
+ * finding rather than invisible (QCLI-400 review, finding 1):
+ *   - `<call>("npm", [ ... ])`, or `<call>("label", "npm", [ ... ])`, with the
+ *     argument list literal captured to its closing bracket;
+ *   - `<call>("npm", <expression>)`, the argument list built elsewhere;
+ *   - Bun.$`npm ...`, a template spawn.
+ * A quoted "npm" is a spawn when it opens a call's arguments, directly or
+ * after one string label -- `join(root, "npm", ...)` is a path segment.
+ * Blind to: npm reached through a variable command name or npm-cli.js, and
+ * a `[` inside a string literal within an argument list.
+ */
+async function npmSpawns() {
+  const spawns: Spawn[] = [];
   for (const path of await walk(join(repo, "scripts"))) {
+    const file = relative(repo, path);
     const source = await readFile(path, "utf8");
-    for (const match of source.matchAll(/["']npm["'],\s*\[/g)) {
+    const line = (index: number) =>
+      `${file}:${source.slice(0, index).split("\n").length}`;
+    const quoted =
+      /\(\s*(?:["'][\w-]+["']\s*,\s*)?["'](np[mx])["']\s*,\s*(\[|[^\s\]])/g;
+    for (const match of source.matchAll(quoted)) {
+      if (match[2] !== "[") {
+        const rest = source.slice(match.index + match[0].length - 1);
+        spawns.push({
+          site: line(match.index),
+          form: "expression",
+          body: rest.slice(0, rest.search(/[,)]/)).trim(),
+        });
+        continue;
+      }
       let depth = 0;
       let end = match.index + match[0].length - 1;
       for (; end < source.length; end++) {
         if (source[end] === "[") depth++;
         else if (source[end] === "]" && --depth === 0) break;
       }
-      const body = source.slice(match.index, end + 1);
-      const verb = body.match(/\[\s*["'`]([\w-]+)["'`]/)?.[1] ?? "?";
-      sites.push({ file: relative(repo, path), verb, body });
+      spawns.push({
+        site: line(match.index),
+        form: match[1],
+        body: source.slice(match.index + match[0].length - 1, end + 1),
+      });
     }
+    for (const match of source.matchAll(/Bun\.\$`\s*(np[mx])\b([^`]*)`/g))
+      spawns.push({
+        site: line(match.index),
+        form: `template ${match[1]}`,
+        body: match[2].trim(),
+      });
   }
-  return sites;
+  return spawns;
 }
 
-// Calls that never reach the registry: packing a local directory and
-// installing local tarballs. Named, so a new one is a decision, not a gap.
-const LOCAL_ONLY = [
-  { file: "scripts/build-candidate-bundle.mjs", verb: "pack" },
-  { file: "scripts/qualification/prepublish.mjs", verb: "pack" },
-  { file: "scripts/qualification/prepublish.mjs", verb: "install" },
+// The pins as an ELEMENT of the list, not merely text inside it: a comment
+// reading "...REGISTRY_PINS" does not satisfy this (review finding 1a).
+const PINNED = /[[,]\s*\.\.\.REGISTRY_PINS\s*[,\]]/;
+// `npm pack` of the working directory: no package spec, every word a flag.
+const LOCAL_PACK_LIST =
+  /^\[\s*["']pack["']\s*(?:,\s*["']--[\w-]+["']\s*(?:,\s*[\w.]+\s*)?)*,?\s*\]$/;
+const LOCAL_PACK_TEMPLATE = /^pack(?:\s+(?:--[\w-]+|\$\{\w+\}))*$/;
+// Non-literal argument lists, each built by a function a test below pins.
+const BUILT_ELSEWHERE = [
+  { file: "scripts/publish-release.mjs", body: "args" }, // publishArgs
+  { file: "scripts/promote-release.mjs", body: "launcherPublishArgs(tarball" },
 ];
 
-test("every npm argument list literal in scripts/ that reaches the registry carries the pins", async () => {
-  const sites = await npmCallSites();
-  // Report how much was read: a scan that finds nothing must not pass.
-  expect(sites.length).toBeGreaterThanOrEqual(10);
-  const unpinned = sites.filter(
-    (site) =>
-      !site.body.includes("...REGISTRY_PINS") &&
-      !LOCAL_ONLY.some(
-        (local) => local.file === site.file && local.verb === site.verb,
-      ),
-  );
-  expect(unpinned.map(({ file, verb }) => `${file}: npm ${verb}`)).toEqual([]);
-  // A local-only entry must still be local: no package spec, no registry verb.
-  for (const site of sites.filter((s) => !s.body.includes("...REGISTRY_PINS")))
-    expect(["pack", "install"]).toContain(site.verb);
+test("every npm or npx spawn in scripts/ is pinned, provably local, or built by a pinned builder", async () => {
+  const spawns = await npmSpawns();
+  // How much was read: 11 literal lists, 2 built elsewhere, 5 templates.
+  expect(spawns.length).toBeGreaterThanOrEqual(15);
+  const bad = spawns.filter((spawn) => {
+    if (spawn.form === "npm")
+      return !PINNED.test(spawn.body) && !LOCAL_PACK_LIST.test(spawn.body);
+    if (spawn.form === "template npm")
+      return !LOCAL_PACK_TEMPLATE.test(spawn.body);
+    if (spawn.form === "expression")
+      return !BUILT_ELSEWHERE.some(
+        (built) =>
+          spawn.site.startsWith(`${built.file}:`) && spawn.body === built.body,
+      );
+    return true; // npx, in any form, is never expected here
+  });
+  expect(
+    bad.map(
+      (spawn) => `${spawn.site} ${spawn.form} ${spawn.body.slice(0, 60)}`,
+    ),
+  ).toEqual([]);
 });
 
-test("every npm publish and view in release.yml carries both pins", async () => {
+// Every npm subcommand, and every alias, that talks to the registry.
+const REGISTRY_VERB =
+  /^(?!\s*#).*\bnpm\s+(publish|unpublish|view|v|info|show|dist-tags?|pack|install|i|add|ci|access|whoami|stage|owner|deprecate|search)\b/;
+
+test("every registry npm call in release.yml carries both pins", async () => {
   const workflow = await readFile(
     join(repo, ".github", "workflows", "release.yml"),
     "utf8",
   );
-  const calls = workflow
-    .split("\n")
-    .filter((line) => /^(?!\s*#).*\bnpm (publish|view|dist-tag)\b/.test(line));
-  expect(calls.length).toBe(3);
-  for (const line of calls)
-    for (const pin of REGISTRY_PINS) expect(line).toContain(pin);
+  const calls = workflow.split("\n").filter((line) => REGISTRY_VERB.test(line));
+  // Upgrading npm itself is not an @opum-ai call; named, so a second
+  // unpinned install is a decision rather than a gap.
+  const npmSelfUpgrade = /\bnpm install --global npm@\^11\s*$/;
+  expect(calls.length).toBe(6);
+  for (const call of calls.filter((line) => !npmSelfUpgrade.test(line)))
+    for (const pin of REGISTRY_PINS) expect(call).toContain(pin);
 });
 
 const reader = (answers: (() => string)[]) => {

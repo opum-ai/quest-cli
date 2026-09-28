@@ -510,6 +510,9 @@ export async function verifyFinalLauncher({
  * attempts run out, because the field lags a publish (lore-cli LCLI-460
  * measured ~25 minutes). An unreadable read reports null, never 0.
  */
+/** The manual re-measure the WARNING prints: this same pinned read, once. */
+export const README_RECHECK = `node --input-type=module -e "const m = await import('./scripts/promote-release.mjs'); console.log(JSON.stringify(await m.readBackReadme({ attempts: 1 })))"`;
+
 export async function readBackReadme({
   execFile: execFileFn = execFile,
   attempts = 10,
@@ -527,7 +530,9 @@ export async function readBackReadme({
         "--prefer-online",
         ...REGISTRY_PINS,
       ]);
-      // npm prints the field and one newline, and nothing for an empty one.
+      // npm view prints the field TRIMMED plus one newline, and nothing
+      // for an empty one, so this is the trimmed length: exactly 0 for the
+      // empty-field case this exists to catch.
       bytes = Buffer.byteLength(String(stdout).replace(/\r?\n$/, ""), "utf8");
       error = undefined;
       if (bytes > 0) return { bytes, attempts: attempt };
@@ -905,6 +910,29 @@ async function main(argv) {
     if (npmrcDir) await rm(npmrcDir, { recursive: true, force: true });
   }
 
+  // QCLI-400: report only, and BEFORE the GitHub Release, so a failed cut
+  // (which exits) cannot skip it: npm `latest` has already moved by here.
+  // The promotion is complete and verified, and the field lags a publish,
+  // so a non-zero exit would invite a rollback for what is usually lag --
+  // the same call lore-cli made (LCLI-621).
+  const readme = await readBackReadme();
+  if (readme.bytes > 0)
+    console.log(
+      `README read-back (QCLI-399 AC3): npm's package-level readme for ${LAUNCHER} is ${readme.bytes} bytes (read ${readme.attempts} time(s)).`,
+    );
+  else
+    console.warn(
+      [
+        "",
+        `WARNING: npm serves NO package-level readme for ${LAUNCHER} yet (QCLI-399 AC3): ${readme.bytes === null ? "unreadable" : "0 bytes"}${readme.error ? ` (last read failed: ${readme.error})` : ""} after ${readme.attempts} read(s).`,
+        "The promotion is complete and verified; do NOT roll back or unpublish for this. The field lags a",
+        "publish (~25 minutes measured by lore-cli). Re-measure with the same pinned read and record the",
+        "count on QCLI-399:",
+        `    ${README_RECHECK}`,
+        `Still 0 after that window means the publish of ${record.version} did not populate the packument readme.`,
+      ].join("\n"),
+    );
+
   // QCLI-398: reached only after a verified promotion (every other path in
   // the try returns or exits). The release is cut after the finally, so the
   // npm token file is already gone: gh does not need it, and process.exit
@@ -920,26 +948,6 @@ async function main(argv) {
     process.exit(1);
   }
   console.log(`GitHub Release: ${cut.detail}.`);
-
-  // QCLI-400: report only. The promotion is complete and verified, and the
-  // field lags a publish, so a non-zero exit here would invite a rollback
-  // for what is usually lag -- the same call lore-cli made (LCLI-621).
-  const readme = await readBackReadme();
-  const readCommand = `npm view ${LAUNCHER} readme | wc -c`;
-  if (readme.bytes > 0)
-    console.log(
-      `README read-back (QCLI-399 AC3): npm's package-level readme for ${LAUNCHER} is ${readme.bytes} bytes (read ${readme.attempts} time(s)).`,
-    );
-  else
-    console.warn(
-      [
-        "",
-        `WARNING: npm serves NO package-level readme for ${LAUNCHER} yet (QCLI-399 AC3): ${readme.bytes === null ? `unreadable (${readme.error ?? "no answer"})` : "0 bytes"} after ${readme.attempts} read(s).`,
-        "The promotion is complete and verified; do NOT roll back or unpublish for this. The field lags a",
-        `publish (~25 minutes measured by lore-cli), so re-measure with \`${readCommand}\` and record the count on QCLI-399.`,
-        `Still 0 after that window means the publish of ${record.version} did not populate the packument readme.`,
-      ].join("\n"),
-    );
 }
 
 if (
