@@ -229,9 +229,21 @@ heading below is patch-level, it fails. Before choosing the number, run it
 with `--next <x.y.z>` to check a proposed version against `## Unreleased`.
 Ruled in opum-doc
 `docs/adr/gate-release-prep-on-a-breaking-changelog-entry-at-a-patch-bump.md`.
-lore-cli runs the same check over its own CHANGELOG, and because the pair
-shares one version, a breaking entry on either side forces the pair to at
-least minor.
+
+**Because the pair shares one version, a breaking entry on EITHER side forces
+the pair to at least minor, including the side that did not change
+functionally (QCLI-403).** `bun run check:breaking-bump:pair` runs the same
+rule over lore-cli's notes for the same version. It reads lore-cli's
+`CHANGELOG.md` through the GitHub API at the commit its `main` resolves to,
+and it names that ref, that SHA and how many sections it read. Before you
+choose the number, run `node scripts/check-breaking-bump.mjs --pair
+--lore-ref dev --next <x.y.z>`, because lore's unreleased notes are on `dev`.
+`release.yml` runs the `main` form right after the version-parity gate and
+before anything is published. It fails closed: a 404, an auth failure, a
+network error, or a CHANGELOG with no version section refuses, and never
+passes on nothing read. It stays out of the `breaking_bump` source gate on
+purpose, because a network read in the required `source-gates` context would
+make that context flaky. lore-cli runs the mirror check against quest-cli.
 
 ### Why strings first, then bytes
 
