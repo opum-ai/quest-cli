@@ -1,0 +1,15 @@
+schema_version = 1
+name = "documentation"
+description = "Grounds documentation authoring in this bundle's entry point, the active Story and controlling Spec it fans out from, the operations runbook that governs safe workspace procedure, and the Lore-integration ADR that decides how docs may couple to lore."
+kind = "specialist"
+max_tokens = 12000
+pinned = [
+  "index",
+]
+sources = [
+  "stories/harden-and-qualify-quest-cli-0-2-x",
+  "specs/quest-cli-architecture",
+  "runbooks/quest-cli-operations",
+  "adr/keep-lore-optional-and-integrate-only-through-versioned-public-records",
+  "reference/quest-cli-component-contracts-and-delivery-graph",
+]
