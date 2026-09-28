@@ -16,7 +16,7 @@ import {
 /**
  * QCLI-358, opum-doc ADR
  * detect-a-stale-lore-pin-without-touching-a-required-ci-context. The unit
- * half: every network edge (npm, npx, gh) is injected, so these run offline.
+ * half: every network edge (npm, gh) is injected, so these run offline.
  * The real-lore measurements (current, behind, behind and schema-changing)
  * are recorded on the task, because they need the registry.
  */

@@ -37,6 +37,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { REGISTRY_PINS } from "./qualification/registry-visibility.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -44,7 +45,6 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 export const LORE_PACKAGE = "@opum-ai/lore";
 export const GATE_WORKFLOW = ".github/workflows/lore-check.yml";
 export const ISSUE_LABEL = "lore-pin-stale";
-const REGISTRY = "--registry=https://registry.npmjs.org/";
 const RELEASE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 const defaultRun = (command, args, options = {}) =>
@@ -83,7 +83,7 @@ export async function readNewest({ run = defaultRun } = {}) {
     "view",
     `${LORE_PACKAGE}@latest`,
     "version",
-    REGISTRY,
+    ...REGISTRY_PINS,
   ]);
   const version = stdout.trim();
   if (!RELEASE.test(version))
@@ -99,17 +99,33 @@ export async function readNewest({ run = defaultRun } = {}) {
  * file name.
  */
 export async function exportSchemas(version, { run = defaultRun } = {}) {
-  const work = await mkdtemp(join(tmpdir(), "lore-pin-staleness-"));
+  const scratch = await mkdtemp(join(tmpdir(), "lore-pin-staleness-"));
+  // The copy lore exports from, and the lore that exports it, side by side
+  // so the installed tool is never inside the tree being exported.
+  const [work, tool] = [join(scratch, "repo"), join(scratch, "tool")];
   try {
     await run("bash", [
       "-c",
-      'set -o pipefail; git -C "$0" archive HEAD .lore docs | tar -x -C "$1" && rm -rf "$1/.lore/schemas" && git -C "$1" init -q',
+      'set -o pipefail; mkdir -p "$1" && git -C "$0" archive HEAD .lore docs | tar -x -C "$1" && rm -rf "$1/.lore/schemas" && git -C "$1" init -q',
       root,
       work,
     ]);
+    // Installed into its own prefix rather than run through npx, so the
+    // fetch carries both registry pins like every other release-script npm
+    // call (QCLI-400), and the version exported is exactly the one named.
+    await run("npm", [
+      "install",
+      "--prefix",
+      tool,
+      "--no-save",
+      "--no-audit",
+      "--no-fund",
+      ...REGISTRY_PINS,
+      `${LORE_PACKAGE}@${version}`,
+    ]);
     await run(
-      "npx",
-      ["--yes", `${LORE_PACKAGE}@${version}`, "schema", "export"],
+      join(tool, "node_modules", ".bin", "lore"),
+      ["schema", "export"],
       {
         cwd: work,
       },
@@ -123,7 +139,7 @@ export async function exportSchemas(version, { run = defaultRun } = {}) {
       schemas.set(name, await readFile(join(dir, name), "utf8"));
     return schemas;
   } finally {
-    await rm(work, { recursive: true, force: true });
+    await rm(scratch, { recursive: true, force: true });
   }
 }
 
