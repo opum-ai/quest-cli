@@ -12,6 +12,14 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Changed
 
+- **The task-creation guide warns against a count that goes stale inside an
+  acceptance criterion** (QCLI-351). A criterion like "the three leaked
+  daemons are reaped" stays clear and stops being true once a fourth starts.
+  `quest instructions task-creation` now says to write such a criterion so it
+  enumerates when it is checked, and says why. A count of what the task itself
+  produces is still fine. This is guide prose only: nothing validates or
+  rejects digits in a criterion.
+
 - **The root launcher reaches `latest` by a fresh publish, so npm shows its
   readme** (QCLI-399; constitution Article 3 clause 5 as amended by ODOC-302,
   opum-agent OPAG-474). A dist-tag move never makes npm derive a packument
