@@ -376,17 +376,32 @@ function resolveOutputModes(argv: readonly string[]): {
   return { arguments: arguments_, json, plain };
 }
 
+/**
+ * Collects `argv` into flag values. It does NOT know the command's accepted
+ * set -- that is applied afterwards by `only()` at each dispatch site -- so a
+ * non-repeatable flag seen twice is recorded in `duplicates` rather than
+ * rejected here (QCLI-355). Rejecting it during collection asserted that the
+ * flag exists: a repeated flag the command has never had was told "may only
+ * be provided once" instead of "Unrecognized flag", so the caller retried it
+ * once per call. `only()` names an unknown flag first and reports the arity
+ * error only for a flag the command accepts.
+ */
 function flags(
   argv: readonly string[],
   repeatableValueFlags: readonly string[] = [],
 ):
   | {
       readonly values: Map<string, string[]>;
+      readonly duplicates: readonly string[];
       readonly json: boolean;
       readonly plain: boolean;
     }
   | undefined {
   const values = new Map<string, string[]>();
+  const duplicates: string[] = [];
+  const duplicate = (flag: string) => {
+    if (!duplicates.includes(flag)) duplicates.push(flag);
+  };
   const json = argv.includes("--json");
   const plain = argv.includes("--plain");
   const repeatable = new Set(repeatableValueFlags);
@@ -410,8 +425,7 @@ function flags(
     if (booleanFlags.has(flag)) {
       if (inlineValue !== undefined)
         throw new FlagUsageError(`${flag} does not take a value.`);
-      if (values.has(flag))
-        throw new FlagUsageError(`${flag} may only be provided once.`);
+      if (values.has(flag)) duplicate(flag);
       values.set(flag, []);
       continue;
     }
@@ -424,13 +438,12 @@ function flags(
         `${flag} requires a value; use ${flag}=<value> if the value begins with --.`,
       );
     const entries = values.get(flag) ?? [];
-    if (entries.length > 0 && !repeatable.has(flag))
-      throw new FlagUsageError(`${flag} may only be provided once.`);
+    if (entries.length > 0 && !repeatable.has(flag)) duplicate(flag);
     entries.push(value);
     values.set(flag, entries);
     if (inlineValue === undefined) index += 1;
   }
-  return { values, json, plain };
+  return { values, duplicates, json, plain };
 }
 
 function one(
@@ -448,7 +461,13 @@ function only(
   parsed: NonNullable<ReturnType<typeof flags>>,
   allowed: readonly string[],
 ): boolean {
-  return unknownFlags(parsed, allowed).length === 0;
+  if (unknownFlags(parsed, allowed).length > 0) return false;
+  // QCLI-355: every flag is one this command accepts, so a repeat is now
+  // genuinely an arity error rather than a guess at a flag that never existed.
+  const [repeated] = parsed.duplicates;
+  if (repeated !== undefined)
+    throw new FlagUsageError(`${repeated} may only be provided once.`);
+  return true;
 }
 
 /**
