@@ -334,6 +334,12 @@ below. Neither route changes step 1, which is required either way.
    ## <version>
    ```
 
+   **The tag has to carry this edit, not a later one.** QCLI-407 reads the
+   release notes at the commit `v<version>` peels to, so a section finalized
+   after the tag does not reach the release: the cut reads the tagged bytes and
+   refuses rather than shipping the older ones. Finalizing and tagging in the
+   same step is what makes the notes true, not merely tidy.
+
    The empty heading is the step, not a courtesy. Every change that lands
    between this tag and the next one needs somewhere to be written down at
    the moment it lands. What was measured after the 0.7.1 tag, which left no
@@ -1007,14 +1013,35 @@ LCLI-621, and the receipt fields are opum-cli-e2e's (TASK-126,
 
    Once `latest` is verified, the same run cuts the GitHub Release
    `v<version>`, titled `Quest CLI <version>`, from this version's
-   `CHANGELOG.md` section, and marks it latest (QCLI-398). It refuses before
-   any tag moves, dry run included, if that section is missing or empty, or
-   if `gh` cannot read the release (not installed, logged out, offline). If
-   only the release step fails, `latest` has still moved. Do not roll back;
-   repair it with `node scripts/github-release.mjs --version <version>
-   --create`. That script never creates a tag and never rewrites an existing
-   release's notes. GitHub Releases had stopped at v0.6.0 because no step cut
-   them. v0.6.1 to v0.11.0 were backfilled on 2026-09-27, so every tag has one.
+   `CHANGELOG.md` section **at the commit the tag peels to**, and marks it
+   latest (QCLI-398; read at the tagged commit since QCLI-407). The section is
+   read through the GitHub API at that commit and never from the working tree,
+   so an uncommitted edit -- or a line landed on `dev` after the tag -- cannot
+   become the body of a release. That is also why step 5 folds the changelog
+   into the commit it tags: the tag is what the notes are read from. It
+   refuses before any tag moves, dry run included, if that section is missing
+   or empty, or if `gh` cannot read the release (not installed, logged out,
+   offline). If only the release step fails, `latest` has still moved. Do not
+   roll back; repair it with `node scripts/github-release.mjs --version
+   <version> --create`. That script never creates a tag and never rewrites an
+   existing release's notes. GitHub Releases had stopped at v0.6.0 because no
+   step cut them. v0.6.1 to v0.11.0 were backfilled on 2026-09-27, so every
+   tag has one.
+
+   **Since QCLI-407, a section that is missing at the tagged commit is not
+   repairable by adding one and re-running**: the tag exists and is immutable
+   by the time the refusal can fire. The remedies are the hand cut above, or a
+   re-tag -- and the hand cut is listed first deliberately, because a re-tag
+   moves a tag that published pages read live (see the tag-stability note
+   above), while a hand cut touches the release and nothing else. The same
+   re-sourcing moved what the existing-release check compares, so a release
+   cut or backfilled from a working tree that differed from its tag is now
+   reported rather than confirmed: 0.6.1, 0.6.2, 0.7.0 and 0.8.0 are in that
+   state, and whether each keeps its stored body or is reconciled to its tag's
+   section is a decision rather than a repair, since 0.6.1's and 0.8.0's
+   stored bodies carry "tagged, never published" where their tag's sections do
+   not (QCLI-410). Nothing in the release flow reaches those versions until
+   that is settled.
 4. **Roll back the tags, never the versions.** A failure part way through
    restores the tags that run moved, the launcher's included. A failed or
    refused launcher publish moves its `latest` back to the prior version by

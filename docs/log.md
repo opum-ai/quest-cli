@@ -264,6 +264,7 @@
 - 2026-09-18T23:15:23-05:00 53c8c24dab20eb10b031936b24e90e7259a7f29f chore(QCLI-352): close the handoff note as read by the successor (#216)
 - 2026-09-22T18:18:02-05:00 73617b596992f11ca41981b708a6369439ce5637 chore(QCLI-361): move the lore check gate to lore 0.9.0 and re-export the schemas (#236)
 - 2026-09-27T00:11:47-05:00 65b831581b48224101381ebb466d8dbc7041c211 chore(QCLI-387): quest 0.11.0 latest moved; close the release (#324)
+- 2026-09-27T00:18:44-05:00 3bd59d703bd2e1cbdd25353f6bc3a780258de38c chore(QCLI-387): session handoff at the recycle; annotate QCLI-386 and QCLI-388 (#325)
 
 ## docs/adr
 
@@ -312,6 +313,10 @@
 - 2026-09-26T20:09:19-05:00 1b6edff973536a440a982897dd6195a8558c9302 feat(QCLI-388): gate the latest move on opum-cli-e2e's pair receipt (#307)
 - 2026-09-26T20:15:31-05:00 481f4654f5fd205b2de2af51b83341c6c76517ed feat(QCLI-386): refuse to publish unless lore is at the same version (#308)
 - 2026-09-26T22:13:30-05:00 a2d635507c8b241fcadee644d3255eda42c60276 fix(QCLI-390): rollback may only undo its own promotion; restore a failed tag move too (#316)
+- 2026-09-27T14:13:48-05:00 06189debaacaed798c758757b334ed9026e35642 feat(QCLI-398): cut the GitHub Release on promotion; backfill every tag; date CHANGELOG headings (#342)
+- 2026-09-27T20:44:22-05:00 a2821eedb7333530c50c7021cc580850614b7de9 feat(QCLI-399): stage the root launcher as X-rc.N, publish X straight to latest (Article 3.5, ODOC-302) — WIP (#344)
+- 2026-09-28T10:30:13-05:00 bee163610791547e7bb6cefc48f967daaf8bab2d feat(QCLI-328): refuse a breaking CHANGELOG section at a patch-level bump (#367)
+- 2026-09-28T12:04:10-05:00 b1c52d0fd5a21c8b62a01b55ea533729add9dc3d feat(QCLI-403): the breaking-bump check reads lore-cli's CHANGELOG by ref (#383)
 
 ## docs/specs
 

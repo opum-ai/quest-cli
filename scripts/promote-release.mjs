@@ -41,8 +41,9 @@
 // launcher's included. Nothing is unpublished; retry at the same version.
 //
 // Once `latest` is verified moved, the same run cuts the GitHub Release for
-// v<version> from CHANGELOG.md (QCLI-398, scripts/github-release.mjs): GitHub
-// had stopped at v0.6.0 because no step did. A missing CHANGELOG section
+// v<version> from CHANGELOG.md AT THE COMMIT THE TAG PEELS TO (QCLI-398,
+// scripts/github-release.mjs; QCLI-407, paired with lore-cli LCLI-639): GitHub
+// had stopped at v0.6.0 because no step did. A missing section at that commit
 // refuses before any tag moves, dry runs included. --rollback leaves
 // releases alone.
 //
@@ -882,13 +883,15 @@ async function main(argv) {
     // QCLI-398: the GitHub Release is cut after `latest` moves, so its notes
     // must exist BEFORE anything moves; finding no section afterwards would
     // leave a promoted version with no release.
-    release = await releaseNotesFor(version);
-    if (!release) {
-      console.error(
-        `Refusing to promote ${version}: CHANGELOG.md has no non-empty "## ${version}" section for its GitHub Release.`,
-      );
+    // QCLI-407: read at the commit v<version> peels to -- the same commit the
+    // bundle above was gated against -- so an uncommitted edit, or work that
+    // landed after the tag, cannot become the body of this release.
+    const notes = await releaseNotesFor(version, { commit: peeled.commit });
+    if (!notes.ok) {
+      console.error(`Refusing to promote ${version}: ${notes.detail}`);
       process.exit(1);
     }
+    release = { notes: notes.notes, title: notes.title };
     // A read of the release, on --promote as well as the dry run: a gh that
     // is missing, logged out or offline refuses here, before any tag moves,
     // instead of being found after `latest` has already moved.

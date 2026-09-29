@@ -36,7 +36,14 @@ export function ensureGitHubRelease(options: {
   execFile?: ExecFile;
 }): Promise<ReleaseOutcome>;
 
+export function changelogAt(
+  commit: string,
+  options?: { execFile?: ExecFile },
+): Promise<{ text: string | null; commit: string; error: string | null }>;
+
 export function releaseNotesFor(
   version: string,
-  options?: { changelogPath?: string },
-): Promise<{ notes: string; title: string } | null>;
+  options?: { commit: string; execFile?: ExecFile },
+): Promise<
+  { ok: true; notes: string; title: string } | { ok: false; detail: string }
+>;
