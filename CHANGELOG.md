@@ -40,6 +40,48 @@ dated by its own tag. No date here is inferred (QCLI-398).
   restores every `latest` this run moved by dist-tag, the launcher's
   included. Paired with lore-cli LCLI-621. Release tooling only.
 
+- **`task edit --if-revision` is scoped to the record it guards, not to the
+  whole workspace** (QCLI-310; reported by the mbpm2 project via opum-agent,
+  and reproduced here first-hand on 0.11.0). `task view --json`'s `revision`
+  was a sha256 of the ENTIRE store -- every task record and every draft -- and
+  `--if-revision` compared against that same value. So writing any task
+  invalidated the captured revision of every other one, and a guarded edit of
+  a record that had never moved was refused with exit 5. In a workspace with
+  two unrelated tasks: capture T-1's revision, edit T-2, then edit T-1 with
+  the captured revision -- refused. That is the exact concurrent-session case
+  the flag was built for. `task view` now emits a per-record revision and
+  both guards compare against it, so the pair round-trips; a `task edit-batch`
+  item's `ifRevision` is scoped the same way, and its help sentence -- which
+  described the whole-batch comparison -- now describes the record's own
+  revision.
+
+  **This restores the documented scope rather than changing it**, which is why
+  it is a fix and not a redesign. QCLI-277's own acceptance criteria ("apply
+  this edit only if THE RECORD is still at the revision I read"), the
+  `task edit` help text ("if the record has moved since"), the tracker
+  contract's docblock, and the release note that introduced the flag all say
+  per-record. The implementation never did, and no test pinned the
+  workspace-wide reading as intended -- it was a mechanism a source comment
+  described, and the two-task reproduction above is what it produced.
+
+  Two values are deliberately NOT narrowed, because they are the write path's
+  own coordination machinery rather than a caller-capturable precondition: the
+  repository's internal `expectedRevision` CAS (still the workspace revision,
+  still under the write lock), and `task edit-batch`'s reported
+  `data.revision` (the workspace revision the batch committed at, pinned since
+  QCLI-122 and read by opum-cli-e2e's scale progress line). A relocation
+  between `tasks/`, `completed/` and `archive/tasks/` does move a record's
+  revision, since `task view` reports the derived `path` beside it.
+
+  **A consumer that read `revision` as a workspace-change detector loses
+  that**, and it is worth naming even though no contract promised it. lore-cli
+  states the old scope in a comment (`src/commands/link.ts`, "WORKSPACE-WIDE
+  (measured on 0.10.0 and 0.11.0)") and asserts it as a positive control in
+  `test/link-quest-race.test.ts` -- both describe the previous implementation
+  and need updating before lore-cli picks this up. Its decision logic does not
+  depend on it: lore-cli already declines to decide on revision movement
+  alone, and a narrower hash strengthens rather than weakens that choice.
+
 ### Added
 
 - **Workspace-configured `type` and `priority` vocabulary** (QCLI-330; opum-doc

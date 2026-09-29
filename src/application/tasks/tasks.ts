@@ -37,6 +37,7 @@ import {
   type TaskVocabulary,
 } from "../../domain/tasks/vocabulary.ts";
 import { type EditPatchVocabulary, foldEditPatch } from "./edit-patch.ts";
+import { recordRevision } from "./record-revision.ts";
 
 /** Re-exported so the CLI can read and report the vocabulary without importing the domain. */
 export {
@@ -185,12 +186,20 @@ export type TaskMutationResult =
  * trivially matches every time, since it was read moments earlier in the
  * same call, and so can never by itself detect that a CALLER's own earlier
  * read (e.g. `task view --json`'s `revision` field) has since gone stale.
- * `ifRevision`, when supplied, is checked against the freshly-read
- * snapshot BEFORE any other work -- including the freshly-read
- * `expectedRevision` write below, which stays exactly as before -- so a
- * caller reasoning from a stale read gets the same exit-5 conflict shape
- * an ordinary write race already produces, instead of silently succeeding
- * over another session's update. Omitted, behavior is unchanged.
+ * `ifRevision`, when supplied, is checked against the RESOLVED RECORD's own
+ * revision ({@link recordRevision}) before any write -- including the
+ * freshly-read `expectedRevision` write below, which is the repository's
+ * workspace-wide CAS and stays exactly as before -- so a caller reasoning
+ * from a stale read gets the same exit-5 conflict shape an ordinary write
+ * race already produces, instead of silently succeeding over another
+ * session's update. Omitted, behavior is unchanged.
+ *
+ * QCLI-310: the record, not the workspace, is the unit -- `task view`'s
+ * `revision` is the same per-record value, so the pair round-trips. It used
+ * to compare the whole-store revision on both sides, which was
+ * self-consistent but wrong in scope: any write anywhere invalidated every
+ * outstanding precondition, making the flag unusable for the concurrent
+ * sessions it was built for.
  */
 export interface TaskEditOptions {
   readonly ifRevision?: string;
@@ -1056,6 +1065,14 @@ export class TaskService {
    * shared `TaskStateWithPath` shape, and performs its own single
    * `readAll()` rather than composing `viewWithPath` plus a second read, so
    * the returned task and revision always describe the same snapshot.
+   *
+   * QCLI-310: the revision is this RECORD's ({@link recordRevision}), not the
+   * repository's whole-workspace one. The value exists to be handed back to
+   * `task edit --if-revision`, whose documented promise is that the edit is
+   * refused "if the record has moved since" -- so the value has to move when
+   * THIS record moves and stay put when an unrelated one does. Emitting the
+   * workspace revision here made a captured precondition fail after any edit
+   * anywhere in the workspace.
    */
   async viewWithRevision(
     reference: string,
@@ -1073,7 +1090,7 @@ export class TaskService {
         ...task,
         path: this.ownedPathForLocation(task.id, current.location),
       },
-      revision: snapshot.revision,
+      revision: recordRevision(current),
     };
   }
 
@@ -1082,17 +1099,27 @@ export class TaskService {
    * (QCLI-122). Pair with {@link editOn} in the CLI composition root so one
    * public mutation performs exactly one authoritative collection read.
    */
-  async prepareMutation(
-    reference: string,
-  ): Promise<{ snapshot: TaskReadSnapshot; task: TaskState }> {
+  async prepareMutation(reference: string): Promise<{
+    readonly snapshot: TaskReadSnapshot;
+    readonly task: TaskState;
+    /**
+     * QCLI-310: the resolved RECORD's revision, not `snapshot.revision`
+     * (which is the whole workspace's). This is the value `task view --json`
+     * emits and `--if-revision` compares against, so the CLI's own
+     * pre-fold staleness check (QCLI-374) can ask the same question
+     * `editOn` will ask.
+     */
+    readonly taskRevision: string;
+  }> {
     const snapshot = await this.repository.readAll();
-    return {
-      snapshot,
-      task: findTask(
-        this.taskRecords(snapshot).map((r) => r.task),
-        reference,
-      ),
-    };
+    const records = this.taskRecords(snapshot);
+    const task = findTask(
+      records.map((record) => record.task),
+      reference,
+    );
+    const current = records.find((record) => record.task.id === task.id);
+    if (!current) throw new RecordValidationError("task_not_found");
+    return { snapshot, task, taskRevision: recordRevision(current) };
   }
   async search(query: string): Promise<readonly TaskState[]> {
     const snapshot = await this.repository.readAll();
@@ -1124,28 +1151,12 @@ export class TaskService {
     operationId: string,
     options?: TaskEditOptions,
   ): Promise<TaskMutationResult> {
-    // A broken [tasks] table refuses the write before anything else is read.
-    // This is the one guard that runs before the QCLI-277 check below, so
-    // that comment's "checked first" reads "first after this"; a stale
-    // precondition is still answered before any task work.
+    // A broken [tasks] table refuses the write before anything else is read by
+    // THIS method, and it is still the first guard to run -- the QCLI-277
+    // precondition below is answered before any task work, but after this and
+    // after the resolution it needs.
     if (this.configuredVocabularyProblem !== undefined)
       throw new RecordValidationError(this.configuredVocabularyProblem);
-    // QCLI-277: checked first, before task resolution or any other work, so
-    // a stale caller-supplied precondition changes nothing -- not even a
-    // read. See TaskEditOptions for why this is a distinct check from the
-    // `expectedRevision: snapshot.revision` write further down.
-    if (
-      options?.ifRevision !== undefined &&
-      options.ifRevision !== snapshot.revision
-    ) {
-      return {
-        kind: "conflict",
-        expectedRevision: options.ifRevision,
-        actualRevision: snapshot.revision,
-        operationId,
-        ownedPaths: [],
-      };
-    }
     // Cross-location resolution (QCLI-219): a completed or archived record
     // is a real, viewable task -- `quest task view` resolves it fine -- so
     // scoping the lookup to active `tasks/` alone made every edit against it
@@ -1162,6 +1173,29 @@ export class TaskService {
     const current = records.find((record) => record.task.id === selected.id);
     if (!current) throw new RecordValidationError("task_not_found");
     const task = current.task;
+    // QCLI-277, scoped to the record by QCLI-310. Still checked before any
+    // state change -- resolution above is a pure in-memory lookup over the
+    // snapshot already in hand, so a refused precondition still writes
+    // nothing and changes nothing. It does have to resolve the reference
+    // first, because "did THIS record move" cannot be answered without
+    // knowing which record that is; comparing against the whole-store
+    // `snapshot.revision` (which is what this did) refused an untouched
+    // task's guarded edit as soon as any other task was written. See
+    // TaskEditOptions for why this stays a distinct check from the
+    // `expectedRevision: snapshot.revision` write further down, which is the
+    // repository's own workspace-wide CAS and is deliberately unchanged.
+    if (
+      options?.ifRevision !== undefined &&
+      options.ifRevision !== recordRevision(current)
+    ) {
+      return {
+        kind: "conflict",
+        expectedRevision: options.ifRevision,
+        actualRevision: recordRevision(current),
+        operationId,
+        ownedPaths: [],
+      };
+    }
     const unsafe = patch as Partial<TaskState>;
     const allTasks = records.map((record) => record.task);
     if ("gates" in unsafe || "gateEvents" in unsafe)
@@ -1266,13 +1300,21 @@ export class TaskService {
       readonly operationId?: string;
       /**
        * QCLI-277: the per-item counterpart of {@link TaskEditOptions.ifRevision}.
-       * A batch's working revision is fixed at `initial.revision` for its
-       * whole run (every item evolves the same in-memory snapshot; the
-       * store only moves, if at all, at the final commit), so each item's
-       * precondition -- when supplied -- is checked against that same
-       * value. A mismatch fails only that item, exactly like any other
-       * per-item validation failure (`task_not_found`, a bad checklist
-       * position, ...): it does not abort sibling items in the batch.
+       * Each item's precondition -- when supplied -- is checked against THAT
+       * RECORD's own revision ({@link recordRevision}) as the batch found it
+       * when it opened. Not against the store's whole-workspace revision, and
+       * not against the in-memory state an earlier item may since have
+       * evolved: the caller captured the value before building the batch, so
+       * the state it describes is the one the batch opened on. A mismatch
+       * fails only that item, exactly like any other per-item validation
+       * failure (`task_not_found`, a bad checklist position, ...): it does
+       * not abort sibling items in the batch.
+       *
+       * QCLI-310 scoped this to the record. The value has to be the same one
+       * `task view --json` emits, both so a captured revision is usable here
+       * as well as on `task edit --if-revision`, and because a whole-store
+       * comparison failed every item whose unrelated sibling task happened
+       * to move.
        */
       readonly ifRevision?: string;
     }[],
@@ -1386,6 +1428,13 @@ export class TaskService {
       const initialRecords = this.taskRecords(initial);
       const workingTasks = initialRecords.map((record) => record.task);
       const workingLocations = initialRecords.map((record) => record.location);
+      // QCLI-310: each slot's per-record revision as the batch opened, held
+      // alongside the other two parallel arrays so an item's precondition is
+      // checked against the state its caller captured, not against whatever
+      // an earlier item in this same batch has evolved the slot into.
+      const initialRevisions = initialRecords.map((record) =>
+        recordRevision(record),
+      );
       // O(1) alias/reference index over the evolving collection.
       let rowIndex = buildReferenceIndex(workingTasks);
 
@@ -1403,20 +1452,25 @@ export class TaskService {
       for (const [index, { item, operationId }] of resolvedItems.entries()) {
         const reference = item.reference;
         try {
-          // QCLI-277: checked before resolving or touching this item's row,
-          // so a stale per-item precondition changes nothing for it -- same
-          // "before any state change" property as the single-edit check in
-          // editOn, scoped to one item instead of aborting the whole batch.
-          if (
-            item.ifRevision !== undefined &&
-            item.ifRevision !== initial.revision
-          )
-            throw new RecordValidationError(
-              `task_revision_precondition_failed (expected ${item.ifRevision}, actual ${initial.revision})`,
-            );
           const slot = rowIndex.resolve(item.reference);
           if (slot === undefined)
             throw new RecordValidationError("task_not_found");
+          // QCLI-277 (QCLI-310 scoped it to the record): checked before
+          // touching this item's row, so a stale per-item precondition
+          // changes nothing for it -- same "before any state change"
+          // property as the single-edit check in editOn, scoped to one item
+          // instead of aborting the whole batch. It resolves the reference
+          // first because the question is whether THIS record moved; the
+          // thrown error is still a per-item one, and an unresolvable
+          // reference is reported as itself rather than as a revision
+          // mismatch against a record that could not be named.
+          if (
+            item.ifRevision !== undefined &&
+            item.ifRevision !== initialRevisions[slot]
+          )
+            throw new RecordValidationError(
+              `task_revision_precondition_failed (expected ${item.ifRevision}, actual ${initialRevisions[slot]})`,
+            );
           const current = workingTasks[slot];
           const location = workingLocations[slot];
           const unsafe = resolveVocabularyPatch(

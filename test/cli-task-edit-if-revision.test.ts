@@ -217,9 +217,10 @@ test("`task edit-batch` supports the same precondition per operation: a stale it
         patch: { summary: "unconditional edit still applies" },
       },
     ];
-    // Force op-stale to actually be stale by moving the store's revision
-    // before the batch runs -- an ordinary edit to either task changes the
-    // whole-store revision `ifRevision` is checked against.
+    // Force op-stale to actually be stale before the batch runs by moving
+    // THE RECORD IT NAMES. QCLI-310 scoped the precondition to the record, so
+    // an edit to `secondId` would correctly leave op-stale's revision valid;
+    // the unrelated-write half is the separate test below.
     expect(
       spawnQuest(root, [
         "task",
@@ -268,6 +269,190 @@ test("`task edit-batch` supports the same precondition per operation: a stale it
     await rm(root, { recursive: true, force: true });
   }
 }, 30_000);
+
+/**
+ * QCLI-310 (reported by the mbpm2 project, relayed by opum-agent). The
+ * precondition was workspace-scoped at BOTH ends: `task view --json` emitted
+ * the store's whole-workspace revision, and `--if-revision` compared against
+ * that same value. So any write anywhere moved the revision a task emitted
+ * for itself, and a guarded edit of a record that never changed was refused
+ * with exit 5 -- unusable for exactly the concurrent sessions the flag was
+ * built for, and contrary to what the help text, the tracker contract and
+ * QCLI-277's own acceptance criteria promise ("apply this edit only if THE
+ * RECORD is still at the revision I read"). The pair below is the reported
+ * reproduction and its control, run separately rather than inferred from one
+ * another.
+ */
+function createTask(root: string, title: string): string {
+  const created = spawnQuest(root, [
+    "task",
+    "create",
+    title,
+    ...HUMAN_ACTOR,
+    "--json",
+  ]);
+  expect(created.exitCode).toBe(0);
+  return JSON.parse(created.stdout).data.id;
+}
+
+test("the reported reproduction: editing an unrelated task does not invalidate a captured revision (QCLI-310 AC1)", async () => {
+  const { root, taskId } = await seedWorkspace();
+  try {
+    const otherId = createTask(root, "Unrelated neighbour");
+    const revision = revisionOf(root, taskId);
+
+    // The reporter's second session writes a DIFFERENT task, exactly as in
+    // their reproduction.
+    const unrelated = spawnQuest(root, [
+      "task",
+      "edit",
+      otherId,
+      "--add-note",
+      "written by another session",
+      ...HUMAN_ACTOR,
+      "--json",
+    ]);
+    expect(unrelated.exitCode).toBe(0);
+
+    // The captured revision describes the record, so it has not moved.
+    expect(revisionOf(root, taskId)).toBe(revision);
+
+    // AC1: the final command of the reproduction returns exit 0, because the
+    // record it guards was never written to. Before QCLI-310 this was exit 5.
+    const guarded = spawnQuest(root, [
+      "task",
+      "edit",
+      taskId,
+      "--if-revision",
+      revision,
+      "--summary",
+      "guarded edit",
+      ...HUMAN_ACTOR,
+      "--json",
+    ]);
+    expect(guarded.exitCode).toBe(0);
+    expect(JSON.parse(guarded.stdout).data.summary).toBe("guarded edit");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the control, as its own run: the guarded record moving still conflicts and names its own current revision (QCLI-310 AC2)", async () => {
+  const { root, taskId } = await seedWorkspace();
+  try {
+    const otherId = createTask(root, "Unrelated neighbour");
+    const revision = revisionOf(root, taskId);
+
+    // An unrelated write FIRST, so the refusal below cannot be attributed to
+    // the workspace merely having moved.
+    expect(
+      spawnQuest(root, [
+        "task",
+        "edit",
+        otherId,
+        "--add-note",
+        "unrelated write",
+        ...HUMAN_ACTOR,
+        "--json",
+      ]).exitCode,
+    ).toBe(0);
+    expect(revisionOf(root, taskId)).toBe(revision);
+
+    // Now move the guarded record itself.
+    expect(
+      spawnQuest(root, [
+        "task",
+        "edit",
+        taskId,
+        "--add-note",
+        "the record itself moved",
+        ...HUMAN_ACTOR,
+        "--json",
+      ]).exitCode,
+    ).toBe(0);
+
+    const guarded = spawnQuest(root, [
+      "task",
+      "edit",
+      taskId,
+      "--if-revision",
+      revision,
+      "--summary",
+      "should conflict",
+      ...HUMAN_ACTOR,
+      "--json",
+    ]);
+    expect(guarded.exitCode).toBe(5);
+    const diagnostic = JSON.parse(guarded.stderr);
+    expect(diagnostic.error_type).toBe("conflict");
+    expect(diagnostic.input.actualRevision).not.toBe(revision);
+    // The named revision is the record's own new one, so a caller retries
+    // without a second round trip -- and it is reachable from a plain read.
+    expect(revisionOf(root, taskId)).toBe(diagnostic.input.actualRevision);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("edit-batch: an unrelated task's write leaves every item's precondition valid, and the batch applies (QCLI-310)", async () => {
+  const { root, taskId } = await seedWorkspace();
+  try {
+    const secondId = createTask(root, "Second guarded task");
+    const revision = revisionOf(root, taskId);
+    const secondRevision = revisionOf(root, secondId);
+
+    const unrelatedId = createTask(root, "Unrelated neighbour");
+    expect(
+      spawnQuest(root, [
+        "task",
+        "edit",
+        unrelatedId,
+        "--add-note",
+        "unrelated write",
+        ...HUMAN_ACTOR,
+        "--json",
+      ]).exitCode,
+    ).toBe(0);
+
+    const file = join(root, "operations-unrelated.jsonl");
+    await writeFile(
+      file,
+      [
+        {
+          reference: taskId,
+          operationId: "op-a",
+          ifRevision: revision,
+          patch: { summary: "guarded A" },
+        },
+        {
+          reference: secondId,
+          operationId: "op-b",
+          ifRevision: secondRevision,
+          patch: { summary: "guarded B" },
+        },
+      ]
+        .map((o) => JSON.stringify(o))
+        .join("\n"),
+    );
+
+    const batch = spawnQuest(root, [
+      "task",
+      "edit-batch",
+      "--file",
+      file,
+      ...HUMAN_ACTOR,
+      "--json",
+    ]);
+    expect(batch.exitCode).toBe(0);
+    const data = JSON.parse(batch.stdout).data;
+    // Both items carried a precondition captured before the unrelated write
+    // and both must still apply. Before QCLI-310 both failed.
+    expect(data.applied).toBe(2);
+    expect(data.failed).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 /**
  * QCLI-374 (reported by opum-cli-e2e TASK-90). The single-edit path folded

@@ -53,8 +53,21 @@ test("task command mapping preserves read records and requires actor declaration
   ).resolves.toMatchObject({
     kind: "task.view",
     // QCLI-277: additive `revision`, present alongside every other field.
-    data: { description: "Unchanged public task detail.", revision: "one" },
+    data: { description: "Unchanged public task detail." },
   });
+  // QCLI-310: the value is a per-record digest, so it is no longer whatever
+  // the reader calls its own `revision` -- this stub declares "one" for the
+  // whole store. Presence and type are the contract asserted here; the
+  // capture-then-supply round trip is pinned against a real workspace in
+  // test/cli-task-edit-if-revision.test.ts.
+  const viewed = await dispatchTrackerTaskCommand(service, {
+    command: "view",
+    reference: "T-1",
+  });
+  const revision =
+    viewed.kind === "task.view" ? viewed.data.revision : undefined;
+  expect(typeof revision).toBe("string");
+  expect(revision?.length).toBeGreaterThan(0);
   await expect(
     dispatchTrackerTaskCommand(service, {
       command: "edit",
