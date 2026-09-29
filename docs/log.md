@@ -269,6 +269,7 @@
 - 2026-09-29T00:07:23-05:00 9053905d1c368ba8496cf41ae5c8749dde688147 fix(QCLI-410): report the five legacy release bodies as recorded exceptions (#410)
 - 2026-09-29T00:58:50-05:00 3c5afb15bc0c7bf826072fde9314f5a81b7ea883 fix(QCLI-310): scope task edit's --if-revision to the record
 - 2026-09-29T01:12:05-05:00 a768210c3eba5925310ded23c441d51c7f3b5d59 fix(QCLI-310): scope --if-revision to the record, not the workspace (#415)
+- 2026-09-29T01:25:37-05:00 0a1707c6d75454854e1443b79c06dd7f38ef7ebd chore(QCLI-406): recycle handoff note at the QCLI-310 boundary (#417)
 
 ## docs/adr
 
