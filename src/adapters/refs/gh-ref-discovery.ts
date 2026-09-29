@@ -270,7 +270,7 @@ export function parseOpenPullRequests(
   }
   if (rows.length >= limit)
     throw new DiscoveryError(
-      `gh pr list returned ${rows.length} rows at --limit ${limit}, so the open pull requests into dev may be truncated and the population cannot be trusted`,
+      `gh pr list returned ${rows.length} rows at --limit ${limit}, so the open pull requests into dev may be truncated and the population cannot be trusted: read a bounded population instead with --ref <ref> or --pr <N>, or raise OPEN_PULL_REQUEST_LIMIT in src/adapters/refs/gh-ref-discovery.ts`,
     );
   return rows;
 }

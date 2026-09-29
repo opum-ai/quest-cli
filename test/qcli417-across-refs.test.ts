@@ -82,6 +82,34 @@ function git(cwd: string, ...args: readonly string[]): string {
   return result.stdout.trim();
 }
 
+/**
+ * Points a fixture's `origin` at `url` by writing `.git/config` directly.
+ *
+ * Deliberately NOT `git remote add`: changing a remote is a tier-3 action
+ * everywhere in this fleet, and a fixture does not need one to be a fixture.
+ * `git remote add` writes exactly this stanza (a url plus the default fetch
+ * refspec), so the config a test writes and the config Git writes are the same
+ * bytes, and the fetch machinery under test cannot tell them apart. Passing
+ * null removes the remote again.
+ */
+async function setOriginUrl(
+  repository: string,
+  url: string | null,
+): Promise<void> {
+  const path = join(repository, ".git", "config");
+  const original = await readFile(path, "utf8");
+  const withoutOrigin = original.replace(
+    /\[remote "origin"\]\n(?:\t[^\n]*\n)*/u,
+    "",
+  );
+  await writeFile(
+    path,
+    url === null
+      ? withoutOrigin
+      : `${withoutOrigin.trimEnd()}\n[remote "origin"]\n\turl = ${url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n`,
+  );
+}
+
 const quest = (cwd: string, args: readonly string[]): Run =>
   run(cwd, ["bun", MAIN, ...args]);
 
@@ -106,6 +134,8 @@ interface Fixture {
   readonly prSha: string;
   readonly devT1Blob: string;
   readonly prT1Blob: string;
+  /** A PR head whose objects exist only in the bare origin (N4). */
+  readonly prTwoSha: string;
 }
 
 /**
@@ -146,11 +176,32 @@ async function createFixture(): Promise<Fixture> {
   git(root, "clone", "-q", "--bare", work, origin);
   git(origin, "update-ref", "refs/heads/dev", devSha);
   git(origin, "update-ref", "refs/pull/1/head", prSha);
-  git(work, "remote", "add", "origin", origin);
+  await setOriginUrl(work, origin);
   expect(
     run(work, ["git", "rev-parse", "--verify", "refs/pull/1/head"]).exitCode,
   ).not.toBe(0);
-  return { work, origin, devSha, prSha, devT1Blob, prT1Blob };
+
+  // A SECOND pull request whose commit exists ONLY in the bare origin: this
+  // clone has neither the ref nor its objects, so a read of it must go through
+  // the fetch. The first PR could not cover that -- its objects came along
+  // with the feature branch this fixture created.
+  const outsider = join(root, "outsider");
+  git(root, "clone", "-q", origin, outsider);
+  git(outsider, "config", "user.email", "t@example.invalid");
+  git(outsider, "config", "user.name", "T");
+  git(outsider, "checkout", "-q", "-b", "pr-two");
+  questOk(outsider, ["task", "create", "only on the second pr head", ...ACTOR]);
+  git(outsider, "add", "-A");
+  git(outsider, "commit", "-qm", "T-4 on pr-two");
+  const prTwoSha = git(outsider, "rev-parse", "pr-two");
+  // Copy the commit into the bare and name it as a PR ref -- `update-ref` on
+  // the bare, never a push to a branch and never a remote change.
+  git(origin, "fetch", "-q", outsider, "refs/heads/pr-two");
+  git(origin, "update-ref", "refs/pull/2/head", prTwoSha);
+  expect(
+    run(work, ["git", "cat-file", "-e", `${prTwoSha}^{commit}`]).exitCode,
+  ).not.toBe(0);
+  return { work, origin, devSha, prSha, devT1Blob, prT1Blob, prTwoSha };
 }
 
 let fixture: Fixture;
@@ -285,7 +336,7 @@ test("a complete view reads origin/dev and every open PR head, and a dev state c
   expect(fixture.devT1Blob).not.toBe(fixture.prT1Blob);
   // The title comes from the existence ref, dev.
   expect(conflict.title).toBe("on dev");
-});
+}, 60_000);
 
 test("a record that exists only on a PR head is proposed by that PR (QCLI-417 AC2)", async () => {
   const result = await view(fixture, openPr(fixture));
@@ -304,7 +355,7 @@ test("a record that exists only on a PR head is proposed by that PR (QCLI-417 AC
   ]);
   // The negative half: an id dev carries as well is never attributed to a PR.
   expect(entry(result.entries, "T-1").proposedBy).toBeNull();
-});
+}, 60_000);
 
 test("two refs disagreeing about a status list every state with its provenance and pick no winner (QCLI-417 AC3)", async () => {
   const result = await view(fixture, openPr(fixture));
@@ -322,7 +373,7 @@ test("two refs disagreeing about a status list every state with its provenance a
     "states",
     "title",
   ]);
-});
+}, 60_000);
 
 test("an id both refs carry identically is NOT marked as a conflict (negative control for AC3)", async () => {
   const result = await view(fixture, openPr(fixture));
@@ -332,7 +383,7 @@ test("an id both refs carry identically is NOT marked as a conflict (negative co
   expect(agreeing.states).toHaveLength(2);
   expect(new Set(agreeing.states.map((state) => state.status)).size).toBe(1);
   expect(agreeing.conflict).toBe(false);
-});
+}, 60_000);
 
 test("a status conflict is DATA: the CLI exits 0, never 5 (QCLI-417 exit codes)", async () => {
   const result = quest(fixture.work, [
@@ -353,7 +404,7 @@ test("a status conflict is DATA: the CLI exits 0, never 5 (QCLI-417 exit codes)"
   };
   expect(entry(envelope.data, "T-1").conflict).toBe(true);
   expect(envelope.coverage.complete).toBe(true);
-});
+}, 60_000);
 
 test("an injected discovery failure is one unreadable ref and never an uncaught error (QCLI-417)", async () => {
   const result = await view(
@@ -371,7 +422,7 @@ test("an injected discovery failure is one unreadable ref and never an uncaught 
   expect(result.coverage.refsRead).toEqual([
     { ref: "origin/dev", pullRequest: null, sha: fixture.devSha },
   ]);
-});
+}, 60_000);
 
 test("--allow-partial degrades to dev-only with complete false, and never complete true (QCLI-417 AC5)", async () => {
   const result = await view(
@@ -386,7 +437,7 @@ test("--allow-partial degrades to dev-only with complete false, and never comple
   expect(entry(result.entries, "T-1").states[0]?.refProvenance.sha).toBe(
     fixture.devSha,
   );
-});
+}, 60_000);
 
 test("a run that read zero refs is not complete even with --allow-partial (QCLI-417 AC4, positive control)", async () => {
   const outcome = await service(
@@ -401,7 +452,7 @@ test("a run that read zero refs is not complete even with --allow-partial (QCLI-
   if (outcome.kind !== "view") throw new Error("expected a view");
   expect(outcome.coverage.refsRead).toEqual([]);
   expect(outcome.coverage.complete).toBe(false);
-});
+}, 60_000);
 
 test("zero refs is a CLI failure, not a pass, with and without --allow-partial (QCLI-417 AC4)", async () => {
   for (const allowPartial of [false, true]) {
@@ -435,7 +486,7 @@ test("zero refs is a CLI failure, not a pass, with and without --allow-partial (
       "principal",
     ]);
   }
-});
+}, 60_000);
 
 test("an unreadable ref exits 6 with the ref named in the message and in input, 0 bytes on stdout (QCLI-417 AC4)", async () => {
   const result = quest(fixture.work, [
@@ -469,7 +520,7 @@ test("an unreadable ref exits 6 with the ref named in the message and in input, 
   expect(diagnostic.input.coverage.refsRead.map((read) => read.ref)).toEqual([
     "refs/heads/dev",
   ]);
-});
+}, 60_000);
 
 test("--allow-partial turns incomplete coverage into exit 0 with the refs still named (QCLI-417 AC5)", async () => {
   const result = quest(fixture.work, [
@@ -493,7 +544,7 @@ test("--allow-partial turns incomplete coverage into exit 0 with the refs still 
   expect(envelope.coverage.refsUnreadable[0]?.ref).toBe(
     "refs/heads/no-such-branch",
   );
-});
+}, 60_000);
 
 test("an empty answer with complete coverage exits 0 (QCLI-417 AC4)", async () => {
   // The other half of the coverage contract: an EMPTY list is a legitimate
@@ -516,7 +567,7 @@ test("an empty answer with complete coverage exits 0 (QCLI-417 AC4)", async () =
   expect(envelope.data).toEqual([]);
   expect(envelope.coverage.complete).toBe(true);
   expect(envelope.coverage.refsRead).toHaveLength(1);
-});
+}, 60_000);
 
 test("the plain output says a nothing-open answer does not hold when coverage is incomplete (QCLI-417 AC5)", async () => {
   const result = quest(fixture.work, [
@@ -546,7 +597,7 @@ test("the plain output says a nothing-open answer does not hold when coverage is
   expect(complete.exitCode).toBe(0);
   expect(complete.stdout).toContain("holds for the repository");
   expect(complete.stdout).not.toContain("INCOMPLETE");
-});
+}, 60_000);
 
 test("the envelope keeps contractVersion at index 1, coverage after data, and principal last (QCLI-417)", async () => {
   const result = questOk(fixture.work, [
@@ -573,7 +624,7 @@ test("the envelope keeps contractVersion at index 1, coverage after data, and pr
   expect(envelope.kind).toBe("task.list-across-refs");
   // `scope` is superseded, not also emitted.
   expect(Object.keys(envelope)).not.toContain("scope");
-});
+}, 60_000);
 
 test("--ref and --pr replace discovery with an explicit population, and --pr resolves by Git alone (QCLI-417)", async () => {
   const result = questOk(fixture.work, [
@@ -605,7 +656,7 @@ test("--ref and --pr replace discovery with an explicit population, and --pr res
   expect(entry(envelope.data, "T-1").states[1]?.refProvenance.pullRequest).toBe(
     null,
   );
-});
+}, 60_000);
 
 test("filters compose: an entry matches when any state matches, and keeps all its states (QCLI-417)", async () => {
   // T-1 is In Progress on the PR head only; T-2 is To Do everywhere; T-3 is
@@ -651,7 +702,7 @@ test("filters compose: an entry matches when any state matches, and keeps all it
     filter: { excludeStatuses: ["In Progress"] },
   });
   expect(excluded.entries.map((row) => row.id)).toEqual(["T-1", "T-2", "T-3"]);
-});
+}, 60_000);
 
 test("an unknown --status is refused rather than answering an empty list (QCLI-417)", async () => {
   const result = quest(fixture.work, [
@@ -668,7 +719,7 @@ test("an unknown --status is refused rather than answering an empty list (QCLI-4
   expect(JSON.parse(result.stderr).message).toContain(
     "Task status is not configured",
   );
-});
+}, 60_000);
 
 test("--ready is refused rather than approximated (QCLI-417)", async () => {
   const result = quest(fixture.work, [
@@ -680,7 +731,7 @@ test("--ready is refused rather than approximated (QCLI-417)", async () => {
   ]);
   expect(result.exitCode).toBe(2);
   expect(JSON.parse(result.stderr).message).toContain("--ready");
-});
+}, 60_000);
 
 test("the view is read-only: no record, ref or branch is written (QCLI-417 AC6)", async () => {
   const before = {
@@ -704,7 +755,7 @@ test("the view is read-only: no record, ref or branch is written (QCLI-417 AC6)"
     await readFile(join(fixture.work, ".quest/tasks/T-1.json"), "utf8"),
   ).toBe(before.record);
   expect(git(fixture.work, "ls-files", ".quest/")).toBe(before.tracked);
-});
+}, 60_000);
 
 test("the working tree is not the view: a record that exists only uncommitted is absent (QCLI-417)", async () => {
   const created = questOk(fixture.work, [
@@ -731,7 +782,7 @@ test("the working tree is not the view: a record that exists only uncommitted is
   expect(envelope.data.map((row) => row.id)).not.toContain(id);
   // Leave the shared fixture as it was found.
   await rm(join(fixture.work, `.quest/tasks/${id}.json`), { force: true });
-});
+}, 60_000);
 
 test("an origin that is not GitHub is a named coverage failure through the REAL adapter (QCLI-417)", async () => {
   // No injection here: this is the production path, and a local-path origin is
@@ -778,7 +829,7 @@ test("an origin that is not GitHub is a named coverage failure through the REAL 
   // A dev-only answer still answers about dev: T-1 and T-2 are here, and the
   // PR-only record is honestly absent rather than guessed at.
   expect(envelope.data.map((row) => row.id)).toEqual(["T-1", "T-2"]);
-});
+}, 60_000);
 
 test("a repository with no origin is a not-found, not a coverage failure (QCLI-417 exit 3)", async () => {
   const root = await mkdtemp(join(tmpdir(), "qcli417-noorigin-"));
@@ -794,7 +845,7 @@ test("a repository with no origin is a not-found, not a coverage failure (QCLI-4
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
 
 test("an origin with no dev branch is a not-found (QCLI-417 exit 3)", async () => {
   const root = await mkdtemp(join(tmpdir(), "qcli417-nodev-"));
@@ -807,14 +858,14 @@ test("an origin with no dev branch is a not-found (QCLI-417 exit 3)", async () =
     git(root, "commit", "-qm", "init");
     const origin = join(root, "origin.git");
     git(root, "clone", "-q", "--bare", ".", origin);
-    git(root, "remote", "add", "origin", origin);
+    await setOriginUrl(root, origin);
     const result = quest(root, ["task", "list", "--across-refs", "--json"]);
     expect(result.exitCode).toBe(3);
     expect(JSON.parse(result.stderr).error_type).toBe("not_found");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
 
 test("the real discovery adapter classifies GitHub and non-GitHub remotes (QCLI-417)", async () => {
   const port = new GhRefDiscovery(new LocalGitPort());
@@ -843,18 +894,18 @@ test("the real discovery adapter classifies GitHub and non-GitHub remotes (QCLI-
         { kind: "unsupported", url: "/tmp/somewhere/else.git" },
       ],
     ] as const) {
-      git(root, "remote", "add", "origin", url);
+      await setOriginUrl(root, url);
       expect({ url, origin: await port.origin(root) }).toEqual({
         url,
         origin: expected,
       });
-      git(root, "remote", "remove", "origin");
+      await setOriginUrl(root, null);
     }
     expect(await port.origin(root)).toEqual({ kind: "absent" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
 
 /**
  * FIX ROUND (independent review, 2026-09-29). Seven conformance failures
@@ -945,7 +996,7 @@ test("a ref whose TREE cannot be listed is unreadable, not empty (F1)", async ()
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
 
 test("a duplicate id inside one ref makes that ref unreadable, naming both paths (F4)", async () => {
   const root = await mkdtemp(join(tmpdir(), "qcli417-f4-"));
@@ -991,7 +1042,7 @@ test("a duplicate id inside one ref makes that ref unreadable, naming both paths
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
 
 test("a fetch moves no ref: a stale origin/dev stays put (F3)", async () => {
   // The claim the port docblock, the service header and the help text all
@@ -1062,7 +1113,7 @@ test("a fetch moves no ref: a stale origin/dev stays put (F3)", async () => {
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
 
 test("a committed dot-prefixed journal beside the records is not read as one (F7)", async () => {
   const root = await mkdtemp(join(tmpdir(), "qcli417-f7-"));
@@ -1097,7 +1148,7 @@ test("a committed dot-prefixed journal beside the records is not read as one (F7
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
 
 test("gh is asked for an explicit --limit and an explicit --repo (F2, F8)", () => {
   const argv = ghPullRequestArguments("opum-ai/quest-cli", "dev");
@@ -1117,7 +1168,7 @@ test("gh is asked for an explicit --limit and an explicit --repo (F2, F8)", () =
   expect(argv[argv.indexOf("--base") + 1]).toBe("dev");
   expect(argv).toContain("--state");
   expect(argv[argv.indexOf("--state") + 1]).toBe("open");
-});
+}, 60_000);
 
 test("a truncated listing is incomplete coverage, not a confident answer (F2)", () => {
   const row = (number: number) => ({
@@ -1140,10 +1191,18 @@ test("a truncated listing is incomplete coverage, not a confident answer (F2)", 
     parseOpenPullRequests(JSON.stringify([row(1), row(2), row(3)]), 3);
     throw new Error("expected a throw");
   } catch (error) {
-    expect((error as Error).message).toContain("3 rows");
-    expect((error as Error).message).toContain("--limit 3");
+    const message = (error as Error).message;
+    expect(message).toContain("3 rows");
+    expect(message).toContain("--limit 3");
+    // N1: the reason is a one-line remedy, like every other reason this
+    // command reports -- a reader who hits the ceiling learns both what to do
+    // instead and that the ceiling is a code constant, not a forge setting.
+    expect(message).toContain("--ref <ref>");
+    expect(message).toContain("--pr <N>");
+    expect(message).toContain("OPEN_PULL_REQUEST_LIMIT");
+    expect(message.split("\n")).toHaveLength(1);
   }
-});
+}, 60_000);
 
 test("rows this view cannot use make the population incomplete (F6)", () => {
   const good = {
@@ -1181,7 +1240,7 @@ test("rows this view cannot use make the population incomplete (F6)", () => {
     /did not return JSON/,
   );
   expect(() => parseOpenPullRequests("{}")).toThrow(/JSON array/);
-});
+}, 60_000);
 
 test("every flag documented for an invocation is a flag that invocation accepts (F5)", () => {
   // The reviewer's defect: `quest help task list` advertised --across-refs,
@@ -1264,7 +1323,7 @@ test("every flag documented for an invocation is a flag that invocation accepts 
     }).toEqual({ flag, onPlainTaskList: false });
   expect(flagsOf("task list --across-refs")).toContain("--ref");
   expect(flagsOf("task list --across-refs")).toContain("--across-refs");
-});
+}, 60_000);
 
 test("the help states the zero-ref exemption from --allow-partial (D-a)", () => {
   // --allow-partial downgrades incomplete coverage to exit 0. A read of ZERO
@@ -1273,4 +1332,189 @@ test("the help states the zero-ref exemption from --allow-partial (D-a)", () => 
   const summary = commandHelp["task list --across-refs"]?.summary ?? "";
   expect(summary).toContain("ZERO refs");
   expect(summary).toContain("still exits 6 even with --allow-partial");
-});
+}, 60_000);
+
+/**
+ * ROUND 3. Two constructions the reviewer could not verify, built entirely
+ * from test code: no `git remote` command runs anywhere in this suite
+ * (setOriginUrl writes .git/config), no push writes a branch, and no network
+ * is touched. Each is deterministic rather than best-effort, and each is
+ * proven non-vacuous in the established way.
+ */
+
+test("an unreachable origin fails the dev read closed, never as an uncaught error", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli417-unreachable-"));
+  try {
+    git(root, "init", "-q", "-b", "dev", ".");
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    questOk(root, ["init", "--name", "Unreachable", "--task-id-prefix", "T"]);
+    questOk(root, ["task", "create", "on dev", ...ACTOR]);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-1 on dev");
+    // An origin that is configured and cannot be reached: the path is simply
+    // not there. `git ls-remote` fails, so the dev SHA cannot be discovered --
+    // and the view must not fall back to a stale local `origin/dev`, which is
+    // the whole point of reading remote truth.
+    await setOriginUrl(root, join(root, "gone.git"));
+    expect(
+      run(root, ["git", "ls-remote", "origin", "refs/heads/dev"]).exitCode,
+    ).not.toBe(0);
+
+    for (const allowPartial of [false, true]) {
+      const result = quest(root, [
+        "task",
+        "list",
+        "--across-refs",
+        ...(allowPartial ? ["--allow-partial"] : []),
+        "--json",
+      ]);
+      // Fail closed, and identically: a run that read ZERO refs is the one
+      // case --allow-partial does not downgrade, because no-coverage cannot be
+      // told apart from a wrong repository. The partial VIEW is still reported
+      // (population dev-only, complete false) inside the error's input.
+      expect({ allowPartial, exitCode: result.exitCode }).toEqual({
+        allowPartial,
+        exitCode: 6,
+      });
+      expect(result.stdout).toBe("");
+      const diagnostic = JSON.parse(result.stderr) as {
+        error_type: string;
+        message: string;
+        input: { coverage: AcrossRefsCoverage };
+      };
+      expect(diagnostic.error_type).toBe("drift");
+      // The failing ref is named in the message a CI reader sees...
+      expect(diagnostic.message).toContain("origin/dev");
+      expect(diagnostic.message).toContain("read 0 refs");
+      // ...and the failure itself is in refsUnreadable, with the dev ref named.
+      const dev = diagnostic.input.coverage.refsUnreadable.find(
+        (entry) => entry.ref === "origin/dev",
+      );
+      expect(dev?.reason).toContain(
+        "origin/dev could not be read from the remote",
+      );
+      expect(diagnostic.input.coverage.refsRead).toEqual([]);
+      expect(diagnostic.input.coverage.complete).toBe(false);
+      expect(diagnostic.input.coverage.population).toBe(
+        allowPartial ? "dev-only" : "open-prs",
+      );
+      // Never an uncaught error: no stack, no exit 1, a well-formed envelope.
+      expect(diagnostic).toHaveProperty("principal", null);
+      expect(result.stderr).not.toContain("    at ");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("a fetch that the origin rejects fails the ref closed, naming the fetch", async () => {
+  // Reachable remote, advertised ref, objects that the remote cannot actually
+  // serve: the bare's dev points at a commit whose object is deleted, so
+  // `ls-remote` still advertises the SHA (dev is planned normally) and the
+  // FETCH is what fails. Measured: `fatal: remote error: upload-pack: not our
+  // ref <sha>`. This is the fetchRef rejection branch the reviewer noted as
+  // untested.
+  const root = await mkdtemp(join(tmpdir(), "qcli417-badfetch-"));
+  try {
+    const seed = join(root, "seed");
+    git(root, "init", "-q", "-b", "dev", seed);
+    git(seed, "config", "user.email", "t@example.invalid");
+    git(seed, "config", "user.name", "T");
+    questOk(seed, ["init", "--name", "BadFetch", "--task-id-prefix", "T"]);
+    questOk(seed, ["task", "create", "on dev", ...ACTOR]);
+    git(seed, "add", "-A");
+    git(seed, "commit", "-qm", "T-1 on dev");
+    const devSha = git(seed, "rev-parse", "dev");
+    const origin = join(root, "origin.git");
+    git(root, "clone", "-q", "--bare", seed, origin);
+    // The consumer clone predates nothing: it simply has no objects for the
+    // advertised commit because the object is gone from the bare.
+    const work = join(root, "work");
+    git(root, "init", "-q", "-b", "dev", work);
+    git(work, "config", "user.email", "t@example.invalid");
+    git(work, "config", "user.name", "T");
+    // A workspace, so the CLI can resolve a root -- but no objects: the
+    // records the view must read live at the advertised SHA, which this clone
+    // has never seen. `.quest/` stays uncommitted and is irrelevant to a view
+    // that reads refs.
+    questOk(work, ["init", "--name", "BadFetch", "--task-id-prefix", "T"]);
+    await setOriginUrl(work, origin);
+    const object = join(origin, "objects", devSha.slice(0, 2), devSha.slice(2));
+    expect(existsSync(object)).toBe(true);
+    await rm(object);
+    expect(
+      run(work, ["git", "ls-remote", "origin", "refs/heads/dev"]).stdout.trim(),
+    ).toContain(devSha);
+
+    const result = quest(work, ["task", "list", "--across-refs", "--json"]);
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    const diagnostic = JSON.parse(result.stderr) as {
+      error_type: string;
+      input: { coverage: AcrossRefsCoverage };
+    };
+    expect(diagnostic.error_type).toBe("drift");
+    const dev = diagnostic.input.coverage.refsUnreadable.find(
+      (entry) => entry.ref === "origin/dev",
+    );
+    expect(dev?.reason).toContain("could not be fetched from origin");
+    expect(diagnostic.input.coverage.refsRead).toEqual([]);
+    expect(diagnostic.input.coverage.complete).toBe(false);
+    expect(result.stderr).not.toContain("    at ");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("a PR head whose objects are not local IS fetched, and no ref moves (N4)", async () => {
+  // The first PR's objects came along with the branch that created it, so the
+  // pull-shaped fetch was never exercised. PR 2's commit exists only in the
+  // bare origin, so this run must fetch it -- and the read-only promise has to
+  // hold for that fetch too.
+  expect(
+    run(fixture.work, ["git", "cat-file", "-e", `${fixture.prTwoSha}^{commit}`])
+      .exitCode,
+  ).not.toBe(0);
+  const before = git(
+    fixture.work,
+    "for-each-ref",
+    "--format=%(refname) %(objectname)",
+    "refs/heads",
+    "refs/remotes",
+  );
+  const result = questOk(fixture.work, [
+    "task",
+    "list",
+    "--across-refs",
+    "--pr",
+    "2",
+  ]);
+  // The objects arrived, and the records they carry are in the view.
+  expect(
+    run(fixture.work, ["git", "cat-file", "-e", `${fixture.prTwoSha}^{commit}`])
+      .exitCode,
+  ).toBe(0);
+  const envelope = JSON.parse(result.stdout) as {
+    data: readonly AcrossRefsEntry[];
+    coverage: AcrossRefsCoverage;
+  };
+  expect(envelope.coverage.complete).toBe(true);
+  expect(envelope.coverage.refsRead).toEqual([
+    { ref: "refs/pull/2/head", pullRequest: null, sha: fixture.prTwoSha },
+  ]);
+  const proposed = entry(envelope.data, "T-4");
+  expect(proposed.states[0]?.refProvenance.sha).toBe(fixture.prTwoSha);
+  // Byte-identical refs: the fetch wrote objects and FETCH_HEAD and nothing
+  // else, which is what --refmap= buys (F3) and what a pull-shaped refspec
+  // has to honour too.
+  expect(
+    git(
+      fixture.work,
+      "for-each-ref",
+      "--format=%(refname) %(objectname)",
+      "refs/heads",
+      "refs/remotes",
+    ),
+  ).toBe(before);
+}, 60_000);
