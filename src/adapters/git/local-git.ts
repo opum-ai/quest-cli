@@ -167,6 +167,24 @@ export class LocalGitPort implements GitPort {
     return result.stdout.split("\n").filter((line) => line.length > 0);
   }
 
+  /** QCLI-417: the strict variant -- a refused listing throws instead of
+   *  answering `[]`. An absent prefix still answers `[]`, because Git exits 0
+   *  for one. */
+  async listFilesRequired(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly string[]> {
+    const output = await requiredGit(repositoryPath, [
+      "ls-tree",
+      "-r",
+      "--name-only",
+      revision,
+      prefix,
+    ]);
+    return output.split("\n").filter((line) => line.length > 0);
+  }
+
   async mergeBase(
     repositoryPath: string,
     a: string,
@@ -202,6 +220,77 @@ export class LocalGitPort implements GitPort {
     // is not a branch name, and returning it would have the listing claim to
     // be scoped to a branch called HEAD.
     return name === "" || name === "HEAD" ? null : name;
+  }
+
+  /**
+   * QCLI-417. `ls-remote` is a read of the remote's advertised refs and writes
+   * nothing local; a non-zero exit is a remote that could not be reached, not
+   * an absent ref, so it throws rather than answering null.
+   */
+  async remoteRevision(
+    repositoryPath: string,
+    remote: string,
+    ref: string,
+  ): Promise<string | null> {
+    const output = await requiredGit(repositoryPath, [
+      "ls-remote",
+      remote,
+      ref,
+    ]);
+    for (const line of output.split("\n")) {
+      const [sha, name] = line.split("\t");
+      if (name === ref && sha && /^[0-9a-f]{40}$/.test(sha)) return sha;
+    }
+    return null;
+  }
+
+  /**
+   * QCLI-417. A bare refspec (`<ref>`, never `<ref>:<dest>`) plus `--refmap=`
+   * so the fetch writes FETCH_HEAD and objects and moves NO ref: without the
+   * empty refmap, Git's opportunistic update still moves
+   * `refs/remotes/<remote>/<branch>` for a branch refspec, measured here as
+   * `refs/remotes/origin/dev` jumping from the stale local tip to the remote's
+   * one and changing a later QCLI-316 `scope` answer. `--no-tags` keeps an
+   * unrelated tag fetch out of a read-only listing.
+   */
+  async fetchRef(
+    repositoryPath: string,
+    remote: string,
+    ref: string,
+  ): Promise<void> {
+    await requiredGit(repositoryPath, [
+      "fetch",
+      "--no-tags",
+      "--refmap=",
+      remote,
+      ref,
+    ]);
+  }
+
+  async hasRevision(
+    repositoryPath: string,
+    revision: string,
+  ): Promise<boolean> {
+    // `^{commit}` peels a tag or an annotated ref to the commit it names and
+    // fails for a revision that only names a tree or blob, so this answers
+    // "can I read a commit's tree here" rather than "does some object with
+    // this name exist".
+    const result = await git(repositoryPath, [
+      "cat-file",
+      "-e",
+      `${revision}^{commit}`,
+    ]);
+    return result.code === 0;
+  }
+
+  /** QCLI-417. A missing remote is a null answer, not a throw: "there is no
+   * origin here" is one of the view's own reportable outcomes. */
+  async remoteUrl(
+    repositoryPath: string,
+    remote: string,
+  ): Promise<string | null> {
+    const result = await git(repositoryPath, ["remote", "get-url", remote]);
+    return result.code === 0 && result.stdout.length > 0 ? result.stdout : null;
   }
 
   async commit(operation: GitOperation): Promise<GitOperationResult> {

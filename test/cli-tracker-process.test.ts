@@ -1035,6 +1035,18 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         "--plain",
       ],
       "task list": ["task", "list", "--plain"],
+      // QCLI-417: an EXPLICIT population, because this fixture has no origin
+      // remote and the default population would (correctly) exit 3. Reading
+      // HEAD keeps the smoke test about the envelope and the renderer rather
+      // than about a forge or a remote.
+      "task list --across-refs": [
+        "task",
+        "list",
+        "--across-refs",
+        "--ref",
+        "HEAD",
+        "--plain",
+      ],
       "task view": ["task", "view", created, "--plain"],
       search: ["search", "Existing", "--plain"],
       "search --all": ["search", "Existing", "--all", "--plain"],

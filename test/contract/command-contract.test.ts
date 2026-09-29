@@ -1,15 +1,14 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { commandHelp } from "../../src/application/command-help.ts";
+import {
+  readQuestConfiguration,
+  validateQuestConfiguration,
+} from "../../src/adapters/toml-configuration.ts";
 import { questSkillContent } from "../../src/application/agents/agent-instructions.ts";
 import {
   findQuestGuide,
   questGuides,
 } from "../../src/application/agents/guides.ts";
-import {
-  readQuestConfiguration,
-  validateQuestConfiguration,
-} from "../../src/adapters/toml-configuration.ts";
 import {
   commandManifest,
   diagnostic,
@@ -19,6 +18,7 @@ import {
   success,
   validateCommandManifest,
 } from "../../src/application/command-contract.ts";
+import { commandHelp } from "../../src/application/command-help.ts";
 
 test("success envelopes have the frozen Opum wire shape", () => {
   const envelope = success("query.results", { tasks: [] });
@@ -265,6 +265,33 @@ test("the live manifest is non-empty and matches its result golden", () => {
         "unresolvedAtCompletion",
         "updatedAt",
       ],
+    },
+    {
+      name: "task list --across-refs",
+      schemaVersion: 1,
+      kind: "task.list-across-refs",
+      mutates: false,
+      filters: [
+        "across-refs",
+        "allow-partial",
+        "assignee",
+        "exclude-status",
+        "include-archived",
+        "label",
+        "limit",
+        "milestone",
+        "parent",
+        "pr",
+        "priority",
+        "ref",
+        "search",
+        "sort",
+        "status",
+        "type",
+        "unassigned",
+        "unresolved-at-completion",
+      ],
+      fields: ["conflict", "id", "proposedBy", "states", "title"],
     },
     {
       name: "task view",
@@ -807,11 +834,17 @@ test("the overview guide lists every lifecycle verb the manifest declares", () =
         !spans.some((span) => span === group || span?.startsWith(`${group} `))
       )
         continue;
-      for (const span of spans)
-        for (const token of (span ?? "")
-          .replace(new RegExp(`^${group}\\s+`), "")
-          .split(/[/\s]+/))
+      for (const span of spans) {
+        const bare = (span ?? "").replace(new RegExp(`^${group}\\s+`), "");
+        // A manifest name inside a lifecycle group may itself carry a flag
+        // (`task list --across-refs`, QCLI-417), so the whole remainder counts
+        // as a mention too -- tokenizing alone can never produce it, and
+        // without this the guide could omit the invocation and still pass.
+        if (span !== undefined && span !== bare && bare.length > 0)
+          mentioned.add(bare);
+        for (const token of bare.split(/[/\s]+/))
           if (token) mentioned.add(token);
+      }
     }
     const declared = commandManifest.commands
       .map((entry: { name: string }) => entry.name)

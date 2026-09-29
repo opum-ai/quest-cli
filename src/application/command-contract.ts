@@ -76,6 +76,7 @@ export interface CommandManifestEntry {
     | "task status-flow"
     | "task binding"
     | "task list"
+    | "task list --across-refs"
     | "task view"
     | "search"
     | "search --all"
@@ -284,6 +285,39 @@ export const commandManifest = {
         "unresolvedAtCompletion",
         "updatedAt",
       ],
+    },
+    {
+      // QCLI-417 / DEC-40. Its own entry rather than more filters on
+      // `task list`: the KIND differs (`task.list-across-refs`), the payload
+      // shape differs (one entry per task id with a states array), and a
+      // consumer switching on kind has to be able to find it. The coverage
+      // key is a top-level envelope key, so it is not listed in `fields` --
+      // those describe `data`.
+      name: "task list --across-refs",
+      schemaVersion: 1,
+      kind: "task.list-across-refs",
+      mutates: false,
+      filters: [
+        "across-refs",
+        "allow-partial",
+        "assignee",
+        "exclude-status",
+        "include-archived",
+        "label",
+        "limit",
+        "milestone",
+        "parent",
+        "pr",
+        "priority",
+        "ref",
+        "search",
+        "sort",
+        "status",
+        "type",
+        "unassigned",
+        "unresolved-at-completion",
+      ],
+      fields: ["conflict", "id", "proposedBy", "states", "title"],
     },
     {
       name: "task view",

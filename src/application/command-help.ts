@@ -162,7 +162,7 @@ export const commandHelp: Record<
   },
   "task list": {
     summary:
-      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, unresolved-at-completion, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived. --unresolved-at-completion (QCLI-336) selects only tasks that completed with acceptance criteria or definition-of-done items still unchecked -- the persisted counterpart of the `unresolvedAtCompletion` field `task complete` adds to its own response (QCLI-252) -- so a sweep for 'what did we knowingly ship with open items' does not require reading every completed record by hand. SCOPE (QCLI-316): this reads the CHECKED-OUT ref's .quest/ and nothing else, so a result -- and an EMPTY result especially -- is a claim about that branch, not about the repository. A task filed on an unmerged branch is invisible here, which is exactly the task most likely to be forgotten. Every listing carries a `scope` field naming the branch it answered about; when the result is empty, scope also reports `unseenTaskIds`, the ids that exist on some other ref and not on this one (filenames only, one tree listing per ref, no record is read and no status is merged across refs). An empty list with an empty `unseenTaskIds` is load-bearing; an empty list naming ids is the check not having run on them. Before reporting that nothing is open, read `scope`, and cross-check an independent source such as `gh pr list`.",
+      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, unresolved-at-completion, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived. --unresolved-at-completion (QCLI-336) selects only tasks that completed with acceptance criteria or definition-of-done items still unchecked -- the persisted counterpart of the `unresolvedAtCompletion` field `task complete` adds to its own response (QCLI-252) -- so a sweep for 'what did we knowingly ship with open items' does not require reading every completed record by hand. SCOPE (QCLI-316): this reads the CHECKED-OUT ref's .quest/ and nothing else, so a result -- and an EMPTY result especially -- is a claim about that branch, not about the repository. A task filed on an unmerged branch is invisible here, which is exactly the task most likely to be forgotten. Every listing carries a `scope` field naming the branch it answered about; when the result is empty, scope also reports `unseenTaskIds`, the ids that exist on some other ref and not on this one (filenames only, one tree listing per ref, no record is read and no status is merged across refs). An empty list with an empty `unseenTaskIds` is load-bearing; an empty list naming ids is the check not having run on them. Before reporting that nothing is open, read `scope`, and cross-check an independent source such as `gh pr list`. `quest task list --across-refs` (QCLI-417) is the complete form of that answer: one read-only view over origin/dev plus every open PR head into dev, with per-state provenance and a coverage report, so a nothing-open answer holds for the repository only when every planned ref was read. See `quest help 'task list --across-refs'` -- that invocation, not this one, is where the flags it takes are documented.",
     usage:
       'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--unresolved-at-completion] [--search text] [--sort id[:asc|desc]] [--limit 20] [--include-archived]',
     flags: [
@@ -170,6 +170,32 @@ export const commandHelp: Record<
       "--exclude-status",
       "--label",
       "--ready",
+      "--assignee",
+      "--unassigned",
+      "--milestone",
+      "--parent",
+      "--priority",
+      "--type",
+      "--unresolved-at-completion",
+      "--search",
+      "--sort",
+      "--limit",
+      "--include-archived",
+    ],
+  },
+  "task list --across-refs": {
+    summary:
+      "The repository-true listing (QCLI-417): one read-only view over origin/dev PLUS the head of every open pull request into dev, so an empty or filtered answer is a claim about the repository rather than about this checkout. Every entry is one task id with a `states` array, and every state carries `refProvenance` {ref, pullRequest, sha} naming the ref it was read from, `owner/repo#N` for a PR head (null for origin/dev and for a ref you named yourself), and the full 40-hex commit actually read. A record that exists only on a PR head is reported as `proposedBy` that PR; an id whose states disagree lists EVERY state with its own refProvenance and sets `conflict: true`, and no winner is picked -- resolving it is a judgement call this view does not make. Filters (--status, --label, --limit, ...) compose as they do on `task list`: an entry matches when ANY of its states matches, and a matched entry still shows all of its states. --ready is the one filter not accepted here: readiness is evaluated over one coherent dependency graph, and a PR head can legitimately carry a task whose dependency is not on that branch at all. COVERAGE, a top-level key after `data`: {complete, population, discoveredAt, refsRead, refsUnreadable}. `complete` is true only when every planned ref was read without error, so 'nothing is open' holds for the repository only then. Incomplete coverage exits 6 with the unreadable refs named in the message and the whole coverage object in the error's `input`; --allow-partial downgrades that to exit 0 with complete false and the same refs still named. A read of ZERO refs is the one exception -- that is no coverage rather than partial coverage, so it still exits 6 even with --allow-partial. --ref <ref> and --pr <N> (both repeatable) replace discovery with an explicit population and need no forge: --pr resolves refs/pull/<N>/head through Git alone. OFFLINE: discovery is `gh pr list --repo <slug> --state open --base dev`; with no gh on PATH, or an origin remote that is not GitHub, the run reports incomplete coverage -- exit 6, or 0 under --allow-partial with population dev-only and complete false -- and never fails as an uncaught error. A listing that was truncated at gh's limit, or that carried rows this view cannot use, counts as incomplete for the same reason: a narrowed population must not report complete. Exit 3 when origin or origin/dev is absent. Exit 5 is never used: two refs disagreeing about a task's status is data, not a command conflict. THIS READS REFS, NEVER THE WORKING TREE: uncommitted records are not in the view, and nothing here writes a record, a ref or a branch -- a fetch, when one is needed, writes objects and FETCH_HEAD only (it passes an empty --refmap, so no remote-tracking ref moves either).",
+    usage:
+      'quest task list --across-refs [--allow-partial] [--ref <ref>] [--pr <N>] [--status "In Progress"] [--exclude-status Done] [--label backend] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--unresolved-at-completion] [--search text] [--sort id|title[:asc|desc]] [--limit 20] [--include-archived]',
+    flags: [
+      "--across-refs",
+      "--allow-partial",
+      "--ref",
+      "--pr",
+      "--status",
+      "--exclude-status",
+      "--label",
       "--assignee",
       "--unassigned",
       "--milestone",

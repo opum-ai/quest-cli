@@ -43,6 +43,7 @@ read, edit or complete tracker state, so writes stay attributed and consistent.
 - \`agents\`                      Check or update the managed agent-instructions block
 - \`help\` / \`manifest\`           Human-readable help, or the machine command registry
 - \`task list\` / \`task view\`     List or view tasks
+- \`task list --across-refs\`     List tasks across origin/dev AND every open PR head into dev, with per-state provenance and coverage (QCLI-417); \`--allow-partial\` accepts incomplete coverage
 - \`task create\` / \`task edit\`   Create or edit a task
 - \`task edit-batch\`             Apply a batch of task edits from a JSONL operations file
 - \`task pause\` / \`start\`        Park an In Progress task, or bring it back
