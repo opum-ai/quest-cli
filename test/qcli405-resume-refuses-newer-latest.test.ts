@@ -7,7 +7,7 @@ import {
 } from "../scripts/promote-release.mjs";
 
 /**
- * QCLI-405, twin of lore-cli LCLI-638 (rule read at lore 2b97082c).
+ * QCLI-405, twin of lore-cli LCLI-638 (rule read at lore 7c193ca3).
  *
  * QCLI-402's backwards-promotion gate is fresh-only: it validates the record
  * the run would write, and a RESUME keeps the record the first run wrote. So
@@ -18,10 +18,14 @@ import {
  * The refusal is the agreed rule, matched by verdict with lore: on a resume,
  * a CURRENT `latest` strictly newer than --version refuses, naming the package
  * and both versions. Equal-to-version is the partial state a resume exists for
- * and stays accepted; older resumes normally. A CURRENT `latest` that is not a
- * plain X.Y.Z cannot be ordered numerically and is ACCEPTED on resume by both
- * sides -- the residual LCLI-638 names deliberately, pinned below so the
- * acceptance is a recorded verdict rather than an omission.
+ * and stays accepted; older resumes normally. "Strictly newer" is a
+ * semver-PRECEDENCE question, so the comparison runs on the release the live
+ * value LEADS WITH: 5.7.0-rc.1 is newer than 5.6.7 and refuses, while
+ * 5.6.7-rc.1 and 5.6.7+build.7 are not newer than 5.6.7 and still resume.
+ * (The reviewer finding on LCLI-638: the plain-X.Y.Z form of this guard
+ * accepted 5.7.0-rc.1 over 5.6.7 and performed the full backwards move.) A
+ * live value that leads with no release at all is unorderable and stays
+ * accepted, the same verdict lore records.
  */
 
 const LAUNCHER = "@opum-ai/quest";
@@ -116,11 +120,37 @@ test("a resume proceeds when packages already read --version or an older release
   expect(partial.record.packages).toHaveLength(RELEASE_PACKAGES.length);
 });
 
-test("a non-plain current latest is accepted on resume: the residual, mirrored from LCLI-638", async () => {
-  // compareReleaseVersions cannot order these, and the agreed rule refuses
-  // only a STRICTLY NEWER current latest. Pinned so both sides' grids agree.
-  for (const latest of [NON_PLAIN, "10.0.0-rc.1", "9.9.9+build.5"])
-    expect(await plan(VERSION, latest, true)).toMatchObject({ ok: true });
+test("a resume orders a prerelease or build-metadata latest by semver precedence, release part first", async () => {
+  // The reviewer hole this closes (lore-cli LCLI-638 F1): a live 5.7.0-rc.1
+  // outranks 5.6.7 (the patch differs before any prerelease is considered),
+  // so it must refuse even though it is not a plain release; the earlier
+  // plain-X.Y.Z guard skipped it and performed the full backwards move.
+  for (const newer of ["9.9.10-rc.1", "9.9.10+build.5", "10.0.0-rc.1"]) {
+    const result = await plan(VERSION, newer, true);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const refusals = result.problems.filter((problem) =>
+      problem.includes("resuming would move"),
+    );
+    expect(refusals).toHaveLength(RELEASE_PACKAGES.length);
+    expect(refusals[0]).toContain(
+      `${RELEASE_PACKAGES[0]}: ${VERSION} is older than the current ${PROMOTE_TAG} ${newer}`,
+    );
+  }
+  // A tie on the release part is lower-than-or-equal, never strictly newer:
+  // 9.9.9-rc.1 and 9.9.9+build.5 are not newer than 9.9.9, and older
+  // prereleases are older still. A value that leads with no release at all --
+  // a fourth component or a leading zero included -- is unorderable and also
+  // accepted, the one deliberate residual.
+  for (const accepted of [
+    "9.9.9-rc.1",
+    "9.9.9+build.5",
+    "9.9.8-rc.1",
+    "9.9.9.1",
+    "09.9.9",
+    "not-a-release",
+  ])
+    expect(await plan(VERSION, accepted, true)).toMatchObject({ ok: true });
 });
 
 test("the fresh-run refusals from QCLI-402 are unchanged", async () => {
@@ -159,10 +189,11 @@ test("a fresh run whose current latest is not a plain release names the registry
 });
 
 /**
- * The pairing grid, from lore-cli's shared recipe (LCLI-638): deterministic
- * rows both sides run through their own planPromotion, so the two verdict
- * columns diff row for row at both final heads (QCLI-405 AC4). Ordinals index
- * this side's own RELEASE_PACKAGES; the LAST ordinal is the launcher.
+ * The pairing grid, from lore-cli's shared recipe (LCLI-638, updated after the
+ * F1 finding): deterministic rows both sides run through their own
+ * planPromotion, so the two verdict columns diff row for row at both final
+ * heads (QCLI-405 AC4). Ordinals index this side's own RELEASE_PACKAGES; the
+ * LAST ordinal is the launcher.
  */
 const GRID = {
   version: "5.6.7",
@@ -171,7 +202,10 @@ const GRID = {
     newer: "5.7.0",
     equal: "5.6.7",
     older: "5.6.6",
-    "not-plain": "5.7.0-rc.1",
+    "prerelease-newer": "5.7.0-rc.1",
+    "prerelease-same": "5.6.7-rc.1",
+    "build-newer": "5.7.0+build.7",
+    "build-same": "5.6.7+build.7",
   },
   shapes: {
     uniform: () => true,
@@ -203,10 +237,29 @@ const gridPlan = (
     resuming,
   });
 
-test("the pairing grid: resuming x relation x shape verdicts, 20 of 40 accepted", async () => {
+test("the pairing grid: resuming x relation x shape verdicts, 25 of 70 accepted", async () => {
+  // resume refuses newer, prerelease-newer and build-newer -- the precedence
+  // rows -- and accepts equal, older, prerelease-same and build-same. Fresh
+  // refuses everything but older, unchanged from QCLI-402.
   const expected = {
-    false: { newer: false, equal: false, older: true, "not-plain": false },
-    true: { newer: false, equal: true, older: true, "not-plain": true },
+    false: {
+      newer: false,
+      equal: false,
+      older: true,
+      "prerelease-newer": false,
+      "prerelease-same": false,
+      "build-newer": false,
+      "build-same": false,
+    },
+    true: {
+      newer: false,
+      equal: true,
+      older: true,
+      "prerelease-newer": false,
+      "prerelease-same": true,
+      "build-newer": false,
+      "build-same": true,
+    },
   } as const;
   const rows: string[] = [];
   let accepted = 0;
@@ -226,6 +279,6 @@ test("the pairing grid: resuming x relation x shape verdicts, 20 of 40 accepted"
           ok: expected[resuming ? "true" : "false"][relation],
         });
       }
-  expect(rows).toHaveLength(40);
-  expect(accepted).toBe(20);
+  expect(rows).toHaveLength(70);
+  expect(accepted).toBe(25);
 });
