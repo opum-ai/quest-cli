@@ -342,7 +342,13 @@ empty). Read \`git diff --cached --name-status\` before committing; a
 completion commit should name exactly those two paths. Staging one side alone
 is not enough either: \`git add -u .quest/\` stages the removal but leaves the
 new record untracked. \`task close\`, \`task archive\` and \`task demote\`
-relocate records the same way and stage the same way. This is not hypothetical
+relocate records too and stage by the same recipe -- but not always to
+\`.quest/completed/\`, so a commit carrying one of those names different paths:
+close joins complete in \`.quest/completed/\`, archive moves the record to
+\`.quest/archive/tasks/\`, and demote returns it to \`.quest/tasks/\` (QCLI-412).
+A demotion of a record already stored at \`tasks\` is a status write with no
+rename behind it, so there is nothing to stage and no hint is printed. Each of
+the four commands prints the path it actually used. This is not hypothetical
 (QCLI-311): a tracker-only commit once also deleted npm/quest-darwin-arm64
 this way, and the package-artifact gate caught it, not anything in the
 session.
