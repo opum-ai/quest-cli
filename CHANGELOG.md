@@ -10,7 +10,60 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
+## 0.12.0
+
 ### Changed
+
+- **The pinned bun moves to 1.4.2, and a check holds the pin to the behaviour
+  that motivated it** (QCLI-411, from opum-agent OPAG-734). Bun 1.3.14
+  silently STRIPS a top-level binding named `declare` in a TypeScript file —
+  `function declare(v) {...}; declare('x')` prints nothing and exits 0 — so a
+  test helper of that name would never run while the assertions around it
+  passed vacuously. The upstream fix landed in 1.4.0. `package.json`'s
+  `packageManager`, `@types/bun`, and every `oven-sh/setup-bun` step across
+  the workflows now pin 1.4.2, and `bun.lock` was regenerated with 1.4.2
+  itself, so CI's frozen install compares against a lockfile written by the
+  runtime the pin names. `test/qcli411-bun-declare-binding.test.ts` asserts
+  every pin is >= 1.4.0 — discovering workflows rather than listing them, so a
+  new one with a stale pin fails — and runs the repro through
+  `process.execPath`, the runtime actually running the suite. The committed
+  `npm/*` platform binaries were still 1.3.14-built when this landed; the
+  0.12.0 bump is the release step that carries the pin into the shipped bytes.
+
+- **The staging hint now names the right destination for all four relocating
+  commands** (QCLI-412, completing QCLI-311). `task complete` was the only one
+  carrying it, but `close` and `archive` also move a record out of
+  `.quest/tasks/` and `demote` moves one back, and each carries the same
+  hazard: an unstaged rename, where a repo-wide `git add -A` also stages
+  unrelated deletions. The destination is read from the mutation's own
+  `relocatedTo` rather than from a command-to-directory table, because three
+  destinations are involved — `.quest/completed/`, `.quest/archive/tasks/` and
+  back — and a table would name the wrong one for `archive` and `demote` while
+  looking correct for the two that share the first. A `demote` that stays put
+  prints nothing, because no rename happened to stage.
+
+- **The `source-gates` push paths include `README.md` and `LICENSE`**
+  (QCLI-377). `source-gates` runs `scripts/check-package-artifacts.mjs`, which
+  reads both — the README as the packed page's version-claim content gate, the
+  LICENSE as a presence gate on the root pack's exact file list — so a push
+  touching only one of them fired no push-triggered run and left no row on
+  that `dev` SHA for a fast-forward promotion to consume before a PR exists.
+  No gate changed; `pull_request` stays unfiltered, so a PR still gets its row.
+
+- **A scheduled detector reports a lore pin that has fallen behind npm**
+  (QCLI-358, ruled in opum-doc's ADR "Detect a stale lore pin without touching
+  a required CI context"). The `lore check` gate runs AT the pinned version and
+  compares the committed schemas against what that version generates, so it is
+  self-consistent by construction and stays green as the pin falls behind —
+  nothing inside the run can know a newer lore exists. The pin sat at lore
+  0.7.0, which had no schema-drift detection at all, while a required context
+  reported success on a class it could not represent.
+  `scripts/lore-pin-staleness.mjs` exports the schemas under both versions, so
+  it can tell behind from behind-and-schema-changing, and keeps one
+  `lore-pin-stale` issue in step with that answer. It runs from its own weekly,
+  non-required workflow and opens one issue rather than failing anything: a
+  network read inside a required context would make that context flaky, and a
+  flaky required check teaches people to re-run until green.
 
 - **The task-creation guide warns against a count that goes stale inside an
   acceptance criterion** (QCLI-351). A criterion like "the three leaked
@@ -99,6 +152,47 @@ dated by its own tag. No date here is inferred (QCLI-398).
   ruled out of this slice.
 
 ### Added
+
+- **`quest task list --across-refs` gives one read-only view over `origin/dev`
+  and the head of every open PR into it** (QCLI-417; DEC-40 accepted shape,
+  opum-doc ODOC-330). It answers the question QCLI-316's `scope` field could
+  only point at: an empty or filtered answer becomes a claim about the
+  repository rather than about this checkout, whose `.quest/` is whatever the
+  checked-out branch holds. One entry per task id —
+  `{id, title, proposedBy, conflict, states}` — with each state carrying
+  `refProvenance {ref, pullRequest, sha}`, `pullRequest` as `owner/repo#N` for
+  a PR head and `null` for `dev` or an explicitly named ref, and the full
+  40-hex commit actually read. An id whose states disagree lists every state
+  and sets `conflict` true; no winner is picked.
+  `coverage {complete, population, discoveredAt, refsRead, refsUnreadable}` is
+  a top-level key after `data` and before `principal`, superseding `scope`
+  here, and `complete` is true only when every planned ref was read without
+  error — a read of ZERO refs is never complete. Exits: 0 complete, 6
+  (`drift`) on incomplete coverage with the unreadable refs named in the
+  message and stdout empty, 3 when `origin` or `origin/dev` is absent, 2
+  usage, and never 5 — a status conflict is data, not a command conflict.
+  `--allow-partial` downgrades the 6 to 0 with `complete` false and the same
+  refs named; it does not downgrade a zero-ref read. Discovery is
+  `gh pr list --state open --base dev` behind an injectable seam; `dev` is
+  read at the SHA `git ls-remote` reports, never the possibly stale local ref,
+  objects are fetched with a bare refspec only when absent, and `--ref`/`--pr`
+  replace discovery with an explicit population.
+
+- **A new `check` command fails when a change drops a task record other work
+  still references** (QCLI-415, DEC-18). `quest check --continuity --base
+  <ref>` resolves every record id and alias present at the merge base of
+  `<ref>` and HEAD against the current store, reading `.quest/tasks`,
+  `.quest/completed` and `.quest/archive/tasks` at the base through a new
+  `GitPort.mergeBase`, so a relocation between them is not a loss. It reports
+  its counts — records, references, resolved, missing — and a base read of
+  ZERO records is exit 6 rather than a pass, which is the positive control. A
+  vanished id is named in the message and not only in the structured field.
+  `--continuity` is required rather than implied, because the CI consumer
+  copies one line into each job. Drafts are out of scope in both directions:
+  `draft promote` removes the draft record by design while minting a new id,
+  so including them would make every promotion a false positive. Measured on
+  this repository from its initial commit, 521 of 521 references resolve, 259
+  of them migration aliases.
 
 - **Workspace-configured `type` and `priority` vocabulary** (QCLI-330; opum-doc
   ADR "Make quest's type and priority vocabulary workspace-configured, with a
@@ -243,6 +337,40 @@ dated by its own tag. No date here is inferred (QCLI-398).
   `"rebuilt"`), and the bytes that publish are bundled on the release tag.
   The rebuild check also runs before the root `package.json` rewrite, so a
   refusal can no longer leave that rewrite behind.
+
+- **GitHub Release notes are read at the commit the tag peels to, not from the
+  checkout** (QCLI-407, twin of lore-cli LCLI-639). `releaseNotesFor()` read
+  `CHANGELOG.md` from the working tree the promotion ran in, so an uncommitted
+  edit — or an edit landed after the tag — became the body of a NEW release,
+  and nothing compared the notes against the tagged commit. Every path now
+  reads the file's bytes at the peeled SHA through the GitHub API: the promote
+  pre-flight refusal, the cut, and the standalone repair tool, with no
+  working-tree read left on the promote path. The section parser is fence-aware
+  under the predicate agreed with lore-cli, and the missing-section refusal now
+  names remedies that work.
+
+- **Five legacy release bodies are reported as recorded exceptions rather than
+  prescribed for repair** (QCLI-410). QCLI-407 re-sourced the notes from the
+  tagged commit, which moved what the existing-release comparison compares:
+  0.6.0, 0.6.1, 0.6.2, 0.7.0 and 0.8.0 each differ from their tag's section,
+  because a record was written after the tag — publish histories, a
+  post-release correction, known limitations, a provenance warning. Rewriting
+  a body to match an earlier section would falsify it, so
+  `scripts/github-release.mjs` reports each by name and reason, edits nothing,
+  and never marks it latest; moving the Latest badge onto a version from
+  another era is not a repair. Every other release keeps the notes-differ
+  refusal.
+
+- **A resumed promotion refuses when a package's live `latest` is already
+  newer** (QCLI-405, mirrored from lore-cli LCLI-638). Before any dist-tag
+  moves, `promote-release.mjs --resume` compares the release each package's
+  current npm `latest` LEADS WITH under semver precedence and refuses, naming
+  the package and both versions: `5.7.0-rc.1` over `5.6.7` is refused, while
+  `5.6.7-rc.1` and `5.6.7+build.7` over `5.6.7` are not, and a value leading
+  with no release is unorderable and stays accepted. Equal and older still
+  resume, which is the case resume exists for. The fresh-run side also gained
+  the registry-terms headline for a non-plain current `latest`, with no change
+  of verdict.
 
 - **`task list --status Paused` lists the paused tasks** (QCLI-392). The
   status filter checked only the ladder statuses, so the paused status that
