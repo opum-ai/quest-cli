@@ -82,6 +82,22 @@ dated by its own tag. No date here is inferred (QCLI-398).
   depend on it: lore-cli already declines to decide on revision movement
   alone, and a narrower hash strengthens rather than weakens that choice.
 
+- **A completion now names the scoped `git add` its commit needs, and the
+  guide says why a repo-wide `git add -A` is the wrong flag for it** (QCLI-311,
+  ruled 2026-09-29, option 2; requested by lore-cli after the 2026-09-15
+  incident here). `task complete` relocates the record from `tasks/` to
+  `completed/` and nothing stages that rename, so reaching for a repo-wide
+  `git add -A` also stages any unrelated tracked file merely missing from the
+  working tree -- which is how a "tracker-only" commit once also deleted
+  `npm/quest-darwin-arm64`, caught only by the package-artifact gate. The
+  human-readable output of `task complete` now closes with the record's new
+  path and the scoped form, `git add -A .quest/`, and
+  `quest instructions task-finalization` gains a section naming both record
+  paths, the `git diff --cached --name-status` check before committing, and
+  the half-staged result of `-u` or a lone path. The JSON envelope is
+  unchanged: a machine-readable field for this is a contract change and was
+  ruled out of this slice.
+
 ### Added
 
 - **Workspace-configured `type` and `priority` vocabulary** (QCLI-330; opum-doc

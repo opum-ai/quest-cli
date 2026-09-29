@@ -341,6 +341,25 @@ function completionWarning(
   return `Warning: task ${task.id} completed with unresolved checklist items -- ${parts.join("; ")}. This does not block completion; see quest instructions task-finalization.`;
 }
 
+/**
+ * QCLI-311 (option 2, ruled 2026-09-29): `task complete` relocates the record
+ * from .quest/tasks/ to .quest/completed/ and nothing stages that rename, so
+ * the commit delivering a completion has to carry both sides. The dangerous
+ * habit is a repo-wide `git add -A`, which also stages any unrelated tracked
+ * file merely missing from the working tree -- measured, not hypothetical:
+ * the 2026-09-15 incident where a "tracker-only" commit also deleted
+ * npm/quest-darwin-arm64 (LICENSE, package.json, the 64 MB binary), caught
+ * only by check-package-artifacts.mjs. This names the scoped add instead.
+ *
+ * Human surface only, on the renderScopeFooter pattern: appended to text
+ * output, never a field in the JSON envelope -- a machine-readable field is a
+ * contract change and was explicitly out of scope for this slice. The prose
+ * lives in the task-finalization guide (application/agents/guides.ts).
+ */
+function completionStagingHint(task: { readonly id: string }): string {
+  return `\nCompleted ${task.id}: the record moved to .quest/completed/${task.id}.json. Stage the move before committing with a scoped add -- git add -A .quest/ -- not a repo-wide git add -A, which would also stage unrelated deletions.\n`;
+}
+
 /** Merges human help content into manifest entries for `quest help` output
  * only; `commandManifest`/`quest manifest` are never touched. Flags carry
  * their value shape (QCLI-266): a bare list of flag names cannot tell a
@@ -2672,10 +2691,21 @@ export async function runQuest(
       // suppressed on those, so archiving an already-completed task keeps it.
       const unresolved =
         command === "complete" ? data.unresolvedAtCompletion : undefined;
-      const result = output({ schemaVersion: 1, kind, data }, modeFor(parsed));
+      const mode = modeFor(parsed);
+      const result = output({ schemaVersion: 1, kind, data }, mode);
+      // QCLI-311: guidance for whoever writes the commit that carries the
+      // move, so it rides the human surface only -- the JSON envelope keeps
+      // its exact shape with no added field.
+      const rendered =
+        command === "complete" && mode !== "json"
+          ? {
+              ...result,
+              stdout: `${result.stdout}${completionStagingHint(data)}`,
+            }
+          : result;
       return unresolved
-        ? { ...result, stderr: `${completionWarning(data, unresolved)}\n` }
-        : result;
+        ? { ...rendered, stderr: `${completionWarning(data, unresolved)}\n` }
+        : rendered;
     }
     if (command === "close" && rest[0]) {
       // QCLI-331: the second terminal status. Built outside the shared
