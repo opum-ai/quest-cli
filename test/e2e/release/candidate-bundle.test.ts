@@ -85,14 +85,33 @@ async function fixture(
   return directory;
 }
 
+/**
+ * A fixture that is also a Git repository with everything committed, so the
+ * comparison against the committed blobs (QCLI-419) has a repository to run
+ * in. It needs one: outside a repository `git diff` runs in --no-index mode
+ * and exits 1 for an inaccessible path, which reads as "rebuilt".
+ */
+async function commitFixture(directory: string): Promise<string> {
+  await run("git", ["init", "-q"], directory);
+  await run("git", ["config", "user.email", "t@example.com"], directory);
+  await run("git", ["config", "user.name", "t"], directory);
+  await run("git", ["add", "-A"], directory);
+  await run("git", ["commit", "-qm", "fixture"], directory);
+  return (await run("git", ["rev-parse", "HEAD"], directory)).trim();
+}
+
 test("the bundle matches the consumer's contract exactly", async () => {
   const directory = await fixture();
   const out = await mkdtemp(join(tmpdir(), "quest-candidate-out-"));
   try {
+    const commit = await commitFixture(directory);
+    // Committed artifacts are the release-ref shape since QCLI-419: off a
+    // release ref they refuse, because nothing rebuilt them for this source.
     const built = await buildCandidateBundle({
-      commit: COMMIT,
+      commit,
       out,
       directory,
+      releaseRef: true,
     });
 
     // Every field opum-cli-e2e reads. sourceCommit is required and it throws
@@ -100,7 +119,7 @@ test("the bundle matches the consumer's contract exactly", async () => {
     const metadata = JSON.parse(
       await readFile(join(out, "evidence", "package-metadata.json"), "utf8"),
     );
-    expect(metadata.sourceCommit).toBe(COMMIT);
+    expect(metadata.sourceCommit).toBe(commit);
     expect(metadata.version).toBe("9.9.9");
     expect(metadata.packages.map((row: { name: string }) => row.name)).toEqual(
       REQUIRED_PLATFORMS.map((platform) => `@opum-ai/quest-${platform}`),
@@ -205,7 +224,15 @@ test("the packed root carries re-derived digests, and the working tree is left u
   const out = await mkdtemp(join(tmpdir(), "quest-candidate-out-"));
   try {
     const before = await readFile(join(directory, "package.json"), "utf8");
-    await buildCandidateBundle({ commit: COMMIT, out, directory });
+    // A repository plus releaseRef for the same reasons as the contract test
+    // above (QCLI-419).
+    const commit = await commitFixture(directory);
+    await buildCandidateBundle({
+      commit,
+      out,
+      directory,
+      releaseRef: true,
+    });
 
     // The digests must be re-derived from the binaries actually present, or a
     // bundle assembled from separately-built artifacts advertises the previous
@@ -260,25 +287,70 @@ test("a bundle without a real source commit is refused", async () => {
   }
 });
 
-test("a bundle records whether it carries the committed bytes, and refuses rebuilds on a release ref", async () => {
+test("a source commit that does not resolve refuses before any artifact is tied to it", async () => {
+  // Two measured shapes, found reviewing QCLI-419. A directory with no
+  // repository behind it: `git diff` switches to --no-index mode and reports
+  // every path as a difference, which read as "rebuilt" and built a bundle
+  // anyway. And a 40-hex commit the repository does not have: it contributed
+  // nothing to `rebuilt`, so the refusal named committed artifacts rather
+  // than the real cause.
+  const checked = await fixture();
+  const unchecked = await fixture();
+  const out = await mkdtemp(join(tmpdir(), "quest-candidate-out-"));
+  try {
+    await commitFixture(checked);
+    await expect(
+      buildCandidateBundle({ commit: COMMIT, out, directory: checked }),
+    ).rejects.toThrow(/does not resolve to a commit/);
+    await expect(
+      buildCandidateBundle({ commit: COMMIT, out, directory: unchecked }),
+    ).rejects.toThrow(/does not resolve to a commit/);
+  } finally {
+    await rm(checked, { recursive: true, force: true });
+    await rm(unchecked, { recursive: true, force: true });
+    await rm(out, { recursive: true, force: true });
+  }
+});
+
+test("a bundle refuses committed platform artifacts off a release ref, and refuses rebuilds on one", async () => {
   // Bun's --compile output is not byte-reproducible, so a bundle assembled
   // from fresh builds names a commit whose bytes it does not contain. That
   // happened, and was caught downstream by digest comparison rather than here.
+  // The mirror image is the measured QCLI-419 defect: off a release ref
+  // nothing rebuilt the platform packages, so they are bytes the tree already
+  // carried — an earlier release's build — and a laptop run stamped them with
+  // the current sourceCommit and called them "committed".
   const directory = await fixture();
   const out = await mkdtemp(join(tmpdir(), "quest-candidate-out-"));
   try {
-    await run("git", ["init", "-q"], directory);
-    await run("git", ["config", "user.email", "t@example.com"], directory);
-    await run("git", ["config", "user.name", "t"], directory);
-    await run("git", ["add", "-A"], directory);
-    await run("git", ["commit", "-qm", "fixture"], directory);
-    const commit = (await run("git", ["rev-parse", "HEAD"], directory)).trim();
+    const commit = await commitFixture(directory);
 
-    const committed = await buildCandidateBundle({ commit, out, directory });
+    // The violating shape: committed artifacts, no release ref. It refuses
+    // BEFORE packing, so nothing is written: not the metadata, and not the
+    // root package.json rewrite the packing path performs below the check.
+    const before = await readFile(join(directory, "package.json"), "utf8");
+    await expect(
+      buildCandidateBundle({ commit, out, directory }),
+    ).rejects.toThrow(/committed platform artifacts/);
+    await expect(
+      readFile(join(out, "evidence", "package-metadata.json"), "utf8"),
+    ).rejects.toThrow();
+    expect(await readFile(join(directory, "package.json"), "utf8")).toBe(
+      before,
+    );
+
+    // On a release ref the same committed bytes are the shape that ships.
+    const committed = await buildCandidateBundle({
+      commit,
+      out,
+      directory,
+      releaseRef: true,
+    });
     expect(committed.artifactProvenance).toBe("committed");
     const metadata = JSON.parse(
       await readFile(join(out, "evidence", "package-metadata.json"), "utf8"),
     );
+    expect(metadata.sourceCommit).toBe(commit);
     expect(metadata.artifactProvenance).toBe("committed");
     expect(metadata.rebuiltPlatforms).toBeUndefined();
 
@@ -303,6 +375,7 @@ test("a bundle records whether it carries the committed bytes, and refuses rebui
       }),
     );
 
+    // Off a release ref this is the accepted shape: matrix-built artifacts.
     const rebuilt = await buildCandidateBundle({ commit, out, directory });
     expect(rebuilt.artifactProvenance).toBe("rebuilt");
     expect(
