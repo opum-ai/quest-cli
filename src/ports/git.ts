@@ -79,6 +79,17 @@ export interface GitPort {
     prefix: string,
   ): Promise<readonly string[]>;
   /**
+   * QCLI-415: the best common ancestor of two revisions, as `git merge-base
+   * <a> <b>` resolves it. Rejects when either revision is unresolvable or the
+   * histories are unrelated.
+   *
+   * The continuity check needs the merge base rather than the base ref's own
+   * tip: a branch that is behind its base never carried ids added to the base
+   * after the branch point, and reading the tip would charge it for records it
+   * could not have kept.
+   */
+  mergeBase(repositoryPath: string, a: string, b: string): Promise<string>;
+  /**
    * Every local branch and remote-tracking ref, as full ref names (e.g.
    * `refs/heads/dev`). Current tips only -- a for-each-ref listing, never a
    * history walk.

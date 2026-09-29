@@ -78,6 +78,7 @@ export function createBacklogImportService(
 
 import { GitSnapshotEvidence } from "../adapters/claims/local-claim-evidence.ts";
 import { LocalGitPort } from "../adapters/git/local-git.ts";
+import { ContinuityCheckService } from "../application/checks/continuity.ts";
 import {
   OpumAgentWorkflowBindingService,
   type TaskBindingReadModel,
@@ -149,4 +150,15 @@ export function createTaskService(
     context.vocabulary,
     context.problem,
   );
+}
+
+/** QCLI-415: `quest check --continuity` reads a historical record set through
+ * the git port and resolves it against the live store through the task
+ * service's own all-locations listing, so the check compares exactly the
+ * population every other command resolves references against. */
+export function createContinuityCheckService(
+  root: string,
+  tasks: TaskService,
+): ContinuityCheckService {
+  return new ContinuityCheckService(new LocalGitPort(), tasks, root);
 }

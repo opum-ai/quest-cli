@@ -104,6 +104,9 @@ export const BOOLEAN_FLAGS = [
   "--ready",
   "--unassigned",
   "--unresolved-at-completion",
+  // QCLI-415: selects the continuity check (`quest check --continuity --base
+  // <ref>`); a mode selector that carries no value of its own.
+  "--continuity",
 ] as const;
 
 /**

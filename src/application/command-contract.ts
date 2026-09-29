@@ -108,6 +108,7 @@ export interface CommandManifestEntry {
     | "board"
     | "board export"
     | "doctor"
+    | "check"
     | "cleanup"
     | "browser";
   readonly schemaVersion: 1;
@@ -656,6 +657,15 @@ export const commandManifest = {
       name: "doctor",
       schemaVersion: 1,
       kind: "project.doctor",
+      mutates: false,
+    },
+    {
+      // DEC-18/QCLI-415. `data` is a ContinuityReport; a broken continuity is
+      // reported as a `drift` diagnostic (exit 6) rather than a result, so a
+      // Tracker integrity job turns red on it.
+      name: "check",
+      schemaVersion: 1,
+      kind: "check.continuity",
       mutates: false,
     },
     {
