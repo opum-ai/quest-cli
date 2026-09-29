@@ -107,6 +107,11 @@ export const BOOLEAN_FLAGS = [
   // QCLI-415: selects the continuity check (`quest check --continuity --base
   // <ref>`); a mode selector that carries no value of its own.
   "--continuity",
+  // QCLI-417: `--across-refs` selects the repository-true view on `task list`,
+  // and `--allow-partial` keeps a partial answer usable (exit 0 with
+  // coverage.complete false) instead of failing closed on it.
+  "--across-refs",
+  "--allow-partial",
 ] as const;
 
 /**
@@ -180,6 +185,11 @@ export const REPEATABLE_LIST_FLAGS = [
   "--exclude-status",
   "--assignee",
   "--type",
+  // QCLI-417: `--across-refs` takes an explicit population, and both ways of
+  // naming it are per-item -- `--ref origin/dev --ref refs/heads/other`, or
+  // `--pr 12 --pr 14`.
+  "--ref",
+  "--pr",
 ] as const;
 
 /**

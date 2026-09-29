@@ -102,6 +102,46 @@ export interface GitPort {
    * reader which branch they are standing on.
    */
   currentBranch(repositoryPath: string): Promise<string | null>;
+  /**
+   * QCLI-417: the SHA a REMOTE advertises for one ref, straight from
+   * `git ls-remote`, or null when the remote does not advertise it. Remote
+   * truth on purpose -- `origin/dev` locally is whatever the last fetch left
+   * behind, and the across-refs view promises the repository's dev, not this
+   * checkout's idea of it.
+   *
+   * Rejects when the remote itself cannot be reached, which is a different
+   * fact from a remote that answered "no such ref": the first is a ref that
+   * could not be read, the second is a dev branch that does not exist
+   * (QCLI-417 exit 3).
+   */
+  remoteRevision(
+    repositoryPath: string,
+    remote: string,
+    ref: string,
+  ): Promise<string | null>;
+  /**
+   * QCLI-417: fetches one ref's objects from a remote so a read at a
+   * discovered SHA can proceed. Passed a bare refspec (`refs/pull/7/head`,
+   * never `a:b`) so it writes objects and FETCH_HEAD only -- no ref and no
+   * branch is created or moved, which is the read-only promise the view makes.
+   * Rejects when the fetch fails; the caller records that as an unreadable ref.
+   */
+  fetchRef(repositoryPath: string, remote: string, ref: string): Promise<void>;
+  /**
+   * QCLI-417: whether a revision resolves to a commit object ALREADY present
+   * in this repository, without touching the network. `listFiles` answers `[]`
+   * and `readBlob` answers `null` for both "absent" and "the read failed", so
+   * neither can decide whether a fetch is needed before a read -- and fetching
+   * an object that is already present is network work the view should not do.
+   */
+  hasRevision(repositoryPath: string, revision: string): Promise<boolean>;
+  /**
+   * QCLI-417: the configured URL of one remote, or null when no such remote
+   * exists. Read-only, and deliberately the URL rather than a parsed slug:
+   * which hosts count as a forge is a question for the adapter that asks the
+   * forge, not for the Git port.
+   */
+  remoteUrl(repositoryPath: string, remote: string): Promise<string | null>;
   commit(operation: GitOperation): Promise<GitOperationResult>;
   synchronize(operation: GitSynchronization): Promise<GitOperationResult>;
   push(operation: GitPush): Promise<GitOperationResult>;

@@ -78,11 +78,13 @@ export function createBacklogImportService(
 
 import { GitSnapshotEvidence } from "../adapters/claims/local-claim-evidence.ts";
 import { LocalGitPort } from "../adapters/git/local-git.ts";
+import { GhRefDiscovery } from "../adapters/refs/gh-ref-discovery.ts";
 import { ContinuityCheckService } from "../application/checks/continuity.ts";
 import {
   OpumAgentWorkflowBindingService,
   type TaskBindingReadModel,
 } from "../application/claims/opum-agent-workflow.ts";
+import { AcrossRefsViewService } from "../application/refs/across-refs.ts";
 
 /** Inferred rather than annotated with the `ports/git.ts` interface type:
  * `cli` may depend on `application`, never on `ports` directly (see
@@ -161,4 +163,12 @@ export function createContinuityCheckService(
   tasks: TaskService,
 ): ContinuityCheckService {
   return new ContinuityCheckService(new LocalGitPort(), tasks, root);
+}
+
+/** QCLI-417: the read-only across-refs view. The forge seam is the real `gh`
+ * shell-out here; the tests that cannot use a forge inject their own
+ * RefDiscoveryPort into AcrossRefsViewService directly. */
+export function createAcrossRefsService(): AcrossRefsViewService {
+  const git = new LocalGitPort();
+  return new AcrossRefsViewService(git, new GhRefDiscovery(git));
 }

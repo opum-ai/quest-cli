@@ -50,6 +50,11 @@ import {
 } from "../application/command-parameters.ts";
 import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
+import type {
+  AcrossRefsCoverage,
+  AcrossRefsFilter,
+  AcrossRefsUnreadable,
+} from "../application/refs/across-refs.ts";
 import {
   LocalTaskRepository,
   RecordDuplicateIdentityError,
@@ -81,6 +86,7 @@ import {
   withCheckPositions,
 } from "./commands/task/index.ts";
 import {
+  createAcrossRefsService,
   createAgentInstructionPort,
   createAgentPluginPort,
   createBacklogImportService,
@@ -141,11 +147,20 @@ const HELP_PRIORITY_KEYS = ["summary", "usage", "flags"] as const;
  */
 const CONTRACT_VERSION = 1;
 
+/** The additive top-level keys a listing may carry (QCLI-316 `scope`,
+ * QCLI-417 `coverage`), both of which sit AFTER `data` and BEFORE `principal`.
+ * The bounded slot matters: `contractVersion` is asserted at exact index 1 by
+ * a consumer, and `principal` must stay last. */
+interface ListingExtras {
+  readonly scope?: ListingScope;
+  readonly coverage?: AcrossRefsCoverage;
+}
+
 function output(
   data: object | readonly unknown[],
   mode: OutputMode,
   priorityKeys: readonly string[] = [],
-  scope?: ListingScope,
+  extras: ListingExtras = {},
 ): InvocationResult {
   const success = data as {
     readonly schemaVersion: unknown;
@@ -158,22 +173,51 @@ function output(
   // Additive top-level keys on a SUCCESS envelope are permitted (the
   // `contractVersion` precedent, QCLI-289); a consumer that does not know the
   // key ignores it and still reads the same `data`.
+  //
+  // QCLI-417 adds `coverage` in the same slot and for the same reason. The two
+  // are never emitted together: `--across-refs` emits `coverage` and
+  // supersedes `scope` (the same job done completely), and every other listing
+  // keeps `scope`'s shipped shape.
   const envelope = {
     schemaVersion: success.schemaVersion,
     contractVersion: CONTRACT_VERSION,
     kind: success.kind,
     data: success.data,
-    ...(scope === undefined ? {} : { scope }),
+    ...(extras.scope === undefined ? {} : { scope: extras.scope }),
+    ...(extras.coverage === undefined ? {} : { coverage: extras.coverage }),
     principal: null,
   };
   return {
     stdout:
       mode === "json"
         ? `${JSON.stringify(envelope)}\n`
-        : `${renderHumanPayload(envelope.data, priorityKeys)}${scope === undefined ? "" : renderScopeFooter(scope)}`,
+        : `${renderHumanPayload(envelope.data, priorityKeys)}${
+            extras.scope === undefined ? "" : renderScopeFooter(extras.scope)
+          }${
+            extras.coverage === undefined
+              ? ""
+              : renderCoverageFooter(extras.coverage)
+          }`,
     stderr: "",
     exitCode: 0,
   };
+}
+
+/** What a `--across-refs` listing was able to read, in prose (QCLI-417 AC5).
+ * The incomplete half is the load-bearing one: an unanswered question about
+ * the repository must not read as "nothing is open". */
+function renderCoverageFooter(coverage: AcrossRefsCoverage): string {
+  const read = coverage.refsRead.map((entry) =>
+    entry.pullRequest === null
+      ? entry.ref
+      : `${entry.ref} (${entry.pullRequest})`,
+  );
+  const unread = coverage.refsUnreadable.map(
+    (entry) => entry.ref ?? "the open-pull-request list",
+  );
+  if (coverage.complete)
+    return `\nRead ${read.length} ref(s): ${read.join(", ")}. Every ref in the ${coverage.population} population was read, so a "nothing open" answer here holds for the repository.\n`;
+  return `\nRead ${read.length} ref(s)${read.length === 0 ? "" : `: ${read.join(", ")}`}. NOT read: ${unread.join(", ")}. Coverage is INCOMPLETE (population ${coverage.population}): a "nothing open" answer from this listing does NOT hold for the repository.\n`;
 }
 
 /**
@@ -212,6 +256,142 @@ function renderScopeFooter(scope: ListingScope): string {
   if (unseen.length === 0)
     return `\nAnswered about ${where}. No task record exists on any other ref that is absent here.\n`;
   return `\nAnswered about ${where}. ${unseen.length} task record(s) exist on other refs and were NOT read: ${unseen.join(", ")}. An empty or filtered list here is not an answer about the repository.\n`;
+}
+
+/**
+ * QCLI-417 / DEC-40: `quest task list --across-refs`.
+ *
+ * The envelope kind is its own (`task.list-across-refs`) because the payload
+ * is its own shape -- one entry per task id with a states array, not a row per
+ * record -- and `coverage` replaces `scope` here: the branch-scoped notice
+ * says what was NOT read, while coverage says what the population WAS, which is
+ * the question this command exists to answer. `scope` keeps its shipped shape
+ * on every other listing.
+ *
+ * Exit codes are the ruling on the record: 0 for complete coverage, 6 (the
+ * error envelope, `error_type` "drift" -- the closed union already carries it
+ * and is deliberately not widened) for incomplete coverage with the coverage
+ * object in `input` and the unreadable refs named in the message, 3 when
+ * origin or origin/dev is absent, 2 for usage. Exit 5 is never reached from
+ * here: an id whose statuses disagree is DATA (exit 0, `conflict: true`), not
+ * a command conflict, so 5 stays reserved for write conflicts.
+ *
+ * `--allow-partial` downgrades the exit-6 case to a success envelope with
+ * `complete: false` and the unreadable refs still named. It does NOT downgrade
+ * a read of ZERO refs: that is not partial coverage, it is no coverage, and it
+ * cannot be told apart from a wrong repository or an unreachable remote.
+ */
+async function acrossRefsListing(
+  parsed: NonNullable<ReturnType<typeof flags>>,
+  mode: OutputMode,
+  root: string,
+): Promise<InvocationResult> {
+  const acrossRefsFlags = [
+    "--across-refs",
+    "--allow-partial",
+    "--ref",
+    "--pr",
+    "--status",
+    "--exclude-status",
+    "--label",
+    "--assignee",
+    "--unassigned",
+    "--milestone",
+    "--parent",
+    "--priority",
+    "--type",
+    "--search",
+    "--limit",
+    "--sort",
+    "--include-archived",
+    "--unresolved-at-completion",
+  ];
+  if (!only(parsed, acrossRefsFlags))
+    return usageFailure(
+      parsed,
+      acrossRefsFlags,
+      "task list --across-refs received invalid arguments.",
+    );
+  if (parsed.values.has("--assignee") && parsed.values.has("--unassigned"))
+    return failure(
+      "usage",
+      "task list --assignee and --unassigned cannot be combined.",
+    );
+  // `--ready` is deliberately absent from the list above rather than
+  // implemented approximately: readiness is evaluated over one coherent
+  // dependency graph, and a PR head may carry a task whose dependency is not
+  // on that branch at all, so evaluating it there would either fail the ref or
+  // answer about a graph nobody has. The usage error names it.
+  const pullRequests = (parsed.values.get("--pr") ?? []).map((value) => {
+    if (!/^[1-9][0-9]*$/u.test(value))
+      throw new FlagUsageError(
+        `--pr takes a positive pull request number, one per occurrence; got ${JSON.stringify(value)}.`,
+      );
+    return Number(value);
+  });
+  const filter: AcrossRefsFilter = {
+    status: one(parsed, "--status"),
+    excludeStatuses: csvValues(parsed, "--exclude-status"),
+    labels: parsed.values.get("--label"),
+    assignees: csvValues(parsed, "--assignee"),
+    unassigned: parsed.values.has("--unassigned") || undefined,
+    milestoneId: one(parsed, "--milestone"),
+    parentId: one(parsed, "--parent"),
+    priority: one(parsed, "--priority"),
+    types: csvValues(parsed, "--type"),
+    search: one(parsed, "--search"),
+    unresolvedAtCompletion:
+      parsed.values.has("--unresolved-at-completion") || undefined,
+    includeArchived: parsed.values.has("--include-archived") || undefined,
+    // The cast is the narrowing `sortValue` performed: it returned a field
+    // only after finding it in exactly ACROSS_REFS_SORT_FIELDS.
+    sort: sortValue(
+      one(parsed, "--sort"),
+      ACROSS_REFS_SORT_FIELDS,
+    ) as AcrossRefsFilter["sort"],
+    limit: limitValue(one(parsed, "--limit")),
+  };
+
+  const outcome = await createAcrossRefsService().view({
+    repositoryPath: root,
+    refs: parsed.values.get("--ref"),
+    pullRequests,
+    allowPartial: parsed.values.has("--allow-partial"),
+    filter,
+  });
+  if (outcome.kind === "absent")
+    return failure("not_found", outcome.message, {
+      hint: "`quest task list` without --across-refs answers about this checkout alone and still works.",
+    });
+
+  const { entries, coverage } = outcome;
+  const readZeroRefs = coverage.refsRead.length === 0;
+  if (
+    !coverage.complete &&
+    (!parsed.values.has("--allow-partial") || readZeroRefs)
+  ) {
+    const unread = coverage.refsUnreadable.map(acrossRefsRefName);
+    const message = readZeroRefs
+      ? `task list --across-refs read 0 refs: ${unread.join(", ")}. An empty read is a failure, not a pass -- it cannot be told apart from a wrong repository, a wrong ref, or an unreachable remote.`
+      : `task list --across-refs read ${coverage.refsRead.length} of ${coverage.refsRead.length + coverage.refsUnreadable.length} planned ref(s) and could not read ${unread.join(", ")}. Coverage is incomplete, so this is NOT a statement about the repository.`;
+    return failure("drift", message, {
+      input: { coverage },
+      hint: "Nothing was written -- the view is read-only. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
+    });
+  }
+
+  return output(
+    { schemaVersion: 1, kind: "task.list-across-refs", data: entries },
+    mode,
+    [],
+    { coverage },
+  );
+}
+
+/** How one unreadable ref reads in a message. The discovery failure has no
+ * ref of its own -- it is about a population that could not be listed. */
+function acrossRefsRefName(entry: AcrossRefsUnreadable): string {
+  return entry.ref ?? "the open-pull-request list";
 }
 
 /**
@@ -803,23 +983,35 @@ function csvValues(
   return members;
 }
 
-/** Parses `--sort <field>[:asc|desc]`; default direction is ascending. */
+/**
+ * Parses `--sort <field>[:asc|desc]`; default direction is ascending.
+ *
+ * The field set is a parameter because `--across-refs` sorts ENTRIES, and an
+ * entry with several states has no single status, priority or createdAt to
+ * sort by -- picking one state's would be the per-state merge policy the view
+ * refuses to invent. The two id and title fields are the ones every entry
+ * genuinely has.
+ */
 function sortValue(
   value: string | undefined,
+  fields: readonly string[] = TASK_LIST_SORT_FIELDS,
 ): { readonly field: string; readonly direction: "asc" | "desc" } | undefined {
   if (value === undefined) return undefined;
   const [field, direction, ...rest] = value.split(":");
   if (
     rest.length > 0 ||
     !field ||
-    !(TASK_LIST_SORT_FIELDS as readonly string[]).includes(field) ||
+    !fields.includes(field) ||
     (direction !== undefined && direction !== "asc" && direction !== "desc")
   )
     throw new FlagUsageError(
-      `--sort must be one of ${TASK_LIST_SORT_FIELDS.join(", ")}, optionally suffixed with :asc or :desc.`,
+      `--sort must be one of ${fields.join(", ")}, optionally suffixed with :asc or :desc.`,
     );
   return { field, direction: direction === "desc" ? "desc" : "asc" };
 }
+
+/** QCLI-417: the entry-level sorts `task list --across-refs` accepts. */
+const ACROSS_REFS_SORT_FIELDS = ["id", "title"] as const;
 
 /** Shared by every flag whose value must be a positive integer (`--limit`, `--max-notes`). */
 function positiveIntegerValue(
@@ -2967,6 +3159,20 @@ export async function runQuest(
     }
     if (command === "list") {
       const parsed = flags(rest, REPEATABLE_LIST_FLAGS);
+      // QCLI-417 / DEC-40: the across-refs view is a different read of the
+      // same question (`task list`'s filters compose on it), so it branches
+      // before the branch-scoped listing rather than duplicating filtering in
+      // a second command.
+      // `await` rather than a bare return: runQuest's outer try/catch is what
+      // turns a refused filter (an unconfigured --status) into the exit-6
+      // diagnostic, and a returned promise's rejection happens AFTER that try
+      // block has exited -- it would escape as an uncaught error and exit 1.
+      if (parsed?.values.has("--across-refs"))
+        return await acrossRefsListing(
+          parsed,
+          modeFor(parsed),
+          await resolvedRoot(),
+        );
       const listFlags = [
         "--status",
         "--label",
@@ -3032,9 +3238,11 @@ export async function runQuest(
         ? await taskRecordIdsOnOtherRefs(git, listingRoot)
         : null;
       return output(listing, modeFor(parsed), [], {
-        branch: await git.currentBranch(listingRoot),
-        otherRefsRead: unseenTaskIds !== null,
-        ...(unseenTaskIds === null ? {} : { unseenTaskIds }),
+        scope: {
+          branch: await git.currentBranch(listingRoot),
+          otherRefsRead: unseenTaskIds !== null,
+          ...(unseenTaskIds === null ? {} : { unseenTaskIds }),
+        },
       });
     }
     if (command === "view" && rest[0]) {
