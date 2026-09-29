@@ -132,7 +132,11 @@ export async function readDistTags(name, { fetchFn = fetch } = {}) {
  * Reads every package's tags and builds the record, or says why not. Refuses
  * unless the version is staged under release-candidate on ALL of them: moving
  * `latest` on a subset would pair a qualified wrapper with a platform package
- * nobody staged.
+ * nobody staged. A fresh run also refuses a record validateRecord would
+ * refuse; a RESUMED run refuses when any package's CURRENT `latest` is
+ * strictly newer than `version` (QCLI-405, paired with lore-cli LCLI-638):
+ * the reused record says what the prior values were, and a registry that
+ * moved ahead since would make the resume move `latest` backwards.
  */
 export async function planPromotion({
   version,
@@ -170,6 +174,28 @@ export async function planPromotion({
       problems.push(
         `${name}: ${PROMOTE_TAG} already reads ${version}; a new record would store that as the prior value -- pass the record written by the first run`,
       );
+    // QCLI-405 (paired with lore-cli LCLI-638): the QCLI-402 gate below is
+    // fresh-only, because a fresh record is what it validates. A RESUME keeps
+    // the record the first run wrote, so nothing there compares the registry
+    // NOW with `version` -- and on a registry that moved ahead between the two
+    // runs, the resume would move `latest` BACKWARDS, the move the QCLI-402
+    // refusal exists to prevent. Equal-to-`version` is the partial state a
+    // resume exists for and stays accepted; only strictly newer refuses.
+    // `tags[PROMOTE_TAG]` is the live value, not the record's, so the record's
+    // `priorLatest` is deliberately not used here. Guarded on both being plain
+    // X.Y.Z: anything else cannot be ordered numerically, and a non-plain
+    // CURRENT `latest` is a separate question this change does not answer for
+    // the resume path (mirrored from lore).
+    else if (
+      resuming &&
+      typeof version === "string" &&
+      STRICT_SEMVER.test(version) &&
+      STRICT_SEMVER.test(tags[PROMOTE_TAG]) &&
+      compareReleaseVersions(tags[PROMOTE_TAG], version) > 0
+    )
+      problems.push(
+        `${name}: ${version} is older than the current ${PROMOTE_TAG} ${tags[PROMOTE_TAG]}, so resuming would move ${PROMOTE_TAG} backwards. ${PROMOTE_TAG} has moved on since the record was written: re-run against the newer release's checkout, or deliberately restore ${name}'s ${PROMOTE_TAG} first`,
+      );
     entries.push({ name, priorLatest: tags[PROMOTE_TAG] ?? null });
   }
   if (problems.length) return { ok: false, problems };
@@ -186,23 +212,45 @@ export async function planPromotion({
   // or `latest` could move onto a record that can be neither resumed nor
   // rolled back. validateRecord is the one gate: it refuses a version that is
   // not plain X.Y.Z and a prior newer than the version. The headlines below
-  // only explain its refusal; they never refuse on their own. A resumed run
-  // keeps the record the first run wrote, which main() has already validated.
+  // only explain its refusal; they never refuse on their own. A RESUMED run
+  // keeps the record the first run wrote, so this block never runs: the resume
+  // refusal in the loop above closes that hole (QCLI-405, paired with
+  // lore-cli LCLI-638) by comparing every package's CURRENT `latest` with
+  // `version` and refusing a strictly newer one.
   if (!resuming) {
     const valid = validateRecord(record, { version, packages });
     if (!valid.ok) {
       const plain = typeof version === "string" && STRICT_SEMVER.test(version);
       const headlines = plain
-        ? entries
-            .filter(
-              (entry) =>
-                STRICT_SEMVER.test(entry.priorLatest) &&
-                compareReleaseVersions(entry.priorLatest, version) > 0,
-            )
-            .map(
-              (entry) =>
-                `${entry.name}: ${version} is older than the current ${PROMOTE_TAG} ${entry.priorLatest}, so promoting it would move ${PROMOTE_TAG} backwards. Backports are not a promote use case: an older version belongs on a non-${PROMOTE_TAG} dist-tag through a separate path that is not built`,
-            )
+        ? [
+            ...entries
+              .filter(
+                (entry) =>
+                  STRICT_SEMVER.test(entry.priorLatest) &&
+                  compareReleaseVersions(entry.priorLatest, version) > 0,
+              )
+              .map(
+                (entry) =>
+                  `${entry.name}: ${version} is older than the current ${PROMOTE_TAG} ${entry.priorLatest}, so promoting it would move ${PROMOTE_TAG} backwards. Backports are not a promote use case: an older version belongs on a non-${PROMOTE_TAG} dist-tag through a separate path that is not built`,
+              ),
+            // QCLI-405, mirrored from lore-cli LCLI-638: on a fresh run
+            // nothing has been RECORDED yet, so validateRecord's own "recorded
+            // prior latest ..." wording names an artifact that does not exist
+            // and carries no remedy. The refusal is right -- a record's prior
+            // is what --rollback restores from, so it must be a release -- so
+            // explain it in the registry's own terms instead. The verdict is
+            // unchanged; only the message is.
+            ...entries
+              .filter(
+                (entry) =>
+                  typeof entry.priorLatest === "string" &&
+                  !STRICT_SEMVER.test(entry.priorLatest),
+              )
+              .map(
+                (entry) =>
+                  `${entry.name}: its current ${PROMOTE_TAG} is ${JSON.stringify(entry.priorLatest)}, not a plain X.Y.Z release. A promotion records the current ${PROMOTE_TAG} as the value --rollback would restore, so ${PROMOTE_TAG} must read a release: move ${entry.name}'s ${PROMOTE_TAG} onto the release it should return to, then re-run`,
+              ),
+          ]
         : [
             `${version} is not a plain X.Y.Z release, and ${PROMOTE_TAG} only ever takes a release. A prerelease, like a backport, belongs on a non-${PROMOTE_TAG} dist-tag through a separate path that is not built`,
           ];
