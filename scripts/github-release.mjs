@@ -37,50 +37,75 @@ const REPOSITORY_PATH = RELEASE_REPOSITORY.replace(/^github\.com\//, "");
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * An opening fence: up to three spaces of indent, then ``` or ~~~, and
- * anything after it (an info string). A closing fence is the same marker
- * with nothing but whitespace after it. Both sides of the pairing implement
- * exactly these two predicates, so a change here is a divergence to agree
- * with lore-cli before landing (QCLI-407 / LCLI-639).
+ * An opening fence, per CommonMark: up to three spaces of indent, then at
+ * least three backticks or tildes, then the rest of the line. The character
+ * and the run length are remembered, because a fence closes only on its own
+ * character at at least that length (QCLI-407 / LCLI-639, agreed with
+ * lore-cli -- both sides implement exactly this, so a change here is a
+ * divergence to agree before landing).
  */
-const FENCE_OPEN = /^ {0,3}(```|~~~)/;
-const FENCE_CLOSE = /^ {0,3}(```|~~~)[ \t]*$/;
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
 /**
- * The body of `## <version>` in CHANGELOG.md, up to the next `## ` heading,
- * trimmed. The heading may carry a suffix (`## 0.11.0 - 2026-09-27`), but
- * `## 0.1.0` never matches `## 0.1.01`. Returns null when there is no such
- * section or it is empty: a release with no notes is refused, not cut.
+ * Which lines of a document sit inside a fenced block, computed over the
+ * WHOLE document before anything else is decided, so a fenced heading can
+ * neither start nor end a section.
+ *
+ * Deliberate limit, agreed with lore-cli so neither side rediscovers it as an
+ * omission: this implements the fence state and nothing else of CommonMark --
+ * no indented-code-block interaction, no lazy continuation, no container or
+ * list scoping. An unclosed fence runs to EOF.
+ */
+function fencedLines(lines) {
+  const fenced = new Array(lines.length).fill(false);
+  let open = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (open === null) {
+      const opening = FENCE_OPEN.exec(lines[i]);
+      // A backtick fence's info string may not itself contain a backtick, so
+      // "```a`b" opens nothing; tilde fences take any info string.
+      if (!opening) continue;
+      if (opening[1][0] === "`" && opening[2].includes("`")) continue;
+      open = { char: opening[1][0], length: opening[1].length };
+      fenced[i] = true;
+      continue;
+    }
+    fenced[i] = true;
+    const closing = new RegExp(`^ {0,3}${open.char}{${open.length},}[ \\t]*$`);
+    if (closing.test(lines[i])) open = null;
+  }
+  return fenced;
+}
+
+/**
+ * The body of `## <version>` in CHANGELOG.md, up to the next `## ` heading
+ * that is not inside a fence, trimmed. The heading may carry a suffix
+ * (`## 0.11.0 - 2026-09-27`), but `0.1.0` never matches `0.1.01`. Returns
+ * null when there is no such section, when it is empty, or when the only
+ * matching heading is inside a fence: a release with no notes is refused,
+ * not cut.
  *
  * Line endings are normalised to LF before anything is split, so the same
  * bytes give the same body whatever the file's line endings are, and the
  * notes this returns are the notes GitHub is asked to store.
  *
- * A `## ` line inside an open fence does not end the section -- a fenced
- * block in a changelog entry is content, and reading it as a heading
- * silently truncated a release body. An UNCLOSED fence runs to EOF, which
- * is CommonMark: a body that then carries the following entries is the loud
- * failure, where stopping early ships a short body silently. The heading
- * search itself is deliberately not fence-aware -- this rule governs where
- * a section ENDS, which is what the pairing agreed.
+ * Fences matter here because a `## ` line inside one is content, not a
+ * heading: reading it as a heading silently truncated a release body, and
+ * with the fence state computed over the whole document the same is now true
+ * of the section's START, so a fenced `## <version>` cannot hijack it.
+ * An UNCLOSED fence runs to EOF, which is CommonMark and also the loud
+ * failure -- a body that carries the following entries is visible, where
+ * stopping early ships a short body silently.
  */
 export function changelogSection(changelog, version) {
   const heading = new RegExp(`^## ${escapeRegExp(version)}(?:\\s.*)?$`);
   const lines = changelog.replace(/\r\n/g, "\n").split("\n");
-  const start = lines.findIndex((line) => heading.test(line));
+  const fenced = fencedLines(lines);
+  const start = lines.findIndex((line, i) => !fenced[i] && heading.test(line));
   if (start === -1) return null;
   let end = lines.length;
-  let fenced = false;
   for (let i = start + 1; i < lines.length; i++) {
-    if (fenced) {
-      if (FENCE_CLOSE.test(lines[i])) fenced = false;
-      continue;
-    }
-    if (FENCE_OPEN.test(lines[i])) {
-      fenced = true;
-      continue;
-    }
-    if (lines[i].startsWith("## ")) {
+    if (!fenced[i] && lines[i].startsWith("## ")) {
       end = i;
       break;
     }
@@ -177,7 +202,13 @@ export async function ensureGitHubRelease({
       return {
         ok: false,
         action: "none",
-        detail: `release ${tag} exists but its notes differ from the CHANGELOG section; it is never edited here, so reconcile it by hand, then re-run`,
+        // QCLI-407 re-sourced `notes` from the checkout to the tagged commit,
+        // so the comparison target moved with it: a release cut or backfilled
+        // from a working tree that differed from its tag (0.6.1, 0.6.2, 0.7.0
+        // and 0.8.0 were, measured) no longer matches, and the bytes that pass
+        // are the tag-era ones. The refusal names that object rather than
+        // leaving the operator to guess which side to change.
+        detail: `release ${tag} exists but its notes differ from the "## ${version}" section at the commit the tag peels to; this tool never edits an existing release, so make the release carry those bytes by hand, then re-run`,
       };
     if (!latest)
       return {
@@ -261,8 +292,9 @@ export async function ensureGitHubRelease({
  * never a tag name, which can be re-pointed where a commit cannot.
  *
  * Every failure comes back as `text: null` with its cause, never thrown and
- * never defaulted, the shape check-breaking-bump.mjs reads a peer's
- * changelog with.
+ * never defaulted -- the same failure shape check-breaking-bump.mjs reads a
+ * peer's changelog with, though that one reports `ref`/`sha` where this
+ * reports `commit`.
  */
 export async function changelogAt(
   commit,
@@ -312,7 +344,10 @@ export async function releaseNotesFor(
   if (!section)
     return {
       ok: false,
-      detail: `CHANGELOG.md at ${commit} has no non-empty "## ${version}" section for its GitHub Release. v${version} is already tagged, so adding a section and re-running cannot reach it: re-tag, or cut the release by hand.`,
+      // The remedies are ordered deliberately: by this point the version is
+      // normally already on npm `latest`, where a hand cut is safe and moving
+      // the tag is not -- see the release runbook's tag-stability note.
+      detail: `CHANGELOG.md at ${commit} has no non-empty "## ${version}" section for its GitHub Release. v${version} is already tagged, so adding a section and re-running cannot reach it: cut the release by hand, or re-tag.`,
     };
   return {
     ok: true,
@@ -345,7 +380,8 @@ async function main(argv) {
   }
   const outcome = await ensureGitHubRelease({
     version,
-    ...release,
+    notes: release.notes,
+    title: release.title,
     latest: !argv.includes("--not-latest"),
     dryRun: !argv.includes("--create"),
   });
