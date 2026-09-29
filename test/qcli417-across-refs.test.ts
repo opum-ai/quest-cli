@@ -1,10 +1,18 @@
 import { beforeAll, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { LocalGitPort } from "../src/adapters/git/local-git.ts";
-import { GhRefDiscovery } from "../src/adapters/refs/gh-ref-discovery.ts";
+import {
+  GhRefDiscovery,
+  ghPullRequestArguments,
+  OPEN_PULL_REQUEST_LIMIT,
+  parseOpenPullRequests,
+} from "../src/adapters/refs/gh-ref-discovery.ts";
+import { commandHelp } from "../src/application/command-help.ts";
+import { BOOLEAN_FLAGS } from "../src/application/command-parameters.ts";
 import {
   type AcrossRefsCoverage,
   type AcrossRefsEntry,
@@ -184,8 +192,8 @@ function service(f: Fixture, port: RefDiscoveryPort): AcrossRefsViewService {
   return new AcrossRefsViewService(new LocalGitPort(), port);
 }
 
-async function view(
-  f: Fixture,
+async function viewAt(
+  repositoryPath: string,
   port: RefDiscoveryPort,
   request: {
     readonly allowPartial?: boolean;
@@ -197,8 +205,11 @@ async function view(
   entries: readonly AcrossRefsEntry[];
   coverage: AcrossRefsCoverage;
 }> {
-  const outcome: AcrossRefsOutcome = await service(f, port).view({
-    repositoryPath: f.work,
+  const outcome: AcrossRefsOutcome = await new AcrossRefsViewService(
+    new LocalGitPort(),
+    port,
+  ).view({
+    repositoryPath,
     allowPartial: request.allowPartial ?? false,
     ...(request.refs === undefined ? {} : { refs: request.refs }),
     ...(request.pullRequests === undefined
@@ -210,6 +221,12 @@ async function view(
     throw new Error(`expected a view, got absent(${outcome.detail})`);
   return { entries: outcome.entries, coverage: outcome.coverage };
 }
+
+const view = (
+  f: Fixture,
+  port: RefDiscoveryPort,
+  request: Parameters<typeof viewAt>[2] = {},
+) => viewAt(f.work, port, request);
 
 function entry(
   entries: readonly AcrossRefsEntry[],
@@ -837,4 +854,423 @@ test("the real discovery adapter classifies GitHub and non-GitHub remotes (QCLI-
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+/**
+ * FIX ROUND (independent review, 2026-09-29). Seven conformance failures
+ * against the accepted shape and one documentation gap. Each test below
+ * reaches the property that was wrong rather than the code path that was
+ * changed: the listing failure is a REAL missing tree object, the fetch test
+ * uses a REAL stale remote-tracking ref in a REAL clone, the duplicate is a
+ * REAL second copy of a record, and the gh cases exercise the parse and argv
+ * layers the production path actually uses.
+ */
+
+test("a ref whose TREE cannot be listed is unreadable, not empty (F1)", async () => {
+  // The false green: `listFiles` answers [] for a refused listing, so a ref
+  // whose tree object is gone read as "no records" and the view said
+  // complete:true, exit 0. Measured before the fix: exit 0, data [], exit 6
+  // never reached.
+  const root = await mkdtemp(join(tmpdir(), "qcli417-f1-"));
+  try {
+    git(root, "init", "-q", "-b", "dev", ".");
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    questOk(root, ["init", "--name", "F1", "--task-id-prefix", "T"]);
+    questOk(root, ["task", "create", "on dev", ...ACTOR]);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-1 on dev");
+    // A second branch with a tree of its own, so deleting that tree leaves
+    // dev readable.
+    git(root, "checkout", "-q", "-b", "broken");
+    questOk(root, ["task", "create", "on the branch", ...ACTOR]);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-2 on broken");
+    const tree = git(root, "rev-parse", "broken^{tree}");
+    const objectPath = join(
+      root,
+      ".git",
+      "objects",
+      tree.slice(0, 2),
+      tree.slice(2),
+    );
+    // Loose objects only: assert the object is where this test thinks it is,
+    // so a packed fixture fails loudly instead of passing vacuously.
+    expect(existsSync(objectPath)).toBe(true);
+    await rm(objectPath);
+    expect(run(root, ["git", "ls-tree", "-r", "broken"]).exitCode).not.toBe(0);
+
+    const result = quest(root, [
+      "task",
+      "list",
+      "--across-refs",
+      "--ref",
+      "refs/heads/dev",
+      "--ref",
+      "refs/heads/broken",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    const diagnostic = JSON.parse(result.stderr) as {
+      error_type: string;
+      input: { coverage: AcrossRefsCoverage };
+    };
+    expect(diagnostic.error_type).toBe("drift");
+    expect(diagnostic.input.coverage.complete).toBe(false);
+    expect(diagnostic.input.coverage.refsRead.map((read) => read.ref)).toEqual([
+      "refs/heads/dev",
+    ]);
+    expect(diagnostic.input.coverage.refsUnreadable[0]?.ref).toBe(
+      "refs/heads/broken",
+    );
+
+    // --allow-partial is unchanged by this: the readable half is still served.
+    const partial = questOk(root, [
+      "task",
+      "list",
+      "--across-refs",
+      "--allow-partial",
+      "--ref",
+      "refs/heads/dev",
+      "--ref",
+      "refs/heads/broken",
+    ]);
+    const envelope = JSON.parse(partial.stdout) as {
+      data: readonly AcrossRefsEntry[];
+      coverage: AcrossRefsCoverage;
+    };
+    expect(envelope.coverage.complete).toBe(false);
+    expect(envelope.data.map((row) => row.id)).toEqual(["T-1"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a duplicate id inside one ref makes that ref unreadable, naming both paths (F4)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli417-f4-"));
+  try {
+    git(root, "init", "-q", "-b", "dev", ".");
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    questOk(root, ["init", "--name", "F4", "--task-id-prefix", "T"]);
+    questOk(root, ["task", "create", "on dev", ...ACTOR]);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-1 on dev");
+    // The half-staged relocation shape: the record exists in tasks/ and
+    // completed/ at once. Written directly because every quest write refuses
+    // this state -- which is the point: the view must not read a record set
+    // the repository itself calls corrupt.
+    const task = await readFile(join(root, ".quest/tasks/T-1.json"), "utf8");
+    await mkdir(join(root, ".quest/completed"), { recursive: true });
+    await writeFile(join(root, ".quest/completed/T-1.json"), task);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "duplicate T-1");
+
+    const result = quest(root, [
+      "task",
+      "list",
+      "--across-refs",
+      "--ref",
+      "refs/heads/dev",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    const diagnostic = JSON.parse(result.stderr) as {
+      error_type: string;
+      input: { coverage: AcrossRefsCoverage };
+    };
+    expect(diagnostic.error_type).toBe("drift");
+    expect(diagnostic.input.coverage.complete).toBe(false);
+    const [unreadable] = diagnostic.input.coverage.refsUnreadable;
+    expect(unreadable?.ref).toBe("refs/heads/dev");
+    // Both paths, so a reader can act on it without a second command.
+    expect(unreadable?.reason).toContain(".quest/tasks/T-1.json");
+    expect(unreadable?.reason).toContain(".quest/completed/T-1.json");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a fetch moves no ref: a stale origin/dev stays put (F3)", async () => {
+  // The claim the port docblock, the service header and the help text all
+  // make. Measured before the fix: `git fetch --no-tags origin refs/heads/dev`
+  // moved refs/remotes/origin/dev (and what origin/HEAD resolves to) from the
+  // stale tip to the remote's, which also changes a later QCLI-316 scope
+  // answer.
+  const root = await mkdtemp(join(tmpdir(), "qcli417-f3-"));
+  try {
+    const work = join(root, "work");
+    git(root, "init", "-q", "-b", "dev", work);
+    git(work, "config", "user.email", "t@example.invalid");
+    git(work, "config", "user.name", "T");
+    questOk(work, ["init", "--name", "F3", "--task-id-prefix", "T"]);
+    questOk(work, ["task", "create", "first on dev", ...ACTOR]);
+    git(work, "add", "-A");
+    git(work, "commit", "-qm", "T-1 on dev");
+    const origin = join(root, "origin.git");
+    git(root, "clone", "-q", "--bare", work, origin);
+    // A clone taken BEFORE dev moves on: it has the old tip only.
+    const stale = join(root, "stale");
+    git(root, "clone", "-q", origin, stale);
+    questOk(work, ["task", "create", "second on dev", ...ACTOR]);
+    git(work, "add", "-A");
+    git(work, "commit", "-qm", "T-2 on dev");
+    const moved = git(work, "rev-parse", "dev");
+    // Move the bare's dev without a push, so the fixture never has to write a
+    // branch through the delivery path this repository guards.
+    git(origin, "fetch", "-q", work, "refs/heads/dev");
+    git(origin, "update-ref", "refs/heads/dev", moved);
+    // The stale clone genuinely lacks the new tip's objects, which is what
+    // forces the fetch.
+    expect(
+      run(stale, ["git", "cat-file", "-e", `${moved}^{commit}`]).exitCode,
+    ).not.toBe(0);
+
+    const refsBefore = git(
+      stale,
+      "for-each-ref",
+      "--format=%(refname) %(objectname)",
+      "refs/heads",
+      "refs/remotes",
+    );
+    const result = await viewAt(
+      stale,
+      discovery({ failure: "no forge here" }),
+      {
+        allowPartial: true,
+      },
+    );
+    // The run really did read the remote's tip, so the fetch happened.
+    expect(result.coverage.refsRead).toEqual([
+      { ref: "origin/dev", pullRequest: null, sha: moved },
+    ]);
+    expect(result.entries.map((row) => row.id)).toEqual(["T-1", "T-2"]);
+    expect(
+      git(
+        stale,
+        "for-each-ref",
+        "--format=%(refname) %(objectname)",
+        "refs/heads",
+        "refs/remotes",
+      ),
+    ).toBe(refsBefore);
+    expect(
+      run(stale, ["git", "cat-file", "-e", `${moved}^{commit}`]).exitCode,
+    ).toBe(0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a committed dot-prefixed journal beside the records is not read as one (F7)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli417-f7-"));
+  try {
+    git(root, "init", "-q", "-b", "dev", ".");
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    questOk(root, ["init", "--name", "F7", "--task-id-prefix", "T"]);
+    questOk(root, ["task", "create", "on dev", ...ACTOR]);
+    // Operational metadata that will never parse as a record. The repository
+    // reader skips dot-prefixed files for exactly this reason.
+    await writeFile(
+      join(root, ".quest/tasks/.lifecycle.journal.json"),
+      '{"journal": true}\n',
+    );
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-1 and a journal");
+    const result = questOk(root, [
+      "task",
+      "list",
+      "--across-refs",
+      "--ref",
+      "refs/heads/dev",
+    ]);
+    const envelope = JSON.parse(result.stdout) as {
+      data: readonly AcrossRefsEntry[];
+      coverage: AcrossRefsCoverage;
+    };
+    // Before the fix this was exit 6: the journal failed the whole ref.
+    expect(envelope.coverage.complete).toBe(true);
+    expect(envelope.data.map((row) => row.id)).toEqual(["T-1"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("gh is asked for an explicit --limit and an explicit --repo (F2, F8)", () => {
+  const argv = ghPullRequestArguments("opum-ai/quest-cli", "dev");
+  // gh's own default is 30 and it says nothing when it stops there, so the
+  // limit has to be named by us -- and reaching it is reported as incomplete
+  // rather than trusted.
+  expect(argv).toContain("--limit");
+  expect(argv[argv.indexOf("--limit") + 1]).toBe(
+    String(OPEN_PULL_REQUEST_LIMIT),
+  );
+  expect(OPEN_PULL_REQUEST_LIMIT).toBeGreaterThan(30);
+  // GH_REPO would otherwise redirect the query away from the origin the slug
+  // names, which is how "the slug and the forge cannot drift apart" was false.
+  expect(argv).toContain("--repo");
+  expect(argv[argv.indexOf("--repo") + 1]).toBe("opum-ai/quest-cli");
+  expect(argv).toContain("--base");
+  expect(argv[argv.indexOf("--base") + 1]).toBe("dev");
+  expect(argv).toContain("--state");
+  expect(argv[argv.indexOf("--state") + 1]).toBe("open");
+});
+
+test("a truncated listing is incomplete coverage, not a confident answer (F2)", () => {
+  const row = (number: number) => ({
+    number,
+    headRefName: `pr-${number}`,
+    headRefOid: "a".repeat(40),
+    url: `https://github.com/opum-ai/quest-cli/pull/${number}`,
+  });
+  // Below the ceiling: usable.
+  expect(
+    parseOpenPullRequests(JSON.stringify([row(1), row(2)]), 3),
+  ).toHaveLength(2);
+  // At the ceiling: gh may have stopped there, so the population is unknown.
+  expect(() =>
+    parseOpenPullRequests(JSON.stringify([row(1), row(2)]), 2),
+  ).toThrow(/truncated/);
+  // And the rows that were returned are still reported through the error,
+  // not silently dropped.
+  try {
+    parseOpenPullRequests(JSON.stringify([row(1), row(2), row(3)]), 3);
+    throw new Error("expected a throw");
+  } catch (error) {
+    expect((error as Error).message).toContain("3 rows");
+    expect((error as Error).message).toContain("--limit 3");
+  }
+});
+
+test("rows this view cannot use make the population incomplete (F6)", () => {
+  const good = {
+    number: 7,
+    headRefName: "feature",
+    headRefOid: "b".repeat(40),
+    url: "https://github.com/opum-ai/quest-cli/pull/7",
+  };
+  const parsed = parseOpenPullRequests(JSON.stringify([good]));
+  expect(parsed).toEqual([good]);
+
+  for (const [row, expected] of [
+    [{ ...good, number: "7" }, "number is not an integer"],
+    [{ ...good, headRefOid: "not-a-sha" }, "headRefOid is not a 40-hex commit"],
+    [{ ...good, headRefName: 7 }, "headRefName is not a string"],
+    ["not-an-object", "not a JSON object"],
+  ] as const) {
+    expect(() => parseOpenPullRequests(JSON.stringify([good, row]))).toThrow(
+      new RegExp(expected),
+    );
+  }
+  // The row index is named, so a caller knows which row the forge got wrong.
+  expect(() =>
+    parseOpenPullRequests(JSON.stringify([good, { ...good, headRefOid: "x" }])),
+  ).toThrow(/row 2/);
+  // A row with no url is usable: url only refines the label.
+  expect(
+    parseOpenPullRequests(
+      JSON.stringify([
+        { number: 2, headRefName: "f", headRefOid: "c".repeat(40) },
+      ]),
+    ),
+  ).toEqual([{ number: 2, headRefName: "f", headRefOid: "c".repeat(40) }]);
+  expect(() => parseOpenPullRequests("not json")).toThrow(
+    /did not return JSON/,
+  );
+  expect(() => parseOpenPullRequests("{}")).toThrow(/JSON array/);
+});
+
+test("every flag documented for an invocation is a flag that invocation accepts (F5)", () => {
+  // The reviewer's defect: `quest help task list` advertised --across-refs,
+  // --allow-partial, --ref and --pr, and plain `task list` rejects all four
+  // with exit 2. Documentation that outruns the parser is worse than silence,
+  // because the reader believes it.
+  const booleanFlags = new Set<string>(BOOLEAN_FLAGS);
+  // Plausible values, so a flag that IS accepted runs rather than tripping a
+  // value check -- which is a different refusal and must not be read as
+  // acceptance or as rejection.
+  const values: Record<string, string> = {
+    "--status": "To Do",
+    "--exclude-status": "Done",
+    "--label": "tracker",
+    "--assignee": "t",
+    "--milestone": "M-1",
+    "--parent": "T-1",
+    "--priority": "high",
+    "--type": "feature",
+    "--search": "dev",
+    "--sort": "id",
+    "--limit": "5",
+    "--ref": "refs/heads/dev",
+    "--pr": "1",
+  };
+  const recipe: Record<string, readonly string[]> = {
+    "task list": ["task", "list"],
+    "task list --across-refs": [
+      "task",
+      "list",
+      "--across-refs",
+      "--ref",
+      "refs/heads/dev",
+    ],
+  };
+  for (const [name, base] of Object.entries(recipe)) {
+    for (const flag of commandHelp[name as keyof typeof commandHelp]?.flags ??
+      []) {
+      const result = quest(fixture.work, [
+        ...base,
+        booleanFlags.has(flag) ? flag : `${flag}=${values[flag] ?? "1"}`,
+        "--json",
+      ]);
+      // "Unrecognized flag" is the defect: `only()` refused the flag, so the
+      // command never ran. Any other outcome -- success, not-found, a
+      // validation refusal about the value -- means the parser accepted it.
+      expect({
+        name,
+        flag,
+        unrecognized: result.stderr.includes("Unrecognized flag"),
+        stderr: result.stderr.includes("Unrecognized flag")
+          ? result.stderr
+          : "",
+      }).toEqual({ name, flag, unrecognized: false, stderr: "" });
+    }
+  }
+  // The manifest half of the same defect: `quest manifest` derives each
+  // entry's parameters from that entry's own help, so a plain `task list`
+  // that advertised them would hand a machine consumer a flag its own
+  // invocation rejects.
+  const manifest = JSON.parse(
+    quest(fixture.work, ["manifest", "--json"]).stdout,
+  ) as {
+    data: {
+      commands: readonly {
+        name: string;
+        parameters: { flags: Record<string, unknown> };
+      }[];
+    };
+  };
+  const flagsOf = (name: string): readonly string[] =>
+    Object.keys(
+      manifest.data.commands.find((command) => command.name === name)
+        ?.parameters.flags ?? {},
+    );
+  for (const flag of ["--across-refs", "--allow-partial", "--ref", "--pr"])
+    expect({
+      flag,
+      onPlainTaskList: flagsOf("task list").includes(flag),
+    }).toEqual({ flag, onPlainTaskList: false });
+  expect(flagsOf("task list --across-refs")).toContain("--ref");
+  expect(flagsOf("task list --across-refs")).toContain("--across-refs");
+});
+
+test("the help states the zero-ref exemption from --allow-partial (D-a)", () => {
+  // --allow-partial downgrades incomplete coverage to exit 0. A read of ZERO
+  // refs is not incomplete coverage, it is no coverage, and the help has to
+  // say so: the two read identically otherwise.
+  const summary = commandHelp["task list --across-refs"]?.summary ?? "";
+  expect(summary).toContain("ZERO refs");
+  expect(summary).toContain("still exits 6 even with --allow-partial");
 });

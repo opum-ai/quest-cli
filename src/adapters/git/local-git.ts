@@ -167,6 +167,24 @@ export class LocalGitPort implements GitPort {
     return result.stdout.split("\n").filter((line) => line.length > 0);
   }
 
+  /** QCLI-417: the strict variant -- a refused listing throws instead of
+   *  answering `[]`. An absent prefix still answers `[]`, because Git exits 0
+   *  for one. */
+  async listFilesRequired(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly string[]> {
+    const output = await requiredGit(repositoryPath, [
+      "ls-tree",
+      "-r",
+      "--name-only",
+      revision,
+      prefix,
+    ]);
+    return output.split("\n").filter((line) => line.length > 0);
+  }
+
   async mergeBase(
     repositoryPath: string,
     a: string,
@@ -227,18 +245,26 @@ export class LocalGitPort implements GitPort {
   }
 
   /**
-   * QCLI-417. A bare refspec (`<ref>`, never `<ref>:<dest>`) leaves the
-   * remote-tracking refs untouched: Git stores it in FETCH_HEAD only, which is
-   * not a ref, so the across-refs view can read an object it lacks without
-   * having written a branch. `--no-tags` keeps an unrelated tag fetch out of
-   * a read-only listing.
+   * QCLI-417. A bare refspec (`<ref>`, never `<ref>:<dest>`) plus `--refmap=`
+   * so the fetch writes FETCH_HEAD and objects and moves NO ref: without the
+   * empty refmap, Git's opportunistic update still moves
+   * `refs/remotes/<remote>/<branch>` for a branch refspec, measured here as
+   * `refs/remotes/origin/dev` jumping from the stale local tip to the remote's
+   * one and changing a later QCLI-316 `scope` answer. `--no-tags` keeps an
+   * unrelated tag fetch out of a read-only listing.
    */
   async fetchRef(
     repositoryPath: string,
     remote: string,
     ref: string,
   ): Promise<void> {
-    await requiredGit(repositoryPath, ["fetch", "--no-tags", remote, ref]);
+    await requiredGit(repositoryPath, [
+      "fetch",
+      "--no-tags",
+      "--refmap=",
+      remote,
+      ref,
+    ]);
   }
 
   async hasRevision(

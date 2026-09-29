@@ -37,10 +37,12 @@ import { CONTINUITY_TASK_LOCATIONS } from "../checks/continuity.ts";
  * the caller is the one who can resolve it.
  *
  * THE VIEW NEVER WRITES. It reads blobs and trees at SHAs, may fetch missing
- * OBJECTS through a bare refspec (FETCH_HEAD only -- no ref, no branch), and
- * never touches the working tree: a record that exists only uncommitted in a
- * checkout is not in the view, which `quest help task list` says in as many
- * words.
+ * OBJECTS through a bare refspec with an explicit empty `--refmap=` (objects
+ * and FETCH_HEAD only -- no ref, and no remote-tracking ref either; a bare
+ * refspec alone still let Git's opportunistic update move
+ * `refs/remotes/origin/dev`), and never touches the working tree: a record
+ * that exists only uncommitted in a checkout is not in the view, which
+ * `quest help task list --across-refs` says in as many words.
  *
  * `refProvenance`, not `provenance`: lore's query hits already use the latter
  * name for a different shape, and the two CLIs ship the byte-identical inner
@@ -342,9 +344,9 @@ export class AcrossRefsViewService {
         const ref = `refs/pull/${number}/head`;
         // `--pr` is the deterministic, forge-free path opum-cli-e2e can
         // qualify with, so it resolves the PR head with Git alone -- no `gh`.
-        // Remote truth first, for the same reason dev uses it: a fetch writes
-        // FETCH_HEAD and objects but NEVER the ref (that is the read-only
-        // promise), so `refs/pull/<N>/head` does not appear locally after one
+        // Remote truth first, for the same reason dev uses it: the fetch
+        // writes FETCH_HEAD and objects and moves nothing (that is the
+        // read-only promise), so `refs/pull/<N>/head` never appears locally
         // and a local-only lookup would miss a PR that is right there on the
         // remote. A locally resolvable ref is the fallback for an origin this
         // checkout cannot reach; the objects are fetched by `readRef` only if
@@ -568,16 +570,38 @@ export class AcrossRefsViewService {
         );
     }
 
-    const listings = await Promise.all(
-      CONTINUITY_TASK_LOCATIONS.map((location) =>
-        this.git.listFiles(repositoryPath, planned.sha, `.quest/${location}`),
-      ),
-    );
+    // The STRICT listing (QCLI-417 F1). `listFiles` answers `[]` for a listing
+    // Git refused as well as for a prefix that holds nothing, and this view
+    // cannot tell those apart in its output: a ref whose tree is unreadable
+    // would read as a ref with no records, and the coverage report would call
+    // that complete. Measured with a deleted tree object: `complete: true`,
+    // `refsUnreadable: []`, `data: []`, exit 0.
+    let listings: readonly (readonly string[])[];
+    try {
+      listings = await Promise.all(
+        CONTINUITY_TASK_LOCATIONS.map((location) =>
+          this.git.listFilesRequired(
+            repositoryPath,
+            planned.sha,
+            `.quest/${location}`,
+          ),
+        ),
+      );
+    } catch (error) {
+      return unreadable(
+        `${planned.ref} could not be listed at ${planned.sha}: ${describe(error)}`,
+      );
+    }
     const records: RefRecord[] = [];
-    const seen = new Set<string>();
+    const pathsById = new Map<string, string>();
     for (const [index, location] of CONTINUITY_TASK_LOCATIONS.entries()) {
       for (const path of listings[index] ?? []) {
-        if (!path.endsWith(".json")) continue;
+        // The same filter the repository reader applies (local-task-
+        // repository.ts): dot-prefixed files beside the records are
+        // operational metadata (a journal), never authored records, and
+        // parsing one would wedge this view on a committed journal.
+        const name = path.slice(path.lastIndexOf("/") + 1);
+        if (name.startsWith(".") || !name.endsWith(".json")) continue;
         const blob = await this.git.readBlob(repositoryPath, planned.sha, path);
         // One unreadable record fails the whole ref, on QCLI-415's rule: a
         // record this view cannot read is a record whose absence it also could
@@ -597,9 +621,21 @@ export class AcrossRefsViewService {
         } catch {
           return unreadable(`${planned.ref} carries an invalid ${path}`);
         }
+        // A duplicate id inside one ref is NOT resolved by keeping the first
+        // (QCLI-417 F4). Every other command fails closed on it with a
+        // RecordDuplicateIdentityError -- usually a half-staged relocation
+        // that left the record in tasks/ and completed/ at once -- so a view
+        // that silently picked one would answer about a state the repository
+        // itself refuses to read. The ref goes unreadable and names both
+        // paths, which is what makes the coverage incomplete instead of
+        // confidently wrong.
         const key = aliasKey(task.id);
-        if (seen.has(key)) continue;
-        seen.add(key);
+        const previous = pathsById.get(key);
+        if (previous !== undefined)
+          return unreadable(
+            `${planned.ref} carries ${task.id} at both ${previous} and ${path}`,
+          );
+        pathsById.set(key, path);
         records.push({ task, archived: location === "archive/tasks" });
       }
     }
