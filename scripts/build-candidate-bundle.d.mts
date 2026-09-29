@@ -6,7 +6,12 @@ export function executableFor(platform: string): string;
 export function buildCandidateBundle(options: {
   commit: string;
   out: string;
-  /** Refuse rebuilt artifacts outright: a release publishes committed bytes. */
+  /**
+   * Refuse rebuilt artifacts outright: a release publishes committed bytes.
+   * Off a release ref the mirror refusal holds (QCLI-419): a candidate's
+   * platform packages come from the matrix, labeled "rebuilt", and an
+   * all-committed set refuses rather than being stamped as this source's.
+   */
   releaseRef?: boolean;
   directory?: string;
   /** The staged launcher is X-rc.<rcNumber> (QCLI-399). Defaults to 1. */

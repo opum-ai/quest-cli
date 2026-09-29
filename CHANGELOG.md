@@ -228,6 +228,22 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **The candidate bundle refuses an all-committed artifact set off a release
+  ref** (QCLI-419, reported by opum-cli-e2e via opum-agent). `build:candidate`
+  run outside CI packed the committed platform packages — the previous
+  release's bytes — and stamped them with the current `sourceCommit` and
+  `artifactProvenance: "committed"`, whose own comment promises "the bytes
+  that publish". A laptop run on `dev` therefore produced a bundle that
+  described itself as the committed bytes of a commit whose source it did not
+  contain: the packed darwin-arm64 binary rejected `--across-refs`, while the
+  source at that commit serves it. The script header said in prose that it
+  must run in CI after the platform matrix; nothing enforced it. It now
+  refuses, before packing anything, when no platform was rebuilt off a
+  release ref: a candidate's platform packages come from the matrix (labeled
+  `"rebuilt"`), and the bytes that publish are bundled on the release tag.
+  The rebuild check also runs before the root `package.json` rewrite, so a
+  refusal can no longer leave that rewrite behind.
+
 - **`task list --status Paused` lists the paused tasks** (QCLI-392). The
   status filter checked only the ladder statuses, so the paused status that
   `task pause` assigns was refused as "Task status is not configured."

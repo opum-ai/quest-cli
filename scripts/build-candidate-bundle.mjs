@@ -21,6 +21,11 @@
 //
 // This must run where all six platform packages exist. Bun cannot cross-compile
 // bun-windows-aarch64, so that is CI after the platform matrix, never a laptop.
+// QCLI-419 enforces that rather than trusting it: off a release ref a bundle
+// with NO rebuilt platform package refuses outright, because committed bytes
+// are an earlier release's and cannot be stamped as this source's. A partial
+// set still builds, labeled "rebuilt" with rebuiltPlatforms naming the
+// difference.
 
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -150,15 +155,25 @@ export async function buildCandidateBundle({
       );
     platformDigests[manifest.name] = digest;
   }
-  // `npm pack` reads package.json from disk, so the corrected digests have to
-  // be written there. The ORIGINAL is kept and restored after packing: a build
-  // step that leaves the working tree mutated will eventually have that
-  // mutation swept into an unrelated commit, which is exactly what happened —
-  // a red-case test's tampered digest reached dev inside another change.
-  const originalRootPackage = await readFile(rootPackagePath, "utf8");
-  rootPackage.questPlatformPackages = platformDigests;
-  await writeFile(rootPackagePath, `${JSON.stringify(rootPackage, null, 2)}\n`);
-
+  // The comparisons below resolve <commit> in THIS repository, so it has to
+  // exist here first. Two measured shapes otherwise slip past the rebuild
+  // check (found reviewing QCLI-419): a directory with no repository behind
+  // it, where `git diff` switches to --no-index mode and reports every path as
+  // a difference (reading as all-rebuilt), and a 40-hex commit the repository
+  // does not have (which contributes nothing to `rebuilt`, so the refusal
+  // below would name committed artifacts rather than the real cause). In both
+  // shapes nothing can be tied to the commit, so both refuse here.
+  try {
+    await execFile(
+      "git",
+      ["rev-parse", "--verify", "--quiet", `${commit}^{commit}`],
+      { cwd: directory },
+    );
+  } catch {
+    throw new Error(
+      `refusing to build a candidate bundle for ${commit.slice(0, 7)}: it does not resolve to a commit in ${directory} (no repository there, or this commit is not present), so no artifact can be tied to it.`,
+    );
+  }
   // A bundle names a sourceCommit. Whether it actually CARRIES that commit's
   // bytes is a separate question, and nothing here used to ask it.
   //
@@ -167,6 +182,9 @@ export async function buildCandidateBundle({
   // from fresh builds names a commit whose bytes it does not contain. A
   // consumer then qualifies an artifact nobody will ship — which happened, and
   // was caught downstream by digest comparison rather than here.
+  //
+  // This runs BEFORE the root package.json is mutated below, so neither
+  // refusal can leave that mutation behind.
   const rebuilt = [];
   for (const platform of REQUIRED_PLATFORMS) {
     const relative = `npm/quest-${platform}/bin/${executableFor(platform)}`;
@@ -181,7 +199,11 @@ export async function buildCandidateBundle({
     } catch (error) {
       // Exit 1 is "differs". Anything else — an unknown commit, a path that
       // does not exist at it — is not evidence of a rebuild, so it is ignored
-      // rather than reported as one.
+      // rather than reported as one. One measured caveat (QCLI-419): OUTSIDE a
+      // repository `git diff` runs in --no-index mode and exits 1 for an
+      // inaccessible path, so a directory with no Git behind it reads as
+      // all-rebuilt; the test fixtures that assert provenance therefore
+      // initialize a real repository.
       if (error.code === 1) rebuilt.push(platform);
     }
   }
@@ -191,7 +213,31 @@ export async function buildCandidateBundle({
     throw new Error(
       `refusing to build a release bundle from rebuilt artifacts; these are not the bytes committed at ${commit.slice(0, 7)}: ${rebuilt.join(", ")}`,
     );
+  // The mirror image, and it took a measured defect to see it (QCLI-419). Off
+  // a release ref, zero rebuilds means nothing here built these packages for
+  // this source: they are the bytes the tree already carried — an earlier
+  // release's build — and the bundle would stamp sourceCommit over them and
+  // call them "committed". Measured 2026-09-29 on dev d034a239: a laptop run
+  // packed the committed 0.11.0 binaries (which reject --across-refs) and
+  // stamped them sourceCommit d034a239 with artifactProvenance "committed", so
+  // a qualifier trusting the metadata would have exercised the wrong bytes and
+  // reported PASS. A dispatch build takes its platform packages from the
+  // platform matrix, which is what makes them "rebuilt"; the bytes that
+  // publish are bundled on the release tag.
+  if (!rebuilt.length && !releaseRef)
+    throw new Error(
+      `refusing to build a candidate bundle off a release ref from committed platform artifacts: nothing was rebuilt, so these are bytes the tree already carried and nothing here ties them to ${commit.slice(0, 7)}. A dispatch build takes its platform packages from the platform matrix (labeled "rebuilt"); run on the release tag to bundle the bytes that publish.`,
+    );
   const artifactProvenance = rebuilt.length ? "rebuilt" : "committed";
+
+  // `npm pack` reads package.json from disk, so the corrected digests have to
+  // be written there. The ORIGINAL is kept and restored after packing: a build
+  // step that leaves the working tree mutated will eventually have that
+  // mutation swept into an unrelated commit, which is exactly what happened —
+  // a red-case test's tampered digest reached dev inside another change.
+  const originalRootPackage = await readFile(rootPackagePath, "utf8");
+  rootPackage.questPlatformPackages = platformDigests;
+  await writeFile(rootPackagePath, `${JSON.stringify(rootPackage, null, 2)}\n`);
 
   // tarballs/ holds exactly what stages under release-candidate: the rc
   // launcher and the six platforms. final/ holds the X launcher, which is never
