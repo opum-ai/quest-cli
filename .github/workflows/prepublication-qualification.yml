@@ -33,6 +33,12 @@ on:
       - "npm/**"
       - "src/**"
       - "test/**"
+      # QCLI-377: the two root files check-package-artifacts.mjs reads --
+      # README.md as the packed npm page's version-claim content gate, LICENSE
+      # as a presence gate on the root pack's exact file list. A change to
+      # either alone used to fire no push run.
+      - "README.md"
+      - "LICENSE"
 
 permissions:
   contents: read
