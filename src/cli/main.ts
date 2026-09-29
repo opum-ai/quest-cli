@@ -351,14 +351,39 @@ function completionWarning(
  * npm/quest-darwin-arm64 (LICENSE, package.json, the 64 MB binary), caught
  * only by check-package-artifacts.mjs. This names the scoped add instead.
  *
+ * QCLI-412: three more commands relocate a record -- `close` and `archive`
+ * out of .quest/tasks/, and `demote` back into it -- and each reaches a
+ * DIFFERENT destination, so the path is read from the mutation's own
+ * `relocatedTo` rather than from a command-to-directory table here. That is
+ * also what makes `demote` correct in both of its shapes: it relocates only
+ * when the record was outside `tasks`, and the hint stays silent when it was
+ * not, because nothing moved and there is no rename to stage.
+ *
  * Human surface only, on the renderScopeFooter pattern: appended to text
  * output, never a field in the JSON envelope -- a machine-readable field is a
  * contract change and was explicitly out of scope for this slice. The prose
  * lives in the task-finalization guide (application/agents/guides.ts).
  */
-function completionStagingHint(task: { readonly id: string }): string {
-  return `\nCompleted ${task.id}: the record moved to .quest/completed/${task.id}.json. Stage the move before committing with a scoped add -- git add -A .quest/ -- not a repo-wide git add -A, which would also stage unrelated deletions.\n`;
+function relocationStagingHint(
+  task: { readonly id: string },
+  relocatedTo: string | undefined,
+  lead: string,
+): string {
+  if (relocatedTo === undefined) return "";
+  return `\n${lead} ${task.id}: the record moved to .quest/${relocatedTo}/${task.id}.json. Stage the move before committing with a scoped add -- git add -A .quest/ -- not a repo-wide git add -A, which would also stage unrelated deletions.\n`;
 }
+
+/**
+ * The verb the hint opens with, per relocating command (QCLI-412). Only
+ * presentation lives here: the DESTINATION is never taken from this table, so
+ * a command whose destination changes cannot be described wrongly by it.
+ */
+const RELOCATION_LEAD: Record<string, string> = {
+  complete: "Completed",
+  close: "Closed",
+  archive: "Archived",
+  demote: "Demoted",
+};
 
 /** Merges human help content into manifest entries for `quest help` output
  * only; `commandManifest`/`quest manifest` are never touched. Flags carry
@@ -2666,18 +2691,15 @@ export async function runQuest(
       // presentation-only `position` field it adds to every checklist item
       // has to be applied here too, or task.completed/archived/paused/started
       // would silently fall back to the bare 0-based `index`.
-      const data = withCheckPositions(
-        recordFromMutation(
-          command === "complete"
-            ? await tasks.complete(rest[0], crypto.randomUUID(), finalSummary)
-            : command === "archive"
-              ? await tasks.archive(rest[0], crypto.randomUUID())
-              : command === "pause"
-                ? await tasks.pause(rest[0], crypto.randomUUID())
-                : await tasks.start(rest[0], crypto.randomUUID()),
-          "task",
-        ),
-      );
+      const mutation =
+        command === "complete"
+          ? await tasks.complete(rest[0], crypto.randomUUID(), finalSummary)
+          : command === "archive"
+            ? await tasks.archive(rest[0], crypto.randomUUID())
+            : command === "pause"
+              ? await tasks.pause(rest[0], crypto.randomUUID())
+              : await tasks.start(rest[0], crypto.randomUUID());
+      const data = withCheckPositions(recordFromMutation(mutation, "task"));
       const kind = command === "start" ? "task.started" : `task.${command}d`;
       // QCLI-252 / QCLI-336: acceptance criteria and definition-of-done stay
       // advisory at completion -- an honestly-unchecked item is not a defect
@@ -2693,14 +2715,16 @@ export async function runQuest(
         command === "complete" ? data.unresolvedAtCompletion : undefined;
       const mode = modeFor(parsed);
       const result = output({ schemaVersion: 1, kind, data }, mode);
-      // QCLI-311: guidance for whoever writes the commit that carries the
-      // move, so it rides the human surface only -- the JSON envelope keeps
-      // its exact shape with no added field.
+      // QCLI-311 / QCLI-412: guidance for whoever writes the commit that
+      // carries the move, so it rides the human surface only -- the JSON
+      // envelope keeps its exact shape with no added field. Driven by the
+      // mutation's own relocatedTo, so `pause`/`start`, which never relocate,
+      // print nothing here.
       const rendered =
-        command === "complete" && mode !== "json"
+        mode !== "json" && mutation.kind === "success" && mutation.relocatedTo
           ? {
               ...result,
-              stdout: `${result.stdout}${completionStagingHint(data)}`,
+              stdout: `${result.stdout}${relocationStagingHint(data, mutation.relocatedTo, RELOCATION_LEAD[command] ?? command)}`,
             }
           : result;
       return unresolved
@@ -2762,24 +2786,31 @@ export async function runQuest(
         );
       const tasks = await taskService();
       const finalSummary = one(parsed, "--final-summary");
-      const data = withCheckPositions(
-        recordFromMutation(
-          await tasks.close(
-            rest[0],
-            {
-              kind: resolution as TaskResolutionKind,
-              ...(survivor === undefined ? {} : { survivor }),
-              ...(finalSummary === undefined ? {} : { finalSummary }),
-            },
-            crypto.randomUUID(),
-          ),
-          "task",
-        ),
+      const mutation = await tasks.close(
+        rest[0],
+        {
+          kind: resolution as TaskResolutionKind,
+          ...(survivor === undefined ? {} : { survivor }),
+          ...(finalSummary === undefined ? {} : { finalSummary }),
+        },
+        crypto.randomUUID(),
       );
-      return output(
+      const data = withCheckPositions(recordFromMutation(mutation, "task"));
+      const mode = modeFor(parsed);
+      const result = output(
         { schemaVersion: 1, kind: "task.closed", data },
-        modeFor(parsed),
+        mode,
       );
+      // QCLI-412: `close` relocates into .quest/completed/, so it carries the
+      // same rename hazard `complete` does. Human surface only, as above.
+      return mode !== "json" &&
+        mutation.kind === "success" &&
+        mutation.relocatedTo
+        ? {
+            ...result,
+            stdout: `${result.stdout}${relocationStagingHint(data, mutation.relocatedTo, RELOCATION_LEAD[command] ?? command)}`,
+          }
+        : result;
     }
     if (command === "demote" && rest[0]) {
       const parsed = flags(rest.slice(1));
@@ -2807,16 +2838,24 @@ export async function runQuest(
       // QCLI-269: same reasoning as the complete/archive/pause/start branch
       // above -- demote also builds its envelope outside the shared
       // dispatcher, so it needs the `position` field applied explicitly too.
-      const data = withCheckPositions(
-        recordFromMutation(
-          await tasks.demote(rest[0], to, crypto.randomUUID()),
-          "task",
-        ),
-      );
-      return output(
+      const mutation = await tasks.demote(rest[0], to, crypto.randomUUID());
+      const data = withCheckPositions(recordFromMutation(mutation, "task"));
+      const mode = modeFor(parsed);
+      const result = output(
         { schemaVersion: 1, kind: "task.demoted", data },
-        modeFor(parsed),
+        mode,
       );
+      // QCLI-412: demote is the conditional case -- it returns a record to
+      // .quest/tasks/ only when it was stored outside it, and a demotion that
+      // stays put has no rename to stage, so the hint stays silent there.
+      return mode !== "json" &&
+        mutation.kind === "success" &&
+        mutation.relocatedTo
+        ? {
+            ...result,
+            stdout: `${result.stdout}${relocationStagingHint(data, mutation.relocatedTo, RELOCATION_LEAD[command] ?? command)}`,
+          }
+        : result;
     }
     if (command === "status-flow") {
       const parsed = flags(rest);

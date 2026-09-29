@@ -176,6 +176,15 @@ export type TaskMutationResult =
       readonly kind: "success";
       readonly task: TaskState;
       readonly revision: string;
+      /**
+       * QCLI-412: the location this write MOVED the record to, set only when
+       * the operation relocated it. `complete`, `close` and `archive` always
+       * do; `demote` only when the record was outside `tasks` to begin with.
+       * The CLI renders the staging hint from this rather than from a
+       * command-to-directory table of its own, so a hint can never name a
+       * location the operation did not actually use.
+       */
+      readonly relocatedTo?: TaskLocation;
     }
   | TaskWriteConflict;
 
@@ -735,7 +744,12 @@ export class TaskService {
       draftChanges: [],
     });
     return result.kind === "success"
-      ? { kind: "success", task, revision: result.revision }
+      ? {
+          kind: "success",
+          task,
+          revision: result.revision,
+          relocatedTo: destination,
+        }
       : result;
   }
   private ownedPathForLocation(id: string, location: TaskLocation): string {
@@ -911,7 +925,12 @@ export class TaskService {
       draftChanges: [],
     });
     return result.kind === "success"
-      ? { kind: "success", task: persisted, revision: result.revision }
+      ? {
+          kind: "success",
+          task: persisted,
+          revision: result.revision,
+          relocatedTo: "tasks",
+        }
       : result;
   }
   async createDraft(
