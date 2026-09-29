@@ -203,6 +203,11 @@ const REPEATABLE_BY_COMMAND: Readonly<Record<string, readonly string[]>> = {
   "task edit": REPEATABLE_EDIT_FLAGS,
   "task edit-batch": REPEATABLE_EDIT_BATCH_FLAGS,
   "task list": REPEATABLE_LIST_FLAGS,
+  // QCLI-417: the same parser branch, so the same arity. Keyed separately
+  // because both `quest help` and `quest manifest` look this up by the
+  // ENTRY's own name, and a missing key would report `--ref <string>` -- a
+  // caller reading that would pass one ref and silently read only one.
+  "task list --across-refs": REPEATABLE_LIST_FLAGS,
 };
 const BOOLEAN = new Set<string>(BOOLEAN_FLAGS);
 const JSON_ARRAY = new Set<string>(JSON_ARRAY_FLAGS);
