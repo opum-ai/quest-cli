@@ -265,6 +265,7 @@
 - 2026-09-22T18:18:02-05:00 73617b596992f11ca41981b708a6369439ce5637 chore(QCLI-361): move the lore check gate to lore 0.9.0 and re-export the schemas (#236)
 - 2026-09-27T00:11:47-05:00 65b831581b48224101381ebb466d8dbc7041c211 chore(QCLI-387): quest 0.11.0 latest moved; close the release (#324)
 - 2026-09-27T00:18:44-05:00 3bd59d703bd2e1cbdd25353f6bc3a780258de38c chore(QCLI-387): session handoff at the recycle; annotate QCLI-386 and QCLI-388 (#325)
+- 2026-09-28T22:36:09-05:00 f862e962810ec8e24d1db11e42d537cbca819e71 fix(QCLI-407): read release notes at the commit the tag peels to (#403)
 
 ## docs/adr
 

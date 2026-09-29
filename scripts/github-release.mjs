@@ -17,7 +17,9 @@
 // body, and pins the host (`-R github.com/...`) so GH_HOST cannot redirect it.
 // An existing release counts as done only when it is published and carries
 // these notes (QCLI-401, paired with lore-cli LCLI-622). A draft, a
-// prerelease, or different notes is refused and left for a person to repair.
+// prerelease, or different notes is refused and left for a person to repair --
+// except for the recorded legacy releases, whose stored bodies are records
+// written after their tags and are reported with their reasons instead.
 
 import { execFile as execFileCallback } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -128,12 +130,93 @@ export function releaseTitle(version, heading = "") {
 const normaliseNotes = (text) => text.replace(/\r\n/g, "\n").trim();
 
 /**
+ * Releases whose stored body is a record rather than the tag's section, kept
+ * deliberately (QCLI-410, ruled 2026-09-29).
+ *
+ * QCLI-407 re-sourced `notes` from the checkout to the tagged commit, which
+ * moved what the existing-release comparison compares: 0.6.1, 0.6.2, 0.7.0 and
+ * 0.8.0 were cut or backfilled on 2026-09-27 from a working tree that differed
+ * from their tag, so every one of them now differs from the section at the
+ * commit its tag peels to. 0.6.0 was added afterwards (QCLI-410) and differs
+ * under the old comparison too: its body is an out-of-band provenance record
+ * that exists nowhere in CHANGELOG.md, and the tag's section is what still
+ * matches the file.
+ *
+ * Every difference is text authored AFTER its tag -- additions for 0.6.2 and
+ * 0.7.0, and for 0.6.0, 0.6.1 and 0.8.0 a record that rewrites or replaces
+ * part of the section, 0.6.1's keeping none of it -- and rewriting a body to
+ * match an earlier section would delete that text, so the bodies are kept and
+ * this table records why.
+ *
+ * What the table does NOT do is re-check the stored bytes against the reason
+ * (measured, and accepted for a closed set of frozen historical releases;
+ * pinning the bodies would close it if that changes). A body edited to
+ * anything other than the tagged bytes is still reported with its reason. A
+ * body reconciled exactly to the tagged section deliberately stops being a
+ * recorded exception and is treated as matching -- marked latest when asked
+ * -- because the recorded branch sits in the mismatch path; that is the one
+ * edit this table cannot report.
+ *
+ * A CLOSED table, deliberately: only a version named here is reported as a
+ * recorded exception, every other release keeps the notes-differ refusal, and
+ * adding a version is a deliberate, reviewable edit to this map. It REPORTS
+ * rather than exempts silently -- the run names the version's reason, so an
+ * operator sees a recorded decision instead of a clean bill of health.
+ */
+const RECORDED_LEGACY_NOTES = new Map([
+  [
+    "0.6.0",
+    "a provenance record written after the tag, not the changelog entry: the body says the tag does not point at the commit that produced the published artifact (it peels to a9fbc78, the post-recreation initial commit, while npm's gitHead for 0.6.0 is ce551cf4, which does not exist here) and advises citing the npm version over the tag",
+  ],
+  [
+    "0.6.1",
+    "tagged at 1fa0fef and never published, because every publish attempt failed a registry E404 before writing anything (a CI-only defect with no content of its own). The stored body replaces the section with the note recording that, and the content it would have carried shipped as 0.6.2; the tag is not re-pointed because quest-web's CI cites this repository's tags",
+  ],
+  [
+    "0.6.2",
+    "published after its tag, and the stored body carries what was written since, purely additively: the README-in-tarball entry, the release.yml registry-verification fix (QCLI-247), four more Fixed bullets (QCLI-257, 261, 269, 270, 282), and a Known limitations section recording the missing provenance attestation",
+  ],
+  [
+    "0.7.0",
+    'published after its tag, and the stored body differs by exactly one added block: the post-release observation that opum-cli-e2e\'s qualification matrix pinned the literal "Blocked" while a live-reading suite absorbed the same release unmoved',
+  ],
+  [
+    "0.8.0",
+    "frozen, tagged and never published (its content shipped as 0.9.0), and the stored body rewrites its opening and adds two blocks: the never-published annotation with the QCLI-345 correction of the claim that nothing in lore changed, and the note on what the removal short-circuit does not cover (the LCLI-522 read-modify-write race)",
+  ],
+]);
+
+/**
+ * The reason a release's stored body is kept even though it differs from the
+ * section at the commit its tag peels to; `undefined` for every version not in
+ * the table. The table's single reader, so the recorded set can be asserted
+ * from one place rather than from a second copy of the keys.
+ * @param {string} version
+ * @returns {string | undefined}
+ */
+export function recordedLegacyReason(version) {
+  return RECORDED_LEGACY_NOTES.get(version);
+}
+
+/**
+ * Every version in the recorded table, ascending. The closed-set property is
+ * asserted from this rather than from a second, hand-kept copy of the keys,
+ * so adding or removing an entry fails a test rather than slipping through.
+ * @returns {string[]}
+ */
+export function recordedLegacyVersions() {
+  return [...RECORDED_LEGACY_NOTES.keys()];
+}
+
+/**
  * Creates the release for v<version>, or confirms one exists. Never edits an
  * existing release's notes. An existing release must be published (not a
  * draft or prerelease) and carry `notes`, or the result is a failure
- * (QCLI-401). When `latest` is asked for and the release already
- * exists, it is marked latest, because that is the state a finished release
- * must leave behind. Returns {ok, action, detail}; every failure is returned,
+ * (QCLI-401) -- unless it is one of the recorded legacy releases, whose stored
+ * body differs by a recorded decision and is reported with its reason rather
+ * than refused or marked latest (QCLI-410). Except as above, when `latest` is
+ * asked for and the release already exists, it is marked latest, because that
+ * is the state a finished release must leave behind. Returns {ok, action, detail}; every failure is returned,
  * never thrown, so a caller that has already moved npm `latest` can report it
  * without a stack trace that reads like the promotion failed.
  */
@@ -198,7 +281,17 @@ export async function ensureGitHubRelease({
         action: "none",
         detail: `release ${tag} exists but is a ${state.isDraft !== false ? "draft" : "prerelease"}; publish or delete it by hand, then re-run`,
       };
-    if (normaliseNotes(state.body) !== normaliseNotes(notes))
+    if (normaliseNotes(state.body) !== normaliseNotes(notes)) {
+      // A recorded exception is reported, never exempted silently, and never
+      // marked latest: the release exists, its body is the record, and moving
+      // the Latest badge onto a version from another era is not a repair.
+      const recorded = recordedLegacyReason(version);
+      if (recorded)
+        return {
+          ok: true,
+          action: "recorded-exception",
+          detail: `release ${tag} exists and its stored notes differ from the "## ${version}" section at the commit the tag peels to BY RECORDED EXCEPTION (QCLI-410): ${recorded}. Nothing to repair -- the stored body is the record, this tool never edits it, and it is not marked latest`,
+        };
       return {
         ok: false,
         action: "none",
@@ -210,6 +303,7 @@ export async function ensureGitHubRelease({
         // leaving the operator to guess which side to change.
         detail: `release ${tag} exists but its notes differ from the "## ${version}" section at the commit the tag peels to; this tool never edits an existing release, so make the release carry those bytes by hand, then re-run`,
       };
+    }
     if (!latest)
       return {
         ok: true,

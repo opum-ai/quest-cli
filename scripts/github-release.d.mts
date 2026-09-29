@@ -10,6 +10,12 @@ export function changelogSection(
 
 export function releaseTitle(version: string, heading?: string): string;
 
+/** QCLI-410: the recorded reason a legacy release's stored body is kept, or undefined. */
+export function recordedLegacyReason(version: string): string | undefined;
+
+/** QCLI-410: every version in the recorded table, ascending. */
+export function recordedLegacyVersions(): string[];
+
 export type ExecFile = (
   file: string,
   args: readonly string[],
@@ -23,6 +29,10 @@ export interface ReleaseOutcome {
     | "marked-latest"
     | "would-create"
     | "would-mark-latest"
+    // QCLI-410: the release exists and its stored body differs from the
+    // tagged section by a recorded decision -- reported with its reason,
+    // never repaired and never marked latest.
+    | "recorded-exception"
     | "none";
   readonly detail: string;
 }
