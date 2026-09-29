@@ -219,7 +219,9 @@ const mainSource = promoteSource.slice(
 );
 
 test("order: notes and the gh preflight precede the dry-run exit, the record write and every tag move", () => {
-  const notes = mainSource.indexOf("releaseNotesFor(version)");
+  // QCLI-407 changed the call's shape, not its position: the needle names the
+  // call rather than its old argument list, which is what this test is about.
+  const notes = mainSource.indexOf("releaseNotesFor(version,");
   const preflight = mainSource.indexOf("dryRun: true");
   expect(notes).toBeGreaterThan(-1);
   expect(preflight).toBeGreaterThan(notes);
