@@ -268,6 +268,7 @@
 - 2026-09-28T22:36:09-05:00 f862e962810ec8e24d1db11e42d537cbca819e71 fix(QCLI-407): read release notes at the commit the tag peels to (#403)
 - 2026-09-29T00:07:23-05:00 9053905d1c368ba8496cf41ae5c8749dde688147 fix(QCLI-410): report the five legacy release bodies as recorded exceptions (#410)
 - 2026-09-29T00:58:50-05:00 3c5afb15bc0c7bf826072fde9314f5a81b7ea883 fix(QCLI-310): scope task edit's --if-revision to the record
+- 2026-09-29T01:12:05-05:00 a768210c3eba5925310ded23c441d51c7f3b5d59 fix(QCLI-310): scope --if-revision to the record, not the workspace (#415)
 
 ## docs/adr
 
