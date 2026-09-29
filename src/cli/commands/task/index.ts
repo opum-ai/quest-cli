@@ -375,9 +375,12 @@ export async function dispatchTrackerTaskCommand(
       // the patch is folded, because folding validates removals against the
       // CURRENT record and throws a QCLI-297 miss when a concurrent writer
       // already removed the value. editOn then refuses the empty patch.
+      // QCLI-310: `taskRevision` is the resolved RECORD's revision -- the same
+      // value `task view --json` hands out and `editOn` checks against -- not
+      // `snapshot.revision`, which is the whole store's.
       const stale =
         request.ifRevision !== undefined &&
-        request.ifRevision !== prepared.snapshot.revision;
+        request.ifRevision !== prepared.taskRevision;
       const patch = stale
         ? {}
         : buildEditPatch(prepared.task, request.patch, tasks);

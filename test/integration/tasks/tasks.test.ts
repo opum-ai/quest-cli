@@ -157,21 +157,27 @@ test("edit's --if-revision precondition (QCLI-277): matches and applies, omitted
 
   // Matching precondition: a caller who captured the CURRENT revision may
   // still edit, and the edit lands exactly as it would without the flag.
-  const currentRevision = (await store.readAll()).revision;
+  // QCLI-310: captured from the documented capture point -- `task view
+  // --json` is this method -- and scoped to THIS RECORD rather than to
+  // `store.revision`, which is the whole workspace's. The two only coincided
+  // while the precondition was workspace-scoped, which is the bug.
+  const currentRevision = (await tasks.viewWithRevision("T-1")).revision;
   const matched = await tasks.edit("T-1", { summary: "b" }, "edit-2", {
     ifRevision: currentRevision,
   });
   expect(matched).toMatchObject({ kind: "success", task: { summary: "b" } });
   expect(store.writes).toBe(2);
 
-  // Stale precondition: the store has moved twice since "currentRevision"
-  // was captured. The edit must refuse BEFORE any write -- same shape a
+  // Stale precondition: the RECORD has moved since "currentRevision" was
+  // captured. The edit must refuse BEFORE any write -- same shape a
   // repository-level CAS conflict already produces (TaskWriteConflict) --
-  // and name the store's actual current revision, not the caller's stale one.
+  // and name the record's actual current revision, not the caller's stale
+  // one. Re-reading through the same capture point is what a caller would do
+  // to retry, so that is what the named revision has to match.
   const staleAttempt = await tasks.edit("T-1", { summary: "c" }, "edit-3", {
     ifRevision: currentRevision,
   });
-  const actualRevision = (await store.readAll()).revision;
+  const actualRevision = (await tasks.viewWithRevision("T-1")).revision;
   expect(staleAttempt).toEqual({
     kind: "conflict",
     expectedRevision: currentRevision,

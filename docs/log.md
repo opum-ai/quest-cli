@@ -266,6 +266,7 @@
 - 2026-09-27T00:11:47-05:00 65b831581b48224101381ebb466d8dbc7041c211 chore(QCLI-387): quest 0.11.0 latest moved; close the release (#324)
 - 2026-09-27T00:18:44-05:00 3bd59d703bd2e1cbdd25353f6bc3a780258de38c chore(QCLI-387): session handoff at the recycle; annotate QCLI-386 and QCLI-388 (#325)
 - 2026-09-28T22:36:09-05:00 f862e962810ec8e24d1db11e42d537cbca819e71 fix(QCLI-407): read release notes at the commit the tag peels to (#403)
+- 2026-09-29T00:07:23-05:00 9053905d1c368ba8496cf41ae5c8749dde688147 fix(QCLI-410): report the five legacy release bodies as recorded exceptions (#410)
 
 ## docs/adr
 

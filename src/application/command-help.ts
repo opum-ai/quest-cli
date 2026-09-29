@@ -263,7 +263,8 @@ export const commandHelp: Record<
       "--if-revision <revision> (QCLI-277) is an optional precondition: capture `revision` from an " +
       "earlier `task view --json`, and the edit is refused with an exit-5 conflict -- naming the " +
       "record's actual current revision -- if the record has moved since, instead of silently " +
-      "applying over a change the caller never saw. Omitted, behavior is unchanged. " +
+      "applying over a change the caller never saw. The precondition is scoped to THAT RECORD " +
+      "(QCLI-310): writing any other task leaves it valid. Omitted, behavior is unchanged. " +
       "REMOVAL IS ONE VOCABULARY ADDRESSED TWO WAYS, and every removal fails loud on a miss " +
       "(QCLI-297). BY POSITION: --remove-ac/--check-ac/--uncheck-ac and the --*-dod equivalents " +
       "take a 1-based position; a position outside the list is an exit-6 validation error. " +
@@ -341,7 +342,8 @@ export const commandHelp: Record<
       "bad line never blocks the rest of the batch. Each item also takes an optional top-level " +
       '"ifRevision":"<revision>" (QCLI-277), the per-item counterpart of `task edit --if-revision`: ' +
       "a mismatch fails only that item (a per-item error, same as an unresolvable reference), " +
-      "checked against the revision the whole batch is running against.",
+      "checked against THAT RECORD's own revision as the batch opened on it -- the same value " +
+      "`task view --json` emits, so a captured revision is usable here too (QCLI-310).",
     usage:
       "quest task edit-batch --file operations.jsonl --actor <name> --actor-kind human",
     flags: ["--file", ...ACTOR_FLAGS],
