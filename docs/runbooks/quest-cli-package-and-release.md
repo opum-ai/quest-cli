@@ -1035,13 +1035,28 @@ LCLI-621, and the receipt fields are opum-cli-e2e's (TASK-126,
    moves a tag that published pages read live (see the tag-stability note
    above), while a hand cut touches the release and nothing else. The same
    re-sourcing moved what the existing-release check compares, so a release
-   cut or backfilled from a working tree that differed from its tag is now
-   reported rather than confirmed: 0.6.1, 0.6.2, 0.7.0 and 0.8.0 are in that
-   state, and whether each keeps its stored body or is reconciled to its tag's
-   section is a decision rather than a repair, since 0.6.1's and 0.8.0's
-   stored bodies carry "tagged, never published" where their tag's sections do
-   not (QCLI-410). Nothing in the release flow reaches those versions until
-   that is settled.
+   cut or backfilled from a working tree that differed from its tag no longer
+   matches its tag's section: four of the 2026-09-27 backfill (0.6.1, 0.6.2,
+   0.7.0, 0.8.0) are in that state, and 0.6.0 has always differed -- it
+   predates the backfill and the tool, its tag's section still matches the
+   file, and its body is an out-of-band provenance record. The decision
+   (QCLI-410, 2026-09-29) is that **each of the five keeps its stored body**:
+   every difference is text authored after its tag -- 0.6.1's and 0.8.0's
+   "tagged, never published" publish histories, 0.6.2's added entries and
+   known-limitations section, 0.7.0's post-release observation, and 0.6.0's
+   provenance record, which replaces its section entirely (its body says this
+   tag does not point at the commit that produced the published artifact, and
+   to prefer the npm version over the tag). Reconciling any body to its tag
+   would delete that text and state something the tag could not know.
+
+   `node scripts/github-release.mjs --version <version>` therefore **reports**
+   each of the five by name and reason (`BY RECORDED EXCEPTION (QCLI-410)`),
+   edits nothing, and does not mark them latest; there is nothing to repair.
+   The recorded set is a closed table in `scripts/github-release.mjs`, and
+   adding a version to it is a deliberate edit there. Any other release whose
+   notes differ still refuses and still names the tagged-commit bytes. Nothing
+   in the release flow reaches those five versions, so this is the whole
+   operator-visible behaviour for them.
 4. **Roll back the tags, never the versions.** A failure part way through
    restores the tags that run moved, the launcher's included. A failed or
    refused launcher publish moves its `latest` back to the prior version by
@@ -1063,8 +1078,10 @@ LCLI-621, and the receipt fields are opum-cli-e2e's (TASK-126,
 
    `--rollback` does not touch GitHub Releases, so the promoted run's
    `v<version>` release still says Latest after it. Retrying at the same
-   version fixes that, because the rerun marks the existing release latest. If
-   the version is abandoned, move Latest back yourself:
+   version fixes that, because the rerun marks the existing release latest
+   (true for the version being promoted; the recorded legacy releases above
+   are never marked latest, and no run reaches them). If the version is
+   abandoned, move Latest back yourself:
    `gh release edit v<prior> -R github.com/opum-ai/quest-cli --latest`.
 
 Auth for promotion is the publisher's: the stored token, else `--otp`. Moving
