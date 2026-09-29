@@ -171,7 +171,11 @@ test("the task-finalization guide documents the requirement and the hazard (QCLI
     expect(guide.exitCode).toBe(0);
     expect(guide.stdout).toContain("The commit that carries a completion");
     expect(guide.stdout).toContain("git add -A .quest/");
-    expect(guide.stdout).toContain("never a repo-wide `git add -A`");
+    expect(guide.stdout).toContain(
+      "git add .quest/tasks/<id>.json .quest/completed/<id>.json",
+    );
+    expect(guide.stdout).toContain("git add -u .quest/");
+    expect(guide.stdout).toContain("repo-wide `git add -A`");
     expect(guide.stdout).toContain("git diff --cached --name-status");
   } finally {
     await rm(root, { recursive: true, force: true });

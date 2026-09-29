@@ -332,19 +332,20 @@ and superseded decisions.)
 \`quest task complete\` relocates the record -- \`.quest/tasks/\` to
 \`.quest/completed/\` -- and nothing stages that rename, so a commit delivering
 a completion must carry both the removal of the old path and the addition of
-the new one. Stage it with a scoped add -- \`git add -A .quest/\`, or the
-record's own two paths, \`git add .quest/tasks/<id>.json
-.quest/completed/<id>.json\` -- and never a repo-wide \`git add -A\`: that also
-stages any unrelated tracked file merely missing from the working tree, so an
-accidental deletion rides your commit and the tree reads clean afterwards
-(\`git status\` and \`git diff HEAD\` both empty). Read
-\`git diff --cached --name-status\` before committing; a completion commit
-should name exactly those two paths. Staging one side alone is not enough either: \`git add -u
-.quest/\` stages the removal but leaves the new record untracked. \`task
-close\`, \`task archive\` and \`task demote\` relocate records the same way and
-stage the same way. This is not hypothetical (QCLI-311): a tracker-only commit
-once also deleted npm/quest-darwin-arm64 this way, and the package-artifact
-gate caught it, not anything in the session.
+the new one. Stage it with a scoped add -- \`git add -A .quest/\` -- or with
+the record's own two paths,
+\`git add .quest/tasks/<id>.json .quest/completed/<id>.json\` -- and never a
+repo-wide \`git add -A\`: that also stages any unrelated tracked file merely
+missing from the working tree, so an accidental deletion rides your commit and
+the tree reads clean afterwards (\`git status\` and \`git diff HEAD\` both
+empty). Read \`git diff --cached --name-status\` before committing; a
+completion commit should name exactly those two paths. Staging one side alone
+is not enough either: \`git add -u .quest/\` stages the removal but leaves the
+new record untracked. \`task close\`, \`task archive\` and \`task demote\`
+relocate records the same way and stage the same way. This is not hypothetical
+(QCLI-311): a tracker-only commit once also deleted npm/quest-darwin-arm64
+this way, and the package-artifact gate caught it, not anything in the
+session.
 
 ## When the outcome did not happen: close, do not complete
 
