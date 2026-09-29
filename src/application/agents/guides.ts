@@ -55,6 +55,7 @@ read, edit or complete tracker state, so writes stay attributed and consistent.
 - \`decision list/view/create/edit/delete\`    Decision-record lifecycle
 - \`search [--all]\`              Search tasks, or tasks + milestones + decisions together
 - \`overview\` / \`board\` / \`doctor\`   Project overview, kanban-style board, or consistency check
+- \`check\`                      Run a named check; \`--continuity --base <ref>\` fails when a task record id or alias present at the merge base resolves nowhere now
 - \`cleanup\`                     Remove closed, unreferenced milestones and superseded decisions
 - \`migration backlog preview/apply/status/rollback\`   Backlog.md-to-Quest migration lifecycle
 - \`browser\`                     Start a local read-only web server showing the overview and board

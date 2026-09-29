@@ -637,6 +637,14 @@ test("the live manifest is non-empty and matches its result golden", () => {
       mutates: false,
     },
     {
+      // QCLI-415/DEC-18: `check --continuity` reports a ContinuityReport, or
+      // a `drift` diagnostic (exit 6) when continuity is broken.
+      name: "check",
+      schemaVersion: 1,
+      kind: "check.continuity",
+      mutates: false,
+    },
+    {
       name: "cleanup",
       schemaVersion: 1,
       kind: "project.cleanup",

@@ -1170,6 +1170,11 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         "--plain",
       ],
       doctor: ["doctor", "--plain"],
+      // QCLI-415: base-relative, so it reads a ref. HEAD is the evidence
+      // commit made above, whose tree carries the fixture records; every
+      // command the loop ran before this one either added a record or moved
+      // one between the three locations, and a move still resolves.
+      check: ["check", "--continuity", "--base", "HEAD", "--plain"],
       cleanup: ["cleanup", "--dry-run", ...actor, "--plain"],
       browser: ["browser", "--plain"],
     };

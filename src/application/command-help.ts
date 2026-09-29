@@ -516,6 +516,12 @@ export const commandHelp: Record<
     usage: "quest doctor",
     flags: [],
   },
+  check: {
+    summary:
+      "Run a named check. --continuity fails when a task record id or alias present at the merge base of --base and HEAD resolves to no record in the current store (DEC-18/QCLI-415): a record may live in .quest/tasks, .quest/completed or .quest/archive/tasks, so it is a dropped record rather than a moved one that this catches. A broken continuity is a `drift` diagnostic on exit 6 naming every missing reference; an empty read at the base is itself a failure, so a misdirected --base cannot pass as clean. This is the check a Tracker integrity job runs.",
+    usage: "quest check --continuity --base <ref>",
+    flags: ["--continuity", "--base"],
+  },
   cleanup: {
     summary: "Remove closed, unreferenced milestones and superseded decisions.",
     usage: "quest cleanup --confirm --actor <name> --actor-kind human",

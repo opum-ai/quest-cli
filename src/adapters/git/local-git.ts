@@ -167,6 +167,18 @@ export class LocalGitPort implements GitPort {
     return result.stdout.split("\n").filter((line) => line.length > 0);
   }
 
+  async mergeBase(
+    repositoryPath: string,
+    a: string,
+    b: string,
+  ): Promise<string> {
+    // requiredGit, not the defensive `[]`/null shape listFiles and readBlob
+    // keep: a caller asking for a merge base needs to hear that there is none,
+    // and the two failures behind this exit (an unresolvable ref, unrelated
+    // histories) are the check's own two reportable inputs.
+    return requiredGit(repositoryPath, ["merge-base", a, b]);
+  }
+
   async listRefs(repositoryPath: string): Promise<readonly string[]> {
     const result = await git(repositoryPath, [
       "for-each-ref",

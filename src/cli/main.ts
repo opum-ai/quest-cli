@@ -84,6 +84,7 @@ import {
   createAgentInstructionPort,
   createAgentPluginPort,
   createBacklogImportService,
+  createContinuityCheckService,
   createGitPort,
   createPlanningService,
   createTaskBindingModel,
@@ -2107,6 +2108,100 @@ export async function runQuest(
             ? "project.board"
             : "project.doctor";
       return output({ schemaVersion: 1, kind, data }, modeFor(parsed));
+    }
+    if (arguments_[0] === "check") {
+      const parsed = flags(arguments_.slice(1));
+      const checkFlags = ["--continuity", "--base"];
+      if (!parsed || !only(parsed, checkFlags))
+        return usageFailure(
+          parsed,
+          checkFlags,
+          "check accepts --continuity --base <ref> (plus --json and --plain).",
+        );
+      // QCLI-415/DEC-18: --continuity is required rather than implied even
+      // though it is the only check today. The fleet wires
+      // `quest check --continuity --base <ref>` into each repository's CI
+      // (DEC-18's adoption step), so a bare `quest check` silently meaning
+      // "continuity" would make a second check's arrival a breaking change in
+      // the one place the fleet copies a line from.
+      if (!parsed.values.has("--continuity"))
+        return failure(
+          "usage",
+          "check requires --continuity --base <ref>; continuity is the only check today.",
+        );
+      const baseRef = one(parsed, "--base");
+      if (baseRef === undefined)
+        return failure("usage", "check --continuity requires --base <ref>.");
+      const result = await createContinuityCheckService(
+        await resolvedRoot(),
+        await taskService(),
+      ).check(baseRef);
+      if (!result.ok) {
+        const problem = result.failure;
+        if (problem.reason === "base_unresolvable")
+          return failure(
+            "not_found",
+            `check --continuity --base ${JSON.stringify(baseRef)} names no revision this clone can resolve (${problem.detail}). Nothing was checked.`,
+            {
+              input: { baseRef },
+              hint: "Pass a ref this clone already has: a branch, a tag, or a commit sha. The check reads local objects only and never fetches.",
+            },
+          );
+        if (problem.reason === "no_merge_base")
+          return failure(
+            "validation",
+            `The merge base of ${JSON.stringify(baseRef)} and HEAD could not be computed (${problem.detail}). Nothing was checked.`,
+            {
+              input: { baseRef },
+              hint: "The check compares against the merge base, so a branch behind its base is not charged for ids it never had; histories with nothing in common have no merge base.",
+            },
+          );
+        if (problem.reason === "empty_base")
+          // The positive control (QCLI-415 AC1): a read of zero records
+          // passes no check that could not also pass a misdirected --base.
+          return failure(
+            "validation",
+            `check --continuity read 0 task records at ${problem.base}, the merge base of ${JSON.stringify(baseRef)} and HEAD. An empty read is a failure, not a pass.`,
+            {
+              input: { baseRef, base: problem.base },
+              hint: "An empty base usually means it names a revision from before the tracker existed, a different repository, or a layout this check does not know. Nothing was verified, so this cannot report clean.",
+            },
+          );
+        const unread = problem.paths.slice(0, 10);
+        const unreadRemainder = problem.paths.length - unread.length;
+        return failure(
+          "validation",
+          `check --continuity could not read ${problem.paths.length} task record(s) at ${problem.base}: ${unread.join(", ")}${unreadRemainder > 0 ? `, and ${unreadRemainder} more` : ""}. Nothing was checked.`,
+          {
+            input: { baseRef, base: problem.base, paths: problem.paths },
+            hint: "A record the check cannot read is a record whose disappearance it could not report, so the check fails rather than narrowing its own population.",
+          },
+        );
+      }
+      const report = result.report;
+      if (report.missing.length > 0) {
+        const shown = report.missing.slice(0, 20);
+        const remainder = report.missing.length - shown.length;
+        return failure(
+          "drift",
+          `Record continuity: ${report.missing.length} of ${report.references} references present at the merge base of ${JSON.stringify(baseRef)} (${report.base.slice(0, 12)}) resolve to no task record: ${shown.join(", ")}${remainder > 0 ? `, and ${remainder} more` : ""}.`,
+          {
+            input: {
+              baseRef,
+              base: report.base,
+              records: report.records,
+              references: report.references,
+              resolved: report.resolved,
+              missing: report.missing,
+            },
+            hint: "A task record may live in .quest/tasks, .quest/completed or .quest/archive/tasks and resolves by id or alias. If a commit moved a record, it must land both halves of the move -- `git add -A .quest/`.",
+          },
+        );
+      }
+      return output(
+        { schemaVersion: 1, kind: "check.continuity", data: report },
+        modeFor(parsed),
+      );
     }
     if (arguments_[0] === "cleanup") {
       const parsed = flags(arguments_.slice(1));
