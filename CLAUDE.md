@@ -162,7 +162,14 @@ re-measure each clause separately before rewriting the paragraph. Two clauses
 here aged out and one did not, and a rewrite that treated "this paragraph is
 stale" as one judgement would have deleted the only claim that still holds.
 
-So before deleting, moving or re-pointing a tag: say so to quest-web first.
+So before deleting, moving or re-pointing a tag: say so to quest-web first,
+and name the tag you mean. The tag at risk is not necessarily the newest
+release's -- it is the version quest-web currently cites, `v0.11.0` measured
+on their `dev` 2026-09-30, because quest-web renders
+`${links.source}/releases/tag/v${release.version}` from its own
+`release.version` (`app/site-config.ts`, rendered at `app/page.tsx:273` and
+`app/releases/page.tsx:121`). That citing version tracks their content, so it
+moves to `v0.12.0` once their content next cites it.
 And treat the current tags as weaker anchors than the npm version, which is
 immutable -- that is the advice given back to quest-web for its own citations,
 and it stands regardless of how many tags exist, because tags are mutable and
