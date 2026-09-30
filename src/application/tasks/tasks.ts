@@ -728,6 +728,7 @@ export class TaskService {
     transform: (task: TaskState, all: readonly TaskState[]) => TaskState = (
       task,
     ) => task,
+    options?: { readonly ifRevision?: string },
   ): Promise<TaskMutationResult> {
     const snapshot = await this.repository.readAll();
     const records = this.taskRecords(snapshot);
@@ -735,6 +736,23 @@ export class TaskService {
     const selected = findTask(all, reference);
     const current = records.find((record) => record.task.id === selected.id);
     if (!current) throw new RecordValidationError("task_not_found");
+    // QCLI-423: the same per-record precondition `editOn` enforces, checked
+    // after resolution and before any state change -- a refused precondition
+    // still writes nothing and moves nothing. It compares against the
+    // resolved RECORD's own revision (the value `task view --json` emits),
+    // not the snapshot's, so one captured value works for either command.
+    if (
+      options?.ifRevision !== undefined &&
+      options.ifRevision !== recordRevision(current)
+    )
+      return {
+        kind: "conflict",
+        code: "revision_precondition_failed",
+        expectedRevision: options.ifRevision,
+        actualRevision: recordRevision(current),
+        operationId,
+        ownedPaths: [],
+      };
     const task = this.stamped(transform(current.task, all));
     if (current.location === destination)
       throw new RecordValidationError("task_lifecycle_already_at_destination");
@@ -838,11 +856,27 @@ export class TaskService {
         : taskState({ ...closed, finalSummary: request.finalSummary });
     });
   }
+  /**
+   * QCLI-423: `options.ifRevision` is the guarded precondition
+   * {@link TaskService.edit} already offers (QCLI-277), applied to the
+   * archive move -- a value that does not match the RESOLVED record's own
+   * revision refuses as a conflict (exit 5) and moves nothing, so a guarded
+   * edit followed by an archive no longer has an unguarded window. Only
+   * `archive` takes it; whether the other lifecycle moves want the same
+   * guard is deliberately not decided here.
+   */
   async archive(
     reference: string,
     operationId: string,
+    options?: { readonly ifRevision?: string },
   ): Promise<TaskMutationResult> {
-    return this.moveTask(reference, "archive/tasks", operationId);
+    return this.moveTask(
+      reference,
+      "archive/tasks",
+      operationId,
+      undefined,
+      options,
+    );
   }
   /** Moves a task from the ladder's working status to the paused status. */
   async pause(
