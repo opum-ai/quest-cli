@@ -43,6 +43,13 @@ name: lore check
 #     0.8.0 -> 0.9.0 this way: `lore schema export` under 0.9.0 added a
 #     profileDigest stamp to all seven schemas and a new arc.schema.json, and
 #     that tree measured exit 0 under 0.9.0 AND under 0.8.0, 2026-09-22.
+#     QCLI-422 moved 0.11.0 -> 0.12.0 the same way on 2026-09-30: the export
+#     under 0.12.0 was a no-op, all ten schemas byte-identical, so the pin move
+#     is the whole change and the tree measured exit 0 under 0.12.0 AND 0.11.0.
+#     0.12.0 also added a quest-pair version requirement -- lore 0.12.0 exits 6
+#     against quest 0.11.0 -- satisfied here only because the shimmed checkout
+#     reports package.json's 0.12.0; a pin whose lore number leads package.json
+#     will red for that reason, not for schema drift.
 #   - Two steps when the regenerated tree passes the old pin but the new pin
 #     reds the old tree: land the regeneration alone first, then move the
 #     number (QCLI-356, 0.7.0 -> 0.8.0). Measure the old pin before choosing.
@@ -149,7 +156,7 @@ jobs:
           echo "quest on PATH: $resolved (reports $reported, package.json $packaged)"
 
       - name: Install the pinned lore release
-        run: npm install -g @opum-ai/lore@0.11.0
+        run: npm install -g @opum-ai/lore@0.12.0
 
       - name: lore check
         run: lore check
