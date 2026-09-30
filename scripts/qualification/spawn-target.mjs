@@ -60,7 +60,14 @@ export function resolveShim(env = process.env, exists = existsSync) {
  * to `execFile` now fails `EINVAL`: spawn refuses a batch file without a shell
  * since the hardening that followed CVE-2024-27980 (QCLI-426). Bun aligned
  * with it in the 1.4.x line, which is why this surfaced on the move to 1.4.2
- * and not before -- the identical script passes on 1.3.14.
+ * and not before.
+ *
+ * What changed between the passing v0.11.0 run and the failing one is the Bun
+ * pin, not this path: the npm spawn call here and the Windows runner images
+ * are unchanged since v0.11.0. (An earlier revision of this comment said the
+ * script was byte-identical, which is false -- prepublish.mjs gained a
+ * REGISTRY_PINS import and a breaking_bump gate after v0.11.0. Neither touches
+ * the npm spawn path, so the conclusion holds, but the sentence did not.)
  *
  * `cmd.exe` runs the shim. Every argument is quoted HERE rather than left to
  * be concatenated unquoted, which is the whole reason the shell option is the

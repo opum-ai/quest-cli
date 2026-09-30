@@ -9,10 +9,13 @@ import {
 /**
  * QCLI-426. The 0.12.0 tag-time qualification failed both Windows legs with
  * `spawn npm.cmd EINVAL`, leaving no native-execution receipt and so no way to
- * stage. The script, its gates and the Windows runner images were identical to
- * the v0.11.0 run that passed on 2026-09-27; the only variable was the pinned
- * Bun, 1.3.14 -> 1.4.2. Bun aligned with the spawn hardening that followed
- * CVE-2024-27980, which refuses a `.cmd` handed to spawn without a shell.
+ * stage. The npm spawn path and the Windows runner images are unchanged since
+ * the v0.11.0 run that passed on 2026-09-27, so the only variable between the
+ * two runs is the pinned Bun, 1.3.14 -> 1.4.2. Bun aligned with the spawn
+ * hardening that followed CVE-2024-27980, which refuses a `.cmd` handed to
+ * spawn without a shell. (An earlier revision said the script and gates were
+ * byte-identical; that is false -- prepublish.mjs gained a REGISTRY_PINS
+ * import and a breaking_bump gate after v0.11.0, neither on the spawn path.)
  *
  * The first attempt at this fix ran npm.cmd successfully but under the wrong
  * `%~dp0`: run 36695719909 reported it could not load
@@ -33,7 +36,16 @@ const ENV = {
 };
 const found = (path: string) => path === NPM_SHIM;
 
-/** What cmd.exe is left with after /s strips the first and last quote. */
+/**
+ * What cmd.exe is left with after /s strips the first and last quote.
+ *
+ * LIMIT, review finding 3a: this encodes the same `/s` model the
+ * implementation assumes, so it cannot catch a shared model error -- both
+ * sides would agree and stay green. The model was checked independently
+ * against Microsoft's `cmd` reference (which documents /s as stripping the
+ * first and last quote around the string and leaving the rest unchanged), not
+ * against this implementation. It is a limit, not a defect.
+ */
 const afterStrip = (argv: readonly string[]) => argv[3].slice(1, -1);
 
 test("POSIX is untouched: the file is spawned directly, unwrapped and unquoted", () => {
@@ -50,6 +62,10 @@ test("win32 hands cmd.exe the ABSOLUTE shim path, not a bare name", () => {
   // The measured failure: a bare `npm.cmd` left the batch file's own %~dp0 as
   // the current directory, so npm looked for its CLI under the repository.
   const target = spawnTarget("npm", ["pack", "--json"], "win32", ENV, found);
+  // A literal, not `process.env.ComSpec ?? "cmd.exe"`: that expression is the
+  // implementation's own, so on a host without ComSpec -- this one -- it could
+  // not tell the fallback from the literal, and read as asserting more than it
+  // did. ENV sets ComSpec, so this also pins that the value is used.
   expect(target.executable).toBe("C:\\Windows\\system32\\cmd.exe");
   expect(target.verbatim).toBe(true);
   expect(target.argv.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
@@ -137,6 +153,8 @@ test("the fix did not take the shell-option form, which is the unsafe one", asyn
     const code = executableSource(
       await readFile(join(repo, "scripts", "qualification", file), "utf8"),
     );
-    expect(`${file}: ${/shell\s*:/.test(code)}`).toBe(`${file}: false`);
+    // `\b` before the key and optional quotes around it, so a quoted key
+    // ("shell": true) is caught and `nutshell:` is not.
+    expect(`${file}: ${/\bshell["']?\s*:/.test(code)}`).toBe(`${file}: false`);
   }
 });
