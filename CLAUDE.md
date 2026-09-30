@@ -164,12 +164,15 @@ stale" as one judgement would have deleted the only claim that still holds.
 
 So before deleting, moving or re-pointing a tag: say so to quest-web first,
 and name the tag you mean. The tag at risk is not necessarily the newest
-release's -- it is the version quest-web currently cites, `v0.11.0` measured
-on their `dev` 2026-09-30, because quest-web renders
+release's -- it is the version quest-web currently cites, `v0.12.0` (their
+`dev` at `f12bd34`, 2026-09-30, confirmed here), because quest-web renders
 `${links.source}/releases/tag/v${release.version}` from its own
-`release.version` (`app/site-config.ts`, rendered at `app/page.tsx:273` and
-`app/releases/page.tsx:121`). That citing version tracks their content, so it
-moves to `v0.12.0` once their content next cites it.
+`release.version` (`app/site-config.ts`; find it by that expression rather
+than a line number -- their section insertions move it, and the
+`app/releases/page.tsx` anchor went :121 -> :186 in one day). The set is
+exactly what their rendered pages link, because their link gate fetches the
+built HTML and nothing else: the citation move to `v0.12.0` dropped
+`v0.11.0` out, and the next cited release will drop `v0.12.0` out in turn.
 And treat the current tags as weaker anchors than the npm version, which is
 immutable -- that is the advice given back to quest-web for its own citations,
 and it stands regardless of how many tags exist, because tags are mutable and
