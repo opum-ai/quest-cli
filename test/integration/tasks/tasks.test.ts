@@ -169,9 +169,12 @@ test("edit's --if-revision precondition (QCLI-277): matches and applies, omitted
   expect(store.writes).toBe(2);
 
   // Stale precondition: the RECORD has moved since "currentRevision" was
-  // captured. The edit must refuse BEFORE any write -- same shape a
-  // repository-level CAS conflict already produces (TaskWriteConflict) --
-  // and name the record's actual current revision, not the caller's stale
+  // captured. The edit must refuse BEFORE any write -- the same
+  // TaskWriteConflict shape a repository-level CAS conflict produces, now
+  // marked code: "revision_precondition_failed" (QCLI-425) so a consumer can
+  // tell the guard's own refusal from a writer race, whose expectedRevision
+  // is the snapshot revision rather than anything the caller sent -- and
+  // name the record's actual current revision, not the caller's stale
   // one. Re-reading through the same capture point is what a caller would do
   // to retry, so that is what the named revision has to match.
   const staleAttempt = await tasks.edit("T-1", { summary: "c" }, "edit-3", {
@@ -180,6 +183,7 @@ test("edit's --if-revision precondition (QCLI-277): matches and applies, omitted
   const actualRevision = (await tasks.viewWithRevision("T-1")).revision;
   expect(staleAttempt).toEqual({
     kind: "conflict",
+    code: "revision_precondition_failed",
     expectedRevision: currentRevision,
     actualRevision,
     operationId: "edit-3",

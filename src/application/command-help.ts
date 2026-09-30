@@ -287,9 +287,11 @@ export const commandHelp: Record<
       "--comments/--add-comment take a JSON array of structured objects, not free text: each " +
       'entry needs {"id":"<string>","authorId":"<string>","body":"<string>","createdAt":"<ISO-8601 string>"}. ' +
       "--if-revision <revision> (QCLI-277) is an optional precondition: capture `revision` from an " +
-      "earlier `task view --json`, and the edit is refused with an exit-5 conflict -- naming the " +
-      "record's actual current revision -- if the record has moved since, instead of silently " +
-      "applying over a change the caller never saw. The precondition is scoped to THAT RECORD " +
+      "earlier `task view --json`, and an edit whose value does not match the record's current " +
+      "revision is refused with an exit-5 conflict instead of silently applying over a change " +
+      "the caller never saw. The refusal names the mismatch and carries both values -- " +
+      "input.sentRevision (what was sent) and input.actualRevision (the record's current " +
+      "revision) -- so the comparison needs no reconstruction of argv. The precondition is scoped to THAT RECORD " +
       "(QCLI-310): writing any other task leaves it valid. Omitted, behavior is unchanged. " +
       "REMOVAL IS ONE VOCABULARY ADDRESSED TWO WAYS, and every removal fails loud on a miss " +
       "(QCLI-297). BY POSITION: --remove-ac/--check-ac/--uncheck-ac and the --*-dod equivalents " +

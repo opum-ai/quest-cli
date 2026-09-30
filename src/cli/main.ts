@@ -4165,22 +4165,40 @@ export async function runQuest(
           hint: "Address each position once: do not check and uncheck it, or remove and check it, in the same edit.",
         },
       );
-    // QCLI-277: same exit-5 conflict shape as the generic branch just below
-    // -- this only adds `input.actualRevision`, which `TrackerWriteConflictError`
-    // carries and a bare `Error("tracker_write_conflict")` never did, so a
-    // caller (in particular one whose `--if-revision` precondition just
-    // failed) can re-read without a second round trip.
+    // QCLI-277/QCLI-425: the exit-5 conflict shape. A guarded-precondition
+    // failure -- `--if-revision` sent a value that does not match the
+    // record's current revision -- is a conflict the guard ESTABLISHED by
+    // comparing the two, so it names that mismatch rather than asserting the
+    // record moved under the caller, and it echoes the sent value as
+    // `input.sentRevision` beside `input.actualRevision` so the comparison
+    // needs no reconstruction of argv. Every other conflict reaching here is
+    // a write race, keeps the concurrent-change wording, and (QCLI-277)
+    // carries `input.actualRevision` when the losing write reported one.
     if (error instanceof TrackerWriteConflictError)
-      return failure(
-        "conflict",
-        "Task state changed concurrently; the operation was not applied.",
-        {
-          hint: "Read the latest task state and retry the operation.",
-          ...(error.actualRevision !== undefined
-            ? { input: { actualRevision: error.actualRevision } }
-            : {}),
-        },
-      );
+      return error.sentRevision !== undefined
+        ? failure(
+            "conflict",
+            "The revision sent as --if-revision does not match the record's current revision; the operation was not applied. Nothing was written.",
+            {
+              hint: "Re-read the record with `quest task view <id> --json` and retry with its current revision; the value sent is echoed as input.sentRevision beside input.actualRevision.",
+              input: {
+                sentRevision: error.sentRevision,
+                ...(error.actualRevision !== undefined
+                  ? { actualRevision: error.actualRevision }
+                  : {}),
+              },
+            },
+          )
+        : failure(
+            "conflict",
+            "Task state changed concurrently; the operation was not applied.",
+            {
+              hint: "Read the latest task state and retry the operation.",
+              ...(error.actualRevision !== undefined
+                ? { input: { actualRevision: error.actualRevision } }
+                : {}),
+            },
+          );
     if (
       message === "tracker_write_conflict" ||
       message === "dependency_target_ambiguous" ||

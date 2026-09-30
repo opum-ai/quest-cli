@@ -114,6 +114,14 @@ export interface TaskWriteConflict {
   readonly actualRevision: string;
   readonly operationId: string;
   readonly ownedPaths: readonly string[];
+  /**
+   * QCLI-425: set only when the conflict IS the `--if-revision` guard's own
+   * refusal -- `expectedRevision` then holds the value the caller sent. A
+   * workspace CAS race leaves this unset, and its `expectedRevision` is the
+   * snapshot revision the write expected, not anything a caller sent, so
+   * consumers must key on this code rather than on `expectedRevision`.
+   */
+  readonly code?: "revision_precondition_failed";
 }
 export type TaskWriteResult = TaskWriteSuccess | TaskWriteConflict;
 export interface TaskWriter {
@@ -1209,6 +1217,7 @@ export class TaskService {
     ) {
       return {
         kind: "conflict",
+        code: "revision_precondition_failed",
         expectedRevision: options.ifRevision,
         actualRevision: recordRevision(current),
         operationId,
