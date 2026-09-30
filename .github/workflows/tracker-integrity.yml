@@ -104,7 +104,24 @@ jobs:
           echo "Declared and packaged versions agree: $declared"
 
       - name: Tracker reads cleanly
-        run: bun run src/cli/main.ts task list --json
+        # QCLI-430 (OPAG-971): the listing IS record text, and the runner
+        # parses workflow-command syntax in whatever a step prints -- a
+        # record quoting a CI log line turned a green job into a
+        # failure-level annotation in lore-cli (846233e1), and the same
+        # mechanism covers add-mask and stop-commands. So the listing goes
+        # to a file and only a count is printed.
+        #
+        # The count is the positive control, and its shape is load-bearing:
+        # `echo "read $(jq ...)"` does NOT gate -- an empty or unparseable
+        # listing prints a blank count and the step still succeeds
+        # (measured). Assigning from `jq -er` with `select(. > 0)` instead
+        # exits nonzero for zero records, empty input, and malformed JSON,
+        # and the assignment propagates that through `set -e`.
+        run: |
+          set -euo pipefail
+          bun run src/cli/main.ts task list --json > "$RUNNER_TEMP/quest-task-list.json"
+          recorded="$(jq -er '.data | length | select(. > 0)' "$RUNNER_TEMP/quest-task-list.json")"
+          echo "read $recorded task record(s)"
 
       - name: Managed instructions are current
         run: bun run src/cli/main.ts agents --check --require-installed --target claude
