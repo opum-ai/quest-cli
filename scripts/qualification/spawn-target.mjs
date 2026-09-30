@@ -6,6 +6,55 @@
 // registry-visibility.mjs and version-parity.mjs, which exist for the same
 // reason.
 
+import { existsSync } from "node:fs";
+
+/** Default extension search order, matching what cmd.exe does. */
+const DEFAULT_PATHEXT = ".COM;.EXE;.BAT;.CMD";
+
+/**
+ * Windows environment variables are case-insensitive, so the real name may be
+ * `Path` or `PATH` depending on who set it. Reading only the uppercase spelling
+ * would silently fall back to the bare name and reproduce the failure this
+ * module exists to prevent, so the lookup is case-insensitive.
+ */
+function envValue(env, name) {
+  if (env[name] !== undefined) return env[name];
+  const key = Object.keys(env).find(
+    (candidate) => candidate.toLowerCase() === name.toLowerCase(),
+  );
+  return key === undefined ? undefined : env[key];
+}
+
+/**
+ * The absolute path of npm's Windows shim, or the bare name when it cannot be
+ * found.
+ *
+ * cmd.exe resolves a bare `npm.cmd` well enough to EXECUTE it, but the batch
+ * file's own `%~dp0` then came out as the current directory rather than npm's
+ * install directory -- measured on run 36695719909, where npm reported it could
+ * not load `<cwd>\node_modules\npm\bin\npm-cli.js`. Handing cmd an absolute
+ * path removes the ambiguity: `%~dp0` can only be the directory the shim is
+ * actually in.
+ *
+ * Only npm is resolved, deliberately: this module exists for that one call, and
+ * a name parameter would put a bare `"npm"` in a call position where
+ * test/qcli400-registry-pins.test.ts -- which is right to treat a quoted npm
+ * opening a call's arguments as a spawn -- would read it as one.
+ *
+ * `env` and `exists` are parameters so the search is testable off Windows.
+ */
+export function resolveShim(env = process.env, exists = existsSync) {
+  const extensions = (envValue(env, "PATHEXT") ?? DEFAULT_PATHEXT)
+    .split(";")
+    .filter(Boolean);
+  for (const dir of (envValue(env, "PATH") ?? "").split(";").filter(Boolean))
+    for (const extension of extensions) {
+      const candidate = `${dir.replace(/[\\/]+$/, "")}\\npm${extension.toLowerCase()}`;
+      if (exists(candidate)) return candidate;
+    }
+  return "npm";
+}
+
 /**
  * On Windows `npm` is the `npm.cmd` batch shim, and handing a `.cmd` straight
  * to `execFile` now fails `EINVAL`: spawn refuses a batch file without a shell
@@ -24,14 +73,20 @@
  * can be asserted from any host, which is the only verification available
  * without a Windows runner.
  */
-export function spawnTarget(file, args, platform = process.platform) {
+export function spawnTarget(
+  file,
+  args,
+  platform = process.platform,
+  env = process.env,
+  exists = existsSync,
+) {
   if (platform !== "win32" || file !== "npm")
     return { executable: file, argv: args, verbatim: false };
-  const line = ["npm.cmd", ...args]
+  const line = [resolveShim(env, exists), ...args]
     .map((value) => `"${String(value).replaceAll('"', '""')}"`)
     .join(" ");
   return {
-    executable: process.env.ComSpec ?? "cmd.exe",
+    executable: envValue(env, "ComSpec") ?? "cmd.exe",
     argv: ["/d", "/s", "/c", `"${line}"`],
     verbatim: true,
   };

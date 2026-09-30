@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { spawnTarget } from "../scripts/qualification/spawn-target.mjs";
+import {
+  resolveShim,
+  spawnTarget,
+} from "../scripts/qualification/spawn-target.mjs";
 
 /**
  * QCLI-426. The 0.12.0 tag-time qualification failed both Windows legs with
@@ -11,11 +14,24 @@ import { spawnTarget } from "../scripts/qualification/spawn-target.mjs";
  * Bun, 1.3.14 -> 1.4.2. Bun aligned with the spawn hardening that followed
  * CVE-2024-27980, which refuses a `.cmd` handed to spawn without a shell.
  *
+ * The first attempt at this fix ran npm.cmd successfully but under the wrong
+ * `%~dp0`: run 36695719909 reported it could not load
+ * `<cwd>\node_modules\npm\bin\npm-cli.js`, i.e. the batch file's own directory
+ * came out as the current directory. Hence the absolute-path resolution below,
+ * which is what the second and third tests pin.
+ *
  * The Windows branch cannot be exercised on this host, so it is asserted as a
  * value here. That is the whole point of `platform` being a parameter.
  */
 
 const repo = join(import.meta.dir, "..");
+const NPM_SHIM = "C:\\Program Files\\nodejs\\npm.cmd";
+const ENV = {
+  PATH: "C:\\Windows\\system32;C:\\Program Files\\nodejs",
+  PATHEXT: ".COM;.EXE;.BAT;.CMD",
+  ComSpec: "C:\\Windows\\system32\\cmd.exe",
+};
+const found = (path: string) => path === NPM_SHIM;
 
 /** What cmd.exe is left with after /s strips the first and last quote. */
 const afterStrip = (argv: readonly string[]) => argv[3].slice(1, -1);
@@ -30,28 +46,74 @@ test("POSIX is untouched: the file is spawned directly, unwrapped and unquoted",
   }
 });
 
-test("win32 runs npm.cmd through cmd.exe as a finished command line", () => {
-  const target = spawnTarget("npm", ["pack", "--json"], "win32");
-  expect(target.executable).toBe(process.env.ComSpec ?? "cmd.exe");
+test("win32 hands cmd.exe the ABSOLUTE shim path, not a bare name", () => {
+  // The measured failure: a bare `npm.cmd` left the batch file's own %~dp0 as
+  // the current directory, so npm looked for its CLI under the repository.
+  const target = spawnTarget("npm", ["pack", "--json"], "win32", ENV, found);
+  expect(target.executable).toBe("C:\\Windows\\system32\\cmd.exe");
   expect(target.verbatim).toBe(true);
   expect(target.argv.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
-  expect(afterStrip(target.argv)).toBe('"npm.cmd" "pack" "--json"');
+  expect(afterStrip(target.argv)).toBe(`"${NPM_SHIM}" "pack" "--json"`);
 });
 
-test("a path containing a space stays ONE argument — the failure mode shell:true has", () => {
-  // `shell: true` joins arguments with spaces and escapes nothing (DEP0190),
+test("win32 falls back to the bare name when no shim is on PATH", () => {
+  const target = spawnTarget("npm", ["pack"], "win32", ENV, () => false);
+  expect(afterStrip(target.argv)).toBe('"npm" "pack"');
+});
+
+test("resolveShim searches PATHEXT in order and tolerates a trailing separator", () => {
+  const seen: string[] = [];
+  const path = resolveShim(
+    { PATH: "C:\\a\\;C:\\b", PATHEXT: ".EXE;.CMD" },
+    (candidate) => {
+      seen.push(candidate);
+      return candidate === "C:\\b\\npm.cmd";
+    },
+  );
+  expect(path).toBe("C:\\b\\npm.cmd");
+  // Probed in order, and only until the hit -- EXE before CMD, directory order
+  // preserved.
+  expect(seen).toEqual([
+    "C:\\a\\npm.exe",
+    "C:\\a\\npm.cmd",
+    "C:\\b\\npm.exe",
+    "C:\\b\\npm.cmd",
+  ]);
+});
+
+test("a lowercase env spelling still resolves — Windows names are case-insensitive", () => {
+  // Reading only the uppercase spelling would silently fall back to the bare
+  // name, reproducing exactly the failure this resolution exists to prevent.
+  const target = spawnTarget(
+    "npm",
+    ["pack"],
+    "win32",
+    { Path: "C:\\Program Files\\nodejs", PathExt: ".CMD" },
+    found,
+  );
+  expect(afterStrip(target.argv)).toBe(`"${NPM_SHIM}" "pack"`);
+});
+
+test("a path containing a space stays ONE argument — the failure mode the shell option has", () => {
+  // The shell option joins arguments with spaces and escapes nothing (DEP0190),
   // so this path would become two arguments and npm would take the tail as a
   // package spec. Quoting here is what makes the difference observable.
   const cache = "C:\\Users\\Some One\\AppData\\Local\\Temp\\npm-cache";
-  const target = spawnTarget("npm", ["pack", "--cache", cache], "win32");
-  expect(afterStrip(target.argv)).toBe(`"npm.cmd" "pack" "--cache" "${cache}"`);
-  expect(afterStrip(target.argv).endsWith(`"${cache}"`)).toBe(true);
+  const target = spawnTarget(
+    "npm",
+    ["pack", "--cache", cache],
+    "win32",
+    ENV,
+    found,
+  );
+  expect(afterStrip(target.argv)).toBe(
+    `"${NPM_SHIM}" "pack" "--cache" "${cache}"`,
+  );
 });
 
 test("an embedded quote is doubled, so an argument cannot break out of its own quoting", () => {
-  expect(afterStrip(spawnTarget("npm", ['a"b'], "win32").argv)).toBe(
-    '"npm.cmd" "a""b"',
-  );
+  const target = spawnTarget("npm", ['a"b'], "win32", ENV, found);
+  expect(afterStrip(target.argv)).toBe(`"${NPM_SHIM}" "a""b"`);
 });
 
 test("win32 leaves a non-npm executable alone", () => {
