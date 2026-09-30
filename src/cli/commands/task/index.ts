@@ -234,21 +234,41 @@ function requireWriteActor(actor: TaskCommandActor): void {
  */
 export class TrackerWriteConflictError extends Error {
   readonly actualRevision?: string;
-  constructor(actualRevision?: string) {
+  /**
+   * QCLI-425: present only when the conflict was the `--if-revision` guard's
+   * own refusal, holding the revision the caller sent (the guard echoes it
+   * verbatim as the conflict's `expectedRevision`). Absent on every other
+   * conflict -- including a workspace CAS race, whose `expectedRevision` is
+   * the snapshot revision and NOT anything a caller sent -- which is what
+   * lets `main.ts` name the cause it established instead of asserting a
+   * concurrent change for both.
+   */
+  readonly sentRevision?: string;
+  constructor(actualRevision?: string, sentRevision?: string) {
     super("tracker_write_conflict");
     this.name = "TrackerWriteConflictError";
     this.actualRevision = actualRevision;
+    this.sentRevision = sentRevision;
   }
 }
 
-function actualRevisionOf(result: {
-  readonly kind: string;
-}): string | undefined {
+function conflictFieldsOf(result: { readonly kind: string }): {
+  readonly actualRevision?: string;
+  readonly sentRevision?: string;
+} {
+  if (result.kind !== "conflict") return {};
   const candidate = result as Partial<TaskWriteConflict>;
-  return result.kind === "conflict" &&
-    typeof candidate.actualRevision === "string"
-    ? candidate.actualRevision
-    : undefined;
+  return {
+    actualRevision:
+      typeof candidate.actualRevision === "string"
+        ? candidate.actualRevision
+        : undefined,
+    sentRevision:
+      candidate.code === "revision_precondition_failed" &&
+      typeof candidate.expectedRevision === "string"
+        ? candidate.expectedRevision
+        : undefined,
+  };
 }
 
 function taskFromMutation(
@@ -276,8 +296,13 @@ export function recordFromMutation<
   result: Result,
   field: Field,
 ): Extract<Result, { readonly kind: "success" }>[Field] {
-  if (result.kind !== "success")
-    throw new TrackerWriteConflictError(actualRevisionOf(result));
+  if (result.kind !== "success") {
+    const fields = conflictFieldsOf(result);
+    throw new TrackerWriteConflictError(
+      fields.actualRevision,
+      fields.sentRevision,
+    );
+  }
   return (result as Extract<Result, { readonly kind: "success" }>)[field];
 }
 
