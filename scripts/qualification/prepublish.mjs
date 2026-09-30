@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { REGISTRY_PINS } from "./registry-visibility.mjs";
+// QCLI-426. Its own module because this file runs its gates at import time,
+// so a test cannot reach the helper through here without running a full
+// candidate qualification.
+import { spawnTarget } from "./spawn-target.mjs";
 
 const execFile = promisify(execFileCallback);
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
@@ -19,22 +23,22 @@ function record(name, status, detail) {
 }
 
 async function command(name, file, args, options = {}) {
-  const executable =
-    process.platform === "win32" && file === "npm" ? "npm.cmd" : file;
+  const { executable, argv, verbatim } = spawnTarget(file, args);
   try {
-    const result = await execFile(executable, args, {
+    const result = await execFile(executable, argv, {
       cwd: root,
       maxBuffer: 10 * 1024 * 1024,
       // QCLI-371: no spawned quest may reach the machine's real claude or
       // codex; set here so it is in every child's ORIGINAL environment.
       env: { ...process.env, QUEST_AGENT_PLUGINS: "off" },
+      ...(verbatim ? { windowsVerbatimArguments: true } : {}),
       ...options,
     });
-    record(name, "passed", { command: [executable, ...args].join(" ") });
+    record(name, "passed", { command: [executable, ...argv].join(" ") });
     return result.stdout;
   } catch (error) {
     record(name, "failed", {
-      command: [executable, ...args].join(" "),
+      command: [executable, ...argv].join(" "),
       exitCode: error.code ?? null,
       stderr: String(error.stderr ?? "").trim(),
       stdout: String(error.stdout ?? "").trim(),
