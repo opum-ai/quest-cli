@@ -2954,7 +2954,17 @@ export async function runQuest(
               "--actor-kind",
               "--accountable-human",
             ]
-          : ["--actor", "--actor-kind", "--accountable-human"];
+          : command === "archive"
+            ? [
+                // QCLI-423: archive alone gains the guarded precondition;
+                // complete/pause/start stay unguarded until that scope is
+                // decided.
+                "--if-revision",
+                "--actor",
+                "--actor-kind",
+                "--accountable-human",
+              ]
+            : ["--actor", "--actor-kind", "--accountable-human"];
       if (!parsed || !only(parsed, allowedFlags))
         return usageFailure(
           parsed,
@@ -2982,7 +2992,10 @@ export async function runQuest(
         command === "complete"
           ? await tasks.complete(rest[0], crypto.randomUUID(), finalSummary)
           : command === "archive"
-            ? await tasks.archive(rest[0], crypto.randomUUID())
+            ? await tasks.archive(rest[0], crypto.randomUUID(), {
+                // QCLI-423: absent flag keeps today's unguarded behaviour.
+                ifRevision: one(parsed, "--if-revision"),
+              })
             : command === "pause"
               ? await tasks.pause(rest[0], crypto.randomUUID())
               : await tasks.start(rest[0], crypto.randomUUID());
