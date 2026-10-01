@@ -219,3 +219,42 @@ test("a plain switch carries the uncommitted move; only a discarding operation d
     await rm(root, { recursive: true, force: true });
   }
 }, 60_000);
+
+test("the restore-shape duplicate names its shape in one hint sentence, prose only (QCLI-429, DEC-92 A)", async () => {
+  const root = await workspace();
+  try {
+    claimedTask(root);
+    duplicateViaReset(root);
+    const body = conflictBody(root);
+    expect(body.hint).toContain("Detected shape for T-1");
+    expect(body.hint).toContain("this is cause (2)");
+    // Prose only, per DEC-92 A: the envelope gains NO field.
+    expect(Object.keys(body).sort()).toEqual(
+      ["error_type", "hint", "input", "message", "principal"].sort(),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("a duplicate that is not the restore shape gets no shape sentence (QCLI-429)", async () => {
+  const root = await workspace();
+  try {
+    const id = claimedTask(root);
+    // Land the move fully, then recreate the pre-move copy as an UNTRACKED
+    // file. The duplicate now has no pre-move copy at HEAD, so the shape
+    // sentence must stay absent: the hint is exactly today's.
+    expect(
+      quest(root, ["task", "complete", id, ...HUMAN, "--json"]).exitCode,
+    ).toBe(0);
+    expect(git(root, ["add", "-A", ".quest/"]).exitCode).toBe(0);
+    expect(git(root, ["commit", "-qm", "land the move"]).exitCode).toBe(0);
+    const old = git(root, ["show", `HEAD~1:.quest/tasks/${id}.json`]).stdout;
+    await Bun.write(join(root, ".quest", "tasks", `${id}.json`), old);
+    const body = conflictBody(root);
+    expect(body.error_type).toBe("conflict");
+    expect(body.hint).not.toContain("Detected shape");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);

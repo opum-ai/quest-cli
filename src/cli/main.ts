@@ -56,6 +56,7 @@ import type {
   AcrossRefsUnreadable,
 } from "../application/refs/across-refs.ts";
 import {
+  type DuplicateIdentityRecord,
   LocalTaskRepository,
   RecordDuplicateIdentityError,
 } from "../application/tasks/local-task-repository.ts";
@@ -1538,6 +1539,63 @@ async function nextPlanningId(
     await highestPlanningSequenceOnOtherRefs(git, root, prefix),
   );
   return `${prefix}-${highest + 1}`;
+}
+
+/**
+ * QCLI-261/QCLI-424's static duplicate-identity guidance. QCLI-429 (DEC-92 A)
+ * appends one detected-shape sentence to it; the prose itself is unchanged.
+ */
+const DUPLICATE_IDENTITY_HINT =
+  "Every quest command fails closed while a task or draft id exists under more than one of tasks/completed/archive/tasks (or drafts/archive/drafts). Two common causes. (1) A partial `git add` that staged a move's addition but not its deletion. (2) A lifecycle move (complete/archive) made on a branch and left uncommitted -- the tasks/<id>.json deletion unstaged or staged beside an untracked completed/<id>.json -- and then an operation that discards the tracked deletion (`git switch -f`, `git reset --hard`, `git restore`/`git checkout` of .quest) while the untracked completed/ copy survives. Compare the listed paths yourself (diff, updatedAt, status): if they are the same record duplicated, keep the one reflecting the record's actual current state and remove the other(s) directly with `rm`/`git rm` -- quest cannot run any command to do this for you while the duplicate exists, so this is a sanctioned exception to editing .quest/ by hand. For cause (2) the completed/ copy is the true current state, so removing the stale tasks/<id>.json is only half the recovery: land the move as well -- commit the deletion and the addition -- because removing the stale copy alone leaves the next restoring operation free to recreate the duplicate. If the records genuinely differ (two unrelated tasks collided on the same id), this is not a stale copy -- do not delete either without reconciling which one keeps the id.";
+
+/**
+ * QCLI-429 (DEC-92 A): ONE sentence naming the branch-switch/restore shape --
+ * "cause (2)" in the hint above -- when the listed copies match it: the
+ * pre-move copy tracked at HEAD while the moved copy is untracked or newly
+ * added. `readBlob` answering null at HEAD IS the untracked-or-newly-added
+ * half (QCLI-424's feasibility note), so detection is one HEAD read per
+ * listed path, and it runs only once the conflict is already known to exist.
+ *
+ * Prose only, by the decision: no envelope field is added, and the error
+ * type, message and exit code are untouched. Degrades SILENTLY -- an
+ * unreadable object, no Git, a path outside the workspace -- to the
+ * unmodified hint, because a detection failure must never change what the
+ * caller already acts on.
+ */
+async function duplicateIdentityShapeSentence(
+  git: ReturnType<typeof createGitPort>,
+  root: string,
+  duplicates: readonly DuplicateIdentityRecord[],
+): Promise<string> {
+  try {
+    const base = (root.endsWith("/") ? root : `${root}/`).replaceAll("\\", "/");
+    const shaped: string[] = [];
+    for (const duplicate of duplicates) {
+      let preMoveAtHead = false;
+      let movedMissingAtHead = false;
+      for (const absolute of duplicate.paths) {
+        const normalized = absolute.replaceAll("\\", "/");
+        if (!normalized.startsWith(base)) continue;
+        const workspaceRelative = normalized.slice(base.length);
+        const isPreMove =
+          workspaceRelative.startsWith(".quest/tasks/") ||
+          workspaceRelative.startsWith(".quest/drafts/");
+        const isMoved =
+          workspaceRelative.startsWith(".quest/completed/") ||
+          workspaceRelative.startsWith(".quest/archive/");
+        if (!isPreMove && !isMoved) continue;
+        const atHead =
+          (await git.readBlob(root, "HEAD", workspaceRelative)) !== null;
+        if (isPreMove && atHead) preMoveAtHead = true;
+        if (isMoved && !atHead) movedMissingAtHead = true;
+      }
+      if (preMoveAtHead && movedMissingAtHead) shaped.push(duplicate.id);
+    }
+    if (shaped.length === 0) return "";
+    return ` Detected shape for ${shaped.join(", ")}: the pre-move copy is tracked at HEAD while the moved copy is untracked or newly added -- this is cause (2), so the moved copy is the true current state and the move must be landed with the removal.`;
+  } catch {
+    return "";
+  }
 }
 
 /** Executes the stable public tracker CLI against repository-local task storage. */
@@ -4083,7 +4141,17 @@ export async function runQuest(
     if (error instanceof RecordDuplicateIdentityError)
       return failure("conflict", error.message, {
         input: { duplicates: error.duplicates },
-        hint: "Every quest command fails closed while a task or draft id exists under more than one of tasks/completed/archive/tasks (or drafts/archive/drafts). Two common causes. (1) A partial `git add` that staged a move's addition but not its deletion. (2) A lifecycle move (complete/archive) made on a branch and left uncommitted -- the tasks/<id>.json deletion unstaged or staged beside an untracked completed/<id>.json -- and then an operation that discards the tracked deletion (`git switch -f`, `git reset --hard`, `git restore`/`git checkout` of .quest) while the untracked completed/ copy survives. Compare the listed paths yourself (diff, updatedAt, status): if they are the same record duplicated, keep the one reflecting the record's actual current state and remove the other(s) directly with `rm`/`git rm` -- quest cannot run any command to do this for you while the duplicate exists, so this is a sanctioned exception to editing .quest/ by hand. For cause (2) the completed/ copy is the true current state, so removing the stale tasks/<id>.json is only half the recovery: land the move as well -- commit the deletion and the addition -- because removing the stale copy alone leaves the next restoring operation free to recreate the duplicate. If the records genuinely differ (two unrelated tasks collided on the same id), this is not a stale copy -- do not delete either without reconciling which one keeps the id.",
+        // This mapping catch sits outside the `try` that declares the cached
+        // `git` and `resolvedRoot` (both are try-scoped), so the shape
+        // detection derives its own port and root. Both are cheap, and this
+        // runs only on the already-failing path (QCLI-429).
+        hint:
+          DUPLICATE_IDENTITY_HINT +
+          (await duplicateIdentityShapeSentence(
+            createGitPort(),
+            await taskStoreRoot(),
+            error.duplicates,
+          )),
       });
     // QCLI-297. `validation` on exit 6, matching check_index_out_of_range
     // below rather than `usage` on exit 2: whether a removal matches depends
