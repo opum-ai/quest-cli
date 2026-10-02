@@ -63,6 +63,8 @@ export type View = {
   query: string;
   repo: string;
   isCollapsed: boolean;
+  /** The full-screen toggle: the largest pane the surface allows, or the normal size. */
+  isFull: boolean;
   /** Read across refs (`quest task list --across-refs`) instead of the working tree. */
   readRefs: boolean;
   selected: { repo: string; id: string } | null;

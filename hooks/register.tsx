@@ -17,20 +17,23 @@ import {
   commentArg,
   discoverRoot,
   filterRows,
+  isStoredView,
+  isWideLayout,
   listArgs,
+  paneSize,
   parseAcrossRefs,
   parseTaskList,
   parseTaskView,
   parentOf,
   repoNameFromGitCommonDir,
   reposUnder,
+  sizeHeldHint,
 } from "./quest";
+import type { Viewport } from "./quest";
 
 const PANE = "quest-board";
 const REFRESH_MS = 60_000;
 const PREFS_KEY = "opum-quest.board.view";
-const DOCK_COLUMNS = 64;
-const RAIL_COLUMNS = 22;
 
 const board = atom({ plugin: "opum-quest", key: "board" } as const, {
   rows: [],
@@ -44,6 +47,7 @@ const view = atom({ plugin: "opum-quest", key: "view" } as const, {
   query: "",
   repo: "all",
   isCollapsed: false,
+  isFull: false,
   readRefs: false,
   selected: null,
   pending: null,
@@ -73,6 +77,18 @@ let isFleetResolved = false;
 let isUncommittedResolved = false;
 let pluginOptions: Record<string, unknown> = {};
 const dirs = new Map<string, string>();
+
+// The size the surface last reported, so a pane opened outside a draw --
+// `session.start`, `/quest-board` -- can still ask for the full size.
+// `ui.render` fills both axes; `command.run` knows the terminal's width and
+// nothing else, so an axis it did not measure is left as it was.
+let viewport: Partial<Viewport> = {};
+
+// The full size this session last asked the surface for. `session.start` runs
+// before any draw, so a stored full mode opens at the surface's own default and
+// has to ask again once a render reports a viewport. Keying on the size keeps
+// that to once per size rather than a re-open on every draw.
+let askedFullSize: string | null = null;
 
 /**
  * Discovers the fleet once, on whichever comes first: `session.start`, or the
@@ -449,18 +465,39 @@ async function closeTask($: EngineInterface, task: TaskDetail): Promise<void> {
 }
 
 async function savePrefs($: EngineInterface): Promise<void> {
-  const { tab, scope, status, isCollapsed, readRefs } = await read($, view);
-  await $.store.set(PREFS_KEY, { tab, scope, status, isCollapsed, readRefs });
+  const { tab, scope, status, isCollapsed, isFull, readRefs } = await read(
+    $,
+    view,
+  );
+  await $.store.set(PREFS_KEY, {
+    tab,
+    scope,
+    status,
+    isCollapsed,
+    isFull,
+    readRefs,
+  });
 }
 
+/**
+ * Opens the pane at the size the two states ask for, with the viewport the
+ * caller knows.
+ *
+ * `focus` is asked for only where the design names it -- reopening on the full
+ * toggle -- so restoring the pane at `session.start` does not take the keyboard
+ * off the prompt.
+ */
 async function openPane(
   $: EngineInterface,
-  isCollapsed: boolean,
+  state: Pick<View, "isCollapsed" | "isFull">,
+  size: Partial<Viewport> = viewport,
+  isFocused = false,
 ): Promise<void> {
   await $.ui.open({
     id: PANE,
-    title: isCollapsed ? "Quest" : "Quest board",
-    columns: isCollapsed ? RAIL_COLUMNS : DOCK_COLUMNS,
+    title: state.isCollapsed ? "Quest" : "Quest board",
+    ...(isFocused && !state.isCollapsed ? { focus: true as const } : {}),
+    ...paneSize(state, size),
   });
 }
 
@@ -471,7 +508,22 @@ async function setCollapsed(
   await update($, view, (current) => ({ ...current, isCollapsed }));
   await savePrefs($);
   await $.ui.close({ id: PANE });
-  await openPane($, isCollapsed);
+  await openPane($, await read($, view));
+}
+
+/**
+ * The full-screen toggle: the largest pane the surface allows, or the normal
+ * size, with the choice stored beside the pane's other settings.
+ */
+async function setFull($: EngineInterface, isFull: boolean): Promise<void> {
+  await update($, view, (current) => ({ ...current, isFull }));
+  await savePrefs($);
+  const current = await read($, view);
+  if (isFull) {
+    askedFullSize = JSON.stringify(paneSize(current, viewport));
+  }
+  await $.ui.close({ id: PANE });
+  await openPane($, current, viewport, true);
 }
 
 async function setScope($: EngineInterface, scope: Scope): Promise<void> {
@@ -566,24 +618,6 @@ export function coverageLine(
     )} -- a ref could not be read there, so an empty row is unread rather than empty.`;
 }
 
-function isStoredView(
-  value: unknown,
-): value is Pick<
-  View,
-  "tab" | "scope" | "status" | "isCollapsed" | "readRefs"
-> {
-  const v = value as Partial<View> | null;
-
-  return (
-    !!v &&
-    (v.tab === "list" || v.tab === "kanban") &&
-    (v.scope === "local" || v.scope === "fleet") &&
-    STATUSES.some((s) => s.value === v.status) &&
-    typeof v.isCollapsed === "boolean" &&
-    (typeof v.readRefs === "boolean" || v.readRefs === undefined)
-  );
-}
-
 export const register: Register = (on, options) => {
   pluginOptions = options;
   if (typeof options.actor === "string" && options.actor.trim()) {
@@ -599,6 +633,7 @@ export const register: Register = (on, options) => {
       await update($, view, (current) => ({
         ...current,
         ...stored,
+        isFull: stored.isFull === true,
         readRefs: stored.readRefs === true,
         selected: null,
       }));
@@ -607,10 +642,12 @@ export const register: Register = (on, options) => {
     await $.command.register({
       name: "quest-board",
       description:
-        "Open the Quest board. Add fleet, local, refs, collapse or expand.",
+        "Open the Quest board. Add fleet, local, refs, collapse, expand or full.",
     });
-    const { isCollapsed } = await read($, view);
-    void openPane($, isCollapsed);
+    // No viewport has been measured yet -- `session.start` runs ahead of the
+    // first draw -- so a stored full mode opens at the surface's default and
+    // the first render asks again, now that it can.
+    await openPane($, await read($, view));
     void refresh($);
     void ensureUncommitted($);
     $.clock.every(REFRESH_MS, () => {
@@ -628,6 +665,9 @@ export const register: Register = (on, options) => {
 
   on("command.run", { command: "quest-board" }, async ($, e) => {
     const arg = e.args.trim().toLowerCase();
+    // The command knows the terminal's width and not its height, so only the
+    // across axis is refreshed here; `ui.render` fills both.
+    viewport = { ...viewport, columns: e.presentation.columns };
     if (arg === "fleet" || arg === "local") {
       await setScope($, arg);
     }
@@ -646,8 +686,17 @@ export const register: Register = (on, options) => {
             : "Quest board expanded.",
       };
     }
-    const { isCollapsed, scope } = await read($, view);
-    await openPane($, isCollapsed);
+    const { isFull, scope } = await read($, view);
+    if (arg === "full") {
+      await setFull($, !isFull);
+
+      return {
+        text: (await read($, view)).isFull
+          ? "Quest board full screen."
+          : "Quest board back to its normal size.",
+      };
+    }
+    await openPane($, await read($, view));
     void refresh($);
 
     return {
@@ -673,6 +722,21 @@ export const register: Register = (on, options) => {
     const current = await read($, view);
     const width = Math.max(16, e.props.bodyColumns);
 
+    // A draw is the only place both axes of the surface are known. It is kept
+    // so a pane opened outside one can ask for the full size, and a full mode
+    // restored at `session.start` -- which could not size it -- asks again
+    // here, once per size, now that it can.
+    if (e.viewport) {
+      viewport = { columns: e.viewport.columns, rows: e.viewport.rows };
+      if (current.isFull && !current.isCollapsed) {
+        const wanted = JSON.stringify(paneSize(current, viewport));
+        if (askedFullSize !== wanted) {
+          askedFullSize = wanted;
+          void openPane($, current, viewport, true);
+        }
+      }
+    }
+
     const shown = filterRows(rows, current.query, current.repo);
     const busy = shown.filter((row) => row.tasks.length > 0);
     const failed = rows.filter((row) => row.error !== null);
@@ -680,6 +744,17 @@ export const register: Register = (on, options) => {
     const refsLine = coverageLine(rows, current.readRefs);
     const hasConflict = rows.some((row) =>
       row.tasks.some((task) => task.conflict),
+    );
+    // A size the surface kept rather than granted is said out loud, so the pane
+    // does not claim a size it did not get. The dock is measured across and the
+    // inline block down, so each compares against the axis it was sized on.
+    const hint = sizeHeldHint(
+      current,
+      e.props.placement,
+      viewport,
+      e.props.placement === "dock"
+        ? e.props.bodyColumns
+        : e.props.scroll.bodyRows,
     );
 
     if (current.isCollapsed) {
@@ -719,9 +794,20 @@ export const register: Register = (on, options) => {
       ? `${current.selected.repo}:${current.selected.id}`
       : null;
     const open = selectedKey ? await read($, detail) : null;
-    const listRoom = open
-      ? Math.max(5, e.props.scroll.bodyRows - 18)
-      : Number.POSITIVE_INFINITY;
+    // At 120 body columns or more the list and the detail go side by side; the
+    // detail then sits beside the list rather than under it, so the list is no
+    // longer cut short to leave it room.
+    const isSideBySide = open !== null && isWideLayout(e.props.bodyColumns);
+    const listWidth = isSideBySide
+      ? Math.max(24, Math.floor((width - 1) / 2))
+      : width;
+    const detailWidth = isSideBySide
+      ? Math.max(24, width - listWidth - 1)
+      : width;
+    const listRoom =
+      open && !isSideBySide
+        ? Math.max(5, e.props.scroll.bodyRows - 18)
+        : Number.POSITIVE_INFINITY;
     let drawn = 0;
     await resolveLocal($);
     const task = open?.task ?? null;
@@ -874,6 +960,14 @@ export const register: Register = (on, options) => {
           />
           <Text> </Text>
           <Button
+            key="full"
+            label={current.isFull ? "Normal size" : "Full screen"}
+            hotkey="z"
+            variant={current.isFull ? "primary" : undefined}
+            onPress={() => void setFull($, !current.isFull)}
+          />
+          <Text> </Text>
+          <Button
             key="collapse"
             label="Collapse"
             hotkey="c"
@@ -928,6 +1022,11 @@ export const register: Register = (on, options) => {
         <Text dimColor wrap="truncate">
           {summary}
         </Text>
+        {hint && (
+          <Text dimColor wrap="truncate">
+            {hint}
+          </Text>
+        )}
         {refsLine && (
           <Text
             dimColor={!refsLine.includes("INCOMPLETE")}
@@ -959,419 +1058,429 @@ export const register: Register = (on, options) => {
         )}
         {banner}
 
-        {refreshedAt !== null && total === 0 && failed.length === 0 && (
-          <Box marginTop={1}>
-            <Text dimColor>
-              {current.query
-                ? "No tasks match. Clear the filter or pick another status."
-                : `No ${statusWords(current.status)} tasks ${current.scope === "fleet" ? "in the fleet" : "in this repo"}.`}
-            </Text>
-          </Box>
-        )}
-
-        {busy.map((row) => {
-          if (drawn >= listRoom) {
-            return null;
-          }
-
-          return (
-            <Box key={row.repo} flexDirection="column" marginTop={1}>
-              <Text bold>{row.repo}</Text>
-              {row.tasks.map((task) => {
-                drawn += 1;
-                if (drawn > listRoom) {
-                  return null;
-                }
-                const key = `${row.repo}:${task.id}`;
-                const mark = task.conflict
-                  ? "*"
-                  : task.priority === "high"
-                    ? "!"
-                    : " ";
-                const proposed = task.proposedBy
-                  ? `  [${task.proposedBy}]`
-                  : "";
-                const label = `${mark} ${task.id}  ${task.title}${proposed}`;
-                if (key === selectedKey) {
-                  return (
-                    <Text key={key} inverse wrap="truncate">
-                      {label}
-                    </Text>
-                  );
-                }
-
-                return (
-                  <Button
-                    key={`row:${key}`}
-                    plain
-                    label={
-                      label.length > width
-                        ? `${label.slice(0, width - 1)}…`
-                        : label
-                    }
-                    onPress={() => void select($, row.repo, task.id)}
-                  />
-                );
-              })}
-            </Box>
-          );
-        })}
-        {drawn > listRoom && (
-          <Text dimColor>
-            {drawn - listRoom} more. Close the details to see them all.
-          </Text>
-        )}
-
-        {failed.length > 0 && (
-          <Box flexDirection="column" marginTop={1}>
-            <Text color="red">Could not read:</Text>
-            {failed.map((row) => (
-              <Text key={row.repo} dimColor wrap="truncate">
-                {"  "}
-                {row.repo}: {row.error}
-              </Text>
-            ))}
-          </Box>
-        )}
-
-        {open && (
-          <Box flexDirection="column" marginTop={1}>
-            <Text dimColor>{"─".repeat(width)}</Text>
-            {open.isLoading && (
-              <Text dimColor>Loading {current.selected?.id}…</Text>
-            )}
-            {open.error && (
-              <Text color="red">
-                Could not load {current.selected?.id}: {open.error}
-              </Text>
-            )}
-            {open.error && selectedRow?.proposedBy && (
-              <Text dimColor wrap="wrap">
-                {current.selected?.id} exists on {selectedRow.proposedBy} and
-                not in this checkout, so the detail reads nothing here. It is on
-                the board from the refs read.
-              </Text>
-            )}
-            {open.task && (
-              <Box flexDirection="column">
-                <Text bold wrap="wrap">
-                  {open.task.id} {open.task.title}
+        <Box key="layout" flexDirection={isSideBySide ? "row" : "column"}>
+          <Box flexDirection="column" width={listWidth}>
+            {refreshedAt !== null && total === 0 && failed.length === 0 && (
+              <Box marginTop={1}>
+                <Text dimColor>
+                  {current.query
+                    ? "No tasks match. Clear the filter or pick another status."
+                    : `No ${statusWords(current.status)} tasks ${current.scope === "fleet" ? "in the fleet" : "in this repo"}.`}
                 </Text>
-                <Text dimColor wrap="truncate">
-                  {[
-                    open.task.status,
-                    open.task.priority
-                      ? `${open.task.priority} priority`
-                      : null,
-                    open.task.type,
-                    open.task.updatedAt
-                      ? `updated ${open.task.updatedAt.slice(0, 16).replace("T", " ")}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </Text>
-                {open.task.labels.length > 0 && (
-                  <Text dimColor wrap="truncate">
-                    Labels: {open.task.labels.join(", ")}
-                  </Text>
-                )}
-                {open.task.description && (
-                  <Box marginTop={1}>
-                    <Markdown
-                      text={
-                        open.task.description.length > 700
-                          ? `${open.task.description.slice(0, 700)}…`
-                          : open.task.description
-                      }
-                    />
-                  </Box>
-                )}
-                {open.task.criteria.length > 0 && (
-                  <Box flexDirection="column" marginTop={1}>
-                    <Text>
-                      Acceptance criteria,{" "}
-                      {open.task.criteria.filter((c) => c.isChecked).length} of{" "}
-                      {open.task.criteria.length} checked
-                    </Text>
-                    {open.task.criteria.slice(0, 8).map((item) =>
-                      canEdit && task ? (
-                        <Button
-                          key={`ac:${item.position}`}
-                          plain
-                          label={`${item.isChecked ? "☑" : "☐"} ${item.text}`.slice(
-                            0,
-                            width,
-                          )}
-                          onPress={() =>
-                            void editTask(
-                              $,
-                              task,
-                              [
-                                item.isChecked ? "--uncheck-ac" : "--check-ac",
-                                String(item.position),
-                              ],
-                              `${item.isChecked ? "Unchecked" : "Checked"} criterion ${item.position} on ${task.id}`,
-                            )
-                          }
-                        />
-                      ) : (
-                        <Text
-                          key={`ac:${item.position}`}
-                          dimColor={item.isChecked}
-                          wrap="truncate"
-                        >
-                          {item.isChecked ? "☑ " : "☐ "}
-                          {item.text}
-                        </Text>
-                      ),
-                    )}
-                  </Box>
-                )}
-                {open.task.dependencies.length > 0 && (
-                  <Text dimColor wrap="truncate">
-                    Depends on {open.task.dependencies.join(", ")}
-                  </Text>
-                )}
-                {open.task.latestNote && (
-                  <Box flexDirection="column" marginTop={1}>
-                    <Text>Latest note</Text>
-                    <Text dimColor wrap="wrap">
-                      {open.task.latestNote.length > 400
-                        ? `${open.task.latestNote.slice(0, 400)}…`
-                        : open.task.latestNote}
-                    </Text>
-                  </Box>
-                )}
               </Box>
             )}
-            {open.task && open.task.comments.length > 0 && (
+
+            {busy.map((row) => {
+              if (drawn >= listRoom) {
+                return null;
+              }
+
+              return (
+                <Box key={row.repo} flexDirection="column" marginTop={1}>
+                  <Text bold>{row.repo}</Text>
+                  {row.tasks.map((task) => {
+                    drawn += 1;
+                    if (drawn > listRoom) {
+                      return null;
+                    }
+                    const key = `${row.repo}:${task.id}`;
+                    const mark = task.conflict
+                      ? "*"
+                      : task.priority === "high"
+                        ? "!"
+                        : " ";
+                    const proposed = task.proposedBy
+                      ? `  [${task.proposedBy}]`
+                      : "";
+                    const label = `${mark} ${task.id}  ${task.title}${proposed}`;
+                    if (key === selectedKey) {
+                      return (
+                        <Text key={key} inverse wrap="truncate">
+                          {label}
+                        </Text>
+                      );
+                    }
+
+                    return (
+                      <Button
+                        key={`row:${key}`}
+                        plain
+                        label={
+                          label.length > listWidth
+                            ? `${label.slice(0, listWidth - 1)}…`
+                            : label
+                        }
+                        onPress={() => void select($, row.repo, task.id)}
+                      />
+                    );
+                  })}
+                </Box>
+              );
+            })}
+            {drawn > listRoom && (
+              <Text dimColor>
+                {drawn - listRoom} more. Close the details to see them all.
+              </Text>
+            )}
+
+            {failed.length > 0 && (
               <Box flexDirection="column" marginTop={1}>
-                <Text>Comments</Text>
-                {open.task.comments.slice(-3).map((comment) => (
-                  <Text
-                    key={`${comment.author}-${comment.createdAt}`}
-                    dimColor
-                    wrap="wrap"
-                  >
-                    {comment.author},{" "}
-                    {comment.createdAt.slice(0, 16).replace("T", " ")}:{" "}
-                    {comment.body.length > 300
-                      ? `${comment.body.slice(0, 300)}…`
-                      : comment.body}
+                <Text color="red">Could not read:</Text>
+                {failed.map((row) => (
+                  <Text key={row.repo} dimColor wrap="truncate">
+                    {"  "}
+                    {row.repo}: {row.error}
                   </Text>
                 ))}
               </Box>
             )}
-            {open.task &&
-              current.selected &&
-              current.selected.repo !== localRepo && (
-                <Box marginTop={1}>
-                  <Text dimColor wrap="wrap">
-                    Read-only here. {current.selected.repo} is edited from its
-                    own session.
+          </Box>
+
+          {open && (
+            <Box
+              flexDirection="column"
+              width={detailWidth}
+              marginTop={isSideBySide ? 0 : 1}
+            >
+              <Text dimColor>{"─".repeat(detailWidth)}</Text>
+              {open.isLoading && (
+                <Text dimColor>Loading {current.selected?.id}…</Text>
+              )}
+              {open.error && (
+                <Text color="red">
+                  Could not load {current.selected?.id}: {open.error}
+                </Text>
+              )}
+              {open.error && selectedRow?.proposedBy && (
+                <Text dimColor wrap="wrap">
+                  {current.selected?.id} exists on {selectedRow.proposedBy} and
+                  not in this checkout, so the detail reads nothing here. It is
+                  on the board from the refs read.
+                </Text>
+              )}
+              {open.task && (
+                <Box flexDirection="column">
+                  <Text bold wrap="wrap">
+                    {open.task.id} {open.task.title}
                   </Text>
+                  <Text dimColor wrap="truncate">
+                    {[
+                      open.task.status,
+                      open.task.priority
+                        ? `${open.task.priority} priority`
+                        : null,
+                      open.task.type,
+                      open.task.updatedAt
+                        ? `updated ${open.task.updatedAt.slice(0, 16).replace("T", " ")}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </Text>
+                  {open.task.labels.length > 0 && (
+                    <Text dimColor wrap="truncate">
+                      Labels: {open.task.labels.join(", ")}
+                    </Text>
+                  )}
+                  {open.task.description && (
+                    <Box marginTop={1}>
+                      <Markdown
+                        text={
+                          open.task.description.length > 700
+                            ? `${open.task.description.slice(0, 700)}…`
+                            : open.task.description
+                        }
+                      />
+                    </Box>
+                  )}
+                  {open.task.criteria.length > 0 && (
+                    <Box flexDirection="column" marginTop={1}>
+                      <Text>
+                        Acceptance criteria,{" "}
+                        {open.task.criteria.filter((c) => c.isChecked).length}{" "}
+                        of {open.task.criteria.length} checked
+                      </Text>
+                      {open.task.criteria.slice(0, 8).map((item) =>
+                        canEdit && task ? (
+                          <Button
+                            key={`ac:${item.position}`}
+                            plain
+                            label={`${item.isChecked ? "☑" : "☐"} ${item.text}`.slice(
+                              0,
+                              detailWidth,
+                            )}
+                            onPress={() =>
+                              void editTask(
+                                $,
+                                task,
+                                [
+                                  item.isChecked
+                                    ? "--uncheck-ac"
+                                    : "--check-ac",
+                                  String(item.position),
+                                ],
+                                `${item.isChecked ? "Unchecked" : "Checked"} criterion ${item.position} on ${task.id}`,
+                              )
+                            }
+                          />
+                        ) : (
+                          <Text
+                            key={`ac:${item.position}`}
+                            dimColor={item.isChecked}
+                            wrap="truncate"
+                          >
+                            {item.isChecked ? "☑ " : "☐ "}
+                            {item.text}
+                          </Text>
+                        ),
+                      )}
+                    </Box>
+                  )}
+                  {open.task.dependencies.length > 0 && (
+                    <Text dimColor wrap="truncate">
+                      Depends on {open.task.dependencies.join(", ")}
+                    </Text>
+                  )}
+                  {open.task.latestNote && (
+                    <Box flexDirection="column" marginTop={1}>
+                      <Text>Latest note</Text>
+                      <Text dimColor wrap="wrap">
+                        {open.task.latestNote.length > 400
+                          ? `${open.task.latestNote.slice(0, 400)}…`
+                          : open.task.latestNote}
+                      </Text>
+                    </Box>
+                  )}
                 </Box>
               )}
-            {canEdit && task && (
-              <Box flexDirection="column" marginTop={1}>
-                <Box>
-                  {(task.status === "To Do" || task.status === "Paused") && (
-                    <Button
-                      key="start"
-                      label={task.status === "Paused" ? "Resume" : "Start"}
-                      hotkey="s"
-                      onPress={() =>
-                        void write(
-                          $,
-                          task.id,
-                          ["task", "start", task.id],
-                          `${task.status === "Paused" ? "Resumed" : "Started"} ${task.id}`,
-                        )
-                      }
-                    />
-                  )}
-                  {task.status === "In Progress" && (
-                    <Button
-                      key="pause"
-                      label="Pause"
-                      hotkey="p"
-                      onPress={() =>
-                        void write(
-                          $,
-                          task.id,
-                          ["task", "pause", task.id],
-                          `Paused ${task.id}`,
-                        )
-                      }
-                    />
-                  )}
-                  {task.status === "In Progress" && <Text> </Text>}
-                  {task.status === "In Progress" && (
-                    <Button
-                      key="complete"
-                      label="Complete"
-                      hotkey="d"
-                      onPress={() =>
-                        void update($, view, (v) => ({
-                          ...v,
-                          pending: "complete" as const,
-                        }))
-                      }
-                    />
-                  )}
-                  <Text> </Text>
-                  <Button
-                    key="close-task"
-                    label="Close as won't do"
-                    onPress={() => void closeTask($, task)}
-                  />
+              {open.task && open.task.comments.length > 0 && (
+                <Box flexDirection="column" marginTop={1}>
+                  <Text>Comments</Text>
+                  {open.task.comments.slice(-3).map((comment) => (
+                    <Text
+                      key={`${comment.author}-${comment.createdAt}`}
+                      dimColor
+                      wrap="wrap"
+                    >
+                      {comment.author},{" "}
+                      {comment.createdAt.slice(0, 16).replace("T", " ")}:{" "}
+                      {comment.body.length > 300
+                        ? `${comment.body.slice(0, 300)}…`
+                        : comment.body}
+                    </Text>
+                  ))}
                 </Box>
-                {current.pending === "complete" && (
-                  <Box flexDirection="column" marginTop={1}>
-                    <Input
-                      key="final-summary"
-                      label="Final summary"
-                      placeholder="What happened, in a sentence or two"
-                      submitLabel="Complete"
-                      onSubmit={(value: string) =>
-                        void (async () => {
-                          const summaryText = value.trim();
-                          const isSaved = await write(
-                            $,
-                            task.id,
-                            [
-                              "task",
-                              "complete",
-                              task.id,
-                              ...(summaryText
-                                ? ["--final-summary", summaryText]
-                                : []),
-                            ],
-                            `Completed ${task.id}`,
-                          );
-                          if (isSaved) {
-                            await update($, view, (v) => ({
-                              ...v,
-                              pending: null,
-                            }));
-                          }
-                        })()
-                      }
-                    />
-                    <Button
-                      key="cancel-complete"
-                      label="Cancel"
-                      onPress={() =>
-                        void update($, view, (v) => ({ ...v, pending: null }))
-                      }
-                    />
+              )}
+              {open.task &&
+                current.selected &&
+                current.selected.repo !== localRepo && (
+                  <Box marginTop={1}>
+                    <Text dimColor wrap="wrap">
+                      Read-only here. {current.selected.repo} is edited from its
+                      own session.
+                    </Text>
                   </Box>
                 )}
-                <Select
-                  key="priority"
-                  label="Priority"
-                  value={task.priority ?? "medium"}
-                  options={[
-                    { value: "high", label: "High" },
-                    { value: "medium", label: "Medium" },
-                    { value: "low", label: "Low" },
-                  ]}
-                  onSelect={(value: string) =>
-                    void (
-                      value !== task.priority &&
-                      editTask(
-                        $,
-                        task,
-                        ["--priority", value],
-                        `Set ${task.id} to ${value} priority`,
+              {canEdit && task && (
+                <Box flexDirection="column" marginTop={1}>
+                  <Box>
+                    {(task.status === "To Do" || task.status === "Paused") && (
+                      <Button
+                        key="start"
+                        label={task.status === "Paused" ? "Resume" : "Start"}
+                        hotkey="s"
+                        onPress={() =>
+                          void write(
+                            $,
+                            task.id,
+                            ["task", "start", task.id],
+                            `${task.status === "Paused" ? "Resumed" : "Started"} ${task.id}`,
+                          )
+                        }
+                      />
+                    )}
+                    {task.status === "In Progress" && (
+                      <Button
+                        key="pause"
+                        label="Pause"
+                        hotkey="p"
+                        onPress={() =>
+                          void write(
+                            $,
+                            task.id,
+                            ["task", "pause", task.id],
+                            `Paused ${task.id}`,
+                          )
+                        }
+                      />
+                    )}
+                    {task.status === "In Progress" && <Text> </Text>}
+                    {task.status === "In Progress" && (
+                      <Button
+                        key="complete"
+                        label="Complete"
+                        hotkey="d"
+                        onPress={() =>
+                          void update($, view, (v) => ({
+                            ...v,
+                            pending: "complete" as const,
+                          }))
+                        }
+                      />
+                    )}
+                    <Text> </Text>
+                    <Button
+                      key="close-task"
+                      label="Close as won't do"
+                      onPress={() => void closeTask($, task)}
+                    />
+                  </Box>
+                  {current.pending === "complete" && (
+                    <Box flexDirection="column" marginTop={1}>
+                      <Input
+                        key="final-summary"
+                        label="Final summary"
+                        placeholder="What happened, in a sentence or two"
+                        submitLabel="Complete"
+                        onSubmit={(value: string) =>
+                          void (async () => {
+                            const summaryText = value.trim();
+                            const isSaved = await write(
+                              $,
+                              task.id,
+                              [
+                                "task",
+                                "complete",
+                                task.id,
+                                ...(summaryText
+                                  ? ["--final-summary", summaryText]
+                                  : []),
+                              ],
+                              `Completed ${task.id}`,
+                            );
+                            if (isSaved) {
+                              await update($, view, (v) => ({
+                                ...v,
+                                pending: null,
+                              }));
+                            }
+                          })()
+                        }
+                      />
+                      <Button
+                        key="cancel-complete"
+                        label="Cancel"
+                        onPress={() =>
+                          void update($, view, (v) => ({ ...v, pending: null }))
+                        }
+                      />
+                    </Box>
+                  )}
+                  <Select
+                    key="priority"
+                    label="Priority"
+                    value={task.priority ?? "medium"}
+                    options={[
+                      { value: "high", label: "High" },
+                      { value: "medium", label: "Medium" },
+                      { value: "low", label: "Low" },
+                    ]}
+                    onSelect={(value: string) =>
+                      void (
+                        value !== task.priority &&
+                        editTask(
+                          $,
+                          task,
+                          ["--priority", value],
+                          `Set ${task.id} to ${value} priority`,
+                        )
                       )
+                    }
+                  />
+                  <Input
+                    key="rename"
+                    placeholder="Rename to…"
+                    submitLabel="Rename"
+                    onSubmit={(value: string) =>
+                      void (
+                        value.trim() &&
+                        value.trim() !== task.title &&
+                        editTask(
+                          $,
+                          task,
+                          ["--title", value.trim()],
+                          `Renamed ${task.id}`,
+                        )
+                      )
+                    }
+                  />
+                  <Input
+                    key="label"
+                    placeholder="Add a label"
+                    submitLabel="Add label"
+                    onSubmit={(value: string) =>
+                      void (
+                        value.trim() &&
+                        editTask(
+                          $,
+                          task,
+                          ["--add-label", value.trim()],
+                          `Labelled ${task.id} ${value.trim()}`,
+                        )
+                      )
+                    }
+                  />
+                  <Input
+                    key="comment"
+                    placeholder="Add a comment"
+                    submitLabel="Comment"
+                    onSubmit={(value: string) =>
+                      void (async () => {
+                        const body = value.trim();
+                        if (!body) {
+                          return;
+                        }
+                        const now = await $.clock.now();
+                        await editTask(
+                          $,
+                          task,
+                          ["--add-comment", commentArg(actor, body, now)],
+                          `Commented on ${task.id}`,
+                        );
+                      })()
+                    }
+                  />
+                  {isWriting && <Text dimColor>Saving…</Text>}
+                </Box>
+              )}
+              <Box marginTop={1}>
+                <Button
+                  key="copy"
+                  label="Copy id"
+                  hotkey="y"
+                  onPress={(pressed) =>
+                    void (
+                      current.selected &&
+                      $.ui.copy({
+                        text: current.selected.id,
+                        surface: pressed.surface,
+                      })
                     )
                   }
                 />
-                <Input
-                  key="rename"
-                  placeholder="Rename to…"
-                  submitLabel="Rename"
-                  onSubmit={(value: string) =>
-                    void (
-                      value.trim() &&
-                      value.trim() !== task.title &&
-                      editTask(
-                        $,
-                        task,
-                        ["--title", value.trim()],
-                        `Renamed ${task.id}`,
-                      )
-                    )
+                <Text> </Text>
+                <Button
+                  key="close-detail"
+                  label="Close details"
+                  hotkey="x"
+                  onPress={() =>
+                    void update($, view, (v) => ({ ...v, selected: null }))
                   }
                 />
-                <Input
-                  key="label"
-                  placeholder="Add a label"
-                  submitLabel="Add label"
-                  onSubmit={(value: string) =>
-                    void (
-                      value.trim() &&
-                      editTask(
-                        $,
-                        task,
-                        ["--add-label", value.trim()],
-                        `Labelled ${task.id} ${value.trim()}`,
-                      )
-                    )
-                  }
-                />
-                <Input
-                  key="comment"
-                  placeholder="Add a comment"
-                  submitLabel="Comment"
-                  onSubmit={(value: string) =>
-                    void (async () => {
-                      const body = value.trim();
-                      if (!body) {
-                        return;
-                      }
-                      const now = await $.clock.now();
-                      await editTask(
-                        $,
-                        task,
-                        ["--add-comment", commentArg(actor, body, now)],
-                        `Commented on ${task.id}`,
-                      );
-                    })()
-                  }
-                />
-                {isWriting && <Text dimColor>Saving…</Text>}
               </Box>
-            )}
-            <Box marginTop={1}>
-              <Button
-                key="copy"
-                label="Copy id"
-                hotkey="y"
-                onPress={(pressed) =>
-                  void (
-                    current.selected &&
-                    $.ui.copy({
-                      text: current.selected.id,
-                      surface: pressed.surface,
-                    })
-                  )
-                }
-              />
-              <Text> </Text>
-              <Button
-                key="close-detail"
-                label="Close details"
-                hotkey="x"
-                onPress={() =>
-                  void update($, view, (v) => ({ ...v, selected: null }))
-                }
-              />
             </Box>
-          </Box>
-        )}
+          )}
+        </Box>
       </Box>
     );
   });
