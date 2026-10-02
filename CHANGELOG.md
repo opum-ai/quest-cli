@@ -27,6 +27,18 @@ dated by its own tag. No date here is inferred (QCLI-398).
   asked for, the pane says so on one line rather than claiming a size it did
   not get.
 
+- **The `opum-quest` plugin ships a `migrate-from-backlog` skill**, so a
+  Backlog.md project can be moved into Quest from inside Claude Code instead of
+  by hand (QCLI-436, from the same operator instruction). It drives
+  `quest migration backlog` through preview, apply, status and rollback, and
+  stops at each write for the person to approve with `AskUserQuestion`: once to
+  choose whether the records keep Backlog's own ids or take Quest's, and once to
+  approve the exact digest that was just previewed. The apply is recorded as the
+  approving person (`--actor-kind human`), not the agent. The skill never
+  deletes `backlog/`, never commits — it hands the records to the repository's
+  own branch-and-PR flow — and never applies a digest other than the one just
+  previewed. The `quest` skill carries a one-line pointer to it.
+
 ## 0.12.0
 
 ### Changed

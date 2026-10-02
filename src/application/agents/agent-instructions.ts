@@ -272,6 +272,9 @@ ${provenance}
 - \`quest help [command]\` — exact flags; \`quest manifest --json\` for the machine registry.
 
 Drive tracker state through \`quest\`, never by editing \`.quest/\` by hand.
+
+Coming from Backlog.md? The \`migrate-from-backlog\` skill drives
+\`quest migration backlog\` preview, apply, status and rollback.
 `;
 }
 
