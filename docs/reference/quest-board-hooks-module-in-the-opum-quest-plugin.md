@@ -64,6 +64,14 @@ single component.
   the CI job installs only the CLI.
 - **`tsc` against the engine's TypeScript declaration** — **machine-local**.
 
+Validated at the repository root as well as against the stage, and the two
+differ in one respect worth recording: the root passes with a warning that
+`CLAUDE.md` at the plugin root is not loaded as project context, so the root
+would **fail** under `--strict` while the stage passes it. That is not a defect
+to fix here — the warning is about a file the plugin does not ship, and shipping
+context is a skill's job — but it is why the gate runs `--strict` against the
+stage rather than against the checkout.
+
 The typecheck is machine-local by construction, not by preference. The engine
 writes its declaration beside a module only when a **session** loads that module
 from a folder the person owns; `claude plugin test` does not write one. Measured
