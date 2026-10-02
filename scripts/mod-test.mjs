@@ -89,15 +89,22 @@ function findDeclarations() {
   const found = [];
   for (const tempRoot of roots) {
     const claudeDirs = existsSync(tempRoot) ? readdirSync(tempRoot) : [];
-    for (const claudeDir of claudeDirs.filter((name) => name.startsWith("claude-"))) {
+    for (const claudeDir of claudeDirs.filter((name) =>
+      name.startsWith("claude-"),
+    )) {
       const skills = join(tempRoot, claudeDir, "bundled-skills");
       if (!existsSync(skills)) continue;
       for (const version of readdirSync(skills)) {
         const versionDir = join(skills, version);
         for (const hash of readdirSync(versionDir)) {
-          const candidate = join(versionDir, hash, "plugin-authoring/types/claude-code.d.ts");
+          const candidate = join(
+            versionDir,
+            hash,
+            "plugin-authoring/types/claude-code.d.ts",
+          );
           if (!existsSync(candidate)) continue;
-          const wrote = readFileSync(candidate, "utf8").split("\n")[0]?.trim() ?? "";
+          const wrote =
+            readFileSync(candidate, "utf8").split("\n")[0]?.trim() ?? "";
           found.push({ path: candidate, wrote, version });
         }
       }
@@ -108,8 +115,10 @@ function findDeclarations() {
 }
 
 const claude = output("claude", ["--version"]);
-if (!claude || claude.status !== 0) {
-  console.error("The `claude` CLI is required to run the mod's tests and was not found on PATH.");
+if (claude?.status !== 0) {
+  console.error(
+    "The `claude` CLI is required to run the mod's tests and was not found on PATH.",
+  );
   process.exit(1);
 }
 if (!versionAtLeast(claude.stdout)) {
@@ -143,18 +152,26 @@ if (!existsSync(tsc)) {
 // The stage is realpath'd: on macOS the temp root is a symlink (/tmp), and a
 // path through it is a path the tools may treat as a different directory.
 const staged = await realpath(await mkdtemp(join(tmpdir(), "quest-mod-")));
-await cp(join(root, ".claude-plugin"), join(staged, ".claude-plugin"), { recursive: true });
+await cp(join(root, ".claude-plugin"), join(staged, ".claude-plugin"), {
+  recursive: true,
+});
 for (const entry of SHIPPED) {
   await cp(join(root, entry), join(staged, entry), { recursive: true });
 }
 if (!existsSync(join(staged, "hooks", "register.tsx"))) {
   // A stage that did not copy is a run that tested nothing, and it would
   // otherwise pass.
-  console.error(`The stage at ${staged} has no hooks module; nothing was tested.`);
+  console.error(
+    `The stage at ${staged} has no hooks module; nothing was tested.`,
+  );
   process.exit(1);
 }
 
 let failed = false;
+// Named in the closing line, so a run that skipped the typecheck cannot be read
+// as one that passed it -- the difference between the two is invisible in an
+// exit code, and an exit code is what CI reads.
+let typecheck = "NOT RUN";
 const step = (name, command, args) => {
   const status = run(command, args);
   if (status !== 0) {
@@ -165,15 +182,26 @@ const step = (name, command, args) => {
   return status === 0;
 };
 
-console.log(`Claude Code: ${claude.stdout} (mods need ${MINIMUM_CLAUDE.join(".")}+)`);
+console.log(
+  `Claude Code: ${claude.stdout} (mods need ${MINIMUM_CLAUDE.join(".")}+)`,
+);
 console.log(`Staged: ${staged}\n`);
-step("claude plugin validate", "claude", ["plugin", "validate", staged]);
+// --strict is the CI arm of the validator: it fails on the unrecognized fields
+// and missing metadata the runtime merely tolerates.
+step("claude plugin validate --strict", "claude", [
+  "plugin",
+  "validate",
+  "--strict",
+  staged,
+]);
 step("claude plugin test", "claude", ["plugin", "test", staged]);
 
 const laid = join(staged, ".claude-plugin", "types", "tsconfig.json");
 const bundled = existsSync(laid) ? null : pickDeclaration();
 if (existsSync(laid)) {
-  step(`tsc (${laid})`, tsc, ["-p", laid]);
+  if (step(`tsc (${laid})`, tsc, ["-p", laid])) {
+    typecheck = `clean, against the declaration the engine laid at ${laid}`;
+  }
 } else if (bundled) {
   const config = join(staged, "tsconfig.check.json");
   await writeFile(
@@ -191,8 +219,11 @@ if (existsSync(laid)) {
     )}\n`,
   );
   console.log(`\nDeclaration: ${bundled.path}\n${bundled.wrote}`);
-  step("tsc", tsc, ["-p", config]);
+  if (step("tsc", tsc, ["-p", config])) {
+    typecheck = `clean, against the plugin-authoring skill's ${bundled.version} declaration at ${bundled.path}`;
+  }
 } else {
+  typecheck = "NOT TYPECHECKED -- no engine declaration on this machine";
   console.log(
     "\nNOT TYPECHECKED: no engine declaration on this machine. Load the plugin in a session\n" +
       "(a --plugin-dir or the mods folder) to have one laid beside it, or run the\n" +
@@ -205,4 +236,4 @@ if (failed) {
   process.exit(1);
 }
 await rm(staged, { recursive: true, force: true });
-console.log("\nThe mod validates and its tests pass.");
+console.log(`\nThe mod validates and its tests pass. Typecheck: ${typecheck}.`);
