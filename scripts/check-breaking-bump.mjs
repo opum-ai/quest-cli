@@ -35,8 +35,9 @@
 //   node scripts/check-breaking-bump.mjs --pair --lore-ref dev --next 0.12.0
 
 import { execFile as execFileCallback } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -253,7 +254,7 @@ export function describe(result, label = "") {
 
 if (
   process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   const argv = process.argv.slice(2);
   const value = (flag) => {

@@ -22,9 +22,10 @@
 // written after their tags and are reported with their reasons instead.
 
 import { execFile as execFileCallback } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { resolveTagCommit } from "./qualification/pair-receipt.mjs";
@@ -485,7 +486,7 @@ async function main(argv) {
 
 if (
   process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   try {
     await main(process.argv.slice(2));
