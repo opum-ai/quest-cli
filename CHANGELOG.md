@@ -10,6 +10,25 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
+### Added
+
+- **The opum-quest plugin ships the Quest board: a pane listing the tasks in
+  flight across your Quest workspaces, editable in the session's own
+  repository** (QCLI-431, from the operator's instruction of 2026-10-02 tracked
+  in opum-agent as OPAG-1074). The plugin is cut from this repository at the
+  CLI's own tag, so the board arrives with this version rather than separately.
+  The pane discovers its repository set from the plugin's `userConfig` instead
+  of a hardcoded roster, always including the session's own repository, and
+  offers the repository-true read (`quest task list --across-refs`) as a toggle
+  that draws cross-ref disagreements and incomplete coverage as such rather
+  than as an empty result. A write happens only in the session's own
+  repository, through Quest lifecycle commands, with an explicit actor on every
+  write -- the person, `--actor <configured id> --actor-kind human`, from the
+  plugin's `actor` option, per DEC-134 (A) -- and `--if-revision` on field
+  edits. The repository's own check suite runs the module's tests, so a failing
+  mod test fails the gate rather than passing unrun. Design record:
+  `docs/reference/quest-board-hooks-module-in-the-opum-quest-plugin.md`.
+
 ## 0.12.0
 
 ### Changed
