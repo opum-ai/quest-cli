@@ -5,3 +5,5 @@ CLAUDE.local.md
 node_modules/
 .pi/
 **/evals/results/
+# Written by the Claude Code engine when it loads this plugin from a checkout.
+.claude-plugin/types/
