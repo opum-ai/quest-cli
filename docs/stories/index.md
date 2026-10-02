@@ -11,4 +11,5 @@
 - [Preserve Quest CLI documentation campaign provenance](preserve-quest-cli-documentation-campaign-provenance.md)
 - [Ratify the Quest CLI Phase 1 component decisions](ratify-the-quest-cli-phase-1-component-decisions.md)
 - [Record Quest CLI post-activation design rulings](record-quest-cli-post-activation-design-rulings.md)
+- [Ship the Quest board mod in the opum-quest plugin](ship-the-quest-board-mod-in-the-opum-quest-plugin.md)
 <!-- lore:index:end -->
