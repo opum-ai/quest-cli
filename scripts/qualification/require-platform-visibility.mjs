@@ -20,6 +20,7 @@
  * than a second implementation of the read. Two implementations of "did it
  * land" would drift, and the one in CI is the one nobody runs by hand.
  */
+import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -139,5 +140,10 @@ async function main() {
 }
 
 // Only run when invoked directly, so the module stays importable by tests.
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])
+// realpathSync on both sides: resolve() alone is false for a symlinked
+// invocation, and this gate must never exit 0 having done nothing.
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+)
   await main();

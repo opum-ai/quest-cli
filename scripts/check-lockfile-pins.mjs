@@ -11,8 +11,9 @@
 // breakage. This check fails on the bump itself, where `bun install` fixes it
 // without the new version existing.
 
+import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { REQUIRED_PLATFORMS } from "./qualification/native-execution-receipt.mjs";
@@ -72,7 +73,7 @@ export async function checkLockfilePins(directory = root) {
 
 if (
   process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   const { problems, pinsRead, expected } = await checkLockfilePins();
   if (problems.length) {

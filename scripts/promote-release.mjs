@@ -57,10 +57,10 @@
 
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { rmSync } from "node:fs";
+import { realpathSync, rmSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -1093,7 +1093,7 @@ async function main(argv) {
 
 if (
   process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   try {
     await main(process.argv.slice(2));
