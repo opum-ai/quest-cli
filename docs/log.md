@@ -271,6 +271,7 @@
 - 2026-09-29T01:12:05-05:00 a768210c3eba5925310ded23c441d51c7f3b5d59 fix(QCLI-310): scope --if-revision to the record, not the workspace (#415)
 - 2026-09-29T01:25:37-05:00 0a1707c6d75454854e1443b79c06dd7f38ef7ebd chore(QCLI-406): recycle handoff note at the QCLI-310 boundary (#417)
 - 2026-09-29T01:34:35-05:00 de0cdf69e92aa50a7703474ad6b06415894d6270 chore(QCLI-406): second recycle handoff note, postdating the request (#418)
+- 2026-10-02T16:45:58-05:00 bcf7e0b33aad67a9f455aa17935dd20b95febe30 feat(QCLI-431): ship the Quest board hooks module in the opum-quest plugin (#481)
 
 ## docs/adr
 
