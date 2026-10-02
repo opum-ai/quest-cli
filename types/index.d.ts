@@ -40,7 +40,13 @@ export type RepoRow = {
 export type Scope = "local" | "fleet";
 
 // "open" is every status but Done and Closed; the rest are Quest statuses.
-export type StatusFilter = "open" | "In Progress" | "To Do" | "Paused" | "Done" | "Closed";
+export type StatusFilter =
+  | "open"
+  | "In Progress"
+  | "To Do"
+  | "Paused"
+  | "Done"
+  | "Closed";
 
 export type Tab = "list" | "kanban";
 

@@ -22,7 +22,13 @@ const PANE = {
 const ROOT = "/repos";
 
 const ok = (stdout: string) => ({
-  value: { exitCode: 0, stdout, stderr: "", isStdoutTruncated: false, isStderrTruncated: false },
+  value: {
+    exitCode: 0,
+    stdout,
+    stderr: "",
+    isStdoutTruncated: false,
+    isStderrTruncated: false,
+  },
 });
 
 // The workspaces a fleet root holds, as `$.fs` would answer for them.
@@ -36,14 +42,22 @@ const FLEET: FsEntry[] = [
 function mockFleet(on: On) {
   on("fs.list", async (_$, e) => ({ value: e.path === ROOT ? FLEET : [] }));
   on("fs.exists", async (_$, e) => ({
-    value: e.path.endsWith("/.quest/workspace.toml") && !e.path.includes("not-a-workspace"),
+    value:
+      e.path.endsWith("/.quest/workspace.toml") &&
+      !e.path.includes("not-a-workspace"),
   }));
 }
 
 const LISTING = JSON.stringify({
   kind: "task.list",
   data: [
-    { id: "OCLI-8", title: "Failure probes", status: "In Progress", priority: "high", labels: ["c5"] },
+    {
+      id: "OCLI-8",
+      title: "Failure probes",
+      status: "In Progress",
+      priority: "high",
+      labels: ["c5"],
+    },
   ],
 });
 
@@ -76,7 +90,10 @@ const ACROSS = JSON.stringify({
       proposedBy: null,
       conflict: false,
       states: [
-        { status: "In Progress", refProvenance: { ref: "origin/dev", pullRequest: null, sha: "a" } },
+        {
+          status: "In Progress",
+          refProvenance: { ref: "origin/dev", pullRequest: null, sha: "a" },
+        },
       ],
     },
     {
@@ -85,10 +102,17 @@ const ACROSS = JSON.stringify({
       proposedBy: "opum-ai/opum-cli#4",
       conflict: true,
       states: [
-        { status: "To Do", refProvenance: { ref: "origin/dev", pullRequest: null, sha: "a" } },
+        {
+          status: "To Do",
+          refProvenance: { ref: "origin/dev", pullRequest: null, sha: "a" },
+        },
         {
           status: "In Progress",
-          refProvenance: { ref: "refs/pull/4/head", pullRequest: "opum-ai/opum-cli#4", sha: "b" },
+          refProvenance: {
+            ref: "refs/pull/4/head",
+            pullRequest: "opum-ai/opum-cli#4",
+            sha: "b",
+          },
         },
       ],
     },
@@ -100,7 +124,11 @@ const ACROSS = JSON.stringify({
       states: [
         {
           status: "To Do",
-          refProvenance: { ref: "refs/pull/4/head", pullRequest: "opum-ai/opum-cli#4", sha: "b" },
+          refProvenance: {
+            ref: "refs/pull/4/head",
+            pullRequest: "opum-ai/opum-cli#4",
+            sha: "b",
+          },
         },
       ],
     },
@@ -153,8 +181,12 @@ test("filters match id, title or label and narrow by repo", async () => {
       ],
     },
   ];
-  expect(filterRows(rows, "probe", "all").map((r) => r.tasks.length)).toEqual([1, 0]);
-  expect(filterRows(rows, "C5", "all").map((r) => r.tasks.length)).toEqual([1, 0]);
+  expect(filterRows(rows, "probe", "all").map((r) => r.tasks.length)).toEqual([
+    1, 0,
+  ]);
+  expect(filterRows(rows, "C5", "all").map((r) => r.tasks.length)).toEqual([
+    1, 0,
+  ]);
   expect(filterRows(rows, "", "b").map((r) => r.repo)).toEqual(["b"]);
   expect(listArgs("open", false)).toEqual([
     "--exclude-status",
@@ -164,7 +196,12 @@ test("filters match id, title or label and narrow by repo", async () => {
     "--limit",
     "200",
   ]);
-  expect(listArgs("Done", false)).toEqual(["--status", "Done", "--limit", "50"]);
+  expect(listArgs("Done", false)).toEqual([
+    "--status",
+    "Done",
+    "--limit",
+    "50",
+  ]);
   // The refs read is the same filters over a different population, and it is
   // read-only: it never refuses over a ref it could not read.
   expect(listArgs("In Progress", true)).toEqual([
@@ -179,7 +216,11 @@ test("filters match id, title or label and narrow by repo", async () => {
 
 test("the across-refs read keeps the landed state and reports coverage", async () => {
   const { tasks, coverage } = parseAcrossRefs(ACROSS);
-  expect(tasks[0]).toMatchObject({ id: "OCLI-8", status: "In Progress", conflict: false });
+  expect(tasks[0]).toMatchObject({
+    id: "OCLI-8",
+    status: "In Progress",
+    conflict: false,
+  });
   // origin/dev wins over the state a pull request head carries.
   expect(tasks[1]).toMatchObject({
     id: "OCLI-9",
@@ -188,7 +229,11 @@ test("the across-refs read keeps the landed state and reports coverage", async (
     proposedBy: "opum-ai/opum-cli#4",
   });
   // A record only a pull request has is drawn from that state, and named.
-  expect(tasks[2]).toMatchObject({ id: "OCLI-10", status: "To Do", proposedBy: "opum-ai/opum-cli#4" });
+  expect(tasks[2]).toMatchObject({
+    id: "OCLI-10",
+    status: "To Do",
+    proposedBy: "opum-ai/opum-cli#4",
+  });
   expect(coverage).toEqual({
     complete: false,
     refsRead: 1,
@@ -231,22 +276,42 @@ test("list, detail, errors and kanban draw on terminal and desktop", async ($, o
     });
     await ui.press({ key: "tab-list" });
     await ui.press({ key: "refresh" });
-    expect(await ui.find({ type: "Text", text: /1 in progress task in 1 repo, checked 04:30/ })).toBeDefined();
-    expect(await ui.find({ type: "Text", text: /ward-cli: no tracker here/ })).toBeDefined();
+    expect(
+      await ui.find({
+        type: "Text",
+        text: /1 in progress task in 1 repo, checked 04:30/,
+      }),
+    ).toBeDefined();
+    expect(
+      await ui.find({ type: "Text", text: /ward-cli: no tracker here/ }),
+    ).toBeDefined();
     // The fleet is discovered from the directories under the session's parent,
     // so a workspace that answers, one that refuses and one that is not a
     // workspace at all are all accounted for.
     expect(await ui.find({ key: "repo" })).toBeDefined();
-    expect(await ui.find({ type: "Text", text: /not-a-workspace/ })).toBeUndefined();
+    expect(
+      await ui.find({ type: "Text", text: /not-a-workspace/ }),
+    ).toBeUndefined();
 
     await ui.press({ key: "row:opum-cli:OCLI-8" });
-    expect(await ui.find({ type: "Text", text: /Acceptance criteria, 1 of 2 checked/ })).toBeDefined();
-    expect(await ui.find({ type: "Text", text: /Depends on OCLI-7/ })).toBeDefined();
+    expect(
+      await ui.find({
+        type: "Text",
+        text: /Acceptance criteria, 1 of 2 checked/,
+      }),
+    ).toBeDefined();
+    expect(
+      await ui.find({ type: "Text", text: /Depends on OCLI-7/ }),
+    ).toBeDefined();
     await ui.press({ key: "close-detail" });
-    expect(await ui.find({ type: "Text", text: /Acceptance criteria/ })).toBeUndefined();
+    expect(
+      await ui.find({ type: "Text", text: /Acceptance criteria/ }),
+    ).toBeUndefined();
 
     await ui.press({ key: "tab-kanban" });
-    expect(await ui.find({ type: "Text", text: /In Progress \(1\)/ })).toBeDefined();
+    expect(
+      await ui.find({ type: "Text", text: /In Progress \(1\)/ }),
+    ).toBeDefined();
     expect(await ui.find({ type: "Text", text: /To Do \(0\)/ })).toBeDefined();
     await ui.unmount();
   }
@@ -278,12 +343,29 @@ test("the refs toggle reads across refs and the pane says what was not read", as
 
   await ui.press({ key: "refs" });
   expect(
-    calls.some((argv) => argv.includes("task") && argv.includes("--across-refs") && argv.includes("--allow-partial")),
+    calls.some(
+      (argv) =>
+        argv.includes("task") &&
+        argv.includes("--across-refs") &&
+        argv.includes("--allow-partial"),
+    ),
   ).toBe(true);
   // An incomplete read is drawn as incomplete rather than as an empty board,
   // and a conflict is marked on the row rather than silently resolved.
-  expect(await ui.find({ type: "Text", text: /refs read, complete|read, INCOMPLETE/ })).toBeDefined();
-  expect(await ui.find({ type: "Text", text: /INCOMPLETE in opum-cli/ })).toBeDefined();
-  expect(await ui.find({ type: "Text", text: /\* marks a task whose refs disagree/ })).toBeDefined();
+  expect(
+    await ui.find({
+      type: "Text",
+      text: /refs read, complete|read, INCOMPLETE/,
+    }),
+  ).toBeDefined();
+  expect(
+    await ui.find({ type: "Text", text: /INCOMPLETE in opum-cli/ }),
+  ).toBeDefined();
+  expect(
+    await ui.find({
+      type: "Text",
+      text: /\* marks a task whose refs disagree/,
+    }),
+  ).toBeDefined();
   await ui.unmount();
 });

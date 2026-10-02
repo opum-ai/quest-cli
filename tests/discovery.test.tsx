@@ -1,7 +1,12 @@
 import { expect, mock, test } from "claude-code/testing";
 import type { FsEntry } from "claude-code";
 
-import { discoverRoot, parentOf, repoNameFromGitCommonDir, reposUnder } from "../hooks/quest";
+import {
+  discoverRoot,
+  parentOf,
+  repoNameFromGitCommonDir,
+  reposUnder,
+} from "../hooks/quest";
 
 const PANE = {
   title: "Quest board",
@@ -13,7 +18,13 @@ const PANE = {
 };
 
 const ok = (stdout: string) => ({
-  value: { exitCode: 0, stdout, stderr: "", isStdoutTruncated: false, isStderrTruncated: false },
+  value: {
+    exitCode: 0,
+    stdout,
+    stderr: "",
+    isStdoutTruncated: false,
+    isStderrTruncated: false,
+  },
 });
 
 type Entry = { name: string; kind: string };
@@ -52,10 +63,15 @@ test("the fleet root is the nearest ancestor that holds workspaces", async () =>
         { name: "opum-doc", kind: "dir" },
       ],
     },
-    ["/repos/quest-cli/.quest/workspace.toml", "/repos/opum-doc/.quest/workspace.toml"],
+    [
+      "/repos/quest-cli/.quest/workspace.toml",
+      "/repos/opum-doc/.quest/workspace.toml",
+    ],
   );
   // A session in a worktree is three levels below the root it should find.
-  expect(await discoverRoot(fs, "/repos/quest-cli/.claude/worktrees/QCLI-404")).toEqual({
+  expect(
+    await discoverRoot(fs, "/repos/quest-cli/.claude/worktrees/QCLI-404"),
+  ).toEqual({
     root: "/repos",
     repos: ["opum-doc", "quest-cli"],
   });
@@ -64,9 +80,14 @@ test("the fleet root is the nearest ancestor that holds workspaces", async () =>
 
 test("git's common dir names the repository a worktree belongs to", async () => {
   expect(
-    repoNameFromGitCommonDir("/repos/quest-cli/.claude/worktrees/QCLI-404", "/repos/quest-cli/.git"),
+    repoNameFromGitCommonDir(
+      "/repos/quest-cli/.claude/worktrees/QCLI-404",
+      "/repos/quest-cli/.git",
+    ),
   ).toBe("quest-cli");
-  expect(repoNameFromGitCommonDir("/repos/quest-cli", ".git")).toBe("quest-cli");
+  expect(repoNameFromGitCommonDir("/repos/quest-cli", ".git")).toBe(
+    "quest-cli",
+  );
   expect(repoNameFromGitCommonDir("/repos/quest-cli", null)).toBe("quest-cli");
   expect(repoNameFromGitCommonDir("/repos/quest-cli/", "")).toBe("quest-cli");
   expect(parentOf("/repos/quest-cli")).toBe("/repos");

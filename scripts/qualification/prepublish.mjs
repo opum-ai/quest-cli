@@ -91,6 +91,13 @@ async function runSourceGates() {
       "test:repository-check-scope",
     ]),
   );
+  // QCLI-431: the Quest board's hooks module is neither typechecked by
+  // `bun run typecheck` (its tsconfig covers src and test only) nor collected
+  // by `bun test` (the engine's runner takes only *.test.tsx under the mod).
+  // It is exercised by Claude Code's own engine, through scripts/mod-test.mjs,
+  // so without a gate here the only thing that runs it is whoever remembers
+  // to. The runner installs beside the pinned CLI below.
+  await attempt(() => command("mod", "bun", ["run", "test:mod"]));
   const files = await testFiles();
   await attempt(() => checkTestCoverage(files));
   for (const [name, path] of TEST_GATES)

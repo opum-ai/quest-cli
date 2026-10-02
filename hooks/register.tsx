@@ -1,7 +1,15 @@
 import { atom, read, update } from "claude-code";
 import type { EngineInterface, Register } from "claude-code";
 
-import type { FsLike, RepoRow, Scope, StatusFilter, Tab, TaskDetail, View } from "../types";
+import type {
+  FsLike,
+  RepoRow,
+  Scope,
+  StatusFilter,
+  Tab,
+  TaskDetail,
+  View,
+} from "../types";
 import {
   COLUMNS,
   STATUSES,
@@ -91,9 +99,12 @@ async function resolveLocal($: EngineInterface): Promise<string> {
   const root = await $.session.root();
   let name = root.replace(/\/+$/, "").split("/").pop() ?? root;
   try {
-    const ran = await $.process.run(["git", "-C", root, "rev-parse", "--git-common-dir"], {
-      timeoutMs: 10_000,
-    });
+    const ran = await $.process.run(
+      ["git", "-C", root, "rev-parse", "--git-common-dir"],
+      {
+        timeoutMs: 10_000,
+      },
+    );
     if (ran.exitCode === 0) {
       name = repoNameFromGitCommonDir(root, ran.stdout.trim() || null);
     }
@@ -123,7 +134,10 @@ function parseRepoList(value: unknown): string[] {
  * operator's own set of Quest workspaces, not a roster this file has to be
  * edited to follow.
  */
-async function resolveFleet($: EngineInterface, options: Record<string, unknown>): Promise<void> {
+async function resolveFleet(
+  $: EngineInterface,
+  options: Record<string, unknown>,
+): Promise<void> {
   dirs.clear();
   fleetRoot = null;
   discoveryNote = null;
@@ -178,7 +192,9 @@ async function quest($: EngineInterface, repo: string, args: string[]) {
   if (ran.exitCode !== 0) {
     let reason = ran.stderr.trim().split("\n")[0] || `exit ${ran.exitCode}`;
     try {
-      const body = JSON.parse(ran.stdout || ran.stderr) as { message?: unknown };
+      const body = JSON.parse(ran.stdout || ran.stderr) as {
+        message?: unknown;
+      };
       if (typeof body.message === "string") {
         reason = body.message;
       }
@@ -198,7 +214,11 @@ async function readRepo(
   readRefs: boolean,
 ): Promise<RepoRow> {
   try {
-    const stdout = await quest($, repo, ["task", "list", ...listArgs(status, readRefs)]);
+    const stdout = await quest($, repo, [
+      "task",
+      "list",
+      ...listArgs(status, readRefs),
+    ]);
     if (readRefs) {
       const { tasks, coverage } = parseAcrossRefs(stdout);
 
@@ -250,24 +270,45 @@ async function readScopes($: EngineInterface): Promise<void> {
   const status: StatusFilter = tab === "kanban" ? "open" : picked;
   const shown = scope === "local" ? (localRepo ? [localRepo] : []) : repos;
   await update($, board, (current) => ({ ...current, isLoading: true }));
-  const rows = await Promise.all(shown.map((repo) => readRepo($, repo, status, readRefs)));
+  const rows = await Promise.all(
+    shown.map((repo) => readRepo($, repo, status, readRefs)),
+  );
   const refreshedAt = await $.clock.now();
   await update($, board, () => ({ rows, refreshedAt, isLoading: false }));
 }
 
-async function loadDetail($: EngineInterface, repo: string, id: string): Promise<void> {
+async function loadDetail(
+  $: EngineInterface,
+  repo: string,
+  id: string,
+): Promise<void> {
   const key = `${repo}:${id}`;
-  await update($, detail, () => ({ key, task: null, error: null, isLoading: true }));
+  await update($, detail, () => ({
+    key,
+    task: null,
+    error: null,
+    isLoading: true,
+  }));
   try {
-    const stdout = await quest($, repo, ["task", "view", id, "--max-notes", "3"]);
+    const stdout = await quest($, repo, [
+      "task",
+      "view",
+      id,
+      "--max-notes",
+      "3",
+    ]);
     const task = parseTaskView(stdout);
     await update($, detail, (current) =>
-      current.key === key ? { key, task, error: null, isLoading: false } : current,
+      current.key === key
+        ? { key, task, error: null, isLoading: false }
+        : current,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await update($, detail, (current) =>
-      current.key === key ? { key, task: null, error: message, isLoading: false } : current,
+      current.key === key
+        ? { key, task: null, error: message, isLoading: false }
+        : current,
     );
   }
 }
@@ -277,12 +318,17 @@ async function countUncommitted($: EngineInterface): Promise<void> {
   if (!localRepo) {
     return;
   }
-  const ran = await $.process.run(["git", "status", "--porcelain", "--", ".quest"], {
-    cwd: dirFor(localRepo),
-    timeoutMs: 10_000,
-  });
+  const ran = await $.process.run(
+    ["git", "status", "--porcelain", "--", ".quest"],
+    {
+      cwd: dirFor(localRepo),
+      timeoutMs: 10_000,
+    },
+  );
   const uncommitted =
-    ran.exitCode === 0 ? ran.stdout.split("\n").filter((line) => line.trim() !== "").length : 0;
+    ran.exitCode === 0
+      ? ran.stdout.split("\n").filter((line) => line.trim() !== "").length
+      : 0;
   await update($, edits, (current) => ({ ...current, uncommitted }));
 }
 
@@ -323,7 +369,12 @@ async function write(
   return isSaved;
 }
 
-async function editTask($: EngineInterface, task: TaskDetail, args: string[], done: string) {
+async function editTask(
+  $: EngineInterface,
+  task: TaskDetail,
+  args: string[],
+  done: string,
+) {
   const guard = task.revision ? ["--if-revision", task.revision] : [];
   await write($, task.id, ["task", "edit", task.id, ...args, ...guard], done);
 }
@@ -335,8 +386,15 @@ async function createTask($: EngineInterface, title: string): Promise<void> {
   }
   const repo = localRepo;
   try {
-    const stdout = await quest($, repo, ["task", "create", trimmed, ...actorArgs(actor)]);
-    const id = String((JSON.parse(stdout) as { data?: { id?: unknown } }).data?.id ?? "");
+    const stdout = await quest($, repo, [
+      "task",
+      "create",
+      trimmed,
+      ...actorArgs(actor),
+    ]);
+    const id = String(
+      (JSON.parse(stdout) as { data?: { id?: unknown } }).data?.id ?? "",
+    );
     $.ui.toast(id ? `Created ${id}` : "Created the task");
     await refresh($);
     await countUncommitted($);
@@ -351,9 +409,17 @@ async function createTask($: EngineInterface, title: string): Promise<void> {
 }
 
 async function closeTask($: EngineInterface, task: TaskDetail): Promise<void> {
-  const answer = await $.ui.ask(`Close ${task.id} as won't do?`, ["Close it", "Keep it"]);
+  const answer = await $.ui.ask(`Close ${task.id} as won't do?`, [
+    "Close it",
+    "Keep it",
+  ]);
   if (answer === "Close it") {
-    await write($, task.id, ["task", "close", task.id, "--resolution", "wont-do"], `Closed ${task.id}`);
+    await write(
+      $,
+      task.id,
+      ["task", "close", task.id, "--resolution", "wont-do"],
+      `Closed ${task.id}`,
+    );
   }
 }
 
@@ -362,7 +428,10 @@ async function savePrefs($: EngineInterface): Promise<void> {
   await $.store.set(PREFS_KEY, { tab, scope, status, isCollapsed, readRefs });
 }
 
-async function openPane($: EngineInterface, isCollapsed: boolean): Promise<void> {
+async function openPane(
+  $: EngineInterface,
+  isCollapsed: boolean,
+): Promise<void> {
   await $.ui.open({
     id: PANE,
     title: isCollapsed ? "Quest" : "Quest board",
@@ -370,7 +439,10 @@ async function openPane($: EngineInterface, isCollapsed: boolean): Promise<void>
   });
 }
 
-async function setCollapsed($: EngineInterface, isCollapsed: boolean): Promise<void> {
+async function setCollapsed(
+  $: EngineInterface,
+  isCollapsed: boolean,
+): Promise<void> {
   await update($, view, (current) => ({ ...current, isCollapsed }));
   await savePrefs($);
   await $.ui.close({ id: PANE });
@@ -378,7 +450,12 @@ async function setCollapsed($: EngineInterface, isCollapsed: boolean): Promise<v
 }
 
 async function setScope($: EngineInterface, scope: Scope): Promise<void> {
-  await update($, view, (current) => ({ ...current, scope, repo: "all", selected: null }));
+  await update($, view, (current) => ({
+    ...current,
+    scope,
+    repo: "all",
+    selected: null,
+  }));
   await savePrefs($);
   await refresh($);
 }
@@ -389,20 +466,38 @@ async function setTab($: EngineInterface, tab: Tab): Promise<void> {
   await refresh($);
 }
 
-async function setStatus($: EngineInterface, status: StatusFilter): Promise<void> {
+async function setStatus(
+  $: EngineInterface,
+  status: StatusFilter,
+): Promise<void> {
   await update($, view, (current) => ({ ...current, status, selected: null }));
   await savePrefs($);
   await refresh($);
 }
 
-async function setReadRefs($: EngineInterface, readRefs: boolean): Promise<void> {
-  await update($, view, (current) => ({ ...current, readRefs, selected: null }));
+async function setReadRefs(
+  $: EngineInterface,
+  readRefs: boolean,
+): Promise<void> {
+  await update($, view, (current) => ({
+    ...current,
+    readRefs,
+    selected: null,
+  }));
   await savePrefs($);
   await refresh($);
 }
 
-async function select($: EngineInterface, repo: string, id: string): Promise<void> {
-  await update($, view, (current) => ({ ...current, selected: { repo, id }, pending: null }));
+async function select(
+  $: EngineInterface,
+  repo: string,
+  id: string,
+): Promise<void> {
+  await update($, view, (current) => ({
+    ...current,
+    selected: { repo, id },
+    pending: null,
+  }));
   await loadDetail($, repo, id);
 }
 
@@ -419,7 +514,10 @@ function shortName(repo: string): string {
 }
 
 /** What the across-refs read managed to read, folded over the rows. */
-export function coverageLine(rows: RepoRow[], readRefs: boolean): string | null {
+export function coverageLine(
+  rows: RepoRow[],
+  readRefs: boolean,
+): string | null {
   if (!readRefs) {
     return null;
   }
@@ -427,7 +525,10 @@ export function coverageLine(rows: RepoRow[], readRefs: boolean): string | null 
   if (read.length === 0) {
     return null;
   }
-  const refs = read.reduce((sum, row) => sum + (row.coverage?.refsRead ?? 0), 0);
+  const refs = read.reduce(
+    (sum, row) => sum + (row.coverage?.refsRead ?? 0),
+    0,
+  );
   const partial = read.filter((row) => row.coverage?.complete !== true);
   if (partial.length === 0) {
     return `Across refs: ${refs} ref${refs === 1 ? "" : "s"} read, complete.`;
@@ -435,12 +536,17 @@ export function coverageLine(rows: RepoRow[], readRefs: boolean): string | null 
 
   return `Across refs: ${refs} read, INCOMPLETE in ${partial
     .map((row) => row.repo)
-    .join(", ")} -- a ref could not be read there, so an empty row is unread rather than empty.`;
+    .join(
+      ", ",
+    )} -- a ref could not be read there, so an empty row is unread rather than empty.`;
 }
 
 function isStoredView(
   value: unknown,
-): value is Pick<View, "tab" | "scope" | "status" | "isCollapsed" | "readRefs"> {
+): value is Pick<
+  View,
+  "tab" | "scope" | "status" | "isCollapsed" | "readRefs"
+> {
   const v = value as Partial<View> | null;
 
   return (
@@ -475,7 +581,8 @@ export const register: Register = (on, options) => {
 
     await $.command.register({
       name: "quest-board",
-      description: "Open the Quest board. Add fleet, local, refs, collapse or expand.",
+      description:
+        "Open the Quest board. Add fleet, local, refs, collapse or expand.",
     });
     const { isCollapsed } = await read($, view);
     void openPane($, isCollapsed);
@@ -507,13 +614,20 @@ export const register: Register = (on, options) => {
     if (arg === "collapse" || arg === "expand") {
       await setCollapsed($, arg === "collapse");
 
-      return { text: arg === "collapse" ? "Quest board collapsed." : "Quest board expanded." };
+      return {
+        text:
+          arg === "collapse"
+            ? "Quest board collapsed."
+            : "Quest board expanded.",
+      };
     }
     const { isCollapsed, scope } = await read($, view);
     await openPane($, isCollapsed);
     void refresh($);
 
-    return { text: `Quest board opened, showing ${scope === "fleet" ? "the fleet" : "this repo"}.` };
+    return {
+      text: `Quest board opened, showing ${scope === "fleet" ? "the fleet" : "this repo"}.`,
+    };
   });
 
   on("ui.render", { component: "Pane", requestId: PANE }, async ($, e) => {
@@ -524,7 +638,9 @@ export const register: Register = (on, options) => {
 
       return (
         <Box flexDirection="column">
-          <Text>{total} tasks. Open the board in the terminal or desktop to filter.</Text>
+          <Text>
+            {total} tasks. Open the board in the terminal or desktop to filter.
+          </Text>
         </Box>
       );
     }
@@ -537,13 +653,19 @@ export const register: Register = (on, options) => {
     const failed = rows.filter((row) => row.error !== null);
     const total = busy.reduce((sum, row) => sum + row.tasks.length, 0);
     const refsLine = coverageLine(rows, current.readRefs);
-    const hasConflict = rows.some((row) => row.tasks.some((task) => task.conflict));
+    const hasConflict = rows.some((row) =>
+      row.tasks.some((task) => task.conflict),
+    );
 
     if (current.isCollapsed) {
       return (
         <Box flexDirection="column">
           {rows.map((row) => (
-            <Text dimColor={row.tasks.length === 0} color={row.error ? "red" : undefined} wrap="truncate">
+            <Text
+              dimColor={row.tasks.length === 0}
+              color={row.error ? "red" : undefined}
+              wrap="truncate"
+            >
               {shortName(row.repo).padEnd(width - 4)}
               {row.error ? " ?" : String(row.tasks.length).padStart(3)}
             </Text>
@@ -553,7 +675,12 @@ export const register: Register = (on, options) => {
               {total} {statusWords(current.status)}{" "}
             </Text>
           </Box>
-          <Button key="expand" label="Expand" hotkey="c" onPress={() => void setCollapsed($, false)} />
+          <Button
+            key="expand"
+            label="Expand"
+            hotkey="c"
+            onPress={() => void setCollapsed($, false)}
+          />
         </Box>
       );
     }
@@ -563,26 +690,33 @@ export const register: Register = (on, options) => {
         ? "Reading the trackers…"
         : `${total} ${statusWords(current.status)} ${total === 1 ? "task" : "tasks"} in ${busy.length} ${busy.length === 1 ? "repo" : "repos"}, checked ${clockTime(refreshedAt)}${isLoading ? ", refreshing" : ""}${current.readRefs ? " (across refs)" : ""}`;
 
-    const selectedKey = current.selected ? `${current.selected.repo}:${current.selected.id}` : null;
+    const selectedKey = current.selected
+      ? `${current.selected.repo}:${current.selected.id}`
+      : null;
     const open = selectedKey ? await read($, detail) : null;
-    const listRoom = open ? Math.max(5, e.props.scroll.bodyRows - 18) : Number.POSITIVE_INFINITY;
+    const listRoom = open
+      ? Math.max(5, e.props.scroll.bodyRows - 18)
+      : Number.POSITIVE_INFINITY;
     let drawn = 0;
     await resolveLocal($);
     const task = open?.task ?? null;
     const canEdit =
-      !!task && current.selected?.repo === localRepo && task.status !== "Done" && task.status !== "Closed";
+      !!task &&
+      current.selected?.repo === localRepo &&
+      task.status !== "Done" &&
+      task.status !== "Closed";
     const selectedRow = current.selected
-      ? rows.find((row) => row.repo === current.selected?.repo)?.tasks.find(
-          (one) => one.id === current.selected?.id,
-        )
+      ? rows
+          .find((row) => row.repo === current.selected?.repo)
+          ?.tasks.find((one) => one.id === current.selected?.id)
       : undefined;
     const { isWriting, uncommitted } = await read($, edits);
     const banner =
       uncommitted > 0 && localRepo ? (
         <Box marginTop={1}>
           <Text color="yellow" wrap="truncate">
-            {uncommitted} tracker {uncommitted === 1 ? "change" : "changes"} in {localRepo} not committed
-            yet.{" "}
+            {uncommitted} tracker {uncommitted === 1 ? "change" : "changes"} in{" "}
+            {localRepo} not committed yet.{" "}
           </Text>
           <Button
             key="land"
@@ -618,8 +752,13 @@ export const register: Register = (on, options) => {
     );
 
     if (current.tab === "kanban") {
-      const columnWidth = Math.max(10, Math.floor((width - 2) / COLUMNS.length));
-      const tasks = shown.flatMap((row) => row.tasks.map((task) => ({ repo: row.repo, task })));
+      const columnWidth = Math.max(
+        10,
+        Math.floor((width - 2) / COLUMNS.length),
+      );
+      const tasks = shown.flatMap((row) =>
+        row.tasks.map((task) => ({ repo: row.repo, task })),
+      );
 
       return (
         <Box flexDirection="column">
@@ -629,8 +768,12 @@ export const register: Register = (on, options) => {
             placeholder="Filter by id, title or label"
             value={current.query}
             submitLabel="Filter"
-            onInput={(value: string) => void update($, view, (v) => ({ ...v, query: value }))}
-            onSubmit={(value: string) => void update($, view, (v) => ({ ...v, query: value }))}
+            onInput={(value: string) =>
+              void update($, view, (v) => ({ ...v, query: value }))
+            }
+            onSubmit={(value: string) =>
+              void update($, view, (v) => ({ ...v, query: value }))
+            }
           />
           <Text dimColor wrap="truncate">
             {refreshedAt === null
@@ -648,11 +791,18 @@ export const register: Register = (on, options) => {
                     {column} ({cards.length})
                   </Text>
                   {cards.slice(0, 30).map((item) => (
-                    <Text wrap="truncate" color={item.task.priority === "high" ? "yellow" : undefined}>
+                    <Text
+                      wrap="truncate"
+                      color={
+                        item.task.priority === "high" ? "yellow" : undefined
+                      }
+                    >
                       {item.task.id}
                     </Text>
                   ))}
-                  {cards.length > 30 && <Text dimColor>{cards.length - 30} more</Text>}
+                  {cards.length > 30 && (
+                    <Text dimColor>{cards.length - 30} more</Text>
+                  )}
                 </Box>
               );
             })}
@@ -689,17 +839,35 @@ export const register: Register = (on, options) => {
             onPress={() => void setReadRefs($, !current.readRefs)}
           />
           <Text> </Text>
-          <Button key="refresh" label="Refresh" hotkey="r" onPress={() => void refresh($)} />
+          <Button
+            key="refresh"
+            label="Refresh"
+            hotkey="r"
+            onPress={() => void refresh($)}
+          />
           <Text> </Text>
-          <Button key="collapse" label="Collapse" hotkey="c" onPress={() => void setCollapsed($, true)} />
+          <Button
+            key="collapse"
+            label="Collapse"
+            hotkey="c"
+            onPress={() => void setCollapsed($, true)}
+          />
         </Box>
         <Input
           key="search"
           placeholder="Filter by id, title or label"
           value={current.query}
           submitLabel="Filter"
-          onInput={(value: string) => void update($, view, (v) => ({ ...v, query: value, selected: null }))}
-          onSubmit={(value: string) => void update($, view, (v) => ({ ...v, query: value }))}
+          onInput={(value: string) =>
+            void update($, view, (v) => ({
+              ...v,
+              query: value,
+              selected: null,
+            }))
+          }
+          onSubmit={(value: string) =>
+            void update($, view, (v) => ({ ...v, query: value }))
+          }
         />
         <Box>
           <Select
@@ -707,16 +875,25 @@ export const register: Register = (on, options) => {
             label="Status"
             value={current.status}
             options={STATUSES}
-            onSelect={(value: string) => void setStatus($, value as StatusFilter)}
+            onSelect={(value: string) =>
+              void setStatus($, value as StatusFilter)
+            }
           />
           {current.scope === "fleet" && (
             <Select
               key="repo"
               label="Repo"
               value={current.repo}
-              options={[{ value: "all", label: "All repos" }, ...repos.map((repo) => ({ value: repo }))]}
+              options={[
+                { value: "all", label: "All repos" },
+                ...repos.map((repo) => ({ value: repo })),
+              ]}
               onSelect={(value: string) =>
-                void update($, view, (v) => ({ ...v, repo: value, selected: null }))
+                void update($, view, (v) => ({
+                  ...v,
+                  repo: value,
+                  selected: null,
+                }))
               }
             />
           )}
@@ -725,7 +902,11 @@ export const register: Register = (on, options) => {
           {summary}
         </Text>
         {refsLine && (
-          <Text dimColor={!refsLine.includes("INCOMPLETE")} color={refsLine.includes("INCOMPLETE") ? "yellow" : undefined} wrap="truncate">
+          <Text
+            dimColor={!refsLine.includes("INCOMPLETE")}
+            color={refsLine.includes("INCOMPLETE") ? "yellow" : undefined}
+            wrap="truncate"
+          >
             {refsLine}
           </Text>
         )}
@@ -736,8 +917,9 @@ export const register: Register = (on, options) => {
         )}
         {hasConflict && (
           <Text dimColor wrap="truncate">
-            * marks a task whose refs disagree about its status; origin/dev is drawn where it has one.
-            Resolving it is that repository&apos;s session&apos;s call.
+            * marks a task whose refs disagree about its status; origin/dev is
+            drawn where it has one. Resolving it is that repository&apos;s
+            session&apos;s call.
           </Text>
         )}
         {current.scope === "local" && localRepo && (
@@ -774,8 +956,14 @@ export const register: Register = (on, options) => {
                   return null;
                 }
                 const key = `${row.repo}:${task.id}`;
-                const mark = task.conflict ? "*" : task.priority === "high" ? "!" : " ";
-                const proposed = task.proposedBy ? `  [${task.proposedBy}]` : "";
+                const mark = task.conflict
+                  ? "*"
+                  : task.priority === "high"
+                    ? "!"
+                    : " ";
+                const proposed = task.proposedBy
+                  ? `  [${task.proposedBy}]`
+                  : "";
                 const label = `${mark} ${task.id}  ${task.title}${proposed}`;
                 if (key === selectedKey) {
                   return (
@@ -789,7 +977,11 @@ export const register: Register = (on, options) => {
                   <Button
                     key={`row:${key}`}
                     plain
-                    label={label.length > width ? `${label.slice(0, width - 1)}…` : label}
+                    label={
+                      label.length > width
+                        ? `${label.slice(0, width - 1)}…`
+                        : label
+                    }
                     onPress={() => void select($, row.repo, task.id)}
                   />
                 );
@@ -798,7 +990,9 @@ export const register: Register = (on, options) => {
           );
         })}
         {drawn > listRoom && (
-          <Text dimColor>{drawn - listRoom} more. Close the details to see them all.</Text>
+          <Text dimColor>
+            {drawn - listRoom} more. Close the details to see them all.
+          </Text>
         )}
 
         {failed.length > 0 && (
@@ -816,7 +1010,9 @@ export const register: Register = (on, options) => {
         {open && (
           <Box flexDirection="column" marginTop={1}>
             <Text dimColor>{"─".repeat(width)}</Text>
-            {open.isLoading && <Text dimColor>Loading {current.selected?.id}…</Text>}
+            {open.isLoading && (
+              <Text dimColor>Loading {current.selected?.id}…</Text>
+            )}
             {open.error && (
               <Text color="red">
                 Could not load {current.selected?.id}: {open.error}
@@ -824,8 +1020,9 @@ export const register: Register = (on, options) => {
             )}
             {open.error && selectedRow?.proposedBy && (
               <Text dimColor wrap="wrap">
-                {current.selected?.id} exists on {selectedRow.proposedBy} and not in this checkout, so the
-                detail reads nothing here. It is on the board from the refs read.
+                {current.selected?.id} exists on {selectedRow.proposedBy} and
+                not in this checkout, so the detail reads nothing here. It is on
+                the board from the refs read.
               </Text>
             )}
             {open.task && (
@@ -836,7 +1033,9 @@ export const register: Register = (on, options) => {
                 <Text dimColor wrap="truncate">
                   {[
                     open.task.status,
-                    open.task.priority ? `${open.task.priority} priority` : null,
+                    open.task.priority
+                      ? `${open.task.priority} priority`
+                      : null,
                     open.task.type,
                     open.task.updatedAt
                       ? `updated ${open.task.updatedAt.slice(0, 16).replace("T", " ")}`
@@ -864,7 +1063,8 @@ export const register: Register = (on, options) => {
                 {open.task.criteria.length > 0 && (
                   <Box flexDirection="column" marginTop={1}>
                     <Text>
-                      Acceptance criteria, {open.task.criteria.filter((c) => c.isChecked).length} of{" "}
+                      Acceptance criteria,{" "}
+                      {open.task.criteria.filter((c) => c.isChecked).length} of{" "}
                       {open.task.criteria.length} checked
                     </Text>
                     {open.task.criteria.slice(0, 8).map((item) =>
@@ -872,18 +1072,28 @@ export const register: Register = (on, options) => {
                         <Button
                           key={`ac:${item.position}`}
                           plain
-                          label={`${item.isChecked ? "☑" : "☐"} ${item.text}`.slice(0, width)}
+                          label={`${item.isChecked ? "☑" : "☐"} ${item.text}`.slice(
+                            0,
+                            width,
+                          )}
                           onPress={() =>
                             void editTask(
                               $,
                               task,
-                              [item.isChecked ? "--uncheck-ac" : "--check-ac", String(item.position)],
+                              [
+                                item.isChecked ? "--uncheck-ac" : "--check-ac",
+                                String(item.position),
+                              ],
                               `${item.isChecked ? "Unchecked" : "Checked"} criterion ${item.position} on ${task.id}`,
                             )
                           }
                         />
                       ) : (
-                        <Text key={`ac:${item.position}`} dimColor={item.isChecked} wrap="truncate">
+                        <Text
+                          key={`ac:${item.position}`}
+                          dimColor={item.isChecked}
+                          wrap="truncate"
+                        >
                           {item.isChecked ? "☑ " : "☐ "}
                           {item.text}
                         </Text>
@@ -917,19 +1127,25 @@ export const register: Register = (on, options) => {
                     dimColor
                     wrap="wrap"
                   >
-                    {comment.author}, {comment.createdAt.slice(0, 16).replace("T", " ")}:{" "}
-                    {comment.body.length > 300 ? `${comment.body.slice(0, 300)}…` : comment.body}
+                    {comment.author},{" "}
+                    {comment.createdAt.slice(0, 16).replace("T", " ")}:{" "}
+                    {comment.body.length > 300
+                      ? `${comment.body.slice(0, 300)}…`
+                      : comment.body}
                   </Text>
                 ))}
               </Box>
             )}
-            {open.task && current.selected && current.selected.repo !== localRepo && (
-              <Box marginTop={1}>
-                <Text dimColor wrap="wrap">
-                  Read-only here. {current.selected.repo} is edited from its own session.
-                </Text>
-              </Box>
-            )}
+            {open.task &&
+              current.selected &&
+              current.selected.repo !== localRepo && (
+                <Box marginTop={1}>
+                  <Text dimColor wrap="wrap">
+                    Read-only here. {current.selected.repo} is edited from its
+                    own session.
+                  </Text>
+                </Box>
+              )}
             {canEdit && task && (
               <Box flexDirection="column" marginTop={1}>
                 <Box>
@@ -953,7 +1169,14 @@ export const register: Register = (on, options) => {
                       key="pause"
                       label="Pause"
                       hotkey="p"
-                      onPress={() => void write($, task.id, ["task", "pause", task.id], `Paused ${task.id}`)}
+                      onPress={() =>
+                        void write(
+                          $,
+                          task.id,
+                          ["task", "pause", task.id],
+                          `Paused ${task.id}`,
+                        )
+                      }
                     />
                   )}
                   {task.status === "In Progress" && <Text> </Text>}
@@ -963,12 +1186,19 @@ export const register: Register = (on, options) => {
                       label="Complete"
                       hotkey="d"
                       onPress={() =>
-                        void update($, view, (v) => ({ ...v, pending: "complete" as const }))
+                        void update($, view, (v) => ({
+                          ...v,
+                          pending: "complete" as const,
+                        }))
                       }
                     />
                   )}
                   <Text> </Text>
-                  <Button key="close-task" label="Close as won't do" onPress={() => void closeTask($, task)} />
+                  <Button
+                    key="close-task"
+                    label="Close as won't do"
+                    onPress={() => void closeTask($, task)}
+                  />
                 </Box>
                 {current.pending === "complete" && (
                   <Box flexDirection="column" marginTop={1}>
@@ -987,12 +1217,17 @@ export const register: Register = (on, options) => {
                               "task",
                               "complete",
                               task.id,
-                              ...(summaryText ? ["--final-summary", summaryText] : []),
+                              ...(summaryText
+                                ? ["--final-summary", summaryText]
+                                : []),
                             ],
                             `Completed ${task.id}`,
                           );
                           if (isSaved) {
-                            await update($, view, (v) => ({ ...v, pending: null }));
+                            await update($, view, (v) => ({
+                              ...v,
+                              pending: null,
+                            }));
                           }
                         })()
                       }
@@ -1000,7 +1235,9 @@ export const register: Register = (on, options) => {
                     <Button
                       key="cancel-complete"
                       label="Cancel"
-                      onPress={() => void update($, view, (v) => ({ ...v, pending: null }))}
+                      onPress={() =>
+                        void update($, view, (v) => ({ ...v, pending: null }))
+                      }
                     />
                   </Box>
                 )}
@@ -1016,7 +1253,12 @@ export const register: Register = (on, options) => {
                   onSelect={(value: string) =>
                     void (
                       value !== task.priority &&
-                      editTask($, task, ["--priority", value], `Set ${task.id} to ${value} priority`)
+                      editTask(
+                        $,
+                        task,
+                        ["--priority", value],
+                        `Set ${task.id} to ${value} priority`,
+                      )
                     )
                   }
                 />
@@ -1028,7 +1270,12 @@ export const register: Register = (on, options) => {
                     void (
                       value.trim() &&
                       value.trim() !== task.title &&
-                      editTask($, task, ["--title", value.trim()], `Renamed ${task.id}`)
+                      editTask(
+                        $,
+                        task,
+                        ["--title", value.trim()],
+                        `Renamed ${task.id}`,
+                      )
                     )
                   }
                 />
@@ -1039,7 +1286,12 @@ export const register: Register = (on, options) => {
                   onSubmit={(value: string) =>
                     void (
                       value.trim() &&
-                      editTask($, task, ["--add-label", value.trim()], `Labelled ${task.id} ${value.trim()}`)
+                      editTask(
+                        $,
+                        task,
+                        ["--add-label", value.trim()],
+                        `Labelled ${task.id} ${value.trim()}`,
+                      )
                     )
                   }
                 />
@@ -1072,7 +1324,13 @@ export const register: Register = (on, options) => {
                 label="Copy id"
                 hotkey="y"
                 onPress={(pressed) =>
-                  void (current.selected && $.ui.copy({ text: current.selected.id, surface: pressed.surface }))
+                  void (
+                    current.selected &&
+                    $.ui.copy({
+                      text: current.selected.id,
+                      surface: pressed.surface,
+                    })
+                  )
                 }
               />
               <Text> </Text>
@@ -1080,7 +1338,9 @@ export const register: Register = (on, options) => {
                 key="close-detail"
                 label="Close details"
                 hotkey="x"
-                onPress={() => void update($, view, (v) => ({ ...v, selected: null }))}
+                onPress={() =>
+                  void update($, view, (v) => ({ ...v, selected: null }))
+                }
               />
             </Box>
           </Box>
@@ -1088,4 +1348,4 @@ export const register: Register = (on, options) => {
       </Box>
     );
   });
-}
+};

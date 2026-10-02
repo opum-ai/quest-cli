@@ -41,7 +41,14 @@ export function listArgs(status: StatusFilter, readRefs: boolean): string[] {
   const isTerminal = status === "Done" || status === "Closed";
   const filters =
     status === "open"
-      ? ["--exclude-status", "Done", "--exclude-status", "Closed", "--limit", "200"]
+      ? [
+          "--exclude-status",
+          "Done",
+          "--exclude-status",
+          "Closed",
+          "--limit",
+          "200",
+        ]
       : ["--status", status, "--limit", isTerminal ? "50" : "200"];
 
   return readRefs ? ["--across-refs", "--allow-partial", ...filters] : filters;
@@ -83,7 +90,9 @@ type AcrossRefState = { status?: unknown; refProvenance?: { ref?: unknown } };
  * and `conflict` on the entry is what tells the reader the others exist.
  */
 export function pickState(states: readonly AcrossRefState[]): string {
-  const landed = states.find((state) => state.refProvenance?.ref === "origin/dev");
+  const landed = states.find(
+    (state) => state.refProvenance?.ref === "origin/dev",
+  );
   const chosen = landed ?? states[0];
 
   return typeof chosen?.status === "string" ? chosen.status : "";
@@ -93,7 +102,11 @@ export function parseCoverage(value: unknown): Coverage | null {
   if (!value || typeof value !== "object") {
     return null;
   }
-  const coverage = value as { complete?: unknown; refsRead?: unknown; refsUnreadable?: unknown };
+  const coverage = value as {
+    complete?: unknown;
+    refsRead?: unknown;
+    refsUnreadable?: unknown;
+  };
 
   return {
     complete: coverage.complete === true,
@@ -126,7 +139,9 @@ export function parseAcrossRefs(stdout: string): {
       conflict?: unknown;
       states?: unknown;
     };
-    const states = Array.isArray(entry.states) ? (entry.states as AcrossRefState[]) : [];
+    const states = Array.isArray(entry.states)
+      ? (entry.states as AcrossRefState[])
+      : [];
 
     return {
       id: String(entry.id ?? "?"),
@@ -134,7 +149,8 @@ export function parseAcrossRefs(stdout: string): {
       status: pickState(states),
       priority: null,
       labels: [],
-      proposedBy: typeof entry.proposedBy === "string" ? entry.proposedBy : null,
+      proposedBy:
+        typeof entry.proposedBy === "string" ? entry.proposedBy : null,
       conflict: entry.conflict === true,
     };
   });
@@ -149,11 +165,15 @@ export function parseTaskView(stdout: string): TaskDetail {
   if (!task || typeof task !== "object") {
     throw new Error("quest output has no task");
   }
-  const criteria = Array.isArray(task.acceptanceCriteria) ? task.acceptanceCriteria : [];
+  const criteria = Array.isArray(task.acceptanceCriteria)
+    ? task.acceptanceCriteria
+    : [];
   const notes = asStrings(task.implementationNotes);
   const dependencies = Array.isArray(task.dependencies)
     ? task.dependencies.map((dep) =>
-        typeof dep === "string" ? dep : String((dep as { id?: unknown }).id ?? "?"),
+        typeof dep === "string"
+          ? dep
+          : String((dep as { id?: unknown }).id ?? "?"),
       )
     : [];
 
@@ -167,7 +187,11 @@ export function parseTaskView(stdout: string): TaskDetail {
     description: String(task.description ?? ""),
     revision: typeof task.revision === "string" ? task.revision : null,
     criteria: criteria.map((item, at) => {
-      const one = item as { text?: unknown; checked?: unknown; position?: unknown };
+      const one = item as {
+        text?: unknown;
+        checked?: unknown;
+        position?: unknown;
+      };
 
       return {
         text: String(one.text ?? ""),
@@ -175,15 +199,21 @@ export function parseTaskView(stdout: string): TaskDetail {
         position: typeof one.position === "number" ? one.position : at + 1,
       };
     }),
-    comments: (Array.isArray(task.comments) ? task.comments : []).map((item) => {
-      const one = item as { authorId?: unknown; body?: unknown; createdAt?: unknown };
+    comments: (Array.isArray(task.comments) ? task.comments : []).map(
+      (item) => {
+        const one = item as {
+          authorId?: unknown;
+          body?: unknown;
+          createdAt?: unknown;
+        };
 
-      return {
-        author: String(one.authorId ?? "?"),
-        body: String(one.body ?? ""),
-        createdAt: String(one.createdAt ?? ""),
-      };
-    }),
+        return {
+          author: String(one.authorId ?? "?"),
+          body: String(one.body ?? ""),
+          createdAt: String(one.createdAt ?? ""),
+        };
+      },
+    ),
     dependencies,
     latestNote: notes.length > 0 ? (notes[notes.length - 1] ?? null) : null,
     updatedAt: typeof task.updatedAt === "string" ? task.updatedAt : null,
@@ -191,7 +221,11 @@ export function parseTaskView(stdout: string): TaskDetail {
 }
 
 /** The search and repo filters, applied to what was fetched. */
-export function filterRows(rows: RepoRow[], query: string, repo: string): RepoRow[] {
+export function filterRows(
+  rows: RepoRow[],
+  query: string,
+  repo: string,
+): RepoRow[] {
   const needle = query.trim().toLowerCase();
 
   return rows
@@ -214,10 +248,16 @@ export function actorArgs(id: string): string[] {
 }
 
 /** A comment as Quest stores one. */
-export function commentArg(author: string, body: string, nowMs: number): string {
+export function commentArg(
+  author: string,
+  body: string,
+  nowMs: number,
+): string {
   const createdAt = new Date(nowMs).toISOString();
 
-  return JSON.stringify([{ id: `c-${nowMs}`, authorId: author, body, createdAt }]);
+  return JSON.stringify([
+    { id: `c-${nowMs}`, authorId: author, body, createdAt },
+  ]);
 }
 
 /** A Quest workspace is a directory holding `.quest/workspace.toml`. */
@@ -287,15 +327,17 @@ export async function discoverRoot(
  * worktree the session may be running in, so a worktree session still keys its
  * row -- and its writes -- to the repository the operator knows.
  */
-export function repoNameFromGitCommonDir(root: string, commonDir: string | null): string {
+export function repoNameFromGitCommonDir(
+  root: string,
+  commonDir: string | null,
+): string {
   const fallback = root.replace(/\/+$/, "").split("/").pop() ?? root;
   if (!commonDir) {
     return fallback;
   }
-  const dotGit = (commonDir.startsWith("/") ? commonDir : `${root}/${commonDir}`).replace(
-    /\/+$/,
-    "",
-  );
+  const dotGit = (
+    commonDir.startsWith("/") ? commonDir : `${root}/${commonDir}`
+  ).replace(/\/+$/, "");
   if (!dotGit.endsWith(".git")) {
     return fallback;
   }
