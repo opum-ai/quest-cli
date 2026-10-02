@@ -28,7 +28,7 @@ function run(command) {
 
 try {
   await Promise.all(
-    ["src", "test", "scripts"].map((directory) =>
+    ["src", "test", "scripts", "hooks", "types", "tests"].map((directory) =>
       cp(join(root, directory), join(fixture, directory), { recursive: true }),
     ),
   );

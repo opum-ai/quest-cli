@@ -33,6 +33,14 @@ on:
       - "npm/**"
       - "src/**"
       - "test/**"
+      # QCLI-431: what the opum-quest plugin ships besides skills/ -- the mod
+      # the `mod` gate runs, its state contract, its tests, the manifest those
+      # tests read, and the runner itself.
+      - "hooks/**"
+      - "types/**"
+      - "tests/**"
+      - ".claude-plugin/**"
+      - "scripts/mod-test.mjs"
       # QCLI-377: the two root files check-package-artifacts.mjs reads --
       # README.md as the packed npm page's version-claim content gate, LICENSE
       # as a presence gate on the root pack's exact file list. A change to
@@ -70,6 +78,13 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile --linker=isolated
       - run: npm install --global @salient-ai/jira-cli@1.0.2
+      # QCLI-431: the quest-board hooks module runs only under Claude Code's own
+      # engine, so the `mod` gate below needs the CLI. Pinned to the floor
+      # scripts/mod-test.mjs enforces, which is also the version the module's
+      # typecheck is run against outside CI. Measured on a clean HOME with no
+      # credentials: `claude plugin validate --strict` and `claude plugin test`
+      # both run and need neither.
+      - run: npm install --global @anthropic-ai/claude-code@2.1.287
       - run: bun scripts/qualification/prepublish.mjs
         env:
           QUEST_QUALIFICATION_SOURCE: "1"
