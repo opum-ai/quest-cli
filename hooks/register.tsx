@@ -70,6 +70,7 @@ let repos: string[] = [];
 let localRepo: string | null = null;
 let discoveryNote: string | null = null;
 let isFleetResolved = false;
+let isUncommittedResolved = false;
 let pluginOptions: Record<string, unknown> = {};
 const dirs = new Map<string, string>();
 
@@ -266,6 +267,7 @@ async function refresh($: EngineInterface): Promise<void> {
 async function readScopes($: EngineInterface): Promise<void> {
   await resolveLocal($);
   await ensureFleet($);
+  await ensureUncommitted($);
   const { scope, status: picked, tab, readRefs } = await read($, view);
   const status: StatusFilter = tab === "kanban" ? "open" : picked;
   const shown = scope === "local" ? (localRepo ? [localRepo] : []) : repos;
@@ -330,6 +332,29 @@ async function countUncommitted($: EngineInterface): Promise<void> {
       ? ran.stdout.split("\n").filter((line) => line.trim() !== "").length
       : 0;
   await update($, edits, (current) => ({ ...current, uncommitted }));
+}
+
+/**
+ * Reads the unlanded count once, on whichever comes first: the session start,
+ * or the first read -- the same two paths discovery uses, and for the same
+ * reason. `claude plugin test` never fires `session.start`, so a kit-mounted
+ * pane drew no window at all, and no window looks exactly like nothing worth
+ * warning about.
+ *
+ * The count is what makes the id-collision window visible. `quest task create`
+ * takes the next id from the working tree plus every LOCAL ref, so a record
+ * that is written but not yet committed is invisible to this repository's
+ * other checkouts, and a create in one of those can mint the same id.
+ * Measured on this branch: two checkouts of one repository, one record each
+ * left uncommitted, both minted T-1; committing the first closed the window
+ * and the next create minted T-2.
+ */
+async function ensureUncommitted($: EngineInterface): Promise<void> {
+  if (isUncommittedResolved) {
+    return;
+  }
+  isUncommittedResolved = true;
+  await countUncommitted($);
 }
 
 // Runs one Quest write in this session's own repo, then reloads what it touched.
@@ -587,7 +612,7 @@ export const register: Register = (on, options) => {
     const { isCollapsed } = await read($, view);
     void openPane($, isCollapsed);
     void refresh($);
-    void countUncommitted($);
+    void ensureUncommitted($);
     $.clock.every(REFRESH_MS, () => {
       void (async () => {
         const panes = await $.ui.panes();
@@ -716,14 +741,16 @@ export const register: Register = (on, options) => {
         <Box marginTop={1}>
           <Text color="yellow" wrap="truncate">
             {uncommitted} tracker {uncommitted === 1 ? "change" : "changes"} in{" "}
-            {localRepo} not committed yet.{" "}
+            {localRepo} not committed yet. Until they land, this repository's
+            other checkouts cannot see the ids in them and can mint the same
+            ones.{" "}
           </Text>
           <Button
             key="land"
             label="Ask Claude to land them"
             onPress={() =>
               void $.prompt.fill({
-                text: `Land the uncommitted Quest tracker changes in ${localRepo} through a branch and pull request, following the opum-sdlc skill.`,
+                text: `Land the uncommitted Quest tracker changes in ${localRepo} through a branch and pull request, following the opum-sdlc skill. Land them promptly: until they are committed, this repository's other checkouts cannot see the task ids in them and can mint the same ones.`,
                 mode: "replace",
               })
             }

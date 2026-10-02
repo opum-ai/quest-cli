@@ -236,3 +236,49 @@ test(
     ]);
   },
 );
+
+/**
+ * QCLI-431. `quest task create` takes the next id from the working tree plus
+ * every LOCAL ref, so a record that is written but not yet committed is
+ * invisible to this repository's other checkouts and a create in one of them
+ * mints the same id. The pane cannot close that window -- only landing the
+ * record does -- so what it owes the person is the window being legible at the
+ * moment it opens.
+ */
+test("an unlanded record is drawn as the id-collision window it is", async ($, on) => {
+  mock.clock(on, { now: Date.UTC(2026, 9, 2, 14, 30) });
+  mock.store(on);
+  mockFleet(on);
+  on("session.root", async () => ({ value: "/tmp/opum-cli" }));
+  on("process.run", async (_$, e) => {
+    if (e.argv[0] === "git" && e.argv.includes("--git-common-dir"))
+      return ok("/tmp/opum-cli/.git\n");
+    if (e.argv[0] === "git") return ok("?? .quest/tasks/OCLI-9.json\n");
+    if (e.argv.includes("list")) {
+      return ok(
+        e.init?.cwd === "/tmp/opum-cli"
+          ? list("In Progress")
+          : JSON.stringify({ kind: "task.list", data: [] }),
+      );
+    }
+    return ok(viewOf("In Progress"));
+  });
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    const ui = await $.ui.mount({
+      plugin: "opum-quest",
+      surface,
+      component: "Pane",
+      requestId: "quest-board",
+      props: PANE,
+    });
+    await ui.press({ key: "tab-list" });
+    expect(
+      await ui.find({
+        type: "Text",
+        text: /other checkouts cannot see the ids in them and can mint the same ones/,
+      }),
+    ).toBeDefined();
+    await ui.unmount();
+  }
+});
