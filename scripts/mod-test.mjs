@@ -19,7 +19,7 @@
 // module was NOT typechecked rather than implying it was.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { cp, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -64,12 +64,34 @@ function run(command, args) {
   return result.status ?? 1;
 }
 
-function versionAtLeast(text) {
-  const match = /(\d+)\.(\d+)\.(\d+)/u.exec(text ?? "");
-  if (!match) return false;
-  const found = [Number(match[1]), Number(match[2]), Number(match[3])];
+/**
+ * `"2.1.287 (Claude Code)"` -> `"2.1.287"`, or null when no version is printed.
+ *
+ * The bare number is what the rest of this file compares on, because the
+ * declaration's own first line carries it bare too. Splitting the two is not
+ * cosmetic: matching a declaration by interpolating the WHOLE of `--version`
+ * into `// Written by Claude Code <x>.` builds the string
+ * `// Written by Claude Code 2.1.287 (Claude Code).`, which no declaration
+ * ever contains, so the match never fires and the run silently typechecks
+ * against whatever the fallback happened to pick.
+ */
+function versionIn(text) {
+  const match = /(\d+\.\d+\.\d+)/u.exec(text ?? "");
+  if (!match) return null;
+
+  return match[0] ?? null;
+}
+
+/** Whether a dotted version is at least MINIMUM_CLAUDE; anything else is not. */
+function versionAtLeast(version) {
+  const found = (version ?? "").split(".").map(Number);
+  if (found.length !== MINIMUM_CLAUDE.length || found.some(Number.isNaN)) {
+    return false;
+  }
   for (let at = 0; at < MINIMUM_CLAUDE.length; at += 1) {
-    if (found[at] !== MINIMUM_CLAUDE[at]) return found[at] > MINIMUM_CLAUDE[at];
+    const mine = MINIMUM_CLAUDE[at] ?? 0;
+    const theirs = found[at] ?? 0;
+    if (theirs !== mine) return theirs > mine;
   }
 
   return true;
@@ -82,11 +104,19 @@ function versionAtLeast(text) {
  * plugin-authoring/types/claude-code.d.ts`, where the hash changes per
  * session, so it is found by walking rather than by naming. Each one's own
  * first line names the Claude Code that wrote it, which is the only thing
- * that says whether it describes the build being shipped for.
+ * that says whether it describes the build being shipped for; the
+ * modification time is carried along so that when several name the same
+ * build, the freshest is the one picked.
+ *
+ * The two roots are deduplicated rather than trusted to differ. On macOS they
+ * do (`/tmp` is a symlink under `/private`, `tmpdir()` is under
+ * `/var/folders`), but on Linux they are the same directory and every
+ * declaration would be collected twice.
  */
 function findDeclarations() {
   const roots = ["/tmp", tmpdir()];
   const found = [];
+  const seen = new Set();
   for (const tempRoot of roots) {
     const claudeDirs = existsSync(tempRoot) ? readdirSync(tempRoot) : [];
     for (const claudeDir of claudeDirs.filter((name) =>
@@ -102,10 +132,16 @@ function findDeclarations() {
             hash,
             "plugin-authoring/types/claude-code.d.ts",
           );
-          if (!existsSync(candidate)) continue;
+          if (!existsSync(candidate) || seen.has(candidate)) continue;
+          seen.add(candidate);
           const wrote =
             readFileSync(candidate, "utf8").split("\n")[0]?.trim() ?? "";
-          found.push({ path: candidate, wrote, version });
+          found.push({
+            path: candidate,
+            wrote,
+            version,
+            mtimeMs: statSync(candidate).mtimeMs,
+          });
         }
       }
     }
@@ -121,7 +157,8 @@ if (claude?.status !== 0) {
   );
   process.exit(1);
 }
-if (!versionAtLeast(claude.stdout)) {
+const claudeVersion = versionIn(claude.stdout);
+if (claudeVersion === null || !versionAtLeast(claudeVersion)) {
   console.error(
     `Mods need Claude Code ${MINIMUM_CLAUDE.join(".")} or later; this is ${claude.stdout}.`,
   );
@@ -129,22 +166,42 @@ if (!versionAtLeast(claude.stdout)) {
 }
 
 /**
- * The declaration that describes the build being shipped for, or the newest
- * one found when none matches -- named either way, because a typecheck against
- * a declaration from another Claude Code is a different measurement.
+ * The declaration that names the RUNNING Claude Code, and every declaration
+ * found beside it. The rejected ones are returned rather than dropped, so a
+ * run that reaches the typecheck with nothing to check against can name what
+ * it saw instead of reading as an empty machine.
+ *
+ * There is no fallback to another version's declaration on purpose. A
+ * typecheck against a declaration from a different Claude Code is a different
+ * measurement wearing this one's name, and the whole point of naming the
+ * declaration in the result is that the two are told apart.
  */
-function pickDeclaration() {
+function pickDeclaration(version) {
   const all = findDeclarations();
-  const wanted = `Claude Code ${claude.stdout}`;
-  const exact = all.find((one) => one.wrote === `// Written by ${wanted}.`);
+  const matching = all.filter(
+    (one) => one.wrote === `// Written by Claude Code ${version}.`,
+  );
+  matching.sort((left, right) => right.mtimeMs - left.mtimeMs);
 
-  return exact ?? all.at(-1) ?? null;
+  return { picked: matching[0] ?? null, all };
 }
 
 const tsc = join(root, "node_modules", ".bin", "tsc");
 if (!existsSync(tsc)) {
   console.error(
     "TypeScript is not installed in this checkout; run `bun install` before the mod's typecheck.",
+  );
+  process.exit(1);
+}
+
+// A missing shipped entry would make the stage a partial copy, and `cp` would
+// throw a bare ENOENT before the guard below could run -- so the entries are
+// named here instead. A run that could not stage is a run that tested nothing,
+// and it must say that rather than end in a stack trace.
+const absent = SHIPPED.filter((entry) => !existsSync(join(root, entry)));
+if (absent.length > 0) {
+  console.error(
+    `Shipped directories are absent from the checkout (${absent.join(", ")}); nothing was tested.`,
   );
   process.exit(1);
 }
@@ -197,7 +254,9 @@ step("claude plugin validate --strict", "claude", [
 step("claude plugin test", "claude", ["plugin", "test", staged]);
 
 const laid = join(staged, ".claude-plugin", "types", "tsconfig.json");
-const bundled = existsSync(laid) ? null : pickDeclaration();
+const { picked: bundled, all } = existsSync(laid)
+  ? { picked: null, all: [] }
+  : pickDeclaration(claudeVersion);
 if (existsSync(laid)) {
   if (step(`tsc (${laid})`, tsc, ["-p", laid])) {
     typecheck = `clean, against the declaration the engine laid at ${laid}`;
@@ -223,11 +282,24 @@ if (existsSync(laid)) {
     typecheck = `clean, against the plugin-authoring skill's ${bundled.version} declaration at ${bundled.path}`;
   }
 } else {
-  typecheck = "NOT TYPECHECKED -- no engine declaration on this machine";
+  typecheck = `NOT TYPECHECKED -- no declaration for Claude Code ${claudeVersion} on this machine`;
+  // What was seen, not just what was missing: an empty machine and a machine
+  // carrying three other versions' declarations are different states, and
+  // "none found" reads as the first whichever one it is.
+  const saw =
+    all.length === 0
+      ? "no engine declaration at all"
+      : `no declaration for Claude Code ${claudeVersion}; saw ${all
+          .map((one) =>
+            one.wrote
+              .replace("// Written by Claude Code ", "")
+              .replace(/\.$/u, ""),
+          )
+          .join(", ")}`;
   console.log(
-    "\nNOT TYPECHECKED: no engine declaration on this machine. Load the plugin in a session\n" +
-      "(a --plugin-dir or the mods folder) to have one laid beside it, or run the\n" +
-      "plugin-authoring skill once, which writes the same declaration into the temp directory.",
+    `\nNOT TYPECHECKED: ${saw}. Load the plugin in a session (a --plugin-dir or the\n` +
+      "mods folder) to have a declaration laid beside it, or run the plugin-authoring\n" +
+      "skill once, which writes the same declaration into the temp directory.",
   );
 }
 
