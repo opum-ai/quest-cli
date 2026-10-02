@@ -136,12 +136,13 @@ test("every entry-point guard runs main() when invoked through a symlinked path"
   for (const file of files) {
     const real = runScript(join(realRoot, file), realRoot);
     const link = runScript(join(linkRoot, file), realRoot);
-    // Positive control for THIS file: the real-path run reached main() and
-    // said something. If it went silent on both paths, the equality below
-    // would hold vacuously.
+    // Positive control for THIS file: the real-path run exited nonzero or
+    // said something, so this file's equality below cannot hold vacuously.
+    // It is NOT proof the run reached main() — a crash before the guard
+    // satisfies it too, identically on both paths.
     expect(
       real.exitCode === 0 && real.stdout === "" && real.stderr === "",
-      `${file}: the real-path probe never reached main(), so it proves nothing`,
+      `${file}: the real-path probe exited 0 silently, so the equality below proves nothing`,
     ).toBe(false);
     expect(link.signal, `${file}: symlinked run timed out`).toBe(null);
     expect(link.exitCode, `${file}: symlinked exit code`).toBe(real.exitCode);
