@@ -483,9 +483,12 @@ async function savePrefs($: EngineInterface): Promise<void> {
  * Opens the pane at the size the two states ask for, with the viewport the
  * caller knows.
  *
- * `focus` is asked for only where the design names it -- reopening on the full
- * toggle -- so restoring the pane at `session.start` does not take the keyboard
- * off the prompt.
+ * `focus` is asked for only on a full toggle a PERSON starts -- the `z` key, or
+ * the command's `full` argument. Everywhere else it is left off, and the two
+ * cases that are easy to mistake for a toggle are the ones that matter: a full
+ * mode restored at `session.start`, and the re-request this pane makes for
+ * itself on a first draw or a viewport change. Neither is a person asking for
+ * the pane, so neither may take the keyboard off the prompt.
  */
 async function openPane(
   $: EngineInterface,
@@ -726,13 +729,17 @@ export const register: Register = (on, options) => {
     // so a pane opened outside one can ask for the full size, and a full mode
     // restored at `session.start` -- which could not size it -- asks again
     // here, once per size, now that it can.
+    //
+    // This re-request is the pane's own, not a person's, so it is asked for
+    // WITHOUT focus: the person may be typing, and a pane that grabbed the
+    // keyboard on a redraw they did not make would move their keys mid-word.
     if (e.viewport) {
       viewport = { columns: e.viewport.columns, rows: e.viewport.rows };
       if (current.isFull && !current.isCollapsed) {
         const wanted = JSON.stringify(paneSize(current, viewport));
         if (askedFullSize !== wanted) {
           askedFullSize = wanted;
-          void openPane($, current, viewport, true);
+          void openPane($, current, viewport);
         }
       }
     }
