@@ -68,6 +68,23 @@ dated by its own tag. No date here is inferred (QCLI-398).
   own branch-and-PR flow — and never applies a digest other than the one just
   previewed. The `quest` skill carries a one-line pointer to it.
 
+- **The Quest board toasts the changes worth interrupting for** (QCLI-442, from
+  the operator's instruction relayed by opum-doc as seq 175). A decision
+  becoming `proposed` and its resolution, a task moving to Paused or Closed, and
+  a high-priority task reaching Done each raise a toast; everything else waits
+  in the pane rather than interrupting. More than three changes in one check
+  collapse into a single batched toast, and decisions are never folded into it.
+  While any decision is proposed a status-line entry — `Quest: N decisions
+  waiting` — stays up, because a toast can be missed and the status line cannot.
+  The check runs every two minutes whether or not the pane is open, looks a task
+  that left the open set up once with `quest task view` to tell Done from
+  Closed, and keeps the last state in the plugin's store so nothing replays: the
+  first check after install records a baseline and shows nothing, and changes
+  that happened while no session was running arrive as one "while you were away"
+  summary. A repository that cannot be read is skipped quietly rather than
+  toasted about. A new `alerts` setting takes `all` (the default), `decisions`
+  or `off`.
+
 ### Removed
 
 - **The Quest board has no slash command any more** (QCLI-441, from opum-doc's
