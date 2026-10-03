@@ -11,6 +11,7 @@ import type {
   RepoRow,
   StatusFilter,
   TaskDetail,
+  View,
 } from "../types";
 
 export const STATUSES: { value: StatusFilter; label: string }[] = [
@@ -24,6 +25,179 @@ export const STATUSES: { value: StatusFilter; label: string }[] = [
 
 // The kanban's columns: the open statuses, in the order work moves.
 export const COLUMNS = ["To Do", "In Progress", "Paused"] as const;
+
+// The pane's geometry, all of it here so the sizes are computed and tested
+// without a surface (QCLI-435).
+
+/** The dock width the pane asks for normally. */
+export const DOCK_COLUMNS = 64;
+
+/** The rail it collapses to: the third state beside normal and full. */
+export const RAIL_COLUMNS = 22;
+
+/**
+ * What a full pane leaves the transcript, so the conversation stays visible
+ * beside it rather than vanishing.
+ */
+export const FULL_MARGIN_COLUMNS = 20;
+
+/** The prompt area an inline full pane leaves below it. */
+export const FULL_MARGIN_ROWS = 6;
+
+/** The narrowest a full pane is ever asked for. */
+export const MIN_PANE_ROWS = 5;
+
+/**
+ * At or above this body width the board draws the list and the detail side by
+ * side instead of the detail below the list.
+ */
+export const WIDE_COLUMNS = 120;
+
+/**
+ * Cells of slack before a granted size counts as one the person set rather
+ * than the full size asked for.
+ *
+ * `bodyColumns` and `scroll.bodyRows` are the body INSIDE the frame, so a
+ * granted request still reads a couple of cells under it; a person who dragged
+ * the pane moved it further than that. Without the slack every draw would call
+ * a granted request a held one.
+ */
+export const SIZE_SLACK = 4;
+
+/** The hint a pane shows when the surface kept the person's own size. */
+export const SIZE_HELD_HINT =
+  "Drag the pane edge to resize; z switches layouts";
+
+/** The size the surface measured, as `ui.render` reports it under `e.viewport`. */
+export type Viewport = { columns: number; rows: number };
+
+/** Where the surface seated a pane: beside the transcript, or above the prompt. */
+export type Placement = "dock" | "inline";
+
+/**
+ * The size a full pane asks for: the largest the surface allows, less what the
+ * design keeps for the transcript (docked) or the prompt (inline).
+ *
+ * `columns` and `rows` are asked for together rather than one being picked from
+ * the placement, because each is ignored where it does not apply -- the dock
+ * ignores `rows`, the inline block ignores `columns` -- so asking both is
+ * right whichever shape the surface seats the pane in.
+ *
+ * Either axis is left out when it is not known: `session.start` runs before any
+ * draw, and a request is not a grant, so the surface's own default stands and
+ * the pane asks again once a render reports a viewport.
+ */
+export function fullPaneSize(viewport: Partial<Viewport> | null): {
+  columns?: number;
+  rows?: number;
+} {
+  const size: { columns?: number; rows?: number } = {};
+  if (viewport?.columns !== undefined) {
+    size.columns = Math.max(
+      RAIL_COLUMNS,
+      viewport.columns - FULL_MARGIN_COLUMNS,
+    );
+  }
+  if (viewport?.rows !== undefined) {
+    size.rows = Math.max(MIN_PANE_ROWS, viewport.rows - FULL_MARGIN_ROWS);
+  }
+
+  return size;
+}
+
+/**
+ * The size the pane asks `$.ui.open` for, from the two states the view holds.
+ *
+ * Collapsed is the rail and wins over full, so collapsing from full mode lands
+ * on the rail and expanding returns to whichever of the other two was stored.
+ */
+export function paneSize(
+  state: { isCollapsed: boolean; isFull: boolean },
+  viewport: Partial<Viewport> | null,
+): { columns?: number; rows?: number } {
+  if (state.isCollapsed) {
+    return { columns: RAIL_COLUMNS };
+  }
+  if (state.isFull) {
+    return fullPaneSize(viewport);
+  }
+
+  return { columns: DOCK_COLUMNS };
+}
+
+/** Whether the board draws its list and detail side by side at this width. */
+export function isWideLayout(bodyColumns: number): boolean {
+  return bodyColumns >= WIDE_COLUMNS;
+}
+
+/**
+ * Whether the surface kept a size the person set instead of granting the size
+ * asked for, so the pane can say so rather than claiming a size it did not get.
+ */
+export function isSizeHeld(granted: number, asked: number): boolean {
+  return granted < asked - SIZE_SLACK;
+}
+
+/**
+ * What full mode asked for on the axis this placement sizes: the dock is sized
+ * across, the inline block down. Null when that axis is not known yet.
+ */
+export function fullAxis(
+  placement: Placement,
+  viewport: Partial<Viewport> | null,
+): number | null {
+  const size = fullPaneSize(viewport);
+  const wanted = placement === "dock" ? size.columns : size.rows;
+
+  return wanted ?? null;
+}
+
+/**
+ * The hint to draw under the pane's controls, or null when there is none.
+ *
+ * Only full mode can be held: the normal dock and the rail ask for a fixed
+ * size the surface grants or clamps, and there is nothing to say about it.
+ */
+export function sizeHeldHint(
+  state: { isCollapsed: boolean; isFull: boolean },
+  placement: Placement,
+  viewport: Partial<Viewport> | null,
+  granted: number,
+): string | null {
+  if (state.isCollapsed || !state.isFull) {
+    return null;
+  }
+  const asked = fullAxis(placement, viewport);
+
+  return asked !== null && isSizeHeld(granted, asked) ? SIZE_HELD_HINT : null;
+}
+
+/**
+ * Whether a value read back from the pane's prefs is one this board stored.
+ *
+ * Its job is to survive the field changing between releases: a view stored by
+ * an older build has no `isFull`, and one stored by a newer build may carry a
+ * field this build does not know, so every field but the ones a pane cannot
+ * draw without is optional here and defaulted where it is read.
+ */
+export function isStoredView(
+  value: unknown,
+): value is Pick<
+  View,
+  "tab" | "scope" | "status" | "isCollapsed" | "isFull" | "readRefs"
+> {
+  const v = value as Partial<View> | null;
+
+  return (
+    !!v &&
+    (v.tab === "list" || v.tab === "kanban") &&
+    (v.scope === "local" || v.scope === "fleet") &&
+    STATUSES.some((s) => s.value === v.status) &&
+    typeof v.isCollapsed === "boolean" &&
+    (typeof v.isFull === "boolean" || v.isFull === undefined) &&
+    (typeof v.readRefs === "boolean" || v.readRefs === undefined)
+  );
+}
 
 /**
  * The arguments one `quest task list` read takes.
