@@ -821,11 +821,28 @@ async function setFull($: EngineInterface, isFull: boolean): Promise<void> {
  * open it goes on to make must not take the keyboard. That open is what asks,
  * and it marks the session's ask as made (DEC-154 rule 2 as amended: one ask
  * per toggle).
+ *
+ * The mark is set here, before the view flips, when the toggle's ask will
+ * carry the render's numbers: a draw landing between the flip and that open
+ * then asks no second time. Measured on the seq 230 probe (QCLI-454): without
+ * this, the first full toggle of a session opened twice, identical both
+ * times; with it, once. Before any draw there are no numbers, nothing is
+ * marked, and the first render still owes the ask.
  */
 async function setFullState(
   $: EngineInterface,
   isFull: boolean,
 ): Promise<void> {
+  if (isFull) {
+    const asked = paneSize(
+      { isCollapsed: false, isFull: true },
+      viewport,
+      lastDockBodyColumns,
+    );
+    if (asked.columns !== undefined || asked.rows !== undefined) {
+      fullAskMade = true;
+    }
+  }
   await update($, view, (current) => ({ ...current, isFull }));
   await savePrefs($);
 }

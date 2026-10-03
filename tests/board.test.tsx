@@ -1080,12 +1080,16 @@ test("the full input lands in the size the tool opens", async ($, on) => {
     }
     opens.length = 0;
     const answer = await $.tool.call({ tool: TOOL, full: true });
-    expect(opens.at(-1)).toEqual({
-      id: "quest-board",
-      columns: 176,
-      rows: 49,
-      focus: undefined,
-    });
+    // Exactly one ask per toggle (DEC-154 rule 2 as amended): the redraw the
+    // choice triggers must not race a second, identical open in beside it.
+    expect(opens).toEqual([
+      {
+        id: "quest-board",
+        columns: 176,
+        rows: 49,
+        focus: undefined,
+      },
+    ]);
     expect(
       await ui.find({ type: "Button", text: "Normal size" }),
     ).toBeDefined();
