@@ -518,3 +518,313 @@ export function repoNameFromGitCommonDir(
 
   return dotGit.slice(0, -"/.git".length).split("/").pop() ?? fallback;
 }
+
+// The alerts check: what the board tells the operator about while they are
+// working somewhere else. Everything here is pure -- the argv, the parsers, and
+// the comparison against the last state seen -- so it is tested without a
+// surface; the reads, the clock and the toasts live in `register.tsx`.
+
+/** What the plugin's `alerts` option offers. */
+export type AlertsSetting = "all" | "decisions" | "off";
+
+/**
+ * The `alerts` option as the check reads it.
+ *
+ * A value outside the three reads as the default rather than as a refusal: the
+ * engine reads a stored value outside a field's `options` as unset, so an
+ * option nobody set has to read the same way here.
+ */
+export function parseAlerts(value: unknown): AlertsSetting {
+  return value === "decisions" || value === "off" ? value : "all";
+}
+
+/** One decision as `quest decision list` reports it. */
+export type DecisionEntry = {
+  id: string;
+  title: string;
+  status: string;
+};
+
+/**
+ * One decision as the check reads it: the record, and the workspace it was read
+ * from.
+ *
+ * The repository is carried because a decision id is minted per workspace --
+ * `highestSequence` reads that workspace's own `planning.json` -- so the same
+ * `DEC-3` in two repositories is two decisions, and comparing them by id alone
+ * would call one of them the other's resolution.
+ */
+export type AlertDecision = DecisionEntry & { repo: string };
+
+/** The arguments the check reads decisions with. `decision list` takes none. */
+export function decisionListArgs(): string[] {
+  return ["decision", "list"];
+}
+
+/** Reads `quest decision list --json` down to the fields the check reads. */
+export function parseDecisionList(stdout: string): DecisionEntry[] {
+  const parsed = JSON.parse(stdout) as { data?: unknown };
+  if (!Array.isArray(parsed.data)) {
+    throw new Error("quest output has no data array");
+  }
+
+  return parsed.data.map((raw) => {
+    const decision = raw as Record<string, unknown>;
+
+    return {
+      id: String(decision.id ?? "?"),
+      title: String(decision.title ?? ""),
+      status: String(decision.status ?? ""),
+    };
+  });
+}
+
+/**
+ * One task as the check reads it: open now, or the state it left the open set
+ * for.
+ */
+export type AlertTask = {
+  repo: string;
+  id: string;
+  title: string;
+  status: string;
+  priority: string | null;
+  /** The kind a Closed task was retired under; null on every other task. */
+  resolution: string | null;
+};
+
+/**
+ * Reads `quest task view --json` down to the fields the check classifies on.
+ *
+ * `parseTaskView` reads the detail the pane draws; a task that left the open
+ * set is told Done from Closed by its status and, when it was closed, by why --
+ * neither of which the pane's own reader keeps.
+ */
+export function parseTaskOutcome(stdout: string): Omit<AlertTask, "repo"> {
+  const parsed = JSON.parse(stdout) as { data?: unknown };
+  const task = parsed.data as Record<string, unknown> | undefined;
+  if (!task || typeof task !== "object") {
+    throw new Error("quest output has no task");
+  }
+  const resolution = task.resolution as { kind?: unknown } | undefined;
+
+  return {
+    id: String(task.id ?? "?"),
+    title: String(task.title ?? ""),
+    status: String(task.status ?? ""),
+    priority: typeof task.priority === "string" ? task.priority : null,
+    resolution: typeof resolution?.kind === "string" ? resolution.kind : null,
+  };
+}
+
+/** The last state the check saw, as `$.store` keeps it. */
+export type AlertsState = {
+  /** `${repo}:${id}` -> status, the same reason `AlertDecision` carries its repo. */
+  decisions: Record<string, string>;
+  /** Repository -> task id -> status, over the tasks open at that check. */
+  tasks: Record<string, Record<string, string>>;
+};
+
+function isStringMap(value: unknown): value is Record<string, string> {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    Object.values(value).every((one) => typeof one === "string")
+  );
+}
+
+/**
+ * Whether a value read back from the store is a state this build wrote.
+ *
+ * A stored state that does not pass reads as no state at all, and the check
+ * then records a baseline rather than toasting a fleet's worth of changes it
+ * cannot be sure it has not already shown.
+ */
+export function isAlertsState(value: unknown): value is AlertsState {
+  const state = value as Partial<AlertsState> | null;
+
+  return (
+    !!state &&
+    typeof state === "object" &&
+    isStringMap(state.decisions) &&
+    !!state.tasks &&
+    typeof state.tasks === "object" &&
+    Object.values(state.tasks).every((one) => isStringMap(one))
+  );
+}
+
+/** What one check found worth telling the operator about. */
+export type AlertChanges = {
+  /** Decisions that have just become `proposed`. */
+  waiting: AlertDecision[];
+  /** Decisions that were `proposed` and are not any more. */
+  decided: { id: string; status: string }[];
+  /** Open tasks that have moved to Paused. */
+  paused: AlertTask[];
+  /** Tasks that left the open set at the closed status. */
+  closed: AlertTask[];
+  /** Tasks that left the open set at Done with a high priority. */
+  done: AlertTask[];
+};
+
+/** Everything one check read, from the repositories it could read. */
+export type AlertsSeen = {
+  decisions: readonly AlertDecision[];
+  open: readonly AlertTask[];
+  /** The tasks that were open last check and are not now, each looked up once. */
+  departed: readonly AlertTask[];
+};
+
+/**
+ * The alert-worthy changes between the last state seen and this check's read.
+ *
+ * Only changes a person would act on: a task starting, or a normal-priority
+ * task finishing, is drawn in the pane and says nothing. Decisions are alert-
+ * worthy whichever way they move, so `decisions` mode stops after them.
+ */
+export function alertChanges(
+  previous: AlertsState,
+  seen: AlertsSeen,
+  setting: AlertsSetting,
+): AlertChanges {
+  const changes: AlertChanges = {
+    waiting: [],
+    decided: [],
+    paused: [],
+    closed: [],
+    done: [],
+  };
+  for (const decision of seen.decisions) {
+    const was = previous.decisions[`${decision.repo}:${decision.id}`];
+    if (decision.status === "proposed" && was !== "proposed") {
+      changes.waiting.push(decision);
+    }
+    if (was === "proposed" && decision.status !== "proposed") {
+      changes.decided.push({ id: decision.id, status: decision.status });
+    }
+  }
+  if (setting !== "all") {
+    return changes;
+  }
+  for (const task of seen.open) {
+    const was = previous.tasks[task.repo]?.[task.id];
+    if (was !== undefined && was !== task.status && task.status === "Paused") {
+      changes.paused.push(task);
+    }
+  }
+  for (const task of seen.departed) {
+    if (task.status === "Closed") {
+      changes.closed.push(task);
+    }
+    if (task.status === "Done" && task.priority === "high") {
+      changes.done.push(task);
+    }
+  }
+
+  return changes;
+}
+
+/** One toast the check shows, and how long it stays. */
+export type AlertToast = { text: string; timeoutMs: number };
+
+/** More alert-worthy task changes than this in one check become one toast. */
+export const BATCH_AT = 3;
+
+/** A resolution kind as a toast reads it: `wont-do` is "won't do". */
+function resolutionWords(kind: string): string {
+  return kind === "wont-do" ? "won't do" : kind;
+}
+
+/** The toast for a task retired at the closed status. */
+function closedText(task: AlertTask): string {
+  const why = task.resolution ? ` (${resolutionWords(task.resolution)})` : "";
+
+  return `${task.id} closed${why} in ${task.repo}`;
+}
+
+/** The one toast a check with more than {@link BATCH_AT} task changes shows. */
+export function batchLine(changes: AlertChanges): string {
+  const counts: readonly (readonly [number, string])[] = [
+    [changes.done.length, "done"],
+    [changes.paused.length, "paused"],
+    [changes.closed.length, "closed"],
+  ];
+  const total = counts.reduce((sum, [count]) => sum + count, 0);
+  const named = counts
+    .filter(([count]) => count > 0)
+    .map(([count, word]) => `${count} ${word}`)
+    .join(", ");
+
+  return `${total} updates: ${named}. Open /quest for the list.`;
+}
+
+/**
+ * The toasts one check shows: the decisions first, each its own, then the task
+ * changes -- individually, or as one batch once there are more than
+ * {@link BATCH_AT} of them.
+ *
+ * Decisions are never folded into the batch. A waiting decision is something
+ * the person has to answer, and "3 updates" is not a line they can act on.
+ */
+export function alertToasts(changes: AlertChanges): AlertToast[] {
+  const toasts: AlertToast[] = [];
+  for (const decision of changes.waiting) {
+    toasts.push({
+      text: `${decision.id} needs a decision: ${decision.title}`,
+      timeoutMs: 10_000,
+    });
+  }
+  for (const decision of changes.decided) {
+    toasts.push({
+      text: `${decision.id} decided: ${decision.status}`,
+      timeoutMs: 6_000,
+    });
+  }
+  const tasks: AlertToast[] = [
+    ...changes.paused.map((task) => ({
+      text: `${task.id} paused in ${task.repo}: ${task.title}`,
+      timeoutMs: 8_000,
+    })),
+    ...changes.closed.map((task) => ({
+      text: closedText(task),
+      timeoutMs: 6_000,
+    })),
+    ...changes.done.map((task) => ({
+      text: `${task.id} done: ${task.title}`,
+      timeoutMs: 6_000,
+    })),
+  ];
+  if (tasks.length > BATCH_AT) {
+    toasts.push({ text: batchLine(changes), timeoutMs: 8_000 });
+  } else {
+    toasts.push(...tasks);
+  }
+
+  return toasts;
+}
+
+/**
+ * The one line a first check after a restart shows, or null when nothing moved
+ * while no session was running.
+ */
+export function awayLine(changes: AlertChanges): string | null {
+  const waiting = changes.waiting.length;
+  const updates =
+    changes.paused.length + changes.closed.length + changes.done.length;
+  const parts: string[] = [];
+  if (waiting > 0) {
+    parts.push(`${waiting} decision${waiting === 1 ? "" : "s"} waiting`);
+  }
+  if (updates > 0) {
+    parts.push(`${updates} update${updates === 1 ? "" : "s"}`);
+  }
+
+  return parts.length === 0 ? null : `While you were away: ${parts.join(", ")}`;
+}
+
+/** The status line that stands while decisions wait, or undefined for none. */
+export function waitingStatus(waiting: number): string | undefined {
+  return waiting > 0
+    ? `Quest: ${waiting} decision${waiting === 1 ? "" : "s"} waiting`
+    : undefined;
+}
