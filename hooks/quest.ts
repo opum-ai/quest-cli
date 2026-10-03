@@ -36,65 +36,38 @@ export const DOCK_COLUMNS = 64;
 export const RAIL_COLUMNS = 22;
 
 /**
- * What a full pane leaves the transcript, so the conversation stays visible
- * beside it rather than vanishing.
+ * Cells a full dock request leaves the transcript, in the request itself.
+ *
+ * The engine clamps a dock request to `columns - 24` on 2.1.288 (read from
+ * cc-patch's decompiled build and measured by lore-cli, LCLI-674; ruled in
+ * opum-doc DEC-154, 2026-10-03). The first design kept 20, which the engine
+ * never granted.
  */
-export const FULL_MARGIN_COLUMNS = 20;
+export const FULL_MARGIN_COLUMNS = 24;
 
-/** The prompt area an inline full pane leaves below it. */
-export const FULL_MARGIN_ROWS = 6;
+/** Rows the engine keeps for the prompt under an inline pane. */
+export const PROMPT_FLOOR_ROWS = 8;
+
+/** Rows of transcript it keeps visible above one. */
+export const TRANSCRIPT_PEEK_ROWS = 3;
+
+/** The prompt area an inline full pane leaves below it (DEC-154's rows - 11). */
+export const FULL_MARGIN_ROWS = PROMPT_FLOOR_ROWS + TRANSCRIPT_PEEK_ROWS;
 
 /** The narrowest a full pane is ever asked for. */
 export const MIN_PANE_ROWS = 5;
 
 /**
  * The frame column a docked pane's body sits inside, between it and the
- * transcript.
+ * transcript: the body the render reports is one cell narrower than the width
+ * the person's kept size names.
  *
- * Measured on Claude Code 2.1.288 (QCLI-454): for a DOCKED pane,
- * `ui.render`'s `e.viewport.columns` is not the terminal -- it is the
- * transcript column, the terminal less the pane's own dock. The terminal is
- * the two added back: `viewport.columns + bodyColumns + FRAME_COLUMNS`.
- * Verified at three sizes: 120+79+1=200, 160+79+1=240, and 90+109+1=200.
+ * Measured on Claude Code 2.1.288 (QCLI-454): a dock whose person-set width is
+ * 80 reports `bodyColumns` 79. The kept-width notice adds this back so it names
+ * the same number `pluginPanes.dockColumns` holds (DEC-154 counts the store's
+ * value, "Width kept at 80").
  */
 export const FRAME_COLUMNS = 1;
-
-/**
- * The terminal's width, from a docked pane's own render facts: the transcript
- * column it draws beside, and its granted body. Null until both are known --
- * `session.start` runs before any draw, and the dock's body only arrives with
- * the first render.
- */
-export function dockedTerminalColumns(
-  viewport: Partial<Viewport> | null,
-  bodyColumns: number | null,
-): number | null {
-  if (viewport?.columns === undefined || bodyColumns === null) {
-    return null;
-  }
-
-  return viewport.columns + bodyColumns + FRAME_COLUMNS;
-}
-
-/**
- * The columns a full pane asks for while DOCKED: the whole terminal less the
- * transcript margin.
- *
- * A docked pane cannot use `viewport.columns` directly for this -- that is the
- * transcript column, so the ask would come out narrower than the pane already
- * is, and the surface would grant it as-is: the full toggle would change
- * nothing on screen (QCLI-454, measured). Null when the body is not known yet.
- */
-export function dockFullColumns(
-  viewport: Partial<Viewport> | null,
-  bodyColumns: number | null,
-): number | null {
-  const terminal = dockedTerminalColumns(viewport, bodyColumns);
-
-  return terminal === null
-    ? null
-    : Math.max(RAIL_COLUMNS, terminal - FULL_MARGIN_COLUMNS);
-}
 
 /**
  * At or above this body width the board draws the list and the detail side by
@@ -112,10 +85,6 @@ export const WIDE_COLUMNS = 120;
  * a granted request a held one.
  */
 export const SIZE_SLACK = 4;
-
-/** The hint a pane shows when the surface kept the person's own size. */
-export const SIZE_HELD_HINT =
-  "Drag the pane edge to resize; z switches layouts";
 
 /** The size the surface measured, as `ui.render` reports it under `e.viewport`. */
 export type Viewport = { columns: number; rows: number };
@@ -159,29 +128,16 @@ export function fullPaneSize(viewport: Partial<Viewport> | null): {
  *
  * Collapsed is the rail and wins over full, so collapsing from full mode lands
  * on the rail and expanding returns to whichever of the other two was stored.
- *
- * `dockBodyColumns` is the body the surface last granted the docked pane, when
- * one is known: with it, a docked full asks for the whole terminal (measured
- * via `dockedTerminalColumns`) rather than for the transcript column the
- * render's viewport reports. Without it -- no draw yet, or an inline pane --
- * `fullPaneSize`'s own arithmetic stands.
  */
 export function paneSize(
   state: { isCollapsed: boolean; isFull: boolean },
   viewport: Partial<Viewport> | null,
-  dockBodyColumns: number | null = null,
 ): { columns?: number; rows?: number } {
   if (state.isCollapsed) {
     return { columns: RAIL_COLUMNS };
   }
   if (state.isFull) {
-    const size = fullPaneSize(viewport);
-    const docked = dockFullColumns(viewport, dockBodyColumns);
-    if (docked !== null) {
-      size.columns = docked;
-    }
-
-    return size;
+    return fullPaneSize(viewport);
   }
 
   return { columns: DOCK_COLUMNS };
@@ -203,43 +159,42 @@ export function isSizeHeld(granted: number, asked: number): boolean {
 /**
  * What full mode asked for on the axis this placement sizes: the dock is sized
  * across, the inline block down. Null when that axis is not known yet.
- *
- * The dock's ask is derived from the granted body (`dockFullColumns`), because
- * a docked render's `viewport.columns` is the transcript column rather than
- * the terminal: comparing the grant against that undersized ask is what made
- * every real dock read as granted while the screen never changed (QCLI-454).
  */
 export function fullAxis(
   placement: Placement,
   viewport: Partial<Viewport> | null,
-  granted: number | null,
 ): number | null {
-  if (placement === "dock") {
-    return dockFullColumns(viewport, granted);
-  }
   const size = fullPaneSize(viewport);
+  const wanted = placement === "dock" ? size.columns : size.rows;
 
-  return size.rows ?? null;
+  return wanted ?? null;
 }
 
 /**
- * The hint to draw under the pane's controls, or null when there is none.
+ * The line a docked full pane shows while the surface keeps the person's own
+ * width, or null when there is none to show.
  *
- * Only full mode can be held: the normal dock and the rail ask for a fixed
- * size the surface grants or clamps, and there is nothing to say about it.
+ * DEC-154, rule 3: a kept width is the person's choice, and while one holds
+ * full mode says so plainly -- naming the width the way
+ * `pluginPanes.dockColumns` holds it -- rather than showing a generic hint.
+ * Only a dock can keep one, and only full mode speaks of it: the inline block
+ * is content-sized, so a short one is honest and needs no notice, and the
+ * normal dock and the rail ask for fixed sizes.
  */
-export function sizeHeldHint(
+export function keptWidthNotice(
   state: { isCollapsed: boolean; isFull: boolean },
   placement: Placement,
   viewport: Partial<Viewport> | null,
-  granted: number,
+  drawn: number,
 ): string | null {
-  if (state.isCollapsed || !state.isFull) {
+  if (state.isCollapsed || !state.isFull || placement !== "dock") {
     return null;
   }
-  const asked = fullAxis(placement, viewport, granted);
+  const asked = fullAxis(placement, viewport);
 
-  return asked !== null && isSizeHeld(granted, asked) ? SIZE_HELD_HINT : null;
+  return asked !== null && isSizeHeld(drawn, asked)
+    ? `Width kept at ${drawn + FRAME_COLUMNS} (you set it): drag the pane edge to change`
+    : null;
 }
 
 /**
