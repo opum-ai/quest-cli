@@ -433,34 +433,31 @@ test("the board turns side by side at 120 body columns", () => {
 
 test("a width the surface keeps is said out loud, naming the width the person set", () => {
   const full = { isCollapsed: false, isFull: true };
-  // The operator's measured dock: transcript 120 + body 79 + divider = a
-  // 200-column terminal, where full asks for 176 (DEC-154 rule 2 as amended).
-  const docked = { columns: 120, rows: 60 };
 
   // DEC-154 rule 3: a dock the person set to 80 columns -- 79 of body plus the
-  // frame column -- is what the surface keeps. The pane says so plainly,
-  // naming the width the store holds.
-  expect(keptWidthNotice(full, "dock", docked, 79)).toBe(
+  // frame column -- is what the surface keeps. The pane says so plainly, naming
+  // the width the store holds, while the ask's outcome is that it went
+  // ungranted (QCLI-456: `holding` IS that outcome, not a reading of the drawn
+  // width against whatever a resize would ask for now).
+  expect(keptWidthNotice(full, "dock", 79, true)).toBe(
     "Width kept at 80 (you set it): drag the pane edge to change",
   );
-  // Granted: a 174-column body at the same 200-column terminal (25 columns of
-  // transcript) is within the 4-cell slack of the 176 asked, so nothing to say.
-  expect(
-    keptWidthNotice(full, "dock", { columns: 25, rows: 60 }, 174),
-  ).toBeNull();
+  // Nothing holding is quiet whatever the drawn width: a grant the surface
+  // honoured, or a shortfall a resize left with nothing re-asked, claims no
+  // width of anyone's.
+  expect(keptWidthNotice(full, "dock", 79, false)).toBeNull();
+  expect(keptWidthNotice(full, "dock", 174, false)).toBeNull();
   // An inline block is content-sized, so full on short content changing little
   // is honest and needs no notice (DEC-154 rule 1).
-  expect(keptWidthNotice(full, "inline", docked, 54)).toBeNull();
-  expect(keptWidthNotice(full, "inline", docked, 20)).toBeNull();
+  expect(keptWidthNotice(full, "inline", 54, true)).toBeNull();
+  expect(keptWidthNotice(full, "inline", 20, true)).toBeNull();
   // Only full mode speaks of it, and only a dock keeps a width.
   expect(
-    keptWidthNotice({ isCollapsed: false, isFull: false }, "dock", docked, 40),
+    keptWidthNotice({ isCollapsed: false, isFull: false }, "dock", 40, true),
   ).toBeNull();
   expect(
-    keptWidthNotice({ isCollapsed: true, isFull: true }, "dock", docked, 22),
+    keptWidthNotice({ isCollapsed: true, isFull: true }, "dock", 22, true),
   ).toBeNull();
-  // And there is nothing to compare against before a viewport is known.
-  expect(keptWidthNotice(full, "dock", null, 20)).toBeNull();
 });
 
 test("a stored view survives the reload, full mode included", () => {
@@ -1189,6 +1186,64 @@ test("a dock the surface keeps is asked for the terminal's width and named plain
     await ui.press({ key: "full" });
     await ui.unmount();
   }
+});
+
+test("a widening resize after a granted full ask shows no kept-width line", async ($, on) => {
+  // The granted counterpart of the operator's kept dock, from the orchestrator's
+  // by-ref read (DEC-154 rule 3): a full ask the surface GRANTED at a 200-column
+  // terminal -- the dock draws at the 176 asked (175 of body, transcript
+  // 24 = 200 - 175 - 1, the measured reconstruction). The terminal then widens
+  // to 240 with the pane keeping the width it was granted, and no new ask goes
+  // out: amended rule 2 forbids re-asking on a resize. Full mode WOULD ask 216
+  // at the new terminal (64 + 175 + 1 - 24), so the pane now sits short of that
+  // -- but nothing was re-asked, and the shortfall is the resize's, not a width
+  // the person set. The line claims an owner only for an ask that went
+  // ungranted (opum-ai/lore-cli#486 F2, found in its own pane), so it stays
+  // quiet here.
+  const opens: Open[] = [];
+  mockBoard(on, opens);
+  await $.session.start({ ...START });
+
+  const ui = await $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "Pane",
+    requestId: "quest-board",
+    props: { ...PANE, bodyColumns: 175 },
+    viewport: { columns: 24, rows: 49, isFullscreen: true },
+  });
+  const inFull = async () =>
+    (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+  if (!(await inFull())) {
+    await ui.press({ key: "full" });
+  }
+  // The ask went out at 176 and the pane drew the granted size, so there is
+  // nothing to say -- the control half of this probe.
+  expect(opens.at(-1)).toMatchObject({ columns: 176 });
+  expect(
+    await ui.find({ type: "Text", text: /Width kept at/ }),
+  ).toBeUndefined();
+  await ui.unmount();
+
+  // The terminal widens and the pane keeps its granted width. Still full mode,
+  // still short of what a fresh ask would name -- and no ask was made.
+  opens.length = 0;
+  const wider = await $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "Pane",
+    requestId: "quest-board",
+    props: { ...PANE, bodyColumns: 175 },
+    viewport: { columns: 64, rows: 49, isFullscreen: true },
+  });
+  expect(opens).toEqual([]);
+  expect(
+    await wider.find({ type: "Button", text: "Normal size" }),
+  ).toBeDefined();
+  expect(
+    await wider.find({ type: "Text", text: /Width kept at/ }),
+  ).toBeUndefined();
+  await wider.unmount();
 });
 
 test("the task input opens that task in the detail view", async ($, on) => {

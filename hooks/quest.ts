@@ -226,32 +226,8 @@ export function isSizeHeld(granted: number, asked: number): boolean {
 }
 
 /**
- * What full mode asked for on the axis this placement sizes: the dock is sized
- * across, the inline block down. Null when that axis is not known yet.
- *
- * The dock's ask is derived from the body it drew (`dockFullColumns`, DEC-154
- * rule 2 as amended): a docked render's `viewport.columns` is the transcript
- * column rather than the terminal, so comparing the grant against an ask read
- * off it is what made every real dock look granted while the screen never
- * moved (QCLI-454). The inline block is the whole terminal when it draws, so
- * its rows ask stands as it is.
- */
-export function fullAxis(
-  placement: Placement,
-  viewport: Partial<Viewport> | null,
-  drawn: number | null,
-): number | null {
-  if (placement === "dock") {
-    return dockFullColumns(viewport, drawn);
-  }
-  const size = fullPaneSize(viewport);
-
-  return size.rows ?? null;
-}
-
-/**
- * The line a docked full pane shows while the surface keeps the person's own
- * width, or null when there is none to show.
+ * The line a docked full pane shows while the surface is keeping the person's
+ * own width, or null when there is none to show.
  *
  * DEC-154, rule 3: a kept width is the person's choice, and while one holds
  * full mode says so plainly -- naming the width the way
@@ -259,21 +235,27 @@ export function fullAxis(
  * Only a dock can keep one, and only full mode speaks of it: the inline block
  * is content-sized, so a short one is honest and needs no notice, and the
  * normal dock and the rail ask for fixed sizes.
+ *
+ * `holding` is the ask's OUTCOME -- a full ask that so far went ungranted --
+ * not a reading of the drawn width against what full mode would ask for now.
+ * A re-derived ask moves under the pane: after a GRANTED ask a widening
+ * resize lifts it while the pane keeps the granted width and nothing is
+ * re-asked (amended rule 2), and the drawn width alone then reported a width
+ * the person had set when nothing was held (QCLI-456, the defect
+ * opum-ai/lore-cli#486 F2 found in its own pane). The outcome is tracked at
+ * the ask instead: only an ask that was made can have gone ungranted.
  */
 export function keptWidthNotice(
   state: { isCollapsed: boolean; isFull: boolean },
   placement: Placement,
-  viewport: Partial<Viewport> | null,
   drawn: number,
+  holding: boolean,
 ): string | null {
-  if (state.isCollapsed || !state.isFull || placement !== "dock") {
+  if (state.isCollapsed || !state.isFull || placement !== "dock" || !holding) {
     return null;
   }
-  const asked = fullAxis(placement, viewport, drawn);
 
-  return asked !== null && isSizeHeld(drawn, asked)
-    ? `Width kept at ${drawn + FRAME_COLUMNS} (you set it): drag the pane edge to change`
-    : null;
+  return `Width kept at ${drawn + FRAME_COLUMNS} (you set it): drag the pane edge to change`;
 }
 
 /**

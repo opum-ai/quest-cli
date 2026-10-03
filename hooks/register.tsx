@@ -22,7 +22,6 @@ import {
   decisionListArgs,
   discoverRoot,
   filterRows,
-  fullAxis,
   isAlertsState,
   isSizeHeld,
   isStoredView,
@@ -123,6 +122,20 @@ let lastDockBodyColumns: number | null = null;
 // more than the frame slack. DEC-154: a kept width is the person's choice, so
 // the pane says so and the full control stops reading a plain "Full screen".
 let surfaceKeepsSize = false;
+
+// The numbers the full mode this session last asked for, and whether that ask
+// has so far gone ungranted -- the module's reading of "a width is holding"
+// (DEC-154 rule 3). The ask sets it and a later full draw at the ask's own
+// size clears it, so it is an OUTCOME rather than a shortfall: amended rule 2
+// forbids re-asking on a resize, so after a granted ask a widening lifts what
+// full mode would ask for while the pane keeps the grant, and the shortfall
+// that opens up has no width of anyone's behind it (QCLI-456, the defect
+// opum-ai/lore-cli#486 F2 found in its own pane). The render that fires the
+// mode's own ask is suppressed -- it drew before the surface answered -- and
+// each placement reads the axis it is sized on: the dock across, the inline
+// block down.
+let fullAsk: { columns?: number; rows?: number } | null = null;
+let awaitingGrant = false;
 
 // How the pane last drew, for the `dashboard` tool's own line: the record of
 // what happened -- the placement, the size the surface actually granted, what
@@ -756,6 +769,11 @@ async function savePrefs($: EngineInterface): Promise<void> {
  * toggle, or on the first render of a restored full mode -- and a resize or a
  * redraw never makes a second one. An open before any draw (a `session.start`)
  * asks the surface's own default and leaves the ask owed.
+ *
+ * The numbers are kept, and the ask stands ungranted until a full draw comes
+ * within the slack of them (QCLI-456): the kept-width line and the tool's
+ * short-size phrase read that outcome, so they claim a width the person set
+ * only while THIS ask is the one that went ungranted.
  */
 async function openPane(
   $: EngineInterface,
@@ -771,6 +789,8 @@ async function openPane(
     (asked.columns !== undefined || asked.rows !== undefined)
   ) {
     fullAskMade = true;
+    fullAsk = { columns: asked.columns, rows: asked.rows };
+    awaitingGrant = true;
   }
 
   return await $.ui.open({
@@ -1120,6 +1140,8 @@ export const register: Register = (on, options) => {
     lastDockBodyColumns = null;
     fullAskMade = false;
     surfaceKeepsSize = false;
+    fullAsk = null;
+    awaitingGrant = false;
 
     // No viewport has been measured yet -- `session.start` runs ahead of the
     // first draw -- so a stored full mode opens at the surface's default and
@@ -1291,7 +1313,16 @@ export const register: Register = (on, options) => {
     }
     lastDockBodyColumns =
       e.props.placement === "dock" ? e.props.bodyColumns : null;
-    if (e.viewport && current.isFull && !current.isCollapsed && !fullAskMade) {
+    // The ask this draw fires, if the stored mode still owes one. It is also
+    // the one draw that must NOT read the outcome that ask is about to have:
+    // it drew before the surface answered, so its drawn width says nothing
+    // about the grant (QCLI-456).
+    const owesFullAsk =
+      e.viewport !== undefined &&
+      current.isFull &&
+      !current.isCollapsed &&
+      !fullAskMade;
+    if (owesFullAsk) {
       void openPane($, current, viewport);
     }
 
@@ -1304,20 +1335,36 @@ export const register: Register = (on, options) => {
       row.tasks.some((task) => task.conflict),
     );
     // A width the surface kept rather than granted is said out loud, so the
-    // pane does not claim a size it did not get. The dock is measured across
-    // and the inline block down, so each compares against the axis it was
-    // sized on (DEC-154 rules 1 and 3: the dock says the width is kept; an
-    // inline block is content-sized and needs no notice).
+    // pane does not claim a size it did not get. What is kept is the ask's
+    // OUTCOME, not a reading of this draw against what full mode would ask
+    // for now: after a granted ask a widening lifts the fresh ask while the
+    // pane keeps the grant and nothing is re-asked, and that shortfall has no
+    // width of anyone's behind it (QCLI-456). The dock is measured across and
+    // the inline block down, so each reads the axis of the ask it made
+    // (DEC-154 rules 1 and 3: the dock says the width is kept; an inline
+    // block is content-sized and needs no notice).
     const drawnAxis =
       e.props.placement === "dock"
         ? e.props.bodyColumns
         : e.props.scroll.bodyRows;
-    const askedAxis = fullAxis(e.props.placement, viewport, drawnAxis);
+    const inFull = current.isFull && !current.isCollapsed;
+    const askedAxis = !inFull
+      ? null
+      : e.props.placement === "dock"
+        ? (fullAsk?.columns ?? null)
+        : (fullAsk?.rows ?? null);
+    const isShort = askedAxis !== null && isSizeHeld(drawnAxis, askedAxis);
+    if (askedAxis !== null && !isShort && !owesFullAsk) {
+      // A full draw at the size the ask named is a grant: this machine honours
+      // asks, so nothing is holding any more.
+      awaitingGrant = false;
+    }
+    const holding = inFull && awaitingGrant && !owesFullAsk;
     const notice = keptWidthNotice(
       current,
       e.props.placement,
-      viewport,
       drawnAxis,
+      holding,
     );
     lastRendered = {
       isFull: current.isFull,
@@ -1325,13 +1372,9 @@ export const register: Register = (on, options) => {
       placement: e.props.placement,
       drawn: drawnAxis,
       asked: askedAxis,
-      granted: askedAxis === null ? null : !isSizeHeld(drawnAxis, askedAxis),
+      granted: askedAxis === null ? null : !isShort,
     };
-    if (
-      current.isFull &&
-      !current.isCollapsed &&
-      e.props.placement === "dock"
-    ) {
+    if (inFull && e.props.placement === "dock") {
       // Learned from full draws: once the dock has kept its own width, the
       // full control stops offering a plain "Full screen" until a full draw
       // comes back granted.
