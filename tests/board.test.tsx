@@ -524,6 +524,65 @@ test("the z hotkey switches to the full size and remembers it", async ($, on) =>
   }
 });
 
+test("a full size the board re-asks for itself does not take the keyboard", async ($, on) => {
+  mock.clock(on, { now: Date.UTC(2026, 9, 2, 4, 30, 0) });
+  mock.store(on);
+  mockFleet(on);
+  on("session.root", async () => ({ value: "/repos/opum-cli" }));
+  on("process.run", async (_$, e) => {
+    if (e.argv[0] === "git") return ok("");
+    if (e.argv.includes("view")) return ok(VIEW);
+    return ok(LISTING);
+  });
+  const opens: { columns?: number; rows?: number; focus?: boolean }[] = [];
+  on("ui.open", async (_$, e) => {
+    opens.push({ columns: e.columns, rows: e.rows, focus: e.focus });
+
+    return { value: { isPlaced: true } };
+  });
+  on("ui.close", async () => ({ value: undefined }));
+  on("ui.panes", async () => ({ value: [] }));
+
+  const mount = (
+    surface: "terminal" | "desktop",
+    columns: number,
+    rows: number,
+  ) =>
+    $.ui.mount({
+      plugin: "opum-quest",
+      surface,
+      component: "Pane",
+      requestId: "quest-board",
+      props: PANE,
+      viewport: { columns, rows, isFullscreen: true },
+    });
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    const ui = await mount(surface, 200, 60);
+    // The pane's own mode outlives a mount and the file shares one copy of the
+    // module, so the starting mode is READ off the toggle's own label rather
+    // than assumed: the button says where pressing it goes.
+    const isFull = async () =>
+      (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+    if (await isFull()) {
+      await ui.press({ key: "full" });
+    }
+    // A toggle the PERSON starts, so the pane is handed the keyboard.
+    opens.length = 0;
+    await ui.press({ key: "full" });
+    expect(opens.at(-1)).toEqual({ columns: 180, rows: 54, focus: true });
+    await ui.unmount();
+
+    // The surface now reports a different size, so the board asks again for the
+    // full size on its own account. Nobody asked for the pane here, so the
+    // keyboard stays where it is: exactly one open, and it is not focused.
+    opens.length = 0;
+    const again = await mount(surface, 160, 50);
+    expect(opens).toEqual([{ columns: 140, rows: 44, focus: undefined }]);
+    await again.unmount();
+  }
+});
+
 test("the detail draws beside the list from 120 body columns", async ($, on) => {
   mock.clock(on, { now: Date.UTC(2026, 9, 2, 4, 30, 0) });
   mock.store(on);
