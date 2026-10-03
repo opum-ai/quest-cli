@@ -42,6 +42,11 @@ export const RAIL_COLUMNS = 22;
  * cc-patch's decompiled build and measured by lore-cli, LCLI-674; ruled in
  * opum-doc DEC-154, 2026-10-03). The first design kept 20, which the engine
  * never granted.
+ *
+ * DEC-154 rule 2 as amended (seq 230, 2026-10-03): the dock's ask is this
+ * margin less the TERMINAL width, reconstructed from the render by
+ * `dockedTerminalColumns` -- a docked render's `viewport.columns` is the
+ * transcript column, not the terminal.
  */
 export const FULL_MARGIN_COLUMNS = 24;
 
@@ -66,6 +71,10 @@ export const MIN_PANE_ROWS = 5;
  * 80 reports `bodyColumns` 79. The kept-width notice adds this back so it names
  * the same number `pluginPanes.dockColumns` holds (DEC-154 counts the store's
  * value, "Width kept at 80").
+ *
+ * The same cell is the divider `dockedTerminalColumns` adds back when it
+ * reconstructs the terminal from a docked render: transcript column + drawn
+ * body + this = the terminal (120 + 79 + 1 = 200, measured).
  */
 export const FRAME_COLUMNS = 1;
 
@@ -102,8 +111,12 @@ export type Placement = "dock" | "inline";
  * right whichever shape the surface seats the pane in.
  *
  * Either axis is left out when it is not known: `session.start` runs before any
- * draw, and a request is not a grant, so the surface's own default stands and
- * the pane asks again once a render reports a viewport.
+ * draw, and a request is not a grant, so the surface's own default stands and a
+ * stored full mode asks once, when a render first reports a viewport (DEC-154
+ * rule 2 as amended: once per toggle, never on a resize or a redraw).
+ *
+ * The docked `columns` this computes is the fallback for a pane whose drawn
+ * body is not yet known; `dockFullColumns` is the dock's measured form.
  */
 export function fullPaneSize(viewport: Partial<Viewport> | null): {
   columns?: number;
@@ -124,20 +137,76 @@ export function fullPaneSize(viewport: Partial<Viewport> | null): {
 }
 
 /**
+ * The terminal's width, from a docked pane's own render facts: the transcript
+ * column it draws beside and the body it drew, both from the same render, plus
+ * the divider between them.
+ *
+ * Null until both are known -- `session.start` runs before any draw, and the
+ * dock's body only arrives with a render. A docked `viewport.columns` is the
+ * transcript column, not the terminal (measured, QCLI-454: 120 + 79 + 1 = 200
+ * at a 200-column terminal, 90 + 109 + 1 = 200 at another session's), which is
+ * why the terminal is reconstructed rather than read off the render.
+ */
+export function dockedTerminalColumns(
+  viewport: Partial<Viewport> | null,
+  bodyColumns: number | null,
+): number | null {
+  if (viewport?.columns === undefined || bodyColumns === null) {
+    return null;
+  }
+
+  return viewport.columns + bodyColumns + FRAME_COLUMNS;
+}
+
+/**
+ * The columns a full pane asks for while DOCKED: the whole terminal less the
+ * engine's transcript margin (DEC-154 rule 2 as amended, 2026-10-03).
+ *
+ * A docked pane cannot use `viewport.columns` directly for this -- that is the
+ * transcript column, so the ask would come out narrower than the pane already
+ * is, and the surface would grant it as-is: the full toggle would change
+ * nothing on screen (QCLI-454, measured against the operator's report). Null
+ * when the drawn body is not known yet.
+ */
+export function dockFullColumns(
+  viewport: Partial<Viewport> | null,
+  bodyColumns: number | null,
+): number | null {
+  const terminal = dockedTerminalColumns(viewport, bodyColumns);
+
+  return terminal === null
+    ? null
+    : Math.max(RAIL_COLUMNS, terminal - FULL_MARGIN_COLUMNS);
+}
+
+/**
  * The size the pane asks `$.ui.open` for, from the two states the view holds.
  *
  * Collapsed is the rail and wins over full, so collapsing from full mode lands
  * on the rail and expanding returns to whichever of the other two was stored.
+ *
+ * `dockBodyColumns` is the body the docked pane last drew, when one is known:
+ * with it, a docked full asks for the whole terminal (via `dockFullColumns`)
+ * rather than for the transcript column the render's viewport reports. Without
+ * it -- no draw yet, or an inline pane -- `fullPaneSize`'s own arithmetic
+ * stands, which is also the only shape an inline pane can use.
  */
 export function paneSize(
   state: { isCollapsed: boolean; isFull: boolean },
   viewport: Partial<Viewport> | null,
+  dockBodyColumns: number | null = null,
 ): { columns?: number; rows?: number } {
   if (state.isCollapsed) {
     return { columns: RAIL_COLUMNS };
   }
   if (state.isFull) {
-    return fullPaneSize(viewport);
+    const size = fullPaneSize(viewport);
+    const docked = dockFullColumns(viewport, dockBodyColumns);
+    if (docked !== null) {
+      size.columns = docked;
+    }
+
+    return size;
   }
 
   return { columns: DOCK_COLUMNS };
@@ -159,15 +228,25 @@ export function isSizeHeld(granted: number, asked: number): boolean {
 /**
  * What full mode asked for on the axis this placement sizes: the dock is sized
  * across, the inline block down. Null when that axis is not known yet.
+ *
+ * The dock's ask is derived from the body it drew (`dockFullColumns`, DEC-154
+ * rule 2 as amended): a docked render's `viewport.columns` is the transcript
+ * column rather than the terminal, so comparing the grant against an ask read
+ * off it is what made every real dock look granted while the screen never
+ * moved (QCLI-454). The inline block is the whole terminal when it draws, so
+ * its rows ask stands as it is.
  */
 export function fullAxis(
   placement: Placement,
   viewport: Partial<Viewport> | null,
+  drawn: number | null,
 ): number | null {
+  if (placement === "dock") {
+    return dockFullColumns(viewport, drawn);
+  }
   const size = fullPaneSize(viewport);
-  const wanted = placement === "dock" ? size.columns : size.rows;
 
-  return wanted ?? null;
+  return size.rows ?? null;
 }
 
 /**
@@ -190,7 +269,7 @@ export function keptWidthNotice(
   if (state.isCollapsed || !state.isFull || placement !== "dock") {
     return null;
   }
-  const asked = fullAxis(placement, viewport);
+  const asked = fullAxis(placement, viewport, drawn);
 
   return asked !== null && isSizeHeld(drawn, asked)
     ? `Width kept at ${drawn + FRAME_COLUMNS} (you set it): drag the pane edge to change`

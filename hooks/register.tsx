@@ -111,6 +111,13 @@ const dirs = new Map<string, string>();
 // axis nothing has measured yet is left out of what is asked for.
 let viewport: Partial<Viewport> = {};
 
+// The body the docked pane last drew, when the last pane draw was a dock.
+// DEC-154 rule 2 as amended: a docked render's `viewport.columns` is the
+// transcript column, so the terminal width is that column plus this drawn
+// width plus the divider -- all from the same render -- and the full ask is
+// that less the engine's margin. Null before any dock has drawn.
+let lastDockBodyColumns: number | null = null;
+
 // Whether the surface is keeping a width of its own for the docked pane,
 // learned from the last FULL draw: the grant came in under the full ask by
 // more than the frame slack. DEC-154: a kept width is the person's choice, so
@@ -130,11 +137,14 @@ let lastRendered: {
   granted: boolean | null;
 } | null = null;
 
-// The full size this session last asked the surface for. `session.start` runs
-// before any draw, so a stored full mode opens at the surface's own default and
-// has to ask again once a render reports a viewport. Keying on the size keeps
-// that to once per size rather than a re-open on every draw.
-let askedFullSize: string | null = null;
+// Whether this session has made its full-size ask with numbers. DEC-154 rule 2
+// as amended: a full ask is made once per toggle -- a person's `z`, or a tool
+// call with `full`, using the latest render's numbers -- and a stored full mode
+// restored at `session.start` asks once more on its first render, because the
+// session start runs before any draw and cannot size it. Never on a resize or a
+// redraw: re-asking whenever the measured width moved is what chased
+// 96 -> 79 -> 96 on the operator's surface.
+let fullAskMade = false;
 
 /**
  * Discovers the fleet once, on whichever comes first: `session.start`, or the
@@ -731,28 +741,43 @@ async function savePrefs($: EngineInterface): Promise<void> {
 }
 
 /**
- * Opens the pane at the size the two states ask for, with the viewport the
- * caller knows.
+ * Opens the pane at the size the two states ask for, with the viewport and the
+ * drawn dock body the caller knows.
  *
  * `focus` is asked for only on a full toggle a PERSON starts -- the `z` key or
  * the button beside it. Everywhere else it is left off, and the cases that are
  * easy to mistake for a toggle are the ones that matter: a full mode restored
- * at `session.start`, the re-request this pane makes for itself on a first
- * draw or a viewport change, and the `dashboard` tool call, which Claude may
- * make unasked. None of those is a person asking for the pane, so none may
- * take the keyboard off the prompt.
+ * at `session.start`, the one ask that mode owes on its first render, and the
+ * `dashboard` tool call, which Claude may make unasked. None of those is a
+ * person asking for the pane, so none may take the keyboard off the prompt.
+ *
+ * A full open that carries numbers marks the session's ask as made (DEC-154
+ * rule 2 as amended): every numbered full ask is made through here -- at a
+ * toggle, or on the first render of a restored full mode -- and a resize or a
+ * redraw never makes a second one. An open before any draw (a `session.start`)
+ * asks the surface's own default and leaves the ask owed.
  */
 async function openPane(
   $: EngineInterface,
   state: Pick<View, "isCollapsed" | "isFull">,
   size: Partial<Viewport> = viewport,
   isFocused = false,
+  dockBody: number | null = lastDockBodyColumns,
 ): Promise<UiOpenResult> {
+  const asked = paneSize(state, size, dockBody);
+  if (
+    state.isFull &&
+    !state.isCollapsed &&
+    (asked.columns !== undefined || asked.rows !== undefined)
+  ) {
+    fullAskMade = true;
+  }
+
   return await $.ui.open({
     id: PANE,
     title: state.isCollapsed ? "Quest" : "Quest board",
     ...(isFocused && !state.isCollapsed ? { focus: true as const } : {}),
-    ...paneSize(state, size),
+    ...asked,
   });
 }
 
@@ -793,12 +818,9 @@ async function setFull($: EngineInterface, isFull: boolean): Promise<void> {
 /**
  * Records the full-size choice and nothing else: the shape the `dashboard`
  * tool uses, because a tool call is not a person asking for the pane and the
- * open it goes on to make must not take the keyboard.
- *
- * The size is marked as asked for here so the pane's own re-request on the
- * next draw -- which exists for a full mode RESTORED at `session.start`,
- * before any viewport has been measured -- does not fire a second time for a
- * size the caller has already asked for.
+ * open it goes on to make must not take the keyboard. That open is what asks,
+ * and it marks the session's ask as made (DEC-154 rule 2 as amended: one ask
+ * per toggle).
  */
 async function setFullState(
   $: EngineInterface,
@@ -806,10 +828,6 @@ async function setFullState(
 ): Promise<void> {
   await update($, view, (current) => ({ ...current, isFull }));
   await savePrefs($);
-  const current = await read($, view);
-  if (isFull) {
-    askedFullSize = JSON.stringify(paneSize(current, viewport));
-  }
 }
 
 async function setScope($: EngineInterface, scope: Scope): Promise<void> {
@@ -1077,9 +1095,19 @@ export const register: Register = (on, options) => {
         },
       },
     });
+    // A session starts before any draw: nothing has been measured, nothing has
+    // been asked, and no full draw has taught the header anything. Whatever a
+    // previous run of this module left behind -- reachable only where one copy
+    // is shared, as in a test -- is not this session's own.
+    viewport = {};
+    lastDockBodyColumns = null;
+    fullAskMade = false;
+    surfaceKeepsSize = false;
+
     // No viewport has been measured yet -- `session.start` runs ahead of the
     // first draw -- so a stored full mode opens at the surface's default and
-    // the first render asks again, now that it can.
+    // the first render asks once more, now that it can size it (DEC-154 rule 2
+    // as amended).
     await openPane($, await read($, view));
     void refresh($);
     void ensureUncommitted($);
@@ -1231,23 +1259,23 @@ export const register: Register = (on, options) => {
     const current = await read($, view);
     const width = Math.max(16, e.props.bodyColumns);
 
-    // A draw is the only place both axes of the surface are known. It is kept
-    // so a pane opened outside one can ask for the full size, and a full mode
-    // restored at `session.start` -- which could not size it -- asks again
-    // here, once per size, now that it can.
+    // A draw is the only place the surface is measured. The viewport and the
+    // docked body are kept so a toggle outside a draw asks with the latest
+    // render's numbers, and a full mode restored at `session.start` -- which
+    // could not size it -- asks once here, on its first render. DEC-154 rule 2
+    // as amended: every other ask belongs to a toggle, and a resize or a
+    // redraw never asks again.
     //
-    // This re-request is the pane's own, not a person's, so it is asked for
-    // WITHOUT focus: the person may be typing, and a pane that grabbed the
-    // keyboard on a redraw they did not make would move their keys mid-word.
+    // This ask is the pane's own, not a person's, so it is made WITHOUT focus:
+    // the person may be typing, and a pane that grabbed the keyboard on a
+    // redraw they did not make would move their keys mid-word.
     if (e.viewport) {
       viewport = { columns: e.viewport.columns, rows: e.viewport.rows };
-      if (current.isFull && !current.isCollapsed) {
-        const wanted = JSON.stringify(paneSize(current, viewport));
-        if (askedFullSize !== wanted) {
-          askedFullSize = wanted;
-          void openPane($, current, viewport);
-        }
-      }
+    }
+    lastDockBodyColumns =
+      e.props.placement === "dock" ? e.props.bodyColumns : null;
+    if (e.viewport && current.isFull && !current.isCollapsed && !fullAskMade) {
+      void openPane($, current, viewport);
     }
 
     const shown = filterRows(rows, current.query, current.repo);
@@ -1267,7 +1295,7 @@ export const register: Register = (on, options) => {
       e.props.placement === "dock"
         ? e.props.bodyColumns
         : e.props.scroll.bodyRows;
-    const askedAxis = fullAxis(e.props.placement, viewport);
+    const askedAxis = fullAxis(e.props.placement, viewport, drawnAxis);
     const notice = keptWidthNotice(
       current,
       e.props.placement,
