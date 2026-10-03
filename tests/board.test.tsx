@@ -4,6 +4,8 @@ import type { FsEntry, On } from "claude-code";
 
 import {
   SIZE_HELD_HINT,
+  alertToasts,
+  batchLine,
   filterRows,
   fullPaneSize,
   isStoredView,
@@ -16,6 +18,7 @@ import {
   pickState,
   sizeHeldHint,
 } from "../hooks/quest";
+import type { AlertChanges, AlertTask } from "../hooks/quest";
 
 const PANE = {
   title: "Quest board",
@@ -693,17 +696,47 @@ type Open = {
 };
 
 /**
+ * One pane as `$.ui.panes()` reports it, and as `boardIsShown` reads it.
+ *
+ * The engine's own record, not this mod's: placed is whether the surface seated
+ * it, shown whether it is the pane the surface draws -- a pane open and drawn
+ * behind another of the plugin's own is placed and not shown.
+ */
+type PaneRecord = {
+  id: string;
+  title: string;
+  isShown: boolean;
+  isFocused: boolean;
+  isPlaced: boolean;
+};
+
+/** The board's pane as it reads once the surface has drawn it. */
+const BOARD_PANE: PaneRecord = {
+  id: "quest-board",
+  title: "Quest board",
+  isShown: true,
+  isFocused: false,
+  isPlaced: true,
+};
+
+/**
  * The engine mocks the tool tests need: the clock, an empty store, the fleet
  * discovery, a `quest` answering the fixtures above, and every `ui.open`
  * recorded so the size, the id and the focus it asked for can be asserted.
  *
  * `NOPE-1` is not found in any workspace, which is what the unknown-task test
  * needs; every other id resolves.
+ *
+ * `panes` is the record `$.ui.panes()` answers, defaulting to the placed pane
+ * `ui.open` above says it drew. A test mutating it drives the record the tool
+ * result is read from: an entry with `isPlaced` false is the pane waiting
+ * undrawn below the floor an unasked pane is placed from.
  */
 function mockBoard(
   on: On,
   opens: Open[],
   asked?: string[][],
+  panes: PaneRecord[] = [{ ...BOARD_PANE }],
 ): { name: string; description: string; inputSchema?: unknown }[] {
   const registers: {
     name: string;
@@ -757,7 +790,7 @@ function mockBoard(
     return { value: { isPlaced: true } };
   });
   on("ui.close", async () => ({ value: undefined }));
-  on("ui.panes", async () => ({ value: [] }));
+  on("ui.panes", async () => ({ value: panes }));
 
   return registers;
 }
@@ -949,6 +982,160 @@ test("an unknown task id comes back an error and opens nothing", async ($, on) =
   }
 });
 
+test("the tool's result reports the engine's record, not what its open asked for", async ($, on) => {
+  const opens: Open[] = [];
+  const panes: PaneRecord[] = [{ ...BOARD_PANE }];
+  mockBoard(on, opens, undefined, panes);
+  await $.session.start({ ...START });
+
+  // The record says the surface drew the pane, so the result says so too.
+  const opened = await $.tool.call({ tool: TOOL });
+  expect(opened).toEqual({ result: "Opened the Quest board." });
+
+  // The open returned and the pane is waiting undrawn: the engine places an
+  // unasked pane only from 144 columns, and below that nobody can see a board
+  // the result just claimed. The result says what is true instead.
+  panes[0] = { ...BOARD_PANE, isPlaced: false, isShown: false };
+  const waiting = await $.tool.call({ tool: TOOL });
+  expect(waiting).toEqual({ result: expect.stringContaining("144 columns") });
+  expect(waiting).not.toEqual({
+    result: expect.stringContaining("Opened the Quest board"),
+  });
+
+  // Placed and shown are two facts. A pane seated behind another of the
+  // plugin's own is open and not the one the person is looking at, and the
+  // result may not name it as a board they can see.
+  panes[0] = { ...BOARD_PANE, isPlaced: true, isShown: false };
+  const behind = await $.tool.call({ tool: TOOL });
+  expect(behind).toEqual({ result: expect.stringContaining("144 columns") });
+  expect(behind).not.toEqual({
+    result: expect.stringContaining("Opened the Quest board"),
+  });
+
+  // And a pane the record does not list at all -- an open the engine refused
+  // outright -- is not an opened board either.
+  panes.length = 0;
+  const refused = await $.tool.call({ tool: TOOL });
+  expect(refused).toEqual({ result: expect.stringContaining("144 columns") });
+
+  // Four calls in a row, each of which left a refresh running unawaited: the
+  // drawing below is where that work settles, and the test ends as its
+  // siblings do rather than mid-refresh.
+  const ui = await $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "Pane",
+    requestId: "quest-board",
+    props: PANE,
+  });
+  expect(await ui.find({ key: "tab-list" })).toBeDefined();
+  await ui.unmount();
+});
+
+/**
+ * The props the engine hands a `ui.render` hook for `AbovePrompt`. The band's
+ * own hook reads none of them, but a mount carries them all.
+ */
+const BAND = {
+  hasSurvey: false,
+  isWorking: false,
+  maxRows: 20,
+  bodyColumns: 100,
+  scroll: { offset: 0, bodyRows: 20 },
+  view: {},
+};
+
+test("a waiting pane is offered by a band, and its Open press is the person's ask", async ($, on) => {
+  const opens: Open[] = [];
+  const panes: PaneRecord[] = [
+    { ...BOARD_PANE, isPlaced: false, isShown: false },
+  ];
+  const invalidates: string[] = [];
+  mockBoard(on, opens, undefined, panes);
+  on("ui.invalidate", async (_$, e) => {
+    invalidates.push(e.event);
+
+    return { value: undefined };
+  });
+  // The engine's own band, beneath the mod's: the mod draws its own only while
+  // the pane waits undrawn and passes the drawing down once it is placed.
+  on("ui.render", { component: "AbovePrompt" }, async ($, e) => {
+    const { Box, Text } = $.ui.resolve(e);
+
+    return h(Box, null, h(Text, null, "engine band"));
+  });
+  await $.session.start({ ...START });
+
+  const ui = await $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "AbovePrompt",
+    props: BAND,
+  });
+  // One line, offering the board -- which is the only way in on a terminal too
+  // narrow to seat a pane nobody asked for.
+  expect(
+    await ui.find({ type: "Text", text: /Quest board ready/ }),
+  ).toBeDefined();
+  const open = await ui.find({ type: "Button", text: "Open" });
+  expect(open).toBeDefined();
+  expect(open?.props.hotkey).toBe("o");
+
+  opens.length = 0;
+  await ui.press({ key: "open-board" });
+  // A press is the person asking, and the engine places an asked pane at any
+  // width. `focus` is the difference the mod's open carries here and the
+  // unasked open at `session.start` does not.
+  expect(opens).toEqual([
+    { id: "quest-board", columns: 64, rows: undefined, focus: true },
+  ]);
+  // The press is also what raises the redraw that takes the band down: nothing
+  // else would re-run the hook, and the band would stand beneath a board it
+  // just seated.
+  expect(invalidates).toEqual(["ui.render"]);
+
+  // Nothing has redrawn yet: the invalidate is answered by the test, so what
+  // the band is drawn from is still the record and the band is still up. What
+  // takes it down is that record saying the pane is placed, on the redraw the
+  // engine would have raised -- not the press by itself.
+  expect(
+    await ui.find({ type: "Text", text: /Quest board ready/ }),
+  ).toBeDefined();
+  panes[0] = { ...BOARD_PANE };
+  await ui.redraw();
+  expect(
+    await ui.find({ type: "Text", text: /Quest board ready/ }),
+  ).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: "engine band" })).toBeDefined();
+  await ui.unmount();
+});
+
+test("no band is drawn once the pane is placed", async ($, on) => {
+  const opens: Open[] = [];
+  mockBoard(on, opens);
+  on("ui.render", { component: "AbovePrompt" }, async ($, e) => {
+    const { Box, Text } = $.ui.resolve(e);
+
+    return h(Box, null, h(Text, null, "engine band"));
+  });
+  await $.session.start({ ...START });
+
+  const ui = await $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "AbovePrompt",
+    props: BAND,
+  });
+  // The pane is up, so the band has nothing to offer and the drawing is the
+  // engine's alone -- not a band with the text left out.
+  expect(
+    await ui.find({ type: "Text", text: /Quest board ready/ }),
+  ).toBeUndefined();
+  expect(await ui.find({ type: "Button", text: "Open" })).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: "engine band" })).toBeDefined();
+  await ui.unmount();
+});
+
 // ------------------------------------------------------------- the alerts ---
 //
 // The alerts check is driven by a clock of its own, not by a press, so its
@@ -1092,7 +1279,10 @@ test("a waiting decision toasts once with the count, and resolving it toasts the
   ];
   await clock.advance(ALERTS_MS);
   expect(toasts).toEqual([
-    { text: "DEC-140 needs a decision: Ship the alerts", timeoutMs: 10_000 },
+    {
+      text: "quest-cli DEC-140 needs a decision: Ship the alerts",
+      timeoutMs: 10_000,
+    },
   ]);
   expect(statuses.at(-1)).toBe("Quest: 1 decision waiting");
 
@@ -1107,9 +1297,43 @@ test("a waiting decision toasts once with the count, and resolving it toasts the
   ];
   await clock.advance(ALERTS_MS);
   expect(toasts).toEqual([
-    { text: "DEC-140 decided: accepted", timeoutMs: 6_000 },
+    { text: "quest-cli DEC-140 decided: accepted", timeoutMs: 6_000 },
   ]);
   expect(statuses).toEqual(["Quest: 1 decision waiting", undefined]);
+  await ui.unmount();
+});
+
+test("the same decision id in two workspaces is two decisions in two toasts", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on);
+  const canned: Canned = {
+    decisions: {},
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Open work", status: "In Progress" },
+      ],
+    },
+    views: {},
+  };
+  const { toasts } = mockAlerts(on, canned);
+
+  const ui = await mountAlertPane($);
+  canned.decisions["quest-cli"] = [
+    { id: "DEC-3", title: "Ship the pair", status: "proposed" },
+  ];
+  canned.decisions["lore-cli"] = [
+    { id: "DEC-3", title: "Ship the pair", status: "proposed" },
+  ];
+  await clock.advance(ALERTS_MS);
+  // `DEC-3` is minted per workspace -- `highestSequence` reads that tracker's
+  // own `planning.json` -- so these are two decisions, and the id alone cannot
+  // tell the person which of them a toast is about. The order the fleet is
+  // read in is not what this asserts, so the lines are compared as a set.
+  expect(toasts.map((toast) => toast.text).sort()).toEqual([
+    "lore-cli DEC-3 needs a decision: Ship the pair",
+    "quest-cli DEC-3 needs a decision: Ship the pair",
+  ]);
+  expect(toasts).toHaveLength(2);
   await ui.unmount();
 });
 
@@ -1211,9 +1435,12 @@ test("more than three changes arrive as one batched toast, with the decisions le
   // proposed in the same check keeps its own toast rather than being counted
   // into that line.
   expect(toasts).toEqual([
-    { text: "DEC-141 needs a decision: Answer me", timeoutMs: 10_000 },
     {
-      text: "5 updates: 2 done, 2 paused, 1 closed. Open /quest for the list.",
+      text: "quest-cli DEC-141 needs a decision: Answer me",
+      timeoutMs: 10_000,
+    },
+    {
+      text: "5 updates: 2 done, 2 paused, 1 closed. Open the board: /quest dashboard",
       timeoutMs: 8_000,
     },
   ]);
@@ -1442,4 +1669,72 @@ test("a repository that cannot be read is skipped quietly", async ($, on) => {
   expect(calls.filter((argv) => argv[2] === "view")).toHaveLength(0);
   expect(calls.some((argv) => argv.includes("lore-cli"))).toBe(false);
   await ui.unmount();
+});
+
+// ------------------------------------------------------------ the wording ---
+//
+// The two lines QCLI-444 changed are read in a toast and in a tool result, so
+// they are asserted here as strings as well as through the check that shows
+// them: those tests would pass on any line the check happened to agree with.
+
+/** An open task as the check reads, for the line tests below. */
+function alertTask(id: string, status: string): AlertTask {
+  return {
+    repo: "quest-cli",
+    id,
+    title: `${id} title`,
+    status,
+    priority: null,
+    resolution: null,
+  };
+}
+
+test("the batched line points at the dashboard tool, not a retired command", () => {
+  const line = batchLine({
+    waiting: [],
+    decided: [],
+    paused: [alertTask("QCLI-1", "Paused")],
+    closed: [alertTask("QCLI-2", "Closed")],
+    done: [alertTask("QCLI-3", "Done")],
+  });
+
+  expect(line).toBe(
+    "3 updates: 1 done, 1 paused, 1 closed. Open the board: /quest dashboard",
+  );
+  // The board's slash command was retired in QCLI-440, so a bare `/quest` names
+  // a command the engine refuses; the tool is pointed at by the words that
+  // reach it.
+  expect(line.endsWith("Open the board: /quest dashboard")).toBe(true);
+  expect(line).not.toMatch(/\/quest(?! dashboard)/u);
+});
+
+test("a decision toast names the repository, because the id does not", () => {
+  const changes: AlertChanges = {
+    waiting: [
+      { repo: "quest-cli", id: "DEC-3", title: "Ship the pair" },
+      { repo: "lore-cli", id: "DEC-3", title: "Ship the pair" },
+    ],
+    decided: [{ repo: "quest-cli", id: "DEC-4", status: "accepted" }],
+    paused: [],
+    closed: [],
+    done: [],
+  };
+
+  const toasts = alertToasts(changes);
+  expect(toasts).toEqual([
+    {
+      text: "quest-cli DEC-3 needs a decision: Ship the pair",
+      timeoutMs: 10_000,
+    },
+    {
+      text: "lore-cli DEC-3 needs a decision: Ship the pair",
+      timeoutMs: 10_000,
+    },
+    { text: "quest-cli DEC-4 decided: accepted", timeoutMs: 6_000 },
+  ]);
+  // One id, two workspaces: the fixture is the same `DEC-3` twice, so without
+  // the repository the first two lines would be the same string, and neither
+  // would say which decision it is about.
+  expect(changes.waiting.map((one) => one.id)).toEqual(["DEC-3", "DEC-3"]);
+  expect(toasts[0]?.text).not.toBe(toasts[1]?.text);
 });

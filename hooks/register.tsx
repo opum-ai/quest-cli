@@ -739,6 +739,19 @@ async function setCollapsed(
 }
 
 /**
+ * The band's Open press: the person asking for the board, so the pane it seats
+ * is placed at any width.
+ *
+ * The invalidate is what takes the band back down. The band is drawn only while
+ * the pane waits undrawn, and without a redraw it would stand beneath a board
+ * the press just seated.
+ */
+async function openBoardFromBand($: EngineInterface): Promise<void> {
+  await openPane($, await read($, view), viewport, true);
+  $.ui.invalidate("ui.render");
+}
+
+/**
  * The full-screen toggle: the largest pane the surface allows, or the normal
  * size, with the choice stored beside the pane's other settings. The caller is
  * a person's own press, so the pane is re-placed and handed the keyboard.
@@ -880,6 +893,37 @@ function dashboardOpened(
   }
 
   return `${parts.join(", ")}.`;
+}
+
+/**
+ * The tool's line when the surface kept the pane the call asked for undrawn.
+ *
+ * The floor is the engine's, not this mod's: an unasked open is placed from 144
+ * terminal columns (110 for a pane id the person opened before), and below it
+ * the pane waits with no `ui.render` raised at all. The band above the prompt
+ * carries the person's own way in, and a press is placed at any width.
+ */
+function dashboardWaiting(): string {
+  return "The Quest board is waiting for a terminal at least 144 columns wide. Widen the terminal, or press Open on the band above the prompt.";
+}
+
+/**
+ * Whether the board's pane is on screen right now, read from the engine's own
+ * record.
+ *
+ * The tool reports on this, not on what its `$.ui.open` asked for: an open that
+ * returned without error still leaves the pane waiting undrawn when the
+ * terminal is under the floor an unasked pane is placed from, and a result
+ * claiming otherwise names a pane the person cannot see (QCLI-444, seq 182).
+ * Placed and shown are two facts -- a pane can be open, drawn and behind
+ * another of the plugin's own -- and the board's one pane is only the second
+ * when both hold.
+ */
+async function boardIsShown($: EngineInterface): Promise<boolean> {
+  const panes = await $.ui.panes();
+  const pane = panes.find((one) => one.id === PANE);
+
+  return pane !== undefined && pane.isPlaced && pane.isShown;
 }
 
 function clockTime(ms: number): string {
@@ -1053,9 +1097,41 @@ export const register: Register = (on, options) => {
     await openPane($, await read($, view));
     void refresh($);
 
+    // What the call reports is what the engine's record says happened, not what
+    // the open asked for: an unasked pane waits undrawn below the floor it is
+    // placed from, and the model reads this line as fact.
     return {
-      result: dashboardOpened(scope, full, target?.id ?? null),
+      result: (await boardIsShown($))
+        ? dashboardOpened(scope, full, target?.id ?? null)
+        : dashboardWaiting(),
     };
+  });
+
+  // The board's way in on a terminal too narrow to seat a pane nobody asked
+  // for, and the reason the tool's own line can be honest: `$.ui.open` places
+  // an UNASKED pane only from 144 terminal columns, so the open at
+  // `session.start` -- and a `dashboard` call, which Claude may make unasked --
+  // leaves the board waiting undrawn with no way to reach it. A press is the
+  // person asking, and a person's ask is placed at any width.
+  on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
+    const panes = await $.ui.panes();
+    const pane = panes.find((one) => one.id === PANE);
+    if (!pane || pane.isPlaced) {
+      return next(e);
+    }
+    const { Box, Button, Text } = $.ui.resolve(e);
+
+    return (
+      <Box>
+        <Text>Quest board ready </Text>
+        <Button
+          key="open-board"
+          label="Open"
+          hotkey="o"
+          onPress={() => void openBoardFromBand($)}
+        />
+      </Box>
+    );
   });
 
   on("ui.render", { component: "Pane", requestId: PANE }, async ($, e) => {
