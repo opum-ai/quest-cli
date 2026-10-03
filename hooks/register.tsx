@@ -117,12 +117,6 @@ let viewport: Partial<Viewport> = {};
 // that less the engine's margin. Null before any dock has drawn.
 let lastDockBodyColumns: number | null = null;
 
-// Whether the surface is keeping a width of its own for the docked pane,
-// learned from the last FULL draw: the grant came in under the full ask by
-// more than the frame slack. DEC-154: a kept width is the person's choice, so
-// the pane says so and the full control stops reading a plain "Full screen".
-let surfaceKeepsSize = false;
-
 // The numbers the full mode this session last asked for, and whether that ask
 // has so far gone ungranted -- the module's reading of "a width is holding"
 // (DEC-154 rule 3). The ask sets it and a later full draw at the ask's own
@@ -797,7 +791,7 @@ async function openPane(
 
   return await $.ui.open({
     id: PANE,
-    title: state.isCollapsed ? "Quest" : "Quest board",
+    title: "Quest",
     ...(isFocused && !state.isCollapsed ? { focus: true as const } : {}),
     ...asked,
   });
@@ -958,8 +952,8 @@ function quoted(value: unknown): string {
 
 /**
  * The `dashboard` tool's one line, naming what it opened and the state it
- * applied -- the design's own example reads "Opened the Quest board, fleet
- * scope, OCLI-8 selected." (`pane-dashboard-tool-design.md`).
+ * applied -- the design's own example reads "Opened the Quest, fleet scope,
+ * OCLI-8 selected." (`pane-dashboard-tool-design.md`).
  *
  * The size it names is the one the surface granted, read off the pane's draw
  * that follows the open (DEC-154 rule 4): "full size" only when the drawn
@@ -984,7 +978,7 @@ function dashboardOpened(
     holding: boolean;
   } | null,
 ): string {
-  const parts = ["Opened the Quest board"];
+  const parts = ["Opened the Quest"];
   if (scope) {
     parts.push(scope === "fleet" ? "fleet scope" : "local scope");
   }
@@ -1027,8 +1021,8 @@ function dashboardOpened(
  */
 function dashboardWaiting(reason: string | undefined): string {
   const waiting = reason
-    ? `The Quest board is waiting — ${reason}`
-    : "The Quest board is not shown.";
+    ? `The Quest is waiting — ${reason}`
+    : "The Quest is not shown.";
 
   return `${waiting} Press Open on the band above the prompt.`;
 }
@@ -1123,7 +1117,7 @@ export const register: Register = (on, options) => {
     await $.tool.register({
       name: DASHBOARD_TOOL,
       description:
-        "Open the Quest board pane: the tasks being worked on across the operator's Quest workspaces, and the detail of one. Use it when the person asks to see the board or a task in the pane.",
+        "Open the Quest pane: the tasks being worked on across the operator's Quest workspaces, and the detail of one. Use it when the person asks to see the board or a task in the pane.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1151,7 +1145,6 @@ export const register: Register = (on, options) => {
     viewport = {};
     lastDockBodyColumns = null;
     fullAskMade = false;
-    surfaceKeepsSize = false;
     fullAsk = null;
     awaitingGrant = false;
 
@@ -1188,20 +1181,20 @@ export const register: Register = (on, options) => {
         : undefined;
     if (e.scope !== undefined && scope === undefined) {
       return {
-        deny: `Unknown scope ${quoted(e.scope)}: the Quest board takes "fleet" or "local". Nothing was opened.`,
+        deny: `Unknown scope ${quoted(e.scope)}: the Quest takes "fleet" or "local". Nothing was opened.`,
       };
     }
     const full: boolean | undefined =
       typeof e.full === "boolean" ? e.full : undefined;
     if (e.full !== undefined && full === undefined) {
       return {
-        deny: `Unknown full ${quoted(e.full)}: the Quest board takes true or false. Nothing was opened.`,
+        deny: `Unknown full ${quoted(e.full)}: the Quest takes true or false. Nothing was opened.`,
       };
     }
     const wanted = typeof e.task === "string" ? e.task.trim() : undefined;
     if (e.task !== undefined && !wanted) {
       return {
-        deny: `Unknown task ${quoted(e.task)}: the Quest board takes a task id. Nothing was opened.`,
+        deny: `Unknown task ${quoted(e.task)}: the Quest takes a task id. Nothing was opened.`,
       };
     }
 
@@ -1279,7 +1272,7 @@ export const register: Register = (on, options) => {
     // (seq 213, with the waiting line above).
     return (
       <Box>
-        <Text>Quest board ready · </Text>
+        <Text>Quest ready · </Text>
         <Button
           key="open-board"
           label="Open"
@@ -1325,10 +1318,12 @@ export const register: Register = (on, options) => {
     }
     lastDockBodyColumns =
       e.props.placement === "dock" ? e.props.bodyColumns : null;
-    // The ask this draw fires, if the stored mode still owes one. It is also
-    // the one draw that must NOT read the outcome that ask is about to have:
-    // it drew before the surface answered, so its drawn width says nothing
-    // about the grant (QCLI-456).
+    // The ask this draw fires, if the stored mode still owes one. The ask's
+    // numbers are set synchronously by `openPane` below, so this draw is also
+    // the first draw that can speak of the width (seq 243): the kept-width
+    // line must not wait on a later repaint, because an ask that changes
+    // nothing on a surface that keeps its width has no reason to force one,
+    // and the line then never reaches the pane (the operator's re-test).
     const owesFullAsk =
       e.viewport !== undefined &&
       current.isFull &&
@@ -1354,7 +1349,9 @@ export const register: Register = (on, options) => {
     // width of anyone's behind it (QCLI-456). The dock is measured across and
     // the inline block down, so each reads the axis of the ask it made
     // (DEC-154 rules 1 and 3: the dock says the width is kept; an inline
-    // block is content-sized and needs no notice).
+    // block is content-sized and needs no notice). Whether THIS draw may
+    // carry the line -- including the draw that makes the ask -- is decided
+    // below, where the ask's outcome is read.
     const drawnAxis =
       e.props.placement === "dock"
         ? e.props.bodyColumns
@@ -1371,7 +1368,16 @@ export const register: Register = (on, options) => {
       // asks, so nothing is holding any more.
       awaitingGrant = false;
     }
-    const holding = inFull && awaitingGrant && !owesFullAsk;
+    // The draw that MAKES the ask carries the line too (seq 243), but only
+    // when it is genuinely short of the ask it just made: the ask's numbers
+    // are in by the time this runs, an ask that goes ungranted proves nothing
+    // further, and a draw after it is not owed -- a surface that keeps its
+    // width has no reason to repaint, so waiting for one is how the line goes
+    // missing on the very surface it is about. A draw already at the ask's
+    // size is a surface that grants, and claims nothing; a surface that grants
+    // LATER clears the reading on the draw that answers it, so the claim never
+    // survives the answer.
+    const holding = inFull && awaitingGrant && (!owesFullAsk || isShort);
     const notice = keptWidthNotice(
       current,
       e.props.placement,
@@ -1387,13 +1393,6 @@ export const register: Register = (on, options) => {
       granted: askedAxis === null ? null : !isShort,
       holding,
     };
-    if (inFull && e.props.placement === "dock") {
-      // Learned from full draws: once the dock has kept its own width, the
-      // full control stops offering a plain "Full screen" until a full draw
-      // comes back granted.
-      surfaceKeepsSize = notice !== null;
-    }
-
     if (current.isCollapsed) {
       return (
         <Box flexDirection="column">
@@ -1599,11 +1598,11 @@ export const register: Register = (on, options) => {
           <Button
             key="full"
             label={
-              current.isFull
-                ? "Normal size"
-                : surfaceKeepsSize
-                  ? "Full size (kept)"
-                  : "Full screen"
+              // The CURRENT mode as state, the key as a hint (seq 243,
+              // opum-doc's ruling): "Normal size" named the action and read
+              // as the current size. The kept-width line below says what a
+              // kept width is doing; the header does not try to.
+              current.isFull ? "Full · z for normal" : "Normal · z for full"
             }
             hotkey="z"
             variant={current.isFull ? "primary" : undefined}

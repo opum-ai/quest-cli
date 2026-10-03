@@ -85,6 +85,21 @@ dated by its own tag. No date here is inferred (QCLI-398).
   toasted about. A new `alerts` setting takes `all` (the default), `decisions`
   or `off`.
 
+### Changed
+
+- **The Quest board is named "Quest", says what a kept width is doing on the
+  draw that asks, and its toggle shows the current size** (QCLI-459, from the
+  operator's re-test of 2026-10-03 relayed by opum-doc as seq 243). The pane
+  title, the tool's lines and the band read "Quest" rather than "Quest board".
+  The held-width line ("Width kept at N (you set it): drag the pane edge to
+  change") no longer waits for a draw after the full ask: a surface that keeps
+  the width a person set has no reason to repaint the pane, and on that draw
+  the line went missing; it now renders on the ask's own draw, and a surface
+  that grants the ask still clears it on the answering draw. The full toggle
+  reads the current mode as state with the key as its hint -- "Normal · z for
+  full" / "Full · z for normal" -- because the old "Normal size" named the
+  action and read as the current size.
+
 ### Removed
 
 - **The Quest board has no slash command any more** (QCLI-441, from opum-doc's

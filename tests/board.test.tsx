@@ -605,7 +605,8 @@ test("a full ask is made once per toggle: a resize never re-asks", async ($, on)
     // module, so the starting mode is READ off the toggle's own label rather
     // than assumed: the button says where pressing it goes.
     const isFull = async () =>
-      (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+      (await ui.find({ type: "Button", text: "Full · z for normal" })) !==
+      undefined;
     if (await isFull()) {
       await ui.press({ key: "full" });
     }
@@ -667,9 +668,19 @@ test("a stored full mode asks once on its first render", async ($, on) => {
     if (e.argv.includes("view")) return ok(VIEW);
     return ok(LISTING);
   });
-  const opens: { columns?: number; rows?: number; focus?: boolean }[] = [];
+  const opens: {
+    title?: string;
+    columns?: number;
+    rows?: number;
+    focus?: boolean;
+  }[] = [];
   on("ui.open", async (_$, e) => {
-    opens.push({ columns: e.columns, rows: e.rows, focus: e.focus });
+    opens.push({
+      title: e.title,
+      columns: e.columns,
+      rows: e.rows,
+      focus: e.focus,
+    });
 
     return { value: { isPlaced: true } };
   });
@@ -695,7 +706,22 @@ test("a stored full mode asks once on its first render", async ($, on) => {
     props: PANE,
     viewport: { columns: 135, rows: 60, isFullscreen: true },
   });
-  expect(opens).toEqual([{ columns: 176, rows: 49, focus: undefined }]);
+  // The title is the rename the operator asked for (seq 243): the pane is
+  // named "Quest", not "Quest board".
+  expect(opens).toEqual([
+    { title: "Quest", columns: 176, rows: 49, focus: undefined },
+  ]);
+  // The draw that MAKES the ask carries the kept-width line (seq 243). The
+  // surface here has drawn 79 of body and keeps it; the ask just went out for
+  // the whole terminal; and a surface that keeps its width has no reason to
+  // repaint, so the line must not wait on a draw that may never come -- that
+  // window is where the line went missing on the operator's re-test.
+  expect(
+    await ui.find({
+      type: "Text",
+      text: "Width kept at 65 (you set it): drag the pane edge to change",
+    }),
+  ).toBeDefined();
   await ui.unmount();
 
   // A later render at a different size -- a resize, or the pane re-drawn --
@@ -798,7 +824,8 @@ test("the pane says so when the surface kept the person's size", async ($, on) =
     // was handed is read off the toggle rather than assumed: the button says
     // where pressing it goes.
     const inFull = async () =>
-      (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+      (await ui.find({ type: "Button", text: "Full · z for normal" })) !==
+      undefined;
     if (!(await inFull())) {
       await ui.press({ key: "full" });
     }
@@ -810,8 +837,9 @@ test("the pane says so when the surface kept the person's size", async ($, on) =
       }),
     ).toBeDefined();
     // Back at the normal size the notice is gone -- only full mode speaks of
-    // the width -- and the toggle stops offering a plain "Full screen"
-    // (DEC-154 rules 3): the header does not claim a size it did not get.
+    // the width -- and the toggle reads the current mode as state with the
+    // key as its hint (seq 243, opum-doc's ruling): no label names the action
+    // or claims a size the pane did not get.
     await ui.press({ key: "full" });
     expect(
       await ui.find({
@@ -820,12 +848,18 @@ test("the pane says so when the surface kept the person's size", async ($, on) =
       }),
     ).toBeUndefined();
     expect(
-      await ui.find({ type: "Button", text: "Full size (kept)" }),
+      await ui.find({ type: "Button", text: "Normal · z for full" }),
     ).toBeDefined();
+    expect(
+      await ui.find({ type: "Button", text: "Full size (kept)" }),
+    ).toBeUndefined();
     expect(
       await ui.find({ type: "Button", text: "Full screen" }),
     ).toBeUndefined();
     await ui.press({ key: "full" });
+    expect(
+      await ui.find({ type: "Button", text: "Full · z for normal" }),
+    ).toBeDefined();
     await ui.unmount();
   }
 });
@@ -982,7 +1016,7 @@ test("the dashboard tool registers at session start and opens without focus", as
   // `tool.list` to read a registry from.
   expect(registers).toHaveLength(1);
   expect(registers[0]?.name).toBe("dashboard");
-  expect(registers[0]?.description).toMatch(/Quest board/);
+  expect(registers[0]?.description).toMatch(/Open the Quest pane/);
   // One or two sentences: the tool is listed to Claude in every session that
   // loads the mod, so the description stays short.
   expect(
@@ -1003,7 +1037,7 @@ test("the dashboard tool registers at session start and opens without focus", as
     expect(opens).toEqual([
       { id: "quest-board", columns: 64, rows: undefined, focus: undefined },
     ]);
-    expect(answer).toEqual({ result: "Opened the Quest board." });
+    expect(answer).toEqual({ result: "Opened the Quest." });
     const ui = await $.ui.mount({
       plugin: "opum-quest",
       surface,
@@ -1046,7 +1080,7 @@ test("the scope input lands in the view the tool opens", async ($, on) => {
     expect((await local.find({ key: "fleet" }))?.props.variant).toBeUndefined();
     await local.unmount();
     expect(answer).toEqual({
-      result: "Opened the Quest board, local scope.",
+      result: "Opened the Quest, local scope.",
     });
   }
 });
@@ -1072,7 +1106,7 @@ test("the full input lands in the size the tool opens", async ($, on) => {
     });
     // The pane's own state outlives a mount; come back to the normal size so
     // the line below is about this call's request and no earlier draw.
-    if (await ui.find({ type: "Button", text: "Normal size" })) {
+    if (await ui.find({ type: "Button", text: "Full · z for normal" })) {
       await ui.press({ key: "full" });
     }
     opens.length = 0;
@@ -1088,12 +1122,12 @@ test("the full input lands in the size the tool opens", async ($, on) => {
       },
     ]);
     expect(
-      await ui.find({ type: "Button", text: "Normal size" }),
+      await ui.find({ type: "Button", text: "Full · z for normal" }),
     ).toBeDefined();
     // No draw has answered with a grant yet, so the line says only that the
     // size was requested (DEC-154 rule 4).
     expect(answer).toEqual({
-      result: "Opened the Quest board, full requested.",
+      result: "Opened the Quest, full requested.",
     });
     // Once the pane has drawn, the line reports that draw's record instead.
     // The fake surface grants 64 columns of dock where full asks for 176, so
@@ -1101,7 +1135,7 @@ test("the full input lands in the size the tool opens", async ($, on) => {
     await ui.press({ key: "tab-list" });
     const second = await $.tool.call({ tool: TOOL, full: true });
     expect(second).toEqual({
-      result: "Opened the Quest board at 65 columns; the width is kept.",
+      result: "Opened the Quest at 65 columns; the width is kept.",
     });
     await ui.unmount();
   }
@@ -1120,7 +1154,7 @@ test("the full input lands in the size the tool opens", async ($, on) => {
     },
     viewport: { columns: 200, rows: 49, isFullscreen: false },
   });
-  if (await inline.find({ type: "Button", text: "Normal size" })) {
+  if (await inline.find({ type: "Button", text: "Full · z for normal" })) {
     await inline.press({ key: "full" });
   }
   await $.tool.call({ tool: TOOL, full: true });
@@ -1128,7 +1162,7 @@ test("the full input lands in the size the tool opens", async ($, on) => {
   const inlineLine = await $.tool.call({ tool: TOOL, full: true });
   expect(inlineLine).toEqual({
     result:
-      "Opened the Quest board at 30 rows; the screen keeps room for the prompt.",
+      "Opened the Quest at 30 rows; the screen keeps room for the prompt.",
   });
   await inline.unmount();
 });
@@ -1157,7 +1191,7 @@ test("a dock the surface keeps is asked for the terminal's width and named plain
     });
     // The pane's own state outlives a mount: come back to the normal size so
     // the press below is the one under test.
-    if (await ui.find({ type: "Button", text: "Normal size" })) {
+    if (await ui.find({ type: "Button", text: "Full · z for normal" })) {
       await ui.press({ key: "full" });
     }
     opens.length = 0;
@@ -1173,13 +1207,18 @@ test("a dock the surface keeps is asked for the terminal's width and named plain
     expect(await ui.find({ type: "Text", text: keptLine })).toBeDefined();
     const drawn = await $.tool.call({ tool: TOOL, full: true });
     expect(drawn).toEqual({
-      result: "Opened the Quest board at 80 columns; the width is kept.",
+      result: "Opened the Quest at 80 columns; the width is kept.",
     });
-    // Back at the normal size, the header stops offering a plain "Full screen".
+    // Back at the normal size, the toggle reads the current mode as state
+    // with the key as its hint (seq 243) -- no label names the action or
+    // claims a size the pane did not get.
     await ui.press({ key: "full" });
     expect(
-      await ui.find({ type: "Button", text: "Full size (kept)" }),
+      await ui.find({ type: "Button", text: "Normal · z for full" }),
     ).toBeDefined();
+    expect(
+      await ui.find({ type: "Button", text: "Full size (kept)" }),
+    ).toBeUndefined();
     expect(
       await ui.find({ type: "Button", text: "Full screen" }),
     ).toBeUndefined();
@@ -1213,7 +1252,8 @@ test("a widening resize after a granted full ask shows no kept-width line", asyn
     viewport: { columns: 24, rows: 49, isFullscreen: true },
   });
   const inFull = async () =>
-    (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+    (await ui.find({ type: "Button", text: "Full · z for normal" })) !==
+    undefined;
   if (!(await inFull())) {
     await ui.press({ key: "full" });
   }
@@ -1238,7 +1278,7 @@ test("a widening resize after a granted full ask shows no kept-width line", asyn
   });
   expect(opens).toEqual([]);
   expect(
-    await wider.find({ type: "Button", text: "Normal size" }),
+    await wider.find({ type: "Button", text: "Full · z for normal" }),
   ).toBeDefined();
   expect(
     await wider.find({ type: "Text", text: /Width kept at/ }),
@@ -1267,7 +1307,8 @@ test("a short dock that holds nothing says the pane kept its width (seq 234)", a
     viewport: { columns: 24, rows: 49, isFullscreen: true },
   });
   const inFull = async () =>
-    (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+    (await ui.find({ type: "Button", text: "Full · z for normal" })) !==
+    undefined;
   if (!(await inFull())) {
     await ui.press({ key: "full" });
   }
@@ -1286,11 +1327,11 @@ test("a short dock that holds nothing says the pane kept its width (seq 234)", a
   });
   expect(opens).toEqual([]);
   expect(
-    await short.find({ type: "Button", text: "Normal size" }),
+    await short.find({ type: "Button", text: "Full · z for normal" }),
   ).toBeDefined();
   const drawn = await $.tool.call({ tool: TOOL, full: true });
   expect(drawn).toEqual({
-    result: "Opened the Quest board at 121 columns; the pane kept its width.",
+    result: "Opened the Quest at 121 columns; the pane kept its width.",
   });
   await short.unmount();
 });
@@ -1304,7 +1345,7 @@ test("the task input opens that task in the detail view", async ($, on) => {
   for (const surface of ["terminal", "desktop"] as const) {
     const answer = await $.tool.call({ tool: TOOL, task: "OCLI-8" });
     expect(answer).toEqual({
-      result: "Opened the Quest board, OCLI-8 selected.",
+      result: "Opened the Quest, OCLI-8 selected.",
     });
     // The id is resolved by asking the workspaces themselves, not read off the
     // board's current view: a task that is Done, or outside the scope, is
@@ -1370,7 +1411,7 @@ test("the tool's result reports the engine's record, not what its open asked for
 
   // The record says the surface drew the pane, so the result says so too.
   const opened = await $.tool.call({ tool: TOOL });
-  expect(opened).toEqual({ result: "Opened the Quest board." });
+  expect(opened).toEqual({ result: "Opened the Quest." });
 
   // The open returned and the pane is waiting undrawn: the engine places an
   // unasked pane only from its floor (144 columns, or 110 once the person has
@@ -1383,7 +1424,7 @@ test("the tool's result reports the engine's record, not what its open asked for
     result: expect.stringContaining(UNPLACED_REASON),
   });
   expect(waiting).not.toEqual({
-    result: expect.stringContaining("Opened the Quest board"),
+    result: expect.stringContaining("Opened the Quest"),
   });
 
   // Placed and shown are two facts. A pane seated behind another of the
@@ -1395,7 +1436,7 @@ test("the tool's result reports the engine's record, not what its open asked for
   // only what the record shows.
   expect(behind).toEqual({ result: expect.stringContaining("not shown") });
   expect(behind).not.toEqual({
-    result: expect.stringContaining("Opened the Quest board"),
+    result: expect.stringContaining("Opened the Quest"),
   });
 
   // And a pane the record does not list at all -- an open the engine refused
@@ -1462,9 +1503,7 @@ test("a waiting pane is offered by a band, and its Open press is the person's as
   // narrow to seat a pane nobody asked for -- and naming the focus step the
   // letter hotkey needs: ctrl+x tab before `o`, while a click needs none
   // (seq 213).
-  expect(
-    await ui.find({ type: "Text", text: /Quest board ready/ }),
-  ).toBeDefined();
+  expect(await ui.find({ type: "Text", text: /Quest ready/ })).toBeDefined();
   expect(
     await ui.find({ type: "Text", text: /\(ctrl\+x tab, o\)/ }),
   ).toBeDefined();
@@ -1489,14 +1528,10 @@ test("a waiting pane is offered by a band, and its Open press is the person's as
   // the band is drawn from is still the record and the band is still up. What
   // takes it down is that record saying the pane is placed, on the redraw the
   // engine would have raised -- not the press by itself.
-  expect(
-    await ui.find({ type: "Text", text: /Quest board ready/ }),
-  ).toBeDefined();
+  expect(await ui.find({ type: "Text", text: /Quest ready/ })).toBeDefined();
   panes[0] = { ...BOARD_PANE };
   await ui.redraw();
-  expect(
-    await ui.find({ type: "Text", text: /Quest board ready/ }),
-  ).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: /Quest ready/ })).toBeUndefined();
   expect(await ui.find({ type: "Text", text: "engine band" })).toBeDefined();
   await ui.unmount();
 });
@@ -1519,9 +1554,7 @@ test("no band is drawn once the pane is placed", async ($, on) => {
   });
   // The pane is up, so the band has nothing to offer and the drawing is the
   // engine's alone -- not a band with the text left out.
-  expect(
-    await ui.find({ type: "Text", text: /Quest board ready/ }),
-  ).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: /Quest ready/ })).toBeUndefined();
   expect(await ui.find({ type: "Button", text: "Open" })).toBeUndefined();
   expect(await ui.find({ type: "Text", text: "engine band" })).toBeDefined();
   await ui.unmount();
