@@ -32,6 +32,15 @@ import {
 import type { Viewport } from "./quest";
 
 const PANE = "quest-board";
+// The pane's way in since QCLI-441: the engine lists this tool to Claude as
+// `mcp__opum-quest__dashboard`, and the generated `quest` skill routes
+// "quest dashboard" -- with `full`, `fleet`, `local` or a task id after it --
+// to it, sending every other argument to the CLI. There is no slash command:
+// the plugin's own skill owns `/opum-quest:quest`, so a command named `quest`
+// is refused by the engine, and a refused registration makes the whole
+// `session.start` hook throw (measured, QCLI-440).
+const DASHBOARD_TOOL = "dashboard";
+const DASHBOARD_TOOL_NAME = `mcp__opum-quest__${DASHBOARD_TOOL}`;
 const REFRESH_MS = 60_000;
 const PREFS_KEY = "opum-quest.board.view";
 
@@ -79,9 +88,9 @@ let pluginOptions: Record<string, unknown> = {};
 const dirs = new Map<string, string>();
 
 // The size the surface last reported, so a pane opened outside a draw --
-// `session.start`, `/quest-board` -- can still ask for the full size.
-// `ui.render` fills both axes; `command.run` knows the terminal's width and
-// nothing else, so an axis it did not measure is left as it was.
+// `session.start`, or a `dashboard` tool call -- can still ask for the full
+// size. Only `ui.render` measures the surface, and it fills both axes; an
+// axis nothing has measured yet is left out of what is asked for.
 let viewport: Partial<Viewport> = {};
 
 // The full size this session last asked the surface for. `session.start` runs
@@ -483,12 +492,13 @@ async function savePrefs($: EngineInterface): Promise<void> {
  * Opens the pane at the size the two states ask for, with the viewport the
  * caller knows.
  *
- * `focus` is asked for only on a full toggle a PERSON starts -- the `z` key, or
- * the command's `full` argument. Everywhere else it is left off, and the two
- * cases that are easy to mistake for a toggle are the ones that matter: a full
- * mode restored at `session.start`, and the re-request this pane makes for
- * itself on a first draw or a viewport change. Neither is a person asking for
- * the pane, so neither may take the keyboard off the prompt.
+ * `focus` is asked for only on a full toggle a PERSON starts -- the `z` key or
+ * the button beside it. Everywhere else it is left off, and the cases that are
+ * easy to mistake for a toggle are the ones that matter: a full mode restored
+ * at `session.start`, the re-request this pane makes for itself on a first
+ * draw or a viewport change, and the `dashboard` tool call, which Claude may
+ * make unasked. None of those is a person asking for the pane, so none may
+ * take the keyboard off the prompt.
  */
 async function openPane(
   $: EngineInterface,
@@ -516,17 +526,35 @@ async function setCollapsed(
 
 /**
  * The full-screen toggle: the largest pane the surface allows, or the normal
- * size, with the choice stored beside the pane's other settings.
+ * size, with the choice stored beside the pane's other settings. The caller is
+ * a person's own press, so the pane is re-placed and handed the keyboard.
  */
 async function setFull($: EngineInterface, isFull: boolean): Promise<void> {
+  await setFullState($, isFull);
+  await $.ui.close({ id: PANE });
+  await openPane($, await read($, view), viewport, true);
+}
+
+/**
+ * Records the full-size choice and nothing else: the shape the `dashboard`
+ * tool uses, because a tool call is not a person asking for the pane and the
+ * open it goes on to make must not take the keyboard.
+ *
+ * The size is marked as asked for here so the pane's own re-request on the
+ * next draw -- which exists for a full mode RESTORED at `session.start`,
+ * before any viewport has been measured -- does not fire a second time for a
+ * size the caller has already asked for.
+ */
+async function setFullState(
+  $: EngineInterface,
+  isFull: boolean,
+): Promise<void> {
   await update($, view, (current) => ({ ...current, isFull }));
   await savePrefs($);
   const current = await read($, view);
   if (isFull) {
     askedFullSize = JSON.stringify(paneSize(current, viewport));
   }
-  await $.ui.close({ id: PANE });
-  await openPane($, current, viewport, true);
 }
 
 async function setScope($: EngineInterface, scope: Scope): Promise<void> {
@@ -579,6 +607,65 @@ async function select(
     pending: null,
   }));
   await loadDetail($, repo, id);
+}
+
+/**
+ * Resolves a bare task id to the repository that holds it, so the `dashboard`
+ * tool's `task` can name one without the caller knowing where it lives.
+ *
+ * The board's own rows cannot answer this: they are read at one status filter
+ * and one scope, so a task that is Done, or in a repository the current view
+ * leaves out, would read as unknown while existing. One `task view` per
+ * workspace is the existence check that depends on neither. A workspace that
+ * cannot be read is not a match either way -- the board's own "Could not read"
+ * line reports that, and this probe decides nothing about it.
+ */
+async function findTask(
+  $: EngineInterface,
+  id: string,
+): Promise<{ repo: string; id: string } | null> {
+  const candidates = [
+    ...new Set([...repos, ...(localRepo ? [localRepo] : [])]),
+  ];
+  for (const repo of candidates) {
+    try {
+      await quest($, repo, ["task", "view", id, "--max-notes", "1"]);
+      return { repo, id };
+    } catch {
+      // Not in this workspace, or this one could not be read: ask the next.
+    }
+  }
+
+  return null;
+}
+
+/** A tool argument as it was given, for an error result that names it. */
+function quoted(value: unknown): string {
+  return JSON.stringify(value) ?? String(value);
+}
+
+/**
+ * The `dashboard` tool's one line, naming what it opened and the state it
+ * applied -- the design's own example reads "Opened the Quest board, fleet
+ * scope, OCLI-8 selected." (`pane-dashboard-tool-design.md`).
+ */
+function dashboardOpened(
+  scope: Scope | undefined,
+  isFull: boolean | undefined,
+  taskId: string | null,
+): string {
+  const parts = ["Opened the Quest board"];
+  if (scope) {
+    parts.push(scope === "fleet" ? "fleet scope" : "local scope");
+  }
+  if (isFull !== undefined) {
+    parts.push(isFull ? "full screen" : "normal size");
+  }
+  if (taskId) {
+    parts.push(`${taskId} selected`);
+  }
+
+  return `${parts.join(", ")}.`;
 }
 
 function clockTime(ms: number): string {
@@ -642,10 +729,36 @@ export const register: Register = (on, options) => {
       }));
     }
 
-    await $.command.register({
-      name: "quest-board",
+    // The board's way in. No slash command is registered: the plugin's own
+    // skill owns `/opum-quest:quest`, so the engine refuses a command named
+    // `quest`, and `quest-board` was dropped with it (QCLI-440, seq 176). The
+    // skill routes the board's words to this tool instead.
+    //
+    // The description is listed to Claude in every session that loads the mod,
+    // so it stays to two sentences.
+    await $.tool.register({
+      name: DASHBOARD_TOOL,
       description:
-        "Open the Quest board. Add fleet, local, refs, collapse, expand or full.",
+        "Open the Quest board pane: the tasks being worked on across the operator's Quest workspaces, and the detail of one. Use it when the person asks to see the board or a task in the pane.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["fleet", "local"],
+            description:
+              "fleet draws every Quest workspace; local only this session's own repository.",
+          },
+          full: {
+            type: "boolean",
+            description: "Open at the largest size the surface allows.",
+          },
+          task: {
+            type: "string",
+            description: "A task id to open in the detail view.",
+          },
+        },
+      },
     });
     // No viewport has been measured yet -- `session.start` runs ahead of the
     // first draw -- so a stored full mode opens at the surface's default and
@@ -666,44 +779,67 @@ export const register: Register = (on, options) => {
     return next(e);
   });
 
-  on("command.run", { command: "quest-board" }, async ($, e) => {
-    const arg = e.args.trim().toLowerCase();
-    // The command knows the terminal's width and not its height, so only the
-    // across axis is refreshed here; `ui.render` fills both.
-    viewport = { ...viewport, columns: e.presentation.columns };
-    if (arg === "fleet" || arg === "local") {
-      await setScope($, arg);
-    }
-    if (arg === "refs") {
-      await setReadRefs($, !(await read($, view)).readRefs);
-
-      return { text: "Quest board read across refs." };
-    }
-    if (arg === "collapse" || arg === "expand") {
-      await setCollapsed($, arg === "collapse");
-
+  // The engine lists the registered `dashboard` tool to Claude as
+  // `mcp__opum-quest__dashboard` and routes a call here.
+  on("tool.call", { tool: DASHBOARD_TOOL_NAME }, async ($, e) => {
+    // Bad input is reported, never guessed at -- the design's rule for a task
+    // id applies to the other two arguments as well, and a rejected call opens
+    // nothing at all.
+    const scope: Scope | undefined =
+      e.scope === undefined || e.scope === "fleet" || e.scope === "local"
+        ? e.scope
+        : undefined;
+    if (e.scope !== undefined && scope === undefined) {
       return {
-        text:
-          arg === "collapse"
-            ? "Quest board collapsed."
-            : "Quest board expanded.",
+        deny: `Unknown scope ${quoted(e.scope)}: the Quest board takes "fleet" or "local". Nothing was opened.`,
       };
     }
-    const { isFull, scope } = await read($, view);
-    if (arg === "full") {
-      await setFull($, !isFull);
-
+    const full: boolean | undefined =
+      typeof e.full === "boolean" ? e.full : undefined;
+    if (e.full !== undefined && full === undefined) {
       return {
-        text: (await read($, view)).isFull
-          ? "Quest board full screen."
-          : "Quest board back to its normal size.",
+        deny: `Unknown full ${quoted(e.full)}: the Quest board takes true or false. Nothing was opened.`,
       };
     }
+    const wanted = typeof e.task === "string" ? e.task.trim() : undefined;
+    if (e.task !== undefined && !wanted) {
+      return {
+        deny: `Unknown task ${quoted(e.task)}: the Quest board takes a task id. Nothing was opened.`,
+      };
+    }
+
+    await resolveLocal($);
+    await ensureFleet($);
+    // Resolved before anything is opened, so an id that resolves nowhere
+    // leaves the pane as it was rather than showing some other task.
+    const target = wanted ? await findTask($, wanted) : null;
+    if (wanted && !target) {
+      return {
+        deny: `Unknown task ${quoted(wanted)}: no Quest workspace on the board holds it. Nothing was opened.`,
+      };
+    }
+
+    // Scope first: it clears the selection, so a named task is selected after
+    // the view it will be selected in is settled.
+    if (scope !== undefined) {
+      await setScope($, scope);
+    }
+    if (full !== undefined) {
+      await setFullState($, full);
+    }
+    if (target) {
+      await select($, target.repo, target.id);
+    }
+    // Re-placed so a size and a scope just chosen are the ones drawn, and
+    // WITHOUT focus: Claude may call this unasked while the person is typing,
+    // and the pane never takes the keyboard for that (the design's rule, and
+    // the same one a full mode restored at `session.start` follows).
+    await $.ui.close({ id: PANE });
     await openPane($, await read($, view));
     void refresh($);
 
     return {
-      text: `Quest board opened, showing ${scope === "fleet" ? "the fleet" : "this repo"}.`,
+      result: dashboardOpened(scope, full, target?.id ?? null),
     };
   });
 
