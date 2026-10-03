@@ -1,5 +1,5 @@
 import { atom, read, update } from "claude-code";
-import type { EngineInterface, Register } from "claude-code";
+import type { EngineInterface, Register, UiOpenResult } from "claude-code";
 
 import type {
   FsLike,
@@ -719,8 +719,8 @@ async function openPane(
   state: Pick<View, "isCollapsed" | "isFull">,
   size: Partial<Viewport> = viewport,
   isFocused = false,
-): Promise<void> {
-  await $.ui.open({
+): Promise<UiOpenResult> {
+  return await $.ui.open({
     id: PANE,
     title: state.isCollapsed ? "Quest" : "Quest board",
     ...(isFocused && !state.isCollapsed ? { focus: true as const } : {}),
@@ -898,13 +898,20 @@ function dashboardOpened(
 /**
  * The tool's line when the surface kept the pane the call asked for undrawn.
  *
- * The floor is the engine's, not this mod's: an unasked open is placed from 144
- * terminal columns (110 for a pane id the person opened before), and below it
- * the pane waits with no `ui.render` raised at all. The band above the prompt
- * carries the person's own way in, and a press is placed at any width.
+ * The floor is the engine's, not this mod's and not a constant: an unasked open
+ * is placed from 144 terminal columns, or 110 for a pane id the person opened
+ * before, and the engine remembers that across sessions. So this line quotes
+ * the engine's own `reason` for the open it just made rather than composing a
+ * number of its own (seq 213); below the floor the pane waits with no
+ * `ui.render` raised at all. The band above the prompt carries the person's own
+ * way in, and a press is placed at any width.
  */
-function dashboardWaiting(): string {
-  return "The Quest board is waiting for a terminal at least 144 columns wide. Widen the terminal, or press Open on the band above the prompt.";
+function dashboardWaiting(reason: string | undefined): string {
+  const waiting = reason
+    ? `The Quest board is waiting — ${reason}`
+    : "The Quest board is not shown.";
+
+  return `${waiting} Press Open on the band above the prompt.`;
 }
 
 /**
@@ -1094,16 +1101,18 @@ export const register: Register = (on, options) => {
     // and the pane never takes the keyboard for that (the design's rule, and
     // the same one a full mode restored at `session.start` follows).
     await $.ui.close({ id: PANE });
-    await openPane($, await read($, view));
+    const opened = await openPane($, await read($, view));
     void refresh($);
 
     // What the call reports is what the engine's record says happened, not what
     // the open asked for: an unasked pane waits undrawn below the floor it is
-    // placed from, and the model reads this line as fact.
+    // placed from, and the model reads this line as fact. The waiting line
+    // quotes this open's own `reason` for why, so the floor it names is the
+    // engine's number rather than one composed here.
     return {
       result: (await boardIsShown($))
         ? dashboardOpened(scope, full, target?.id ?? null)
-        : dashboardWaiting(),
+        : dashboardWaiting(opened.isPlaced ? undefined : opened.reason),
     };
   });
 
@@ -1121,15 +1130,20 @@ export const register: Register = (on, options) => {
     }
     const { Box, Button, Text } = $.ui.resolve(e);
 
+    // The line names the focus step the `o` hotkey needs: a letter hotkey
+    // reaches the Button only once the band holds the focus (ctrl+x tab), where
+    // a click needs none and a bare `o` in the composer only types into it
+    // (seq 213, with the waiting line above).
     return (
       <Box>
-        <Text>Quest board ready </Text>
+        <Text>Quest board ready · </Text>
         <Button
           key="open-board"
           label="Open"
           hotkey="o"
           onPress={() => void openBoardFromBand($)}
         />
+        <Text> (ctrl+x tab, o)</Text>
       </Box>
     );
   });

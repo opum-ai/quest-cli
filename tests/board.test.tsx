@@ -720,6 +720,15 @@ const BOARD_PANE: PaneRecord = {
 };
 
 /**
+ * The engine's own answer for an unasked open below its floor, as measured on
+ * Claude Code 2.1.288 (QCLI-444's live probe at 100 columns): the `reason`
+ * a `$.ui.open` returns beside `{ isPlaced: false }`, and the text the tool's
+ * waiting line quotes verbatim.
+ */
+const UNPLACED_REASON =
+  "unasked below 144 columns (100 now): placed when the person opens it, or when the terminal is widened to 144 columns";
+
+/**
  * The engine mocks the tool tests need: the clock, an empty store, the fleet
  * discovery, a `quest` answering the fixtures above, and every `ui.open`
  * recorded so the size, the id and the focus it asked for can be asserted.
@@ -787,7 +796,17 @@ function mockBoard(
       focus: e.focus,
     });
 
-    return { value: { isPlaced: true } };
+    // The engine's answer as the fixture record stands: an unplaced pane's
+    // open comes back with the reason the waiting line quotes, and a placed
+    // one -- or a record listing no pane -- comes back placed, with none.
+    const pane = panes.find((one) => one.id === e.id);
+
+    return {
+      value:
+        pane !== undefined && !pane.isPlaced
+          ? { isPlaced: false, reason: UNPLACED_REASON }
+          : { isPlaced: true },
+    };
   });
   on("ui.close", async () => ({ value: undefined }));
   on("ui.panes", async () => ({ value: panes }));
@@ -993,11 +1012,15 @@ test("the tool's result reports the engine's record, not what its open asked for
   expect(opened).toEqual({ result: "Opened the Quest board." });
 
   // The open returned and the pane is waiting undrawn: the engine places an
-  // unasked pane only from 144 columns, and below that nobody can see a board
-  // the result just claimed. The result says what is true instead.
+  // unasked pane only from its floor (144 columns, or 110 once the person has
+  // opened it before), and below that nobody can see a board the result just
+  // claimed. The result says what is true instead -- quoting the engine's own
+  // `reason` for the open, so the floor it names is the engine's number.
   panes[0] = { ...BOARD_PANE, isPlaced: false, isShown: false };
   const waiting = await $.tool.call({ tool: TOOL });
-  expect(waiting).toEqual({ result: expect.stringContaining("144 columns") });
+  expect(waiting).toEqual({
+    result: expect.stringContaining(UNPLACED_REASON),
+  });
   expect(waiting).not.toEqual({
     result: expect.stringContaining("Opened the Quest board"),
   });
@@ -1007,7 +1030,9 @@ test("the tool's result reports the engine's record, not what its open asked for
   // result may not name it as a board they can see.
   panes[0] = { ...BOARD_PANE, isPlaced: true, isShown: false };
   const behind = await $.tool.call({ tool: TOOL });
-  expect(behind).toEqual({ result: expect.stringContaining("144 columns") });
+  // The open came back placed, so there is no reason to quote: the line says
+  // only what the record shows.
+  expect(behind).toEqual({ result: expect.stringContaining("not shown") });
   expect(behind).not.toEqual({
     result: expect.stringContaining("Opened the Quest board"),
   });
@@ -1016,7 +1041,7 @@ test("the tool's result reports the engine's record, not what its open asked for
   // outright -- is not an opened board either.
   panes.length = 0;
   const refused = await $.tool.call({ tool: TOOL });
-  expect(refused).toEqual({ result: expect.stringContaining("144 columns") });
+  expect(refused).toEqual({ result: expect.stringContaining("not shown") });
 
   // Four calls in a row, each of which left a refresh running unawaited: the
   // drawing below is where that work settles, and the test ends as its
@@ -1073,9 +1098,14 @@ test("a waiting pane is offered by a band, and its Open press is the person's as
     props: BAND,
   });
   // One line, offering the board -- which is the only way in on a terminal too
-  // narrow to seat a pane nobody asked for.
+  // narrow to seat a pane nobody asked for -- and naming the focus step the
+  // letter hotkey needs: ctrl+x tab before `o`, while a click needs none
+  // (seq 213).
   expect(
     await ui.find({ type: "Text", text: /Quest board ready/ }),
+  ).toBeDefined();
+  expect(
+    await ui.find({ type: "Text", text: /\(ctrl\+x tab, o\)/ }),
   ).toBeDefined();
   const open = await ui.find({ type: "Button", text: "Open" });
   expect(open).toBeDefined();
