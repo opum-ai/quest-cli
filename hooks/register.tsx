@@ -14,22 +14,31 @@ import {
   COLUMNS,
   STATUSES,
   actorArgs,
+  alertChanges,
+  alertToasts,
+  awayLine,
   commentArg,
+  decisionListArgs,
   discoverRoot,
   filterRows,
+  isAlertsState,
   isStoredView,
   isWideLayout,
   listArgs,
   paneSize,
   parseAcrossRefs,
+  parseAlerts,
+  parseDecisionList,
   parseTaskList,
+  parseTaskOutcome,
   parseTaskView,
   parentOf,
   repoNameFromGitCommonDir,
   reposUnder,
   sizeHeldHint,
+  waitingStatus,
 } from "./quest";
-import type { Viewport } from "./quest";
+import type { AlertDecision, AlertTask, AlertsState, Viewport } from "./quest";
 
 const PANE = "quest-board";
 // The pane's way in since QCLI-441: the engine lists this tool to Claude as
@@ -380,6 +389,211 @@ async function ensureUncommitted($: EngineInterface): Promise<void> {
   }
   isUncommittedResolved = true;
   await countUncommitted($);
+}
+
+// The alerts check. It keeps a clock of its own rather than hanging off a draw,
+// because an alert matters most when the pane is closed: it is the one read
+// here that is not about what the pane is showing.
+const ALERTS_MS = 120_000;
+const ALERTS_KEY = "opum-quest.board.alerts";
+
+// Whether the check has been started, and whether it has run once. The first
+// check of a session records a baseline -- or, when a state was already stored,
+// reports what moved while no session was running; every later one is a change
+// since the check before it.
+let isAlertsStarted = false;
+let isAlertsChecked = false;
+
+// The status line this session pinned, so a count that has not moved is not
+// pinned again on every check.
+let waitingShown: string | undefined;
+
+type AlertsRead = {
+  repo: string;
+  decisions: AlertDecision[];
+  open: AlertTask[];
+};
+
+/**
+ * Reads one repository for the check: its decisions and its open tasks.
+ *
+ * Null when either read failed, and that is the whole of the failure handling.
+ * A repository that cannot be read is skipped for this check -- neither its
+ * decisions nor its tasks are compared, and what it last reported is left
+ * standing -- and the board's own "Could not read" line covers it where the
+ * person can see it. The check never toasts about its own read errors.
+ */
+async function readAlerts(
+  $: EngineInterface,
+  repo: string,
+): Promise<AlertsRead | null> {
+  try {
+    const decisions = parseDecisionList(
+      await quest($, repo, decisionListArgs()),
+    );
+    const open = parseTaskList(await quest($, repo, listArgs("open", false)));
+    const tasks: AlertTask[] = open.map((task) => ({
+      repo,
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      priority: task.priority,
+      resolution: null,
+    }));
+
+    return {
+      repo,
+      decisions: decisions.map((decision) => ({ repo, ...decision })),
+      open: tasks,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** One `quest task view`, for a task that was open last check and is not now. */
+async function lookUpTask(
+  $: EngineInterface,
+  repo: string,
+  id: string,
+): Promise<AlertTask | null> {
+  try {
+    const outcome = parseTaskOutcome(
+      await quest($, repo, ["task", "view", id, "--max-notes", "1"]),
+    );
+
+    return { repo, ...outcome };
+  } catch {
+    return null;
+  }
+}
+
+/** The status line the count of waiting decisions asks for: pinned or cleared. */
+function setWaiting($: EngineInterface, waiting: number): void {
+  const text = waitingStatus(waiting);
+  if (text === waitingShown) {
+    return;
+  }
+  waitingShown = text;
+  $.ui.status(text);
+}
+
+async function checkAlerts($: EngineInterface): Promise<void> {
+  const setting = parseAlerts(pluginOptions.alerts);
+  if (setting === "off") {
+    // Off is off: nothing is read and nothing is stored, and a count this
+    // session pinned comes down rather than standing with nothing keeping it
+    // current.
+    if (waitingShown !== undefined) {
+      waitingShown = undefined;
+      $.ui.status(undefined);
+    }
+
+    return;
+  }
+  try {
+    await resolveLocal($);
+    await ensureFleet($);
+    const stored = await $.store.get(ALERTS_KEY);
+    const isBaseline = !isAlertsState(stored);
+    const previous: AlertsState = isBaseline
+      ? { decisions: {}, tasks: {} }
+      : stored;
+    const reads = await Promise.all(repos.map((repo) => readAlerts($, repo)));
+    const read = reads.filter((one): one is AlertsRead => one !== null);
+    if (read.length === 0) {
+      return;
+    }
+    const decisions = read.flatMap((one) => one.decisions);
+    const open = read.flatMap((one) => one.open);
+    // A task that left the open set is told Done from Closed by looking at it
+    // once -- and only in a repository this check could read, since a
+    // repository it could not read has left nothing to compare against.
+    const openIds = new Map<string, Set<string>>();
+    for (const task of open) {
+      const ids = openIds.get(task.repo) ?? new Set<string>();
+      ids.add(task.id);
+      openIds.set(task.repo, ids);
+    }
+    const departed: AlertTask[] = [];
+    for (const [repo, ids] of Object.entries(previous.tasks)) {
+      if (!read.some((one) => one.repo === repo)) {
+        continue;
+      }
+      for (const id of Object.keys(ids)) {
+        if (openIds.get(repo)?.has(id)) {
+          continue;
+        }
+        const left = await lookUpTask($, repo, id);
+        if (left) {
+          departed.push(left);
+        }
+      }
+    }
+
+    const changes = alertChanges(
+      previous,
+      { decisions, open, departed },
+      setting,
+    );
+    setWaiting(
+      $,
+      decisions.filter((decision) => decision.status === "proposed").length,
+    );
+    if (isBaseline) {
+      // The first check after install shows nothing: there is no earlier state
+      // for a change to be a change from.
+    } else if (isAlertsChecked) {
+      for (const toast of alertToasts(changes)) {
+        $.ui.toast(toast.text, { timeoutMs: toast.timeoutMs });
+      }
+    } else {
+      // The first check after a restart: everything that moved while no session
+      // was running, as one line rather than a dozen.
+      const line = awayLine(changes);
+      if (line) {
+        $.ui.toast(line, { timeoutMs: 8_000 });
+      }
+    }
+    isAlertsChecked = true;
+
+    const tasks: AlertsState["tasks"] = { ...previous.tasks };
+    for (const one of read) {
+      tasks[one.repo] = {};
+    }
+    for (const task of open) {
+      const ids = tasks[task.repo] ?? {};
+      ids[task.id] = task.status;
+      tasks[task.repo] = ids;
+    }
+    const seen: AlertsState["decisions"] = { ...previous.decisions };
+    for (const decision of decisions) {
+      seen[`${decision.repo}:${decision.id}`] = decision.status;
+    }
+    await $.store.set(ALERTS_KEY, { decisions: seen, tasks });
+  } catch {
+    // Quiet on purpose: a check that toasts about its own read errors is the
+    // noise the alerts exist to keep down.
+  }
+}
+
+/**
+ * Starts the alerts check: once now, and every {@link ALERTS_MS} after that.
+ *
+ * Started from `session.start` and, on whichever comes first, the first draw --
+ * the same two paths the fleet and the uncommitted count use, and for the same
+ * reason: `claude plugin test` never fires `session.start`, so a kit-mounted
+ * pane would otherwise never alert at all.
+ */
+function startAlerts($: EngineInterface): void {
+  if (isAlertsStarted) {
+    return;
+  }
+  isAlertsStarted = true;
+  void checkAlerts($);
+  $.clock.every(ALERTS_MS, () => {
+    void checkAlerts($);
+  });
 }
 
 // Runs one Quest write in this session's own repo, then reloads what it touched.
@@ -766,6 +980,7 @@ export const register: Register = (on, options) => {
     await openPane($, await read($, view));
     void refresh($);
     void ensureUncommitted($);
+    startAlerts($);
     $.clock.every(REFRESH_MS, () => {
       void (async () => {
         const panes = await $.ui.panes();
@@ -844,6 +1059,7 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "Pane", requestId: PANE }, async ($, e) => {
+    startAlerts($);
     const { rows, refreshedAt, isLoading } = await read($, board);
     if (e.surface === "mobile") {
       const { Box, Text } = $.ui.resolve(e);

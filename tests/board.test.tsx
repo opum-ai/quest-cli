@@ -1,4 +1,5 @@
 import { expect, mock, test } from "claude-code/testing";
+import type { Engine } from "claude-code/testing";
 import type { FsEntry, On } from "claude-code";
 
 import {
@@ -946,4 +947,499 @@ test("an unknown task id comes back an error and opens nothing", async ($, on) =
     expect(after === undefined).toBe(before === undefined);
     await ui.unmount();
   }
+});
+
+// ------------------------------------------------------------- the alerts ---
+//
+// The alerts check is driven by a clock of its own, not by a press, so its
+// tests mount the pane once -- which is where the check starts, since the kit
+// never fires `session.start` -- change what the canned `quest` answers, and
+// move the mocked clock on. They run on one surface: nothing here is drawn,
+// and the pane's own surface-independence is covered above.
+
+/** Must match ALERTS_MS in hooks/register.tsx. */
+const ALERTS_MS = 120_000;
+
+/** The store key the check keeps its last state under, as register.tsx spells it. */
+const ALERTS_KEY = "opum-quest.board.alerts";
+
+const ALERTS_NOW = Date.UTC(2026, 10, 3, 9, 0, 0);
+
+const ALERTS_ROOT = "/repos";
+
+const ALERT_FLEET: FsEntry[] = [
+  { name: "quest-cli", kind: "dir", size: 0, mtimeMs: 0, isLink: false },
+  { name: "lore-cli", kind: "dir", size: 0, mtimeMs: 0, isLink: false },
+];
+
+type CannedDecision = { id: string; title: string; status: string };
+type CannedTask = {
+  id: string;
+  title: string;
+  status: string;
+  priority?: string;
+  resolution?: { kind: string };
+};
+
+type Canned = {
+  /** Repository -> the decisions its tracker holds. */
+  decisions: Record<string, CannedDecision[]>;
+  /** Repository -> its open tasks, which is all the check's list read sees. */
+  open: Record<string, CannedTask[]>;
+  /** Task id -> what one `task view` answers for it. */
+  views: Record<string, CannedTask>;
+  /** Repositories whose every quest read fails, as an unreadable one does. */
+  unreadable?: string[];
+};
+
+const noTracker = {
+  value: {
+    exitCode: 3,
+    stdout: "",
+    stderr: "no tracker here",
+    isStdoutTruncated: false,
+    isStderrTruncated: false,
+  },
+};
+
+/** The fleet, the canned reads, and what the check said: toasts and statuses. */
+function mockAlerts(on: On, canned: Canned, calls: string[][] = []) {
+  const toasts: { text: string; timeoutMs?: number }[] = [];
+  const statuses: (string | undefined)[] = [];
+  on("fs.list", async (_$, e) => ({
+    value: e.path === ALERTS_ROOT ? ALERT_FLEET : [],
+  }));
+  on("fs.exists", async (_$, e) => ({
+    value: e.path.endsWith("/.quest/workspace.toml"),
+  }));
+  on("session.root", async () => ({ value: `${ALERTS_ROOT}/quest-cli` }));
+  on("process.run", async (_$, e) => {
+    calls.push([...e.argv]);
+    if (e.argv[0] === "git") return ok("");
+    const repo = (e.init?.cwd ?? "").split("/").pop() ?? "";
+    if ((canned.unreadable ?? []).includes(repo)) return noTracker;
+    if (e.argv[1] === "decision") {
+      return ok(
+        JSON.stringify({
+          kind: "decision.list",
+          data: canned.decisions[repo] ?? [],
+        }),
+      );
+    }
+    if (e.argv[1] === "task" && e.argv[2] === "view") {
+      return ok(
+        JSON.stringify({
+          kind: "task.view",
+          data: {
+            priority: "medium",
+            ...canned.views[String(e.argv[3] ?? "")],
+          },
+        }),
+      );
+    }
+
+    return ok(
+      JSON.stringify({ kind: "task.list", data: canned.open[repo] ?? [] }),
+    );
+  });
+  on("ui.open", async () => ({ value: { isPlaced: true } }));
+  on("ui.close", async () => ({ value: undefined }));
+  on("ui.panes", async () => ({ value: [] }));
+  on("ui.toast", async (_$, e) => {
+    toasts.push({ text: e.text, timeoutMs: e.timeoutMs });
+
+    return { value: undefined };
+  });
+  on("ui.status", async (_$, e) => {
+    statuses.push(e.text);
+
+    return { value: undefined };
+  });
+
+  return { toasts, statuses };
+}
+
+function mountAlertPane($: Engine) {
+  return $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "Pane",
+    requestId: "quest-board",
+    props: PANE,
+  });
+}
+
+test("a waiting decision toasts once with the count, and resolving it toasts the count away", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on);
+  const canned: Canned = {
+    decisions: {},
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Open work", status: "In Progress" },
+      ],
+    },
+    views: {},
+  };
+  const { toasts, statuses } = mockAlerts(on, canned);
+
+  const ui = await mountAlertPane($);
+  expect(toasts).toEqual([]);
+  expect(statuses).toEqual([]);
+
+  canned.decisions["quest-cli"] = [
+    { id: "DEC-140", title: "Ship the alerts", status: "proposed" },
+  ];
+  await clock.advance(ALERTS_MS);
+  expect(toasts).toEqual([
+    { text: "DEC-140 needs a decision: Ship the alerts", timeoutMs: 10_000 },
+  ]);
+  expect(statuses.at(-1)).toBe("Quest: 1 decision waiting");
+
+  // The same state is not shown a second time: the check compares against what
+  // it recorded, not against the last time the person looked at the pane.
+  await clock.advance(ALERTS_MS);
+  expect(toasts).toHaveLength(1);
+
+  toasts.length = 0;
+  canned.decisions["quest-cli"] = [
+    { id: "DEC-140", title: "Ship the alerts", status: "accepted" },
+  ];
+  await clock.advance(ALERTS_MS);
+  expect(toasts).toEqual([
+    { text: "DEC-140 decided: accepted", timeoutMs: 6_000 },
+  ]);
+  expect(statuses).toEqual(["Quest: 1 decision waiting", undefined]);
+  await ui.unmount();
+});
+
+test("a pause, a close and a high-priority completion toast; a normal completion does not", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on);
+  const canned: Canned = {
+    decisions: {},
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Parked work", status: "In Progress" },
+        { id: "QCLI-2", title: "Retired work", status: "In Progress" },
+        { id: "QCLI-3", title: "Landed work", status: "In Progress" },
+        { id: "QCLI-4", title: "Ordinary work", status: "In Progress" },
+      ],
+    },
+    views: {},
+  };
+  const { toasts } = mockAlerts(on, canned);
+
+  const ui = await mountAlertPane($);
+  canned.open["quest-cli"] = [
+    { id: "QCLI-1", title: "Parked work", status: "Paused" },
+  ];
+  canned.views["QCLI-2"] = {
+    id: "QCLI-2",
+    title: "Retired work",
+    status: "Closed",
+    resolution: { kind: "wont-do" },
+  };
+  canned.views["QCLI-3"] = {
+    id: "QCLI-3",
+    title: "Landed work",
+    status: "Done",
+    priority: "high",
+  };
+  canned.views["QCLI-4"] = {
+    id: "QCLI-4",
+    title: "Ordinary work",
+    status: "Done",
+  };
+  await clock.advance(ALERTS_MS);
+  // Three changes, so each is its own toast -- and the medium-priority
+  // completion, which the pane draws like any other, says nothing.
+  expect(toasts).toEqual([
+    { text: "QCLI-1 paused in quest-cli: Parked work", timeoutMs: 8_000 },
+    { text: "QCLI-2 closed (won't do) in quest-cli", timeoutMs: 6_000 },
+    { text: "QCLI-3 done: Landed work", timeoutMs: 6_000 },
+  ]);
+  await ui.unmount();
+});
+
+test("more than three changes arrive as one batched toast, with the decisions left out of it", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on);
+  const canned: Canned = {
+    decisions: {},
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Parked work", status: "In Progress" },
+        { id: "QCLI-2", title: "Also parked", status: "In Progress" },
+        { id: "QCLI-3", title: "Retired work", status: "In Progress" },
+        { id: "QCLI-4", title: "Landed work", status: "In Progress" },
+        { id: "QCLI-5", title: "More landed work", status: "In Progress" },
+      ],
+    },
+    views: {},
+  };
+  const { toasts } = mockAlerts(on, canned);
+
+  const ui = await mountAlertPane($);
+  canned.open["quest-cli"] = [
+    { id: "QCLI-1", title: "Parked work", status: "Paused" },
+    { id: "QCLI-2", title: "Also parked", status: "Paused" },
+  ];
+  canned.views["QCLI-3"] = {
+    id: "QCLI-3",
+    title: "Retired work",
+    status: "Closed",
+    resolution: { kind: "duplicate" },
+  };
+  canned.views["QCLI-4"] = {
+    id: "QCLI-4",
+    title: "Landed work",
+    status: "Done",
+    priority: "high",
+  };
+  canned.views["QCLI-5"] = {
+    id: "QCLI-5",
+    title: "More landed work",
+    status: "Done",
+    priority: "high",
+  };
+  canned.decisions["quest-cli"] = [
+    { id: "DEC-141", title: "Answer me", status: "proposed" },
+  ];
+  await clock.advance(ALERTS_MS);
+  // Five changes, so one line instead of five -- and the decision that became
+  // proposed in the same check keeps its own toast rather than being counted
+  // into that line.
+  expect(toasts).toEqual([
+    { text: "DEC-141 needs a decision: Answer me", timeoutMs: 10_000 },
+    {
+      text: "5 updates: 2 done, 2 paused, 1 closed. Open /quest for the list.",
+      timeoutMs: 8_000,
+    },
+  ]);
+  await ui.unmount();
+});
+
+test("the first check records a baseline and shows nothing", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on);
+  const canned: Canned = {
+    decisions: {
+      "quest-cli": [
+        { id: "DEC-9", title: "Already waiting", status: "proposed" },
+      ],
+    },
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Open work", status: "In Progress" },
+      ],
+    },
+    views: {},
+  };
+  const { toasts, statuses } = mockAlerts(on, canned);
+
+  const ui = await mountAlertPane($);
+  // Nothing is a change from a state the check has never seen. The count is
+  // not a change notification -- it stands while a decision waits, whether or
+  // not this session watched it arrive -- so it is pinned from the baseline.
+  expect(toasts).toEqual([]);
+  expect(statuses).toEqual(["Quest: 1 decision waiting"]);
+
+  await clock.advance(ALERTS_MS);
+  expect(toasts).toEqual([]);
+  await ui.unmount();
+});
+
+test("a stored state suppresses repeats after a reload", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on, {
+    [ALERTS_KEY]: {
+      decisions: { "quest-cli:DEC-9": "proposed" },
+      tasks: { "quest-cli": { "QCLI-1": "In Progress" } },
+    },
+  });
+  const canned: Canned = {
+    decisions: {
+      "quest-cli": [
+        { id: "DEC-9", title: "Already waiting", status: "proposed" },
+      ],
+    },
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Open work", status: "In Progress" },
+      ],
+    },
+    views: {},
+  };
+  const { toasts } = mockAlerts(on, canned);
+
+  const ui = await mountAlertPane($);
+  expect(toasts).toEqual([]);
+  await clock.advance(ALERTS_MS);
+  expect(toasts).toEqual([]);
+  await ui.unmount();
+});
+
+test("what moved while no session was running arrives as one summary", async ($, on) => {
+  // The clock is answered, never moved: everything this test asserts happens on
+  // the first check of the session, which is the one the restart itself runs.
+  mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on, {
+    [ALERTS_KEY]: {
+      decisions: { "quest-cli:DEC-9": "accepted" },
+      tasks: {
+        "quest-cli": {
+          "QCLI-1": "In Progress",
+          "QCLI-2": "In Progress",
+          "QCLI-3": "In Progress",
+          "QCLI-4": "In Progress",
+        },
+      },
+    },
+  });
+  const canned: Canned = {
+    decisions: {
+      "quest-cli": [{ id: "DEC-9", title: "Now waiting", status: "proposed" }],
+    },
+    open: {
+      "quest-cli": [{ id: "QCLI-1", title: "Parked work", status: "Paused" }],
+    },
+    views: {
+      "QCLI-2": {
+        id: "QCLI-2",
+        title: "Retired work",
+        status: "Closed",
+        resolution: { kind: "superseded" },
+      },
+      "QCLI-3": {
+        id: "QCLI-3",
+        title: "Landed work",
+        status: "Done",
+        priority: "high",
+      },
+      "QCLI-4": {
+        id: "QCLI-4",
+        title: "More landed work",
+        status: "Done",
+        priority: "high",
+      },
+    },
+  };
+  const { toasts, statuses } = mockAlerts(on, canned);
+
+  const ui = await mountAlertPane($);
+  // The first check of the session compares against what the last session
+  // stored, and four updates plus a waiting decision are one line rather than
+  // five toasts.
+  expect(toasts).toEqual([
+    {
+      text: "While you were away: 1 decision waiting, 4 updates",
+      timeoutMs: 8_000,
+    },
+  ]);
+  expect(statuses).toEqual(["Quest: 1 decision waiting"]);
+  await ui.unmount();
+});
+
+test(
+  "the alerts option off shows nothing",
+  { options: { alerts: "off" } },
+  async ($, on) => {
+    const clock = mock.clock(on, { now: ALERTS_NOW });
+    mock.store(on, {
+      [ALERTS_KEY]: {
+        decisions: { "quest-cli:DEC-9": "accepted" },
+        tasks: { "quest-cli": { "QCLI-1": "In Progress" } },
+      },
+    });
+    const canned: Canned = {
+      decisions: {
+        "quest-cli": [
+          { id: "DEC-9", title: "Now waiting", status: "proposed" },
+        ],
+      },
+      open: {
+        "quest-cli": [{ id: "QCLI-1", title: "Parked work", status: "Paused" }],
+      },
+      views: {},
+    };
+    const { toasts, statuses } = mockAlerts(on, canned);
+
+    const ui = await mountAlertPane($);
+    expect(toasts).toEqual([]);
+    expect(statuses).toEqual([]);
+    await clock.advance(ALERTS_MS);
+    expect(toasts).toEqual([]);
+    expect(statuses).toEqual([]);
+    await ui.unmount();
+  },
+);
+
+test("the check runs every two minutes with the pane closed, looking a departed task up once", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on);
+  const canned: Canned = {
+    decisions: {},
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Landed work", status: "In Progress" },
+      ],
+    },
+    views: {
+      "QCLI-1": {
+        id: "QCLI-1",
+        title: "Landed work",
+        status: "Done",
+        priority: "high",
+      },
+    },
+  };
+  const calls: string[][] = [];
+  const { toasts } = mockAlerts(on, canned, calls);
+
+  const ui = await mountAlertPane($);
+  expect(toasts).toEqual([]);
+  // The pane goes first: an alert matters most when nobody is looking at it.
+  await ui.unmount();
+  canned.open["quest-cli"] = [];
+  await clock.advance(ALERTS_MS);
+  expect(toasts).toEqual([
+    { text: "QCLI-1 done: Landed work", timeoutMs: 6_000 },
+  ]);
+  // Done from Closed is one `task view`, and exactly one.
+  expect(calls.filter((argv) => argv[2] === "view")).toHaveLength(1);
+});
+
+test("a repository that cannot be read is skipped quietly", async ($, on) => {
+  const clock = mock.clock(on, { now: ALERTS_NOW });
+  mock.store(on);
+  const canned: Canned = {
+    decisions: {},
+    open: {
+      "quest-cli": [
+        { id: "QCLI-1", title: "Open work", status: "In Progress" },
+      ],
+      "lore-cli": [
+        { id: "LCLI-1", title: "Retired work", status: "In Progress" },
+      ],
+    },
+    views: {
+      "LCLI-1": { id: "LCLI-1", title: "Retired work", status: "Closed" },
+    },
+  };
+  const calls: string[][] = [];
+  const { toasts } = mockAlerts(on, canned, calls);
+
+  const ui = await mountAlertPane($);
+  // lore-cli's tracker cannot be read this check, and the task it held leaves
+  // the open set for that reason alone. Nothing is said about it, about the
+  // task, or about the read: the repository is skipped whole.
+  canned.unreadable = ["lore-cli"];
+  canned.open["lore-cli"] = [];
+  calls.length = 0;
+  await clock.advance(ALERTS_MS);
+  expect(toasts).toEqual([]);
+  expect(calls.filter((argv) => argv[2] === "view")).toHaveLength(0);
+  expect(calls.some((argv) => argv.includes("lore-cli"))).toBe(false);
+  await ui.unmount();
 });
