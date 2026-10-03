@@ -1,5 +1,5 @@
 import { atom, read, update } from "claude-code";
-import type { EngineInterface, Register } from "claude-code";
+import type { EngineInterface, Register, UiOpenResult } from "claude-code";
 
 import type {
   FsLike,
@@ -12,6 +12,7 @@ import type {
 } from "../types";
 import {
   COLUMNS,
+  FRAME_COLUMNS,
   STATUSES,
   actorArgs,
   alertChanges,
@@ -22,8 +23,10 @@ import {
   discoverRoot,
   filterRows,
   isAlertsState,
+  isSizeHeld,
   isStoredView,
   isWideLayout,
+  keptWidthNotice,
   listArgs,
   paneSize,
   parseAcrossRefs,
@@ -35,10 +38,15 @@ import {
   parentOf,
   repoNameFromGitCommonDir,
   reposUnder,
-  sizeHeldHint,
   waitingStatus,
 } from "./quest";
-import type { AlertDecision, AlertTask, AlertsState, Viewport } from "./quest";
+import type {
+  AlertDecision,
+  AlertTask,
+  AlertsState,
+  Placement,
+  Viewport,
+} from "./quest";
 
 const PANE = "quest-board";
 // The pane's way in since QCLI-441: the engine lists this tool to Claude as
@@ -102,11 +110,50 @@ const dirs = new Map<string, string>();
 // axis nothing has measured yet is left out of what is asked for.
 let viewport: Partial<Viewport> = {};
 
-// The full size this session last asked the surface for. `session.start` runs
-// before any draw, so a stored full mode opens at the surface's own default and
-// has to ask again once a render reports a viewport. Keying on the size keeps
-// that to once per size rather than a re-open on every draw.
-let askedFullSize: string | null = null;
+// The body the docked pane last drew, when the last pane draw was a dock.
+// DEC-154 rule 2 as amended: a docked render's `viewport.columns` is the
+// transcript column, so the terminal width is that column plus this drawn
+// width plus the divider -- all from the same render -- and the full ask is
+// that less the engine's margin. Null before any dock has drawn.
+let lastDockBodyColumns: number | null = null;
+
+// The numbers the full mode this session last asked for, and whether that ask
+// has so far gone ungranted -- the module's reading of "a width is holding"
+// (DEC-154 rule 3). The ask sets it and a later full draw at the ask's own
+// size clears it, so it is an OUTCOME rather than a shortfall: amended rule 2
+// forbids re-asking on a resize, so after a granted ask a widening lifts what
+// full mode would ask for while the pane keeps the grant, and the shortfall
+// that opens up has no width of anyone's behind it (QCLI-456, the defect
+// opum-ai/lore-cli#486 F2 found in its own pane). The render that fires the
+// mode's own ask is suppressed -- it drew before the surface answered -- and
+// each placement reads the axis it is sized on: the dock across, the inline
+// block down.
+let fullAsk: { columns?: number; rows?: number } | null = null;
+let awaitingGrant = false;
+
+// How the pane last drew, for the `dashboard` tool's own line: the record of
+// what happened -- the placement, the size the surface actually granted, what
+// was asked, whether that counts as granted, and whether a width is holding
+// (the ask's outcome) -- not what the open asked for. A line only trusts it
+// when its mode still matches the view the call applied.
+let lastRendered: {
+  isFull: boolean;
+  isCollapsed: boolean;
+  placement: Placement;
+  drawn: number;
+  asked: number | null;
+  granted: boolean | null;
+  holding: boolean;
+} | null = null;
+
+// Whether this session has made its full-size ask with numbers. DEC-154 rule 2
+// as amended: a full ask is made once per toggle -- a person's `z`, or a tool
+// call with `full`, using the latest render's numbers -- and a stored full mode
+// restored at `session.start` asks once more on its first render, because the
+// session start runs before any draw and cannot size it. Never on a resize or a
+// redraw: re-asking whenever the measured width moved is what chased
+// 96 -> 79 -> 96 on the operator's surface.
+let fullAskMade = false;
 
 /**
  * Discovers the fleet once, on whichever comes first: `session.start`, or the
@@ -703,28 +750,50 @@ async function savePrefs($: EngineInterface): Promise<void> {
 }
 
 /**
- * Opens the pane at the size the two states ask for, with the viewport the
- * caller knows.
+ * Opens the pane at the size the two states ask for, with the viewport and the
+ * drawn dock body the caller knows.
  *
  * `focus` is asked for only on a full toggle a PERSON starts -- the `z` key or
  * the button beside it. Everywhere else it is left off, and the cases that are
  * easy to mistake for a toggle are the ones that matter: a full mode restored
- * at `session.start`, the re-request this pane makes for itself on a first
- * draw or a viewport change, and the `dashboard` tool call, which Claude may
- * make unasked. None of those is a person asking for the pane, so none may
- * take the keyboard off the prompt.
+ * at `session.start`, the one ask that mode owes on its first render, and the
+ * `dashboard` tool call, which Claude may make unasked. None of those is a
+ * person asking for the pane, so none may take the keyboard off the prompt.
+ *
+ * A full open that carries numbers marks the session's ask as made (DEC-154
+ * rule 2 as amended): every numbered full ask is made through here -- at a
+ * toggle, or on the first render of a restored full mode -- and a resize or a
+ * redraw never makes a second one. An open before any draw (a `session.start`)
+ * asks the surface's own default and leaves the ask owed.
+ *
+ * The numbers are kept, and the ask stands ungranted until a full draw comes
+ * within the slack of them (QCLI-456): the kept-width line and the tool's
+ * short-size phrase read that outcome, so they claim a width the person set
+ * only while THIS ask is the one that went ungranted.
  */
 async function openPane(
   $: EngineInterface,
   state: Pick<View, "isCollapsed" | "isFull">,
   size: Partial<Viewport> = viewport,
   isFocused = false,
-): Promise<void> {
-  await $.ui.open({
+  dockBody: number | null = lastDockBodyColumns,
+): Promise<UiOpenResult> {
+  const asked = paneSize(state, size, dockBody);
+  if (
+    state.isFull &&
+    !state.isCollapsed &&
+    (asked.columns !== undefined || asked.rows !== undefined)
+  ) {
+    fullAskMade = true;
+    fullAsk = { columns: asked.columns, rows: asked.rows };
+    awaitingGrant = true;
+  }
+
+  return await $.ui.open({
     id: PANE,
-    title: state.isCollapsed ? "Quest" : "Quest board",
+    title: "Quest",
     ...(isFocused && !state.isCollapsed ? { focus: true as const } : {}),
-    ...paneSize(state, size),
+    ...asked,
   });
 }
 
@@ -765,23 +834,33 @@ async function setFull($: EngineInterface, isFull: boolean): Promise<void> {
 /**
  * Records the full-size choice and nothing else: the shape the `dashboard`
  * tool uses, because a tool call is not a person asking for the pane and the
- * open it goes on to make must not take the keyboard.
+ * open it goes on to make must not take the keyboard. That open is what asks,
+ * and it marks the session's ask as made (DEC-154 rule 2 as amended: one ask
+ * per toggle).
  *
- * The size is marked as asked for here so the pane's own re-request on the
- * next draw -- which exists for a full mode RESTORED at `session.start`,
- * before any viewport has been measured -- does not fire a second time for a
- * size the caller has already asked for.
+ * The mark is set here, before the view flips, when the toggle's ask will
+ * carry the render's numbers: a draw landing between the flip and that open
+ * then asks no second time. Measured on the seq 230 probe (QCLI-454): without
+ * this, the first full toggle of a session opened twice, identical both
+ * times; with it, once. Before any draw there are no numbers, nothing is
+ * marked, and the first render still owes the ask.
  */
 async function setFullState(
   $: EngineInterface,
   isFull: boolean,
 ): Promise<void> {
+  if (isFull) {
+    const asked = paneSize(
+      { isCollapsed: false, isFull: true },
+      viewport,
+      lastDockBodyColumns,
+    );
+    if (asked.columns !== undefined || asked.rows !== undefined) {
+      fullAskMade = true;
+    }
+  }
   await update($, view, (current) => ({ ...current, isFull }));
   await savePrefs($);
-  const current = await read($, view);
-  if (isFull) {
-    askedFullSize = JSON.stringify(paneSize(current, viewport));
-  }
 }
 
 async function setScope($: EngineInterface, scope: Scope): Promise<void> {
@@ -873,38 +952,79 @@ function quoted(value: unknown): string {
 
 /**
  * The `dashboard` tool's one line, naming what it opened and the state it
- * applied -- the design's own example reads "Opened the Quest board, fleet
- * scope, OCLI-8 selected." (`pane-dashboard-tool-design.md`).
+ * applied -- the design's own example reads "Opened the Quest, fleet scope,
+ * OCLI-8 selected." (`pane-dashboard-tool-design.md`).
+ *
+ * The size it names is the one the surface granted, read off the pane's draw
+ * that follows the open (DEC-154 rule 4): "full size" only when the drawn
+ * size is within the frame slack of the ask; otherwise the drawn size and
+ * why; and "full requested" when no draw has answered yet.
+ *
+ * The dock's short case mirrors rule 3's pane line -- the width the person
+ * set, named as the pane's own width -- but only while that draw read a width
+ * as holding: a shortfall with nothing holding (a grant the surface honoured,
+ * then a resize or a drag under it, with nothing re-asked) names no owner
+ * (seq 234, ODOC-OP-2026-10-03-65; QCLI-457), so it says the pane kept its
+ * width instead of claiming the width is kept.
  */
 function dashboardOpened(
   scope: Scope | undefined,
   isFull: boolean | undefined,
   taskId: string | null,
+  draw: {
+    placement: Placement;
+    drawn: number;
+    granted: boolean | null;
+    holding: boolean;
+  } | null,
 ): string {
-  const parts = ["Opened the Quest board"];
+  const parts = ["Opened the Quest"];
   if (scope) {
     parts.push(scope === "fleet" ? "fleet scope" : "local scope");
-  }
-  if (isFull !== undefined) {
-    parts.push(isFull ? "full screen" : "normal size");
   }
   if (taskId) {
     parts.push(`${taskId} selected`);
   }
+  const head = parts.join(", ");
 
-  return `${parts.join(", ")}.`;
+  if (isFull === true) {
+    if (draw === null) {
+      return `${head}, full requested.`;
+    }
+    if (draw.granted === true) {
+      return `${head}, full size.`;
+    }
+
+    return draw.placement === "dock"
+      ? draw.holding
+        ? `${head} at ${draw.drawn + FRAME_COLUMNS} columns; the width is kept.`
+        : `${head} at ${draw.drawn + FRAME_COLUMNS} columns; the pane kept its width.`
+      : `${head} at ${draw.drawn} rows; the screen keeps room for the prompt.`;
+  }
+  if (isFull === false) {
+    return `${head}, normal size.`;
+  }
+
+  return `${head}.`;
 }
 
 /**
  * The tool's line when the surface kept the pane the call asked for undrawn.
  *
- * The floor is the engine's, not this mod's: an unasked open is placed from 144
- * terminal columns (110 for a pane id the person opened before), and below it
- * the pane waits with no `ui.render` raised at all. The band above the prompt
- * carries the person's own way in, and a press is placed at any width.
+ * The floor is the engine's, not this mod's and not a constant: an unasked open
+ * is placed from 144 terminal columns, or 110 for a pane id the person opened
+ * before, and the engine remembers that across sessions. So this line quotes
+ * the engine's own `reason` for the open it just made rather than composing a
+ * number of its own (seq 213); below the floor the pane waits with no
+ * `ui.render` raised at all. The band above the prompt carries the person's own
+ * way in, and a press is placed at any width.
  */
-function dashboardWaiting(): string {
-  return "The Quest board is waiting for a terminal at least 144 columns wide. Widen the terminal, or press Open on the band above the prompt.";
+function dashboardWaiting(reason: string | undefined): string {
+  const waiting = reason
+    ? `The Quest is waiting — ${reason}`
+    : "The Quest is not shown.";
+
+  return `${waiting} Press Open on the band above the prompt.`;
 }
 
 /**
@@ -997,7 +1117,7 @@ export const register: Register = (on, options) => {
     await $.tool.register({
       name: DASHBOARD_TOOL,
       description:
-        "Open the Quest board pane: the tasks being worked on across the operator's Quest workspaces, and the detail of one. Use it when the person asks to see the board or a task in the pane.",
+        "Open the Quest pane: the tasks being worked on across the operator's Quest workspaces, and the detail of one. Use it when the person asks to see the board or a task in the pane.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1018,9 +1138,20 @@ export const register: Register = (on, options) => {
         },
       },
     });
+    // A session starts before any draw: nothing has been measured, nothing has
+    // been asked, and no full draw has taught the header anything. Whatever a
+    // previous run of this module left behind -- reachable only where one copy
+    // is shared, as in a test -- is not this session's own.
+    viewport = {};
+    lastDockBodyColumns = null;
+    fullAskMade = false;
+    fullAsk = null;
+    awaitingGrant = false;
+
     // No viewport has been measured yet -- `session.start` runs ahead of the
     // first draw -- so a stored full mode opens at the surface's default and
-    // the first render asks again, now that it can.
+    // the first render asks once more, now that it can size it (DEC-154 rule 2
+    // as amended).
     await openPane($, await read($, view));
     void refresh($);
     void ensureUncommitted($);
@@ -1050,20 +1181,20 @@ export const register: Register = (on, options) => {
         : undefined;
     if (e.scope !== undefined && scope === undefined) {
       return {
-        deny: `Unknown scope ${quoted(e.scope)}: the Quest board takes "fleet" or "local". Nothing was opened.`,
+        deny: `Unknown scope ${quoted(e.scope)}: the Quest takes "fleet" or "local". Nothing was opened.`,
       };
     }
     const full: boolean | undefined =
       typeof e.full === "boolean" ? e.full : undefined;
     if (e.full !== undefined && full === undefined) {
       return {
-        deny: `Unknown full ${quoted(e.full)}: the Quest board takes true or false. Nothing was opened.`,
+        deny: `Unknown full ${quoted(e.full)}: the Quest takes true or false. Nothing was opened.`,
       };
     }
     const wanted = typeof e.task === "string" ? e.task.trim() : undefined;
     if (e.task !== undefined && !wanted) {
       return {
-        deny: `Unknown task ${quoted(e.task)}: the Quest board takes a task id. Nothing was opened.`,
+        deny: `Unknown task ${quoted(e.task)}: the Quest takes a task id. Nothing was opened.`,
       };
     }
 
@@ -1094,16 +1225,30 @@ export const register: Register = (on, options) => {
     // and the pane never takes the keyboard for that (the design's rule, and
     // the same one a full mode restored at `session.start` follows).
     await $.ui.close({ id: PANE });
-    await openPane($, await read($, view));
+    const opened = await openPane($, await read($, view));
     void refresh($);
 
     // What the call reports is what the engine's record says happened, not what
     // the open asked for: an unasked pane waits undrawn below the floor it is
-    // placed from, and the model reads this line as fact.
+    // placed from, and the model reads this line as fact. The waiting line
+    // quotes this open's own `reason` for why, so the floor it names is the
+    // engine's number rather than one composed here. The size it names is the
+    // last draw's own record, trusted only while that draw still matches the
+    // mode this call applied (QCLI-454): a full claim the surface did not
+    // grant is the line this replaces.
+    const current = await read($, view);
+    const draw =
+      full === true &&
+      lastRendered?.isFull === true &&
+      lastRendered.isCollapsed === false &&
+      current.isFull &&
+      !current.isCollapsed
+        ? lastRendered
+        : null;
     return {
       result: (await boardIsShown($))
-        ? dashboardOpened(scope, full, target?.id ?? null)
-        : dashboardWaiting(),
+        ? dashboardOpened(scope, full, target?.id ?? null, draw)
+        : dashboardWaiting(opened.isPlaced ? undefined : opened.reason),
     };
   });
 
@@ -1121,15 +1266,20 @@ export const register: Register = (on, options) => {
     }
     const { Box, Button, Text } = $.ui.resolve(e);
 
+    // The line names the focus step the `o` hotkey needs: a letter hotkey
+    // reaches the Button only once the band holds the focus (ctrl+x tab), where
+    // a click needs none and a bare `o` in the composer only types into it
+    // (seq 213, with the waiting line above).
     return (
       <Box>
-        <Text>Quest board ready </Text>
+        <Text>Quest ready · </Text>
         <Button
           key="open-board"
           label="Open"
           hotkey="o"
           onPress={() => void openBoardFromBand($)}
         />
+        <Text> (ctrl+x tab, o)</Text>
       </Box>
     );
   });
@@ -1153,23 +1303,34 @@ export const register: Register = (on, options) => {
     const current = await read($, view);
     const width = Math.max(16, e.props.bodyColumns);
 
-    // A draw is the only place both axes of the surface are known. It is kept
-    // so a pane opened outside one can ask for the full size, and a full mode
-    // restored at `session.start` -- which could not size it -- asks again
-    // here, once per size, now that it can.
+    // A draw is the only place the surface is measured. The viewport and the
+    // docked body are kept so a toggle outside a draw asks with the latest
+    // render's numbers, and a full mode restored at `session.start` -- which
+    // could not size it -- asks once here, on its first render. DEC-154 rule 2
+    // as amended: every other ask belongs to a toggle, and a resize or a
+    // redraw never asks again.
     //
-    // This re-request is the pane's own, not a person's, so it is asked for
-    // WITHOUT focus: the person may be typing, and a pane that grabbed the
-    // keyboard on a redraw they did not make would move their keys mid-word.
+    // This ask is the pane's own, not a person's, so it is made WITHOUT focus:
+    // the person may be typing, and a pane that grabbed the keyboard on a
+    // redraw they did not make would move their keys mid-word.
     if (e.viewport) {
       viewport = { columns: e.viewport.columns, rows: e.viewport.rows };
-      if (current.isFull && !current.isCollapsed) {
-        const wanted = JSON.stringify(paneSize(current, viewport));
-        if (askedFullSize !== wanted) {
-          askedFullSize = wanted;
-          void openPane($, current, viewport);
-        }
-      }
+    }
+    lastDockBodyColumns =
+      e.props.placement === "dock" ? e.props.bodyColumns : null;
+    // The ask this draw fires, if the stored mode still owes one. The ask's
+    // numbers are set synchronously by `openPane` below, so this draw is also
+    // the first draw that can speak of the width (seq 243): the kept-width
+    // line must not wait on a later repaint, because an ask that changes
+    // nothing on a surface that keeps its width has no reason to force one,
+    // and the line then never reaches the pane (the operator's re-test).
+    const owesFullAsk =
+      e.viewport !== undefined &&
+      current.isFull &&
+      !current.isCollapsed &&
+      !fullAskMade;
+    if (owesFullAsk) {
+      void openPane($, current, viewport);
     }
 
     const shown = filterRows(rows, current.query, current.repo);
@@ -1180,18 +1341,58 @@ export const register: Register = (on, options) => {
     const hasConflict = rows.some((row) =>
       row.tasks.some((task) => task.conflict),
     );
-    // A size the surface kept rather than granted is said out loud, so the pane
-    // does not claim a size it did not get. The dock is measured across and the
-    // inline block down, so each compares against the axis it was sized on.
-    const hint = sizeHeldHint(
-      current,
-      e.props.placement,
-      viewport,
+    // A width the surface kept rather than granted is said out loud, so the
+    // pane does not claim a size it did not get. What is kept is the ask's
+    // OUTCOME, not a reading of this draw against what full mode would ask
+    // for now: after a granted ask a widening lifts the fresh ask while the
+    // pane keeps the grant and nothing is re-asked, and that shortfall has no
+    // width of anyone's behind it (QCLI-456). The dock is measured across and
+    // the inline block down, so each reads the axis of the ask it made
+    // (DEC-154 rules 1 and 3: the dock says the width is kept; an inline
+    // block is content-sized and needs no notice). Whether THIS draw may
+    // carry the line -- including the draw that makes the ask -- is decided
+    // below, where the ask's outcome is read.
+    const drawnAxis =
       e.props.placement === "dock"
         ? e.props.bodyColumns
-        : e.props.scroll.bodyRows,
+        : e.props.scroll.bodyRows;
+    const inFull = current.isFull && !current.isCollapsed;
+    const askedAxis = !inFull
+      ? null
+      : e.props.placement === "dock"
+        ? (fullAsk?.columns ?? null)
+        : (fullAsk?.rows ?? null);
+    const isShort = askedAxis !== null && isSizeHeld(drawnAxis, askedAxis);
+    if (askedAxis !== null && !isShort && !owesFullAsk) {
+      // A full draw at the size the ask named is a grant: this machine honours
+      // asks, so nothing is holding any more.
+      awaitingGrant = false;
+    }
+    // The draw that MAKES the ask carries the line too (seq 243), but only
+    // when it is genuinely short of the ask it just made: the ask's numbers
+    // are in by the time this runs, an ask that goes ungranted proves nothing
+    // further, and a draw after it is not owed -- a surface that keeps its
+    // width has no reason to repaint, so waiting for one is how the line goes
+    // missing on the very surface it is about. A draw already at the ask's
+    // size is a surface that grants, and claims nothing; a surface that grants
+    // LATER clears the reading on the draw that answers it, so the claim never
+    // survives the answer.
+    const holding = inFull && awaitingGrant && (!owesFullAsk || isShort);
+    const notice = keptWidthNotice(
+      current,
+      e.props.placement,
+      drawnAxis,
+      holding,
     );
-
+    lastRendered = {
+      isFull: current.isFull,
+      isCollapsed: current.isCollapsed,
+      placement: e.props.placement,
+      drawn: drawnAxis,
+      asked: askedAxis,
+      granted: askedAxis === null ? null : !isShort,
+      holding,
+    };
     if (current.isCollapsed) {
       return (
         <Box flexDirection="column">
@@ -1396,7 +1597,13 @@ export const register: Register = (on, options) => {
           <Text> </Text>
           <Button
             key="full"
-            label={current.isFull ? "Normal size" : "Full screen"}
+            label={
+              // The CURRENT mode as state, the key as a hint (seq 243,
+              // opum-doc's ruling): "Normal size" named the action and read
+              // as the current size. The kept-width line below says what a
+              // kept width is doing; the header does not try to.
+              current.isFull ? "Full · z for normal" : "Normal · z for full"
+            }
             hotkey="z"
             variant={current.isFull ? "primary" : undefined}
             onPress={() => void setFull($, !current.isFull)}
@@ -1457,9 +1664,9 @@ export const register: Register = (on, options) => {
         <Text dimColor wrap="truncate">
           {summary}
         </Text>
-        {hint && (
+        {notice && (
           <Text dimColor wrap="truncate">
-            {hint}
+            {notice}
           </Text>
         )}
         {refsLine && (

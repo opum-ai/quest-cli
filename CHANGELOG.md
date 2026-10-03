@@ -12,6 +12,22 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Added
 
+- **The opum-quest plugin ships the Quest board: a pane listing the tasks in
+  flight across your Quest workspaces, editable in the session's own
+  repository** (QCLI-431, from the operator's instruction of 2026-10-02 tracked
+  in opum-agent as OPAG-1074). The plugin is cut from this repository at the
+  CLI's own tag, so the board arrives with this version rather than separately.
+  The pane discovers its repository set from the plugin's `userConfig` instead
+  of a hardcoded roster, always including the session's own repository, and
+  offers the repository-true read (`quest task list --across-refs`) as a toggle
+  that draws cross-ref disagreements and incomplete coverage as such rather
+  than as an empty result. A write happens only in the session's own
+  repository, through Quest lifecycle commands, with an explicit actor on every
+  write -- the person, `--actor <configured id> --actor-kind human`, from the
+  plugin's `actor` option, per DEC-134 (A) -- and `--if-revision` on field
+  edits. The repository's own check suite runs the module's tests, so a failing
+  mod test fails the gate rather than passing unrun. Design record:
+  `docs/reference/quest-board-hooks-module-in-the-opum-quest-plugin.md`.
 - **The Quest board takes the full screen, on `z` or the dashboard tool's
   `full`** (QCLI-435, from an operator instruction relayed by opum-doc as seq
   164).
@@ -51,6 +67,38 @@ dated by its own tag. No date here is inferred (QCLI-398).
   deletes `backlog/`, never commits — it hands the records to the repository's
   own branch-and-PR flow — and never applies a digest other than the one just
   previewed. The `quest` skill carries a one-line pointer to it.
+
+- **The Quest board toasts the changes worth interrupting for** (QCLI-442, from
+  the operator's instruction relayed by opum-doc as seq 175). A decision
+  becoming `proposed` and its resolution, a task moving to Paused or Closed, and
+  a high-priority task reaching Done each raise a toast; everything else waits
+  in the pane rather than interrupting. More than three changes in one check
+  collapse into a single batched toast, and decisions are never folded into it.
+  While any decision is proposed a status-line entry — `Quest: N decisions
+  waiting` — stays up, because a toast can be missed and the status line cannot.
+  The check runs every two minutes whether or not the pane is open, looks a task
+  that left the open set up once with `quest task view` to tell Done from
+  Closed, and keeps the last state in the plugin's store so nothing replays: the
+  first check after install records a baseline and shows nothing, and changes
+  that happened while no session was running arrive as one "while you were away"
+  summary. A repository that cannot be read is skipped quietly rather than
+  toasted about. A new `alerts` setting takes `all` (the default), `decisions`
+  or `off`.
+
+### Changed
+
+- **The Quest board is named "Quest", says what a kept width is doing on the
+  draw that asks, and its toggle shows the current size** (QCLI-459, from the
+  operator's re-test of 2026-10-03 relayed by opum-doc as seq 243). The pane
+  title, the tool's lines and the band read "Quest" rather than "Quest board".
+  The held-width line ("Width kept at N (you set it): drag the pane edge to
+  change") no longer waits for a draw after the full ask: a surface that keeps
+  the width a person set has no reason to repaint the pane, and on that draw
+  the line went missing; it now renders on the ask's own draw, and a surface
+  that grants the ask still clears it on the answering draw. The full toggle
+  reads the current mode as state with the key as its hint -- "Normal · z for
+  full" / "Full · z for normal" -- because the old "Normal size" named the
+  action and read as the current size.
 
 ### Removed
 
