@@ -552,7 +552,8 @@ export type DecisionEntry = {
  * The repository is carried because a decision id is minted per workspace --
  * `highestSequence` reads that workspace's own `planning.json` -- so the same
  * `DEC-3` in two repositories is two decisions, and comparing them by id alone
- * would call one of them the other's resolution.
+ * would call one of them the other's resolution. The toasts print it for the
+ * same reason: an id alone cannot say which workspace it names.
  */
 export type AlertDecision = DecisionEntry & { repo: string };
 
@@ -657,8 +658,8 @@ export function isAlertsState(value: unknown): value is AlertsState {
 export type AlertChanges = {
   /** Decisions that have just become `proposed`. */
   waiting: AlertDecision[];
-  /** Decisions that were `proposed` and are not any more. */
-  decided: { id: string; status: string }[];
+  /** Decisions that were `proposed` and are not any more, with their repo. */
+  decided: { repo: string; id: string; status: string }[];
   /** Open tasks that have moved to Paused. */
   paused: AlertTask[];
   /** Tasks that left the open set at the closed status. */
@@ -700,7 +701,11 @@ export function alertChanges(
       changes.waiting.push(decision);
     }
     if (was === "proposed" && decision.status !== "proposed") {
-      changes.decided.push({ id: decision.id, status: decision.status });
+      changes.decided.push({
+        repo: decision.repo,
+        id: decision.id,
+        status: decision.status,
+      });
     }
   }
   if (setting !== "all") {
@@ -742,7 +747,12 @@ function closedText(task: AlertTask): string {
   return `${task.id} closed${why} in ${task.repo}`;
 }
 
-/** The one toast a check with more than {@link BATCH_AT} task changes shows. */
+/** The one toast a check with more than {@link BATCH_AT} task changes shows.
+ *
+ * The line points at the `dashboard` tool by the words that reach it -- the
+ * board's slash command was retired, so `/quest` is not a command any more and
+ * naming it here would send the person nowhere (QCLI-444, seq 182).
+ */
 export function batchLine(changes: AlertChanges): string {
   const counts: readonly (readonly [number, string])[] = [
     [changes.done.length, "done"],
@@ -755,7 +765,7 @@ export function batchLine(changes: AlertChanges): string {
     .map(([count, word]) => `${count} ${word}`)
     .join(", ");
 
-  return `${total} updates: ${named}. Open /quest for the list.`;
+  return `${total} updates: ${named}. Open the board: /quest dashboard`;
 }
 
 /**
@@ -765,18 +775,22 @@ export function batchLine(changes: AlertChanges): string {
  *
  * Decisions are never folded into the batch. A waiting decision is something
  * the person has to answer, and "3 updates" is not a line they can act on.
+ *
+ * Both decision toasts name the repository, because the id alone does not
+ * identify the decision: ids are minted per workspace, so two trackers can
+ * both hold a `DEC-3` and the person can be looking at either (QCLI-444).
  */
 export function alertToasts(changes: AlertChanges): AlertToast[] {
   const toasts: AlertToast[] = [];
   for (const decision of changes.waiting) {
     toasts.push({
-      text: `${decision.id} needs a decision: ${decision.title}`,
+      text: `${decision.repo} ${decision.id} needs a decision: ${decision.title}`,
       timeoutMs: 10_000,
     });
   }
   for (const decision of changes.decided) {
     toasts.push({
-      text: `${decision.id} decided: ${decision.status}`,
+      text: `${decision.repo} ${decision.id} decided: ${decision.status}`,
       timeoutMs: 6_000,
     });
   }
