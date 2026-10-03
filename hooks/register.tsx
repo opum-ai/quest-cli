@@ -139,8 +139,9 @@ let awaitingGrant = false;
 
 // How the pane last drew, for the `dashboard` tool's own line: the record of
 // what happened -- the placement, the size the surface actually granted, what
-// was asked, whether that counts as granted -- not what the open asked for. A
-// line only trusts it when its mode still matches the view the call applied.
+// was asked, whether that counts as granted, and whether a width is holding
+// (the ask's outcome) -- not what the open asked for. A line only trusts it
+// when its mode still matches the view the call applied.
 let lastRendered: {
   isFull: boolean;
   isCollapsed: boolean;
@@ -148,6 +149,7 @@ let lastRendered: {
   drawn: number;
   asked: number | null;
   granted: boolean | null;
+  holding: boolean;
 } | null = null;
 
 // Whether this session has made its full-size ask with numbers. DEC-154 rule 2
@@ -963,6 +965,13 @@ function quoted(value: unknown): string {
  * that follows the open (DEC-154 rule 4): "full size" only when the drawn
  * size is within the frame slack of the ask; otherwise the drawn size and
  * why; and "full requested" when no draw has answered yet.
+ *
+ * The dock's short case mirrors rule 3's pane line -- the width the person
+ * set, named as the pane's own width -- but only while that draw read a width
+ * as holding: a shortfall with nothing holding (a grant the surface honoured,
+ * then a resize or a drag under it, with nothing re-asked) names no owner
+ * (seq 234, ODOC-OP-2026-10-03-65; QCLI-457), so it says the pane kept its
+ * width instead of claiming the width is kept.
  */
 function dashboardOpened(
   scope: Scope | undefined,
@@ -972,6 +981,7 @@ function dashboardOpened(
     placement: Placement;
     drawn: number;
     granted: boolean | null;
+    holding: boolean;
   } | null,
 ): string {
   const parts = ["Opened the Quest board"];
@@ -992,7 +1002,9 @@ function dashboardOpened(
     }
 
     return draw.placement === "dock"
-      ? `${head} at ${draw.drawn + FRAME_COLUMNS} columns; the width is kept.`
+      ? draw.holding
+        ? `${head} at ${draw.drawn + FRAME_COLUMNS} columns; the width is kept.`
+        : `${head} at ${draw.drawn + FRAME_COLUMNS} columns; the pane kept its width.`
       : `${head} at ${draw.drawn} rows; the screen keeps room for the prompt.`;
   }
   if (isFull === false) {
@@ -1373,6 +1385,7 @@ export const register: Register = (on, options) => {
       drawn: drawnAxis,
       asked: askedAxis,
       granted: askedAxis === null ? null : !isShort,
+      holding,
     };
     if (inFull && e.props.placement === "dock") {
       // Learned from full draws: once the dock has kept its own width, the

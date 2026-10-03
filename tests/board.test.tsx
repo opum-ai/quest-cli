@@ -1246,6 +1246,55 @@ test("a widening resize after a granted full ask shows no kept-width line", asyn
   await wider.unmount();
 });
 
+test("a short dock that holds nothing says the pane kept its width (seq 234)", async ($, on) => {
+  // The tool-message half of the same rule (ODOC-OP-2026-10-03-65, QCLI-457):
+  // a short docked draw whose ask did NOT go ungranted must not claim the width
+  // is kept. Here the ask went out at 176 and was GRANTED (drawn 175), which
+  // clears the holding reading; the pane is then drawn short again -- 120 of
+  // body at the same 200-column terminal, a resize or drag under a honoured
+  // grant, with no new ask -- so the drawn width is short but nothing is held,
+  // and the tool says the pane kept its width rather than the width is kept.
+  const opens: Open[] = [];
+  mockBoard(on, opens);
+  await $.session.start({ ...START });
+
+  const ui = await $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "Pane",
+    requestId: "quest-board",
+    props: { ...PANE, bodyColumns: 175 },
+    viewport: { columns: 24, rows: 49, isFullscreen: true },
+  });
+  const inFull = async () =>
+    (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+  if (!(await inFull())) {
+    await ui.press({ key: "full" });
+  }
+  expect(opens.at(-1)).toMatchObject({ columns: 176 });
+  await ui.unmount();
+
+  // No new ask: the standing ask is still the granted 176.
+  opens.length = 0;
+  const short = await $.ui.mount({
+    plugin: "opum-quest",
+    surface: "terminal",
+    component: "Pane",
+    requestId: "quest-board",
+    props: { ...PANE, bodyColumns: 120 },
+    viewport: { columns: 79, rows: 49, isFullscreen: true },
+  });
+  expect(opens).toEqual([]);
+  expect(
+    await short.find({ type: "Button", text: "Normal size" }),
+  ).toBeDefined();
+  const drawn = await $.tool.call({ tool: TOOL, full: true });
+  expect(drawn).toEqual({
+    result: "Opened the Quest board at 121 columns; the pane kept its width.",
+  });
+  await short.unmount();
+});
+
 test("the task input opens that task in the detail view", async ($, on) => {
   const opens: Open[] = [];
   const asked: string[][] = [];
