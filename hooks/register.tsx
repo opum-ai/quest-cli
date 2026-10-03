@@ -14,24 +14,42 @@ import {
   COLUMNS,
   STATUSES,
   actorArgs,
+  alertChanges,
+  alertToasts,
+  awayLine,
   commentArg,
+  decisionListArgs,
   discoverRoot,
   filterRows,
+  isAlertsState,
   isStoredView,
   isWideLayout,
   listArgs,
   paneSize,
   parseAcrossRefs,
+  parseAlerts,
+  parseDecisionList,
   parseTaskList,
+  parseTaskOutcome,
   parseTaskView,
   parentOf,
   repoNameFromGitCommonDir,
   reposUnder,
   sizeHeldHint,
+  waitingStatus,
 } from "./quest";
-import type { Viewport } from "./quest";
+import type { AlertDecision, AlertTask, AlertsState, Viewport } from "./quest";
 
 const PANE = "quest-board";
+// The pane's way in since QCLI-441: the engine lists this tool to Claude as
+// `mcp__opum-quest__dashboard`, and the generated `quest` skill routes
+// "quest dashboard" -- with `full`, `fleet`, `local` or a task id after it --
+// to it, sending every other argument to the CLI. There is no slash command:
+// the plugin's own skill owns `/opum-quest:quest`, so a command named `quest`
+// is refused by the engine, and a refused registration makes the whole
+// `session.start` hook throw (measured, QCLI-440).
+const DASHBOARD_TOOL = "dashboard";
+const DASHBOARD_TOOL_NAME = `mcp__opum-quest__${DASHBOARD_TOOL}`;
 const REFRESH_MS = 60_000;
 const PREFS_KEY = "opum-quest.board.view";
 
@@ -79,9 +97,9 @@ let pluginOptions: Record<string, unknown> = {};
 const dirs = new Map<string, string>();
 
 // The size the surface last reported, so a pane opened outside a draw --
-// `session.start`, `/quest-board` -- can still ask for the full size.
-// `ui.render` fills both axes; `command.run` knows the terminal's width and
-// nothing else, so an axis it did not measure is left as it was.
+// `session.start`, or a `dashboard` tool call -- can still ask for the full
+// size. Only `ui.render` measures the surface, and it fills both axes; an
+// axis nothing has measured yet is left out of what is asked for.
 let viewport: Partial<Viewport> = {};
 
 // The full size this session last asked the surface for. `session.start` runs
@@ -373,6 +391,211 @@ async function ensureUncommitted($: EngineInterface): Promise<void> {
   await countUncommitted($);
 }
 
+// The alerts check. It keeps a clock of its own rather than hanging off a draw,
+// because an alert matters most when the pane is closed: it is the one read
+// here that is not about what the pane is showing.
+const ALERTS_MS = 120_000;
+const ALERTS_KEY = "opum-quest.board.alerts";
+
+// Whether the check has been started, and whether it has run once. The first
+// check of a session records a baseline -- or, when a state was already stored,
+// reports what moved while no session was running; every later one is a change
+// since the check before it.
+let isAlertsStarted = false;
+let isAlertsChecked = false;
+
+// The status line this session pinned, so a count that has not moved is not
+// pinned again on every check.
+let waitingShown: string | undefined;
+
+type AlertsRead = {
+  repo: string;
+  decisions: AlertDecision[];
+  open: AlertTask[];
+};
+
+/**
+ * Reads one repository for the check: its decisions and its open tasks.
+ *
+ * Null when either read failed, and that is the whole of the failure handling.
+ * A repository that cannot be read is skipped for this check -- neither its
+ * decisions nor its tasks are compared, and what it last reported is left
+ * standing -- and the board's own "Could not read" line covers it where the
+ * person can see it. The check never toasts about its own read errors.
+ */
+async function readAlerts(
+  $: EngineInterface,
+  repo: string,
+): Promise<AlertsRead | null> {
+  try {
+    const decisions = parseDecisionList(
+      await quest($, repo, decisionListArgs()),
+    );
+    const open = parseTaskList(await quest($, repo, listArgs("open", false)));
+    const tasks: AlertTask[] = open.map((task) => ({
+      repo,
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      priority: task.priority,
+      resolution: null,
+    }));
+
+    return {
+      repo,
+      decisions: decisions.map((decision) => ({ repo, ...decision })),
+      open: tasks,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** One `quest task view`, for a task that was open last check and is not now. */
+async function lookUpTask(
+  $: EngineInterface,
+  repo: string,
+  id: string,
+): Promise<AlertTask | null> {
+  try {
+    const outcome = parseTaskOutcome(
+      await quest($, repo, ["task", "view", id, "--max-notes", "1"]),
+    );
+
+    return { repo, ...outcome };
+  } catch {
+    return null;
+  }
+}
+
+/** The status line the count of waiting decisions asks for: pinned or cleared. */
+function setWaiting($: EngineInterface, waiting: number): void {
+  const text = waitingStatus(waiting);
+  if (text === waitingShown) {
+    return;
+  }
+  waitingShown = text;
+  $.ui.status(text);
+}
+
+async function checkAlerts($: EngineInterface): Promise<void> {
+  const setting = parseAlerts(pluginOptions.alerts);
+  if (setting === "off") {
+    // Off is off: nothing is read and nothing is stored, and a count this
+    // session pinned comes down rather than standing with nothing keeping it
+    // current.
+    if (waitingShown !== undefined) {
+      waitingShown = undefined;
+      $.ui.status(undefined);
+    }
+
+    return;
+  }
+  try {
+    await resolveLocal($);
+    await ensureFleet($);
+    const stored = await $.store.get(ALERTS_KEY);
+    const isBaseline = !isAlertsState(stored);
+    const previous: AlertsState = isBaseline
+      ? { decisions: {}, tasks: {} }
+      : stored;
+    const reads = await Promise.all(repos.map((repo) => readAlerts($, repo)));
+    const read = reads.filter((one): one is AlertsRead => one !== null);
+    if (read.length === 0) {
+      return;
+    }
+    const decisions = read.flatMap((one) => one.decisions);
+    const open = read.flatMap((one) => one.open);
+    // A task that left the open set is told Done from Closed by looking at it
+    // once -- and only in a repository this check could read, since a
+    // repository it could not read has left nothing to compare against.
+    const openIds = new Map<string, Set<string>>();
+    for (const task of open) {
+      const ids = openIds.get(task.repo) ?? new Set<string>();
+      ids.add(task.id);
+      openIds.set(task.repo, ids);
+    }
+    const departed: AlertTask[] = [];
+    for (const [repo, ids] of Object.entries(previous.tasks)) {
+      if (!read.some((one) => one.repo === repo)) {
+        continue;
+      }
+      for (const id of Object.keys(ids)) {
+        if (openIds.get(repo)?.has(id)) {
+          continue;
+        }
+        const left = await lookUpTask($, repo, id);
+        if (left) {
+          departed.push(left);
+        }
+      }
+    }
+
+    const changes = alertChanges(
+      previous,
+      { decisions, open, departed },
+      setting,
+    );
+    setWaiting(
+      $,
+      decisions.filter((decision) => decision.status === "proposed").length,
+    );
+    if (isBaseline) {
+      // The first check after install shows nothing: there is no earlier state
+      // for a change to be a change from.
+    } else if (isAlertsChecked) {
+      for (const toast of alertToasts(changes)) {
+        $.ui.toast(toast.text, { timeoutMs: toast.timeoutMs });
+      }
+    } else {
+      // The first check after a restart: everything that moved while no session
+      // was running, as one line rather than a dozen.
+      const line = awayLine(changes);
+      if (line) {
+        $.ui.toast(line, { timeoutMs: 8_000 });
+      }
+    }
+    isAlertsChecked = true;
+
+    const tasks: AlertsState["tasks"] = { ...previous.tasks };
+    for (const one of read) {
+      tasks[one.repo] = {};
+    }
+    for (const task of open) {
+      const ids = tasks[task.repo] ?? {};
+      ids[task.id] = task.status;
+      tasks[task.repo] = ids;
+    }
+    const seen: AlertsState["decisions"] = { ...previous.decisions };
+    for (const decision of decisions) {
+      seen[`${decision.repo}:${decision.id}`] = decision.status;
+    }
+    await $.store.set(ALERTS_KEY, { decisions: seen, tasks });
+  } catch {
+    // Quiet on purpose: a check that toasts about its own read errors is the
+    // noise the alerts exist to keep down.
+  }
+}
+
+/**
+ * Starts the alerts check: once now, and every {@link ALERTS_MS} after that.
+ *
+ * Started from `session.start` and, on whichever comes first, the first draw --
+ * the same two paths the fleet and the uncommitted count use, and for the same
+ * reason: `claude plugin test` never fires `session.start`, so a kit-mounted
+ * pane would otherwise never alert at all.
+ */
+function startAlerts($: EngineInterface): void {
+  if (isAlertsStarted) {
+    return;
+  }
+  isAlertsStarted = true;
+  void checkAlerts($);
+  $.clock.every(ALERTS_MS, () => {
+    void checkAlerts($);
+  });
+}
+
 // Runs one Quest write in this session's own repo, then reloads what it touched.
 async function write(
   $: EngineInterface,
@@ -483,9 +706,13 @@ async function savePrefs($: EngineInterface): Promise<void> {
  * Opens the pane at the size the two states ask for, with the viewport the
  * caller knows.
  *
- * `focus` is asked for only where the design names it -- reopening on the full
- * toggle -- so restoring the pane at `session.start` does not take the keyboard
- * off the prompt.
+ * `focus` is asked for only on a full toggle a PERSON starts -- the `z` key or
+ * the button beside it. Everywhere else it is left off, and the cases that are
+ * easy to mistake for a toggle are the ones that matter: a full mode restored
+ * at `session.start`, the re-request this pane makes for itself on a first
+ * draw or a viewport change, and the `dashboard` tool call, which Claude may
+ * make unasked. None of those is a person asking for the pane, so none may
+ * take the keyboard off the prompt.
  */
 async function openPane(
   $: EngineInterface,
@@ -513,17 +740,35 @@ async function setCollapsed(
 
 /**
  * The full-screen toggle: the largest pane the surface allows, or the normal
- * size, with the choice stored beside the pane's other settings.
+ * size, with the choice stored beside the pane's other settings. The caller is
+ * a person's own press, so the pane is re-placed and handed the keyboard.
  */
 async function setFull($: EngineInterface, isFull: boolean): Promise<void> {
+  await setFullState($, isFull);
+  await $.ui.close({ id: PANE });
+  await openPane($, await read($, view), viewport, true);
+}
+
+/**
+ * Records the full-size choice and nothing else: the shape the `dashboard`
+ * tool uses, because a tool call is not a person asking for the pane and the
+ * open it goes on to make must not take the keyboard.
+ *
+ * The size is marked as asked for here so the pane's own re-request on the
+ * next draw -- which exists for a full mode RESTORED at `session.start`,
+ * before any viewport has been measured -- does not fire a second time for a
+ * size the caller has already asked for.
+ */
+async function setFullState(
+  $: EngineInterface,
+  isFull: boolean,
+): Promise<void> {
   await update($, view, (current) => ({ ...current, isFull }));
   await savePrefs($);
   const current = await read($, view);
   if (isFull) {
     askedFullSize = JSON.stringify(paneSize(current, viewport));
   }
-  await $.ui.close({ id: PANE });
-  await openPane($, current, viewport, true);
 }
 
 async function setScope($: EngineInterface, scope: Scope): Promise<void> {
@@ -576,6 +821,65 @@ async function select(
     pending: null,
   }));
   await loadDetail($, repo, id);
+}
+
+/**
+ * Resolves a bare task id to the repository that holds it, so the `dashboard`
+ * tool's `task` can name one without the caller knowing where it lives.
+ *
+ * The board's own rows cannot answer this: they are read at one status filter
+ * and one scope, so a task that is Done, or in a repository the current view
+ * leaves out, would read as unknown while existing. One `task view` per
+ * workspace is the existence check that depends on neither. A workspace that
+ * cannot be read is not a match either way -- the board's own "Could not read"
+ * line reports that, and this probe decides nothing about it.
+ */
+async function findTask(
+  $: EngineInterface,
+  id: string,
+): Promise<{ repo: string; id: string } | null> {
+  const candidates = [
+    ...new Set([...repos, ...(localRepo ? [localRepo] : [])]),
+  ];
+  for (const repo of candidates) {
+    try {
+      await quest($, repo, ["task", "view", id, "--max-notes", "1"]);
+      return { repo, id };
+    } catch {
+      // Not in this workspace, or this one could not be read: ask the next.
+    }
+  }
+
+  return null;
+}
+
+/** A tool argument as it was given, for an error result that names it. */
+function quoted(value: unknown): string {
+  return JSON.stringify(value) ?? String(value);
+}
+
+/**
+ * The `dashboard` tool's one line, naming what it opened and the state it
+ * applied -- the design's own example reads "Opened the Quest board, fleet
+ * scope, OCLI-8 selected." (`pane-dashboard-tool-design.md`).
+ */
+function dashboardOpened(
+  scope: Scope | undefined,
+  isFull: boolean | undefined,
+  taskId: string | null,
+): string {
+  const parts = ["Opened the Quest board"];
+  if (scope) {
+    parts.push(scope === "fleet" ? "fleet scope" : "local scope");
+  }
+  if (isFull !== undefined) {
+    parts.push(isFull ? "full screen" : "normal size");
+  }
+  if (taskId) {
+    parts.push(`${taskId} selected`);
+  }
+
+  return `${parts.join(", ")}.`;
 }
 
 function clockTime(ms: number): string {
@@ -639,10 +943,36 @@ export const register: Register = (on, options) => {
       }));
     }
 
-    await $.command.register({
-      name: "quest-board",
+    // The board's way in. No slash command is registered: the plugin's own
+    // skill owns `/opum-quest:quest`, so the engine refuses a command named
+    // `quest`, and `quest-board` was dropped with it (QCLI-440, seq 176). The
+    // skill routes the board's words to this tool instead.
+    //
+    // The description is listed to Claude in every session that loads the mod,
+    // so it stays to two sentences.
+    await $.tool.register({
+      name: DASHBOARD_TOOL,
       description:
-        "Open the Quest board. Add fleet, local, refs, collapse, expand or full.",
+        "Open the Quest board pane: the tasks being worked on across the operator's Quest workspaces, and the detail of one. Use it when the person asks to see the board or a task in the pane.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["fleet", "local"],
+            description:
+              "fleet draws every Quest workspace; local only this session's own repository.",
+          },
+          full: {
+            type: "boolean",
+            description: "Open at the largest size the surface allows.",
+          },
+          task: {
+            type: "string",
+            description: "A task id to open in the detail view.",
+          },
+        },
+      },
     });
     // No viewport has been measured yet -- `session.start` runs ahead of the
     // first draw -- so a stored full mode opens at the surface's default and
@@ -650,6 +980,7 @@ export const register: Register = (on, options) => {
     await openPane($, await read($, view));
     void refresh($);
     void ensureUncommitted($);
+    startAlerts($);
     $.clock.every(REFRESH_MS, () => {
       void (async () => {
         const panes = await $.ui.panes();
@@ -663,48 +994,72 @@ export const register: Register = (on, options) => {
     return next(e);
   });
 
-  on("command.run", { command: "quest-board" }, async ($, e) => {
-    const arg = e.args.trim().toLowerCase();
-    // The command knows the terminal's width and not its height, so only the
-    // across axis is refreshed here; `ui.render` fills both.
-    viewport = { ...viewport, columns: e.presentation.columns };
-    if (arg === "fleet" || arg === "local") {
-      await setScope($, arg);
-    }
-    if (arg === "refs") {
-      await setReadRefs($, !(await read($, view)).readRefs);
-
-      return { text: "Quest board read across refs." };
-    }
-    if (arg === "collapse" || arg === "expand") {
-      await setCollapsed($, arg === "collapse");
-
+  // The engine lists the registered `dashboard` tool to Claude as
+  // `mcp__opum-quest__dashboard` and routes a call here.
+  on("tool.call", { tool: DASHBOARD_TOOL_NAME }, async ($, e) => {
+    // Bad input is reported, never guessed at -- the design's rule for a task
+    // id applies to the other two arguments as well, and a rejected call opens
+    // nothing at all.
+    const scope: Scope | undefined =
+      e.scope === undefined || e.scope === "fleet" || e.scope === "local"
+        ? e.scope
+        : undefined;
+    if (e.scope !== undefined && scope === undefined) {
       return {
-        text:
-          arg === "collapse"
-            ? "Quest board collapsed."
-            : "Quest board expanded.",
+        deny: `Unknown scope ${quoted(e.scope)}: the Quest board takes "fleet" or "local". Nothing was opened.`,
       };
     }
-    const { isFull, scope } = await read($, view);
-    if (arg === "full") {
-      await setFull($, !isFull);
-
+    const full: boolean | undefined =
+      typeof e.full === "boolean" ? e.full : undefined;
+    if (e.full !== undefined && full === undefined) {
       return {
-        text: (await read($, view)).isFull
-          ? "Quest board full screen."
-          : "Quest board back to its normal size.",
+        deny: `Unknown full ${quoted(e.full)}: the Quest board takes true or false. Nothing was opened.`,
       };
     }
+    const wanted = typeof e.task === "string" ? e.task.trim() : undefined;
+    if (e.task !== undefined && !wanted) {
+      return {
+        deny: `Unknown task ${quoted(e.task)}: the Quest board takes a task id. Nothing was opened.`,
+      };
+    }
+
+    await resolveLocal($);
+    await ensureFleet($);
+    // Resolved before anything is opened, so an id that resolves nowhere
+    // leaves the pane as it was rather than showing some other task.
+    const target = wanted ? await findTask($, wanted) : null;
+    if (wanted && !target) {
+      return {
+        deny: `Unknown task ${quoted(wanted)}: no Quest workspace on the board holds it. Nothing was opened.`,
+      };
+    }
+
+    // Scope first: it clears the selection, so a named task is selected after
+    // the view it will be selected in is settled.
+    if (scope !== undefined) {
+      await setScope($, scope);
+    }
+    if (full !== undefined) {
+      await setFullState($, full);
+    }
+    if (target) {
+      await select($, target.repo, target.id);
+    }
+    // Re-placed so a size and a scope just chosen are the ones drawn, and
+    // WITHOUT focus: Claude may call this unasked while the person is typing,
+    // and the pane never takes the keyboard for that (the design's rule, and
+    // the same one a full mode restored at `session.start` follows).
+    await $.ui.close({ id: PANE });
     await openPane($, await read($, view));
     void refresh($);
 
     return {
-      text: `Quest board opened, showing ${scope === "fleet" ? "the fleet" : "this repo"}.`,
+      result: dashboardOpened(scope, full, target?.id ?? null),
     };
   });
 
   on("ui.render", { component: "Pane", requestId: PANE }, async ($, e) => {
+    startAlerts($);
     const { rows, refreshedAt, isLoading } = await read($, board);
     if (e.surface === "mobile") {
       const { Box, Text } = $.ui.resolve(e);
@@ -726,13 +1081,17 @@ export const register: Register = (on, options) => {
     // so a pane opened outside one can ask for the full size, and a full mode
     // restored at `session.start` -- which could not size it -- asks again
     // here, once per size, now that it can.
+    //
+    // This re-request is the pane's own, not a person's, so it is asked for
+    // WITHOUT focus: the person may be typing, and a pane that grabbed the
+    // keyboard on a redraw they did not make would move their keys mid-word.
     if (e.viewport) {
       viewport = { columns: e.viewport.columns, rows: e.viewport.rows };
       if (current.isFull && !current.isCollapsed) {
         const wanted = JSON.stringify(paneSize(current, viewport));
         if (askedFullSize !== wanted) {
           askedFullSize = wanted;
-          void openPane($, current, viewport, true);
+          void openPane($, current, viewport);
         }
       }
     }

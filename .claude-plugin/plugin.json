@@ -29,6 +29,13 @@
       "title": "Repositories",
       "description": "Comma-separated repository names to put on the board, when you would rather name them than discover them. Empty discovers them.",
       "default": ""
+    },
+    "alerts": {
+      "type": "string",
+      "title": "Alerts",
+      "description": "Toast alerts for a decision waiting on you and for notable task changes, checked every two minutes whether or not the pane is open. 'all' toasts both, 'decisions' only the decisions and the status-line count, 'off' neither.",
+      "default": "all",
+      "options": ["all", "decisions", "off"]
     }
   }
 }
