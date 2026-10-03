@@ -392,6 +392,24 @@ test("full mode asks for the largest pane the surface allows", () => {
   // not its height, and a pane sized before that draws is still sized across.
   expect(fullPaneSize({ columns: 200 })).toEqual({ columns: 180 });
 
+  // DOCKED, the render's viewport is the TRANSCRIPT column, not the terminal
+  // (QCLI-454, measured on 2.1.288: terminal = viewport.columns +
+  // bodyColumns + 1). The operator's shape: a 200-column terminal reporting a
+  // 90-column transcript beside a 109-column dock -- full mode asks for 180,
+  // not for 70.
+  expect(
+    paneSize(
+      { isCollapsed: false, isFull: true },
+      { columns: 90, rows: 49 },
+      109,
+    ),
+  ).toEqual({ columns: 180, rows: 43 });
+  // Without a granted body -- no draw yet -- the correction has nothing to
+  // work from and the transcript column form stands until one arrives.
+  expect(
+    paneSize({ isCollapsed: false, isFull: true }, { columns: 90, rows: 49 }),
+  ).toEqual({ columns: 70, rows: 43 });
+
   // Nothing is asked for before any draw, so the surface's own default stands
   // rather than a guess at a size nobody measured.
   expect(paneSize({ isCollapsed: false, isFull: true }, null)).toEqual({});
@@ -412,21 +430,26 @@ test("the board turns side by side at 120 body columns", () => {
 
 test("a size the surface kept rather than granted is said out loud", () => {
   const full = { isCollapsed: false, isFull: true };
-  const viewport = { columns: 200, rows: 60 };
 
-  // A granted request still reads a couple of cells under it -- the body is
-  // measured inside the frame -- so that alone is not the person's own size.
-  expect(sizeHeldHint(full, "dock", viewport, 178)).toBeNull();
-  expect(sizeHeldHint(full, "dock", viewport, 120)).toBe(SIZE_HELD_HINT);
+  // The operator's measured shape (QCLI-454): a 200-column terminal whose
+  // transcript column reports 90 beside a dock the surface kept at 109. Full
+  // mode asks for 180 there, so the 109 it got is a kept size and is said.
+  expect(sizeHeldHint(full, "dock", { columns: 90, rows: 49 }, 109)).toBe(
+    SIZE_HELD_HINT,
+  );
+  // Granted: 20 + 179 + 1 = a 200-column terminal, ask 180, grant 179 -- inside
+  // the frame slack, so nothing to say.
+  expect(sizeHeldHint(full, "dock", { columns: 20, rows: 49 }, 179)).toBeNull();
   // Inline the pane is sized down, so the comparison is on rows, not across.
-  expect(sizeHeldHint(full, "inline", viewport, 54)).toBeNull();
-  expect(sizeHeldHint(full, "inline", viewport, 20)).toBe(SIZE_HELD_HINT);
+  const inline = { columns: 200, rows: 60 };
+  expect(sizeHeldHint(full, "inline", inline, 54)).toBeNull();
+  expect(sizeHeldHint(full, "inline", inline, 20)).toBe(SIZE_HELD_HINT);
   // Only full mode can be held: the dock and the rail ask for a fixed size.
   expect(
-    sizeHeldHint({ isCollapsed: false, isFull: false }, "dock", viewport, 40),
+    sizeHeldHint({ isCollapsed: false, isFull: false }, "dock", inline, 40),
   ).toBeNull();
   expect(
-    sizeHeldHint({ isCollapsed: true, isFull: true }, "dock", viewport, 22),
+    sizeHeldHint({ isCollapsed: true, isFull: true }, "dock", inline, 22),
   ).toBeNull();
   // And there is nothing to compare against before a viewport is known.
   expect(sizeHeldHint(full, "dock", null, 20)).toBeNull();
@@ -498,13 +521,16 @@ test("the z hotkey switches to the full size and remembers it", async ($, on) =>
 
   for (const surface of ["terminal", "desktop"] as const) {
     opens.length = 0;
+    // DOCKED, so the mount's viewport is the transcript column: 135 + the
+    // pane's own 64-column body + the frame column is the 200-column terminal
+    // the asks below are measured against (QCLI-454).
     const ui = await $.ui.mount({
       plugin: "opum-quest",
       surface,
       component: "Pane",
       requestId: "quest-board",
       props: PANE,
-      viewport: { columns: 200, rows: 60, isFullscreen: true },
+      viewport: { columns: 135, rows: 60, isFullscreen: true },
     });
 
     await ui.press({ key: "full" });
@@ -562,7 +588,10 @@ test("a full size the board re-asks for itself does not take the keyboard", asyn
     });
 
   for (const surface of ["terminal", "desktop"] as const) {
-    const ui = await mount(surface, 200, 60);
+    // The viewport is the TRANSCRIPT column of the docked layout, so these are
+    // 200- and 160-column terminals around the pane's own 64-column body
+    // (QCLI-454's measured form: terminal = transcript + body + 1).
+    const ui = await mount(surface, 135, 60);
     // The pane's own mode outlives a mount and the file shares one copy of the
     // module, so the starting mode is READ off the toggle's own label rather
     // than assumed: the button says where pressing it goes.
@@ -581,7 +610,7 @@ test("a full size the board re-asks for itself does not take the keyboard", asyn
     // full size on its own account. Nobody asked for the pane here, so the
     // keyboard stays where it is: exactly one open, and it is not focused.
     opens.length = 0;
-    const again = await mount(surface, 160, 50);
+    const again = await mount(surface, 95, 50);
     expect(opens).toEqual([{ columns: 140, rows: 44, focus: undefined }]);
     await again.unmount();
   }
@@ -655,25 +684,39 @@ test("the pane says so when the surface kept the person's size", async ($, on) =
   on("ui.panes", async () => ({ value: [] }));
 
   for (const surface of ["terminal", "desktop"] as const) {
-    // A pane the person has dragged: it was granted 60 columns where full mode
-    // asks for 180, and the board says so rather than claiming the size.
+    // A pane the person has dragged: on a 200-column terminal -- the 139-column
+    // transcript this docked layout reports, the 60-column body it kept, and
+    // the frame column -- full mode asks for 180, and the board says what it
+    // got rather than claiming the size.
     const ui = await $.ui.mount({
       plugin: "opum-quest",
       surface,
       component: "Pane",
       requestId: "quest-board",
       props: { ...PANE, bodyColumns: 60 },
-      viewport: { columns: 200, rows: 60, isFullscreen: true },
+      viewport: { columns: 139, rows: 60, isFullscreen: true },
     });
-    // The pane's own state outlives a mount, so which of the two modes reads
-    // as held is asserted by the toggle flipping it rather than by assuming
-    // which one the test was handed.
-    const before = await ui.find({ type: "Text", text: SIZE_HELD_HINT });
+    // The pane's own state outlives a mount, so which of the two modes the test
+    // was handed is read off the toggle rather than assumed: the button says
+    // where pressing it goes.
+    const inFull = async () =>
+      (await ui.find({ type: "Button", text: "Normal size" })) !== undefined;
+    if (!(await inFull())) {
+      await ui.press({ key: "full" });
+    }
+    // Full mode drew under a kept size: the hint is said, in full mode.
+    expect(await ui.find({ type: "Text", text: SIZE_HELD_HINT })).toBeDefined();
+    // Back to the normal size. The surface still keeps the size, so the hint
+    // stays and the toggle stops offering a plain "Full screen" -- the header
+    // does not claim a size the pane did not get (QCLI-454).
     await ui.press({ key: "full" });
-    const after = await ui.find({ type: "Text", text: SIZE_HELD_HINT });
-    // Exactly one of the two: at 60 granted columns full mode is short of the
-    // 180 it asked for and says so, and the normal size claims nothing.
-    expect([before, after].filter(Boolean)).toHaveLength(1);
+    expect(await ui.find({ type: "Text", text: SIZE_HELD_HINT })).toBeDefined();
+    expect(
+      await ui.find({ type: "Button", text: "Full size (kept)" }),
+    ).toBeDefined();
+    expect(
+      await ui.find({ type: "Button", text: "Full screen" }),
+    ).toBeUndefined();
     await ui.press({ key: "full" });
     await ui.unmount();
   }
@@ -907,15 +950,21 @@ test("the full input lands in the size the tool opens", async ($, on) => {
 
   for (const surface of ["terminal", "desktop"] as const) {
     // A draw is what measures the surface, so the size the tool asks for is
-    // asserted after one: 200x60 less the margins full mode keeps.
+    // asserted after one: a 200-column terminal whose docked layout reports a
+    // 135-column transcript, less the margins full mode keeps.
     const ui = await $.ui.mount({
       plugin: "opum-quest",
       surface,
       component: "Pane",
       requestId: "quest-board",
       props: PANE,
-      viewport: { columns: 200, rows: 60, isFullscreen: true },
+      viewport: { columns: 135, rows: 60, isFullscreen: true },
     });
+    // The pane's own state outlives a mount; come back to the normal size so
+    // the line below is about this call's request and no earlier draw.
+    if (await ui.find({ type: "Button", text: "Normal size" })) {
+      await ui.press({ key: "full" });
+    }
     opens.length = 0;
     const answer = await $.tool.call({ tool: TOOL, full: true });
     expect(opens.at(-1)).toEqual({
@@ -927,9 +976,70 @@ test("the full input lands in the size the tool opens", async ($, on) => {
     expect(
       await ui.find({ type: "Button", text: "Normal size" }),
     ).toBeDefined();
+    // No draw has answered with a grant yet, so the line reports the request
+    // and claims no size (QCLI-454).
     expect(answer).toEqual({
-      result: "Opened the Quest board, full screen.",
+      result: "Opened the Quest board, full size requested.",
     });
+    // Once the pane has drawn, the line reports that draw's record instead.
+    // The fake surface grants 64 columns where full asks for 180, so the next
+    // call says the surface kept its own size -- the operator's second call.
+    await ui.press({ key: "tab-list" });
+    const second = await $.tool.call({ tool: TOOL, full: true });
+    expect(second).toEqual({
+      result: expect.stringContaining(
+        "the surface keeps its own size, so the board did not go full screen",
+      ),
+    });
+    expect(second).toEqual({
+      result: expect.stringContaining(SIZE_HELD_HINT),
+    });
+    await ui.unmount();
+  }
+});
+
+test("a dock the surface keeps at its own width is asked for the whole terminal (seq 223)", async ($, on) => {
+  // The operator's measured shape (QCLI-454): a 200-column terminal, the
+  // transcript column reporting 90, and a dock the surface holds at 109 columns
+  // whatever is asked -- 40 through 220 all left it there. Full mode must ask
+  // for the whole terminal (90 + 109 + 1 = 200, less the transcript margin),
+  // and then say the size is kept rather than claim full screen.
+  const opens: Open[] = [];
+  mockBoard(on, opens);
+  await $.session.start({ ...START });
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    const ui = await $.ui.mount({
+      plugin: "opum-quest",
+      surface,
+      component: "Pane",
+      requestId: "quest-board",
+      props: { ...PANE, bodyColumns: 109 },
+      viewport: { columns: 90, rows: 49, isFullscreen: true },
+    });
+    // The pane's own state outlives a mount: come back to the normal size so
+    // the press below is the one under test.
+    if (await ui.find({ type: "Button", text: "Normal size" })) {
+      await ui.press({ key: "full" });
+    }
+    opens.length = 0;
+    await ui.press({ key: "full" });
+    // The ask is 180, not the 70 the transcript column would have asked for --
+    // the ask that was under the dock's own width and so changed nothing.
+    expect(opens.at(-1)).toEqual({
+      id: "quest-board",
+      columns: 180,
+      rows: 43,
+      focus: true,
+    });
+    // And the grant is still 109: the hint is said, and back at the normal
+    // size the header stops offering a plain "Full screen".
+    expect(await ui.find({ type: "Text", text: SIZE_HELD_HINT })).toBeDefined();
+    await ui.press({ key: "full" });
+    expect(
+      await ui.find({ type: "Button", text: "Full size (kept)" }),
+    ).toBeDefined();
+    await ui.press({ key: "full" });
     await ui.unmount();
   }
 });

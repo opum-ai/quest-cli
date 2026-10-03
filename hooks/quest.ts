@@ -48,6 +48,55 @@ export const FULL_MARGIN_ROWS = 6;
 export const MIN_PANE_ROWS = 5;
 
 /**
+ * The frame column a docked pane's body sits inside, between it and the
+ * transcript.
+ *
+ * Measured on Claude Code 2.1.288 (QCLI-454): for a DOCKED pane,
+ * `ui.render`'s `e.viewport.columns` is not the terminal -- it is the
+ * transcript column, the terminal less the pane's own dock. The terminal is
+ * the two added back: `viewport.columns + bodyColumns + FRAME_COLUMNS`.
+ * Verified at three sizes: 120+79+1=200, 160+79+1=240, and 90+109+1=200.
+ */
+export const FRAME_COLUMNS = 1;
+
+/**
+ * The terminal's width, from a docked pane's own render facts: the transcript
+ * column it draws beside, and its granted body. Null until both are known --
+ * `session.start` runs before any draw, and the dock's body only arrives with
+ * the first render.
+ */
+export function dockedTerminalColumns(
+  viewport: Partial<Viewport> | null,
+  bodyColumns: number | null,
+): number | null {
+  if (viewport?.columns === undefined || bodyColumns === null) {
+    return null;
+  }
+
+  return viewport.columns + bodyColumns + FRAME_COLUMNS;
+}
+
+/**
+ * The columns a full pane asks for while DOCKED: the whole terminal less the
+ * transcript margin.
+ *
+ * A docked pane cannot use `viewport.columns` directly for this -- that is the
+ * transcript column, so the ask would come out narrower than the pane already
+ * is, and the surface would grant it as-is: the full toggle would change
+ * nothing on screen (QCLI-454, measured). Null when the body is not known yet.
+ */
+export function dockFullColumns(
+  viewport: Partial<Viewport> | null,
+  bodyColumns: number | null,
+): number | null {
+  const terminal = dockedTerminalColumns(viewport, bodyColumns);
+
+  return terminal === null
+    ? null
+    : Math.max(RAIL_COLUMNS, terminal - FULL_MARGIN_COLUMNS);
+}
+
+/**
  * At or above this body width the board draws the list and the detail side by
  * side instead of the detail below the list.
  */
@@ -110,16 +159,29 @@ export function fullPaneSize(viewport: Partial<Viewport> | null): {
  *
  * Collapsed is the rail and wins over full, so collapsing from full mode lands
  * on the rail and expanding returns to whichever of the other two was stored.
+ *
+ * `dockBodyColumns` is the body the surface last granted the docked pane, when
+ * one is known: with it, a docked full asks for the whole terminal (measured
+ * via `dockedTerminalColumns`) rather than for the transcript column the
+ * render's viewport reports. Without it -- no draw yet, or an inline pane --
+ * `fullPaneSize`'s own arithmetic stands.
  */
 export function paneSize(
   state: { isCollapsed: boolean; isFull: boolean },
   viewport: Partial<Viewport> | null,
+  dockBodyColumns: number | null = null,
 ): { columns?: number; rows?: number } {
   if (state.isCollapsed) {
     return { columns: RAIL_COLUMNS };
   }
   if (state.isFull) {
-    return fullPaneSize(viewport);
+    const size = fullPaneSize(viewport);
+    const docked = dockFullColumns(viewport, dockBodyColumns);
+    if (docked !== null) {
+      size.columns = docked;
+    }
+
+    return size;
   }
 
   return { columns: DOCK_COLUMNS };
@@ -141,15 +203,23 @@ export function isSizeHeld(granted: number, asked: number): boolean {
 /**
  * What full mode asked for on the axis this placement sizes: the dock is sized
  * across, the inline block down. Null when that axis is not known yet.
+ *
+ * The dock's ask is derived from the granted body (`dockFullColumns`), because
+ * a docked render's `viewport.columns` is the transcript column rather than
+ * the terminal: comparing the grant against that undersized ask is what made
+ * every real dock read as granted while the screen never changed (QCLI-454).
  */
 export function fullAxis(
   placement: Placement,
   viewport: Partial<Viewport> | null,
+  granted: number | null,
 ): number | null {
+  if (placement === "dock") {
+    return dockFullColumns(viewport, granted);
+  }
   const size = fullPaneSize(viewport);
-  const wanted = placement === "dock" ? size.columns : size.rows;
 
-  return wanted ?? null;
+  return size.rows ?? null;
 }
 
 /**
@@ -167,7 +237,7 @@ export function sizeHeldHint(
   if (state.isCollapsed || !state.isFull) {
     return null;
   }
-  const asked = fullAxis(placement, viewport);
+  const asked = fullAxis(placement, viewport, granted);
 
   return asked !== null && isSizeHeld(granted, asked) ? SIZE_HELD_HINT : null;
 }

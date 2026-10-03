@@ -12,6 +12,7 @@ import type {
 } from "../types";
 import {
   COLUMNS,
+  SIZE_HELD_HINT,
   STATUSES,
   actorArgs,
   alertChanges,
@@ -101,6 +102,28 @@ const dirs = new Map<string, string>();
 // size. Only `ui.render` measures the surface, and it fills both axes; an
 // axis nothing has measured yet is left out of what is asked for.
 let viewport: Partial<Viewport> = {};
+
+// The body the surface last granted the DOCKED pane, and null whenever the
+// last draw was not docked (or there has been none). A docked render's
+// `viewport.columns` is the transcript column, not the terminal, so this is
+// the term that puts the terminal back together in `paneSize` (QCLI-454,
+// measured: terminal = viewport.columns + bodyColumns + FRAME_COLUMNS).
+let dockBodyColumns: number | null = null;
+
+// Whether the surface is keeping a size of its own for the pane, learned from
+// the last FULL draw: the grant came in under the full ask by more than the
+// frame slack. Shown as the held-size hint, and the reason the full control
+// stops reading a plain "Full screen" once the pane knows (QCLI-454).
+let surfaceKeepsSize = false;
+
+// How the pane last drew, for the `dashboard` tool's own line: the record of
+// what happened, not what the open asked for. A line only trusts it when its
+// mode still matches the view the call just applied.
+let lastRendered: {
+  isFull: boolean;
+  isCollapsed: boolean;
+  held: boolean;
+} | null = null;
 
 // The full size this session last asked the surface for. `session.start` runs
 // before any draw, so a stored full mode opens at the surface's own default and
@@ -724,7 +747,7 @@ async function openPane(
     id: PANE,
     title: state.isCollapsed ? "Quest" : "Quest board",
     ...(isFocused && !state.isCollapsed ? { focus: true as const } : {}),
-    ...paneSize(state, size),
+    ...paneSize(state, size, dockBodyColumns),
   });
 }
 
@@ -780,7 +803,9 @@ async function setFullState(
   await savePrefs($);
   const current = await read($, view);
   if (isFull) {
-    askedFullSize = JSON.stringify(paneSize(current, viewport));
+    askedFullSize = JSON.stringify(
+      paneSize(current, viewport, dockBodyColumns),
+    );
   }
 }
 
@@ -875,24 +900,43 @@ function quoted(value: unknown): string {
  * The `dashboard` tool's one line, naming what it opened and the state it
  * applied -- the design's own example reads "Opened the Quest board, fleet
  * scope, OCLI-8 selected." (`pane-dashboard-tool-design.md`).
+ *
+ * The size it names is the one the surface granted, read off the pane's draw
+ * that follows the open: `sizeHeld` true says the grant came in under the full
+ * ask, so the line says the surface kept its own size rather than claiming a
+ * size the board did not get; null says no draw has answered yet, so only the
+ * request is reported (QCLI-454, measured: the dock ignored every request).
  */
 function dashboardOpened(
   scope: Scope | undefined,
   isFull: boolean | undefined,
   taskId: string | null,
+  sizeHeld: boolean | null,
 ): string {
   const parts = ["Opened the Quest board"];
   if (scope) {
     parts.push(scope === "fleet" ? "fleet scope" : "local scope");
   }
-  if (isFull !== undefined) {
-    parts.push(isFull ? "full screen" : "normal size");
+  if (isFull === true && sizeHeld === true) {
+    parts.push(
+      "full size requested; the surface keeps its own size, so the board did not go full screen",
+    );
+  } else if (isFull !== undefined) {
+    if (isFull) {
+      parts.push(sizeHeld === false ? "full screen" : "full size requested");
+    } else {
+      parts.push("normal size");
+    }
   }
   if (taskId) {
     parts.push(`${taskId} selected`);
   }
 
-  return `${parts.join(", ")}.`;
+  const line = `${parts.join(", ")}.`;
+
+  return isFull === true && sizeHeld === true
+    ? `${line} ${SIZE_HELD_HINT}.`
+    : line;
 }
 
 /**
@@ -1108,10 +1152,22 @@ export const register: Register = (on, options) => {
     // the open asked for: an unasked pane waits undrawn below the floor it is
     // placed from, and the model reads this line as fact. The waiting line
     // quotes this open's own `reason` for why, so the floor it names is the
-    // engine's number rather than one composed here.
+    // engine's number rather than one composed here. The size it names is the
+    // last draw's own record, trusted only while that draw still matches the
+    // mode this call applied (QCLI-454): a full claim the surface did not
+    // grant is the line this replaces.
+    const current = await read($, view);
+    const sizeHeld =
+      full === true &&
+      lastRendered?.isFull === true &&
+      lastRendered.isCollapsed === false &&
+      current.isFull &&
+      !current.isCollapsed
+        ? lastRendered.held
+        : null;
     return {
       result: (await boardIsShown($))
-        ? dashboardOpened(scope, full, target?.id ?? null)
+        ? dashboardOpened(scope, full, target?.id ?? null, sizeHeld)
         : dashboardWaiting(opened.isPlaced ? undefined : opened.reason),
     };
   });
@@ -1175,10 +1231,16 @@ export const register: Register = (on, options) => {
     // This re-request is the pane's own, not a person's, so it is asked for
     // WITHOUT focus: the person may be typing, and a pane that grabbed the
     // keyboard on a redraw they did not make would move their keys mid-word.
+    // The body this draw granted the dock, kept for the next ask and for the
+    // held test: a docked render's viewport is the transcript column, so this
+    // is the term that reconstructs the terminal width (QCLI-454).
+    dockBodyColumns = e.props.placement === "dock" ? e.props.bodyColumns : null;
     if (e.viewport) {
       viewport = { columns: e.viewport.columns, rows: e.viewport.rows };
       if (current.isFull && !current.isCollapsed) {
-        const wanted = JSON.stringify(paneSize(current, viewport));
+        const wanted = JSON.stringify(
+          paneSize(current, viewport, dockBodyColumns),
+        );
         if (askedFullSize !== wanted) {
           askedFullSize = wanted;
           void openPane($, current, viewport);
@@ -1205,6 +1267,17 @@ export const register: Register = (on, options) => {
         ? e.props.bodyColumns
         : e.props.scroll.bodyRows,
     );
+    lastRendered = {
+      isFull: current.isFull,
+      isCollapsed: current.isCollapsed,
+      held: hint !== null,
+    };
+    if (current.isFull && !current.isCollapsed) {
+      // Learned from full draws: once the surface has kept its own size, the
+      // full control stops offering a plain "Full screen" and the hint stays
+      // beside it, in either mode, until a full draw comes back granted.
+      surfaceKeepsSize = hint !== null;
+    }
 
     if (current.isCollapsed) {
       return (
@@ -1410,7 +1483,13 @@ export const register: Register = (on, options) => {
           <Text> </Text>
           <Button
             key="full"
-            label={current.isFull ? "Normal size" : "Full screen"}
+            label={
+              current.isFull
+                ? "Normal size"
+                : surfaceKeepsSize
+                  ? "Full size (kept)"
+                  : "Full screen"
+            }
             hotkey="z"
             variant={current.isFull ? "primary" : undefined}
             onPress={() => void setFull($, !current.isFull)}
@@ -1471,9 +1550,9 @@ export const register: Register = (on, options) => {
         <Text dimColor wrap="truncate">
           {summary}
         </Text>
-        {hint && (
+        {(hint ?? (surfaceKeepsSize ? SIZE_HELD_HINT : null)) && (
           <Text dimColor wrap="truncate">
-            {hint}
+            {hint ?? SIZE_HELD_HINT}
           </Text>
         )}
         {refsLine && (
