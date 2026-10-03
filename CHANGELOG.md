@@ -12,8 +12,9 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Added
 
-- **The Quest board takes the full screen, on `z` or `/quest-board full`**
-  (QCLI-435, from an operator instruction relayed by opum-doc as seq 164).
+- **The Quest board takes the full screen, on `z` or the dashboard tool's
+  `full`** (QCLI-435, from an operator instruction relayed by opum-doc as seq
+  164).
   Full mode reopens the pane at the largest size the surface allows: docked it
   asks for the viewport's width less a transcript margin, so the conversation
   stays visible beside it, and inline it asks for the height less the prompt
@@ -27,6 +28,18 @@ dated by its own tag. No date here is inferred (QCLI-398).
   asked for, the pane says so on one line rather than claiming a size it did
   not get.
 
+- **The Quest board opens through a tool Claude calls,
+  `mcp__opum-quest__dashboard`** (QCLI-441, from opum-doc's pane dashboard tool
+  design, seq 174). The mod registers it at `session.start` and serves it from a
+  `tool.call` hook, and every input is optional: `scope` (`fleet` or `local`),
+  `full`, and `task`, a task id to open in the detail view. It opens the pane
+  WITHOUT focus, because Claude may call it unasked while the person is typing —
+  the same rule a full mode restored at `session.start` follows. It reports bad
+  input rather than guessing: an unknown task id comes back as an error result
+  naming it, with nothing opened in its place, and a task id is resolved against
+  every Quest workspace on the board rather than assumed from the current view,
+  so a Done task or one outside the current scope is still found.
+
 - **The `opum-quest` plugin ships a `migrate-from-backlog` skill**, so a
   Backlog.md project can be moved into Quest from inside Claude Code instead of
   by hand (QCLI-436, from the same operator instruction). It drives
@@ -38,6 +51,23 @@ dated by its own tag. No date here is inferred (QCLI-398).
   deletes `backlog/`, never commits — it hands the records to the repository's
   own branch-and-PR flow — and never applies a digest other than the one just
   previewed. The `quest` skill carries a one-line pointer to it.
+
+### Removed
+
+- **The Quest board has no slash command any more** (QCLI-441, from opum-doc's
+  rulings relayed by opum-agent as seq 176 and seq 180). A command named `quest`
+  was tried first and the engine refused it — `/quest` is the plugin's own
+  `/opum-quest:quest` — and a refused registration threw the whole
+  `session.start` hook, so the mod never initialised; the board ends with no
+  slash command at all, `quest-board` included. The board's words are the
+  skill's job instead, and the routing is one prefix test rather than a verb
+  table: the generated `quest` skill opens the pane for `quest dashboard`,
+  reading whatever follows it (`full`, `fleet`, `local`, a task id, or several
+  of those) into ONE `mcp__opum-quest__dashboard` call, and sends every argument
+  that does not start at `dashboard` — `quest board` included, which the CLI
+  already serves as its own board — to the `quest` CLI as before. Where the tool
+  is unavailable — Claude Code older than 2.1.287, a `claude -p` run, or mods
+  off — the skill says the pane is unavailable there and answers from the CLI.
 
 ## 0.12.0
 

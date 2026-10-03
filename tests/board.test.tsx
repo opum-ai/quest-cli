@@ -676,6 +676,279 @@ test("the pane says so when the surface kept the person's size", async ($, on) =
   }
 });
 
+// --- The dashboard tool (QCLI-441) -----------------------------------------
+//
+// The board's way in since the slash command's removal: the mod registers
+// `mcp__opum-quest__dashboard` at `session.start` and serves it from a
+// `tool.call` hook. The pane id and the `ui.render` requestId stay
+// `quest-board`; only the command is gone.
+
+const TOOL = "mcp__opum-quest__dashboard";
+
+type Open = {
+  id?: string;
+  columns?: number;
+  rows?: number;
+  focus?: boolean;
+};
+
+/**
+ * The engine mocks the tool tests need: the clock, an empty store, the fleet
+ * discovery, a `quest` answering the fixtures above, and every `ui.open`
+ * recorded so the size, the id and the focus it asked for can be asserted.
+ *
+ * `NOPE-1` is not found in any workspace, which is what the unknown-task test
+ * needs; every other id resolves.
+ */
+function mockBoard(
+  on: On,
+  opens: Open[],
+  asked?: string[][],
+): { name: string; description: string; inputSchema?: unknown }[] {
+  const registers: {
+    name: string;
+    description: string;
+    inputSchema?: unknown;
+  }[] = [];
+  mock.clock(on, { now: Date.UTC(2026, 9, 2, 4, 30, 0) });
+  mock.store(on);
+  mockFleet(on);
+  on("session.root", async () => ({ value: "/repos/opum-cli" }));
+  // `session.start` and `tool.register` are the engine's to answer: nothing
+  // sits beneath a test's hooks, so a plugin's call on one rejects unless the
+  // test answers it. What the mod asked to register is recorded, which is the
+  // shape of the assertion the kit allows.
+  on("session.start", async (_$, e) => ({ cwd: e.cwd }));
+  on("tool.register", async (_$, e) => {
+    registers.push(e);
+
+    return { value: { tool: `mcp__opum-quest__${e.name}` } };
+  });
+  on("process.run", async (_$, e) => {
+    asked?.push([e.init?.cwd ?? "", ...e.argv]);
+    if (e.argv[0] === "git") return ok("");
+    if (e.argv.includes("view")) {
+      const id = e.argv[e.argv.indexOf("view") + 1];
+      if (id === "NOPE-1") {
+        return {
+          value: {
+            exitCode: 3,
+            stdout: "",
+            stderr: "task_not_found",
+            isStdoutTruncated: false,
+            isStderrTruncated: false,
+          },
+        };
+      }
+
+      return ok(VIEW);
+    }
+
+    return ok(LISTING);
+  });
+  on("ui.open", async (_$, e) => {
+    opens.push({
+      id: e.id,
+      columns: e.columns,
+      rows: e.rows,
+      focus: e.focus,
+    });
+
+    return { value: { isPlaced: true } };
+  });
+  on("ui.close", async () => ({ value: undefined }));
+  on("ui.panes", async () => ({ value: [] }));
+
+  return registers;
+}
+
+const START = {
+  cwd: "/repos/opum-cli",
+  surface: "terminal",
+  isInteractive: true,
+} as const;
+
+test("the dashboard tool registers at session start and opens without focus", async ($, on) => {
+  const opens: Open[] = [];
+  const registers = mockBoard(on, opens);
+
+  await $.session.start({ ...START });
+  // The engine builds the listed name from the plugin's and the short name --
+  // `mcp__opum-quest__dashboard` -- so what this asserts is the registration
+  // the mod made, read back from the recorded call: the kit's `$` carries no
+  // `tool.list` to read a registry from.
+  expect(registers).toHaveLength(1);
+  expect(registers[0]?.name).toBe("dashboard");
+  expect(registers[0]?.description).toMatch(/Quest board/);
+  // One or two sentences: the tool is listed to Claude in every session that
+  // loads the mod, so the description stays short.
+  expect(
+    (registers[0]?.description.match(/\./gu) ?? []).length,
+  ).toBeLessThanOrEqual(2);
+  expect(
+    Object.keys(
+      (registers[0]?.inputSchema as { properties?: object } | undefined)
+        ?.properties ?? {},
+    ),
+  ).toEqual(["scope", "full", "task"]);
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    opens.length = 0;
+    const answer = await $.tool.call({ tool: TOOL });
+    // Exactly one open, the board's pane id, and NO focus: Claude may have
+    // called this unasked while the person was typing.
+    expect(opens).toEqual([
+      { id: "quest-board", columns: 64, rows: undefined, focus: undefined },
+    ]);
+    expect(answer).toEqual({ result: "Opened the Quest board." });
+    const ui = await $.ui.mount({
+      plugin: "opum-quest",
+      surface,
+      component: "Pane",
+      requestId: "quest-board",
+      props: PANE,
+    });
+    expect(await ui.find({ key: "full" })).toBeDefined();
+    await ui.unmount();
+  }
+});
+
+test("the scope input lands in the view the tool opens", async ($, on) => {
+  const opens: Open[] = [];
+  mockBoard(on, opens);
+  await $.session.start({ ...START });
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    const drawn = async () => {
+      const ui = await $.ui.mount({
+        plugin: "opum-quest",
+        surface,
+        component: "Pane",
+        requestId: "quest-board",
+        props: PANE,
+      });
+
+      return ui;
+    };
+
+    await $.tool.call({ tool: TOOL, scope: "fleet" });
+    const fleet = await drawn();
+    expect((await fleet.find({ key: "fleet" }))?.props.variant).toBe("primary");
+    expect((await fleet.find({ key: "local" }))?.props.variant).toBeUndefined();
+    await fleet.unmount();
+
+    const answer = await $.tool.call({ tool: TOOL, scope: "local" });
+    const local = await drawn();
+    expect((await local.find({ key: "local" }))?.props.variant).toBe("primary");
+    expect((await local.find({ key: "fleet" }))?.props.variant).toBeUndefined();
+    await local.unmount();
+    expect(answer).toEqual({
+      result: "Opened the Quest board, local scope.",
+    });
+  }
+});
+
+test("the full input lands in the size the tool opens", async ($, on) => {
+  const opens: Open[] = [];
+  mockBoard(on, opens);
+  await $.session.start({ ...START });
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    // A draw is what measures the surface, so the size the tool asks for is
+    // asserted after one: 200x60 less the margins full mode keeps.
+    const ui = await $.ui.mount({
+      plugin: "opum-quest",
+      surface,
+      component: "Pane",
+      requestId: "quest-board",
+      props: PANE,
+      viewport: { columns: 200, rows: 60, isFullscreen: true },
+    });
+    opens.length = 0;
+    const answer = await $.tool.call({ tool: TOOL, full: true });
+    expect(opens.at(-1)).toEqual({
+      id: "quest-board",
+      columns: 180,
+      rows: 54,
+      focus: undefined,
+    });
+    expect(
+      await ui.find({ type: "Button", text: "Normal size" }),
+    ).toBeDefined();
+    expect(answer).toEqual({
+      result: "Opened the Quest board, full screen.",
+    });
+    await ui.unmount();
+  }
+});
+
+test("the task input opens that task in the detail view", async ($, on) => {
+  const opens: Open[] = [];
+  const asked: string[][] = [];
+  mockBoard(on, opens, asked);
+  await $.session.start({ ...START });
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    const answer = await $.tool.call({ tool: TOOL, task: "OCLI-8" });
+    expect(answer).toEqual({
+      result: "Opened the Quest board, OCLI-8 selected.",
+    });
+    // The id is resolved by asking the workspaces themselves, not read off the
+    // board's current view: a task that is Done, or outside the scope, is
+    // still found.
+    expect(
+      asked.filter((argv) => argv.includes("view") && argv.includes("OCLI-8"))
+        .length,
+    ).toBeGreaterThan(0);
+    const ui = await $.ui.mount({
+      plugin: "opum-quest",
+      surface,
+      component: "Pane",
+      requestId: "quest-board",
+      props: PANE,
+    });
+    expect(
+      await ui.find({ type: "Text", text: /OCLI-8 Failure probes/ }),
+    ).toBeDefined();
+    expect(
+      await ui.find({
+        type: "Text",
+        text: /Acceptance criteria, 1 of 2 checked/,
+      }),
+    ).toBeDefined();
+    await ui.unmount();
+  }
+});
+
+test("an unknown task id comes back an error and opens nothing", async ($, on) => {
+  const opens: Open[] = [];
+  mockBoard(on, opens);
+  await $.session.start({ ...START });
+
+  for (const surface of ["terminal", "desktop"] as const) {
+    const ui = await $.ui.mount({
+      plugin: "opum-quest",
+      surface,
+      component: "Pane",
+      requestId: "quest-board",
+      props: PANE,
+    });
+    const before = await ui.find({ type: "Text", text: /Acceptance criteria/ });
+    opens.length = 0;
+
+    const answer = await $.tool.call({ tool: TOOL, task: "NOPE-1" });
+    // Nothing is opened at all -- not the board, and not some other task in
+    // the named one's place -- and the error names the id it could not find.
+    expect(opens).toEqual([]);
+    expect(answer).toEqual({
+      deny: expect.stringContaining("NOPE-1"),
+    });
+    const after = await ui.find({ type: "Text", text: /Acceptance criteria/ });
+    expect(after === undefined).toBe(before === undefined);
+    await ui.unmount();
+  }
+});
+
 // ------------------------------------------------------------- the alerts ---
 //
 // The alerts check is driven by a clock of its own, not by a press, so its
