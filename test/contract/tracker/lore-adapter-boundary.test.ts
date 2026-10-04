@@ -30,7 +30,10 @@ async function quest(
 }
 
 test("the adapter boundary pins the exact authorized Quest package version", () => {
-  expect(QUEST_ADAPTER_PINNED_VERSION).toBe(QUEST_VERSION);
+  // QUEST_VERSION is a plain `string` (the built binary overrides it at build
+  // time), so the matcher's received type is widened; the assertion is still
+  // exact equality.
+  expect<string>(QUEST_ADAPTER_PINNED_VERSION).toBe(QUEST_VERSION);
 });
 
 test("the live binary reports the pinned version through public discovery", async () => {

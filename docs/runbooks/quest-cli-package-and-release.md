@@ -147,6 +147,17 @@ below, which also reconciles this section with the Prerequisites bullet above.
 - Root `package.json`'s six `optionalDependencies` pins (`@opum-ai/quest-<platform>`),
   which `check:packages` requires to equal the root version exactly.
 
+**The dev-checkout version suffix is build-derived, and adds no hand-edited
+site.** A platform build (`scripts/build-platform-packages.mjs`) runs `git
+describe --tags --long` and, when the checkout carries commits beyond the last
+release tag, rewrites the `<distance>-g<sha>` suffix to `-dev.<distance>.g<sha>`
+-- `v0.12.0-60-gd49cb95e` becomes `0.12.0-dev.60.gd49cb95e` -- injecting it into
+the binary as the `__QUEST_BUILD_VERSION__` define. On an exact tag, or with no
+reachable tag, the build reports the bare version unchanged. That suffix is
+generated at build time (QCLI-296), so it is not a site anyone edits at bump
+time: **this bump-touches list is unchanged, and no new hand-edited version
+site is added.**
+
 **Generated, not hand-edited -- `scripts/build-platform-packages.mjs` is the
 generator:**
 
