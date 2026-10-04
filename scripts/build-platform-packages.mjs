@@ -17,25 +17,24 @@ const rootPackagePath = join(root, "package.json");
 const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
 const version = rootPackage.version;
 
-// The dev version suffix is derived once, here, from the checkout's git state
+// The reported version is derived once, here, from the checkout's git state
 // (QCLI-296). It is injected as a build-time define so a dev binary reports a
 // version distinguishable from the last published one without introducing a
-// hand-edited version site. `deriveBuildVersion` is pure; the git calls below
-// are the only side effects.
+// hand-edited version site. A RELEASE build -- one whose environment sets
+// QUEST_RELEASE_BUILD=1, which CI does only for the candidate build -- embeds
+// the bare package.json version instead of a -dev suffix. `deriveBuildVersion`
+// is pure; the git call below is the only side effect.
+const releaseBuild = process.env.QUEST_RELEASE_BUILD === "1";
 const describeLong = Bun.spawnSync(["git", "describe", "--tags", "--long"], {
   cwd: root,
   stdout: "pipe",
   stderr: "pipe",
 });
-const describeExact = Bun.spawnSync(
-  ["git", "describe", "--tags", "--exact-match", "HEAD"],
-  { cwd: root, stdout: "pipe", stderr: "pipe" },
-);
 const buildVersion = deriveBuildVersion({
   baseVersion: version,
   describeLong:
     describeLong.exitCode === 0 ? describeLong.stdout.toString().trim() : null,
-  exactMatch: describeExact.exitCode === 0,
+  releaseBuild,
 });
 const checksums = { ...(rootPackage.questPlatformPackages ?? {}) };
 const targetDirectory = process.env.QUEST_BUN_TARGETS_DIR;
