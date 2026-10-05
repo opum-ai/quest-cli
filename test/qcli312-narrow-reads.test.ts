@@ -165,6 +165,76 @@ test("--plain --fields is one TAB-separated line per task, in the named order", 
   }
 });
 
+test("a declared field ABSENT from a record is emitted as null with the key PRESENT", async () => {
+  const root = await repository();
+  try {
+    // `assignees` is advertised by `quest manifest --json` for `task list`,
+    // yet the fixture tasks were created without one, so the record carries no
+    // such key. The projection must PRESENT it as null rather than drop it: a
+    // dropped key is indistinguishable from one the caller never asked for, so
+    // the key SET would no longer be the named set.
+    const projected = envelope(root, [
+      "task",
+      "list",
+      "--fields",
+      "id,assignees",
+    ]);
+    expect(projected.data.length).toBe(2);
+    for (const item of projected.data) {
+      // Present AND null -- not an absent key, and not `undefined`.
+      expect(Object.keys(item)).toContain("assignees");
+      expect(Object.hasOwn(item, "assignees")).toBe(true);
+      expect(item.assignees).toBeNull();
+      expect(item.assignees).not.toBeUndefined();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--plain renders an ABSENT projected field as an EMPTY column, one row per task", async () => {
+  const root = await repository();
+  try {
+    const plain = RUN(root, [
+      "task",
+      "list",
+      "--fields",
+      "id,assignees",
+      "--plain",
+    ]).stdout.toString();
+    const lines = plain.split("\n").filter((line) => line.includes("\t"));
+    // One row per task; each ends in an empty second cell (the trailing TAB),
+    // not a dropped column.
+    expect(lines.length).toBe(2);
+    for (const line of lines) {
+      const cells = line.split("\t");
+      expect(cells.length).toBe(2);
+      expect(cells[0]).toMatch(/^T-\d+$/);
+      expect(cells[1]).toBe("");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a declared field holding an EMPTY ARRAY is preserved as [], never coerced to null", async () => {
+  const root = await repository();
+  try {
+    // `labels` is declared for `task list`; a task with no labels carries [].
+    // The projection does `record[field] ?? null`, and `[]` is NOT nullish, so
+    // the empty array must survive as [] -- it is data, not an absence.
+    const projected = envelope(root, ["task", "list", "--fields", "id,labels"]);
+    expect(projected.data.length).toBe(2);
+    for (const item of projected.data) {
+      expect(Object.hasOwn(item, "labels")).toBe(true);
+      expect(Array.isArray(item.labels)).toBe(true);
+      expect(item.labels).toEqual([]);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("an empty --fields projection keeps the established (empty) marker", async () => {
   const root = await repository();
   try {
