@@ -139,8 +139,13 @@ jobs:
       # a rebuild is a DIFFERENT artifact from the one shipped (QCLI-135).
       - run: bun run build:packages
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        # QCLI-296: this is the ONLY place the release signal is set. It makes
+        # the candidate/release bytes embed the bare package.json version, so
+        # prepublish.mjs's candidate-version check (bare semver) passes. Every
+        # other build omits it and derives a -dev.<N>.g<sha> suffix instead.
         env:
           QUEST_BUN_TARGET: ${{ matrix.target }}
+          QUEST_RELEASE_BUILD: "1"
       - name: Attest the committed artifact
         if: startsWith(github.ref, 'refs/tags/v')
         run: node scripts/qualification/native-execution-receipt.mjs --verify-committed ${{ matrix.target }}
