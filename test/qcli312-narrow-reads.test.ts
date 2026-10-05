@@ -310,3 +310,87 @@ test("the default task list is unchanged and its envelope key order still ends a
     await rm(root, { recursive: true, force: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// AC1 -- the projection is a MEASURED byte reduction, not an asserted one
+// ---------------------------------------------------------------------------
+
+/**
+ * Three tasks, each carrying ~11 KB of implementationNotes, so the FULL
+ * listing is well past 20 KB and the byte comparison below cannot be satisfied
+ * by two near-empty strings. `repository()`'s two small tasks are too short to
+ * measure against; this is a dedicated bulky fixture.
+ */
+async function bulkyRepository() {
+  const root = await mkdtemp(join(tmpdir(), "quest-narrow-reads-bulk-"));
+  git(root, "init", "-q", "-b", "dev", ".");
+  git(root, "config", "user.email", "t@example.com");
+  git(root, "config", "user.name", "T");
+  RUN(root, ["init", "--name", "Probe", "--task-id-prefix", "T", "--json"]);
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "init");
+  const note = (label: string) =>
+    `${label}: ${"the quick brown fox jumps over the lazy dog. ".repeat(80)}`;
+  for (let index = 1; index <= 3; index += 1) {
+    RUN(root, ["task", "create", `task ${index}`, ...ACTOR]);
+    const id = `T-${index}`;
+    for (const ordinal of ["one", "two", "three"])
+      RUN(root, [
+        "task",
+        "edit",
+        id,
+        "--add-note",
+        note(`note-${ordinal}-${id}`),
+        ...ACTOR,
+      ]);
+  }
+  git(root, "add", "-A");
+  git(root, "commit", "-qm", "three bulky tasks");
+  return root;
+}
+
+test("AC1: --fields is a MEASURED byte reduction on a large three-task listing", async () => {
+  const root = await bulkyRepository();
+  try {
+    const full = RUN(root, ["task", "list", "--limit", "3", "--plain"]);
+    const projected = RUN(root, [
+      "task",
+      "list",
+      "--limit",
+      "3",
+      "--fields",
+      "id,status,title",
+      "--plain",
+    ]);
+    const fullBytes = Buffer.byteLength(full.stdout);
+    const projectedBytes = Buffer.byteLength(projected.stdout);
+    // The full listing is COMFORTABLY large -- the comparison below is not
+    // vacuous.
+    expect(fullBytes).toBeGreaterThan(20000);
+    // A LARGE reduction: an order of magnitude, not a rounding.
+    expect(projectedBytes * 10).toBeLessThan(fullBytes);
+    // Both sides actually carried the rows (a broken run would compare empties).
+    expect(full.stdout.toString()).toContain("T-1");
+    const projectedLines = projected.stdout
+      .toString()
+      .split("\n")
+      .filter((line) => line.includes("\t"));
+    expect(projectedLines.length).toBe(3);
+
+    // The --json projection narrows the KEY SET the same way, so both output
+    // modes are covered by the measurement.
+    const projectedJson = envelope(root, [
+      "task",
+      "list",
+      "--limit",
+      "3",
+      "--fields",
+      "id,status,title",
+    ]);
+    expect(projectedJson.data.length).toBe(3);
+    for (const item of projectedJson.data)
+      expect(Object.keys(item).sort()).toEqual(["id", "status", "title"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
