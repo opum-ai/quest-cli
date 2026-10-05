@@ -147,6 +147,25 @@ below, which also reconciles this section with the Prerequisites bullet above.
 - Root `package.json`'s six `optionalDependencies` pins (`@opum-ai/quest-<platform>`),
   which `check:packages` requires to equal the root version exactly.
 
+**The dev-checkout version suffix is build-derived, and adds no hand-edited
+site.** A build (`scripts/build-platform-packages.mjs`) runs `git describe
+--tags --long` and, when the checkout carries commits beyond the last reachable
+tag, rewrites the `<distance>-g<sha>` suffix to `-dev.<distance>.g<sha>` --
+`v0.12.0-60-gd49cb95e` becomes `0.12.0-dev.60.gd49cb95e` -- injecting it into
+the binary as the `__QUEST_BUILD_VERSION__` define. The base is always root
+`package.json`'s version, **never the describe tag's own text**, so a bump
+window (`package.json` bumped ahead of the last tag) does not under-report and
+an irregular tag such as `v0.13.0-rc.1` is ignored rather than read as a
+version. A **RELEASE build** is the candidate build with `QUEST_RELEASE_BUILD=1`
+set in its environment -- the candidate step in
+`.github/workflows/prepublication-qualification.yml`, the only place the signal
+is set -- and it embeds the bare `package.json` version, which is what lets
+`prepublish.mjs`'s candidate-version check (bare semver) pass. With no reachable
+tag, `git describe` fails and the build falls back to the bare `package.json`
+version. That suffix is generated at build time (QCLI-296), so it is not a site
+anyone edits at bump time: **this bump-touches list is unchanged, and no new
+hand-edited version site is added.**
+
 **Generated, not hand-edited -- `scripts/build-platform-packages.mjs` is the
 generator:**
 
@@ -285,9 +304,12 @@ The way through is two commits:
    checksums.
 
 A local `build:packages` run is a legitimate substitute for step 2 on a host
-that can cross-compile all six targets; it is not available on a host that
-cannot, and on macOS it additionally risks the code-signing hazard documented
-below. Neither route changes step 1, which is required either way.
+that can cross-compile all six targets; run it with `QUEST_RELEASE_BUILD=1`, the
+same release signal the candidate build sets, so it embeds the bare version
+rather than a `-dev.<N>.g<sha>` suffix the candidate-version gate would reject.
+It is not available on a host that cannot cross-compile, and on macOS it
+additionally risks the code-signing hazard documented below. Neither route
+changes step 1, which is required either way.
 
 ## Steps
 

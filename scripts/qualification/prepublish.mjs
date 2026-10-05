@@ -6,6 +6,10 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+// QCLI-296. The candidate-version predicate below is shared with the
+// derivation test, so the gate and the test that a release build satisfies it
+// cannot drift into two copies.
+import { isCandidateReleaseVersion } from "./candidate-version.ts";
 import { REGISTRY_PINS } from "./registry-visibility.mjs";
 // QCLI-426. Its own module because this file runs its gates at import time,
 // so a test cannot reach the helper through here without running a full
@@ -255,7 +259,7 @@ async function runCandidateSmoke() {
         env,
       })
     ).trim();
-    if (!/^\d+\.\d+\.\d+$/.test(version))
+    if (!isCandidateReleaseVersion(version))
       throw new Error("candidate version is not semver");
     const manifest = JSON.parse(
       await command("candidate_manifest", quest, ["manifest", "--json"], {
