@@ -162,9 +162,9 @@ export const commandHelp: Record<
   },
   "task list": {
     summary:
-      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, unresolved-at-completion, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived. --unresolved-at-completion (QCLI-336) selects only tasks that completed with acceptance criteria or definition-of-done items still unchecked -- the persisted counterpart of the `unresolvedAtCompletion` field `task complete` adds to its own response (QCLI-252) -- so a sweep for 'what did we knowingly ship with open items' does not require reading every completed record by hand. SCOPE (QCLI-316): this reads the CHECKED-OUT ref's .quest/ and nothing else, so a result -- and an EMPTY result especially -- is a claim about that branch, not about the repository. A task filed on an unmerged branch is invisible here, which is exactly the task most likely to be forgotten. Every listing carries a `scope` field naming the branch it answered about; when the result is empty, scope also reports `unseenTaskIds`, the ids that exist on some other ref and not on this one (filenames only, one tree listing per ref, no record is read and no status is merged across refs). An empty list with an empty `unseenTaskIds` is load-bearing; an empty list naming ids is the check not having run on them. Before reporting that nothing is open, read `scope`, and cross-check an independent source such as `gh pr list`. `quest task list --across-refs` (QCLI-417) is the complete form of that answer: one read-only view over origin/dev plus every open PR head into dev, with per-state provenance and a coverage report, so a nothing-open answer holds for the repository only when every planned ref was read. See `quest help 'task list --across-refs'` -- that invocation, not this one, is where the flags it takes are documented.",
+      "List tasks, optionally filtered by status, label, readiness, assignee, milestone, parent, priority, type, unresolved-at-completion, or a search term. Completed tasks are included by default like any other status (QCLI-165); archived tasks need --include-archived. --unresolved-at-completion (QCLI-336) selects only tasks that completed with acceptance criteria or definition-of-done items still unchecked -- the persisted counterpart of the `unresolvedAtCompletion` field `task complete` adds to its own response (QCLI-252) -- so a sweep for 'what did we knowingly ship with open items' does not require reading every completed record by hand. SCOPE (QCLI-316): this reads the CHECKED-OUT ref's .quest/ and nothing else, so a result -- and an EMPTY result especially -- is a claim about that branch, not about the repository. A task filed on an unmerged branch is invisible here, which is exactly the task most likely to be forgotten. Every listing carries a `scope` field naming the branch it answered about; when the result is empty, scope also reports `unseenTaskIds`, the ids that exist on some other ref and not on this one (filenames only, one tree listing per ref, no record is read and no status is merged across refs). An empty list with an empty `unseenTaskIds` is load-bearing; an empty list naming ids is the check not having run on them. Before reporting that nothing is open, read `scope`, and cross-check an independent source such as `gh pr list`. `quest task list --across-refs` (QCLI-417) is the complete form of that answer: one read-only view over origin/dev plus every open PR head into dev, with per-state provenance and a coverage report, so a nothing-open answer holds for the repository only when every planned ref was read. See `quest help 'task list --across-refs'` -- that invocation, not this one, is where the flags it takes are documented. --fields <a,b,...> (QCLI-312 / DEC-161) projects each record to EXACTLY the named top-level fields, for a narrow read: under --json every item carries exactly those keys (a named field absent from a record is null, never a dropped key), and under --plain each task is one TAB-separated line in the order named. The valid names are the fields `quest manifest --json` advertises for this command; an unknown name is a usage error (exit 2) whose message lists them.",
     usage:
-      'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--unresolved-at-completion] [--search text] [--sort id[:asc|desc]] [--limit 20] [--include-archived]',
+      'quest task list [--status "To Do"] [--exclude-status "Done"] [--label backend] [--ready] [--assignee person-1 | --unassigned] [--milestone M-1] [--parent T-1] [--priority high] [--type feature] [--unresolved-at-completion] [--search text] [--sort id[:asc|desc]] [--limit 20] [--include-archived] [--fields id,status,title]',
     flags: [
       "--status",
       "--exclude-status",
@@ -181,6 +181,7 @@ export const commandHelp: Record<
       "--sort",
       "--limit",
       "--include-archived",
+      "--fields",
     ],
   },
   "task list --across-refs": {
@@ -215,8 +216,9 @@ export const commandHelp: Record<
       "(QCLI-277) a caller can capture and later supply back as `task edit " +
       "--if-revision <revision>`'s precondition. --max-notes N caps " +
       "implementationNotes to the most recent N entries and adds a " +
-      "notesOmitted count; omitted, the read is the full unbounded record, " +
-      "unchanged. A task completed with acceptance criteria or " +
+      "notesOmitted count; N may be 0 (an empty notes array with notesOmitted " +
+      "equal to the whole count). Omitted, the read is the full unbounded " +
+      "record, unchanged. A task completed with acceptance criteria or " +
       "definition-of-done items still unchecked carries an " +
       "`unresolvedAtCompletion` field (QCLI-336) naming them, set once at " +
       "completion and never recomputed by a later edit; absent on any task " +

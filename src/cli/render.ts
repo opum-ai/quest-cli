@@ -71,3 +71,28 @@ function renderScalar(value: unknown): string {
   if (value === undefined) return "undefined";
   return JSON.stringify(value);
 }
+
+/**
+ * QCLI-312 / DEC-161: the `--fields` human form. One row per record, the
+ * selected fields TAB-separated in the caller's order -- a narrow,
+ * line-oriented read rather than the nested default dump. Scalar values render
+ * as they do in {@link renderHumanPayload} (strings raw, everything else
+ * compact JSON); an absent or null field is the empty string, so a row always
+ * has exactly one column per named field. An empty projection keeps the
+ * established `(empty)` marker.
+ */
+export function renderTabSeparatedRows(
+  rows: readonly Readonly<Record<string, unknown>>[],
+  fields: readonly string[],
+): string {
+  if (rows.length === 0) return "(empty)\n";
+  return `${rows
+    .map((row) => fields.map((field) => renderTabField(row[field])).join("\t"))
+    .join("\n")}\n`;
+}
+
+function renderTabField(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
