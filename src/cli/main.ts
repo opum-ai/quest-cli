@@ -1091,6 +1091,40 @@ function fieldsValue(
   return named;
 }
 
+/**
+ * QCLI-462 / DEC-161 (k): the ONE `--fields` projection, shared by `task list`
+ * and `task view` so the bound-marker rule is a single code path.
+ *
+ * The projection is the named fields in the caller's order; a named-but-absent
+ * key is emitted as `null` with the key PRESENT, never dropped (a dropped key
+ * is indistinguishable from a field the caller never asked for, so the key SET
+ * would no longer be the named set).
+ *
+ * On top of that, each BOUND marker whose BOUNDED FIELD is among the named
+ * fields is copied from the source into the result, BESIDE the projected keys,
+ * under the marker key's own name -- a bound the caller asked to see must not
+ * vanish just because its field was projected. When the bounded field is NOT
+ * named, nothing the caller asked for was cut, so no marker is emitted; and
+ * when the source does not carry the marker, none is invented.
+ *
+ * `boundMarkers` maps a bounded field name to its omission-marker key, e.g.
+ * `{ implementationNotes: "notesOmitted" }`. `task list` has no field-level
+ * bound -- its `--limit` bounds the ARRAY of records, not a field -- so it
+ * passes none, and its projected output stays exactly the named keys.
+ */
+function projectFields(
+  source: Readonly<Record<string, unknown>>,
+  fields: readonly string[],
+  boundMarkers: Readonly<Record<string, string>> = {},
+): Record<string, unknown> {
+  const projected: Record<string, unknown> = {};
+  for (const field of fields) projected[field] = source[field] ?? null;
+  for (const [boundedField, markerKey] of Object.entries(boundMarkers))
+    if (fields.includes(boundedField) && Object.hasOwn(source, markerKey))
+      projected[markerKey] = source[markerKey];
+  return projected;
+}
+
 /** The DECLARED field set `quest manifest --json` advertises for a command
  * (QCLI-312). `fieldsValue` validates `--fields` against exactly this list. */
 function declaredFields(command: string): readonly string[] {
@@ -3391,18 +3425,15 @@ export async function runQuest(
       if (selectedFields === undefined)
         return output(listing, modeFor(parsed), [], { scope });
       // QCLI-312 / DEC-161: project each record to EXACTLY the named top-level
-      // fields, in the caller's order. A named field absent from a particular
-      // record is emitted as `null` rather than dropped, so the key SET is
-      // exactly the named set (a dropped key would be indistinguishable from a
-      // field the caller never asked for). The success envelope is otherwise
-      // unchanged (`scope` still rides after `data`).
-      const rows = (listedTasks ?? []).map((task) => {
-        const record = task as Record<string, unknown>;
-        const projected: Record<string, unknown> = {};
-        for (const field of selectedFields)
-          projected[field] = record[field] ?? null;
-        return projected;
-      });
+      // fields, in the caller's order, through the ONE shared projection
+      // (QCLI-462). `task list` has NO field-level bound -- its `--limit`
+      // bounds the ARRAY of records, not a field -- so it passes no
+      // bound-marker map and its output is exactly the named keys, unchanged.
+      // The success envelope is otherwise unchanged (`scope` rides after
+      // `data`).
+      const rows = (listedTasks ?? []).map((task) =>
+        projectFields(task as Record<string, unknown>, selectedFields),
+      );
       return output(
         { ...(listing as Record<string, unknown>), data: rows },
         modeFor(parsed),
@@ -3440,16 +3471,22 @@ export async function runQuest(
       if (selectedFields === undefined)
         return output(response, modeFor(parsed));
       // QCLI-291 / DEC-161: project `data` (the post-cap record) to EXACTLY the
-      // named top-level fields, in the caller's order -- the identical rule
-      // `task list --fields` applies above. A named-but-absent key is emitted
-      // as `null` rather than dropped, so the key SET is exactly the named set
-      // (a dropped key would be indistinguishable from a field the caller never
-      // asked for). The success envelope is otherwise unchanged.
+      // named top-level fields, in the caller's order, through the SAME shared
+      // projection `task list --fields` uses (QCLI-462) -- so the bound-marker
+      // rule below is one code path, and the two commands behave identically.
+      // The marker is ACTIVE only when --max-notes was supplied, which is
+      // exactly when the command layer put `notesOmitted` in `data`; its value
+      // is COPIED from the record, never recomputed. The marker is a
+      // JSON-side sibling, never a TAB-separated column (DEC-161 (h)).
       const record = (response as { readonly data: Record<string, unknown> })
         .data;
-      const projected: Record<string, unknown> = {};
-      for (const field of selectedFields)
-        projected[field] = record[field] ?? null;
+      const projected = projectFields(
+        record,
+        selectedFields,
+        parsed.values.has("--max-notes")
+          ? { implementationNotes: "notesOmitted" }
+          : {},
+      );
       return output(
         { ...response, data: projected },
         modeFor(parsed),
