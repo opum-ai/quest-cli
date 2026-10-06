@@ -88,6 +88,14 @@ list\` carries \`scope\`, for instance. **\`principal\` is always the last key**
 a caller must tolerate a top-level key it does not recognize rather than
 treating the envelope as malformed.
 
+**Narrow a read with \`--fields\`.** \`task list\` and \`task view\` both accept
+\`--fields <a,b,...>\`, which projects \`data\` to exactly the top-level keys named,
+in the order given. Under \`--json\` each item carries exactly those keys -- a
+named field absent from a record is \`null\`, never a dropped key -- and the human
+form is one TAB-separated line in that order. The accepted names are exactly the
+fields \`quest manifest --json\` advertises for the command, and an unknown name
+exits \`2\` naming the valid ones.
+
 Quest never retries a write conflict for you. On exit \`5\`, re-read the latest
 record and perform your own bounded retry rather than resubmitting a stale write.
 

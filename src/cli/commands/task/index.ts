@@ -108,6 +108,14 @@ export type TaskCommandRequest =
        * whole note count.
        */
       readonly maxNotes?: number;
+      /**
+       * QCLI-291 / DEC-161: `--fields` projects `data` to EXACTLY these
+       * top-level keys, in this order (a named-but-absent key is emitted as
+       * `null`, never dropped) -- the identical projection `task list` applies.
+       * Absent means the full, unprojected record. Applied AFTER `maxNotes`, so
+       * the two compose: the note cap runs first, then the projection.
+       */
+      readonly fields?: readonly string[];
     }
   | { readonly command: "search"; readonly query: string }
   | {
@@ -360,25 +368,37 @@ export async function dispatchTrackerTaskCommand(
         request.reference,
       );
       const full = { ...withCheckPositions(task), revision };
-      if (request.maxNotes === undefined)
-        return { schemaVersion: 1, kind: "task.view", data: full };
       // Notes append chronologically (mergeList pushes new entries at the
       // array's end), so "most recent N" is the tail slice. QCLI-312: a cap of
       // 0 means NONE, which `slice(-0)` gets WRONG -- `slice(0)` returns the
       // WHOLE array, so the zero cap returned the full record with
       // notesOmitted 0. Handle it explicitly: empty notes, every note omitted.
       const capped =
-        request.maxNotes === 0
+        request.maxNotes === undefined || request.maxNotes === 0
           ? []
           : full.implementationNotes.slice(-request.maxNotes);
+      const recorded =
+        request.maxNotes === undefined
+          ? full
+          : {
+              ...full,
+              implementationNotes: capped,
+              notesOmitted: full.implementationNotes.length - capped.length,
+            };
+      // QCLI-291 / DEC-161: `--fields` projects `data` to EXACTLY the named
+      // top-level keys, in the caller's order -- the identical rule `task list`
+      // applies. It runs AFTER the --max-notes cap above, so the two compose. A
+      // named-but-absent key is emitted as null (key present, never dropped).
+      if (request.fields === undefined)
+        return { schemaVersion: 1, kind: "task.view", data: recorded };
+      const source = recorded as Record<string, unknown>;
+      const projected: Record<string, unknown> = {};
+      for (const field of request.fields)
+        projected[field] = source[field] ?? null;
       return {
         schemaVersion: 1,
         kind: "task.view",
-        data: {
-          ...full,
-          implementationNotes: capped,
-          notesOmitted: full.implementationNotes.length - capped.length,
-        },
+        data: projected as unknown as typeof full,
       };
     }
     case "search":

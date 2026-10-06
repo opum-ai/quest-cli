@@ -3413,19 +3413,39 @@ export async function runQuest(
     }
     if (command === "view" && rest[0]) {
       const parsed = flags(rest.slice(1));
-      if (!parsed || !only(parsed, ["--max-notes"]))
+      const viewFlags = ["--max-notes", "--fields"];
+      if (!parsed || !only(parsed, viewFlags))
         return usageFailure(
           parsed,
-          ["--max-notes"],
+          viewFlags,
           "task view received invalid arguments.",
         );
-      return output(
-        await dispatchTrackerTaskCommand(await taskService(), {
-          command,
-          reference: rest[0],
-          maxNotes: maxNotesValue(one(parsed, "--max-notes")),
-        }),
-        modeFor(parsed),
+      // QCLI-291 / DEC-161: the SAME `--fields` projection `task list` takes
+      // (QCLI-312), validated against `task view`'s own manifest-advertised
+      // fields. Parsed and validated here so an unknown name is a usage failure
+      // (exit 2) before any read; the projection itself composes with
+      // --max-notes inside the command, so the note cap runs first.
+      const selectedFields = fieldsValue(
+        one(parsed, "--fields"),
+        declaredFields("task view"),
+        "--fields",
+      );
+      const response = await dispatchTrackerTaskCommand(await taskService(), {
+        command,
+        reference: rest[0],
+        maxNotes: maxNotesValue(one(parsed, "--max-notes")),
+        ...(selectedFields === undefined ? {} : { fields: selectedFields }),
+      });
+      if (selectedFields === undefined)
+        return output(response, modeFor(parsed));
+      // The command has projected `data` to exactly the named keys already (the
+      // same rule `task list --fields` applies), so the human form renders that
+      // one row in the named order -- one TAB-separated line, the same renderer
+      // the list uses.
+      const projected = (response as { readonly data: Record<string, unknown> })
+        .data;
+      return output(response, modeFor(parsed), [], {}, () =>
+        renderTabSeparatedRows([projected], selectedFields),
       );
     }
     if (command === "binding") {

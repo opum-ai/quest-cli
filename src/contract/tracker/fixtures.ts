@@ -55,7 +55,7 @@ export const trackerManifestFixture: TrackerManifest = {
       schemaVersion: 1,
       kind: "task.view",
       mutates: false,
-      filters: ["max-notes"],
+      filters: ["fields", "max-notes"],
       fields: [
         "acceptanceCriteria",
         "aliases",

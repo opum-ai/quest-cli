@@ -299,7 +299,7 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "task.view",
       mutates: false,
-      filters: ["max-notes"],
+      filters: ["fields", "max-notes"],
       fields: [
         "acceptanceCriteria",
         "aliases",
