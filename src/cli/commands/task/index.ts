@@ -108,14 +108,6 @@ export type TaskCommandRequest =
        * whole note count.
        */
       readonly maxNotes?: number;
-      /**
-       * QCLI-291 / DEC-161: `--fields` projects `data` to EXACTLY these
-       * top-level keys, in this order (a named-but-absent key is emitted as
-       * `null`, never dropped) -- the identical projection `task list` applies.
-       * Absent means the full, unprojected record. Applied AFTER `maxNotes`, so
-       * the two compose: the note cap runs first, then the projection.
-       */
-      readonly fields?: readonly string[];
     }
   | { readonly command: "search"; readonly query: string }
   | {
@@ -385,21 +377,12 @@ export async function dispatchTrackerTaskCommand(
               implementationNotes: capped,
               notesOmitted: full.implementationNotes.length - capped.length,
             };
-      // QCLI-291 / DEC-161: `--fields` projects `data` to EXACTLY the named
-      // top-level keys, in the caller's order -- the identical rule `task list`
-      // applies. It runs AFTER the --max-notes cap above, so the two compose. A
-      // named-but-absent key is emitted as null (key present, never dropped).
-      if (request.fields === undefined)
-        return { schemaVersion: 1, kind: "task.view", data: recorded };
-      const source = recorded as Record<string, unknown>;
-      const projected: Record<string, unknown> = {};
-      for (const field of request.fields)
-        projected[field] = source[field] ?? null;
-      return {
-        schemaVersion: 1,
-        kind: "task.view",
-        data: projected as unknown as typeof full,
-      };
+      // The full (or, under --max-notes, capped) record is returned as-is,
+      // matching the declared `task.view` data type. `--fields` projection is
+      // the caller's job at the CLI boundary (main.ts), the same place
+      // `task list --fields` projects -- so this command never widens or
+      // narrows `data`'s declared shape.
+      return { schemaVersion: 1, kind: "task.view", data: recorded };
     }
     case "search":
       return {
