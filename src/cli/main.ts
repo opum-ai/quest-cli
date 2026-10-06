@@ -99,7 +99,7 @@ import {
   createWorkspacePort,
 } from "./composition.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
-import { renderHumanPayload } from "./render.ts";
+import { renderHumanPayload, renderTabSeparatedRows } from "./render.ts";
 
 const VERSION = QUEST_VERSION;
 
@@ -162,6 +162,11 @@ function output(
   mode: OutputMode,
   priorityKeys: readonly string[] = [],
   extras: ListingExtras = {},
+  // QCLI-312: `--fields` renders its projection as one tab-separated row per
+  // record, which the kind-agnostic `renderHumanPayload` cannot produce without
+  // learning about field order. Only the `task list --fields` path passes one;
+  // every other listing keeps the default renderer, and `--json` ignores it.
+  humanRenderer?: () => string,
 ): InvocationResult {
   const success = data as {
     readonly schemaVersion: unknown;
@@ -192,7 +197,7 @@ function output(
     stdout:
       mode === "json"
         ? `${JSON.stringify(envelope)}\n`
-        : `${renderHumanPayload(envelope.data, priorityKeys)}${
+        : `${humanRenderer === undefined ? renderHumanPayload(envelope.data, priorityKeys) : humanRenderer()}${
             extras.scope === undefined ? "" : renderScopeFooter(extras.scope)
           }${
             extras.coverage === undefined
@@ -1014,7 +1019,7 @@ function sortValue(
 /** QCLI-417: the entry-level sorts `task list --across-refs` accepts. */
 const ACROSS_REFS_SORT_FIELDS = ["id", "title"] as const;
 
-/** Shared by every flag whose value must be a positive integer (`--limit`, `--max-notes`). */
+/** Shared by every flag whose value must be a strictly positive integer (`--limit`). */
 function positiveIntegerValue(
   value: string | undefined,
   flagName: string,
@@ -1030,13 +1035,69 @@ function limitValue(value: string | undefined): number | undefined {
 }
 
 /**
- * QCLI-276: caps `task view`'s `implementationNotes` to the most recent N
- * entries. Reuses `--limit`'s exact positive-integer grammar (QCLI-276's
- * task brief: check `task list`'s `--limit` before committing to a shape) --
- * a distinct helper only so the error message names `--max-notes`.
+ * QCLI-312: `0` is a real, useful value for a cap -- "read the record but none
+ * of its notes" -- so `--max-notes` uses a NON-NEGATIVE grammar where
+ * `--limit` keeps the strictly-positive one. Loosening `--limit` to admit 0
+ * would be a silent change to what `--limit 0` means on every listing.
+ */
+function nonNegativeIntegerValue(
+  value: string | undefined,
+  flagName: string,
+): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^(0|[1-9][0-9]*)$/.test(value) || !Number.isSafeInteger(Number(value)))
+    throw new FlagUsageError(`${flagName} must be a non-negative integer.`);
+  return Number(value);
+}
+
+/**
+ * QCLI-276 / QCLI-312: caps `task view`'s `implementationNotes` to the most
+ * recent N entries. Accepts 0 (empty notes array, notesOmitted = the full
+ * count) as well as a positive count; a distinct helper so the error message
+ * names `--max-notes`.
  */
 function maxNotesValue(value: string | undefined): number | undefined {
-  return positiveIntegerValue(value, "--max-notes");
+  return nonNegativeIntegerValue(value, "--max-notes");
+}
+
+/**
+ * QCLI-312 / DEC-161: the ONE projection mechanism, `--fields`.
+ *
+ * Parses a comma-separated list of TOP-LEVEL field names and validates each
+ * against the command's DECLARED field set -- the same list `quest manifest
+ * --json` advertises for that command, so the valid-names list cannot drift
+ * from the contract. Parameterized by `validFields` so QCLI-291 can apply the
+ * identical flag to `task view` against ITS declared fields with the same
+ * parsing and the same error.
+ *
+ * Returns the names in the order the caller gave them (the order is the
+ * caller's: `--plain` renders the columns in it). An unknown name -- including
+ * an empty segment from a trailing or doubled comma -- is a USAGE error whose
+ * message LISTS the valid names, so a typo names its remedy instead of landing
+ * as an empty column.
+ */
+function fieldsValue(
+  value: string | undefined,
+  validFields: readonly string[],
+  flagName: string,
+): readonly string[] | undefined {
+  if (value === undefined) return undefined;
+  const named = value.split(",");
+  const unknown = named.filter((field) => !validFields.includes(field));
+  if (unknown.length > 0)
+    throw new FlagUsageError(
+      `${flagName} got ${unknown.map((field) => JSON.stringify(field)).join(", ")}, which ${unknown.length === 1 ? "is not a field" : "are not fields"} of this command. Valid fields: ${validFields.join(", ")}.`,
+    );
+  return named;
+}
+
+/** The DECLARED field set `quest manifest --json` advertises for a command
+ * (QCLI-312). `fieldsValue` validates `--fields` against exactly this list. */
+function declaredFields(command: string): readonly string[] {
+  return (
+    commandManifest.commands.find((entry) => entry.name === command)?.fields ??
+    []
+  );
 }
 
 /**
@@ -3260,6 +3321,8 @@ export async function runQuest(
         "--sort",
         "--include-archived",
         "--unresolved-at-completion",
+        // QCLI-312 / DEC-161: the one projection mechanism.
+        "--fields",
       ];
       if (!parsed || !only(parsed, listFlags))
         return usageFailure(
@@ -3272,6 +3335,15 @@ export async function runQuest(
           "usage",
           "task list --assignee and --unassigned cannot be combined.",
         );
+      // QCLI-312 / DEC-161. Validated against the fields `quest manifest`
+      // advertises for `task list`, so the accepted set and the documented set
+      // are one list. An unknown name is a usage failure (exit 2) before any
+      // read happens.
+      const selectedFields = fieldsValue(
+        one(parsed, "--fields"),
+        declaredFields("task list"),
+        "--fields",
+      );
       const listing = await dispatchTrackerTaskCommand(await taskService(), {
         command,
         status: one(parsed, "--status"),
@@ -3308,13 +3380,36 @@ export async function runQuest(
       const unseenTaskIds = listingIsEmpty
         ? await taskRecordIdsOnOtherRefs(git, listingRoot)
         : null;
-      return output(listing, modeFor(parsed), [], {
-        scope: {
-          branch: await git.currentBranch(listingRoot),
-          otherRefsRead: unseenTaskIds !== null,
-          ...(unseenTaskIds === null ? {} : { unseenTaskIds }),
-        },
+      // `scope` is computed from the UNPROJECTED listing; the projection below
+      // preserves the array's order and length, so the branch notice and the
+      // empty-listing half are unaffected by `--fields`.
+      const scope = {
+        branch: await git.currentBranch(listingRoot),
+        otherRefsRead: unseenTaskIds !== null,
+        ...(unseenTaskIds === null ? {} : { unseenTaskIds }),
+      };
+      if (selectedFields === undefined)
+        return output(listing, modeFor(parsed), [], { scope });
+      // QCLI-312 / DEC-161: project each record to EXACTLY the named top-level
+      // fields, in the caller's order. A named field absent from a particular
+      // record is emitted as `null` rather than dropped, so the key SET is
+      // exactly the named set (a dropped key would be indistinguishable from a
+      // field the caller never asked for). The success envelope is otherwise
+      // unchanged (`scope` still rides after `data`).
+      const rows = (listedTasks ?? []).map((task) => {
+        const record = task as Record<string, unknown>;
+        const projected: Record<string, unknown> = {};
+        for (const field of selectedFields)
+          projected[field] = record[field] ?? null;
+        return projected;
       });
+      return output(
+        { ...(listing as Record<string, unknown>), data: rows },
+        modeFor(parsed),
+        [],
+        { scope },
+        () => renderTabSeparatedRows(rows, selectedFields),
+      );
     }
     if (command === "view" && rest[0]) {
       const parsed = flags(rest.slice(1));

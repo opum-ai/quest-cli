@@ -256,6 +256,7 @@ export const commandManifest = {
       filters: [
         "assignee",
         "exclude-status",
+        "fields",
         "include-archived",
         "label",
         "limit",

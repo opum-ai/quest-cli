@@ -19,6 +19,7 @@ export const trackerManifestFixture: TrackerManifest = {
       filters: [
         "assignee",
         "exclude-status",
+        "fields",
         "include-archived",
         "label",
         "limit",

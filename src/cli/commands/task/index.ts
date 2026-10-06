@@ -103,7 +103,9 @@ export type TaskCommandRequest =
        * entries (the array's tail -- notes append chronologically, see
        * `mergeList` in `application/tasks/edit-patch.ts`). Opt-in and
        * additive: absent means the full, unbounded record, byte-for-byte
-       * unchanged from before this flag existed.
+       * unchanged from before this flag existed. QCLI-312: N may be 0, which
+       * returns an empty `implementationNotes` and `notesOmitted` equal to the
+       * whole note count.
        */
       readonly maxNotes?: number;
     }
@@ -361,8 +363,14 @@ export async function dispatchTrackerTaskCommand(
       if (request.maxNotes === undefined)
         return { schemaVersion: 1, kind: "task.view", data: full };
       // Notes append chronologically (mergeList pushes new entries at the
-      // array's end), so "most recent N" is the tail slice.
-      const capped = full.implementationNotes.slice(-request.maxNotes);
+      // array's end), so "most recent N" is the tail slice. QCLI-312: a cap of
+      // 0 means NONE, which `slice(-0)` gets WRONG -- `slice(0)` returns the
+      // WHOLE array, so the zero cap returned the full record with
+      // notesOmitted 0. Handle it explicitly: empty notes, every note omitted.
+      const capped =
+        request.maxNotes === 0
+          ? []
+          : full.implementationNotes.slice(-request.maxNotes);
       return {
         schemaVersion: 1,
         kind: "task.view",

@@ -1404,6 +1404,7 @@ test("the published manifest advertises every task list filter (QCLI-139)", asyn
     expect([...entry.filters].sort()).toEqual([
       "assignee",
       "exclude-status",
+      "fields",
       "include-archived",
       "label",
       "limit",
