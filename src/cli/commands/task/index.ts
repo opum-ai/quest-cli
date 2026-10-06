@@ -360,26 +360,29 @@ export async function dispatchTrackerTaskCommand(
         request.reference,
       );
       const full = { ...withCheckPositions(task), revision };
-      if (request.maxNotes === undefined)
-        return { schemaVersion: 1, kind: "task.view", data: full };
       // Notes append chronologically (mergeList pushes new entries at the
       // array's end), so "most recent N" is the tail slice. QCLI-312: a cap of
       // 0 means NONE, which `slice(-0)` gets WRONG -- `slice(0)` returns the
       // WHOLE array, so the zero cap returned the full record with
       // notesOmitted 0. Handle it explicitly: empty notes, every note omitted.
       const capped =
-        request.maxNotes === 0
+        request.maxNotes === undefined || request.maxNotes === 0
           ? []
           : full.implementationNotes.slice(-request.maxNotes);
-      return {
-        schemaVersion: 1,
-        kind: "task.view",
-        data: {
-          ...full,
-          implementationNotes: capped,
-          notesOmitted: full.implementationNotes.length - capped.length,
-        },
-      };
+      const recorded =
+        request.maxNotes === undefined
+          ? full
+          : {
+              ...full,
+              implementationNotes: capped,
+              notesOmitted: full.implementationNotes.length - capped.length,
+            };
+      // The full (or, under --max-notes, capped) record is returned as-is,
+      // matching the declared `task.view` data type. `--fields` projection is
+      // the caller's job at the CLI boundary (main.ts), the same place
+      // `task list --fields` projects -- so this command never widens or
+      // narrows `data`'s declared shape.
+      return { schemaVersion: 1, kind: "task.view", data: recorded };
     }
     case "search":
       return {

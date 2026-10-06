@@ -222,9 +222,17 @@ export const commandHelp: Record<
       "definition-of-done items still unchecked carries an " +
       "`unresolvedAtCompletion` field (QCLI-336) naming them, set once at " +
       "completion and never recomputed by a later edit; absent on any task " +
-      "not completed that way.",
-    usage: "quest task view <id> [--max-notes N]",
-    flags: ["--max-notes"],
+      "not completed that way. --fields <a,b,...> (QCLI-291 / DEC-161) is the " +
+      "same projection `task list` takes: it narrows the record to EXACTLY the " +
+      "named fields, so under --json `data` carries exactly those keys (a " +
+      "named field absent from the record is null, never a dropped key) and " +
+      "the human form renders one TAB-separated line in the order named. The " +
+      "accepted names are exactly the fields `quest manifest --json` " +
+      "advertises for this command; an unknown name is a usage error (exit 2) " +
+      "whose message lists the valid names. It composes with --max-notes: the " +
+      "note cap is applied first, then the projection.",
+    usage: "quest task view <id> [--max-notes N] [--fields id,status,title]",
+    flags: ["--max-notes", "--fields"],
   },
   search: {
     summary: "Search tasks by title and description.",

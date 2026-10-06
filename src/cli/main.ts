@@ -3413,19 +3413,49 @@ export async function runQuest(
     }
     if (command === "view" && rest[0]) {
       const parsed = flags(rest.slice(1));
-      if (!parsed || !only(parsed, ["--max-notes"]))
+      const viewFlags = ["--max-notes", "--fields"];
+      if (!parsed || !only(parsed, viewFlags))
         return usageFailure(
           parsed,
-          ["--max-notes"],
+          viewFlags,
           "task view received invalid arguments.",
         );
+      // QCLI-291 / DEC-161: the SAME `--fields` projection `task list` takes
+      // (QCLI-312), validated against `task view`'s own manifest-advertised
+      // fields. Parsed and validated here so an unknown name is a usage failure
+      // (exit 2) before any read. The projection is applied here, at the CLI
+      // boundary, to the record the command returns -- which has already
+      // composed in --max-notes inside the command layer, so the note cap runs
+      // first and the projection second.
+      const selectedFields = fieldsValue(
+        one(parsed, "--fields"),
+        declaredFields("task view"),
+        "--fields",
+      );
+      const response = await dispatchTrackerTaskCommand(await taskService(), {
+        command,
+        reference: rest[0],
+        maxNotes: maxNotesValue(one(parsed, "--max-notes")),
+      });
+      if (selectedFields === undefined)
+        return output(response, modeFor(parsed));
+      // QCLI-291 / DEC-161: project `data` (the post-cap record) to EXACTLY the
+      // named top-level fields, in the caller's order -- the identical rule
+      // `task list --fields` applies above. A named-but-absent key is emitted
+      // as `null` rather than dropped, so the key SET is exactly the named set
+      // (a dropped key would be indistinguishable from a field the caller never
+      // asked for). The success envelope is otherwise unchanged.
+      const record = (response as { readonly data: Record<string, unknown> })
+        .data;
+      const projected: Record<string, unknown> = {};
+      for (const field of selectedFields)
+        projected[field] = record[field] ?? null;
       return output(
-        await dispatchTrackerTaskCommand(await taskService(), {
-          command,
-          reference: rest[0],
-          maxNotes: maxNotesValue(one(parsed, "--max-notes")),
-        }),
+        { ...response, data: projected },
         modeFor(parsed),
+        [],
+        {},
+        () => renderTabSeparatedRows([projected], selectedFields),
       );
     }
     if (command === "binding") {

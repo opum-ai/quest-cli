@@ -328,7 +328,9 @@ export const commandManifest = {
       // QCLI-276 / DEC-3: `--max-notes N` caps `implementationNotes` to the
       // most recent N entries; absent, the read is the full unbounded
       // record, unchanged.
-      filters: ["max-notes"],
+      // QCLI-291 / DEC-161: `--fields` is the same projection `task list`
+      // takes, against `task view`'s own `fields` below.
+      filters: ["fields", "max-notes"],
       fields: [
         "acceptanceCriteria",
         "aliases",
