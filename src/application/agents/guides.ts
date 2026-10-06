@@ -94,7 +94,12 @@ in the order given. Under \`--json\` each item carries exactly those keys -- a
 named field absent from a record is \`null\`, never a dropped key -- and the human
 form is one TAB-separated line in that order. The accepted names are exactly the
 fields \`quest manifest --json\` advertises for the command, and an unknown name
-exits \`2\` naming the valid ones.
+exits \`2\` naming the valid ones. When a bound was supplied and its bounded field
+is among the named fields, the projection also carries that bound's omission
+marker beside the named keys, under its own key name -- so \`task view --max-notes
+N --fields implementationNotes\` carries \`notesOmitted\`. The marker is JSON-only:
+the human form is still just the named columns. A projection never emits a
+\`fieldsOmitted\` key of its own.
 
 Quest never retries a write conflict for you. On exit \`5\`, re-read the latest
 record and perform your own bounded retry rather than resubmitting a stale write.
