@@ -57,7 +57,7 @@ rather than repeated here.
 | Task | Title | Status |
 |---|---|---|
 | [QCLI-431](../../.quest/completed/QCLI-431.json) | Ship the quest-board mod in the opum-quest plugin (OPAG-1074) | Done |
-| [QCLI-433](../../.quest/tasks/QCLI-433.json) | Release quest-cli 0.13.0, paired with lore 0.13.0, so the opum-quest plugin ships the Quest board mod | Paused |
+| [QCLI-433](../../.quest/tasks/QCLI-433.json) | Release quest-cli 0.13.0, paired with lore 0.13.0, so the opum-quest plugin ships the Quest board mod | In Progress |
 <!-- lore:tasks:end -->
 
 ## Notes

@@ -274,6 +274,8 @@
 - 2026-10-02T16:45:58-05:00 bcf7e0b33aad67a9f455aa17935dd20b95febe30 feat(QCLI-431): ship the Quest board hooks module in the opum-quest plugin (#481)
 - 2026-10-02T16:53:29-05:00 60bacfdb7cf92a853d9182365866c049ab505870 chore(QCLI-433): file the opum-quest plugin release task and its Story (OPAG-1074) (#484)
 - 2026-10-02T17:32:24-05:00 78153e2d1234e6c20707cd7901987733dcf7e8b3 chore(QCLI-433): claim the task and record the 0.13.0 bump plan (#485)
+- 2026-10-02T18:18:40-05:00 f505d2e981d932c9df7691283ff1e0a3adaeefe9 chore(QCLI-433): pause the task for the recycle and point at QCLI-434 (#488)
+- 2026-10-06T21:39:20-05:00 ef9c2b44e4d2f39ac05b3c475a7432420aa689f2 chore(QCLI-433): regenerate .lore schemas and managed blocks for lore 0.13.0 (DEC-169)
 
 ## docs/adr
 
@@ -326,6 +328,7 @@
 - 2026-09-27T20:44:22-05:00 a2821eedb7333530c50c7021cc580850614b7de9 feat(QCLI-399): stage the root launcher as X-rc.N, publish X straight to latest (Article 3.5, ODOC-302) — WIP (#344)
 - 2026-09-28T10:30:13-05:00 bee163610791547e7bb6cefc48f967daaf8bab2d feat(QCLI-328): refuse a breaking CHANGELOG section at a patch-level bump (#367)
 - 2026-09-28T12:04:10-05:00 b1c52d0fd5a21c8b62a01b55ea533729add9dc3d feat(QCLI-403): the breaking-bump check reads lore-cli's CHANGELOG by ref (#383)
+- 2026-10-04T19:11:13-05:00 0624458e8da144ff6fe80478a756a736c7becf5b feat(QCLI-296): derive dev version from describe distance behind QUEST_RELEASE_BUILD (#516)
 
 ## docs/specs
 
