@@ -275,6 +275,7 @@
 - 2026-10-02T16:53:29-05:00 60bacfdb7cf92a853d9182365866c049ab505870 chore(QCLI-433): file the opum-quest plugin release task and its Story (OPAG-1074) (#484)
 - 2026-10-02T17:32:24-05:00 78153e2d1234e6c20707cd7901987733dcf7e8b3 chore(QCLI-433): claim the task and record the 0.13.0 bump plan (#485)
 - 2026-10-02T18:18:40-05:00 f505d2e981d932c9df7691283ff1e0a3adaeefe9 chore(QCLI-433): pause the task for the recycle and point at QCLI-434 (#488)
+- 2026-10-06T21:39:20-05:00 ef9c2b44e4d2f39ac05b3c475a7432420aa689f2 chore(QCLI-433): regenerate .lore schemas and managed blocks for lore 0.13.0 (DEC-169)
 
 ## docs/adr
 

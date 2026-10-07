@@ -151,7 +151,7 @@ jobs:
       # @opum-ai/lore@0.13.0 pin and drops this variable, once 0.13.0 is on npm.
       # The value must be a lore-cli commit carrying this checkout's version; the
       # assertion step below fails loudly if it does not.
-      LORE_SOURCE_REF: ddd78a150587abb88a00b9b9e04de4bb641d7c74
+      LORE_SOURCE_REF: 838ba150fbeeb608266fa801dd533a05ad34a3b6
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
