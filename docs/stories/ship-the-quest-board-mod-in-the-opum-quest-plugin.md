@@ -9,7 +9,7 @@ tags:
   - release
 summary: Build the Quest board hooks module into the opum-quest plugin and release it, so an operator reads and edits the tasks in flight across their Quest workspaces from a pane.
 timestamp: 2026-10-02T21:47:47.952Z
-status: in-progress
+status: done
 tasks:
   - qcli-431
   - qcli-433
@@ -57,7 +57,7 @@ rather than repeated here.
 | Task | Title | Status |
 |---|---|---|
 | [QCLI-431](../../.quest/completed/QCLI-431.json) | Ship the quest-board mod in the opum-quest plugin (OPAG-1074) | Done |
-| [QCLI-433](../../.quest/tasks/QCLI-433.json) | Release quest-cli 0.13.0, paired with lore 0.13.0, so the opum-quest plugin ships the Quest board mod | In Progress |
+| [QCLI-433](../../.quest/completed/QCLI-433.json) | Release quest-cli 0.13.0, paired with lore 0.13.0, so the opum-quest plugin ships the Quest board mod | Done |
 <!-- lore:tasks:end -->
 
 ## Notes
