@@ -119,6 +119,19 @@ dated by its own tag. No date here is inferred (QCLI-398).
   is unavailable — Claude Code older than 2.1.287, a `claude -p` run, or mods
   off — the skill says the pane is unavailable there and answers from the CLI.
 
+### Post-release correction (added 2026-10-07)
+
+- **A workspace that installs quest 0.13.0 sees `quest agents --check` report
+  DRIFT until it runs `quest agents --update-instructions`** (QCLI-436's
+  `migrate-from-backlog` pointer in the generated `quest` skill; recorded as a
+  required release note on QCLI-433 under opum-doc ruling seq 167). This is a
+  generated-content change, not a version-only one, so `--check` exits 6 rather
+  than taking the version-only path that exits 0 — a step not yet taken, not a
+  fault. Remedy, for the workspace's own target: `quest agents
+  --update-instructions --target <claude|codex|antigravity>`. Added here after
+  the v0.13.0 release, having been missed in the release notes at ship time
+  (QCLI-467).
+
 ## 0.12.0
 
 ### Changed
