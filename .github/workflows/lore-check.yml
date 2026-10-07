@@ -64,20 +64,21 @@ name: lore check
 #     never measured when the rule was worded.)
 #
 # DEC-169 (opum-doc, 2026-10-07, opum-ai/opum-doc#809): FOR THE PAIRED 0.13.0
-# RELEASE ONLY, this job BUILDS lore from a lore-cli git commit (LORE_SOURCE_REF,
-# a job env below) instead of installing the pinned npm release. The 0.13.0 tree
-# cannot go green against any published lore: the pair rule refuses 0.12.0
-# (exit 6), and 0.13.0 is not on npm and cannot be published until THIS
+# RELEASE ONLY, this job keeps the npm pin but FALLS BACK to building lore from a
+# lore-cli git commit (LORE_SOURCE_REF, a job env below) when npm does not yet
+# carry it. The 0.13.0 tree cannot go green against any published lore: the pair
+# rule refuses 0.12.0 (exit 6), and 0.13.0 cannot be published until THIS
 # repository's `main` reads 0.13.0 -- scripts/version-parity.mjs reads the peer's
-# main, not the registry, so lore's own publish gate refuses first. Building lore
-# from the ref breaks that cycle exactly as lore-cli's QUEST_SOURCE_REF (DEC-55)
-# lets ITS gates build quest from source before quest publishes. A follow-up PR
-# returns this job to the npm @opum-ai/lore@0.13.0 pin and removes LORE_SOURCE_REF
-# once 0.13.0 is published. The build uses lore-cli's OWN bun (.bun-version), NOT
-# this job's 1.4.2: a mismatched runtime fails a frozen lockfile for a reason
-# that is not the docs under test. Nothing here relaxes the pair rule -- the
-# assertion step checks the source-built lore reports this checkout's version
-# before any gate runs, and it fails loudly if the ref and the tree disagree.
+# main, not the registry, so lore's own publish gate refuses first. Falling back
+# to the ref breaks that cycle exactly as lore-cli's QUEST_SOURCE_REF (DEC-55)
+# lets ITS gates build quest from source before quest publishes. The npm attempt
+# is FIRST and the pin stays one literal line, so scripts/lore-pin-staleness.mjs
+# still reads it (QCLI-358). A follow-up PR removes LORE_SOURCE_REF once 0.13.0 is
+# published, leaving the npm install as the only path. The source build uses
+# lore-cli's OWN bun (.bun-version), NOT this job's 1.4.2: a mismatched runtime
+# fails a frozen lockfile for a reason that is not the docs under test. Nothing
+# here relaxes the pair rule -- the assertion step checks the lore on PATH,
+# whatever its source, reports this checkout's version before any gate runs.
 # Run the new lore with `npx --yes @opum-ai/lore@<version>` rather than upgrading
 # the shared global binary. A `lore check` exit 7 (indeterminate: a schema it
 # cannot attribute) means stop and report -- never delete or re-export past it.
@@ -140,17 +141,18 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       # DEC-169 (opum-doc, 2026-10-07, opum-ai/opum-doc#809): for the paired
-      # 0.13.0 release this job BUILDS lore from a lore-cli git commit instead of
-      # installing it from npm -- the mirror of lore-cli's own QUEST_SOURCE_REF
-      # (lore-cli DEC-55). It exists because the pair rule refuses a 0.12.0 lore
-      # against this 0.13.0 tree (exit 6), while lore cannot publish 0.13.0 until
+      # 0.13.0 release this job installs the pinned lore from npm as always, and
+      # FALLS BACK to building it from a lore-cli git commit when npm does not yet
+      # have it -- the mirror of lore-cli's own setup-quest action (lore-cli
+      # DEC-55). It exists because the pair rule refuses a 0.12.0 lore against
+      # this 0.13.0 tree (exit 6), while lore cannot publish 0.13.0 until
       # quest-cli's `main` reads it (scripts/version-parity.mjs reads the peer's
-      # main, not the registry). Building lore from source lets this job go green
-      # before either side publishes; both mains then carry 0.13.0 and both
-      # publishes follow. TEMPORARY: a follow-up PR returns this job to the npm
-      # @opum-ai/lore@0.13.0 pin and drops this variable, once 0.13.0 is on npm.
-      # The value must be a lore-cli commit carrying this checkout's version; the
-      # assertion step below fails loudly if it does not.
+      # main, not the registry). The source fallback lets this job go green before
+      # either side publishes; both mains then carry 0.13.0 and both publishes
+      # follow. TEMPORARY: once 0.13.0 is on npm a follow-up PR drops this
+      # variable and the npm install is again the only path. The value is a
+      # lore-cli commit carrying this checkout's version; the assertion step below
+      # fails loudly if it does not.
       LORE_SOURCE_REF: 838ba150fbeeb608266fa801dd533a05ad34a3b6
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -189,14 +191,29 @@ jobs:
           fi
           echo "quest on PATH: $resolved (reports $reported, package.json $packaged)"
 
-      # DEC-169: build lore from the pinned lore-cli commit rather than npm.
-      # Clone blob-filtered, then read the ref's OWN bun pin (.bun-version) and
-      # install THAT bun: lore-cli's lockfile was written by its pinned runtime,
-      # and a different bun compares against another runtime's lock and fails for
-      # a reason that has nothing to do with the docs under test (the same reason
-      # setup-quest records in lore-cli).
-      - name: Clone lore-cli at the pinned source ref and read its bun pin
+      # DEC-169: install the pinned lore from npm, or -- when it is not yet on
+      # npm -- build it from a lore-cli git commit (LORE_SOURCE_REF). The npm
+      # attempt comes FIRST and the literal pin stays a single line, so
+      # scripts/lore-pin-staleness.mjs still reads it (QCLI-358). This is the
+      # exact mirror of lore-cli's setup-quest action (DEC-55). The fallback takes
+      # ANY npm failure, not only "no matching version": an unreachable registry
+      # is indistinguishable from an absent version at the exit code, and the
+      # assertion below refuses a build that does not carry the right version.
+      - name: Install the pinned lore release, or build it from source if npm lacks it
         id: lore
+        run: |
+          set -euo pipefail
+          if npm install -g @opum-ai/lore@0.13.0; then
+            echo "method=npm" >> "$GITHUB_OUTPUT"
+            echo "::notice::lore 0.13.0 installed from npm, exactly as before DEC-169"
+          else
+            echo "method=source" >> "$GITHUB_OUTPUT"
+            echo "::notice::lore 0.13.0 is not on npm; building opum-ai/lore-cli at $LORE_SOURCE_REF"
+          fi
+
+      - if: steps.lore.outputs.method == 'source'
+        name: Clone lore-cli at the pinned source ref and read its bun pin
+        id: loresrc
         run: |
           set -euo pipefail
           dest="$RUNNER_TEMP/lore-cli"
@@ -208,11 +225,17 @@ jobs:
           git -C "$dest" checkout --quiet "$LORE_SOURCE_REF"
           echo "bun-version=$(cat "$dest/.bun-version")" >> "$GITHUB_OUTPUT"
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      # lore-cli's lockfile was written by its OWN pinned runtime; a different
+      # bun compares against another runtime's lock and fails for a reason that
+      # has nothing to do with the docs under test (the reason setup-quest
+      # records in lore-cli).
+      - if: steps.lore.outputs.method == 'source'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: ${{ steps.lore.outputs.bun-version }}
+          bun-version: ${{ steps.loresrc.outputs.bun-version }}
 
-      - name: Build lore from the pinned ref and put it on PATH
+      - if: steps.lore.outputs.method == 'source'
+        name: Build lore from the pinned ref and put it on PATH
         run: |
           set -euo pipefail
           dest="$RUNNER_TEMP/lore-cli"
@@ -224,22 +247,26 @@ jobs:
           chmod +x "$bin/lore"
           echo "$bin" >> "$GITHUB_PATH"
 
-      - name: lore on PATH is the source-built pair version, not a published one
+      - name: lore on PATH reports this checkout's pair version
         run: |
           set -euo pipefail
-          resolved="$(command -v lore || true)"
-          expected="$RUNNER_TEMP/lore-bin/lore"
-          if [ "$resolved" != "$expected" ]; then
-            echo "::error::PATH resolves lore to '${resolved:-nothing}', not the source build at '$expected'. The gate would run against a lore this pull request did not build."
-            exit 1
-          fi
-          reported="$(lore --version)"
           declared="$(node -p "require('./package.json').version")"
+          reported="$(lore --version)"
           if [ "$reported" != "$declared" ]; then
-            echo "::error::the lore built from the pinned ref ($LORE_SOURCE_REF) reports $reported but this checkout's package.json is $declared. The pair rule requires them equal; a mismatch means the ref and the declaration have drifted apart, and the failure is named HERE as a ref problem rather than later as a pair-lock refusal that reads like a lore defect."
+            echo "::error::the lore on PATH reports $reported but this checkout's package.json is $declared. The pair rule requires them equal; a mismatch means the source ref and the declaration have drifted apart, named HERE as a ref problem rather than later as a pair-lock refusal that reads like a lore defect."
             exit 1
           fi
-          echo "lore on PATH: $resolved (reports $reported, package.json $declared, built from source at $LORE_SOURCE_REF)"
+          if [ "${{ steps.lore.outputs.method }}" = "source" ]; then
+            resolved="$(command -v lore)"
+            expected="$RUNNER_TEMP/lore-bin/lore"
+            if [ "$resolved" != "$expected" ]; then
+              echo "::error::PATH resolves lore to '${resolved:-nothing}', not the source build at '$expected'. The gate would run against a lore this pull request did not build."
+              exit 1
+            fi
+            echo "lore on PATH: $resolved (reports $reported, package.json $declared, built from source at $LORE_SOURCE_REF)"
+          else
+            echo "lore on PATH: $(command -v lore) (reports $reported, package.json $declared, installed from npm)"
+          fi
 
       - name: lore check
         run: lore check
