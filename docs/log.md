@@ -276,6 +276,7 @@
 - 2026-10-02T17:32:24-05:00 78153e2d1234e6c20707cd7901987733dcf7e8b3 chore(QCLI-433): claim the task and record the 0.13.0 bump plan (#485)
 - 2026-10-02T18:18:40-05:00 f505d2e981d932c9df7691283ff1e0a3adaeefe9 chore(QCLI-433): pause the task for the recycle and point at QCLI-434 (#488)
 - 2026-10-06T21:39:20-05:00 ef9c2b44e4d2f39ac05b3c475a7432420aa689f2 chore(QCLI-433): regenerate .lore schemas and managed blocks for lore 0.13.0 (DEC-169)
+- 2026-10-06T22:27:01-05:00 598653c4f26da073202377d90eef92aa051d912f chore(QCLI-433): bump quest to 0.13.0 and record the board mod (#486)
 
 ## docs/adr
 
