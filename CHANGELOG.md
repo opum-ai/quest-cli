@@ -10,6 +10,8 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
+## 0.13.0
+
 ### Added
 
 - **The opum-quest plugin ships the Quest board: a pane listing the tasks in
