@@ -1200,6 +1200,12 @@ test("a truncated listing is incomplete coverage, not a confident answer (F2)", 
     expect(message).toContain("--ref <ref>");
     expect(message).toContain("--pr <N>");
     expect(message).toContain("OPEN_PULL_REQUEST_LIMIT");
+    // QCLI-418: the source-level remedy must name no repository path. The
+    // reason is read by installed-CLI users, who have no checkout to open, so
+    // a path there is a remedy they cannot follow.
+    expect(message).toContain("source checkout");
+    expect(message).not.toMatch(/\.ts\b/);
+    expect(message).not.toContain("src/");
     expect(message.split("\n")).toHaveLength(1);
   }
 }, 60_000);
