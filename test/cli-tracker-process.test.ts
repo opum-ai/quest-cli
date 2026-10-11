@@ -2292,7 +2292,15 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
     // Only the read surfaces. `task create` and `task edit` also carry a
     // `fields` list, but theirs is the settable-input vocabulary — it holds
     // `addLabels` and `clearParent` and omits `id` and `status` — so an
-    // output-presence assertion does not apply to it.
+    // output-key assertion does not apply to it.
+    //
+    // QCLI-461: the declared `fields` is the COMPLETE top-level key set a
+    // payload can carry, so the direction asserted is payload-subset-of-
+    // declared -- every key the payload actually carries must be declared.
+    // The former assertion here checked the OPPOSITE direction (every declared
+    // key present, with exceptions carved out for the conditional ones), which
+    // a curated subset satisfies while the record carries more: that is how
+    // the manifest came to under-declare both records.
     for (const [name, payload] of [
       ["task view", viewed],
       ["task list", listed],
@@ -2303,19 +2311,10 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
         name,
         declared: true,
       });
-      // notesOmitted is checked separately above -- it is the one declared
-      // "task view" field this test's default (no --max-notes) call must
-      // NOT emit (QCLI-276 / DEC-3). unresolvedAtCompletion is conditional
-      // the same way (QCLI-336): this fixture task is never completed, so
-      // it correctly never appears -- qcli336-unresolved-at-completion
-      // .test.ts pins the completed-with-unresolved-items case instead.
-      const missing = (declared ?? [])
-        .filter(
-          (field) =>
-            field !== "notesOmitted" && field !== "unresolvedAtCompletion",
-        )
-        .filter((field) => !Object.hasOwn(payload as object, field));
-      expect({ name, missing }).toEqual({ name, missing: [] });
+      const undeclared = Object.keys(payload as object).filter(
+        (field) => !(declared ?? []).includes(field),
+      );
+      expect({ name, undeclared }).toEqual({ name, undeclared: [] });
     }
   } finally {
     await rm(store, { recursive: true, force: true });
