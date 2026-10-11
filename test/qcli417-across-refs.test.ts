@@ -234,8 +234,21 @@ async function createFixture(): Promise<Fixture> {
   const withoutCreatedAt = { ...t1Record };
   delete withoutCreatedAt.createdAt;
   await writeFile(t1Path, JSON.stringify(withoutCreatedAt));
+  // A LONE record with no createdAt, on this ref only: id T-9 exists nowhere
+  // else, so the view sees a single state and must call it `task`, not
+  // `unresolved`. This is what pins the `states.length < 2` guard -- without
+  // it a lone record lacking createdAt would read as an unresolved collision.
+  const t2Record = JSON.parse(
+    await readFile(join(work, ".quest/tasks/T-2.json"), "utf8"),
+  ) as Record<string, unknown>;
+  const loneNoCreatedAt: Record<string, unknown> = { ...t2Record, id: "T-9" };
+  delete loneNoCreatedAt.createdAt;
+  await writeFile(
+    join(work, ".quest/tasks/T-9.json"),
+    JSON.stringify(loneNoCreatedAt),
+  );
   git(work, "add", "-A");
-  git(work, "commit", "-qm", "a T-1 with no createdAt");
+  git(work, "commit", "-qm", "a T-1 with no createdAt, and a lone T-9");
   const unresolvedSha = git(work, "rev-parse", "unresolved");
   git(work, "checkout", "-q", "dev");
 
@@ -490,6 +503,16 @@ test("a pair the discriminator cannot compare is an unresolved collision, never 
     "origin/dev",
     "refs/pull/4/head",
   ]);
+}, 60_000);
+
+test("a LONE record with no createdAt is one task, not an unresolved collision (QCLI-432 AC2)", async () => {
+  const result = await view(fixture, unresolvedPr(fixture));
+  const lone = entry(result.entries, "T-9");
+  // One state cannot collide with anything, so the missing createdAt does not
+  // make it unresolved. This is the case that fails if the `states.length < 2`
+  // guard is removed -- unlike a lone state that carries a createdAt.
+  expect(lone.identity).toBe("task");
+  expect(lone.states).toHaveLength(1);
 }, 60_000);
 
 test("an id both refs carry identically is NOT marked as a conflict (negative control for AC3)", async () => {
