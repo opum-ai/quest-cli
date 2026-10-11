@@ -15,9 +15,12 @@ import { join } from "node:path";
  *
  * The ruling's SELECTED arm is a precise refusal, NOT an alias: the flag still
  * fails at exit 2, but the message now names the edit-side flag to use instead,
- * and the manifest and help NAME the split. A later reader must not "fix" the
- * exit-2 by adding an alias -- that would widen the public surface to cover the
- * split, which DEC-172 (4ak) deliberately rejected.
+ * and the help text plus the manifest's EXISTING flag vocabularies NAME the
+ * split. A later reader must not "fix" the exit-2 by adding an alias -- that
+ * would widen the public surface to cover the split, which DEC-172 (4ak)
+ * deliberately rejected; and opum-doc DEC-172 (4aq) additionally ruled OUT a new
+ * manifest field for it, so the manifest names the split through the flags it
+ * already advertises rather than through a `refusedFlags` map.
  */
 
 const MAIN = new URL("../src/cli/main.ts", import.meta.url).pathname;
@@ -178,29 +181,40 @@ test("the task edit help text NAMES the create/edit split (QCLI-283, AC-2 second
   expect(summary).toContain("--add-reference");
 });
 
-test("the manifest NAMES the split without accepting the flags as aliases (QCLI-283)", async () => {
+test("the manifest NAMES the split via its existing flag vocabularies, with no new field (QCLI-283, DEC-172 (4aq))", async () => {
   const root = await workspace();
   try {
-    const manifest = JSON.parse(
-      quest(root, ["manifest", "--json"]).stdout,
-    ).data.commands.find(
-      (entry: { name: string }) => entry.name === "task edit",
-    ) as {
-      refusedFlags?: Record<string, string[]>;
+    const commands = JSON.parse(quest(root, ["manifest", "--json"]).stdout).data
+      .commands as Array<{
+      name: string;
       parameters?: { flags?: Record<string, unknown> };
-    };
+      [key: string]: unknown;
+    }>;
+    const edit = commands.find((entry) => entry.name === "task edit");
+    const create = commands.find((entry) => entry.name === "task create");
 
-    // The split is named in the manifest...
-    expect(manifest.refusedFlags).toEqual({
-      "--label": ["--labels", "--add-label", "--remove-label"],
-      "--reference": ["--add-reference", "--remove-reference"],
-    });
+    // The manifest names the EDIT side: the flags edit actually takes.
+    const editFlags = Object.keys(edit?.parameters?.flags ?? {});
+    expect(editFlags).toContain("--labels");
+    expect(editFlags).toContain("--add-label");
+    expect(editFlags).toContain("--remove-label");
+    expect(editFlags).toContain("--add-reference");
+    expect(editFlags).toContain("--remove-reference");
 
-    // ...but the create-only spellings are NOT accepted here: they must not
-    // appear among the flags edit takes. A refusal, never an alias.
-    const accepted = Object.keys(manifest.parameters?.flags ?? {});
-    expect(accepted).not.toContain("--label");
-    expect(accepted).not.toContain("--reference");
+    // ...and the CREATE side is named too, so both halves of the split read off
+    // the manifest without a round trip to `quest help`.
+    const createFlags = Object.keys(create?.parameters?.flags ?? {});
+    expect(createFlags).toContain("--label");
+    expect(createFlags).toContain("--reference");
+
+    // The create-only spellings are NOT accepted by edit: a refusal, never an
+    // alias.
+    expect(editFlags).not.toContain("--label");
+    expect(editFlags).not.toContain("--reference");
+
+    // DEC-172 (4aq): the split is NOT carried by a new manifest field. This
+    // guards the ruling -- a later reader must not reintroduce `refusedFlags`.
+    expect("refusedFlags" in (edit ?? {})).toBe(false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

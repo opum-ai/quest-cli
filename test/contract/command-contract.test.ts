@@ -444,10 +444,6 @@ test("the live manifest is non-empty and matches its result golden", () => {
       schemaVersion: 1,
       kind: "task.updated",
       mutates: true,
-      refusedFlags: {
-        "--label": ["--labels", "--add-label", "--remove-label"],
-        "--reference": ["--add-reference", "--remove-reference"],
-      },
       fields: [
         "acceptanceCriteria",
         "addAssignees",
