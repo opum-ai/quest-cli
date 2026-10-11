@@ -138,3 +138,47 @@ test("the relocate-completion computes unresolvedAtCompletion and applies finalS
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("completing a record already in completed/ still refuses exactly as it did before (QCLI-338 AC3)", async () => {
+  const root = await workspace();
+  try {
+    quest(root, ["task", "create", "C", ...ACTOR, "--json"]);
+    quest(root, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...ACTOR,
+      "--json",
+    ]);
+    quest(root, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "Done",
+      ...ACTOR,
+      "--json",
+    ]);
+    // First complete relocates (the AC1 fix). A SECOND one hits the
+    // already-at-destination record, which must keep the PRE-QCLI-338 refusal
+    // -- the skip above is only for a record still stored in tasks/.
+    expect(
+      quest(root, ["task", "complete", "T-1", ...ACTOR, "--json"]).exitCode,
+    ).toBe(0);
+    expect(view(root, "T-1").data.path).toBe(".quest/completed/T-1.json");
+    const again = quest(root, ["task", "complete", "T-1", ...ACTOR, "--json"]);
+    expect(again.exitCode).toBe(6);
+    const diagnostic = JSON.parse(again.stderr) as {
+      error_type?: string;
+      message?: string;
+    };
+    expect(diagnostic.error_type).toBe("validation");
+    expect(diagnostic.message).toMatch(
+      /^Illegal task transition: Done -> Done\./,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
