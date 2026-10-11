@@ -2197,7 +2197,7 @@ test("tasks carry createdAt and updatedAt, and updatedAt advances on write (QCLI
   }
 });
 
-test("every task field the manifest declares is a field the CLI emits (QCLI-137)", async () => {
+test("every key a task read emits is manifest-declared, and every declared field is emitted (QCLI-137, QCLI-461)", async () => {
   // The defect this closes was a manifest promising createdAt/updatedAt on
   // `task list`, `task view` and `search` that nothing ever wrote. This is
   // that class, generalized: a task with every settable field must carry
@@ -2262,6 +2262,51 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
     const viewed = JSON.parse(
       (await quest(store, ["task", "view", created.id, "--json"])).stdout,
     ).data;
+    // QCLI-461 (review round 1): the rich task above reaches most declared
+    // keys but NOT the conditional ones. A task completed with an unchecked
+    // item carries `unresolvedAtCompletion`, and a closed task carries
+    // `resolution`; both are built here so the payload-subset-of-declared
+    // assertion below actually exercises them -- dropping either from a
+    // declared set must go RED rather than unnoticed. (`claim` is reachable
+    // only through the `task binding` flow, which its own suite covers.)
+    const unresolved = JSON.parse(
+      (
+        await quest(store, [
+          "task",
+          "create",
+          "Unresolved",
+          "--acceptance-criteria",
+          '["x"]',
+          ...human,
+        ])
+      ).stdout,
+    ).data as { id: string };
+    await quest(store, [
+      "task",
+      "edit",
+      unresolved.id,
+      "--status",
+      "In Progress",
+      ...human,
+    ]);
+    await quest(store, ["task", "complete", unresolved.id, ...human]);
+    const closed = JSON.parse(
+      (await quest(store, ["task", "create", "Closed", ...human])).stdout,
+    ).data as { id: string };
+    await quest(store, [
+      "task",
+      "close",
+      closed.id,
+      "--resolution",
+      "wont-do",
+      ...human,
+    ]);
+    const unresolvedView = JSON.parse(
+      (await quest(store, ["task", "view", unresolved.id, "--json"])).stdout,
+    ).data;
+    const closedView = JSON.parse(
+      (await quest(store, ["task", "view", closed.id, "--json"])).stdout,
+    ).data;
     // QCLI-276 / DEC-3: `notesOmitted` is the one manifest-declared "task
     // view" field that is NOT always emitted -- it is additive and only
     // appears when `--max-notes` was supplied, present even at 0. The
@@ -2305,6 +2350,11 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
       ["task view", viewed],
       ["task list", listed],
       ["search", searched],
+      // QCLI-461: records that carry the CONDITIONAL keys the rich task does
+      // not -- so dropping `unresolvedAtCompletion` or `resolution` from a
+      // declared set is caught here rather than passing unnoticed.
+      ["task view", unresolvedView],
+      ["task view", closedView],
     ] as const) {
       const declared = manifest.find((entry) => entry.name === name)?.fields;
       expect({ name, declared: declared !== undefined }).toEqual({
@@ -2315,6 +2365,31 @@ test("every task field the manifest declares is a field the CLI emits (QCLI-137)
         (field) => !(declared ?? []).includes(field),
       );
       expect({ name, undeclared }).toEqual({ name, undeclared: [] });
+    }
+
+    // QCLI-137 (kept, scoped): a declared field that NOTHING emits is a
+    // phantom promise -- the defect that task closed. The payloads above reach
+    // every declared read key EXCEPT `claim` and `source`, written only by the
+    // `task binding` and migration flows; those two are named so the exclusion
+    // is visible rather than silent.
+    const reached = new Set<string>();
+    for (const payload of [
+      viewed,
+      viewedWithMaxNotes,
+      listed,
+      searched,
+      unresolvedView,
+      closedView,
+    ])
+      for (const field of Object.keys(payload as object)) reached.add(field);
+    const reachableElsewhere = ["claim", "source"];
+    for (const name of ["task view", "task list", "search"] as const) {
+      const declared =
+        manifest.find((entry) => entry.name === name)?.fields ?? [];
+      const phantom = declared.filter(
+        (field) => !reached.has(field) && !reachableElsewhere.includes(field),
+      );
+      expect({ name, phantom }).toEqual({ name, phantom: [] });
     }
   } finally {
     await rm(store, { recursive: true, force: true });
