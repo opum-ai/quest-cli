@@ -801,7 +801,19 @@ export class TaskService {
         throw new RecordValidationError(
           "Lifecycle terminal status is not configured.",
         );
-      const transitioned = transitionTask(task, terminal, this.lifecycle);
+      // QCLI-338 (opum-doc DEC-172 (4ai) A): a record may already BE at the
+      // terminal status -- reached by `task edit --status <terminal>`, which
+      // per QCLI-221 deliberately does not relocate -- while still stored in
+      // tasks/. Completing it is that record's REAL completion under
+      // QCLI-336's model, so the STATUS transition below is a no-op rather
+      // than an `Illegal task transition: Done -> Done`, and everything after
+      // it still runs: `complete()` computes finalSummary and
+      // unresolvedAtCompletion whatever status the record already had. One
+      // Done shape, not two.
+      const transitioned =
+        task.status === terminal
+          ? task
+          : transitionTask(task, terminal, this.lifecycle);
       const withSummary =
         finalSummary === undefined
           ? transitioned
