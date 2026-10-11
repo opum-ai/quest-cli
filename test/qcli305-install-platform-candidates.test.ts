@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -170,25 +177,46 @@ test("a clean set installs every platform package and rewrites the root checksum
   ).toBe(true);
 });
 
-test("the install recreates a destination on a FRESH INODE, never in place (QCLI-271)", async () => {
+test("the install recreates the destination as a fresh file, never in place (QCLI-271)", async () => {
   const sourceRoot = await makeSourceRoot();
   const { writableRoot } = await makeWritableRoot();
   // A stale file at the darwin-arm64 destination, standing in for the inode
   // whose code-signing validation state the runbook warns about. An in-place
-  // copy keeps this inode; the runbook calls a fresh inode NECESSARY, so the
-  // install must delete-then-recreate and leave a different inode behind.
+  // copy would keep this inode; the runbook calls a fresh inode NECESSARY, so
+  // the install must delete-then-recreate.
+  //
+  // The proof holds an OPEN HANDLE on the old file across the whole install, so
+  // its inode cannot be freed and reused (DEC-172 (4ay)): inode-number
+  // inequality ALONE is unsound, because a filesystem may legally hand a freed
+  // number to the next create -- the GitHub runner's does, which made an
+  // inode-only assertion fail there while passing on a host that does not
+  // reuse. With the handle open, the destination's (dev, ino) differing from
+  // the handle's AND the handle still reading the OLD bytes together prove a
+  // different file took the path.
   const stale = join(writableRoot, "npm", "quest-darwin-arm64", "bin", "quest");
   await mkdir(join(writableRoot, "npm", "quest-darwin-arm64", "bin"), {
     recursive: true,
   });
   await writeFile(stale, "stale\n");
-  const staleInode = (await stat(stale)).ino;
-  await runInstallCandidates({
-    artifactSource: sourceRoot,
-    writableRoot,
-    log: () => {},
-  });
-  expect((await stat(stale)).ino).not.toBe(staleInode);
+  const held = await open(stale, "r");
+  try {
+    const heldIdentity = await held.stat();
+    await runInstallCandidates({
+      artifactSource: sourceRoot,
+      writableRoot,
+      log: () => {},
+    });
+    const destination = await stat(stale);
+    expect([destination.dev, destination.ino]).not.toEqual([
+      heldIdentity.dev,
+      heldIdentity.ino,
+    ]);
+    // The held handle still reads the old bytes, so the old inode was never
+    // handed to the destination.
+    expect((await held.readFile()).toString()).toBe("stale\n");
+  } finally {
+    await held.close();
+  }
 });
 
 test("--dry-run verifies a real artifact set and writes nothing", async () => {
