@@ -9,7 +9,12 @@ export const trackerManifestFixture: TrackerManifest = {
       schemaVersion: 1,
       kind: "task.status-flow",
       mutates: false,
-      fields: ["statuses", "terminalStatuses", "pausedStatus"],
+      fields: [
+        "statuses",
+        "terminalStatuses",
+        "pausedStatus",
+        "pausedStatusConfigurable",
+      ],
     },
     {
       name: "task list",

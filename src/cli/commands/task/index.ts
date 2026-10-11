@@ -329,7 +329,19 @@ export async function dispatchTrackerTaskCommand(
           // once a tolerant lore is the floor.
           terminalStatuses: tasks.lifecycle.terminalStatuses,
           ...(tasks.lifecycle.pausedStatus !== undefined
-            ? { pausedStatus: tasks.lifecycle.pausedStatus }
+            ? {
+                pausedStatus: tasks.lifecycle.pausedStatus,
+                // QCLI-325 (opum-doc relay 570, DEC-172 (4af)): the paused
+                // status is a BUILT-IN literal for now. No runtime path
+                // populates it from user configuration -- createTaskService
+                // passes the default policy as a constant, and nothing reads
+                // workspace.toml for lifecycle config -- so this flag lets a
+                // reader of status-flow output tell from the CLI alone that
+                // the value is not theirs to change, without reading source or
+                // asking. If it ever becomes configurable it becomes true (its
+                // own design task with lore-cli), and this flag is what flips.
+                pausedStatusConfigurable: false,
+              }
             : {}),
           ...(tasks.lifecycle.closedStatus !== undefined
             ? {
