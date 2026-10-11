@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { questGuides } from "../src/application/agents/guides.ts";
 import { commandHelp } from "../src/application/command-help.ts";
+import { commandManifest } from "../src/application/command-contract.ts";
 
 const MAIN = new URL("../src/cli/main.ts", import.meta.url).pathname;
 
@@ -51,6 +52,18 @@ test("task status-flow output says the paused status is built-in and not user-ch
     expect(flow.data.pausedStatus).toBe("Paused");
     // AC3: a reader can tell from this output ALONE -- no source, no asking.
     expect(flow.data.pausedStatusConfigurable).toBe(false);
+    // QCLI-325: the new key is on a MACHINE surface, so it must be DECLARED in
+    // the manifest or the change ships the same under-declaration class
+    // QCLI-461 closed for task list/view/search. No existing test compares
+    // status-flow's declared `fields` to the keys it emits, so it is pinned
+    // here. (A full emitted-subset-of-declared check for status-flow is a
+    // separate gap -- closedStatus and resolutions are still undeclared.)
+    const declared =
+      commandManifest.commands.find(
+        (command) => command.name === "task status-flow",
+      )?.fields ?? [];
+    expect(declared).toContain("pausedStatus");
+    expect(declared).toContain("pausedStatusConfigurable");
   } finally {
     await rm(store, { recursive: true, force: true });
   }

@@ -287,6 +287,7 @@ export const trackerConformanceFixtures = {
       statuses: ["To Do", "In Progress", "Done"],
       terminalStatuses: ["Done"],
       pausedStatus: "Paused",
+      pausedStatusConfigurable: false,
       closedStatus: "Closed",
       resolutions: ["duplicate", "superseded", "wont-do"],
     },

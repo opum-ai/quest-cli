@@ -150,6 +150,13 @@ export type TaskCommandResponse =
         /** QCLI-229: absent when the workspace has pause/start disabled. */
         readonly pausedStatus?: string;
         /**
+         * QCLI-325: false while `pausedStatus` is a BUILT-IN literal no
+         * user-reachable knob sets (opum-doc relay 570, DEC-172 (4af)); emitted
+         * beside `pausedStatus` so a consumer can read the situation from the
+         * output alone.
+         */
+        readonly pausedStatusConfigurable?: boolean;
+        /**
          * QCLI-331: the terminal status `task close` reaches. NOT listed in
          * `terminalStatuses` yet (see the status-flow case below), so a
          * consumer needs both to know every terminal status. Absent, with
