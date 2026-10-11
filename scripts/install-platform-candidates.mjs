@@ -26,17 +26,22 @@
 // SIGKILL git on this host"). On a host that code-signs and validates Mach-O
 // binaries at mmap time, once `npm/quest-darwin-arm64/bin/quest` has been
 // executed, any later git operation that reads that working-tree file is
-// killed outright (exit 137). Two consequences, both load-bearing here:
+// killed outright (exit 137). Three consequences, all load-bearing here:
 //
 //   * This script NEVER executes a downloaded binary. It only reads bytes to
 //     hash them and copies bytes to install them; it spawns exactly one
 //     subprocess, `gh`, to download. Executing a candidate is a separate,
 //     deliberate act that must happen before the binary is committed, not
 //     here.
+//   * Every file is written to a FRESH INODE: the destination is deleted
+//     before it is copied. The runbook calls a fresh inode NECESSARY -- an
+//     in-place copy keeps the old inode and its stale signing validation
+//     state, so a later git read of that path can still be killed -- and the
+//     darwin-arm64 binary in particular must not be overwritten in place.
 //   * `npm/quest-darwin-arm64/bin/quest` is written LAST -- after the other
-//     five targets and after the root package.json rewrite -- because it is
-//     the file whose working-tree bytes git is most likely to touch next
-//     (the wrapper stages and commits right after this runs).
+//     five targets and after the root package.json rewrite -- so the final
+//     recreate the runbook prescribes is the last write before git touches the
+//     tree (the wrapper stages and commits right after this runs).
 //
 // Usage:
 //   bun run install:platform-candidates -- --run <run-id>            # verify + install
@@ -46,8 +51,8 @@
 // `--run` takes a `prepublication-qualification.yml` run id; its six
 // `quest-package-*` artifacts are downloaded into a fresh temp directory.
 // `--dry-run` downloads and verifies against a real run id and writes NOTHING
-// to the repository -- it is the safe way to prove the install path against a
-// live run (QCLI-305 ac-4). `--from <dir>` skips the download and verifies a
+// to the repository; it exercises the download+verify path only, never the
+// install writes. `--from <dir>` skips the download and verifies a
 // directory already shaped like a `gh run download` output (each target under
 // `quest-package-<target>/`); it is an offline re-verify escape hatch.
 
@@ -189,6 +194,14 @@ async function installTarget({ sourceRoot, writableRoot, target }) {
     join("bin", binaryNameFor(target)),
   ]) {
     const destination = join(to, relative);
+    // A FRESH INODE, never an in-place overwrite (QCLI-271; runbook "A locally-
+    // rebuilt darwin-arm64 binary can SIGKILL git on this host"). The runbook
+    // calls a fresh inode NECESSARY: an in-place copy keeps the old inode and
+    // its stale code-signing validation state, so a later git read of that path
+    // can still be killed (exit 137). Deleting first and recreating the file
+    // gives it the new inode; for darwin-arm64 that recreate is the last write
+    // of the whole install.
+    await rm(destination, { force: true });
     await copyFile(join(from, relative), destination);
     written.push(destination);
   }
@@ -211,6 +224,17 @@ export async function installArtifactSet({
   digests,
   targets = TARGETS,
 }) {
+  // The root questPlatformPackages map carries all six packages, so a partial
+  // set is REFUSED rather than written as a map that silently loses the
+  // entries it never verified (QCLI-305 review). `targets` may not narrow the
+  // map; the CLI always installs the full set anyway.
+  const unverified = TARGETS.filter(
+    (target) => digests[packageNameFor(target)] === undefined,
+  );
+  if (unverified.length)
+    throw new Error(
+      `refusing to install: no verified digest for ${unverified.join(", ")} (the root questPlatformPackages map carries all six packages)`,
+    );
   // Read the root manifest first so an unreadable root refuses before any
   // platform file is copied.
   const rootPackagePath = join(writableRoot, "package.json");

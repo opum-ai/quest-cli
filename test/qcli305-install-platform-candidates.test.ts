@@ -170,6 +170,27 @@ test("a clean set installs every platform package and rewrites the root checksum
   ).toBe(true);
 });
 
+test("the install recreates a destination on a FRESH INODE, never in place (QCLI-271)", async () => {
+  const sourceRoot = await makeSourceRoot();
+  const { writableRoot } = await makeWritableRoot();
+  // A stale file at the darwin-arm64 destination, standing in for the inode
+  // whose code-signing validation state the runbook warns about. An in-place
+  // copy keeps this inode; the runbook calls a fresh inode NECESSARY, so the
+  // install must delete-then-recreate and leave a different inode behind.
+  const stale = join(writableRoot, "npm", "quest-darwin-arm64", "bin", "quest");
+  await mkdir(join(writableRoot, "npm", "quest-darwin-arm64", "bin"), {
+    recursive: true,
+  });
+  await writeFile(stale, "stale\n");
+  const staleInode = (await stat(stale)).ino;
+  await runInstallCandidates({
+    artifactSource: sourceRoot,
+    writableRoot,
+    log: () => {},
+  });
+  expect((await stat(stale)).ino).not.toBe(staleInode);
+});
+
 test("--dry-run verifies a real artifact set and writes nothing", async () => {
   const sourceRoot = await makeSourceRoot();
   const { writableRoot, before } = await makeWritableRoot();
