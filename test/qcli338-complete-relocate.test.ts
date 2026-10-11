@@ -139,7 +139,7 @@ test("the relocate-completion computes unresolvedAtCompletion and applies finalS
   }
 });
 
-test("completing a record already in completed/ still refuses exactly as it did before (QCLI-338 AC3)", async () => {
+test("completing a record already in completed/ still refuses exactly as it did before (QCLI-338 AC4)", async () => {
   const root = await workspace();
   try {
     quest(root, ["task", "create", "C", ...ACTOR, "--json"]);
@@ -176,6 +176,51 @@ test("completing a record already in completed/ still refuses exactly as it did 
     };
     expect(diagnostic.error_type).toBe("validation");
     expect(diagnostic.message).toMatch(
+      /^Illegal task transition: Done -> Done\./,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("task complete still refuses a Done record in archive/tasks (QCLI-338 AC1 scope)", async () => {
+  const root = await workspace();
+  try {
+    quest(root, ["task", "create", "C", ...ACTOR, "--json"]);
+    quest(root, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "In Progress",
+      ...ACTOR,
+      "--json",
+    ]);
+    quest(root, [
+      "task",
+      "edit",
+      "T-1",
+      "--status",
+      "Done",
+      ...ACTOR,
+      "--json",
+    ]);
+    const archived = quest(root, [
+      "task",
+      "archive",
+      "T-1",
+      ...ACTOR,
+      "--json",
+    ]);
+    expect(archived.exitCode).toBe(0);
+    expect(view(root, "T-1").data.path).toBe(".quest/archive/tasks/T-1.json");
+    // The relocation this task adds is tasks/ -> completed/ ONLY. A record in
+    // archive/tasks is NOT swept into completed/ -- it keeps the pre-QCLI-338
+    // refusal, exactly as a record already in completed/ does.
+    const done = quest(root, ["task", "complete", "T-1", ...ACTOR, "--json"]);
+    expect(done.exitCode).toBe(6);
+    expect(view(root, "T-1").data.path).toBe(".quest/archive/tasks/T-1.json");
+    expect((JSON.parse(done.stderr) as { message?: string }).message).toMatch(
       /^Illegal task transition: Done -> Done\./,
     );
   } finally {

@@ -809,19 +809,21 @@ export class TaskService {
           );
         // QCLI-338 (opum-doc DEC-172 (4ai) A): a record may already BE at the
         // terminal status -- reached by `task edit --status <terminal>`, which
-        // per QCLI-221 deliberately does not relocate -- while still stored in
+        // per QCLI-221 deliberately does not relocate -- while STILL STORED IN
         // tasks/. Completing it is that record's REAL completion under
         // QCLI-336's model, so the STATUS transition is skipped and everything
         // below still runs: `complete()` computes finalSummary and
         // unresolvedAtCompletion whatever status the record already had. One
         // Done shape, not two.
         //
-        // A record ALREADY in completed/ keeps transitionTask's own refusal
-        // (`Illegal task transition: Done -> Done ...`), unchanged, because
-        // moveTask's already-at-destination check runs only AFTER this closure
-        // (AC3's second clause).
+        // The skip is guarded to `location === "tasks"` EXACTLY. A record
+        // already in completed/ or in archive/tasks/ keeps transitionTask's own
+        // refusal (`Illegal task transition: Done -> Done ...`), UNCHANGED --
+        // the relocation this task asks for is tasks/ -> completed/ only, and
+        // moveTask's own already-at-destination check is never reached for
+        // those shapes because this closure throws first.
         const transitioned =
-          task.status === terminal && location !== "completed"
+          task.status === terminal && location === "tasks"
             ? task
             : transitionTask(task, terminal, this.lifecycle);
         const withSummary =
