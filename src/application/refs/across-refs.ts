@@ -81,9 +81,11 @@ export interface AcrossRefsState {
  * `collision` -- the states carry two or more distinct `createdAt` values, so
  * they name different records that happen to share an id.
  *
- * `unresolved` -- at least one state carries no `createdAt` (it is optional on
- * the record), so the states cannot be compared. Reported as a collision the
- * view could not resolve rather than assumed to be one task.
+ * `unresolved` -- the group has TWO OR MORE states and at least one carries no
+ * `createdAt` (it is optional on the record), so the states cannot be compared.
+ * Reported as a collision the view could not resolve rather than assumed to be
+ * one task. A LONE state is `task` whatever it carries: it has nothing to
+ * collide with.
  */
 export type AcrossRefsIdentity = "task" | "collision" | "unresolved";
 
@@ -244,10 +246,12 @@ interface LocatedEntry {
  * QCLI-432: whether a same-id group is one task, a collision of two different
  * records, or a collision the discriminator cannot resolve. `createdAt` is the
  * discriminator (see {@link AcrossRefsIdentity}); a state that carries none is
- * not comparable, so the group is `unresolved` rather than assumed to be one
- * task.
+ * not comparable, so a group of TWO OR MORE such states is `unresolved` rather
+ * than assumed to be one task. A LONE state has nothing to collide with, so it
+ * is `task` regardless of whether its record carries a createdAt.
  */
 function identityOf(states: readonly LocatedState[]): AcrossRefsIdentity {
+  if (states.length < 2) return "task";
   const createdAts = new Set(states.map((state) => state.task.createdAt));
   if (createdAts.has(undefined)) return "unresolved";
   return createdAts.size > 1 ? "collision" : "task";

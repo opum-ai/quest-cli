@@ -425,6 +425,9 @@ test("a record that exists only on a PR head is proposed by that PR (QCLI-417 AC
   const proposed = entry(result.entries, "T-3");
   expect(proposed.proposedBy).toBe("opum-ai/quest-cli#1");
   expect(proposed.title).toBe("only on the pr head");
+  // QCLI-432: a lone state has nothing to collide with, so it is one task
+  // whatever its record carries.
+  expect(proposed.identity).toBe("task");
   expect(proposed.states).toEqual([
     {
       status: "To Do",
