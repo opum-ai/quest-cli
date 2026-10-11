@@ -117,6 +117,20 @@ export interface CommandManifestEntry {
   readonly mutates: boolean;
   readonly fields?: readonly string[];
   readonly filters?: readonly string[];
+  /**
+   * QCLI-283 / DEC-172 (4ak). Flags a caller might reach for by analogy with a
+   * SIBLING command (for example `task create`'s `--label`) that THIS command
+   * REFUSES. The value names the accepted flag(s) to use instead, so a caller
+   * reading the manifest learns a create/edit naming split without a round trip
+   * to `quest help`.
+   *
+   * Deliberately NOT an `aliases` list: no key here is accepted by this command
+   * -- each is a usage error, and the map exists only to NAME the split. An
+   * alias would widen the public surface to cover a naming split, while a
+   * precise refusal teaches the right flag in one step. Absent on every command
+   * whose spellings do not diverge from a sibling's.
+   */
+  readonly refusedFlags?: Readonly<Record<string, readonly string[]>>;
 }
 
 export const commandManifest = {
@@ -488,6 +502,13 @@ export const commandManifest = {
       schemaVersion: 1,
       kind: "task.updated",
       mutates: true,
+      // QCLI-283 / DEC-172 (4ak): the create/edit naming split, named rather
+      // than silent. These are `task create`'s spellings, refused here; the
+      // values are the edit-side flags to use instead. Not aliases.
+      refusedFlags: {
+        "--label": ["--labels", "--add-label", "--remove-label"],
+        "--reference": ["--add-reference", "--remove-reference"],
+      },
       fields: [
         "acceptanceCriteria",
         "addAssignees",
