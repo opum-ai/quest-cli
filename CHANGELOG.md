@@ -50,6 +50,28 @@ dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **Linking a task to a milestone stores the milestone's task ids in numeric
+  order.** Linking re-sorted the milestone's `taskIds` as plain strings, so a
+  milestone with eleven tasks stored `T-10` and `T-11` between `T-1` and `T-2`;
+  the Backlog.md import's milestone rebuild did the same. Both now use
+  `compareTaskIds`. **An existing milestone file keeps its stored order until
+  the next task is linked to it, and that write reorders the whole list**, so
+  expect a one-time diff in `.quest/milestones/` for any milestone with ten or
+  more tasks. Unlinking a task never re-sorts, and `milestone create --task` and
+  `milestone edit --add-task/--replace-task` still store the ids in the order
+  you give them. This builds on the task-id change below.
+
+- **Task ids order by their number, so `T-2` comes before `T-10`.** Every place
+  that ordered tasks by id compared the ids as plain strings, so a workspace
+  with ten or more tasks listed `T-10` between `T-1` and `T-2`. That order
+  reached the default `task list`, `task list --sort id` (both directions), the
+  `--ready` order, `--across-refs`, `task search` with no query, the task ids
+  in `planning board` and the task ids in `doctor`'s planning issues. The
+  comparison now reads each number in the id as a number (`compareTaskIds` in
+  `src/domain/tasks/tasks.ts`). Prefixes still compare as text. Draft ids,
+  milestone ids and the order milestones store their `taskIds` in keep their
+  old order.
+
 - **`task edit` names the edit-side flag for three more create-only spellings,
   and no longer hides another unrecognized flag behind one of them** (QCLI-484;
   opum-doc DEC-172 (4aq)). `--assignee`, `--dependency` and `--modified-file`
