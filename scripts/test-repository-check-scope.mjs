@@ -10,10 +10,15 @@ const fixtureNodeModules = join(fixture, "node_modules");
 
 // QCLI-492. Never resolve `bun` from PATH: on a host whose PATH bun is not the
 // declared pin, a bare `bun` runs the nested script under the wrong runtime.
-// `npm_execpath` is the declaring bun, which Bun sets for the run and
-// re-exports into every nested script's environment (QCLI-471) -- and this file
-// is itself launched by `node`, so it must come from there.
-const BUN = process.env.npm_execpath ?? process.execPath;
+// This file is launched by `node` (the `test:repository-check-scope` script),
+// so `process.execPath` would be NODE -- deliberately there is no such fallback
+// here. `npm_execpath` is the declaring bun, which Bun sets for the run and
+// re-exports into every nested script's environment (QCLI-471).
+const BUN = process.env.npm_execpath;
+if (!BUN)
+  throw new Error(
+    "QCLI-492: npm_execpath is unset. Run this through `bun run test:repository-check-scope` so the declaring bun is known, rather than spawning a `bun` resolved from PATH.",
+  );
 
 function run(command) {
   return new Promise((resolveRun, reject) => {
