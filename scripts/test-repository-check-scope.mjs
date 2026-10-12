@@ -8,9 +8,16 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fixture = await mkdtemp(join(tmpdir(), "quest-repository-check-scope-"));
 const fixtureNodeModules = join(fixture, "node_modules");
 
+// QCLI-492. Never resolve `bun` from PATH: on a host whose PATH bun is not the
+// declared pin, a bare `bun` runs the nested script under the wrong runtime.
+// `npm_execpath` is the declaring bun, which Bun sets for the run and
+// re-exports into every nested script's environment (QCLI-471) -- and this file
+// is itself launched by `node`, so it must come from there.
+const BUN = process.env.npm_execpath ?? process.execPath;
+
 function run(command) {
   return new Promise((resolveRun, reject) => {
-    const child = spawn("bun", ["run", command], {
+    const child = spawn(BUN, ["run", command], {
       cwd: fixture,
       stdio: "inherit",
     });
