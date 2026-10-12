@@ -1821,13 +1821,26 @@ test("a pause, a close and a high-priority completion toast; a normal completion
     status: "Done",
   };
   await clock.advance(ALERTS_MS);
-  // Three changes, so each is its own toast -- and the medium-priority
-  // completion, which the pane draws like any other, says nothing.
+  // The tick's two reads spend two of its three children, so exactly ONE
+  // departure can be told per tick: QCLI-2 here, QCLI-3 and QCLI-4 on the ticks
+  // after it. Three changes or fewer are each their own toast rather than one
+  // batched line.
+  expect(toasts).toEqual([
+    { text: "QCLI-1 paused in quest-cli: Parked work", timeoutMs: 8_000 },
+    { text: "QCLI-2 closed (won't do) in quest-cli", timeoutMs: 6_000 },
+  ]);
+
+  await clock.advance(ALERTS_MS);
   expect(toasts).toEqual([
     { text: "QCLI-1 paused in quest-cli: Parked work", timeoutMs: 8_000 },
     { text: "QCLI-2 closed (won't do) in quest-cli", timeoutMs: 6_000 },
     { text: "QCLI-3 done: Landed work", timeoutMs: 6_000 },
   ]);
+
+  await clock.advance(ALERTS_MS);
+  // QCLI-4's completion is medium priority, so -- as before -- it says nothing,
+  // and the third tick adds no toast at all.
+  expect(toasts).toHaveLength(3);
   await ui.unmount();
 });
 
@@ -1844,7 +1857,7 @@ test("more than three changes arrive as one batched toast, with the decisions le
       "quest-cli": [
         { id: "QCLI-1", title: "Parked work", status: "In Progress" },
         { id: "QCLI-2", title: "Also parked", status: "In Progress" },
-        { id: "QCLI-3", title: "Retired work", status: "In Progress" },
+        { id: "QCLI-3", title: "Third parked", status: "In Progress" },
         { id: "QCLI-4", title: "Landed work", status: "In Progress" },
       ],
     },
@@ -1853,16 +1866,14 @@ test("more than three changes arrive as one batched toast, with the decisions le
   const { toasts } = mockAlerts(on, canned);
 
   const ui = await mountAlertPane($);
+  // Three changes that need no child at all (a status moved within the open
+  // set) plus ONE departure, which does: the tick's budget is three children,
+  // and its two reads already spend two, so exactly one `task view` fits.
   canned.open["quest-cli"] = [
     { id: "QCLI-1", title: "Parked work", status: "Paused" },
     { id: "QCLI-2", title: "Also parked", status: "Paused" },
+    { id: "QCLI-3", title: "Third parked", status: "Paused" },
   ];
-  canned.views["QCLI-3"] = {
-    id: "QCLI-3",
-    title: "Retired work",
-    status: "Closed",
-    resolution: { kind: "duplicate" },
-  };
   canned.views["QCLI-4"] = {
     id: "QCLI-4",
     title: "Landed work",
@@ -1873,19 +1884,16 @@ test("more than three changes arrive as one batched toast, with the decisions le
     { id: "DEC-141", title: "Answer me", status: "proposed" },
   ];
   await clock.advance(ALERTS_MS);
-  // More than three changes, so one line instead of several -- and the decision
-  // that became proposed in the same check keeps its own toast rather than
-  // being counted into that line. The tick does its two reads and then exactly
-  // ONE `task view` (the budget is three children: QCLI-490, DEC-172 (4bg) item
-  // 1 (d)), which is why one departure is told Done here and a second would
-  // wait for the next tick.
+  // Four changes, so one line instead of four -- and the decision that became
+  // proposed in the same check keeps its own toast rather than being counted
+  // into that line.
   expect(toasts).toEqual([
     {
       text: "quest-cli DEC-141 needs a decision: Answer me",
       timeoutMs: 10_000,
     },
     {
-      text: "4 updates: 1 done, 2 paused, 1 closed. Open the board: /quest dashboard",
+      text: "4 updates: 1 done, 3 paused. Open the board: /quest dashboard",
       timeoutMs: 8_000,
     },
   ]);
@@ -1986,25 +1994,19 @@ test("what moved while no session was running arrives as one summary", async ($,
         status: "Closed",
         resolution: { kind: "superseded" },
       },
-      "QCLI-3": {
-        id: "QCLI-3",
-        title: "Landed work",
-        status: "Done",
-        priority: "high",
-      },
     },
   };
   const { toasts, statuses } = mockAlerts(on, canned);
 
   const ui = await mountAlertPane($);
   // The first check of the session compares against what the last session
-  // stored, and three updates plus a waiting decision are one line rather than
-  // four toasts. Three, not more: the tick's budget is three children, so after
-  // its two reads it tells exactly ONE departed task by looking at it
-  // (QCLI-490, DEC-172 (4bg) item 1 (d)).
+  // stored, and two updates plus a waiting decision are one line rather than
+  // three toasts. Two, not three: the tick's budget is three children and its
+  // two reads already spend two, so exactly ONE departure can be told by
+  // looking at it -- QCLI-2 is, and QCLI-3 waits for the next tick.
   expect(toasts).toEqual([
     {
-      text: "While you were away: 1 decision waiting, 3 updates",
+      text: "While you were away: 1 decision waiting, 2 updates",
       timeoutMs: 8_000,
     },
   ]);

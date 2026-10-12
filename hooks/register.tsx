@@ -498,7 +498,11 @@ async function checkAlerts($: EngineInterface): Promise<void> {
     // spawned one child per departed task, unbounded.
     const departed: AlertTask[] = [];
     const carried: string[] = [];
-    let spent = read.length;
+    // Each read repo costs TWO children -- its `decision list` and its
+    // `task list` -- so the reads spend twice their count. Seeding this with
+    // `read.length` alone let the tick spawn four (QCLI-490 review round 1,
+    // blocker): two reads plus two `task view` look-ups.
+    let spent = read.length * 2;
     for (const [repo, ids] of Object.entries(previous.tasks)) {
       if (!read.some((one) => one.repo === repo)) {
         continue;
