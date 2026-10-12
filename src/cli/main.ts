@@ -837,7 +837,15 @@ function createSpellingFailure(
   // unrecognized flags. Before this, returning here meant
   // `--label x --badflag y` named only `--label`, so a caller fixing that one
   // hit the generic refusal on the next run. Both are named in one refusal.
-  const unknown = unknownFlags(parsed, allowed);
+  //
+  // A redirected spelling is NOT re-listed as "Unrecognized" (QCLI-484
+  // round-1 review): every key of EDIT_FLAG_REDIRECTS is absent from
+  // `allowed` by construction, so the generic list would name it a SECOND
+  // time, contradicting the redirect sentence just emitted. The clause names
+  // only the genuinely-unknown flags -- "every OTHER unrecognized flag" (AC4).
+  const unknown = unknownFlags(parsed, allowed).filter(
+    (flag) => !(flag in EDIT_FLAG_REDIRECTS),
+  );
   const alsoUnrecognized =
     unknown.length === 0
       ? ""

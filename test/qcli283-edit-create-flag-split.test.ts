@@ -255,6 +255,10 @@ test("each create-only spelling edit refuses names its edit-side flags (QCLI-484
       for (const replacement of replacements)
         expect(message, `${flag} names ${replacement}`).toContain(replacement);
       expect(message, "the discard sentence").toContain("Nothing was written");
+      // ...and with no OTHER unknown flag, it is not re-listed as
+      // "Unrecognized" either: a lone create-only spelling is redirected,
+      // never doubled (QCLI-484 round-1 review).
+      expect(message, `${flag} is not re-listed`).not.toContain("Unrecognized");
     }
 
     // Atomicity: nothing from any of the three landed.
@@ -293,6 +297,12 @@ test("a create-only spelling does not hide another unrecognized flag (QCLI-484 A
     expect(message).toContain("--badflag");
     expect(message).toContain("Unrecognized flag");
     expect(message).toContain("Nothing was written");
+    // ...and the create-only spelling is NOT re-listed: the clause names only
+    // the genuinely-unknown flag. Re-listing --label is QCLI-484's round-1
+    // review finding -- the message named it a second time.
+    expect(message.match(/Unrecognized flags? [^.]*\./)?.[0]).toBe(
+      "Unrecognized flag --badflag.",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
