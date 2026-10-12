@@ -39,10 +39,12 @@ dated by its own tag. No date here is inferred (QCLI-398).
   the Backlog.md project root the importer `realpath`s, not a project name, so
   a bare project name fails with ENOENT. The help usage string, the workspace
   guide, the README and the `migrate-from-backlog` skill now read
-  `--source <path>`. **The machine surface is unchanged**: `quest manifest
-  --json` never carried the placeholder -- both commands' `parameters.positional`
-  is `[]` (the token after `--source` is the flag's value, not a positional) and
-  the manifest is byte-identical before and after.
+  `--source <path>`. **`quest manifest --json` is unchanged**: it never carried
+  the placeholder -- both commands' `parameters.positional` is `[]` (the token
+  after `--source` is the flag's value, not a positional) and the manifest is
+  byte-identical before and after. The corrected text is what the help surfaces
+  render -- `quest help`, `quest instructions workspace`, and `quest help
+  --json`, which carries each command's `usage`.
 
 ## 0.13.0
 
