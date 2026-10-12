@@ -21,11 +21,14 @@ import { join } from "node:path";
 
 const REPO = new URL("..", import.meta.url).pathname;
 
-// A bare `bun` token: at the start of a script, or after a shell separator,
-// and ended by whitespace or the end of the string. That shape is exactly a
-// PATH lookup. `"$npm_execpath"` carries no `bun` token; a `${npm_execpath:-bun}`
-// fallback would reintroduce one and is deliberately not written anywhere.
-const BARE_BUN = /(?:^|[\s&|;(])bun(?:\s|$)/;
+// A bare `bun` token: not preceded by a path or word character (`/`, `.`,
+// letters, digits) and not followed by a word character or `-` (so `bunx` and
+// a hyphenated word are not offenders). That shape is a PATH lookup wherever
+// it appears -- at the start of a script, after `&&`, `;`, `|` or `(`, inside
+// backtick or `$(` command substitution, behind a `VAR=` prefix, or as a
+// `${npm_execpath:-bun}` fallback. `"$npm_execpath"` carries no `bun` token,
+// which is the whole point.
+const BARE_BUN = /(?:^|[^\w/.])bun(?![-\w])/;
 
 const readScripts = async (): Promise<Record<string, string>> => {
   const pkg = (await Bun.file(join(REPO, "package.json")).json()) as {
@@ -58,4 +61,39 @@ test("the nested test runner in `bun run check` uses the declared bun (QCLI-471)
   expect(runTest).toMatch(/npm_execpath"?\s+test\s/);
   expect(runTest).toContain("--path-ignore-patterns='tests/**'");
   expect(BARE_BUN.test(runTest)).toBe(false);
+});
+
+// The guard above is only as good as the shell forms it can see. QCLI-471's
+// review round 1 measured that the first version of BARE_BUN, whose separators
+// were `[\s&|;(]`, missed a bare `bun` inside backtick command substitution --
+// a gap no current script exercises but a future one could. These cases pin the
+// guard's reach so it cannot silently narrow again.
+test("the bare-bun guard matches every shell position (QCLI-471)", () => {
+  // Positive: a bare `bun` token in any shell position is a PATH lookup.
+  for (const script of [
+    "bun test",
+    "x && bun test",
+    "x;bun test",
+    "x|bun test",
+    "(bun test)",
+    "FOO=1 bun test",
+    "`bun --version`",
+    "echo `bun test`",
+    "$(bun test)",
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: literal script text, not a placeholder
+    "${npm_execpath:-bun} test",
+    "... && bun",
+  ])
+    expect([script, BARE_BUN.test(script)]).toEqual([script, true]);
+
+  // Negative: naming the declaring runtime, or a token that is not `bun`.
+  for (const script of [
+    '"$npm_execpath" test',
+    '"$npm_execpath" run check',
+    "node scripts/check-layers.mjs",
+    "./node_modules/.bin/bun test",
+    "/opt/homebrew/bin/bun test",
+    "bunx tsc",
+  ])
+    expect([script, BARE_BUN.test(script)]).toEqual([script, false]);
 });
