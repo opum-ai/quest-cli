@@ -293,13 +293,18 @@ export interface TaskState {
   readonly source?: SourceProvenance;
   /**
    * QCLI-336: the persisted counterpart of QCLI-252's response-only signal.
-   * Set once, by `complete()`, from the checklist state at the moment a task
-   * reaches its terminal status -- never recomputed afterward, so editing a
-   * completed task's checklist does not retroactively rewrite what was open
-   * when it closed. Absent means either nothing was unresolved at
-   * completion, or the task predates this field (QCLI-336 does not backfill
-   * historical records) -- the two are indistinguishable from this field
-   * alone, by design.
+   * Written by `complete()` from the checklist state at the moment a task
+   * reaches its terminal status. QCLI-479 (opum-doc DEC-172 (4ae)): a
+   * COMPLETION REFRESHES it rather than setting it once -- a task demoted back
+   * to an active status, amended, and completed again carries the unresolved
+   * set of THAT completion, and the field is CLEARED when nothing is
+   * unresolved then, so a first-completion snapshot never survives amended
+   * criteria. Editing a completed task's checklist still does not rewrite it:
+   * only reaching the terminal status again does, and any history lives in the
+   * per-transition records. Absent means either nothing was unresolved at the
+   * completion that wrote it, or the task predates this field (QCLI-336 does
+   * not backfill historical records) -- the two are indistinguishable from
+   * this field alone, by design.
    */
   readonly unresolvedAtCompletion?: UnresolvedAtCompletion;
   /**
