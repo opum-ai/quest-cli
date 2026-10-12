@@ -278,6 +278,7 @@
 - 2026-10-06T21:39:20-05:00 ef9c2b44e4d2f39ac05b3c475a7432420aa689f2 chore(QCLI-433): regenerate .lore schemas and managed blocks for lore 0.13.0 (DEC-169)
 - 2026-10-06T22:27:01-05:00 598653c4f26da073202377d90eef92aa051d912f chore(QCLI-433): bump quest to 0.13.0 and record the board mod (#486)
 - 2026-10-07T12:31:14-05:00 04c9dbb2723a270ac118bf88a0aa087e32f4f1eb chore(QCLI-433): complete the 0.13.0 release task (#536)
+- 2026-10-11T23:40:01-05:00 5da788909eebd9ed223652c2692c8da730973eb6 docs(QCLI-464): name the gate set each release route runs
 
 ## docs/adr
 

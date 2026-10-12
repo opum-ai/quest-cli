@@ -723,8 +723,8 @@ release ships having silently skipped them.
 
 | `release.yml` step | Gate | Local route (`publish-release.mjs`) |
 |---|---|---|
-| Assert the npm OIDC floor | npm >= 11.5.1 and Node >= 22.14.0 | Not applicable: the local route authenticates with a stored token or an interactive OTP, never OIDC. |
-| Fetch the native-execution receipt for this commit | `gh run list`/`gh run download` the successful `prepublication-qualification.yml` run at the released commit, plus its `quest-candidate-bundle` | Not run: the operator supplies `--receipt <path>` and the bundle from that run, so fetching it and proving its provenance is the operator's own step. |
+| Assert the npm OIDC floor | The asserted gate is the npm floor, >= 11.5.1; Node is pinned by `setup-node` (`node-version: 24`) rather than asserted | Not applicable: the local route authenticates with a stored token or an interactive OTP, never OIDC. |
+| Fetch the native-execution receipt for this commit | `gh run list`/`gh run download` the successful `prepublication-qualification.yml` run at the released commit, both the `native-execution-receipt` and the `quest-candidate-bundle` | Partly covered: the script downloads the `quest-candidate-bundle` itself and proves its provenance from the run record, given only `--qualification-run <id>`. Only the native-execution receipt is operator-supplied, as `--receipt <path>`. |
 | Gate on the receipt | `native-execution-receipt.mjs --require` | Covered: `validateReceipt`, re-deriving every digest from the artifacts on disk. |
 | Gate on the opum-cli-e2e qualification receipt | `e2e-receipt.mjs --require` -- binds version, commit, run id, all seven tarball sha256, and the launcher substitution | Covered: `requireQualification`, the same receipt and the same substitution re-run on the downloaded bundle. |
 | Gate on release provenance | `release-provenance.mjs --pre` -- tag, commit and `package.json` agree, and the commit is reachable from `main` | **Not run -- run it by hand** (below). |
