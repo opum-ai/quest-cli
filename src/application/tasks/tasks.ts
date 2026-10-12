@@ -838,8 +838,11 @@ export class TaskService {
         // previous snapshot, and CLEARS it when nothing is unresolved now:
         // leaving the older one standing is what let a first-completion
         // snapshot read as a current statement about amended criteria. The
-        // `undefined` here removes the key; demoteTask clears `resolution` the
-        // same way.
+        // `undefined` is what CLEARS it: it survives taskState's parse as a
+        // present key holding undefined, and is dropped when the record is
+        // serialized at the write boundary. demoteTask withdraws `resolution`
+        // by rest destructuring instead; either way the key is absent from the
+        // persisted record.
         const unresolved = unresolvedAtCompletion(withSummary);
         return taskState({
           ...withSummary,

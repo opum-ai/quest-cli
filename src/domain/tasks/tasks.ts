@@ -299,10 +299,12 @@ export interface TaskState {
    * to an active status, amended, and completed again carries the unresolved
    * set of THAT completion, and the field is CLEARED when nothing is
    * unresolved then, so a first-completion snapshot never survives amended
-   * criteria. Editing a completed task's checklist still does not rewrite it:
-   * only reaching the terminal status again does, and any history lives in the
-   * per-transition records. Absent means either nothing was unresolved at the
-   * completion that wrote it, or the task predates this field (QCLI-336 does
+   * criteria. The field is written ONLY by a completion: editing a completed
+   * task's checklist does not rewrite it, and neither does
+   * `task edit --status <terminal>`, which reaches the terminal status without
+   * a completion. No earlier snapshot is retained anywhere on the record --
+   * each completion replaces it. Absent means either nothing was unresolved at
+   * the completion that wrote it, or the task predates this field (QCLI-336 does
    * not backfill historical records) -- the two are indistinguishable from
    * this field alone, by design.
    */

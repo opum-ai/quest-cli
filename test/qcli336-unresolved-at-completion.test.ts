@@ -123,7 +123,7 @@ test("task list --unresolved-at-completion finds a completed task with open item
   }
 }, 60_000);
 
-test("unresolvedAtCompletion is set once at completion and does not change when the completed task is edited afterward (QCLI-336)", async () => {
+test("editing a completed task's checklist does not change its unresolvedAtCompletion (QCLI-336, QCLI-479)", async () => {
   const root = await workspace();
   try {
     quest(root, [
