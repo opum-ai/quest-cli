@@ -208,6 +208,20 @@ export class LocalGitPort implements GitPort {
     return result.stdout.split("\n").filter((line) => line.length > 0);
   }
 
+  async listWorktrees(repositoryPath: string): Promise<readonly string[]> {
+    const result = await git(repositoryPath, [
+      "worktree",
+      "list",
+      "--porcelain",
+    ]);
+    if (result.code !== 0) return [];
+    return result.stdout
+      .split("\n")
+      .filter((line) => line.startsWith("worktree "))
+      .map((line) => line.slice("worktree ".length).trim())
+      .filter((path) => path.length > 0);
+  }
+
   async currentBranch(repositoryPath: string): Promise<string | null> {
     const result = await git(repositoryPath, [
       "rev-parse",
