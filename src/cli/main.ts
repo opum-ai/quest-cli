@@ -56,6 +56,10 @@ import type {
   AcrossRefsUnreadable,
 } from "../application/refs/across-refs.ts";
 import {
+  allocateId,
+  type IdAllocation,
+} from "../application/tasks/id-allocation.ts";
+import {
   type DuplicateIdentityRecord,
   LocalTaskRepository,
   RecordDuplicateIdentityError,
@@ -419,7 +423,7 @@ function acrossRefsRefName(entry: AcrossRefsUnreadable): string {
  * `tasks/` would report it as a phantom open task on every ref.
  *
  * FILENAMES ONLY, like the id allocator this borrows from
- * ({@link highestSequenceOnOtherRefs}) -- one tree listing per ref, never a
+ * ({@link idsOnOtherRefs}) -- one tree listing per ref, never a
  * `git show` and never a JSON parse. That is what keeps it free of a merge
  * policy: the allocator's cross-ref operation is max-over-integers, which
  * cannot disagree with itself, whereas READING status across refs would have
@@ -1267,6 +1271,57 @@ async function taskStoreRoot(): Promise<string> {
   ).worktreePath;
 }
 
+/**
+ * QCLI-495 (DEC-179 part 1): the repository's COMMON git dir, which every
+ * worktree of it shares and which is therefore where the id-allocation lock
+ * and reservation ledger live. Null in exactly the two cases that have no
+ * such dir: a `QUEST_TASK_STORE` override, which names a raw store and no
+ * workspace to inspect, and a `.quest` with no Git repository behind it --
+ * and a null here is what makes allocation fall back to the working-tree-only
+ * behaviour DEC-179 requires it to keep.
+ */
+async function workspaceCommonDirectory(): Promise<string | null> {
+  if (process.env.QUEST_TASK_STORE !== undefined) return null;
+  try {
+    return (
+      await resolveInitializedWorkspace(createWorkspacePort(), process.cwd())
+    ).commonDirectory;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * QCLI-495: a create allocates an id only when the caller did not name one. An
+ * explicit `--id` takes no lock, writes no ledger entry and can therefore
+ * report no stale-lock break -- so the two cases are folded into one value a
+ * call site cannot take half of, and `allocate` is not even called for an
+ * explicit id (allocating one would burn a ledger entry on an id nobody is
+ * going to use).
+ */
+async function idForCreate(
+  explicitId: string | undefined,
+  allocate: () => Promise<IdAllocation>,
+): Promise<IdAllocation> {
+  return explicitId === undefined
+    ? await allocate()
+    : { id: explicitId, brokeStaleLock: false, lockPath: null };
+}
+
+/** QCLI-495 AC 5: a run that found its allocation lock abandoned SAYS so.
+ * The `Warning: ` prefix is DEC-1's shape, which the shared result contract's
+ * stderr-silence check already tolerates on a success envelope. */
+function withAllocationNotice(
+  result: InvocationResult,
+  allocation: IdAllocation,
+): InvocationResult {
+  if (!allocation.brokeStaleLock) return result;
+  return {
+    ...result,
+    stderr: `Warning: broke a stale id allocation lock at ${allocation.lockPath} -- its holder pid is gone and the lock was older than 30s.\n`,
+  };
+}
+
 function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   const id = one(parsed, "--actor");
   const kind = one(parsed, "--actor-kind");
@@ -1314,12 +1369,12 @@ const DRAFT_RECORD_SUBDIRECTORIES = ["drafts", "archive/drafts"];
  * `readRevision("HEAD")` call for exactly this reason. Either way, a plain
  * (non-Git) `.quest` directory keeps today's local-only behavior exactly.
  */
-async function highestSequenceOnOtherRefs(
+async function idsOnOtherRefs(
   git: ReturnType<typeof createGitPort>,
   root: string,
   marker: string,
   subdirectories: readonly string[],
-): Promise<number> {
+): Promise<readonly string[]> {
   try {
     const refs = await git.listRefs(root);
     const filesByRef = await Promise.all(
@@ -1332,18 +1387,17 @@ async function highestSequenceOnOtherRefs(
         return filesBySubdirectory.flat();
       }),
     );
-    let highest = 0;
+    const ids: string[] = [];
     for (const file of filesByRef.flat()) {
       const name = file.slice(file.lastIndexOf("/") + 1);
       if (!name.startsWith(marker) || !name.endsWith(".json")) continue;
-      const numeric = Number(
-        name.slice(marker.length, name.length - ".json".length),
-      );
-      if (Number.isSafeInteger(numeric)) highest = Math.max(highest, numeric);
+      const id = name.slice(0, -".json".length);
+      const numeric = Number(id.slice(marker.length));
+      if (Number.isSafeInteger(numeric)) ids.push(id);
     }
-    return highest;
+    return ids;
   } catch {
-    return 0;
+    return [];
   }
 }
 
@@ -1352,27 +1406,25 @@ async function nextTaskId(
   prefix: string,
   git: ReturnType<typeof createGitPort>,
   root: string,
-): Promise<string> {
-  const ids = await tasks.listIncludingRetained();
+  commonDirectory: string | null,
+): Promise<IdAllocation> {
+  const marker = `${prefix}-`;
   // Only this prefix's own family can advance the counter: a foreign-prefixed
   // id (an imported record, or a workspace whose prefix changed) must never
-  // perturb the sequence.
-  const marker = `${prefix}-`;
-  const localHighest = ids.reduce((maximum, task) => {
-    if (!task.id.startsWith(marker)) return maximum;
-    const numeric = Number(task.id.slice(marker.length));
-    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
-  }, 0);
-  const highest = Math.max(
-    localHighest,
-    await highestSequenceOnOtherRefs(
-      git,
-      root,
-      marker,
-      TASK_RECORD_SUBDIRECTORIES,
-    ),
-  );
-  return `${prefix}-${highest + 1}`;
+  // perturb the sequence. QCLI-495 moved that filter into `allocateId`, where
+  // it is applied to every source at once; this checkout now contributes its
+  // own ids and the refs' ids, and nothing else.
+  return allocateId({
+    git,
+    worktreeRoot: root,
+    commonDirectory,
+    marker,
+    recordDirectories: TASK_RECORD_SUBDIRECTORIES,
+    visibleIds: [
+      ...(await tasks.listIncludingRetained()).map((task) => task.id),
+      ...(await idsOnOtherRefs(git, root, marker, TASK_RECORD_SUBDIRECTORIES)),
+    ],
+  });
 }
 
 /**
@@ -1404,26 +1456,23 @@ async function nextDraftId(
   tasks: TaskService,
   git: ReturnType<typeof createGitPort>,
   root: string,
-): Promise<string> {
-  const drafts = await tasks.listDrafts(true);
+  commonDirectory: string | null,
+): Promise<IdAllocation> {
   const marker = "D-";
-  const localHighest = drafts.reduce((maximum, record) => {
-    // Same rule as nextTaskId: only this family's own ids advance the
-    // counter, so an imported or foreign-prefixed record cannot perturb it.
-    if (!record.draft.id.startsWith(marker)) return maximum;
-    const numeric = Number(record.draft.id.slice(marker.length));
-    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
-  }, 0);
-  const highest = Math.max(
-    localHighest,
-    await highestSequenceOnOtherRefs(
-      git,
-      root,
-      marker,
-      DRAFT_RECORD_SUBDIRECTORIES,
-    ),
-  );
-  return `D-${highest + 1}`;
+  // Same rule as nextTaskId: only this family's own ids advance the counter,
+  // so an imported or foreign-prefixed record cannot perturb it -- and the
+  // filter lives in `allocateId` for both families, once.
+  return allocateId({
+    git,
+    worktreeRoot: root,
+    commonDirectory,
+    marker,
+    recordDirectories: DRAFT_RECORD_SUBDIRECTORIES,
+    visibleIds: [
+      ...(await tasks.listDrafts(true)).map((record) => record.draft.id),
+      ...(await idsOnOtherRefs(git, root, marker, DRAFT_RECORD_SUBDIRECTORIES)),
+    ],
+  });
 }
 
 /** Asks one question on the real terminal and returns the trimmed answer, or
@@ -1613,7 +1662,7 @@ export async function writeInitInstructions(
  * 2026-09-14 from branches neither of which carried the other's record.
  *
  * It needs its own mechanism, and that is the whole reason this is not a
- * two-line change. {@link highestSequenceOnOtherRefs} finds ids by reading
+ * two-line change. {@link idsOnOtherRefs} finds ids by reading
  * FILE NAMES, which works only because tasks and drafts are stored one
  * record per file. Milestones and decisions share a single
  * `.quest/planning.json`, so a filename scan over that path matches one
@@ -1633,11 +1682,11 @@ export async function writeInitInstructions(
  * branch carrying a corrupt `planning.json` cannot wedge allocation on this
  * one.
  */
-async function highestPlanningSequenceOnOtherRefs(
+async function planningIdsOnOtherRefs(
   git: ReturnType<typeof createGitPort>,
   root: string,
   prefix: "M" | "DEC",
-): Promise<number> {
+): Promise<readonly string[]> {
   const marker = `${prefix}-`;
   try {
     const refs = await git.listRefs(root);
@@ -1650,7 +1699,7 @@ async function highestPlanningSequenceOnOtherRefs(
         }
       }),
     );
-    let highest = 0;
+    const ids: string[] = [];
     for (const document of documents) {
       if (document === null) continue;
       let parsed: unknown;
@@ -1671,14 +1720,13 @@ async function highestPlanningSequenceOnOtherRefs(
           const id = (entry as { id?: unknown } | null)?.id;
           if (typeof id !== "string" || !id.startsWith(marker)) continue;
           const numeric = Number(id.slice(marker.length));
-          if (Number.isSafeInteger(numeric))
-            highest = Math.max(highest, numeric);
+          if (Number.isSafeInteger(numeric)) ids.push(id);
         }
       }
     }
-    return highest;
+    return ids;
   } catch {
-    return 0;
+    return [];
   }
 }
 
@@ -1687,24 +1735,30 @@ async function nextPlanningId(
   prefix: "M" | "DEC",
   git: ReturnType<typeof createGitPort>,
   root: string,
-): Promise<string> {
+  commonDirectory: string | null,
+): Promise<IdAllocation> {
+  const marker = `${prefix}-`;
   // Archived milestones keep their ids, so allocation must see them: listing
   // only the live ones would hand out an id that already exists.
   const records =
     prefix === "M"
       ? await planning.listMilestones(true)
       : await planning.listDecisions();
-  const marker = `${prefix}-`;
-  const localHighest = records.reduce((maximum, record) => {
-    if (!record.id.startsWith(marker)) return maximum;
-    const numeric = Number(record.id.slice(marker.length));
-    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
-  }, 0);
-  const highest = Math.max(
-    localHighest,
-    await highestPlanningSequenceOnOtherRefs(git, root, prefix),
-  );
-  return `${prefix}-${highest + 1}`;
+  return allocateId({
+    git,
+    worktreeRoot: root,
+    commonDirectory,
+    marker,
+    // Milestones and decisions live in `.quest/planning.json` rather than one
+    // file per record, which is why this family is enumerated from a document
+    // in the refs scan AND in the worktree scan -- the prefix filter travels
+    // with the marker, or DEC-9 would advance the milestone counter.
+    recordDirectories: null,
+    visibleIds: [
+      ...records.map((record) => record.id),
+      ...(await planningIdsOnOtherRefs(git, root, prefix)),
+    ],
+  });
 }
 
 /**
@@ -1786,6 +1840,11 @@ export async function runQuest(
       });
     let root: Promise<string> | undefined;
     const resolvedRoot = () => (root ??= taskStoreRoot());
+    // QCLI-495: read once per invocation, like the root above -- a create
+    // resolves the common dir once, not once per allocation input.
+    let commonDirectory: Promise<string | null> | undefined;
+    const resolvedCommonDirectory = () =>
+      (commonDirectory ??= workspaceCommonDirectory());
     const git = createGitPort();
     // QCLI-330: read once per invocation. A [tasks] table that cannot be read
     // is CARRIED, never thrown (reviewer finding 2): the write paths refuse
@@ -2787,14 +2846,16 @@ export async function runQuest(
             "denied",
             `${group} writes require an explicit actor declaration.`,
           );
-        const id =
-          one(parsed, "--id") ??
-          (await nextPlanningId(
+        const allocation = await idForCreate(one(parsed, "--id"), async () =>
+          nextPlanningId(
             planning,
             isMilestone ? "M" : "DEC",
             git,
             await resolvedRoot(),
-          ));
+            await resolvedCommonDirectory(),
+          ),
+        );
+        const id = allocation.id;
         const result = isMilestone
           ? await planning.createMilestone(
               {
@@ -2821,15 +2882,18 @@ export async function runQuest(
               },
               crypto.randomUUID(),
             );
-        return output(
-          {
-            schemaVersion: 1,
-            kind: isMilestone ? "milestone.created" : "decision.created",
-            // QCLI-265: the record itself, not {record, result}. `result` is
-            // the same mutation wrapper QCLI-264 unwrapped elsewhere.
-            data: result.record,
-          },
-          modeFor(parsed),
+        return withAllocationNotice(
+          output(
+            {
+              schemaVersion: 1,
+              kind: isMilestone ? "milestone.created" : "decision.created",
+              // QCLI-265: the record itself, not {record, result}. `result` is
+              // the same mutation wrapper QCLI-264 unwrapped elsewhere.
+              data: result.record,
+            },
+            modeFor(parsed),
+          ),
+          allocation,
         );
       }
       if (action === "delete" && rest[0]) {
@@ -3059,10 +3123,17 @@ export async function runQuest(
             "denied",
             "Draft writes require an explicit actor declaration.",
           );
+        const allocation = await idForCreate(one(parsed, "--id"), async () =>
+          nextDraftId(
+            tasks,
+            git,
+            await resolvedRoot(),
+            await resolvedCommonDirectory(),
+          ),
+        );
         const data = recordFromMutation(
           await tasks.createDraft(
-            one(parsed, "--id") ??
-              (await nextDraftId(tasks, git, await resolvedRoot())),
+            allocation.id,
             {
               title: rest[0],
               description: one(parsed, "--description"),
@@ -3073,9 +3144,12 @@ export async function runQuest(
           ),
           "draft",
         );
-        return output(
-          { schemaVersion: 1, kind: "draft.created", data },
-          modeFor(parsed),
+        return withAllocationNotice(
+          output(
+            { schemaVersion: 1, kind: "draft.created", data },
+            modeFor(parsed),
+          ),
+          allocation,
         );
       }
       if (action === "promote" && rest[0]) {
@@ -3093,23 +3167,27 @@ export async function runQuest(
             "denied",
             "Draft writes require an explicit actor declaration.",
           );
+        const allocation = await idForCreate(
+          one(parsed, "--task-id"),
+          async () =>
+            nextTaskId(
+              tasks,
+              await configuredTaskIdPrefix(),
+              git,
+              await resolvedRoot(),
+              await resolvedCommonDirectory(),
+            ),
+        );
         const data = recordFromMutation(
-          await tasks.promoteDraft(
-            rest[0],
-            one(parsed, "--task-id") ??
-              (await nextTaskId(
-                tasks,
-                await configuredTaskIdPrefix(),
-                git,
-                await resolvedRoot(),
-              )),
-            crypto.randomUUID(),
-          ),
+          await tasks.promoteDraft(rest[0], allocation.id, crypto.randomUUID()),
           "task",
         );
-        return output(
-          { schemaVersion: 1, kind: "draft.promoted", data },
-          modeFor(parsed),
+        return withAllocationNotice(
+          output(
+            { schemaVersion: 1, kind: "draft.promoted", data },
+            modeFor(parsed),
+          ),
+          allocation,
         );
       }
       if (action === "archive" && rest[0]) {
@@ -3784,14 +3862,16 @@ export async function runQuest(
       // `create()` receives an already-resolved id, so the distinction is
       // drawn here rather than in the application layer.
       const explicitId = one(parsed, "--id");
-      const createId =
-        explicitId ??
-        (await nextTaskId(
+      const allocation = await idForCreate(explicitId, async () =>
+        nextTaskId(
           tasks,
           await configuredTaskIdPrefix(),
           git,
           await resolvedRoot(),
-        ));
+          await resolvedCommonDirectory(),
+        ),
+      );
+      const createId = allocation.id;
       let created: Awaited<ReturnType<typeof dispatchTrackerTaskCommand>>;
       try {
         created = await dispatchTrackerTaskCommand(tasks, {
@@ -3850,7 +3930,7 @@ export async function runQuest(
           },
         );
       }
-      return output(created, modeFor(parsed));
+      return withAllocationNotice(output(created, modeFor(parsed)), allocation);
     }
     if (command === "edit-batch") {
       // QCLI-122 public batch boundary (strict JSONL per FMC 05fe52e8):
