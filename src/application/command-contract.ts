@@ -779,13 +779,19 @@ export const commandManifest = {
       kind: "question.list",
       mutates: false,
       filters: ["status"],
+      // QCLI-461 / QCLI-482: the COMPLETE top-level key set of a question
+      // record, not a curated subset -- so `id`, `createdAt` and `updatedAt`
+      // are declared here too.
       fields: [
         "answer",
         "context",
+        "createdAt",
+        "id",
         "options",
         "recommended",
         "status",
         "title",
+        "updatedAt",
         "withdrawal",
       ],
     },
@@ -797,10 +803,13 @@ export const commandManifest = {
       fields: [
         "answer",
         "context",
+        "createdAt",
+        "id",
         "options",
         "recommended",
         "status",
         "title",
+        "updatedAt",
         "withdrawal",
       ],
     },
