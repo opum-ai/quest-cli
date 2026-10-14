@@ -3254,8 +3254,9 @@ export async function runQuest(
           );
         const title = one(parsed, "--title");
         if (!title) return failure("usage", questionFallback);
+        const explicitId = one(parsed, "--id");
         const data = await questions.ask(
-          one(parsed, "--id") ??
+          explicitId ??
             (await nextQuestionId(questions, git, await resolvedRoot())),
           {
             title,
@@ -3266,6 +3267,7 @@ export async function runQuest(
             recommended: one(parsed, "--recommend"),
             createdAt: new Date().toISOString(),
           },
+          explicitId !== undefined,
         );
         return output(
           { schemaVersion: 1, kind: "question.asked", data },
