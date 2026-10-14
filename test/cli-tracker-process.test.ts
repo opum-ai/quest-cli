@@ -890,6 +890,43 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ])
       ).stdout,
     ).data.id as string;
+    // QCLI-445: two open questions, one to answer and one to withdraw, since
+    // answering and withdrawing are the record's two mutually-exclusive
+    // terminal states and a single question cannot exercise both.
+    const questionToAnswer = JSON.parse(
+      (
+        await quest(store, [
+          "question",
+          "ask",
+          "--title",
+          "Existing question",
+          "--option",
+          "A=Yes:y",
+          "--option",
+          "B=No:n",
+          "--recommend",
+          "A",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.id as string;
+    const questionToWithdraw = JSON.parse(
+      (
+        await quest(store, [
+          "question",
+          "ask",
+          "--title",
+          "Withdrawable question",
+          "--option",
+          "A=Yes:y",
+          "--option",
+          "B=No:n",
+          ...actor,
+          "--json",
+        ])
+      ).stdout,
+    ).data.id as string;
     const bound = JSON.parse(
       (await quest(store, ["task", "create", "Bound", ...actor, "--json"]))
         .stdout,
@@ -1173,6 +1210,42 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
         ...actor,
         "--plain",
       ],
+      // QCLI-445: manifest order runs ask before answer/withdraw, so `ask`
+      // creates a fresh question and the other two target the fixtures above.
+      "question ask": [
+        "question",
+        "ask",
+        "--title",
+        "Plain question",
+        "--option",
+        "A=Yes:y",
+        "--option",
+        "B=No:n",
+        "--recommend",
+        "A",
+        ...actor,
+        "--plain",
+      ],
+      "question answer": [
+        "question",
+        "answer",
+        questionToAnswer,
+        "--choice",
+        "A",
+        ...actor,
+        "--plain",
+      ],
+      "question withdraw": [
+        "question",
+        "withdraw",
+        questionToWithdraw,
+        "--reason",
+        "no longer needed",
+        ...actor,
+        "--plain",
+      ],
+      "question list": ["question", "list", "--plain"],
+      "question view": ["question", "view", questionToAnswer, "--plain"],
       overview: ["overview", "--plain"],
       board: ["board", "--plain"],
       "board export": [
