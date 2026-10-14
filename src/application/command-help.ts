@@ -559,9 +559,9 @@ export const commandHelp: Record<
   },
   "question ask": {
     summary:
-      "File an operator question (opum-doc seq 179(a)): a record that blocks the tasks that need the answer without blocking the asking session, until the operator answers it in the Quest pane. --title is required; repeat --option <key>=<label>:<description> for each choice, and --recommend names one option key. The id allocates as Q-N unless --id is given. Status starts `open`.",
+      "File an operator question (opum-doc seq 179(a), DEC-190): a record that blocks the tasks that need the answer without blocking the asking session, until the operator answers it in the Quest pane. --title is required. Supply 2 to 4 --option <key>=<label>:<description> values, and --recommend <key>, which is REQUIRED and must name one of them; a text-only answer through the pane's Other row stays allowed. The id allocates as Q-N unless --id is given. Status starts `open`.",
     usage:
-      'quest question ask --title "<title>" [--context "<context>"] [--option A=<label>:<description>]... [--recommend A] --actor <name> --actor-kind human',
+      'quest question ask --title "<title>" --option A=<label>:<description> --option B=<label>:<description> [--option C=<label>:<description>] [--option D=<label>:<description>] --recommend A [--context "<context>"] --actor <name> --actor-kind human',
     flags: [
       "--id",
       "--title",

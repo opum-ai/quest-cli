@@ -80,6 +80,11 @@ test("ask allocates Q-N and stores the record the design specifies (QCLI-445)", 
       { key: "A", label: "Yes", description: "ship now" },
       { key: "B", label: "No", description: "wait" },
     ]);
+    // DEC-190: timestamps are carried; `withdrawal` is present ONLY when the
+    // question is withdrawn, so an open one must not carry it at all.
+    expect(typeof record.createdAt).toBe("string");
+    expect(typeof record.updatedAt).toBe("string");
+    expect(record.withdrawal).toBeUndefined();
 
     // A second ask allocates the next sequence.
     expect(JSON.parse((await ask(run)).stdout).data.id).toBe("Q-2");
@@ -104,6 +109,64 @@ test("a --recommend that names no option key is refused (QCLI-445)", async () =>
     ]);
     expect(result.exitCode).toBe(6);
     expect(JSON.parse(result.stderr).error_type).toBe("validation");
+  });
+});
+
+test("ask requires 2 to 4 options and a --recommend naming one of them (DEC-190)", async () => {
+  await withStore(async (run) => {
+    const askArgs = (
+      options: readonly string[],
+      recommend: readonly string[],
+    ): readonly string[] => [
+      "question",
+      "ask",
+      "--title",
+      "T",
+      ...options.flatMap((option) => ["--option", option]),
+      ...recommend,
+      ...OPERATOR,
+      "--json",
+    ];
+    const two = ["A=Yes:y", "B=No:n"];
+
+    // REFUSED: 0, 1 and 5 options, and a missing --recommend.
+    const refused: readonly (readonly [string, readonly string[]])[] = [
+      ["0 options", askArgs([], ["--recommend", "A"])],
+      ["1 option", askArgs(["A=Yes:y"], ["--recommend", "A"])],
+      [
+        "5 options",
+        askArgs(
+          ["A=1:a", "B=2:b", "C=3:c", "D=4:d", "E=5:e"],
+          ["--recommend", "A"],
+        ),
+      ],
+      ["missing --recommend", askArgs(two, [])],
+    ];
+    for (const [label, argv] of refused) {
+      const result = await run(argv);
+      expect({
+        label,
+        exitCode: result.exitCode,
+        type: (JSON.parse(result.stderr) as { error_type?: string }).error_type,
+      }).toEqual({ label, exitCode: 6, type: "validation" });
+    }
+
+    // ACCEPTED: 2 and 4 options, with a recommendation naming a given key.
+    const twoOptions = await run(askArgs(two, ["--recommend", "A"]));
+    expect(twoOptions.exitCode).toBe(0);
+    expect(
+      (JSON.parse(twoOptions.stdout).data as { options: unknown[] }).options,
+    ).toHaveLength(2);
+    const fourOptions = await run(
+      askArgs(["A=1:a", "B=2:b", "C=3:c", "D=4:d"], ["--recommend", "D"]),
+    );
+    expect(fourOptions.exitCode).toBe(0);
+    const fourRecord = JSON.parse(fourOptions.stdout).data as {
+      options: unknown[];
+      recommended: string;
+    };
+    expect(fourRecord.options).toHaveLength(4);
+    expect(fourRecord.recommended).toBe("D");
   });
 });
 
@@ -140,6 +203,8 @@ test("ask/answer/view/list round-trip, and via records how the answer arrived (Q
     expect(record.answer.actor).toBe("operator-1");
     expect(record.answer.via).toBe("quest-board-pane");
     expect(typeof record.answer.answeredAt).toBe("string");
+    expect(typeof record.updatedAt).toBe("string");
+    expect(record.withdrawal).toBeUndefined();
 
     // The answered question leaves the open filter.
     const stillOpen = await run([
@@ -222,8 +287,13 @@ test("withdraw records its reason and is one of two terminal states (QCLI-445)",
     expect(withdrawn.exitCode).toBe(0);
     const record = JSON.parse(withdrawn.stdout).data;
     expect(record.status).toBe("withdrawn");
+    // DEC-190 fixes the field names: reason, by, at.
     expect(record.withdrawal.reason).toBe("no longer relevant");
-    expect(record.withdrawal.actor).toBe("operator-1");
+    expect(record.withdrawal.by).toBe("operator-1");
+    expect(typeof record.withdrawal.at).toBe("string");
+    expect(record.withdrawal.actor).toBeUndefined();
+    expect(record.withdrawal.withdrawnAt).toBeUndefined();
+    expect(typeof record.updatedAt).toBe("string");
 
     // Answering a question that is no longer open is a validation error.
     const late = await run([

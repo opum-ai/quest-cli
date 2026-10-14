@@ -47,11 +47,12 @@ export interface QuestionAnswer {
   readonly via?: string;
 }
 
-/** The record left behind when a question no longer needs asking. */
+/** The record left behind when a question no longer needs asking.
+ * DEC-190 fixes the field names: `by` (the actor) and `at` (the time). */
 export interface QuestionWithdrawal {
   readonly reason: string;
-  readonly withdrawnAt: string;
-  readonly actor: string;
+  readonly by: string;
+  readonly at: string;
 }
 
 export interface Question {
@@ -106,8 +107,8 @@ const answerSchema = z.object({
 });
 const withdrawalSchema = z.object({
   reason: z.string().min(1),
-  withdrawnAt: z.string().min(1),
-  actor: z.string().min(1),
+  by: z.string().min(1),
+  at: z.string().min(1),
 });
 export const questionRecordSchema = z.object({
   id: questionIdSchema,
@@ -158,11 +159,22 @@ export function questionRecord(value: Question): Question {
   return record;
 }
 
+/** DEC-190: `ask` requires 2 to 4 options and a recommendation naming one of
+ * them. A text-only answer through the pane's "Other" stays allowed. */
 export function askQuestion(id: string, input: QuestionAskInput): Question {
+  if (input.options.length < 2 || input.options.length > 4)
+    throw new RecordValidationError("question_options_out_of_range");
+  if (input.recommended === undefined)
+    throw new RecordValidationError("question_recommend_required");
+  if (!input.options.some((option) => option.key === input.recommended))
+    throw new RecordValidationError("question_recommend_not_an_option");
+  const at = input.createdAt ?? new Date().toISOString();
   return questionRecord({
     ...input,
     id: questionId(id),
     status: "open",
+    createdAt: at,
+    updatedAt: at,
   });
 }
 
@@ -181,16 +193,18 @@ export function answerQuestion(
   ) {
     throw new RecordValidationError("question_choice_not_an_option");
   }
+  const at = input.answeredAt ?? new Date().toISOString();
   return questionRecord({
     ...record,
     status: "answered",
     answer: {
       ...(input.choice !== undefined ? { choice: input.choice } : {}),
       ...(input.text !== undefined ? { text: input.text } : {}),
-      answeredAt: input.answeredAt ?? new Date().toISOString(),
+      answeredAt: at,
       actor: input.actor,
       ...(input.via !== undefined ? { via: input.via } : {}),
     },
+    updatedAt: at,
   });
 }
 
@@ -200,13 +214,11 @@ export function withdrawQuestion(
 ): Question {
   if (record.status !== "open")
     throw new RecordValidationError("question_not_open");
+  const at = input.withdrawnAt ?? new Date().toISOString();
   return questionRecord({
     ...record,
     status: "withdrawn",
-    withdrawal: {
-      reason: input.reason,
-      withdrawnAt: input.withdrawnAt ?? new Date().toISOString(),
-      actor: input.actor,
-    },
+    withdrawal: { reason: input.reason, by: input.actor, at },
+    updatedAt: at,
   });
 }

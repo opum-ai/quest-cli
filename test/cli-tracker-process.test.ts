@@ -922,6 +922,8 @@ async function invokeEveryManifestPayloadCommand(mode: "--plain" | "--json") {
           "A=Yes:y",
           "--option",
           "B=No:n",
+          "--recommend",
+          "A",
           ...actor,
           "--json",
         ])
