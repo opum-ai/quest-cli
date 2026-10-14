@@ -557,6 +557,44 @@ export const commandHelp: Record<
     usage: "quest decision delete <id> --actor <name> --actor-kind human",
     flags: [...ACTOR_FLAGS],
   },
+  "question ask": {
+    summary:
+      "File an operator question (opum-doc seq 179(a)): a record that blocks the tasks that need the answer without blocking the asking session, until the operator answers it in the Quest pane. --title is required; repeat --option <key>=<label>:<description> for each choice, and --recommend names one option key. The id allocates as Q-N unless --id is given. Status starts `open`.",
+    usage:
+      'quest question ask --title "<title>" [--context "<context>"] [--option A=<label>:<description>]... [--recommend A] --actor <name> --actor-kind human',
+    flags: [
+      "--id",
+      "--title",
+      "--context",
+      "--option",
+      "--recommend",
+      ...ACTOR_FLAGS,
+    ],
+  },
+  "question answer": {
+    summary:
+      "Record the operator's answer to an open question: either --choice <option key> or --text \"<their own words, verbatim>\". The actor MUST be the operator -- --actor-kind human is required, and a delegated agent is refused (the CLI half of the design's forgery guard). --via names how the answer arrived; the Quest board pane passes quest-board-pane, and any other value is not an operator answer. Sets status `answered`.",
+    usage:
+      'quest question answer <id> --choice <key> | --text "<words>" [--via "<source>"] --actor <name> --actor-kind human',
+    flags: ["--choice", "--text", "--via", ...ACTOR_FLAGS],
+  },
+  "question withdraw": {
+    summary:
+      "Withdraw an open question that no longer needs asking, recording --reason. Sets status `withdrawn`. Only an `open` question can be answered or withdrawn.",
+    usage:
+      'quest question withdraw <id> --reason "<text>" --actor <name> --actor-kind human',
+    flags: ["--reason", ...ACTOR_FLAGS],
+  },
+  "question list": {
+    summary: "List question records, optionally filtered by --status.",
+    usage: "quest question list [--status open|answered|withdrawn]",
+    flags: ["--status"],
+  },
+  "question view": {
+    summary: "View one question record by id.",
+    usage: "quest question view <id>",
+    flags: [],
+  },
   overview: {
     summary:
       "Print a project-wide task overview. Task counts span every retention location -- .quest/tasks/, completed/ and archive/tasks/ -- so completing a task moves a count rather than removing the record from it; byLocation names how the total divides. Milestone counts report archived alongside open and closed: a retired milestone is neither open nor closed work, and is counted separately rather than silently dropped.",
