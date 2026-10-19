@@ -107,7 +107,7 @@ if (releaseProbe.enabled && hostTarget) {
   if (!probe.ok)
     throw new Error(
       [
-        `The ${hostTarget} binary at npm/quest-${hostTarget}/bin/${executable} does not implement capabilities this source tree has, so it is stale relative to src/.`,
+        `The ${hostTarget} binary at npm/quest-${hostTarget}/bin/${executable} does not implement capabilities this source tree has: the committed bytes are stale relative to src/, or -- on a dispatched run, where this file was just rebuilt here -- the build itself is broken.`,
         "A checksum map regenerated from that same binary cannot see this -- that is the defect QCLI-509 exists to close.",
         "Rebuild the platform packages from this tree and commit the new bytes with their checksums (release runbook, 'Why strings first, then bytes').",
         ...probe.problems.map((problem) => `  - ${problem}`),

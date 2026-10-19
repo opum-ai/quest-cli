@@ -261,7 +261,7 @@ export async function probeReleaseBinary({ run }) {
       PROBE_VIEW_SHAPE_ARGS(id),
       problems,
     );
-    if (record === undefined) {
+    if (record === undefined || record === null) {
       if (problems.length === 0)
         problems.push(
           `\`${display(PROBE_VIEW_SHAPE_ARGS(id))}\` carried no data to project, so the view half proved nothing. The gate refuses to pass on a probe that read nothing.`,
