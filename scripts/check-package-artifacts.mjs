@@ -107,14 +107,14 @@ if (releaseProbe.enabled && hostTarget) {
   if (!probe.ok)
     throw new Error(
       [
-        `The committed ${hostTarget} binary does not implement capabilities this source tree has, so it is stale relative to src/.`,
+        `The ${hostTarget} binary at npm/quest-${hostTarget}/bin/${executable} does not implement capabilities this source tree has, so it is stale relative to src/.`,
         "A checksum map regenerated from that same binary cannot see this -- that is the defect QCLI-509 exists to close.",
         "Rebuild the platform packages from this tree and commit the new bytes with their checksums (release runbook, 'Why strings first, then bytes').",
         ...probe.problems.map((problem) => `  - ${problem}`),
       ].join("\n"),
     );
   console.log(
-    `${hostTarget}: the committed binary answers the release probes (${probe.probesRun} probes, task ${probe.id} read).`,
+    `${hostTarget}: the binary at npm/quest-${hostTarget}/bin/${executable} answers the release probes (${probe.probesRun} probes, task ${probe.id} read).`,
   );
 } else if (hostTarget) {
   console.log(

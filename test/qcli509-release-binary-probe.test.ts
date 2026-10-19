@@ -166,6 +166,23 @@ test("an empty listing fails rather than passing on a probe that read nothing", 
   expect(result.problems[0]).toContain("returned no tasks");
 });
 
+test("a view envelope with no data key fails rather than passing on an unread record", async () => {
+  const dataLess = sequence([
+    { status: 0, stdout: "QCLI-1\n" },
+    { status: 0, stdout: '{"data":[{"id":"QCLI-1"}],"principal":null}\n' },
+    { status: 0, stdout: "A title\n" },
+    {
+      status: 0,
+      stdout: '{"schemaVersion":1,"kind":"task.view","principal":null}\n',
+    },
+  ]);
+  const result = await probeReleaseBinary({ run: dataLess.run });
+  expect(result.ok).toBe(false);
+  expect(result.probesRun).toBe(4);
+  expect(result.problems).toHaveLength(1);
+  expect(result.problems[0]).toContain("carried no data to project");
+});
+
 test("a view half that fails is reported after the list half passed", async () => {
   const brokenView = sequence([
     { status: 0, stdout: "QCLI-1\n" },

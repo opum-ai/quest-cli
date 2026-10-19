@@ -71,7 +71,9 @@ dated by its own tag. No date here is inferred (QCLI-398).
   committed binary and compared it to a map regenerated from those same bytes,
   so a binary stale relative to `src/` passed by construction -- 0.13.0 shipped
   a darwin-arm64 binary with no `--fields` support at all (QCLI-438). The gate
-  now executes the committed host-platform binary and requires
+  now executes the host-platform binary -- the committed bytes on a tag ref,
+  which the release job runs as-is, and the freshly built one on a dispatched
+  run -- and requires
   `task list --fields id` and `task view <id> --fields title` to exit 0 and
   return the projected shape. It runs in the native `immutable-candidates` job
   (or with `QUEST_RELEASE_BINARY_PROBE=1`), not in `source-gates`: the

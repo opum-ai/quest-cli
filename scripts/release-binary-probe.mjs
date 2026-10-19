@@ -37,9 +37,11 @@
 // actually about to ship and there is no later CI build to correct it:
 //
 //   - `QUEST_QUALIFICATION_TARGET` equals this host's target. That is the
-//     native qualification job (`immutable-candidates`), which executes the
-//     committed artifact as-is; on a tag ref it is the last thing between
-//     these bytes and the registry.
+//     native qualification job (`immutable-candidates`). On a tag ref that
+//     job runs no rebuild, so it executes the COMMITTED artifact as-is -- the
+//     last thing between these bytes and the registry; on a dispatched run it
+//     runs `build:packages` first, so the binary it probes is the one that run
+//     just built from this tree.
 //   - or `QUEST_RELEASE_BINARY_PROBE=1`, an explicit opt-in used by the
 //     both-ways proof and available to a release session running the gate by
 //     hand.
@@ -259,14 +261,16 @@ export async function probeReleaseBinary({ run }) {
       PROBE_VIEW_SHAPE_ARGS(id),
       problems,
     );
-    if (record !== undefined && !exactKeys(record, ["title"])) {
+    if (record === undefined) {
+      if (problems.length === 0)
+        problems.push(
+          `\`${display(PROBE_VIEW_SHAPE_ARGS(id))}\` carried no data to project, so the view half proved nothing. The gate refuses to pass on a probe that read nothing.`,
+        );
+    } else if (!exactKeys(record, ["title"])) {
       problems.push(
-        `\`${display(PROBE_VIEW_SHAPE_ARGS(id))}\` projected keys ${JSON.stringify(Object.keys(record ?? {}))}; a --fields title projection carries exactly ["title"].`,
+        `\`${display(PROBE_VIEW_SHAPE_ARGS(id))}\` projected keys ${JSON.stringify(Object.keys(record))}; a --fields title projection carries exactly ["title"].`,
       );
-    } else if (
-      record !== undefined &&
-      (typeof record.title !== "string" || record.title.length === 0)
-    ) {
+    } else if (typeof record.title !== "string" || record.title.length === 0) {
       problems.push(
         `\`${display(PROBE_VIEW_SHAPE_ARGS(id))}\` projected an empty title, so the record was not read through the projection.`,
       );

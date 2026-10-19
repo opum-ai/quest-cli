@@ -289,7 +289,9 @@ executes the committed binary and requires `task list --fields id` and
 `task view <id> --fields title` to exit 0 and return the projected shape (the
 DEC-204 probe pair for 0.14.0). It runs only when
 `QUEST_QUALIFICATION_TARGET` names this host -- the native
-`immutable-candidates` job, which executes the committed artifact as-is -- or
+`immutable-candidates` job, where on a tag ref no rebuild runs and the probe
+therefore executes the committed artifact as-is, while a dispatched run probes
+the binary that run just built -- or
 when `QUEST_RELEASE_BINARY_PROBE=1` opts in explicitly. It does **not** run in
 `source-gates`, where that variable is unset and the gate reports the probe as
 skipped with the reason: the strings-first intermediate state below must stay
