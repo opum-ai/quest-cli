@@ -392,9 +392,10 @@ export async function ensureGitHubRelease({
  * - a DESCENDANT of `tagCommit` (compare status `ahead`), so the notes cannot
  *   come from a sibling history, and a commit that is part of dev's history, so
  *   it cannot be a sha that exists only in a fork;
- * - whose net diff against `tagCommit` is CHANGELOG.md alone, each file a plain
- *   modification of it (a rename or a second path is refused). The compare
- *   list stops at 300 files, so a full list is refused rather than trusted.
+ * - whose net diff against `tagCommit` is CHANGELOG.md, modified in place, plus
+ *   at most tracker records under .quest/ (DEC-204 (3a)); any other path, or a
+ *   CHANGELOG.md that is added, renamed or removed, is refused by name. The
+ *   compare list stops at 300 files, so a full list is refused, not trusted.
  * Every failure is `ok: false` with its cause; nothing is thrown or defaulted.
  */
 export async function notesCommitFrom(
@@ -468,16 +469,37 @@ export async function notesCommitFrom(
       ok: false,
       detail: `${sha} against ${tagCommit}: the changed-file list is ${files ? (files.length === 0 ? "empty" : "at the API's 300-file limit, so it may be truncated") : "missing"}; refusing rather than trusting it.`,
     };
+  // DEC-204 (3a): the NET range may touch CHANGELOG.md and the tracker under
+  // .quest/ and nothing else. Tracker records are written on dev between the
+  // tag and any changelog fix (0.14.1: #630 and #631 before #632), so a
+  // CHANGELOG-only range would refuse the one commit this flag exists for. The
+  // notes are still read from CHANGELOG.md alone, and CHANGELOG.md itself must
+  // be a plain modification, not an add, rename or removal.
+  const underTracker = (path) =>
+    typeof path === "string" && path.startsWith(".quest/");
+  const changelog = files.filter((file) => file?.filename === "CHANGELOG.md");
   const others = files.filter(
     (file) =>
-      file?.filename !== "CHANGELOG.md" ||
-      file?.status !== "modified" ||
-      file?.previous_filename !== undefined,
+      file?.filename !== "CHANGELOG.md" &&
+      !(
+        underTracker(file?.filename) &&
+        (file?.previous_filename === undefined ||
+          underTracker(file.previous_filename))
+      ),
   );
   if (others.length)
     return {
       ok: false,
-      detail: `${sha} touches more than CHANGELOG.md against the tag commit ${tagCommit}: ${others.map((file) => file?.filename ?? "(unnamed)").join(", ")}; --notes-from accepts a CHANGELOG-only descendant.`,
+      detail: `${sha} touches more than CHANGELOG.md and .quest/ against the tag commit ${tagCommit}: ${others.map((file) => file?.filename ?? "(unnamed)").join(", ")}; --notes-from accepts a descendant whose net range is CHANGELOG.md plus tracker records under .quest/.`,
+    };
+  if (
+    changelog.length !== 1 ||
+    changelog[0].status !== "modified" ||
+    changelog[0].previous_filename !== undefined
+  )
+    return {
+      ok: false,
+      detail: `${sha} against the tag commit ${tagCommit}: CHANGELOG.md must be modified in the net range (status ${JSON.stringify(changelog[0]?.status ?? "absent")}); the notes are read from it.`,
     };
   return { ok: true, commit: sha, tagCommit };
 }

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { type ExecFile, notesCommitFrom } from "../scripts/github-release.mjs";
 import { repairHint } from "../scripts/promote-release.mjs";
@@ -190,4 +191,120 @@ test("repair hint: the hand-cut route when notes came from --notes-from, the too
   expect(handCut).toContain("Do NOT use github-release.mjs --create");
   expect(handCut).toContain(`gh release create v0.14.1 --verify-tag`);
   expect(handCut).toContain(GOOD);
+});
+
+// DEC-204 (3a): the net range may be CHANGELOG.md plus tracker records under
+// .quest/ and nothing else. Tracker writes land on dev between the tag and a
+// changelog fix, so a CHANGELOG-only range refuses the commit this flag is for.
+const accepts = (files: object[]) =>
+  notesCommitFrom(GOOD, TAG, {
+    execFile: compareReturning({ status: "ahead", files }),
+  });
+
+test("accepted: CHANGELOG.md plus tracker records under .quest/", async () => {
+  const outcome = await accepts([
+    changed(".quest/tasks/QCLI-499.json"),
+    changed("CHANGELOG.md"),
+    { filename: ".quest/tasks/QCLI-515.json", status: "added" },
+    {
+      filename: ".quest/old.json",
+      status: "renamed",
+      previous_filename: ".quest/new.json",
+    },
+  ]);
+  expect(outcome.ok).toBe(true);
+});
+
+test("refused: a path that only looks like the tracker, by name", async () => {
+  for (const filename of [
+    ".questions/x.json",
+    "quest/x.json",
+    "x/.quest/a.json",
+    ".quest",
+  ]) {
+    const outcome = await accepts([changed("CHANGELOG.md"), changed(filename)]);
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.detail).toContain(filename);
+  }
+});
+
+test("refused: a tracker file renamed in from outside .quest/", async () => {
+  const outcome = await accepts([
+    changed("CHANGELOG.md"),
+    {
+      filename: ".quest/tasks/A.json",
+      status: "renamed",
+      previous_filename: "src/a.ts",
+    },
+  ]);
+  expect(outcome.ok).toBe(false);
+  if (!outcome.ok) expect(outcome.detail).toContain(".quest/tasks/A.json");
+});
+
+test("refused: CHANGELOG.md absent, added, removed or renamed in the net range", async () => {
+  for (const files of [
+    [changed(".quest/tasks/QCLI-499.json")],
+    [{ filename: "CHANGELOG.md", status: "added" }],
+    [{ filename: "CHANGELOG.md", status: "removed" }],
+    [
+      {
+        filename: "CHANGELOG.md",
+        status: "renamed",
+        previous_filename: "OLD.md",
+      },
+    ],
+  ]) {
+    const outcome = await accepts(files);
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.detail).toContain("CHANGELOG.md");
+  }
+});
+
+// The REAL ranges, read from the GitHub API on 2026-10-20 and recorded as
+// fixtures (test/fixtures/qcli515), not typed by hand: the unit tests above
+// mock `files` and could not see that the real 0.14.1 range carries a tracker
+// record beside CHANGELOG.md.
+const fixture = (name: string) =>
+  JSON.parse(
+    readFileSync(
+      fileURLToPath(new URL(`./fixtures/qcli515/${name}`, import.meta.url)),
+      "utf8",
+    ),
+  );
+
+const realRange = (name: string, sha: string): ExecFile => {
+  const range = fixture(name);
+  return async (_file, args) => {
+    const url = String(args.at(-1));
+    if (url === `repos/opum-ai/quest-cli/compare/${TAG}...${sha}`)
+      return { stdout: JSON.stringify(range) };
+    if (url === `repos/opum-ai/quest-cli/compare/dev...${sha}`)
+      return { stdout: JSON.stringify({ status: "behind" }) };
+    throw new Error(`unexpected read: ${url}`);
+  };
+};
+
+test("real range 053d8595...ce33f6d5 (the #632 commit) is accepted", async () => {
+  const range = fixture("compare-053d8595-ce33f6d5.json");
+  // The shape this exists for: a tracker record beside the changelog fix.
+  expect(
+    range.files.map((f: { filename: string }) => f.filename).sort(),
+  ).toEqual([".quest/tasks/QCLI-499.json", "CHANGELOG.md"]);
+  const outcome = await notesCommitFrom(GOOD, TAG, {
+    execFile: realRange("compare-053d8595-ce33f6d5.json", GOOD),
+  });
+  expect(outcome).toEqual({ ok: true, commit: GOOD, tagCommit: TAG });
+});
+
+test("real range 053d8595...b1f173c0 (a branch that changes code) is refused, naming the code", async () => {
+  const head = "b1f173c0af35ea4da095aba3d8c0c1e5858adc1a";
+  const outcome = await notesCommitFrom(head, TAG, {
+    execFile: realRange("compare-053d8595-b1f173c0-refusal.json", head),
+  });
+  expect(outcome.ok).toBe(false);
+  if (!outcome.ok) {
+    expect(outcome.detail).toContain("scripts/promote-release.mjs");
+    expect(outcome.detail).toContain("test/qcli515-notes-from.test.ts");
+    expect(outcome.detail).not.toContain(".quest/tasks/QCLI-499.json");
+  }
 });

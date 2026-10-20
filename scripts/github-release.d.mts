@@ -46,7 +46,7 @@ export function ensureGitHubRelease(options: {
   execFile?: ExecFile;
 }): Promise<ReleaseOutcome>;
 
-/** QCLI-515: a CHANGELOG-only descendant of the tag commit that notes may be read from. */
+/** QCLI-515: a descendant of the tag commit, CHANGELOG.md plus .quest/ only (DEC-204 (3a)), that notes may be read from. */
 export function notesCommitFrom(
   sha: string,
   tagCommit: string,

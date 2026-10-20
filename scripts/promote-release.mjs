@@ -50,8 +50,8 @@
 // Usage:
 //   node scripts/promote-release.mjs --record <path> --qualification-run <id>             # dry run
 //   node scripts/promote-release.mjs --record <path> --qualification-run <id> --promote   # move latest
-//   ... --notes-from <40-hex sha>   # QCLI-515: read the release notes from a CHANGELOG-only
-//                                   # descendant of the tag's commit; used once, for 0.14.1
+//   ... --notes-from <40-hex sha>   # QCLI-515: read the release notes from a descendant of the
+//                                   # tag's commit whose range is CHANGELOG.md plus .quest/ only (DEC-204 (3a)); used once, for 0.14.1
 //   node scripts/promote-release.mjs --rollback <path>                                    # restore it
 //
 // Auth is the publisher's: a stored granular token (Keychain, then
@@ -909,7 +909,7 @@ async function main(argv) {
     // bundle above was gated against -- so an uncommitted edit, or work that
     // landed after the tag, cannot become the body of this release.
     // QCLI-515 (DEC-204 (3)): --notes-from moves ONLY this read, to a
-    // CHANGELOG-only descendant of the tag's commit. The bundle above, the
+    // descendant of the tag's commit (CHANGELOG.md plus .quest/ only, DEC-204 (3a)). The bundle above, the
     // receipt and the rc bytes stay bound to the tag peel. Used once, for 0.14.1,
     // whose tag carries no `## 0.14.1` section.
     let notesCommit = peeled.commit;
@@ -921,7 +921,7 @@ async function main(argv) {
       }
       notesCommit = from.commit;
       console.log(
-        `Release notes are read from ${notesCommit.slice(0, 7)}, a CHANGELOG-only descendant of the tag commit ${peeled.commit.slice(0, 7)} (--notes-from); the bundle and receipt stay bound to ${peeled.commit.slice(0, 7)}.`,
+        `Release notes are read from ${notesCommit.slice(0, 7)}, a descendant of the tag commit (CHANGELOG.md plus .quest/ only) ${peeled.commit.slice(0, 7)} (--notes-from); the bundle and receipt stay bound to ${peeled.commit.slice(0, 7)}.`,
       );
     }
     const notes = await releaseNotesFor(version, { commit: notesCommit });
