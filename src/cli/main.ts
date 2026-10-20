@@ -1486,23 +1486,25 @@ async function nextQuestionId(
   questions: QuestionService,
   git: ReturnType<typeof createGitPort>,
   root: string,
-): Promise<string> {
+  commonDirectory: string | null,
+): Promise<IdAllocation> {
   const marker = "Q-";
-  const localHighest = (await questions.list()).reduce((maximum, record) => {
-    if (!record.id.startsWith(marker)) return maximum;
-    const numeric = Number(record.id.slice(marker.length));
-    return Number.isSafeInteger(numeric) ? Math.max(maximum, numeric) : maximum;
-  }, 0);
-  const highest = Math.max(
-    localHighest,
-    await highestSequenceOnOtherRefs(
-      git,
-      root,
-      marker,
-      QUESTION_RECORD_SUBDIRECTORIES,
-    ),
-  );
-  return `Q-${highest + 1}`;
+  return allocateId({
+    git,
+    worktreeRoot: root,
+    commonDirectory,
+    marker,
+    recordDirectories: QUESTION_RECORD_SUBDIRECTORIES,
+    visibleIds: [
+      ...(await questions.list()).map((record) => record.id),
+      ...(await idsOnOtherRefs(
+        git,
+        root,
+        marker,
+        QUESTION_RECORD_SUBDIRECTORIES,
+      )),
+    ],
+  });
 }
 
 /** QCLI-445: parses one `--option <key>=<label>:<description>` value into the
@@ -3333,9 +3335,16 @@ export async function runQuest(
         const title = one(parsed, "--title");
         if (!title) return failure("usage", questionFallback);
         const explicitId = one(parsed, "--id");
+        const allocation = await idForCreate(explicitId, async () =>
+          nextQuestionId(
+            questions,
+            git,
+            await resolvedRoot(),
+            await resolvedCommonDirectory(),
+          ),
+        );
         const data = await questions.ask(
-          explicitId ??
-            (await nextQuestionId(questions, git, await resolvedRoot())),
+          allocation.id,
           {
             title,
             context: one(parsed, "--context"),
@@ -3347,9 +3356,12 @@ export async function runQuest(
           },
           explicitId !== undefined,
         );
-        return output(
-          { schemaVersion: 1, kind: "question.asked", data },
-          modeFor(parsed),
+        return withAllocationNotice(
+          output(
+            { schemaVersion: 1, kind: "question.asked", data },
+            modeFor(parsed),
+          ),
+          allocation,
         );
       }
       if (action === "answer" && rest[0]) {

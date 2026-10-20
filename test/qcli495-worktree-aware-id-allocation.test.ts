@@ -172,6 +172,34 @@ test("concurrent creates in two worktrees allocate distinct ids for every id fam
   }
 }, 180_000);
 
+test("concurrent questions in two worktrees allocate distinct ids (QCLI-495, the family QCLI-445 added after the criteria were written)", async () => {
+  const { root, linked, cleanup } = await worktreePair();
+  try {
+    const ids = await Promise.all(
+      [root, linked, root, linked].map(async (workspace, n) =>
+        created(
+          await runQuestAsync(workspace, [
+            "question",
+            "ask",
+            "--title",
+            `Question ${n}`,
+            "--option",
+            "A=Yes:Do it",
+            "--option",
+            "B=No:Do not",
+            "--recommend",
+            "A",
+            ...ACTOR,
+          ]),
+        ),
+      ),
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+  } finally {
+    await cleanup();
+  }
+}, 60_000);
+
 test("auto-allocated ids cross a digit boundary numerically, never by characters (QCLI-495 AC 8)", async () => {
   const root = await gitWorkspace();
   try {
