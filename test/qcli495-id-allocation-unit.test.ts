@@ -363,10 +363,12 @@ test("a breaker that judged a lock stale never removes the fresh lock a faster b
     const now = Date.now();
     await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
     let interleaved = false;
-    let nestedBroke = null as boolean | null;
     // P3: a late allocator that tries the exclusive create on every turn of
     // the event loop for as long as the slow breaker runs. If the lock path is
-    // EVER free while P1 holds it, P3 gets in beside P1 -- two holders.
+    // EVER free while P1 holds it, P3 gets in beside P1 -- two holders. This
+    // poller lands in the old rename-to-link gap on most runs, not all: it is
+    // evidence for the lock-path invariant, and the serialisation half is
+    // pinned by the next test, which needs no timing.
     let breakerRunning = true;
     let thirdPartyEntered = false;
     const thirdParty = (async () => {
@@ -384,12 +386,11 @@ test("a breaker that judged a lock stale never removes the fresh lock a faster b
     })();
     const broke = await breakStaleLock(repo.lockPath, () => now, {
       // P2 has judged S stale and is about to act. Here P1 breaks S and takes
-      // the lock, and another breaker tries too -- before P2 removes anything.
+      // the lock -- before P2 removes anything.
       afterStaleJudgement: async () => {
         await unlink(repo.lockPath);
         await writeFile(repo.lockPath, `${process.pid}\n${now}\n`, "utf8");
         interleaved = true;
-        nestedBroke = await breakStaleLock(repo.lockPath, () => now);
       },
     });
     breakerRunning = false;
@@ -397,7 +398,6 @@ test("a breaker that judged a lock stale never removes the fresh lock a faster b
     // The seam must have fired, or this proves nothing.
     expect(interleaved).toBe(true);
     expect(broke).toBe(false);
-    expect(nestedBroke).toBe(false);
     expect(thirdPartyEntered).toBe(false);
     // P1's lock is still there, still P1's, and nothing was parked or left.
     expect(await readFile(repo.lockPath, "utf8")).toBe(
@@ -435,6 +435,102 @@ test("a slow breaker leaves no orphaned lock when the faster holder finishes fir
     // Nothing at the lock path, and nothing beside it: no parked copy, no
     // break file.
     expect(await readdir(join(repo.common, "quest"))).toEqual([]);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a second breaker is refused by the break file alone while the first holds it (QCLI-495 round 3, F1)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const now = Date.now();
+    const stale = `${deadPid}\n${now - 60_000}\n`;
+    await writeFile(repo.lockPath, stale, "utf8");
+    let secondBroke: boolean | null = null;
+    let lockDuringSecond: string | null = null;
+    let firstReachedTheSeam = false;
+    const first = await breakStaleLock(repo.lockPath, () => now, {
+      // Breaker A holds the break file and has read S again: it matches, and
+      // A is about to remove it. Breaker B judged the SAME S stale and now
+      // tries to act. Nothing but the break file stands between B and a second
+      // removal, so B must be refused here.
+      afterLockedReread: async () => {
+        firstReachedTheSeam = true;
+        secondBroke = await breakStaleLock(repo.lockPath, () => now);
+        lockDuringSecond = await readFile(repo.lockPath, "utf8").catch(
+          () => null,
+        );
+      },
+    });
+    expect(firstReachedTheSeam).toBe(true);
+    expect(secondBroke as boolean | null).toBe(false);
+    expect(lockDuringSecond as string | null).toBe(stale);
+    expect(first).toBe(true);
+    // A removed S and released its break file.
+    expect(await readdir(join(repo.common, "quest"))).toEqual([]);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a break file is cleared only when it is old AND its holder is gone (QCLI-495 round 3, F2)", async () => {
+  const repo = await repositoryDirectory();
+  const breakPath = `${repo.lockPath}.break`;
+  try {
+    const now = Date.now();
+    const stale = `${deadPid}\n${now - 60_000}\n`;
+    await writeFile(repo.lockPath, stale, "utf8");
+
+    // LIVE and old: a breaker that stalled past the age limit. It must keep
+    // its break file, so a second breaker cannot remove a new holder's lock.
+    await writeFile(breakPath, `${process.pid}\n${now - 60_000}\n`, "utf8");
+    expect(await breakStaleLock(repo.lockPath, () => now)).toBe(false);
+    expect(await readFile(breakPath, "utf8")).toBe(
+      `${process.pid}\n${now - 60_000}\n`,
+    );
+    expect(await readFile(repo.lockPath, "utf8")).toBe(stale);
+
+    // DEAD but young: still inside the age window, so left alone.
+    await writeFile(breakPath, `${deadPid}\n${now - 1_000}\n`, "utf8");
+    expect(await breakStaleLock(repo.lockPath, () => now)).toBe(false);
+    expect(await readFile(breakPath, "utf8")).toBe(
+      `${deadPid}\n${now - 1_000}\n`,
+    );
+
+    // DEAD and old: a killed breaker's file. The first call clears it, the
+    // next breaks the lock.
+    await writeFile(breakPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    expect(await breakStaleLock(repo.lockPath, () => now)).toBe(false);
+    expect(await readFile(breakPath, "utf8").catch(() => null)).toBeNull();
+    expect(await breakStaleLock(repo.lockPath, () => now)).toBe(true);
+    expect(await readFile(repo.lockPath, "utf8").catch(() => null)).toBeNull();
+
+    // A file whose holder cannot be read is never cleared: a live breaker
+    // between creating and writing it would look identical.
+    await writeFile(repo.lockPath, stale, "utf8");
+    await writeFile(breakPath, "", "utf8");
+    expect(await breakStaleLock(repo.lockPath, () => now + ONE_DAY)).toBe(
+      false,
+    );
+    expect(await readFile(breakPath, "utf8")).toBe("");
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a breaker never releases a break file that is no longer its own (QCLI-495 round 3, F2)", async () => {
+  const repo = await repositoryDirectory();
+  const breakPath = `${repo.lockPath}.break`;
+  try {
+    const now = Date.now();
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    const foreign = `${process.pid + 1}\n${now}\n`;
+    await breakStaleLock(repo.lockPath, () => now, {
+      afterLockedReread: async () => {
+        await writeFile(breakPath, foreign, "utf8");
+      },
+    });
+    expect(await readFile(breakPath, "utf8")).toBe(foreign);
   } finally {
     await repo.cleanup();
   }

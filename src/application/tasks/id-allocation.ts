@@ -73,7 +73,9 @@ export interface IdAllocationRequest {
   /** The root of THIS checkout -- the directory holding `.quest`. */
   readonly worktreeRoot: string;
   /** `<git-common-dir>` as `git rev-parse --git-common-dir` resolves it, or
-   * null when `.quest` has no Git repository behind it. */
+   * null when the caller names a raw store with no workspace behind it (the
+   * `QUEST_TASK_STORE` override). A workspace with no Git repository never
+   * reaches here: resolving it fails first, with `WorkspaceError`. */
   readonly commonDirectory: string | null;
   /** The family's id marker, e.g. `QCLI-`, `D-`, `M-`, `DEC-`. */
   readonly marker: string;
@@ -211,10 +213,16 @@ async function readLock(
   };
 }
 
-/** Test seam: runs after the stale judgement and before anything is removed --
- * the window a second breaker can act in. Production callers omit it. */
-export interface BreakSeams {
+/** Test seams (production callers pass only `processId`): `afterStaleJudgement`
+ * is the window a second breaker can act in before anything is removed. */
+export interface BreakOptions {
+  /** The pid recorded in the break file; defaults to this process. */
+  readonly processId?: number;
   readonly afterStaleJudgement?: () => Promise<void>;
+  /** Runs while the break file is held, after the lock was read again and
+   * still matched, and before it is removed -- where a second breaker has to
+   * be refused by the break file and by nothing else. */
+  readonly afterLockedReread?: () => Promise<void>;
 }
 
 /**
@@ -240,15 +248,17 @@ export interface BreakSeams {
 export async function breakStaleLock(
   lockPath: string,
   now: () => number,
-  seams: BreakSeams = {},
+  options: BreakOptions = {},
 ): Promise<boolean> {
   const holder = await readLock(lockPath);
   if (holder === null) return false;
   if (now() - holder.at <= STALE_LOCK_MILLISECONDS) return false;
   if (holder.pid !== null && processIsAlive(holder.pid)) return false;
-  await seams.afterStaleJudgement?.();
+  await options.afterStaleJudgement?.();
   const breakPath = `${lockPath}${BREAK_FILE_SUFFIX}`;
-  if (!(await takeBreakFile(breakPath, now))) return false;
+  const processId = options.processId ?? process.pid;
+  const mine = await takeBreakFile(breakPath, now, processId);
+  if (mine === null) return false;
   try {
     const current = await readLock(lockPath);
     if (
@@ -257,37 +267,67 @@ export async function breakStaleLock(
       current.at !== holder.at
     )
       return false;
+    await options.afterLockedReread?.();
     await unlink(lockPath).catch(() => undefined);
     return true;
   } finally {
-    await unlink(breakPath).catch(() => undefined);
+    // Only a break file this call still owns: the clear rule below keeps a
+    // live breaker's file in place, but a release that read someone else's
+    // would take their serialisation with it.
+    const left = await readLock(breakPath);
+    if (left !== null && left.pid === mine.pid && left.at === mine.at)
+      await unlink(breakPath).catch(() => undefined);
   }
 }
 
-/** The break file is held for one read and one unlink, so one this old belongs
- * to a breaker that was killed, and is cleared on age alone. Clearing it is the
- * one step here that is not exclusive: two clearers can race, and the loser can
- * remove a fresh break file. That needs a killed breaker AND two clearers AND a
- * third breaker arriving in the same instant, and even then the stale reading
- * must still match -- recorded, not closed. */
+/** The break file is held for one read and one unlink, and records its holder
+ * the way the lock does (`<pid>\n<epoch-millis>\n`). One is cleared only when
+ * it is older than this AND its pid is provably gone -- the same rule as the
+ * lock's own. Age alone was the first version, and it let a LIVE breaker that
+ * stalled for longer than this (a suspended process, a starved runner) lose its
+ * break file to a second breaker, which then removed a new holder's lock when
+ * the first resumed (round 3, F2). A file whose pid cannot be read is never
+ * cleared here: a breaker killed between creating the file and writing it
+ * would leave one, and until someone removes it a stale lock cannot be broken
+ * (creates time out with exit 5 and the hint names the lock path). Recorded,
+ * not closed: clearing is still check-then-unlink, so two clearers can race
+ * for a file whose holder really is dead, and a loser's unlink can hit the
+ * winner's fresh file; that needs a killed breaker AND two clearers AND a third
+ * breaker in the same instant, and the stale reading must still match. */
 const BREAK_FILE_STALE_MILLISECONDS = 10_000;
 const BREAK_FILE_SUFFIX = ".break";
 
+/** The holder written into a break file this call created, or null when it was
+ * not taken. */
 async function takeBreakFile(
   breakPath: string,
   now: () => number,
-): Promise<boolean> {
+  processId: number,
+): Promise<{ readonly pid: number; readonly at: number } | null> {
   try {
     const handle = await open(breakPath, "wx");
+    const at = now();
+    try {
+      await handle.writeFile(`${processId}\n${at}\n`, "utf8");
+    } catch (error) {
+      await handle.close().catch(() => undefined);
+      await unlink(breakPath).catch(() => undefined);
+      throw error;
+    }
     await handle.close();
-    return true;
+    return { pid: processId, at };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
   }
-  const info = await stat(breakPath).catch(() => null);
-  if (info !== null && now() - info.mtimeMs > BREAK_FILE_STALE_MILLISECONDS)
+  const existing = await readLock(breakPath);
+  if (
+    existing !== null &&
+    existing.pid !== null &&
+    now() - existing.at > BREAK_FILE_STALE_MILLISECONDS &&
+    !processIsAlive(existing.pid)
+  )
     await unlink(breakPath).catch(() => undefined);
-  return false;
+  return null;
 }
 
 /**
@@ -322,7 +362,7 @@ async function acquireLock(
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
-    if (await breakStaleLock(lockPath, now)) {
+    if (await breakStaleLock(lockPath, now, { processId })) {
       broke = true;
       continue;
     }
@@ -475,8 +515,9 @@ async function worktreeIds(
  * the reservation is already durable when this resolves, which is what lets a
  * second allocator release the lock, read the ledger, and still see it.
  *
- * With no Git repository behind `.quest` there is no common dir to lock, no
- * worktree list to enumerate and no ledger to keep, so the answer is one above
+ * With no common dir -- the caller's raw-store case, see `commonDirectory` --
+ * there is nothing to lock, no worktree list to enumerate and no ledger to
+ * keep, so the answer is one above
  * the ids the caller can already see -- byte-for-byte the behaviour that
  * existed before this module, which DEC-179 makes a requirement rather than a
  * degradation.

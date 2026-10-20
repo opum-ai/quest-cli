@@ -1278,11 +1278,13 @@ async function taskStoreRoot(): Promise<string> {
 /**
  * QCLI-495 (DEC-179 part 1): the repository's COMMON git dir, which every
  * worktree of it shares and which is therefore where the id-allocation lock
- * and reservation ledger live. Null in exactly the two cases that have no
- * such dir: a `QUEST_TASK_STORE` override, which names a raw store and no
- * workspace to inspect, and a `.quest` with no Git repository behind it --
- * and a null here is what makes allocation fall back to the working-tree-only
- * behaviour DEC-179 requires it to keep.
+ * and reservation ledger live. Null in exactly one case, which has no such
+ * dir: a `QUEST_TASK_STORE` override, which names a raw store and no
+ * workspace to inspect. A null here is what makes allocation fall back to the
+ * working-tree-only behaviour DEC-179 requires it to keep. A `.quest` with no
+ * Git repository behind it is NOT a second null: resolving the workspace
+ * throws `WorkspaceError` (local-workspaces.ts), so it never reaches the
+ * allocator, and that error is deliberately not caught below.
  */
 async function workspaceCommonDirectory(): Promise<string | null> {
   if (process.env.QUEST_TASK_STORE !== undefined) return null;
