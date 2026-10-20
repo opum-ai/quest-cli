@@ -926,8 +926,7 @@ function checkListValue(
     )
       throw new Error("not a check list");
     return items as (
-      | string
-      | { index: number; text: string; checked: boolean }
+      string | { index: number; text: string; checked: boolean }
     )[];
   } catch {
     throw new FlagUsageError(
@@ -1286,13 +1285,13 @@ async function taskStoreRoot(): Promise<string> {
  */
 async function workspaceCommonDirectory(): Promise<string | null> {
   if (process.env.QUEST_TASK_STORE !== undefined) return null;
-  try {
-    return (
-      await resolveInitializedWorkspace(createWorkspacePort(), process.cwd())
-    ).commonDirectory;
-  } catch {
-    return null;
-  }
+  // Not caught: taskStoreRoot() has already resolved this workspace for the
+  // same invocation, so a failure here is a failed read, and answering null
+  // would run the create with no lock, no ledger and no worktree scan -- the
+  // pre-fix allocator, silently, inside a real repository (round 2, NEW 3).
+  return (
+    await resolveInitializedWorkspace(createWorkspacePort(), process.cwd())
+  ).commonDirectory;
 }
 
 /**
@@ -2141,8 +2140,7 @@ export async function runQuest(
           });
       let instructions: AgentInstructionCheck | undefined;
       let instructionsByTarget:
-        | Readonly<Record<string, AgentInstructionCheck>>
-        | undefined;
+        Readonly<Record<string, AgentInstructionCheck>> | undefined;
       let skill: AgentInstructionCheck | undefined;
       // QCLI-371 (ADR ruling (a), Amendments 1-2): with a claude or codex
       // target selected, report whether that runtime has the opum-quest
@@ -2761,7 +2759,9 @@ export async function runQuest(
           "Cleanup requires an explicit actor declaration.",
         );
       const confirmed = parsed.values.has("--confirm");
-      const data = await (await planningService()).cleanup(
+      const data = await (
+        await planningService()
+      ).cleanup(
         { dryRun: parsed.values.has("--dry-run") || !confirmed, confirmed },
         crypto.randomUUID(),
       );
@@ -2925,8 +2925,7 @@ export async function runQuest(
                 title: rest[0],
                 description: one(parsed, "--description"),
                 status: (one(parsed, "--status") ?? "open") as
-                  | "open"
-                  | "closed",
+                  "open" | "closed",
                 taskIds: parsed.values.get("--task") ?? [],
               },
               crypto.randomUUID(),
@@ -2938,9 +2937,7 @@ export async function runQuest(
                 context: one(parsed, "--context"),
                 outcome: one(parsed, "--outcome") ?? "Undecided",
                 status: (one(parsed, "--status") ?? "proposed") as
-                  | "proposed"
-                  | "accepted"
-                  | "superseded",
+                  "proposed" | "accepted" | "superseded",
               },
               crypto.randomUUID(),
             );
@@ -3043,9 +3040,7 @@ export async function runQuest(
                 ...(one(parsed, "--status")
                   ? {
                       status: one(parsed, "--status") as
-                        | "proposed"
-                        | "accepted"
-                        | "superseded",
+                        "proposed" | "accepted" | "superseded",
                     }
                   : {}),
               },
@@ -4806,7 +4801,7 @@ export async function runQuest(
     // it was held -- nothing here measures that.
     if (error instanceof IdAllocationLockTimeoutError)
       return failure("conflict", error.message, {
-        hint: `Retry the create. If it keeps failing, the holder may be wedged or its pid reused: removing ${error.lockPath} is safe when ${error.holderPid === null ? "no quest process is running" : `pid ${error.holderPid} is not a quest process`}.`,
+        hint: `Retry the create. The lock ${error.lockAgeMilliseconds === null ? "has no readable stamp" : `was stamped ${Math.round(error.lockAgeMilliseconds / 1000)}s ago`}; one whose holder pid is gone is broken automatically once it is 30s old, so a create after a crashed holder can fail for up to that long. If it keeps failing, the holder may be wedged or its pid reused: removing ${error.lockPath} is safe when ${error.holderPid === null ? "no quest process is running" : `pid ${error.holderPid} is not a quest process`}.`,
         input: {
           lockPath: error.lockPath,
           ...(error.holderPid !== null ? { holderPid: error.holderPid } : {}),

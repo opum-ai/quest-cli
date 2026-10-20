@@ -1,10 +1,21 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  open,
+  readdir,
+  readFile,
+  rm,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
   allocateId,
+  breakStaleLock,
   IdAllocationLockTimeoutError,
   IdAllocationWorktreeReadError,
 } from "../src/application/tasks/id-allocation.ts";
@@ -17,6 +28,15 @@ import type { GitPort } from "../src/ports/git.ts";
  * port) to hold the critical section open and look at what the lock and the
  * ledger are WHILE it runs, which a spawned process cannot do.
  */
+
+/** A pid that is certainly gone: a child this process spawned and reaped.
+ * A fixed number such as 999999 is dead on macOS (pid_max 99998) but can be a
+ * live process on a Linux runner (pid_max often 4194304). */
+const deadPid = (() => {
+  const child = spawnSync(process.execPath, ["--version"]);
+  if (child.pid === undefined) throw new Error("could not spawn a child");
+  return child.pid;
+})();
 
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
@@ -54,7 +74,7 @@ test("a process that broke a stale lock HOLDS the lock while it allocates (QCLI-
     const now = Date.now();
     // A pid that cannot be alive and a stamp past the 30s window: both halves
     // of the stale rule, so the lock is broken.
-    await writeFile(repo.lockPath, `999999\n${now - 60_000}\n`, "utf8");
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
     let heldDuringCriticalSection: string | null = null;
     const allocation = await allocateId({
       git: portWithHook([repo.root], async () => {
@@ -130,7 +150,7 @@ test("two allocators that both find a stale lock still serialise and mint distin
   const repo = await repositoryDirectory();
   try {
     const now = Date.now();
-    await writeFile(repo.lockPath, `999999\n${now - 60_000}\n`, "utf8");
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
     // Each allocator yields inside its critical section, so one that was NOT
     // holding the lock would overlap the other and read the same ledger.
     const slow = portWithHook([repo.root], () => Bun.sleep(40));
@@ -332,6 +352,89 @@ test("the ledger is written atomically and leaves no temporary file behind (QCLI
     const { readdir } = await import("node:fs/promises");
     const names = await readdir(join(repo.common, "quest"));
     expect(names).toEqual(["reserved-ids"]);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a breaker that judged a lock stale never removes the fresh lock a faster breaker took meanwhile (QCLI-495 round 2, NEW 1)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const now = Date.now();
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    let interleaved = false;
+    let nestedBroke = null as boolean | null;
+    // P3: a late allocator that tries the exclusive create on every turn of
+    // the event loop for as long as the slow breaker runs. If the lock path is
+    // EVER free while P1 holds it, P3 gets in beside P1 -- two holders.
+    let breakerRunning = true;
+    let thirdPartyEntered = false;
+    const thirdParty = (async () => {
+      while (breakerRunning) {
+        if (interleaved) {
+          const handle = await open(repo.lockPath, "wx").catch(() => null);
+          if (handle !== null) {
+            thirdPartyEntered = true;
+            await handle.close();
+            return;
+          }
+        }
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    })();
+    const broke = await breakStaleLock(repo.lockPath, () => now, {
+      // P2 has judged S stale and is about to act. Here P1 breaks S and takes
+      // the lock, and another breaker tries too -- before P2 removes anything.
+      afterStaleJudgement: async () => {
+        await unlink(repo.lockPath);
+        await writeFile(repo.lockPath, `${process.pid}\n${now}\n`, "utf8");
+        interleaved = true;
+        nestedBroke = await breakStaleLock(repo.lockPath, () => now);
+      },
+    });
+    breakerRunning = false;
+    await thirdParty;
+    // The seam must have fired, or this proves nothing.
+    expect(interleaved).toBe(true);
+    expect(broke).toBe(false);
+    expect(nestedBroke).toBe(false);
+    expect(thirdPartyEntered).toBe(false);
+    // P1's lock is still there, still P1's, and nothing was parked or left.
+    expect(await readFile(repo.lockPath, "utf8")).toBe(
+      `${process.pid}\n${now}\n`,
+    );
+    expect(
+      (await readdir(join(repo.common, "quest"))).filter((name) =>
+        name.startsWith("alloc.lock."),
+      ),
+    ).toEqual([]);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a slow breaker leaves no orphaned lock when the faster holder finishes first (QCLI-495 round 2, NEW 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const now = Date.now();
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    let interleaved = false;
+    const broke = await breakStaleLock(repo.lockPath, () => now, {
+      // P1 broke S, took the lock, allocated and released it, all inside P2's
+      // window. The round-1 code could re-create P1's lock from a parked copy
+      // after P1 had gone, stamped fresh and owned by a dead pid.
+      afterStaleJudgement: async () => {
+        await unlink(repo.lockPath);
+        await writeFile(repo.lockPath, `${process.pid}\n${now}\n`, "utf8");
+        await unlink(repo.lockPath);
+        interleaved = true;
+      },
+    });
+    expect(interleaved).toBe(true);
+    expect(broke).toBe(false);
+    // Nothing at the lock path, and nothing beside it: no parked copy, no
+    // break file.
+    expect(await readdir(join(repo.common, "quest"))).toEqual([]);
   } finally {
     await repo.cleanup();
   }

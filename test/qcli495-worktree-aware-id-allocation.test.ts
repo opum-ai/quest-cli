@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { expect, test } from "bun:test";
 import {
   mkdir,
@@ -144,6 +145,14 @@ function sequenceOf(id: string): number {
   return Number(match[1]);
 }
 
+/** A pid that is certainly gone: a child spawned and reaped here. A fixed
+ * number is dead on macOS (pid_max 99998) but can be live on a Linux runner. */
+const deadPid = (() => {
+  const child = spawnSync(process.execPath, ["--version"]);
+  if (child.pid === undefined) throw new Error("could not spawn a child");
+  return child.pid;
+})();
+
 test("a create in a second worktree does not reuse the first worktree's uncommitted id (QCLI-495 AC 2, DEC-179 m1)", async () => {
   const { root, linked, cleanup } = await worktreePair();
   try {
@@ -170,7 +179,7 @@ test("concurrent creates in two worktrees allocate distinct ids for every id fam
       // (exit 5, a conflict and not a collision): the first version of this
       // test did that and failed on a loaded CI runner. Neither worktree can
       // see the other's uncommitted record, so without the lock and ledger the
-      // pair collides every time, not by luck of timing.
+      // pair collides in the runs measured (3 of 3 red), though that is evidence and not a guarantee.
       const ids: string[] = [];
       for (let round = 0; round < 3; round += 1) {
         ids.push(
@@ -292,7 +301,7 @@ test("an abandoned allocation lock is broken, and the run says so (QCLI-495 AC 5
     await mkdir(dirname(lockPath), { recursive: true });
     // A pid that cannot be alive, and an age past the 30s window: both halves
     // of the stale rule, which is what makes breaking it safe to do.
-    await writeFile(lockPath, `${999_999}\n${Date.now() - 60_000}\n`, "utf8");
+    await writeFile(lockPath, `${deadPid}\n${Date.now() - 60_000}\n`, "utf8");
     const result = runQuest(root, createArgs("task", "after the stale lock"));
     expect(result.exitCode).toBe(0);
     const id = (JSON.parse(result.stdout).data as { id: string }).id;
@@ -418,7 +427,7 @@ test("after a stale lock is broken, concurrent creates in two worktrees still ge
   try {
     const lockPath = commonDirFile(root, "alloc.lock");
     await mkdir(dirname(lockPath), { recursive: true });
-    await writeFile(lockPath, `${999_999}\n${Date.now() - 60_000}\n`, "utf8");
+    await writeFile(lockPath, `${deadPid}\n${Date.now() - 60_000}\n`, "utf8");
     const ids: string[] = [];
     for (let round = 0; round < 3; round += 1)
       ids.push(

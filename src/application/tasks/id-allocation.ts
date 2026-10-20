@@ -1,5 +1,4 @@
 import {
-  link,
   mkdir,
   open,
   readFile,
@@ -9,7 +8,6 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 
 import { compareTaskIds } from "../../domain/tasks/tasks.ts";
@@ -213,6 +211,12 @@ async function readLock(
   };
 }
 
+/** Test seam: runs after the stale judgement and before anything is removed --
+ * the window a second breaker can act in. Production callers omit it. */
+export interface BreakSeams {
+  readonly afterStaleJudgement?: () => Promise<void>;
+}
+
 /**
  * DEC-179 (1)'s stale rule, and only that rule: older than 30 seconds AND the
  * holder's pid is gone. A lock whose pid line is missing or unreadable falls
@@ -220,38 +224,70 @@ async function readLock(
  * cannot be identified is exactly the wedged state this exists to clear, and
  * the age test is what keeps a mid-write holder out of it.
  *
- * Breaking is a RENAME to a name only this call knows, then a re-read of what
- * was renamed. Two breakers can both judge the same lock stale; with a plain
- * unlink the slower one deletes the FRESH lock the faster one has since taken
- * (round 1, finding 1's secondary). After the rename the slower breaker finds
- * a lock that is not the one it judged, and puts it back with `link`, which
- * refuses to overwrite -- so it can never replace a newer holder's lock.
+ * BREAKERS ARE SERIALISED through a second exclusive file, `alloc.lock.break`.
+ * Judging a lock stale and removing it are two steps, and anything between
+ * them can change what is at `lockPath`: a faster breaker can take the lock and
+ * start allocating. A rename-and-restore, or a bare unlink, then moves or
+ * deletes a LIVE holder's lock (round 2, NEW 1). So nothing here touches
+ * `alloc.lock` unless it holds the break file, and under it the lock is read
+ * again and removed only if its pid and stamp still equal the stale reading.
+ * While the stale lock exists nobody can `open(wx)` over it, and with breakers
+ * serialised nobody else can remove it, so that second read has no gap left to
+ * race in. Nothing is ever parked or restored, so there is no parked file for a
+ * killed breaker to leave behind and no moment `lockPath` is absent while a
+ * live holder owns it (round 2, NEW 2 and NOTE 4).
  */
-async function breakStaleLock(
+export async function breakStaleLock(
   lockPath: string,
   now: () => number,
+  seams: BreakSeams = {},
 ): Promise<boolean> {
   const holder = await readLock(lockPath);
   if (holder === null) return false;
   if (now() - holder.at <= STALE_LOCK_MILLISECONDS) return false;
   if (holder.pid !== null && processIsAlive(holder.pid)) return false;
-  const parked = `${lockPath}.stale-${randomUUID()}`;
-  const renamed = await rename(lockPath, parked).then(
-    () => true,
-    () => false,
-  );
-  // Someone else broke it first: the lock is gone and the caller retries.
-  if (!renamed) return false;
-  const taken = await readLock(parked);
-  const sameLock =
-    taken !== null && taken.pid === holder.pid && taken.at === holder.at;
-  if (!sameLock) {
-    // We parked a lock that is not the stale one: restore it, never over a
-    // newer one.
-    await link(parked, lockPath).catch(() => undefined);
+  await seams.afterStaleJudgement?.();
+  const breakPath = `${lockPath}${BREAK_FILE_SUFFIX}`;
+  if (!(await takeBreakFile(breakPath, now))) return false;
+  try {
+    const current = await readLock(lockPath);
+    if (
+      current === null ||
+      current.pid !== holder.pid ||
+      current.at !== holder.at
+    )
+      return false;
+    await unlink(lockPath).catch(() => undefined);
+    return true;
+  } finally {
+    await unlink(breakPath).catch(() => undefined);
   }
-  await unlink(parked).catch(() => undefined);
-  return sameLock;
+}
+
+/** The break file is held for one read and one unlink, so one this old belongs
+ * to a breaker that was killed, and is cleared on age alone. Clearing it is the
+ * one step here that is not exclusive: two clearers can race, and the loser can
+ * remove a fresh break file. That needs a killed breaker AND two clearers AND a
+ * third breaker arriving in the same instant, and even then the stale reading
+ * must still match -- recorded, not closed. */
+const BREAK_FILE_STALE_MILLISECONDS = 10_000;
+const BREAK_FILE_SUFFIX = ".break";
+
+async function takeBreakFile(
+  breakPath: string,
+  now: () => number,
+): Promise<boolean> {
+  try {
+    const handle = await open(breakPath, "wx");
+    await handle.close();
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  }
+  const info = await stat(breakPath).catch(() => null);
+  if (info !== null && now() - info.mtimeMs > BREAK_FILE_STALE_MILLISECONDS)
+    await unlink(breakPath).catch(() => undefined);
+  return false;
 }
 
 /**
@@ -321,7 +357,7 @@ async function readLedger(ledgerPath: string): Promise<LedgerEntry[]> {
     try {
       parsed = JSON.parse(line);
     } catch {
-      continue; // a corrupt line is dropped, not fatal: it can only under-report
+      continue; // a corrupt line is dropped, not fatal; the atomic write below makes one practically unreachable (it WOULD under-report, the unsafe direction)
     }
     const entry = parsed as {
       id?: unknown;
