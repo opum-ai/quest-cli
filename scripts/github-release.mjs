@@ -291,7 +291,7 @@ export async function ensureGitHubRelease({
         return {
           ok: true,
           action: "recorded-exception",
-          detail: `release ${tag} exists and its stored notes differ from the "## ${version}" section at the commit the tag peels to BY RECORDED EXCEPTION (QCLI-410): ${recorded}. Nothing to repair -- the stored body is the record, this tool never edits it, and it is not marked latest`,
+          detail: `release ${tag} exists and its stored notes differ from the "## ${version}" section at the commit the tag peels to (or at the --notes-from commit, when the promotion was given one) BY RECORDED EXCEPTION (QCLI-410): ${recorded}. Nothing to repair -- the stored body is the record, this tool never edits it, and it is not marked latest`,
         };
       return {
         ok: false,
@@ -302,7 +302,7 @@ export async function ensureGitHubRelease({
         // and 0.8.0 were, measured) no longer matches, and the bytes that pass
         // are the tag-era ones. The refusal names that object rather than
         // leaving the operator to guess which side to change.
-        detail: `release ${tag} exists but its notes differ from the "## ${version}" section at the commit the tag peels to; this tool never edits an existing release, so make the release carry those bytes by hand, then re-run`,
+        detail: `release ${tag} exists but its notes differ from the "## ${version}" section at the commit the tag peels to (or at the --notes-from commit, when the promotion was given one); this tool never edits an existing release, so make the release carry those bytes by hand, then re-run`,
       };
     }
     if (!latest)
@@ -390,7 +390,8 @@ export async function ensureGitHubRelease({
  * - a full 40-hex commit, never a branch or tag name, which can be re-pointed
  *   where a commit cannot;
  * - a DESCENDANT of `tagCommit` (compare status `ahead`), so the notes cannot
- *   come from a sibling history;
+ *   come from a sibling history, and a commit that is part of dev's history, so
+ *   it cannot be a sha that exists only in a fork;
  * - whose net diff against `tagCommit` is CHANGELOG.md alone, each file a plain
  *   modification of it (a rename or a second path is refused). The compare
  *   list stops at 300 files, so a full list is refused rather than trusted.
@@ -433,6 +434,33 @@ export async function notesCommitFrom(
     return {
       ok: false,
       detail: `${sha} does not descend from the tag commit ${tagCommit} (compare status ${JSON.stringify(compare?.status ?? null)}); the notes may only be read from a descendant.`,
+    };
+  // quest-cli is public, so a sha can exist only in a fork's object network and
+  // still resolve through this repository's compare and contents endpoints. The
+  // notes must come from a commit that is part of dev's history: dev...sha is
+  // `behind` or `identical` exactly when sha is an ancestor of (or is) dev.
+  let onDev;
+  try {
+    const { stdout } = await execFileFn("gh", [
+      "api",
+      "--hostname",
+      "github.com",
+      `repos/${REPOSITORY_PATH}/compare/dev...${sha}`,
+    ]);
+    onDev = JSON.parse(stdout);
+  } catch (error) {
+    const detail = String(error?.stderr || error?.message || error)
+      .trim()
+      .split("\n")[0];
+    return {
+      ok: false,
+      detail: `${sha} could not be compared with dev (${detail || "the read failed"}), so it is not shown to be part of dev's history.`,
+    };
+  }
+  if (onDev?.status !== "behind" && onDev?.status !== "identical")
+    return {
+      ok: false,
+      detail: `${sha} is not part of dev's history (compare dev...sha status ${JSON.stringify(onDev?.status ?? null)}); the notes may only be read from a commit that landed on dev.`,
     };
   const files = Array.isArray(compare.files) ? compare.files : null;
   if (!files || files.length === 0 || files.length >= 300)

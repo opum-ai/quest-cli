@@ -719,6 +719,19 @@ export async function verifyTags({
   return { ok: false, attempts, wrong };
 }
 
+/**
+ * What to tell the operator when the GitHub Release did not cut after `latest`
+ * moved. The repair tool reads the notes at the commit the tag peels to, so for
+ * a promotion that took its notes from --notes-from (QCLI-515) it would refuse
+ * for the same reason the tag has no section: name the hand-cut route instead
+ * of a command that cannot succeed.
+ */
+export function repairHint(version, notesFrom) {
+  if (notesFrom === undefined)
+    return `Repair with: node scripts/github-release.mjs --version ${version} --create`;
+  return `Do NOT use github-release.mjs --create: it reads the notes at the tag's commit, which has no "## ${version}" section (this promotion read them from ${notesFrom} by --notes-from). Cut the release by hand from the "## ${version}" section at ${notesFrom}: gh release create v${version} --verify-tag --title "Quest CLI ${version}" --notes-file <that section>`;
+}
+
 async function main(argv) {
   const flag = (name) => {
     const index = argv.indexOf(name);
@@ -900,7 +913,7 @@ async function main(argv) {
     // receipt and the rc bytes stay bound to the tag peel. Used once, for 0.14.1,
     // whose tag carries no `## 0.14.1` section.
     let notesCommit = peeled.commit;
-    if (notesFrom) {
+    if (notesFrom !== undefined) {
       const from = await notesCommitFrom(notesFrom, peeled.commit);
       if (!from.ok) {
         console.error(`Refusing to promote ${version}: ${from.detail}`);
@@ -1087,7 +1100,7 @@ async function main(argv) {
   if (cut.ok) console.log(`GitHub Release: ${cut.detail}.`);
   else
     console.error(
-      `\nGitHub Release NOT cut: ${cut.detail}. npm ${PROMOTE_TAG} moved and is verified -- do NOT roll back for this. Repair with: node scripts/github-release.mjs --version ${record.version} --create`,
+      `\nGitHub Release NOT cut: ${cut.detail}. npm ${PROMOTE_TAG} moved and is verified -- do NOT roll back for this. ${repairHint(record.version, notesFrom)}`,
     );
 
   // QCLI-400: report only, AFTER the release cut so its retries cannot
