@@ -286,6 +286,7 @@
 - 2026-10-20T02:21:58-05:00 d86adef47da3ac95326b12a61858b444112637bc feat(QCLI-515): promote-release.mjs --notes-from (DEC-204 (3), used once for 0.14.1) (#634)
 - 2026-10-20T03:47:53-05:00 c68e31b46d3c879d9c1380f4d92747d0abc519b7 fix(QCLI-516): hand-cut hint pins the host and says the notes file is the section body; --notes-from review minors (#636)
 - 2026-10-20T03:53:53-05:00 204516209084c25a5215549f2230c8d9e464b82e chore(QCLI-516): record the Opus verdict, check ACs, complete; file QCLI-517 (review follow-ups) (#637)
+- 2026-10-20T04:32:03-05:00 254b9ca5cf7b12f1834a2c0a387f329a20617a3f chore(QCLI-497): check ACs, final summary, complete (#640)
 
 ## docs/adr
 
