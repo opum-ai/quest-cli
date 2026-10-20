@@ -926,7 +926,8 @@ function checkListValue(
     )
       throw new Error("not a check list");
     return items as (
-      string | { index: number; text: string; checked: boolean }
+      | string
+      | { index: number; text: string; checked: boolean }
     )[];
   } catch {
     throw new FlagUsageError(
@@ -2140,7 +2141,8 @@ export async function runQuest(
           });
       let instructions: AgentInstructionCheck | undefined;
       let instructionsByTarget:
-        Readonly<Record<string, AgentInstructionCheck>> | undefined;
+        | Readonly<Record<string, AgentInstructionCheck>>
+        | undefined;
       let skill: AgentInstructionCheck | undefined;
       // QCLI-371 (ADR ruling (a), Amendments 1-2): with a claude or codex
       // target selected, report whether that runtime has the opum-quest
@@ -2759,9 +2761,7 @@ export async function runQuest(
           "Cleanup requires an explicit actor declaration.",
         );
       const confirmed = parsed.values.has("--confirm");
-      const data = await (
-        await planningService()
-      ).cleanup(
+      const data = await (await planningService()).cleanup(
         { dryRun: parsed.values.has("--dry-run") || !confirmed, confirmed },
         crypto.randomUUID(),
       );
@@ -2925,7 +2925,8 @@ export async function runQuest(
                 title: rest[0],
                 description: one(parsed, "--description"),
                 status: (one(parsed, "--status") ?? "open") as
-                  "open" | "closed",
+                  | "open"
+                  | "closed",
                 taskIds: parsed.values.get("--task") ?? [],
               },
               crypto.randomUUID(),
@@ -2937,7 +2938,9 @@ export async function runQuest(
                 context: one(parsed, "--context"),
                 outcome: one(parsed, "--outcome") ?? "Undecided",
                 status: (one(parsed, "--status") ?? "proposed") as
-                  "proposed" | "accepted" | "superseded",
+                  | "proposed"
+                  | "accepted"
+                  | "superseded",
               },
               crypto.randomUUID(),
             );
@@ -3040,7 +3043,9 @@ export async function runQuest(
                 ...(one(parsed, "--status")
                   ? {
                       status: one(parsed, "--status") as
-                        "proposed" | "accepted" | "superseded",
+                        | "proposed"
+                        | "accepted"
+                        | "superseded",
                     }
                   : {}),
               },
