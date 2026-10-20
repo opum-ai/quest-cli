@@ -23,8 +23,8 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   and write the new id to the ledger before releasing the lock. Nothing is
   fetched. **New outcomes to know about:** a lock whose holder is gone and which
   is over 30 seconds old is broken, with a `Warning:` line on stderr; a create
-  that cannot get the lock fails as a `conflict` (exit 5) after 10 seconds -- a
-  live holder, or a crashed one whose lock is not yet 30 seconds old -- with a
+  that cannot get the lock fails as a `conflict` (exit 5) after 10 seconds (a
+  live holder, or a crashed one whose lock is not yet 30 seconds old), with a
   hint naming the lock path, its age, the holder pid and how to remove it; and a create
   whose `git worktree list` answers nothing fails as `drift` (exit 6) instead of
   falling back to refs alone. A create that loses the record write still leaves
@@ -101,7 +101,7 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   (`src/contract/tracker/fixtures.ts`) carries the new key so its sample
   matches real output. The **four** prose sites that read as
   a promise of a workspace knob now state the real behaviour -- the `task
-status-flow` help, the `task pause` help, the `task start` help and the
+  status-flow` help, the `task pause` help, the `task start` help and the
   task-finalization guide -- and a drift guard pins every one, each against the
   wording it replaced (QCLI-480).
 
@@ -167,7 +167,7 @@ status-flow` help, the `task pause` help, the `task start` help and the
   after `--source` is the flag's value, not a positional) and the manifest is
   byte-identical before and after. The corrected text is what the help surfaces
   render -- `quest help`, `quest instructions workspace`, and `quest help
---json`, which carries each command's `usage`.
+  --json`, which carries each command's `usage`.
 
 ## 0.13.0
 
@@ -236,7 +236,7 @@ status-flow` help, the `task pause` help, the `task start` help and the
   in the pane rather than interrupting. More than three changes in one check
   collapse into a single batched toast, and decisions are never folded into it.
   While any decision is proposed a status-line entry — `Quest: N decisions
-waiting` — stays up, because a toast can be missed and the status line cannot.
+  waiting` — stays up, because a toast can be missed and the status line cannot.
   The check runs every two minutes whether or not the pane is open, looks a task
   that left the open set up once with `quest task view` to tell Done from
   Closed, and keeps the last state in the plugin's store so nothing replays: the
@@ -287,7 +287,7 @@ waiting` — stays up, because a toast can be missed and the status line cannot.
   generated-content change, not a version-only one, so `--check` exits 6 rather
   than taking the version-only path that exits 0 — a step not yet taken, not a
   fault. Remedy, for the workspace's own target: `quest agents
---update-instructions --target <claude|codex|antigravity>`. Added here after
+  --update-instructions --target <claude|codex|antigravity>`. Added here after
   the v0.13.0 release, having been missed in the release notes at ship time
   (QCLI-467).
 
@@ -461,7 +461,7 @@ waiting` — stays up, because a toast can be missed and the status line cannot.
 
 - **A new `check` command fails when a change drops a task record other work
   still references** (QCLI-415, DEC-18). `quest check --continuity --base
-<ref>` resolves every record id and alias present at the merge base of
+  <ref>` resolves every record id and alias present at the merge base of
   `<ref>` and HEAD against the current store, reading `.quest/tasks`,
   `.quest/completed` and `.quest/archive/tasks` at the base through a new
   `GitPort.mergeBase`, so a relocation between them is not a loss. It reports
@@ -529,7 +529,7 @@ waiting` — stays up, because a toast can be missed and the status line cannot.
   Retiring a never-worked duplicate used to mean stepping it through
   In Progress to Done, recording a start and a completion that never
   happened. `quest task close <id> --resolution <duplicate|superseded|wont-do>
-[--survivor <id>] [--final-summary "text"]` now retires it directly from
+  [--survivor <id>] [--final-summary "text"]` now retires it directly from
   To Do, In Progress, or the paused status. It refuses from Done or Closed.
   The resolution is required and is stored on the record as
   `resolution: {kind, survivor?}`. `duplicate` and `superseded` require
@@ -698,7 +698,7 @@ waiting` — stays up, because a toast can be missed and the status line cannot.
 
 - **A repeated unknown flag is reported as unrecognized, not as an arity
   error** (QCLI-355, reported by opum-cli-e2e). `task edit T-1 --add-ac a
---add-ac b` answered "--add-ac may only be provided once.", which implies
+  --add-ac b` answered "--add-ac may only be provided once.", which implies
   the flag exists, so the caller retried it one occurrence per call. The
   parser now defers the repeat check until the command's accepted flags are
   known. An unknown flag gets the same "Unrecognized flag ... Nothing was
@@ -740,7 +740,7 @@ waiting` — stays up, because a toast can be missed and the status line cannot.
   on a Paused task refused with "Task transition uses an unconfigured status."
   Paused is configured; it is just off the status ladder. The refusal now
   reads `Task <id> is "Paused", the paused status, which is off the status
-ladder. Bring it back with quest task start <id>, then retry.` The same
+  ladder. Bring it back with quest task start <id>, then retry.` The same
   message applies to `task edit --status` and to a retired paused literal
   such as "Blocked". The exit code (6) and the refusal itself are unchanged.
 
@@ -1128,7 +1128,7 @@ and nothing in this file should be read as evidence that it happened.
 
   That difference is the entire point. Reported by the mbpm2 project, a
   Codex-only consumer, as an integration blocker: `quest agents
---update-instructions --target codex` writes AGENTS.md **and** the
+  --update-instructions --target codex` writes AGENTS.md **and** the
   Claude-provider skill file, because the skill file is target-independent by
   design and governed by `agents.skill_source`. The only way to stop it was
   `--skill-source plugin`, which asserts the opum-quest **Claude Code** plugin
@@ -1160,7 +1160,7 @@ and nothing in this file should be read as evidence that it happened.
 
 - **Draft, milestone and decision ids are now allocated refs-aware, like task
   ids have been since QCLI-279.** `quest draft create`, `quest milestone
-create` and `quest decision create` used to compute "next available" from
+  create` and `quest decision create` used to compute "next available" from
   the checked-out tree's `.quest/` alone, so an unmerged sibling branch or a
   detached checkout behind a moved branch could mint an id that already
   existed elsewhere. QCLI-279 fixed exactly one of the three allocators and
@@ -1343,8 +1343,8 @@ changed to make that true -- the configured value did. Everything else here
 is additive: a new envelope field and two new optional flags, each inert when
 not asked for.
 
-_Observed after release, 2026-09-15, reported by opum-cli-e2e from their
-0.7.0 qualification matrix (their PR #154):_ that warning was published and
+*Observed after release, 2026-09-15, reported by opum-cli-e2e from their
+0.7.0 qualification matrix (their PR #154):* that warning was published and
 the best-placed consumer still missed it. Their `60-project-lifecycle` suite
 pinned the literal `"Blocked"` and six rows failed against a conformant quest,
 while their `40-cross-product` suite read the value live and absorbed the
@@ -1371,7 +1371,7 @@ that binds to the CLI's own declaration does not need one.
   than being backdated to claim a transition that had no signal at the time.
   Anything relying on the pre-`contractVersion` shape needs to keep doing
   what it already does today (a defensive read of either shape); this field
-  only protects against the _next_ shape change, not the last one.
+  only protects against the *next* shape change, not the last one.
 
   **What `contractVersion` does NOT cover.** Stated here because a field that
   says what it covers and not what it omits has the same defect it was added
@@ -1392,7 +1392,7 @@ that binds to the CLI's own declaration does not need one.
     one does, which is precisely why the field was added to success envelopes
     only.
   - **Configured-value changes are not payload-shape changes.** The counter
-    moves when a `data` payload's _shape_ changes in a way an existing decoder
+    moves when a `data` payload's *shape* changes in a way an existing decoder
     would misread. It does not move when a value inside an unchanged shape
     changes. **0.7.0 contains exactly such a change**: `quest task pause` now
     parks a task at `"Paused"` instead of `"Blocked"`, so a consumer matching
@@ -1422,7 +1422,7 @@ that binds to the CLI's own declaration does not need one.
 ### Fixed
 
 - A write conflict's `actualRevision` -- the one piece of data a caller needs
-  to retry without a second read -- was silently discarded for _every_ task
+  to retry without a second read -- was silently discarded for *every* task
   write conflict, not only the new `--if-revision` case above: the internal
   helper that unwraps a mutation result threw a bare error with no payload.
   The documented retry protocol ("re-read the latest state and perform your
@@ -1431,7 +1431,7 @@ that binds to the CLI's own declaration does not need one.
   conflict, same exit code and message (QCLI-277).
 
 - `quest agents --check --require-installed` exited `0` for a managed
-  instruction block whose _content_ is current but whose embedded Quest CLI
+  instruction block whose *content* is current but whose embedded Quest CLI
   version string is stale (`state: version-only`) -- correct, deliberate
   behavior since QCLI-228, and already documented that way in this CLI's own
   guide and help text. The one place that still lied about it: the
@@ -1569,11 +1569,11 @@ breaking section before upgrading.
   flag correctly plus one unrecognized one was still told a reference or
   actor was missing -- `task complete --final-summary ...` was the reported
   case, since `--final-summary` was not yet an accepted flag on `task
-complete` at all. Both are fixed: `task complete` now accepts
+  complete` at all. Both are fixed: `task complete` now accepts
   `--final-summary`, applied in the same write as the terminal transition,
   and 21 of the 37 call sites now name the actual unrecognized flag instead
   of a generic reference/actor sentence. The remaining 15 (the `migration
-backlog`, `milestone`/`decision`, and `draft` action dispatchers) use a
+  backlog`, `milestone`/`decision`, and `draft` action dispatchers) use a
   positive-gate-per-action shape that cannot take this fix without a larger
   restructure and still report the old generic message -- tracked separately
   rather than left silently inconsistent (QCLI-270; the remaining 15 sites
@@ -1712,8 +1712,8 @@ in a way that would otherwise call for a minor bump on its own.
 ### Documented
 
 - Status and on-disk location are independent by design: `task edit --status
-<terminal>` does not relocate a record, only `task complete`/`task
-archive`/`task demote` do (QCLI-221).
+  <terminal>` does not relocate a record, only `task complete`/`task
+  archive`/`task demote` do (QCLI-221).
 - `task create`'s forward-dependency validation (`dependency_target_not_found`)
   is documented as deliberate, fail-closed behavior (QCLI-62), with a
   two-pass create-then-`--add-dependency` workaround now shown in the
@@ -1721,7 +1721,7 @@ archive`/`task demote` do (QCLI-221).
 - `quest help task edit` now explains 1-based CLI checklist positions versus
   the JSON envelope's 0-based `index`, that removal renumbers everything
   after it, and the exact JSON shapes `--comments`/`--add-comment` and `task
-edit-batch` expect (QCLI-226).
+  edit-batch` expect (QCLI-226).
 - Closed out the Backlog.md tracker-surface parity triage register: all
   decided gaps re-verified against current source with no drift, and the
   `doc`/`config`/`mcp` exclusion policy now has a citable source (QCLI-134).
