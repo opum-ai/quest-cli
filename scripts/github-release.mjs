@@ -380,6 +380,81 @@ export async function ensureGitHubRelease({
 }
 
 /**
+ * The commit a release's notes may be read from when it is not the tag's own
+ * (`promote-release.mjs --notes-from`, QCLI-515, opum-doc DEC-204 (3)). 0.14.1
+ * was tagged without a `## 0.14.1` section and the heading was fixed forward on
+ * dev; the tag, the receipt and the rc bytes stay bound to the tag's commit, and
+ * only the changelog read moves. Used once, for 0.14.1.
+ *
+ * Narrow on purpose, and each refusal names what failed:
+ * - a full 40-hex commit, never a branch or tag name, which can be re-pointed
+ *   where a commit cannot;
+ * - a DESCENDANT of `tagCommit` (compare status `ahead`), so the notes cannot
+ *   come from a sibling history;
+ * - whose net diff against `tagCommit` is CHANGELOG.md alone, each file a plain
+ *   modification of it (a rename or a second path is refused). The compare
+ *   list stops at 300 files, so a full list is refused rather than trusted.
+ * Every failure is `ok: false` with its cause; nothing is thrown or defaulted.
+ */
+export async function notesCommitFrom(
+  sha,
+  tagCommit,
+  { execFile: execFileFn = execFile } = {},
+) {
+  if (!/^[0-9a-f]{40}$/.test(String(sha)))
+    return {
+      ok: false,
+      detail: `--notes-from needs a full 40-hex commit sha, got ${JSON.stringify(sha)}; a branch or tag name can move, a commit cannot.`,
+    };
+  if (sha === tagCommit)
+    return {
+      ok: false,
+      detail: `--notes-from ${sha} is the tag's own commit; omit the flag to read the notes there.`,
+    };
+  let compare;
+  try {
+    const { stdout } = await execFileFn("gh", [
+      "api",
+      "--hostname",
+      "github.com",
+      `repos/${REPOSITORY_PATH}/compare/${tagCommit}...${sha}`,
+    ]);
+    compare = JSON.parse(stdout);
+  } catch (error) {
+    const detail = String(error?.stderr || error?.message || error)
+      .trim()
+      .split("\n")[0];
+    return {
+      ok: false,
+      detail: `${sha} could not be compared with the tag commit ${tagCommit} (${detail || "the read failed"}).`,
+    };
+  }
+  if (compare?.status !== "ahead")
+    return {
+      ok: false,
+      detail: `${sha} does not descend from the tag commit ${tagCommit} (compare status ${JSON.stringify(compare?.status ?? null)}); the notes may only be read from a descendant.`,
+    };
+  const files = Array.isArray(compare.files) ? compare.files : null;
+  if (!files || files.length === 0 || files.length >= 300)
+    return {
+      ok: false,
+      detail: `${sha} against ${tagCommit}: the changed-file list is ${files ? (files.length === 0 ? "empty" : "at the API's 300-file limit, so it may be truncated") : "missing"}; refusing rather than trusting it.`,
+    };
+  const others = files.filter(
+    (file) =>
+      file?.filename !== "CHANGELOG.md" ||
+      file?.status !== "modified" ||
+      file?.previous_filename !== undefined,
+  );
+  if (others.length)
+    return {
+      ok: false,
+      detail: `${sha} touches more than CHANGELOG.md against the tag commit ${tagCommit}: ${others.map((file) => file?.filename ?? "(unnamed)").join(", ")}; --notes-from accepts a CHANGELOG-only descendant.`,
+    };
+  return { ok: true, commit: sha, tagCommit };
+}
+
+/**
  * CHANGELOG.md's bytes at `commit`, through the GitHub API (QCLI-407, paired
  * with lore-cli LCLI-639). The tag is created remotely by release.yml and
  * this flow holds no local-git invocation, so the commit addressed here is
