@@ -191,12 +191,13 @@ async function runWriters(
 
 // QCLI-495 removed the id collision this test used to construct: sixteen
 // concurrent auto-allocating creates in one worktree used to mint the same id
-// and lose the race (4 to 7 of 16 won, measured 2026-10-20 with the lock and
-// ledger bypassed). Allocation now holds a lock and reserves the id, so 15 or
-// 16 of 16 win across 12 runs. A writer can still lose the tracker's own
-// revision check -- a conflict, not a collision -- so the bound is 14, which
-// sits between the two measured ranges, and a loser must still carry the
-// QCLI-425 concurrent wording.
+// and lose the race. They can still lose the tracker's own revision check -- a
+// conflict, not a collision, and more often on a loaded CI runner than here --
+// so this test no longer bounds HOW MANY win. It pins what must hold whatever
+// the count: every winner has its own id, and every loser carries the QCLI-425
+// concurrent wording. Whether the allocator prevents the collision is proved
+// by test/qcli495-worktree-aware-id-allocation.test.ts, where the creates are
+// one per worktree and the collision is deterministic without the lock.
 test("concurrent auto-allocating creates in one worktree win with distinct ids (QCLI-495, was the QCLI-425 writer race)", async () => {
   const root = await workspace();
   try {
@@ -211,7 +212,7 @@ test("concurrent auto-allocating creates in one worktree win with distinct ids (
       ]),
     );
     const wins = results.filter((result) => result.exitCode === 0);
-    expect(wins.length).toBeGreaterThanOrEqual(14);
+    expect(wins.length).toBeGreaterThan(0);
     const ids = wins.map(
       (result) =>
         (JSON.parse(result.stdout) as { data: { id: string } }).data.id,

@@ -70,8 +70,16 @@ function createArgs(family: string, title: string): readonly string[] {
   return [family, "create", title, ...ACTOR];
 }
 
-function created(result: { exitCode: number; stdout: string }): string {
-  expect(result.exitCode).toBe(0);
+function created(result: {
+  exitCode: number;
+  stdout: string;
+  stderr?: string;
+}): string {
+  // Name the refusal: a bare exit code says nothing about WHICH create lost.
+  if (result.exitCode !== 0)
+    throw new Error(
+      `create exited ${result.exitCode}: ${result.stderr ?? "(no stderr)"}`,
+    );
   return (JSON.parse(result.stdout).data as { id: string }).id;
 }
 
@@ -149,18 +157,22 @@ test("concurrent creates in two worktrees allocate distinct ids for every id fam
     // All four families, because the criterion is about "any id family": a
     // lock that covered tasks but not decisions would pass a task-only suite.
     for (const family of ["task", "draft", "milestone", "decision"]) {
-      // Milestones and decisions share `.quest/planning.json`, so two
-      // processes writing in ONE worktree race on that file whatever the
-      // allocator does (DEC-179 part 3's territory, not this task's). They
-      // are therefore launched once per worktree, concurrently ACROSS the
-      // two -- which is the shape m1 describes and the one under test.
-      const perWorktree = family === "task" || family === "draft" ? 3 : 1;
-      const ids = await Promise.all(
-        Array.from({ length: perWorktree }, (_unused, n) => n).flatMap((n) => [
-          createConcurrently(root, family, `${family} ${n} in main`),
-          createConcurrently(linked, family, `${family} ${n} in linked`),
-        ]),
-      );
+      // One create per worktree per round, the two launched together: the
+      // shape m1 describes. Two creates in ONE worktree are not used, because
+      // they race the tracker's own revision check whatever the allocator does
+      // (exit 5, a conflict and not a collision): the first version of this
+      // test did that and failed on a loaded CI runner. Neither worktree can
+      // see the other's uncommitted record, so without the lock and ledger the
+      // pair collides every time, not by luck of timing.
+      const ids: string[] = [];
+      for (let round = 0; round < 3; round += 1) {
+        ids.push(
+          ...(await Promise.all([
+            createConcurrently(root, family, `${family} ${round} in main`),
+            createConcurrently(linked, family, `${family} ${round} in linked`),
+          ])),
+        );
+      }
       // Named per family so a failure says WHICH family collided.
       expect({ family, distinct: new Set(ids).size }).toEqual({
         family,
@@ -175,25 +187,26 @@ test("concurrent creates in two worktrees allocate distinct ids for every id fam
 test("concurrent questions in two worktrees allocate distinct ids (QCLI-495, the family QCLI-445 added after the criteria were written)", async () => {
   const { root, linked, cleanup } = await worktreePair();
   try {
-    const ids = await Promise.all(
-      [root, linked, root, linked].map(async (workspace, n) =>
-        created(
-          await runQuestAsync(workspace, [
-            "question",
-            "ask",
-            "--title",
-            `Question ${n}`,
-            "--option",
-            "A=Yes:Do it",
-            "--option",
-            "B=No:Do not",
-            "--recommend",
-            "A",
-            ...ACTOR,
-          ]),
-        ),
-      ),
-    );
+    const ask = async (workspace: string, n: number) =>
+      created(
+        await runQuestAsync(workspace, [
+          "question",
+          "ask",
+          "--title",
+          `Question ${n}`,
+          "--option",
+          "A=Yes:Do it",
+          "--option",
+          "B=No:Do not",
+          "--recommend",
+          "A",
+          ...ACTOR,
+        ]),
+      );
+    // One per worktree per round, for the reason the every-family test gives.
+    const ids: string[] = [];
+    for (let round = 0; round < 2; round += 1)
+      ids.push(...(await Promise.all([ask(root, round), ask(linked, round)])));
     expect(new Set(ids).size).toBe(ids.length);
   } finally {
     await cleanup();
