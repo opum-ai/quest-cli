@@ -294,3 +294,56 @@ test("a reservation is dropped once its record is visible (QCLI-495 AC 4)", asyn
     await rm(root, { recursive: true, force: true });
   }
 }, 60_000);
+
+test("a reservation older than 7 days is dropped, and a younger one still counts (QCLI-495 AC 4)", async () => {
+  const root = await gitWorkspace();
+  try {
+    const ledgerPath = commonDirFile(root, "reserved-ids");
+    await mkdir(dirname(ledgerPath), { recursive: true });
+    const day = 24 * 60 * 60 * 1000;
+    // T-50 was reserved 8 days ago and never became a record: it must not
+    // hold the counter. T-60 was reserved an hour ago and still must.
+    await writeFile(
+      ledgerPath,
+      `${JSON.stringify({ id: "T-50", at: Date.now() - 8 * day })}\n${JSON.stringify({ id: "T-60", at: Date.now() - 3_600_000 })}\n`,
+      "utf8",
+    );
+    const id = create(root, "task", "After the ledger");
+    expect(id).toBe("T-61");
+    const ledger = await readFile(ledgerPath, "utf8");
+    expect(ledger).not.toContain('"id":"T-50"');
+    expect(ledger).toContain('"id":"T-60"');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("allocation runs no fetch and reaches for no remote, even with one configured (QCLI-495 AC 5)", async () => {
+  const root = await gitWorkspace();
+  let traceFile = "";
+  try {
+    // A remote that cannot be reached: any network use would fail or stall.
+    git(root, ["remote", "add", "origin", "https://127.0.0.1:9/never.git"]);
+    // Quest pipes git's stderr, so the trace goes to a file instead.
+    traceFile = join(await mkdtemp(join(tmpdir(), "qcli495-trace-")), "t");
+    const child = Bun.spawnSync(
+      [process.execPath, MAIN, ...createArgs("task", "offline")],
+      {
+        cwd: root,
+        env: { ...process.env, GIT_TRACE: traceFile },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    expect(child.exitCode).toBe(0);
+    const trace = await readFile(traceFile, "utf8");
+    // The trace must have been read: an empty one would pass the next checks
+    // for the wrong reason.
+    expect(trace).toContain("trace: built-in: git");
+    expect(trace).not.toMatch(/\b(fetch|ls-remote|pull|push|remote-https?)\b/);
+  } finally {
+    if (traceFile)
+      await rm(dirname(traceFile), { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
