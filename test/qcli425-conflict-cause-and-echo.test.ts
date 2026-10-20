@@ -193,12 +193,13 @@ async function runWriters(
 // concurrent auto-allocating creates in one worktree used to mint the same id
 // and lose the race. They can still lose the tracker's own revision check -- a
 // conflict, not a collision, and more often on a loaded CI runner than here --
-// so this test no longer bounds HOW MANY win. It pins what must hold whatever
-// the count: every winner has its own id, and every loser carries the QCLI-425
-// concurrent wording. Whether the allocator prevents the collision is proved
-// by test/qcli495-worktree-aware-id-allocation.test.ts, where the creates are
-// one per worktree and the collision is deterministic without the lock.
-test("concurrent auto-allocating creates in one worktree win with distinct ids (QCLI-495, was the QCLI-425 writer race)", async () => {
+// so this test does not bound HOW MANY win (the first version did, and flaked
+// in CI). It pins what must hold whatever the count: every winner has its own
+// id, and every loser carries the QCLI-425 concurrent wording AND the revision
+// it lost to. A collision loser goes through task_already_exists and carries
+// neither, so with the lock and ledger bypassed this goes red (10 of 10 runs,
+// measured 2026-10-20 in round 1 of #646).
+test("concurrent auto-allocating creates in one worktree: winners have distinct ids and every loser lost the revision check, never an id collision (QCLI-495, was the QCLI-425 writer race)", async () => {
   const root = await workspace();
   try {
     const results = await runWriters(
@@ -223,6 +224,12 @@ test("concurrent auto-allocating creates in one worktree win with distinct ids (
       const body = JSON.parse(loser.stderr) as ConflictBody;
       expect(body.message).toBe(CONCURRENT_WORDING);
       expect(body.input?.sentRevision).toBeUndefined();
+      // A loser of the tracker's revision check carries the revision it lost
+      // to (local-task-repository.ts, conflictFieldsOf). An id-collision loser
+      // goes through task_already_exists, which carries no input at all -- so
+      // this is what separates "a conflict, not a collision" from the m1
+      // defect, without bounding how many writers win.
+      expect(typeof body.input?.actualRevision).toBe("string");
     }
   } finally {
     await rm(root, { recursive: true, force: true });

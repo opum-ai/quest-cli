@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -258,12 +265,19 @@ test("a .quest with no Git repository behind it allocates exactly as before (QCL
     const first = create(store, "task", "First plain task");
     const second = create(store, "task", "Second plain task");
     expect(sequenceOf(second)).toBe(sequenceOf(first) + 1);
-    // No Git, so there is no common dir to lock and no ledger to keep: this
-    // path must not have created one beside the store.
-    const stray = await readFile(join(store, "reserved-ids"), "utf8").catch(
-      () => null,
+    // No Git, so there is no common dir to lock and no ledger to keep. The
+    // ledger and the lock live at `<common-dir>/quest/...`, so that is the
+    // path a broken non-Git branch would write if it took the store for a
+    // common dir -- the first version read `<store>/reserved-ids`, which the
+    // code never writes even when it is broken.
+    for (const name of ["reserved-ids", "alloc.lock"]) {
+      expect(
+        await readFile(join(store, "quest", name), "utf8").catch(() => null),
+      ).toBeNull();
+    }
+    expect(await readdir(store).then((names) => names.includes("quest"))).toBe(
+      false,
     );
-    expect(stray).toBeNull();
   } finally {
     if (previous === undefined) delete process.env.QUEST_TASK_STORE;
     else process.env.QUEST_TASK_STORE = previous;
@@ -318,7 +332,7 @@ test("a reservation older than 7 days is dropped, and a younger one still counts
     // hold the counter. T-60 was reserved an hour ago and still must.
     await writeFile(
       ledgerPath,
-      `${JSON.stringify({ id: "T-50", at: Date.now() - 8 * day })}\n${JSON.stringify({ id: "T-60", at: Date.now() - 3_600_000 })}\n`,
+      `${JSON.stringify({ id: "T-50", at: Date.now() - 8 * day, family: "task" })}\n${JSON.stringify({ id: "T-60", at: Date.now() - 3_600_000, family: "task" })}\n`,
       "utf8",
     );
     const id = create(root, "task", "After the ledger");
@@ -353,10 +367,103 @@ test("allocation runs no fetch and reaches for no remote, even with one configur
     // The trace must have been read: an empty one would pass the next checks
     // for the wrong reason.
     expect(trace).toContain("trace: built-in: git");
-    expect(trace).not.toMatch(/\b(fetch|ls-remote|pull|push|remote-https?)\b/);
+    const network = /\b(fetch|ls-remote|pull|push|remote-https?)\b/;
+    expect(trace).not.toMatch(network);
+    // Positive control: the same trace and the same pattern DO catch a
+    // deliberate fetch, so the absence above is the allocator's and not a
+    // pattern that matches nothing.
+    const controlTrace = join(dirname(traceFile), "control");
+    Bun.spawnSync(["git", "fetch", "origin"], {
+      cwd: root,
+      env: { ...process.env, GIT_TRACE: controlTrace },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(await readFile(controlTrace, "utf8")).toMatch(network);
   } finally {
     if (traceFile)
       await rm(dirname(traceFile), { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("an isolated worktree scan: an uncommitted --id record in one worktree raises the floor in another, with no ledger entry to help (QCLI-495 round 1, finding 4)", async () => {
+  const { root, linked, cleanup } = await worktreePair();
+  try {
+    // `--id` takes no lock and writes no ledger entry (idForCreate), so the
+    // ONLY thing that can tell the other worktree about T-5 is the scan of that
+    // worktree's own, uncommitted `.quest`.
+    const explicit = runQuest(root, [
+      "task",
+      "create",
+      "Explicit",
+      "--id",
+      "T-5",
+      ...ACTOR,
+    ]);
+    expect(explicit.exitCode).toBe(0);
+    const ledger = await readFile(
+      commonDirFile(root, "reserved-ids"),
+      "utf8",
+    ).catch(() => "");
+    expect(ledger).not.toContain("T-5");
+    expect(create(linked, "task", "Auto in the other worktree")).toBe("T-6");
+  } finally {
+    await cleanup();
+  }
+}, 60_000);
+
+test("after a stale lock is broken, concurrent creates in two worktrees still get distinct ids (QCLI-495 round 1, finding 1)", async () => {
+  const { root, linked, cleanup } = await worktreePair();
+  try {
+    const lockPath = commonDirFile(root, "alloc.lock");
+    await mkdir(dirname(lockPath), { recursive: true });
+    await writeFile(lockPath, `${999_999}\n${Date.now() - 60_000}\n`, "utf8");
+    const ids: string[] = [];
+    for (let round = 0; round < 3; round += 1)
+      ids.push(
+        ...(await Promise.all([
+          createConcurrently(root, "task", `main ${round}`),
+          createConcurrently(linked, "task", `linked ${round}`),
+        ])),
+      );
+    expect(new Set(ids).size).toBe(ids.length);
+  } finally {
+    await cleanup();
+  }
+}, 60_000);
+
+test("a live holder that never lets go makes a create fail as a conflict whose hint names the lock, the pid and the way out (QCLI-495 round 1, finding 6)", async () => {
+  const root = await gitWorkspace();
+  try {
+    const lockPath = commonDirFile(root, "alloc.lock");
+    await mkdir(dirname(lockPath), { recursive: true });
+    // The test process is the holder: alive, so the stale rule never breaks it.
+    await writeFile(lockPath, `${process.pid}\n${Date.now()}\n`, "utf8");
+    const result = await runQuestAsync(root, createArgs("task", "blocked"));
+    expect(result.exitCode).toBe(5);
+    const body = JSON.parse(result.stderr) as {
+      error_type: string;
+      message: string;
+      hint: string;
+      input?: { lockPath?: string; holderPid?: number };
+    };
+    expect(body.error_type).toBe("conflict");
+    expect(body.message).toContain(lockPath);
+    expect(body.message).toContain(`pid ${process.pid}`);
+    expect(body.message).not.toMatch(/held (it )?for/u);
+    expect(body.hint).toContain(lockPath);
+    expect(body.hint).toContain(`pid ${process.pid}`);
+    expect(body.hint).toContain("not a quest process");
+    expect(body.input?.holderPid).toBe(process.pid);
+    // The live holder's lock was not touched, and nothing was created.
+    expect(await readFile(lockPath, "utf8")).toStartWith(`${process.pid}\n`);
+    expect(
+      await readdir(join(root, ".quest", "tasks"))
+        .catch(() => [] as string[])
+        .then((names) => names.filter((name) => name.endsWith(".json"))),
+    ).toEqual([]);
+  } finally {
     await rm(root, { recursive: true, force: true });
   }
 }, 60_000);

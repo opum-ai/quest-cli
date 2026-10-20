@@ -58,6 +58,8 @@ import type {
 } from "../application/refs/across-refs.ts";
 import {
   allocateId,
+  IdAllocationLockTimeoutError,
+  IdAllocationWorktreeReadError,
   type IdAllocation,
 } from "../application/tasks/id-allocation.ts";
 import {
@@ -1320,7 +1322,7 @@ function withAllocationNotice(
   if (!allocation.brokeStaleLock) return result;
   return {
     ...result,
-    stderr: `Warning: broke a stale id allocation lock at ${allocation.lockPath} -- its holder pid is gone and the lock was older than 30s.\n`,
+    stderr: `${result.stderr}Warning: broke a stale id allocation lock at ${allocation.lockPath} -- its holder pid is gone and the lock was older than 30s.\n`,
   };
 }
 
@@ -1421,6 +1423,7 @@ async function nextTaskId(
     worktreeRoot: root,
     commonDirectory,
     marker,
+    family: "task",
     recordDirectories: TASK_RECORD_SUBDIRECTORIES,
     visibleIds: [
       ...(await tasks.listIncludingRetained()).map((task) => task.id),
@@ -1469,6 +1472,7 @@ async function nextDraftId(
     worktreeRoot: root,
     commonDirectory,
     marker,
+    family: "draft",
     recordDirectories: DRAFT_RECORD_SUBDIRECTORIES,
     visibleIds: [
       ...(await tasks.listDrafts(true)).map((record) => record.draft.id),
@@ -1494,6 +1498,7 @@ async function nextQuestionId(
     worktreeRoot: root,
     commonDirectory,
     marker,
+    family: "question",
     recordDirectories: QUESTION_RECORD_SUBDIRECTORIES,
     visibleIds: [
       ...(await questions.list()).map((record) => record.id),
@@ -1803,6 +1808,7 @@ async function nextPlanningId(
     worktreeRoot: root,
     commonDirectory,
     marker,
+    family: prefix === "M" ? "milestone" : "decision",
     // Milestones and decisions live in `.quest/planning.json` rather than one
     // file per record, which is why this family is enumerated from a document
     // in the refs scan AND in the worktree scan -- the prefix filter travels
@@ -4793,6 +4799,30 @@ export async function runQuest(
     // needs no reconstruction of argv. Every other conflict reaching here is
     // a write race, keeps the concurrent-change wording, and (QCLI-277)
     // carries `input.actualRevision` when the losing write reported one.
+    // QCLI-495 round 1, finding 6: the allocation lock timing out is
+    // contention, so it is a conflict (exit 5) like the `.write.lock` timeout,
+    // and the hint names the one thing that unwedges it. It deliberately says
+    // how long this call WAITED and when the lock was stamped, never how long
+    // it was held -- nothing here measures that.
+    if (error instanceof IdAllocationLockTimeoutError)
+      return failure("conflict", error.message, {
+        hint: `Retry the create. If it keeps failing, the holder may be wedged or its pid reused: removing ${error.lockPath} is safe when ${error.holderPid === null ? "no quest process is running" : `pid ${error.holderPid} is not a quest process`}.`,
+        input: {
+          lockPath: error.lockPath,
+          ...(error.holderPid !== null ? { holderPid: error.holderPid } : {}),
+          ...(error.lockAgeMilliseconds !== null
+            ? { lockStampedMillisecondsAgo: error.lockAgeMilliseconds }
+            : {}),
+        },
+      });
+    // QCLI-495 round 1, finding 5: an empty worktree list is a failed read, and
+    // the CLI's existing code for "a read came back empty or incomplete" is
+    // `drift` (exit 6), the one `task list --across-refs` uses for the same
+    // reason. Nothing was written.
+    if (error instanceof IdAllocationWorktreeReadError)
+      return failure("drift", error.message, {
+        hint: "Nothing was written. Run `git worktree list` in this repository: if it answers, retry; if it fails, fix that first.",
+      });
     if (error instanceof TrackerWriteConflictError)
       return error.sentRevision !== undefined
         ? failure(

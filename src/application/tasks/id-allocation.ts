@@ -1,12 +1,15 @@
 import {
+  link,
   mkdir,
   open,
   readFile,
   readdir,
+  rename,
   stat,
   unlink,
   writeFile,
 } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 
 import { compareTaskIds } from "../../domain/tasks/tasks.ts";
@@ -76,6 +79,11 @@ export interface IdAllocationRequest {
   readonly commonDirectory: string | null;
   /** The family's id marker, e.g. `QCLI-`, `D-`, `M-`, `DEC-`. */
   readonly marker: string;
+  /** Which record family this is -- `task`, `draft`, `milestone`, `decision`
+   * or `question`. Kept apart from the marker because a workspace whose task
+   * prefix is `D` shares the marker `D-` with drafts, and the ledger must not
+   * let one family's reservation stand in for the other's. */
+  readonly family: string;
   /** `.quest`-relative directories this family keeps one record per file in
    * (tasks, drafts), or null when it lives in `.quest/planning.json`
    * (milestones, decisions). */
@@ -101,6 +109,38 @@ export interface IdAllocation {
 interface LedgerEntry {
   readonly id: string;
   readonly at: number;
+  /** The family that reserved it, or null for a line that names none. */
+  readonly family: string | null;
+}
+
+/** QCLI-495 round 1, finding 6: waiting for the lock ran out. A conflict, not a
+ * validation failure -- contention is retryable and the CLI already answers its
+ * own `.write.lock` timeout that way. Carries what the hint needs. */
+export class IdAllocationLockTimeoutError extends Error {
+  constructor(
+    readonly lockPath: string,
+    readonly holderPid: number | null,
+    readonly lockAgeMilliseconds: number | null,
+    readonly waitedMilliseconds: number,
+  ) {
+    super(
+      `id_allocation_lock_timeout: waited ${Math.round(waitedMilliseconds / 1000)}s for the id allocation lock at ${lockPath}, held by ${holderPid === null ? "an unidentified process" : `pid ${holderPid}`}${lockAgeMilliseconds === null ? "" : ` (lock stamped ${Math.round(lockAgeMilliseconds / 1000)}s ago)`}. Nothing was written.`,
+    );
+    this.name = "IdAllocationLockTimeoutError";
+  }
+}
+
+/** QCLI-495 round 1, finding 5: `git worktree list` answered nothing while a
+ * common dir resolves. Such a list always holds at least the current worktree,
+ * so an empty one is a failed read, and carrying on without the worktree source
+ * would silently hand back the pre-fix answer. */
+export class IdAllocationWorktreeReadError extends Error {
+  constructor(readonly worktreeRoot: string) {
+    super(
+      `id_allocation_worktree_list_empty: git worktree list read 0 worktrees from ${worktreeRoot}. An empty read is a failure, not a pass -- it cannot be told apart from a wrong repository or a failed Git call, and allocating without it would ignore every other worktree's uncommitted records.`,
+    );
+    this.name = "IdAllocationWorktreeReadError";
+  }
 }
 
 function sleepFor(milliseconds: number): Promise<void> {
@@ -179,6 +219,13 @@ async function readLock(
  * back to the file's own mtime and is broken on age alone -- a holder that
  * cannot be identified is exactly the wedged state this exists to clear, and
  * the age test is what keeps a mid-write holder out of it.
+ *
+ * Breaking is a RENAME to a name only this call knows, then a re-read of what
+ * was renamed. Two breakers can both judge the same lock stale; with a plain
+ * unlink the slower one deletes the FRESH lock the faster one has since taken
+ * (round 1, finding 1's secondary). After the rename the slower breaker finds
+ * a lock that is not the one it judged, and puts it back with `link`, which
+ * refuses to overwrite -- so it can never replace a newer holder's lock.
  */
 async function breakStaleLock(
   lockPath: string,
@@ -188,14 +235,33 @@ async function breakStaleLock(
   if (holder === null) return false;
   if (now() - holder.at <= STALE_LOCK_MILLISECONDS) return false;
   if (holder.pid !== null && processIsAlive(holder.pid)) return false;
-  // A concurrent breaker may win the unlink; the caller retries either way,
-  // so losing the race is not a failure and must not be reported as one.
-  return unlink(lockPath).then(
+  const parked = `${lockPath}.stale-${randomUUID()}`;
+  const renamed = await rename(lockPath, parked).then(
     () => true,
     () => false,
   );
+  // Someone else broke it first: the lock is gone and the caller retries.
+  if (!renamed) return false;
+  const taken = await readLock(parked);
+  const sameLock =
+    taken !== null && taken.pid === holder.pid && taken.at === holder.at;
+  if (!sameLock) {
+    // We parked a lock that is not the stale one: restore it, never over a
+    // newer one.
+    await link(parked, lockPath).catch(() => undefined);
+  }
+  await unlink(parked).catch(() => undefined);
+  return sameLock;
 }
 
+/**
+ * Takes the lock and says whether this call had to BREAK a stale one to do it.
+ * A break is never the end of the call: it loops back to the exclusive create,
+ * because breaking removes the file and holding the lock means having created
+ * one. Returning straight after the break (the first version) left every
+ * breaker running the critical section with no lock at all, and a second
+ * allocator's create then succeeded alongside it (round 1, finding 1).
+ */
 async function acquireLock(
   lockPath: string,
   now: () => number,
@@ -203,20 +269,36 @@ async function acquireLock(
   sleep: (milliseconds: number) => Promise<void>,
 ): Promise<boolean> {
   const started = now();
+  let broke = false;
   for (;;) {
     try {
       const handle = await open(lockPath, "wx");
-      await handle.writeFile(`${processId}\n${now()}\n`, "utf8");
+      try {
+        await handle.writeFile(`${processId}\n${now()}\n`, "utf8");
+      } catch (error) {
+        // An empty lock would block every create for 30 seconds.
+        await handle.close().catch(() => undefined);
+        await unlink(lockPath).catch(() => undefined);
+        throw error;
+      }
       await handle.close();
-      return false;
+      return broke;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
-    if (await breakStaleLock(lockPath, now)) return true;
-    if (now() - started >= LOCK_WAIT_MILLISECONDS)
-      throw new Error(
-        `id_allocation_lock_timeout: another quest process has held ${lockPath} for more than ${Math.round(LOCK_WAIT_MILLISECONDS / 1000)}s. Nothing was written.`,
+    if (await breakStaleLock(lockPath, now)) {
+      broke = true;
+      continue;
+    }
+    if (now() - started >= LOCK_WAIT_MILLISECONDS) {
+      const holder = await readLock(lockPath);
+      throw new IdAllocationLockTimeoutError(
+        lockPath,
+        holder?.pid ?? null,
+        holder === null ? null : now() - holder.at,
+        now() - started,
       );
+    }
     await sleep(LOCK_POLL_MILLISECONDS);
   }
 }
@@ -241,22 +323,37 @@ async function readLedger(ledgerPath: string): Promise<LedgerEntry[]> {
     } catch {
       continue; // a corrupt line is dropped, not fatal: it can only under-report
     }
-    const entry = parsed as { id?: unknown; at?: unknown } | null;
+    const entry = parsed as {
+      id?: unknown;
+      at?: unknown;
+      family?: unknown;
+    } | null;
     if (typeof entry?.id !== "string" || !Number.isFinite(entry.at)) continue;
-    entries.push({ id: entry.id, at: entry.at as number });
+    entries.push({
+      id: entry.id,
+      at: entry.at as number,
+      family: typeof entry.family === "string" ? entry.family : null,
+    });
   }
   return entries;
 }
 
+/** Temp file plus rename, the way local-task-repository.ts writes a record: a
+ * process killed mid-write leaves the previous ledger whole instead of a
+ * truncated one that readLedger would silently under-read. The caller holds the
+ * lock, so the temp name need only differ from every OTHER process's. */
 async function writeLedger(
   ledgerPath: string,
   entries: readonly LedgerEntry[],
+  processId: number,
 ): Promise<void> {
+  const temporary = `${ledgerPath}.tmp-${processId}`;
   await writeFile(
-    ledgerPath,
+    temporary,
     entries.map((entry) => `${JSON.stringify(entry)}\n`).join(""),
     "utf8",
   );
+  await rename(temporary, ledgerPath);
 }
 
 /** Record ids this family keeps one per file in `directory`. An absent
@@ -312,6 +409,11 @@ async function worktreeIds(
   const worktrees = await request.git
     .listWorktrees(request.worktreeRoot)
     .catch(() => [] as readonly string[]);
+  // A common dir resolved, so this list holds at least the current worktree.
+  // Empty can only mean the read failed -- and the fleet rule is that a check
+  // which read zero inputs fails rather than passes.
+  if (worktrees.length === 0)
+    throw new IdAllocationWorktreeReadError(request.worktreeRoot);
   const ids: string[] = [];
   for (const worktree of worktrees) {
     const quest = join(worktree, ".quest");
@@ -364,6 +466,7 @@ export async function allocateId(
   const brokeStaleLock = await acquireLock(lockPath, now, processId, sleep);
   try {
     const visible = [...request.visibleIds, ...(await worktreeIds(request))];
+    const visibleSet = new Set(visible);
     // DEC-179's second pruning limb, applied BEFORE the entry can influence
     // anything: an entry past its 7 days is spent whether or not a record
     // carrying it ever appeared, and dropping it only on the way out would
@@ -371,22 +474,27 @@ export async function allocateId(
     const reserved = (await readLedger(ledgerPath)).filter(
       (entry) => now() - entry.at <= LEDGER_ENTRY_TTL_MILLISECONDS,
     );
-    const highestVisible =
-      sequenceOfId(highestId(visible, request.marker) ?? "", request.marker) ??
-      0;
-    const id = candidateId(
-      [...visible, ...reserved.map((entry) => entry.id)],
-      request.marker,
-    );
-    // DEC-179's first pruning limb. An entry at or below the highest id
-    // already VISIBLE is spent: allocation is monotonic, so the allocator can
-    // never hand that sequence out again and keeping it would only grow the
-    // file. An entry ABOVE it is a reservation whose record nobody can see
-    // yet, which is the whole reason the ledger exists.
+    // Only THIS family's reservations raise this family's floor, and only a
+    // reservation that parses as one of this marker's ids can.
+    const ownReservedIds = reserved
+      .filter((entry) => entry.family === request.family)
+      .map((entry) => entry.id);
+    const id = candidateId([...visible, ...ownReservedIds], request.marker);
+    // DEC-179's first pruning limb, exactly: an entry is spent once a record
+    // carrying THAT id is visible in a ref or a worktree. Another family's
+    // entry is checked against ITS visibility, which this call cannot see, so
+    // it is left to the 7-day limb. (The first version pruned every entry at or
+    // below the highest visible sequence, and treated a foreign entry as
+    // sequence 0, which wiped every other family's reservation -- round 1,
+    // finding 2.)
     const kept = reserved.filter(
-      (entry) => (sequenceOfId(entry.id, request.marker) ?? 0) > highestVisible,
+      (entry) => !(entry.family === request.family && visibleSet.has(entry.id)),
     );
-    await writeLedger(ledgerPath, [...kept, { id, at: now() }]);
+    await writeLedger(
+      ledgerPath,
+      [...kept, { id, at: now(), family: request.family }],
+      processId,
+    );
     return { id, brokeStaleLock, lockPath };
   } finally {
     await releaseLock(lockPath, processId);
