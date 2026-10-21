@@ -69,6 +69,13 @@ import {
 } from "../application/tasks/local-task-repository.ts";
 import { RemovalValueNotFoundError } from "../application/tasks/edit-patch.ts";
 import {
+  readTaskAtRef,
+  RefNotResolvableError,
+  RefRecordDuplicateError,
+  RefRecordsUnreadableError,
+  TaskNotFoundAtRefError,
+} from "../application/tasks/read-at-ref.ts";
+import {
   type LocatedDraft,
   SurvivorNotFoundError,
   type TaskResolutionKind,
@@ -92,6 +99,7 @@ import {
   recordFromMutation,
   TrackerWriteConflictError,
   withCheckPositions,
+  withNoteCap,
 } from "./commands/task/index.ts";
 import {
   createAcrossRefsService,
@@ -163,6 +171,24 @@ const CONTRACT_VERSION = 1;
 interface ListingExtras {
   readonly scope?: ListingScope;
   readonly coverage?: AcrossRefsCoverage;
+  /**
+   * QCLI-519: what `task view --ref` read, and which commit it resolved to.
+   * Additive and in the same bounded slot as `scope`/`coverage` -- after
+   * `data`, before `principal` -- so `contractVersion` stays at index 1 and
+   * `principal` stays last. Absent on every read that did not name a ref.
+   */
+  readonly ref?: TaskRefProvenance;
+}
+
+/**
+ * QCLI-519: the ref provenance a `task view --ref` answer carries, beside
+ * `data`. `ref` is the caller's spelling of the ref (so an answer about
+ * `HEAD~2` says so rather than only naming a sha), and `sha` is the commit the
+ * ref resolved to -- the thing a reader needs to reproduce the read.
+ */
+interface TaskRefProvenance {
+  readonly ref: string;
+  readonly sha: string;
 }
 
 function output(
@@ -199,6 +225,7 @@ function output(
     data: success.data,
     ...(extras.scope === undefined ? {} : { scope: extras.scope }),
     ...(extras.coverage === undefined ? {} : { coverage: extras.coverage }),
+    ...(extras.ref === undefined ? {} : { ref: extras.ref }),
     principal: null,
   };
   return {
@@ -3814,7 +3841,9 @@ export async function runQuest(
     }
     if (command === "view" && rest[0]) {
       const parsed = flags(rest.slice(1));
-      const viewFlags = ["--max-notes", "--fields"];
+      // QCLI-519 / DEC-206 (c3): `--ref <ref>` reads the record as it exists
+      // at that git ref instead of in the working tree.
+      const viewFlags = ["--max-notes", "--fields", "--ref"];
       if (!parsed || !only(parsed, viewFlags))
         return usageFailure(
           parsed,
@@ -3826,20 +3855,81 @@ export async function runQuest(
       // fields. Parsed and validated here so an unknown name is a usage failure
       // (exit 2) before any read. The projection is applied here, at the CLI
       // boundary, to the record the command returns -- which has already
-      // composed in --max-notes inside the command layer, so the note cap runs
-      // first and the projection second.
+      // composed in --max-notes inside the command layer (or, for `--ref`,
+      // just below), so the note cap runs first and the projection second.
       const selectedFields = fieldsValue(
         one(parsed, "--fields"),
         declaredFields("task view"),
         "--fields",
       );
-      const response = await dispatchTrackerTaskCommand(await taskService(), {
-        command,
-        reference: rest[0],
-        maxNotes: maxNotesValue(one(parsed, "--max-notes")),
-      });
+      const maxNotes = maxNotesValue(one(parsed, "--max-notes"));
+      const ref = one(parsed, "--ref");
+      let extras: ListingExtras = {};
+      let response: Awaited<ReturnType<typeof dispatchTrackerTaskCommand>>;
+      if (ref === undefined) {
+        response = await dispatchTrackerTaskCommand(await taskService(), {
+          command,
+          reference: rest[0],
+          maxNotes,
+        });
+      } else {
+        // QCLI-519: the same `data` shape `task view` returns, built from the
+        // record read AT THE REF. The commit the ref resolved to rides beside
+        // `data` as `ref` provenance, never inside it, so every caller that
+        // already decodes `task.view` needs no second decoder. The three
+        // failures are deliberate exit codes rather than one catch-all: an id
+        // absent at the ref and a ref that does not resolve are BOTH "not
+        // found" to the caller's argv, while a tree or record that could not
+        // be read is `drift` -- the same split `task list --across-refs`
+        // makes, and for the same reason (an unreadable tree must never read
+        // as an empty one).
+        let atRef: Awaited<ReturnType<typeof readTaskAtRef>>;
+        try {
+          atRef = await readTaskAtRef({
+            git,
+            repositoryPath: await resolvedRoot(),
+            reference: rest[0],
+            ref,
+          });
+        } catch (error) {
+          if (error instanceof RefNotResolvableError)
+            return failure("not_found", error.message, {
+              hint: "Name a ref this repository holds. The read does not fetch, so a ref that exists only on the remote must be fetched first (or read through `quest task list --across-refs`).",
+              input: { ref: error.ref },
+            });
+          if (error instanceof TaskNotFoundAtRefError)
+            return failure("not_found", error.message, {
+              hint: "Check the id against that ref: `quest task view <id> --ref <ref>` reads only the records the ref carries, so a task created in this checkout and not yet committed there is absent.",
+              input: {
+                reference: error.reference,
+                ref: error.ref,
+                sha: error.sha,
+              },
+            });
+          if (error instanceof RefRecordDuplicateError)
+            return failure("drift", error.message, {
+              hint: "One ref carries the same id twice, which every other command refuses; fix the duplicate in that ref before reading it.",
+              input: { ref: error.ref, sha: error.sha, id: error.id },
+            });
+          if (error instanceof RefRecordsUnreadableError)
+            return failure("drift", error.message, {
+              hint: "Nothing was written. Retry the read; if it keeps failing, the ref's .quest tree is damaged and the sha in the message is the tree to inspect.",
+              input: { ref: error.ref, sha: error.sha },
+            });
+          throw error;
+        }
+        // The ref exactly as the caller spelled it, plus the commit it
+        // resolved to -- an answer about `HEAD~2` should say so, not only name
+        // a sha.
+        extras = { ref: { ref, sha: atRef.sha } };
+        const recorded = withNoteCap(
+          { ...withCheckPositions(atRef.task), revision: atRef.revision },
+          maxNotes,
+        );
+        response = { schemaVersion: 1, kind: "task.view", data: recorded };
+      }
       if (selectedFields === undefined)
-        return output(response, modeFor(parsed));
+        return output(response, modeFor(parsed), [], extras);
       // QCLI-291 / DEC-161: project `data` (the post-cap record) to EXACTLY the
       // named top-level fields, in the caller's order, through the SAME shared
       // projection `task list --fields` uses (QCLI-462) -- so the bound-marker
@@ -3861,7 +3951,7 @@ export async function runQuest(
         { ...response, data: projected },
         modeFor(parsed),
         [],
-        {},
+        extras,
         () => renderTabSeparatedRows([projected], selectedFields),
       );
     }

@@ -372,7 +372,10 @@ export const commandManifest = {
       // record, unchanged.
       // QCLI-291 / DEC-161: `--fields` is the same projection `task list`
       // takes, against `task view`'s own `fields` below.
-      filters: ["fields", "max-notes"],
+      // QCLI-519 / DEC-206 (c3): `--ref <ref>` reads the record as it exists
+      // at a git ref instead of in the working tree. A read: no revision
+      // precondition, no write, and no fetch.
+      filters: ["fields", "max-notes", "ref"],
       // QCLI-461: the COMPLETE top-level key set a `task view` record can
       // carry -- the task record's keys plus `path`, `revision` and the
       // conditional `notesOmitted` -- not a curated subset.
