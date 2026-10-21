@@ -67,6 +67,10 @@ const LOCK_POLL_MILLISECONDS = 25;
 const ALLOCATION_DIRECTORY = "quest";
 const LOCK_FILE_NAME = "alloc.lock";
 const LEDGER_FILE_NAME = "reserved-ids";
+/** QCLI-522: the breaker's own file, beside the lock. Declared here because
+ * {@link IdAllocationLockTimeoutError} reports its path by default. */
+const BREAK_FILE_STALE_MILLISECONDS = 10_000;
+const BREAK_FILE_SUFFIX = ".break";
 
 export interface IdAllocationRequest {
   readonly git: GitPort;
@@ -115,19 +119,74 @@ interface LedgerEntry {
 
 /** QCLI-495 round 1, finding 6: waiting for the lock ran out. A conflict, not a
  * validation failure -- contention is retryable and the CLI already answers its
- * own `.write.lock` timeout that way. Carries what the hint needs. */
+ * own `.write.lock` timeout that way. Carries what the hint needs.
+ *
+ * QCLI-522: it also carries what is at `<lockPath>.break`, because that file
+ * decides whether removing the lock is safe at all. A break file left by a
+ * breaker killed between creating it and writing it is unreadable, is never
+ * auto-cleared (see `takeBreakFile`), and blocks breaking a stale lock -- so a
+ * hint that called the lock unconditionally safe to remove was wrong in
+ * exactly the state a wedged allocator ends up in. */
 export class IdAllocationLockTimeoutError extends Error {
   constructor(
     readonly lockPath: string,
     readonly holderPid: number | null,
     readonly lockAgeMilliseconds: number | null,
     readonly waitedMilliseconds: number,
+    /** `<lockPath>.break`, the file that serialises breakers. */
+    readonly breakPath: string = `${lockPath}${BREAK_FILE_SUFFIX}`,
+    /** Whether anything exists at {@link breakPath} at all. */
+    readonly breakFilePresent: boolean = false,
+    /** The breaker's pid as recorded, or null when the file is present but its
+     * holder cannot be read (a breaker killed mid-write) OR when there is no
+     * file -- {@link breakFilePresent} is what separates those two. */
+    readonly breakHolderPid: number | null = null,
+    /** True only when a readable break pid names a process this machine can
+     * still see. A live breaker means the lock must not be removed. */
+    readonly breakHolderAlive: boolean = false,
   ) {
     super(
-      `id_allocation_lock_timeout: waited ${Math.round(waitedMilliseconds / 1000)}s for the id allocation lock at ${lockPath}, held by ${holderPid === null ? "an unidentified process" : `pid ${holderPid}`}${lockAgeMilliseconds === null ? "" : ` (lock stamped ${Math.round(lockAgeMilliseconds / 1000)}s ago)`}. Nothing was written.`,
+      `id_allocation_lock_timeout: waited ${Math.round(waitedMilliseconds / 1000)}s for the id allocation lock at ${lockPath}, held by ${holderPid === null ? "an unidentified process" : `pid ${holderPid}`}${lockAgeMilliseconds === null ? "" : ` (lock stamped ${Math.round(lockAgeMilliseconds / 1000)}s ago)`}${breakFilePresent ? `; a break file is present at ${breakPath}` : ""}. Nothing was written.`,
     );
     this.name = "IdAllocationLockTimeoutError";
   }
+}
+
+/**
+ * QCLI-522: the timeout hint, as ONE function so a test can assert the exact
+ * text without spawning a process and waiting out the lock's ten-second
+ * window, and so the break-file clause has one home.
+ *
+ * The rule the wording encodes: `alloc.lock` is safe to remove only when no
+ * LIVE break holder exists. A break file this command can read and whose pid
+ * is alive means a breaker is mid-critical-section; one whose holder is
+ * unreadable is the killer-left-behind case, and it blocks breaking a stale
+ * lock until a person removes it. This function, and the CLI path that calls
+ * it, never remove or clear the break file -- they only report it.
+ */
+export function allocationLockTimeoutHint(
+  error: IdAllocationLockTimeoutError,
+): string {
+  const holder =
+    error.holderPid === null
+      ? "an unidentified process"
+      : `pid ${error.holderPid}`;
+  const age =
+    error.lockAgeMilliseconds === null
+      ? "has no readable stamp"
+      : `was stamped ${Math.round(error.lockAgeMilliseconds / 1000)}s ago`;
+  const holderGoneWhen =
+    error.holderPid === null
+      ? "no quest process is running"
+      : `pid ${error.holderPid} is not a quest process`;
+  const breakClause = !error.breakFilePresent
+    ? `No break file exists at ${error.breakPath}.`
+    : error.breakHolderPid === null
+      ? `A break file EXISTS at ${error.breakPath} and its holder is unreadable (a breaker killed between creating and writing it). While it is there a stale lock cannot be broken, and this command never removes or clears it: remove ${error.breakPath} yourself before anything else. Removing ${error.lockPath} is NOT safe until it is gone.`
+      : error.breakHolderAlive
+        ? `A break file EXISTS at ${error.breakPath}, held by LIVE pid ${error.breakHolderPid}. Removing ${error.lockPath} is NOT safe while that breaker is running, and this command never removes or clears the break file.`
+        : `A break file EXISTS at ${error.breakPath}, held by pid ${error.breakHolderPid}, which is not running. Remove ${error.breakPath} first -- while it is there a stale lock cannot be broken, and this command never clears it.`;
+  return `Retry the create. The lock ${age}, held by ${holder}; one whose holder pid is gone is broken automatically once it is 30s old, so a create after a crashed holder can fail for up to that long. ${breakClause} If it keeps failing, removing ${error.lockPath} is safe only when no live break holder exists and ${holderGoneWhen}.`;
 }
 
 /** QCLI-495 round 1, finding 5: `git worktree list` answered nothing while a
@@ -294,8 +353,6 @@ export async function breakStaleLock(
  * for a file whose holder really is dead, and a loser's unlink can hit the
  * winner's fresh file; that needs a killed breaker AND two clearers AND a third
  * breaker in the same instant, and the stale reading must still match. */
-const BREAK_FILE_STALE_MILLISECONDS = 10_000;
-const BREAK_FILE_SUFFIX = ".break";
 
 /** The holder written into a break file this call created, or null when it was
  * not taken. */
@@ -368,11 +425,21 @@ async function acquireLock(
     }
     if (now() - started >= LOCK_WAIT_MILLISECONDS) {
       const holder = await readLock(lockPath);
+      // QCLI-522: the break file decides whether the lock is safe to remove,
+      // so what is at it is part of the answer. `readLock` answers null for an
+      // ABSENT file and `{pid: null}` for one whose holder cannot be read --
+      // the two states the hint must not conflate.
+      const breakPath = `${lockPath}${BREAK_FILE_SUFFIX}`;
+      const breaker = await readLock(breakPath);
       throw new IdAllocationLockTimeoutError(
         lockPath,
         holder?.pid ?? null,
         holder === null ? null : now() - holder.at,
         now() - started,
+        breakPath,
+        breaker !== null,
+        breaker?.pid ?? null,
+        breaker?.pid != null && processIsAlive(breaker.pid),
       );
     }
     await sleep(LOCK_POLL_MILLISECONDS);

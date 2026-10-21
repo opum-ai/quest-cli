@@ -58,6 +58,7 @@ import type {
 } from "../application/refs/across-refs.ts";
 import {
   allocateId,
+  allocationLockTimeoutHint,
   IdAllocationLockTimeoutError,
   IdAllocationWorktreeReadError,
   type IdAllocation,
@@ -4806,12 +4807,23 @@ export async function runQuest(
     // and the hint names the one thing that unwedges it. It deliberately says
     // how long this call WAITED and when the lock was stamped, never how long
     // it was held -- nothing here measures that.
+    //
+    // QCLI-522: the hint (built in the application layer, where it is
+    // testable without a ten-second spawn) also reports `alloc.lock.break` and
+    // its holder, because a live or unreadable break file makes removing the
+    // lock unsafe. The wording never offers to clear it: a named error showing
+    // the exact file is the ruling, never auto-clearing.
     if (error instanceof IdAllocationLockTimeoutError)
       return failure("conflict", error.message, {
-        hint: `Retry the create. The lock ${error.lockAgeMilliseconds === null ? "has no readable stamp" : `was stamped ${Math.round(error.lockAgeMilliseconds / 1000)}s ago`}; one whose holder pid is gone is broken automatically once it is 30s old, so a create after a crashed holder can fail for up to that long. If it keeps failing, the holder may be wedged or its pid reused: removing ${error.lockPath} is safe when ${error.holderPid === null ? "no quest process is running" : `pid ${error.holderPid} is not a quest process`}.`,
+        hint: allocationLockTimeoutHint(error),
         input: {
           lockPath: error.lockPath,
+          breakPath: error.breakPath,
+          breakFilePresent: error.breakFilePresent,
           ...(error.holderPid !== null ? { holderPid: error.holderPid } : {}),
+          ...(error.breakHolderPid !== null
+            ? { breakHolderPid: error.breakHolderPid }
+            : {}),
           ...(error.lockAgeMilliseconds !== null
             ? { lockStampedMillisecondsAgo: error.lockAgeMilliseconds }
             : {}),
