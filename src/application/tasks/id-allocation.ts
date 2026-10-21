@@ -511,6 +511,145 @@ async function worktreeIds(
 }
 
 /**
+ * QCLI-520: a BLOCK of consecutive ids for one family, requested in one call.
+ *
+ * The Backlog.md migration mints a whole batch of task ids (and milestone
+ * ids) for one apply, and it used to compute them itself from its own
+ * worktree -- no lock, no ledger, no worktree scan -- so two worktrees
+ * migrating before either committed both minted the same numbers
+ * (src/application/migration/backlog-public.ts). A block request puts that
+ * batch through the same lock and ledger one id already goes through.
+ */
+export interface IdBlockRequest extends IdAllocationRequest {
+  readonly count: number;
+}
+
+export interface IdBlock {
+  readonly ids: readonly string[];
+  readonly brokeStaleLock: boolean;
+  readonly lockPath: string | null;
+}
+
+/** The block's first sequence: one above everything visible to this call,
+ * which is the same rule {@link candidateId} applies to a single id. */
+function blockIds(
+  ids: readonly string[],
+  marker: string,
+  count: number,
+): readonly string[] {
+  const highest = highestId(ids, marker);
+  const base = highest === null ? 0 : (sequenceOfId(highest, marker) ?? 0);
+  return Array.from(
+    { length: count },
+    (_, index) => `${marker}${base + index + 1}`,
+  );
+}
+
+/** Live reservations for this family, which raise its floor exactly as they do
+ * for a single allocation. */
+function ownReservations(
+  reserved: readonly LedgerEntry[],
+  family: string,
+): readonly string[] {
+  return reserved
+    .filter((entry) => entry.family === family)
+    .map((entry) => entry.id);
+}
+
+/**
+ * QCLI-520: the block a reservation WOULD return, computed without the lock
+ * and without writing anything.
+ *
+ * A migration preview has to show the ids the apply will mint (they are part
+ * of the approved digest), and it must not reserve them: a preview that
+ * reserved would move the floor, so the apply that follows could not
+ * reproduce the approved plan. So preview peeks and apply reserves, and the
+ * two agree because both read the same visible set and the same ledger -- and
+ * when a concurrent allocator moves the floor between them, the migration's
+ * own digest check refuses the stale plan instead of minting an unapproved
+ * one.
+ */
+export async function peekIdBlock(
+  request: IdBlockRequest,
+): Promise<readonly string[]> {
+  if (request.count <= 0) return [];
+  const visible = [...request.visibleIds];
+  let reserved: readonly LedgerEntry[] = [];
+  if (request.commonDirectory !== null) {
+    const now = request.now ?? Date.now;
+    const ledgerPath = join(
+      request.commonDirectory,
+      ALLOCATION_DIRECTORY,
+      LEDGER_FILE_NAME,
+    );
+    visible.push(...(await worktreeIds(request)));
+    reserved = (await readLedger(ledgerPath)).filter(
+      (entry) => now() - entry.at <= LEDGER_ENTRY_TTL_MILLISECONDS,
+    );
+  }
+  return blockIds(
+    [...visible, ...ownReservations(reserved, request.family)],
+    request.marker,
+    request.count,
+  );
+}
+
+/**
+ * QCLI-520: reserve `count` consecutive ids for one family in one lock hold.
+ * The reservations are durable when this resolves, so a second worktree's
+ * migration sees them (through the ledger and, once written, through its
+ * worktree scan) and starts above them rather than on top of them.
+ */
+export async function reserveIdBlock(
+  request: IdBlockRequest,
+): Promise<IdBlock> {
+  if (request.count <= 0)
+    return { ids: [], brokeStaleLock: false, lockPath: null };
+  if (request.commonDirectory === null)
+    return {
+      ids: blockIds(request.visibleIds, request.marker, request.count),
+      brokeStaleLock: false,
+      lockPath: null,
+    };
+
+  const now = request.now ?? Date.now;
+  const processId = request.processId ?? process.pid;
+  const sleep = request.sleep ?? sleepFor;
+  const directory = join(request.commonDirectory, ALLOCATION_DIRECTORY);
+  const lockPath = join(directory, LOCK_FILE_NAME);
+  const ledgerPath = join(directory, LEDGER_FILE_NAME);
+
+  await mkdir(dirname(lockPath), { recursive: true });
+  const brokeStaleLock = await acquireLock(lockPath, now, processId, sleep);
+  try {
+    const visible = [...request.visibleIds, ...(await worktreeIds(request))];
+    const visibleSet = new Set(visible);
+    const reserved = (await readLedger(ledgerPath)).filter(
+      (entry) => now() - entry.at <= LEDGER_ENTRY_TTL_MILLISECONDS,
+    );
+    const ids = blockIds(
+      [...visible, ...ownReservations(reserved, request.family)],
+      request.marker,
+      request.count,
+    );
+    const kept = reserved.filter(
+      (entry) => !(entry.family === request.family && visibleSet.has(entry.id)),
+    );
+    await writeLedger(
+      ledgerPath,
+      [
+        ...kept,
+        ...ids.map((id) => ({ id, at: now(), family: request.family })),
+      ],
+      processId,
+    );
+    return { ids, brokeStaleLock, lockPath };
+  } finally {
+    await releaseLock(lockPath, processId);
+  }
+}
+
+/**
  * Allocates one id for one family. The returned id is the caller's to write;
  * the reservation is already durable when this resolves, which is what lets a
  * second allocator release the lock, read the ledger, and still see it.

@@ -194,8 +194,10 @@ three sources plus one, taken under an exclusive lock at
 \`<git-common-dir>/quest/alloc.lock\`, and written to the ledger before the lock is released, so
 two creates in two worktrees get distinct ids even before either record is committed. This
 covers the create commands: \`task create\`, \`draft create\` and \`draft promote\`, \`milestone create\`,
-\`decision create\` and \`question ask\`. It does not cover \`--id\` (an explicit id is the caller's), and it does
-not cover the Backlog.md migration, which still mints its own ids from this worktree alone.
+\`decision create\` and \`question ask\`, and (QCLI-520) the ids \`migration backlog apply\` mints for
+imported tasks and milestones -- it reserves a whole block in one lock hold, so two worktrees
+migrating before either commits get distinct ids. It does not cover \`--id\` (an explicit id is
+the caller's).
 A ledger entry is dropped once a record with that id is visible in a ref or a worktree, or
 after 7 days; a create that lost the record write still leaves its entry, so the next id may
 skip a number for up to 7 days. Allocation uses no network and no fetch. A lock whose holder
@@ -206,8 +208,8 @@ the lock is safe when that pid is not a quest process. If \`git worktree list\` 
 the create fails as \`drift\` (exit 6) rather than allocating from refs alone.
 
 **A duplicate id is still possible, and \`--across-refs\` reports it.** The
-allocator is local to one machine: two creates on two machines, an explicit \`--id\`, or the
-Backlog.md migration can still mint the same id as another record, and committing one closes the
+allocator is local to one machine: two creates on two machines, or an explicit \`--id\`, can
+still mint the same id as another record, and committing one closes the
 window (this is the QCLI-431 shape). \`task list --across-refs\` distinguishes that genuine collision from one
 task whose states disagree across refs. An entry's \`identity\` takes exactly
 three values: \`task\`, \`collision\`, \`unresolved\`. It is \`task\` when every

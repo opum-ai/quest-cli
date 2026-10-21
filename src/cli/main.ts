@@ -2488,6 +2488,11 @@ export async function runQuest(
               source,
               backlogDirectory,
               await configuredTaskIdPrefix(),
+              {
+                git,
+                worktreeRoot: root,
+                commonDirectory: resolvedCommonDirectory,
+              },
             ).preview(preservation),
           },
           modeFor(parsed),
@@ -2520,6 +2525,11 @@ export async function runQuest(
               source,
               backlogDirectory,
               await configuredTaskIdPrefix(),
+              {
+                git,
+                worktreeRoot: root,
+                commonDirectory: resolvedCommonDirectory,
+              },
             ).apply(digest, preservation),
           },
           modeFor(parsed),
