@@ -119,6 +119,18 @@ export interface GitPort {
    */
   listRefs(repositoryPath: string): Promise<readonly string[]>;
   /**
+   * QCLI-495 (DEC-179 part 1): every worktree of this repository, as the paths
+   * `git worktree list --porcelain` reports. Worktrees share refs but not
+   * working trees, so a record created in a sibling worktree and not yet
+   * committed is invisible both to {@link listRefs} and to this checkout's own
+   * `.quest` -- and the id allocator has to read each worktree's `.quest`
+   * directly to see it before it is committed.
+   *
+   * Answers `[]` for a path that is not a Git working tree, matching the
+   * defensive contract the other read-only listings keep.
+   */
+  listWorktrees(repositoryPath: string): Promise<readonly string[]>;
+  /**
    * The checked-out branch's short name, or null when HEAD is detached or the
    * path is not a Git repository (QCLI-316). Needed because a task listing has
    * to be able to NAME the object it answered about, and a SHA does not tell a

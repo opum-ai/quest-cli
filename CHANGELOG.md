@@ -12,6 +12,27 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **Two worktrees of one repository no longer mint the same id** (QCLI-495,
+  DEC-179 part 1). Allocation was refs-aware only, so two sessions that each
+  created a record before committing both took N+1, and the merge was an add/add
+  conflict on the same path. The create commands (`task create`, `draft create`
+  and `draft promote`, `milestone create`, `decision create`, `question ask`)
+  now take an exclusive lock at `<git-common-dir>/quest/alloc.lock`, read the
+  `.quest` of every worktree (`git worktree list`, uncommitted records
+  included) and a reservation ledger at `<git-common-dir>/quest/reserved-ids`,
+  and write the new id to the ledger before releasing the lock. Nothing is
+  fetched. **New outcomes to know about:** a lock whose holder is gone and which
+  is over 30 seconds old is broken, with a `Warning:` line on stderr; a create
+  that cannot get the lock fails as a `conflict` (exit 5) after 10 seconds (a
+  live holder, or a crashed one whose lock is not yet 30 seconds old), with a
+  hint naming the lock path, its age, the holder pid and how to remove it; and a create
+  whose `git worktree list` answers nothing fails as `drift` (exit 6) instead of
+  falling back to refs alone. A create that loses the record write still leaves
+  its reservation, so the next id can skip a number for up to 7 days. **Not
+  covered:** `--id`, creates on two machines, and the Backlog.md migration,
+  which still mints ids from its own worktree alone. A `.quest` with no Git
+  repository allocates as before.
+
 - **Draft ids and the ids `cleanup` reports order by number too.** `draft list`
   put `D-10` and `D-11` between `D-1` and `D-2`, and `cleanup --dry-run` listed
   `M-10` before `M-2` (and `decisionIds` the same way), because they compared

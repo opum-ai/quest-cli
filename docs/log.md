@@ -288,6 +288,9 @@
 - 2026-10-20T03:53:53-05:00 204516209084c25a5215549f2230c8d9e464b82e chore(QCLI-516): record the Opus verdict, check ACs, complete; file QCLI-517 (review follow-ups) (#637)
 - 2026-10-20T04:32:03-05:00 254b9ca5cf7b12f1834a2c0a387f329a20617a3f chore(QCLI-497): check ACs, final summary, complete (#640)
 - 2026-10-20T13:16:53-05:00 69d253ad2198a6f38ab44cf4a1fad3271e300558 chore(QCLI-499): archive verified by sha256, final summary, complete (#645)
+- 2026-10-20T15:14:04-05:00 ceb827884b7ea4f8c8579b12818161c02d81befc chore(QCLI-495): 7-day expiry and no-network tests; check ACs, final summary, complete
+- 2026-10-20T15:56:29-05:00 e1d1a71874f3d38d3d5eb152ed5c48dfc48dba32 chore(QCLI-495): record round 1 REQUEST CHANGES verbatim; back to In Progress
+- 2026-10-20T16:10:48-05:00 22518fa587e3da1c78f62da123f10a93a63f6ac1 fix(QCLI-495): round 1 review fixes: hold the lock after a stale break, scope the prune to a family, and the minors
 
 ## docs/adr
 

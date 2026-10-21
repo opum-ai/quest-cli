@@ -161,7 +161,7 @@ of what the task itself produces is safe, such as the files it changes or the
 flags it adds. A count of live or external state is not safe. The problem is a
 number that goes stale, not numbers in general.
 
-## Auto-allocated ids are refs-aware
+## Auto-allocated ids are refs- and worktree-aware
 
 Omitting \`--id\` checks every local branch and remote-tracking ref for the same
 prefix, not just the current working tree. A sibling branch carrying an
@@ -186,11 +186,29 @@ are read from file names, while milestones and decisions share a single
 way -- an unreadable or unparseable document on some unrelated branch is
 skipped, and the remaining refs are still consulted.
 
+**Worktrees, the ledger and the lock (QCLI-495, DEC-179 part 1).** Refs alone cannot see
+another worktree's uncommitted record, so each create also reads the \`.quest\` of every
+worktree of the repository (\`git worktree list\`), uncommitted records included, and a
+reservation ledger at \`<git-common-dir>/quest/reserved-ids\`. The id is the highest of the
+three sources plus one, taken under an exclusive lock at
+\`<git-common-dir>/quest/alloc.lock\`, and written to the ledger before the lock is released, so
+two creates in two worktrees get distinct ids even before either record is committed. This
+covers the create commands: \`task create\`, \`draft create\` and \`draft promote\`, \`milestone create\`,
+\`decision create\` and \`question ask\`. It does not cover \`--id\` (an explicit id is the caller's), and it does
+not cover the Backlog.md migration, which still mints its own ids from this worktree alone.
+A ledger entry is dropped once a record with that id is visible in a ref or a worktree, or
+after 7 days; a create that lost the record write still leaves its entry, so the next id may
+skip a number for up to 7 days. Allocation uses no network and no fetch. A lock whose holder
+pid is gone and which is older than 30 seconds is broken, and the run prints a \`Warning:\`
+line on stderr saying so. A live holder is never broken: after 10 seconds the create fails as a
+\`conflict\` (exit 5) naming the lock path, the holder pid and the lock's stamp, and removing
+the lock is safe when that pid is not a quest process. If \`git worktree list\` answers nothing,
+the create fails as \`drift\` (exit 6) rather than allocating from refs alone.
+
 **A duplicate id is still possible, and \`--across-refs\` reports it.** The
-allocator consults \`refs\`, never another checkout's uncommitted working tree, so
-two uncommitted \`create\` calls in two checkouts of one repository can both mint
-the same id; committing one closes the window (this is the QCLI-431 shape).
-\`task list --across-refs\` distinguishes that genuine collision from one
+allocator is local to one machine: two creates on two machines, an explicit \`--id\`, or the
+Backlog.md migration can still mint the same id as another record, and committing one closes the
+window (this is the QCLI-431 shape). \`task list --across-refs\` distinguishes that genuine collision from one
 task whose states disagree across refs. An entry's \`identity\` takes exactly
 three values: \`task\`, \`collision\`, \`unresolved\`. It is \`task\` when every
 state carries the same \`createdAt\` (one record, read from several refs),

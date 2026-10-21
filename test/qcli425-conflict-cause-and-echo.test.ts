@@ -168,29 +168,103 @@ test("an empty-string sent value is echoed as sentRevision, not swallowed (QCLI-
   }
 }, 60_000);
 
-test("a writer race stays distinguishable: no sentRevision, concurrent-change wording (QCLI-425)", async () => {
+async function runWriters(
+  root: string,
+  commands: readonly (readonly string[])[],
+) {
+  return Promise.all(
+    commands.map(async (args) => {
+      const child = Bun.spawn([process.execPath, MAIN, ...args], {
+        cwd: root,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const exitCode = await child.exited;
+      return {
+        exitCode,
+        stdout: await new Response(child.stdout).text(),
+        stderr: await new Response(child.stderr).text(),
+      };
+    }),
+  );
+}
+
+// QCLI-495 removed the id collision this test used to construct: sixteen
+// concurrent auto-allocating creates in one worktree used to mint the same id
+// and lose the race. They can still lose the tracker's own revision check -- a
+// conflict, not a collision, and more often on a loaded CI runner than here --
+// so this test does not bound HOW MANY win (the first version did, and flaked
+// in CI). It pins what must hold whatever the count: every winner has its own
+// id, and every loser carries the QCLI-425 concurrent wording AND the revision
+// it lost to. A collision loser goes through task_already_exists and carries
+// neither, so with the lock and ledger bypassed this goes red (10 of 10 runs,
+// measured 2026-10-20 in round 1 of #646).
+test("concurrent auto-allocating creates in one worktree: winners have distinct ids and every loser lost the revision check, never an id collision (QCLI-495, was the QCLI-425 writer race)", async () => {
   const root = await workspace();
   try {
-    const results = await Promise.all(
-      Array.from({ length: 16 }, async (_, writer) => {
-        const child = Bun.spawn(
-          [
-            process.execPath,
-            MAIN,
-            "task",
-            "create",
-            `Concurrent ${writer}`,
-            ...HUMAN,
-            "--json",
-          ],
-          { cwd: root, stdout: "pipe", stderr: "pipe" },
-        );
-        const exitCode = await child.exited;
-        return {
-          exitCode,
-          stderr: await new Response(child.stderr).text(),
-        };
-      }),
+    const results = await runWriters(
+      root,
+      Array.from({ length: 16 }, (_, writer) => [
+        "task",
+        "create",
+        `Concurrent ${writer}`,
+        ...HUMAN,
+        "--json",
+      ]),
+    );
+    const wins = results.filter((result) => result.exitCode === 0);
+    expect(wins.length).toBeGreaterThan(0);
+    const ids = wins.map(
+      (result) =>
+        (JSON.parse(result.stdout) as { data: { id: string } }).data.id,
+    );
+    expect(new Set(ids).size).toBe(wins.length);
+    for (const loser of results.filter((result) => result.exitCode !== 0)) {
+      expect(loser.exitCode).toBe(5);
+      const body = JSON.parse(loser.stderr) as ConflictBody;
+      expect(body.message).toBe(CONCURRENT_WORDING);
+      expect(body.input?.sentRevision).toBeUndefined();
+      // A loser of the tracker's revision check carries the revision it lost
+      // to (local-task-repository.ts, conflictFieldsOf). An id-collision loser
+      // goes through task_already_exists, which carries no input at all -- so
+      // this is what separates "a conflict, not a collision" from the m1
+      // defect, without bounding how many writers win.
+      expect(typeof body.input?.actualRevision).toBe("string");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+// The contract the old test pinned is still live -- a writer that loses a
+// race conveys no sent value, so it keeps the concurrent wording and carries
+// no sentRevision, which is what makes it tellable apart from the guarded
+// failure. Creates no longer reach it, so sixteen racing edits of one task do:
+// measured 2026-10-20, 4 runs of 4 lost 7 to 12 of the 16 writers each time.
+// The failure count is still asserted non-zero so this cannot pass vacuously.
+test("a lost writer race keeps the concurrent wording and no sentRevision (QCLI-425)", async () => {
+  const root = await workspace();
+  try {
+    const created = quest(root, [
+      "task",
+      "create",
+      "Raced",
+      ...HUMAN,
+      "--json",
+    ]);
+    expect(created.exitCode).toBe(0);
+    const id = (JSON.parse(created.stdout) as { data: { id: string } }).data.id;
+    const results = await runWriters(
+      root,
+      Array.from({ length: 16 }, (_, writer) => [
+        "task",
+        "edit",
+        id,
+        "--add-note",
+        `note ${writer}`,
+        ...HUMAN,
+        "--json",
+      ]),
     );
     const failures = results.filter((result) => result.exitCode !== 0);
     expect(failures.length).toBeGreaterThan(0);
@@ -198,9 +272,6 @@ test("a writer race stays distinguishable: no sentRevision, concurrent-change wo
       expect(failure.exitCode).toBe(5);
       const body = JSON.parse(failure.stderr) as ConflictBody;
       expect(body.error_type).toBe("conflict");
-      // The race conveys no sent value, so it keeps the concurrent wording
-      // and carries no sentRevision -- which is what makes the guarded
-      // failure tellable apart from it.
       expect(body.message).toBe(CONCURRENT_WORDING);
       expect(body.input?.sentRevision).toBeUndefined();
     }
