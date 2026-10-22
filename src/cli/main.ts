@@ -5005,7 +5005,10 @@ export async function runQuest(
             : {}),
           ...(error.breakFileAgeMilliseconds !== null
             ? {
-                breakFileStampedMillisecondsAgo: error.breakFileAgeMilliseconds,
+                // QCLI-528: named for what it measures, not for the field it
+                // usually comes from -- a zero-byte break file has no stamp,
+                // so this age is its mtime.
+                breakFileAgeMilliseconds: error.breakFileAgeMilliseconds,
               }
             : {}),
         },

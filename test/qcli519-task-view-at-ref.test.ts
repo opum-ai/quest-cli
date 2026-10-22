@@ -278,6 +278,47 @@ test("an annotated tag reports the commit it peels to, never the tag object", ()
   expect((body.ref as { readonly sha: string }).sha).not.toBe(tagObject);
 });
 
+test("an option-shaped --ref=-x is ref_not_resolvable (exit 3), never a usage error (QCLI-527)", () => {
+  // One argv element, `--ref=-x`, whose VALUE starts with a dash. The parser
+  // must take it as the value rather than treating it as another option --
+  // the round-2 review proved this by hand only, which is exactly the shape a
+  // regression would silently reopen.
+  const result = quest(fixture.work, [
+    "task",
+    "view",
+    "T-1",
+    "--ref=-x",
+    "--json",
+  ]);
+  expect(result.exitCode).toBe(3);
+  const error = JSON.parse(result.stderr) as Record<string, unknown>;
+  expect(error.error_type).toBe("not_found");
+  expect(String(error.message)).toContain("ref_not_resolvable");
+  expect(String(error.message)).not.toContain("task_not_found");
+  expect(error.input).toEqual({ ref: "-x", code: "ref_not_resolvable" });
+});
+
+test("a lightweight tag resolves to the commit it points at (QCLI-527)", () => {
+  // Unlike v-dev this tag has no object of its own: the spelling names a ref,
+  // and the envelope still reports the commit sha it resolved to.
+  git(fixture.work, "tag", "light-dev", "dev");
+  expect(git(fixture.work, "rev-parse", "light-dev")).toBe(fixture.devSha);
+  const result = viewAtRef("light-dev", "T-1");
+  const body = envelope(result);
+  expect(body.ref).toEqual({ ref: "light-dev", sha: fixture.devSha });
+  // dev's T-1, not feature's: the tag really resolved to dev's commit.
+  expect((body.data as { readonly status: string }).status).toBe("To Do");
+});
+
+test("an abbreviated sha resolves to the full commit sha in the envelope (QCLI-527)", () => {
+  const short = fixture.devSha.slice(0, 8);
+  // The spelling names a prefix; what a consumer needs is the commit.
+  expect(short.length).toBeLessThan(fixture.devSha.length);
+  const body = envelope(viewAtRef(short, "T-1"));
+  expect(body.ref).toEqual({ ref: short, sha: fixture.devSha });
+  expect((body.data as { readonly status: string }).status).toBe("To Do");
+});
+
 test("a tree-ish or blob-ish --ref is ref_not_resolvable (exit 3), not a tree read", () => {
   // `HEAD^{tree}` names a tree (before the fix it reported the tree sha as
   // the commit); `HEAD:.quest/tasks/T-1.json` names a blob (before the fix it
