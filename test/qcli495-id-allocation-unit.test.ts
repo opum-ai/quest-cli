@@ -527,12 +527,18 @@ test("a breaker never releases a break file that is no longer its own (QCLI-495 
     // QCLI-523: the foreign file differs in BOTH halves -- a different pid
     // AND a different stamp (now + 1). Pinning only the pid left the stamp
     // half of the comparison untested, which is what this test used to do.
+    // Deliberately `process.pid + 1` and NOT `deadPid`: the release path
+    // (id-allocation.ts:277-279) has no liveness check, so any pid that is not
+    // the breaker's pins the same half, and `deadPid` would suggest liveness is
+    // part of what this fixture tests when it is not.
     const foreign = `${process.pid + 1}\n${now + 1}\n`;
-    await breakStaleLock(repo.lockPath, () => now, {
-      afterLockedReread: async () => {
-        await writeFile(breakPath, foreign, "utf8");
-      },
-    });
+    expect(
+      await breakStaleLock(repo.lockPath, () => now, {
+        afterLockedReread: async () => {
+          await writeFile(breakPath, foreign, "utf8");
+        },
+      }),
+    ).toBe(true);
     expect(await readFile(breakPath, "utf8")).toBe(foreign);
   } finally {
     await repo.cleanup();
@@ -550,13 +556,41 @@ test("a breaker never releases a break file carrying its OWN pid but a different
     // the pid is mine": every other foreign file in this suite differs by pid,
     // so a pid-only release passes them. Mutating the release check in
     // breakStaleLock to compare the pid alone turns THIS test red (measured).
-    await breakStaleLock(repo.lockPath, () => now, {
-      afterLockedReread: async () => {
-        await writeFile(breakPath, `${process.pid}\n${now + 1}\n`, "utf8");
-      },
-    });
+    expect(
+      await breakStaleLock(repo.lockPath, () => now, {
+        afterLockedReread: async () => {
+          await writeFile(breakPath, `${process.pid}\n${now + 1}\n`, "utf8");
+        },
+      }),
+    ).toBe(true);
     expect(await readFile(breakPath, "utf8")).toBe(
       `${process.pid}\n${now + 1}\n`,
+    );
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a breaker never releases a break file carrying a foreign pid but its OWN stamp (QCLI-523)", async () => {
+  const repo = await repositoryDirectory();
+  const breakPath = `${repo.lockPath}.break`;
+  try {
+    const now = Date.now();
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    // A foreign pid with the breaker's own stamp -- the mirror of the case
+    // above, and the only fixture that pins the STAMP half of the comparison:
+    // every other foreign file here differs by pid too, so a release comparing
+    // the stamp alone passes them all. Together the two cases pin both halves
+    // of `left.pid === mine.pid && left.at === mine.at`.
+    expect(
+      await breakStaleLock(repo.lockPath, () => now, {
+        afterLockedReread: async () => {
+          await writeFile(breakPath, `${process.pid + 1}\n${now}\n`, "utf8");
+        },
+      }),
+    ).toBe(true);
+    expect(await readFile(breakPath, "utf8")).toBe(
+      `${process.pid + 1}\n${now}\n`,
     );
   } finally {
     await repo.cleanup();
