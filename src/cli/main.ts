@@ -164,11 +164,14 @@ const HELP_PRIORITY_KEYS = ["summary", "usage", "flags"] as const;
  */
 const CONTRACT_VERSION = 1;
 
-/** The additive top-level keys a listing may carry (QCLI-316 `scope`,
- * QCLI-417 `coverage`), both of which sit AFTER `data` and BEFORE `principal`.
- * The bounded slot matters: `contractVersion` is asserted at exact index 1 by
- * a consumer, and `principal` must stay last. */
-interface ListingExtras {
+/** The additive top-level keys a command MAY carry beside `data` -- `scope`
+ * and `coverage` on listings (QCLI-316, QCLI-417), `ref` on `task view --ref`
+ * (QCLI-519) -- all of which sit AFTER `data` and BEFORE `principal`. The
+ * bounded slot matters: `contractVersion` is asserted at exact index 1 by a
+ * consumer, and `principal` must stay last. `EnvelopeExtras` rather than
+ * `ListingExtras`, because `task view --ref` is not a listing (round-1
+ * review, NIT). */
+interface EnvelopeExtras {
   readonly scope?: ListingScope;
   readonly coverage?: AcrossRefsCoverage;
   /**
@@ -195,7 +198,7 @@ function output(
   data: object | readonly unknown[],
   mode: OutputMode,
   priorityKeys: readonly string[] = [],
-  extras: ListingExtras = {},
+  extras: EnvelopeExtras = {},
   // QCLI-312: `--fields` renders its projection as one tab-separated row per
   // record, which the kind-agnostic `renderHumanPayload` cannot produce without
   // learning about field order. Only the `task list --fields` path passes one;
@@ -238,7 +241,7 @@ function output(
             extras.coverage === undefined
               ? ""
               : renderCoverageFooter(extras.coverage)
-          }`,
+          }${extras.ref === undefined ? "" : renderRefFooter(extras.ref)}`,
     stderr: "",
     exitCode: 0,
   };
@@ -297,6 +300,18 @@ function renderScopeFooter(scope: ListingScope): string {
   if (unseen.length === 0)
     return `\nAnswered about ${where}. No task record exists on any other ref that is absent here.\n`;
   return `\nAnswered about ${where}. ${unseen.length} task record(s) exist on other refs and were NOT read: ${unseen.join(", ")}. An empty or filtered list here is not an answer about the repository.\n`;
+}
+
+/**
+ * QCLI-519: which commit a `task view --ref` read answered about, in prose, on
+ * the {@link renderScopeFooter} pattern. Without it the plain (non-`--json`)
+ * form shows the record and neither the ref the caller named nor the commit it
+ * resolved to -- so a human reader cannot reproduce what they just read
+ * (round-1 review, MINOR 6). The ref is echoed as spelled, never the peeled
+ * form.
+ */
+function renderRefFooter(ref: TaskRefProvenance): string {
+  return `\nRead at ${ref.ref} (commit ${ref.sha}).\n`;
 }
 
 /**
@@ -3864,7 +3879,7 @@ export async function runQuest(
       );
       const maxNotes = maxNotesValue(one(parsed, "--max-notes"));
       const ref = one(parsed, "--ref");
-      let extras: ListingExtras = {};
+      let extras: EnvelopeExtras = {};
       let response: Awaited<ReturnType<typeof dispatchTrackerTaskCommand>>;
       if (ref === undefined) {
         response = await dispatchTrackerTaskCommand(await taskService(), {
@@ -3895,7 +3910,10 @@ export async function runQuest(
           if (error instanceof RefNotResolvableError)
             return failure("not_found", error.message, {
               hint: "Name a ref this repository holds. The read does not fetch, so a ref that exists only on the remote must be fetched first (or read through `quest task list --across-refs`).",
-              input: { ref: error.ref },
+              // QCLI-519 round 1 (MINOR 2): both not_founds share
+              // `error_type`, and the distinguishing token used to live only
+              // in prose. `code` lets a caller branch without parsing it.
+              input: { ref: error.ref, code: "ref_not_resolvable" },
             });
           if (error instanceof TaskNotFoundAtRefError)
             return failure("not_found", error.message, {
@@ -3904,12 +3922,20 @@ export async function runQuest(
                 reference: error.reference,
                 ref: error.ref,
                 sha: error.sha,
+                code: "task_not_found",
               },
             });
           if (error instanceof RefRecordDuplicateError)
             return failure("drift", error.message, {
               hint: "One ref carries the same id twice, which every other command refuses; fix the duplicate in that ref before reading it.",
-              input: { ref: error.ref, sha: error.sha, id: error.id },
+              input: {
+                ref: error.ref,
+                sha: error.sha,
+                id: error.id,
+                // Both paths, so a reader can act on it without a second
+                // command (round-1 review, MINOR 4).
+                paths: error.paths,
+              },
             });
           if (error instanceof RefRecordsUnreadableError)
             return failure("drift", error.message, {

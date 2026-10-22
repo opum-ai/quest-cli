@@ -102,6 +102,12 @@ N --fields implementationNotes\` carries \`notesOmitted\`. The marker is JSON-on
 the human form is still just the named columns. A projection never emits a
 \`fieldsOmitted\` key of its own.
 
+**\`task view <id> --ref <ref>\` reads the record as it existed at a git ref**
+(QCLI-519). The envelope then also carries \`ref: {ref, sha}\` beside \`data\` --
+the ref as you spelled it and the commit it resolved to -- and it never
+fetches, so an id absent at the ref exits \`3\` (\`task_not_found\`) while a ref
+that does not resolve to a commit exits \`3\` (\`ref_not_resolvable\`).
+
 Quest never retries a write conflict for you. On exit \`5\`, re-read the latest
 record and perform your own bounded retry rather than resubmitting a stale write.
 

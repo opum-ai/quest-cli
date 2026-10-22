@@ -1,4 +1,4 @@
-import { aliasKey } from "../../domain/records.ts";
+import { RecordValidationError, aliasKey } from "../../domain/records.ts";
 import {
   type TaskLocation,
   type TaskState,
@@ -134,7 +134,17 @@ export async function readTaskAtRef(
 ): Promise<TaskAtRef> {
   let sha: string;
   try {
-    sha = await request.git.readRevision(request.repositoryPath, request.ref);
+    // `^{commit}` is load-bearing: `git rev-parse --verify <ref>` answers the
+    // object the ref NAMES, not the commit. The release tags here are
+    // ANNOTATED, so a bare `v0.14.1` would report the tag object's sha as the
+    // commit; `HEAD^{tree}` and `HEAD:<path>` name a tree and a blob, and
+    // would pass the 40-hex guard below before failing as if the tree were
+    // damaged. Peeling to a commit makes a non-commit ref unresolvable here,
+    // which is the failure it actually is (round-1 review, MAJOR).
+    sha = await request.git.readRevision(
+      request.repositoryPath,
+      `${request.ref}^{commit}`,
+    );
   } catch (error) {
     throw new RefNotResolvableError(request.ref, describe(error));
   }
@@ -216,8 +226,20 @@ export async function readTaskAtRef(
       records.map((record) => record.task),
       request.reference,
     );
-  } catch {
-    throw new TaskNotFoundAtRefError(request.reference, request.ref, sha);
+  } catch (error) {
+    // Only "no such record" is this command's not_found. An AMBIGUOUS
+    // reference (`task_reference_ambiguous`, a RecordConflictError) means two
+    // records claim the same id or alias at the ref; the working-tree read
+    // reports that as a conflict (exit 5), so re-throwing keeps the two views
+    // in agreement instead of calling a corrupt ref "not found" (round-1
+    // review, MINOR 1). Everything else is likewise not this command's to
+    // reinterpret.
+    if (
+      error instanceof RecordValidationError &&
+      error.message === "task_not_found"
+    )
+      throw new TaskNotFoundAtRefError(request.reference, request.ref, sha);
+    throw error;
   }
   const record = records.find((entry) => entry.task.id === resolved.id);
   if (record === undefined)

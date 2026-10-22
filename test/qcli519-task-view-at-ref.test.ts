@@ -1,5 +1,6 @@
 import { beforeAll, expect, test } from "bun:test";
-import { mkdtemp } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -89,6 +90,10 @@ async function createFixture(): Promise<Fixture> {
   git(work, "add", "-A");
   git(work, "commit", "-qm", "T-1 and T-2 on dev");
   const devSha = git(work, "rev-parse", "dev");
+  // Round-1 review (MAJOR): an ANNOTATED tag, because `rev-parse --verify`
+  // without `^{commit}` answers the tag object and reports its sha as the
+  // commit. The fixture is where the peeling is measurable.
+  git(work, "tag", "-a", "v-dev", "-m", "annotated dev tag", "dev");
 
   git(work, "checkout", "-q", "-b", "feature");
   questOk(work, ["task", "edit", "T-1", "--status", "In Progress", ...ACTOR]);
@@ -196,6 +201,9 @@ test("an id absent at the ref is a named not_found naming the ref and its sha", 
     reference: "T-99",
     ref: "feature",
     sha: fixture.featureSha,
+    // QCLI-519 round 1 (MINOR 2): the distinguishing token is machine-readable,
+    // not only prose.
+    code: "task_not_found",
   });
 });
 
@@ -206,7 +214,10 @@ test("an unresolvable ref is a DISTINCT named error, not the task one", () => {
   expect(error.error_type).toBe("not_found");
   expect(String(error.message)).toContain("ref_not_resolvable");
   expect(String(error.message)).not.toContain("task_not_found");
-  expect(error.input).toEqual({ ref: "no-such-ref" });
+  expect(error.input).toEqual({
+    ref: "no-such-ref",
+    code: "ref_not_resolvable",
+  });
 });
 
 test("it writes nothing and moves nothing", () => {
@@ -243,3 +254,200 @@ test("--max-notes and --fields compose with --ref", () => {
   );
   expect(body.ref).toEqual({ ref: "feature", sha: fixture.featureSha });
 });
+
+/*
+ * FIX ROUND (independent review, round 1). The ref must resolve to a COMMIT,
+ * not merely to an object: the release tags are annotated, and a tree-ish or
+ * blob-ish spelling passed the 40-hex guard and produced a wrong sha or a
+ * false "the tree is damaged". Each test below reaches the object the claim is
+ * about -- a real annotated tag, a real tree, a real duplicate, a real
+ * ambiguity -- rather than a mocked Git.
+ */
+
+test("an annotated tag reports the commit it peels to, never the tag object", () => {
+  const tagObject = git(fixture.work, "rev-parse", "v-dev");
+  const tagCommit = git(fixture.work, "rev-parse", "v-dev^{commit}");
+  // The fixture's tag really is annotated: the two objects differ. Without
+  // this the test could pass against a lightweight tag that never exercises
+  // the defect.
+  expect(tagObject).not.toBe(tagCommit);
+
+  const body = envelope(viewAtRef("v-dev", "T-2"));
+  expect(data(viewAtRef("v-dev", "T-2")).id).toBe("T-2");
+  expect(body.ref).toEqual({ ref: "v-dev", sha: tagCommit });
+  expect((body.ref as { readonly sha: string }).sha).not.toBe(tagObject);
+});
+
+test("a tree-ish or blob-ish --ref is ref_not_resolvable (exit 3), not a tree read", () => {
+  // `HEAD^{tree}` names a tree (before the fix it reported the tree sha as
+  // the commit); `HEAD:.quest/tasks/T-1.json` names a blob (before the fix it
+  // failed as ref_records_unreadable, exit 6, falsely claiming tree damage).
+  // Both must now be the SAME named failure: the ref does not peel to a
+  // commit.
+  for (const ref of ["HEAD^{tree}", "HEAD:.quest/tasks/T-1.json"]) {
+    const result = viewAtRef(ref, "T-1");
+    expect({ ref, exitCode: result.exitCode }).toEqual({ ref, exitCode: 3 });
+    const error = JSON.parse(result.stderr) as Record<string, unknown>;
+    expect(error.error_type).toBe("not_found");
+    expect(String(error.message)).toContain("ref_not_resolvable");
+    expect(String(error.message)).not.toContain("task_not_found");
+    expect(String(error.message)).not.toContain("ref_records_unreadable");
+    expect(error.input).toEqual({ ref, code: "ref_not_resolvable" });
+  }
+});
+
+test("the plain form ends with a ref footer naming the ref and its commit", () => {
+  const result = quest(fixture.work, [
+    "task",
+    "view",
+    "T-3",
+    "--ref",
+    "feature",
+  ]);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("only on the feature branch");
+  expect(result.stdout).toContain(
+    `Read at feature (commit ${fixture.featureSha}).`,
+  );
+  // The footer is human surface only; --json carries the structured key.
+  expect(result.stdout).not.toContain('"ref"');
+});
+
+test("an ambiguous reference at the ref is a conflict (exit 5), as in the working tree", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli519-ambiguous-"));
+  try {
+    git(root, "init", "-q", "-b", "dev", ".");
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    questOk(root, ["init", "--name", "Ambiguous", "--task-id-prefix", "T"]);
+    questOk(root, ["task", "create", "one", ...ACTOR]);
+    questOk(root, ["task", "create", "two", ...ACTOR]);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-1 and T-2");
+    // Two records claiming one key is a state every quest write refuses, so
+    // the record set is written directly (the F4 recipe): a copy of T-2 whose
+    // alias is T-1. The resolver then matches both records for "T-1".
+    const second = JSON.parse(
+      await readFile(join(root, ".quest/tasks/T-2.json"), "utf8"),
+    ) as Record<string, unknown>;
+    await writeFile(
+      join(root, ".quest/tasks/T-3.json"),
+      JSON.stringify({ ...second, id: "T-3", aliases: ["T-1"] }, null, 2),
+    );
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-3 claims T-1 as an alias");
+
+    // The parity control: the working-tree read already reports this as a
+    // conflict, and the ref read must not downgrade it to "not found".
+    const locally = quest(root, ["task", "view", "T-1", "--json"]);
+    expect(locally.exitCode).toBe(5);
+
+    const atRef = quest(root, [
+      "task",
+      "view",
+      "T-1",
+      "--ref",
+      "dev",
+      "--json",
+    ]);
+    expect(atRef.exitCode).toBe(5);
+    expect(atRef.stdout).toBe("");
+    const error = JSON.parse(atRef.stderr) as Record<string, unknown>;
+    expect(error.error_type).toBe("conflict");
+    expect(String(error.message)).toContain("task_reference_ambiguous");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("a ref whose .quest tree cannot be listed is unreadable (exit 6), not empty", async () => {
+  // The F1 recipe, applied to `task view --ref`: delete the commit's root tree
+  // object, leaving the commit resolvable. Before the strict listing was
+  // used, a refused listing answered [] and the read said task_not_found --
+  // the false green this error exists to prevent (round-1 review, MINOR 4).
+  const root = await mkdtemp(join(tmpdir(), "qcli519-tree-"));
+  try {
+    git(root, "init", "-q", "-b", "dev", ".");
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    questOk(root, ["init", "--name", "Tree", "--task-id-prefix", "T"]);
+    questOk(root, ["task", "create", "on dev", ...ACTOR]);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-1 on dev");
+    const sha = git(root, "rev-parse", "dev");
+    const tree = git(root, "rev-parse", "dev^{tree}");
+    const objectPath = join(
+      root,
+      ".git",
+      "objects",
+      tree.slice(0, 2),
+      tree.slice(2),
+    );
+    // Loose objects only: assert the object is where this test thinks it is,
+    // so a packed fixture fails loudly instead of passing vacuously.
+    expect(existsSync(objectPath)).toBe(true);
+    await rm(objectPath);
+    expect(run(root, ["git", "ls-tree", "-r", "dev"]).exitCode).not.toBe(0);
+
+    const result = quest(root, [
+      "task",
+      "view",
+      "T-1",
+      "--ref",
+      "dev",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    const error = JSON.parse(result.stderr) as Record<string, unknown>;
+    expect(error.error_type).toBe("drift");
+    expect(String(error.message)).toContain("ref_records_unreadable");
+    expect(error.input).toEqual({ ref: "dev", sha });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("a duplicate id at the ref is ref_record_duplicate (exit 6), naming both paths", async () => {
+  // The F4 recipe, applied to `task view --ref`: the half-staged relocation
+  // shape, written directly because every quest write refuses it.
+  const root = await mkdtemp(join(tmpdir(), "qcli519-duplicate-"));
+  try {
+    git(root, "init", "-q", "-b", "dev", ".");
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    questOk(root, ["init", "--name", "Duplicate", "--task-id-prefix", "T"]);
+    questOk(root, ["task", "create", "on dev", ...ACTOR]);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "T-1 on dev");
+    const task = await readFile(join(root, ".quest/tasks/T-1.json"), "utf8");
+    await mkdir(join(root, ".quest/completed"), { recursive: true });
+    await writeFile(join(root, ".quest/completed/T-1.json"), task);
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "duplicate T-1");
+    const sha = git(root, "rev-parse", "dev");
+
+    const result = quest(root, [
+      "task",
+      "view",
+      "T-1",
+      "--ref",
+      "dev",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    const error = JSON.parse(result.stderr) as Record<string, unknown>;
+    expect(error.error_type).toBe("drift");
+    expect(String(error.message)).toContain("ref_record_duplicate");
+    // Both paths in `input`, so a reader can act without a second command.
+    expect(error.input).toEqual({
+      ref: "dev",
+      sha,
+      id: "T-1",
+      paths: [".quest/tasks/T-1.json", ".quest/completed/T-1.json"],
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
