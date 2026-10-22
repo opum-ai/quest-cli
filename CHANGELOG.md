@@ -72,6 +72,19 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   is refused (`migration_id_block_moved`) rather than renumbered silently. A
   `.quest` with no Git repository allocates as before.
 
+- **A failed migration apply reports its own failure, not the failure to hand
+  its id blocks back** (QCLI-526). `migration backlog apply` releases the
+  blocks it reserved on every failure path; that release now runs per family
+  inside its own try, so one family's release cannot skip the other's, and a
+  release that throws rides along as the original error's `cause` instead of
+  replacing it -- the conflict and source-fingerprint paths still return their
+  failed receipt. The release matches the ledger entries the reservation wrote
+  (id, stamp and family), so an entry another run wrote with the same id and
+  family survives. Both apply refusals name the same next step in their hint,
+  with their exit codes unchanged: `migration_id_block_moved` (conflict, exit
+  5) and `migration_approval_digest_mismatch` (validation, exit 6) each say to
+  re-run `migration backlog preview` and apply the digest it prints.
+
 - **Draft ids and the ids `cleanup` reports order by number too.** `draft list`
   put `D-10` and `D-11` between `D-1` and `D-2`, and `cleanup --dry-run` listed
   `M-10` before `M-2` (and `decisionIds` the same way), because they compared

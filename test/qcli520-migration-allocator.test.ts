@@ -346,10 +346,10 @@ function allocationFor(
     // MAJOR 2's source is not what this fixture exercises; an empty answer
     // keeps it out of the way. The ledger and worktree sources stay real.
     idsOnOtherRefs: async () => [],
-    releaseIds: (family, marker, ids) =>
+    releaseIds: (family, marker, reservations) =>
       releaseIdBlock(
         { git, worktreeRoot: root, commonDirectory, marker, family },
-        ids,
+        reservations,
       ),
   };
 }
@@ -441,6 +441,79 @@ test("an apply that THROWS after reserving releases the block too (QCLI-520 roun
     const ledger = await readFile(ledgerPath, "utf8").catch(() => "");
     for (const id of ["T-1", "T-2", "M-1"])
       expect(ledger).not.toContain(`"${id}"`);
+  } finally {
+    await rm(fixture.sandbox, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("a release that throws leaves the ORIGINAL failure in place, attached as its cause (QCLI-526, N1)", async () => {
+  const fixture = await releaseFixture();
+  try {
+    const { root, commonDirectory, source } = fixture;
+    const original = new Error("stub applyTransaction exploded");
+    const releaseFailure = new Error("release exploded");
+    const service = new BacklogImportService(
+      root,
+      new BacklogImporter(source),
+      stubRepository(async () => {
+        throw original;
+      }),
+      new LocalPlanningRepository(root),
+      "T",
+      {
+        ...allocationFor(root, commonDirectory),
+        // Inside the very path that exists to record a failure, the task
+        // release now fails too. Before QCLI-526 its error REPLACED the
+        // original. (The milestone release is attempted and succeeds, so the
+        // cause is the one failure rather than an AggregateError.)
+        releaseIds: async (family) => {
+          if (family === "task") throw releaseFailure;
+          return false;
+        },
+      },
+    );
+    const preview = await service.preview();
+    const failure = await service.apply(preview.digest).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    // Identity, not just the message: the original is what surfaces.
+    expect(failure).toBe(original);
+    expect((failure as Error).message).toBe("stub applyTransaction exploded");
+    expect((failure as Error).cause).toBe(releaseFailure);
+  } finally {
+    await rm(fixture.sandbox, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("a throwing task release neither throws out of the conflict path nor skips the milestone release (QCLI-526, N1)", async () => {
+  const fixture = await releaseFixture();
+  try {
+    const { root, commonDirectory, source } = fixture;
+    const attempted: string[] = [];
+    const service = new BacklogImportService(
+      root,
+      new BacklogImporter(source),
+      stubRepository(async () => conflictResult()),
+      new LocalPlanningRepository(root),
+      "T",
+      {
+        ...allocationFor(root, commonDirectory),
+        releaseIds: async (family) => {
+          attempted.push(family);
+          if (family === "task") throw new Error("task release exploded");
+          return false;
+        },
+      },
+    );
+    const preview = await service.preview();
+    const failed = await service.apply(preview.digest);
+    // The conflict path RETURNS its failed receipt; a release failure does not
+    // turn it into a throw.
+    expect(failed.state).toBe("failed");
+    // Each release has its own try, so the first one throwing cannot skip the
+    // second family.
+    expect(attempted).toEqual(["task", "milestone"]);
   } finally {
     await rm(fixture.sandbox, { recursive: true, force: true });
   }

@@ -1792,9 +1792,8 @@ export async function writeInitInstructions(
 async function planningIdsOnOtherRefs(
   git: ReturnType<typeof createGitPort>,
   root: string,
-  prefix: "M" | "DEC",
+  marker: string,
 ): Promise<readonly string[]> {
-  const marker = `${prefix}-`;
   try {
     const refs = await git.listRefs(root);
     const documents = await Promise.all(
@@ -1864,7 +1863,7 @@ async function nextPlanningId(
     recordDirectories: null,
     visibleIds: [
       ...records.map((record) => record.id),
-      ...(await planningIdsOnOtherRefs(git, root, prefix)),
+      ...(await planningIdsOnOtherRefs(git, root, marker)),
     ],
   });
 }
@@ -2539,9 +2538,12 @@ export async function runQuest(
         commonDirectory: resolvedCommonDirectory,
         idsOnOtherRefs: async (marker, recordDirectories) =>
           recordDirectories === null
-            ? await planningIdsOnOtherRefs(git, root, "M")
+            ? await planningIdsOnOtherRefs(git, root, marker)
             : await idsOnOtherRefs(git, root, marker, recordDirectories),
-        releaseIds: async (family, marker, ids) =>
+        // QCLI-526 (QCLI-520 round-2 N2): the release carries the entries the
+        // reservation wrote, so it cannot withdraw another run's entry that
+        // happens to carry the same id and family.
+        releaseIds: async (family, marker, reservations) =>
           releaseIdBlock(
             {
               git,
@@ -2550,7 +2552,7 @@ export async function runQuest(
               marker,
               family,
             },
-            ids,
+            reservations,
           ),
         ...(onStaleLock === undefined ? {} : { recordStaleLock: onStaleLock }),
       });
@@ -5078,6 +5080,16 @@ export async function runQuest(
     if (message.startsWith("migration_id_block_moved"))
       return failure("conflict", message, {
         hint: "Nothing was written. Re-run `quest migration backlog preview` and apply the digest it prints.",
+      });
+    // QCLI-526 (QCLI-520 round-2 N3): this is the refusal an operator meets
+    // most often -- the approved digest was recomputed from a source that has
+    // moved, or an allocation changed the ids -- and the remedy is the same
+    // re-preview the conflict above names. Its exit code deliberately stays
+    // validation (6): unlike id_block_moved, the input is not known to be
+    // retryable without a fresh preview (DEC-2).
+    if (message === "migration_approval_digest_mismatch")
+      return failure("validation", message, {
+        hint: "Nothing was written. Re-run `quest migration backlog preview` and apply the digest it prints -- a source or allocation change since the earlier preview is what makes the approved digest differ.",
       });
     if (kind === "conflict") return failure("conflict", message);
     if (message === "task_not_found") return failure("not_found", message);

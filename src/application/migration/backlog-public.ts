@@ -18,6 +18,7 @@ import {
   compareTaskIds,
   type TaskState,
   taskState,
+  TASK_LOCATIONS,
 } from "../../domain/tasks/tasks.ts";
 import type {
   BacklogImportRecord,
@@ -29,6 +30,7 @@ import type { GitPort } from "../../ports/git.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
 import {
   type IdBlockRequest,
+  type IdReservation,
   peekIdBlock,
   reserveIdBlock,
 } from "../tasks/id-allocation.ts";
@@ -64,12 +66,14 @@ export interface BacklogIdAllocation {
   /**
    * QCLI-520 round 1 (MAJOR 3): withdraw a block this run reserved, under the
    * allocator's lock. Called only on apply's failure paths after a
-   * reservation.
+   * reservation. QCLI-526 (round 2, N2): the argument is the ENTRIES the
+   * reservation wrote, not bare ids -- a release must not withdraw another
+   * run's entry that happens to carry the same id and family.
    */
   readonly releaseIds: (
     family: string,
     marker: string,
-    ids: readonly string[],
+    reservations: readonly IdReservation[],
   ) => Promise<boolean>;
   /**
    * QCLI-520 round 1 (MINOR 1): a reservation that broke a stale lock says so,
@@ -722,6 +726,48 @@ async function previewInternal(
   };
 }
 
+/** QCLI-526 (QCLI-520 round-2 N1): attach one or more failed block releases to
+ * an error WITHOUT replacing it. The original message, type and stack are what
+ * callers (and the CLI's message mapping) act on -- these refusals are matched
+ * by `error.message` -- so a release failure goes on `cause`: the failure
+ * itself when there is one, an AggregateError when both families failed, and
+ * an AggregateError folding in any cause the original already carried. Returns
+ * the original unchanged when nothing failed. */
+function attachReleaseFailures(
+  original: unknown,
+  failures: readonly unknown[],
+): unknown {
+  if (failures.length === 0) return original;
+  const existing = original instanceof Error ? original.cause : undefined;
+  const cause =
+    existing === undefined
+      ? failures.length === 1
+        ? failures[0]
+        : new AggregateError(
+            failures,
+            "releasing reserved id blocks failed for more than one family",
+          )
+      : new AggregateError(
+          [existing, ...failures],
+          "releasing reserved id blocks failed after an earlier failure",
+        );
+  if (original instanceof Error)
+    Object.defineProperty(original, "cause", {
+      value: cause,
+      configurable: true,
+      writable: true,
+    });
+  return original;
+}
+
+/** QCLI-526 (QCLI-520 round-2 N2): a peeked block carries no reservations; a
+ * reserved one carries the entries it wrote, which is what a failure path hands
+ * back. */
+interface IdBlockResult {
+  readonly ids: readonly string[];
+  readonly reservations: readonly IdReservation[];
+}
+
 export class BacklogImportService {
   constructor(
     private readonly root: string,
@@ -748,8 +794,9 @@ export class BacklogImportService {
     visibleIds: readonly string[],
     mode: "peek" | "reserve",
     markerOverride?: string,
-  ): Promise<readonly string[]> {
-    if (this.allocation === undefined || count <= 0) return [];
+  ): Promise<IdBlockResult> {
+    if (this.allocation === undefined || count <= 0)
+      return { ids: [], reservations: [] };
     // Milestones are their own family with their own marker; tasks use the
     // destination workspace's configured prefix, exactly as the local
     // arithmetic did (QCLI-157) -- unless the caller names the SOURCE
@@ -757,8 +804,10 @@ export class BacklogImportService {
     // dotted subtask's replacement id.
     const marker =
       markerOverride ?? (family === "task" ? `${this.taskIdPrefix}-` : "M-");
-    const recordDirectories =
-      family === "task" ? ["tasks", "completed", "archive/tasks"] : null;
+    // QCLI-526 (QCLI-520 round-2 N6): the task record locations come from the
+    // domain's single list, which the create allocator uses too -- this used
+    // to be a second literal copy of the same three names.
+    const recordDirectories = family === "task" ? TASK_LOCATIONS : null;
     const request: IdBlockRequest = {
       git: this.allocation.git,
       worktreeRoot: this.allocation.worktreeRoot,
@@ -782,7 +831,7 @@ export class BacklogImportService {
         throw new BacklogIdBlockShortError(
           `the ${family} id allocator peeked ${block.length} id(s) for a block of ${count}. Nothing was written.`,
         );
-      return block;
+      return { ids: block, reservations: [] };
     }
     const reserved = await reserveIdBlock(request);
     // QCLI-520 round 1 (MINOR 1): a reservation can break a stale lock, and the
@@ -790,23 +839,31 @@ export class BacklogImportService {
     this.allocation.recordStaleLock?.(reserved);
     if (reserved.ids.length !== count) {
       // Never leave a block this run cannot use: a short answer is a contract
-      // violation, not a partial success.
-      await this.allocation.releaseIds(family, marker, reserved.ids);
-      throw new BacklogIdBlockShortError(
+      // violation, not a partial success. QCLI-526 (round 2, N1): the release
+      // cannot replace the short-block refusal either.
+      const short = new BacklogIdBlockShortError(
         `the ${family} id allocator reserved ${reserved.ids.length} id(s) for a block of ${count}. The partial block was released.`,
       );
+      try {
+        await this.allocation.releaseIds(family, marker, reserved.reservations);
+      } catch (error) {
+        attachReleaseFailures(short, [error]);
+      }
+      throw short;
     }
-    return reserved.ids;
+    return { ids: reserved.ids, reservations: reserved.reservations };
   }
 
-  /** QCLI-520 round 1 (MAJOR 3): withdraw a block this run reserved. */
+  /** QCLI-520 round 1 (MAJOR 3): withdraw a block this run reserved. QCLI-526
+   * (round 2, N2): by the entries it wrote, so a same-id entry from another
+   * run survives. */
   private async releaseBlock(
     family: "task" | "milestone",
     marker: string,
-    ids: readonly string[],
+    reservations: readonly IdReservation[],
   ): Promise<void> {
-    if (this.allocation === undefined || ids.length === 0) return;
-    await this.allocation.releaseIds(family, marker, ids);
+    if (this.allocation === undefined || reservations.length === 0) return;
+    await this.allocation.releaseIds(family, marker, reservations);
   }
 
   async preview(
@@ -833,8 +890,11 @@ export class BacklogImportService {
    * reserve the same block after the preview (and its refusals) is done. */
   private taskIdSource() {
     if (this.allocation === undefined) return undefined;
-    return (count: number, visibleIds: readonly string[], marker?: string) =>
-      this.idBlock("task", count, visibleIds, "peek", marker);
+    return async (
+      count: number,
+      visibleIds: readonly string[],
+      marker?: string,
+    ) => (await this.idBlock("task", count, visibleIds, "peek", marker)).ids;
   }
 
   async apply(
@@ -870,13 +930,9 @@ export class BacklogImportService {
     ) => {
       peekedVisibleIds = visibleIds;
       peekedMarker = marker;
-      peekedTaskIds = await this.idBlock(
-        "task",
-        count,
-        visibleIds,
-        "peek",
-        marker,
-      );
+      peekedTaskIds = (
+        await this.idBlock("task", count, visibleIds, "peek", marker)
+      ).ids;
       return peekedTaskIds;
     };
     const { preview, records } = await previewInternal(
@@ -899,14 +955,41 @@ export class BacklogImportService {
     // would sit in the ledger for its 7-day TTL, so a retry carrying the same
     // approved digest would peek above it and be refused as a digest
     // mismatch -- undone by an id this run never minted.
-    let reservedTaskIds: readonly string[] = [];
-    let reservedMilestoneIds: readonly string[] = [];
+    let reservedTask: IdBlockResult = { ids: [], reservations: [] };
+    let reservedMilestone: IdBlockResult = { ids: [], reservations: [] };
     const taskMarker = peekedMarker ?? `${taskIdPrefix}-`;
-    const releaseReservations = async () => {
-      await this.releaseBlock("task", taskMarker, reservedTaskIds);
-      await this.releaseBlock("milestone", "M-", reservedMilestoneIds);
-      reservedTaskIds = [];
-      reservedMilestoneIds = [];
+    /**
+     * QCLI-526 (QCLI-520 round-2 N1): handing the blocks back must never
+     * REPLACE the failure that brought us here. Each family gets its own
+     * try -- so a failed task release cannot skip the milestone one -- and
+     * the failures are RETURNED, never thrown, so the conflict and
+     * fingerprint paths below still return their failed receipt.
+     */
+    const releaseReservations = async (): Promise<readonly unknown[]> => {
+      const failures: unknown[] = [];
+      const taskBlock = reservedTask;
+      const milestoneBlock = reservedMilestone;
+      reservedTask = { ids: [], reservations: [] };
+      reservedMilestone = { ids: [], reservations: [] };
+      if (taskBlock.reservations.length > 0) {
+        try {
+          await this.releaseBlock("task", taskMarker, taskBlock.reservations);
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      if (milestoneBlock.reservations.length > 0) {
+        try {
+          await this.releaseBlock(
+            "milestone",
+            "M-",
+            milestoneBlock.reservations,
+          );
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      return failures;
     };
     if (peekedTaskIds.length > 0) {
       const reserved = await this.idBlock(
@@ -916,15 +999,21 @@ export class BacklogImportService {
         "reserve",
         peekedMarker,
       );
-      if (reserved.join("\n") !== peekedTaskIds.join("\n")) {
+      if (reserved.ids.join("\n") !== peekedTaskIds.join("\n")) {
         // The block this run DID reserve is not the approved one; release it
         // before refusing, or the retry would meet the same mismatch again.
-        await this.releaseBlock("task", taskMarker, reserved);
-        throw new Error(
+        // QCLI-526 (round 2, N1): even this release cannot mask the refusal.
+        const moved = new Error(
           "migration_id_block_moved: another writer allocated task ids between this run's peek and its reservation, so the approved digest no longer describes the ids this migration would mint. Nothing was written.",
         );
+        try {
+          await this.releaseBlock("task", taskMarker, reserved.reservations);
+        } catch (error) {
+          attachReleaseFailures(moved, [error]);
+        }
+        throw moved;
       }
-      reservedTaskIds = reserved;
+      reservedTask = reserved;
     }
     try {
       const receipt: Receipt = previous ?? {
@@ -968,7 +1057,7 @@ export class BacklogImportService {
         planningSnapshot.milestones.map((m) => m.id),
         "reserve",
       );
-      reservedMilestoneIds = milestoneBlock;
+      reservedMilestone = milestoneBlock;
       const milestoneIdForName = new Map<string, string>();
       for (const name of milestoneNames) {
         const existing = byTitle.get(name);
@@ -983,7 +1072,7 @@ export class BacklogImportService {
         milestoneIdForName.set(
           name,
           requiredMintedId(
-            milestoneBlock,
+            milestoneBlock.ids,
             reservedIndex,
             newMilestoneNames.length,
             "the milestone id allocator",
@@ -1120,8 +1209,9 @@ export class BacklogImportService {
     } catch (error) {
       // Every throw after the reservation -- including a milestone block that
       // was reserved but never used -- hands this run's blocks back.
-      await releaseReservations();
-      throw error;
+      // QCLI-526 (QCLI-520 round-2 N1): the ORIGINAL error is what surfaces;
+      // a release failure rides along as its cause rather than replacing it.
+      throw attachReleaseFailures(error, await releaseReservations());
     }
   }
 

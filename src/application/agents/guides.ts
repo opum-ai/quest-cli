@@ -521,6 +521,15 @@ suite that must not touch the machine's real agent install.
 the record mappings without writing. Review both, then pass the digest back to
 \`quest migration backlog apply\`. \`status\` and \`rollback\` cover the rest of the
 lifecycle.
+
+An apply refuses rather than renumbering, and both refusals name the same next
+step -- re-run the preview and apply the digest it prints. \`migration_id_block_moved\`
+(conflict, exit 5) means another writer took ids between this run's preview and
+its reservation; \`migration_approval_digest_mismatch\` (validation, exit 6) means
+the source changed since the approved digest. Both write nothing. A failed apply
+also hands back every id block it reserved, and that release never replaces the
+original failure: if a release fails too, it is attached as the error's
+\`cause\` (QCLI-526).
 `;
 
 /** Ordered: `--list` prints them in this sequence. */
