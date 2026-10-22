@@ -6,15 +6,21 @@ import {
   readFile,
   realpath,
   rm,
+  stat,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  allocateId,
   allocationLockTimeoutHint,
+  breakStaleLock,
   IdAllocationLockTimeoutError,
+  type LockReadIo,
 } from "../src/application/tasks/id-allocation.ts";
+import type { GitPort } from "../src/ports/git.ts";
 import { runCommand } from "./helpers/spawn.ts";
 
 /**
@@ -103,7 +109,7 @@ test("with no break file the hint says so and names the safe condition", () => {
   );
   const hint = allocationLockTimeoutHint(error);
   expect(hint).toContain(
-    "No break file exists at /repo/.git/quest/alloc.lock.break",
+    "No break file exists at /repo/.git/quest/alloc.lock.break.",
   );
   expect(hint).toContain("removing /repo/.git/quest/alloc.lock is safe only");
   // Existence only: the module cannot say a pid BELONGS to quest.
@@ -123,8 +129,11 @@ test("a LIVE break holder makes the hint name the break file and refuse the remo
     true,
   );
   const hint = allocationLockTimeoutHint(error);
-  expect(hint).toContain("/repo/.git/quest/alloc.lock.break");
-  expect(hint).toContain("LIVE pid 5151");
+  // The exact clause, not a bare path: a path that is a SUBSTRING of the one
+  // reported must not pass (QCLI-528, N7).
+  expect(hint).toContain(
+    "A break file EXISTS at /repo/.git/quest/alloc.lock.break, held by LIVE pid 5151.",
+  );
   expect(hint).toContain("NOT safe");
   // Any statement about removing the lock is conditioned on there being no
   // live break holder -- never an unconditional "safe to remove".
@@ -144,7 +153,9 @@ test("an unreadable break holder is not given a cause, and removing it is condit
     60_000,
   );
   const hint = allocationLockTimeoutHint(error);
-  expect(hint).toContain("/repo/.git/quest/alloc.lock.break");
+  expect(hint).toContain(
+    "A break file EXISTS at /repo/.git/quest/alloc.lock.break and its holder cannot be determined (it was written 60s ago)",
+  );
   expect(hint).toContain("its holder cannot be determined");
   // MAJOR-1: the hint must not assert the killed-breaker cause -- an empty
   // file is equally a LIVE breaker between creating it and writing its pid.
@@ -191,8 +202,129 @@ test("a readable break pid that is NOT alive is named as not running and removal
   );
   const hint = allocationLockTimeoutHint(error);
   expect(hint).toContain("held by pid 777777, which is not running");
-  expect(hint).toContain("Remove /repo/.git/quest/alloc.lock.break first");
+  // QCLI-528, N6: pid reuse can make a break file naming a dead pid another
+  // process's, so the advice is conditional on the file still naming that pid.
+  expect(hint).toContain(
+    "Remove /repo/.git/quest/alloc.lock.break first if it still names pid 777777",
+  );
   expect(hint).toContain("this command never clears it");
+});
+
+/**
+ * QCLI-528: run the allocator IN PROCESS with injected lock reads, against a
+ * lock this live process holds, and return the timeout it raises. The clock is
+ * fake and `sleep` advances it, so the ten-second wait costs no wall time and
+ * the stat-then-read window is driven exactly rather than raced.
+ */
+async function timeoutWithReadIo(lockReadIo: LockReadIo): Promise<{
+  readonly timeout: IdAllocationLockTimeoutError;
+  readonly breakPath: string;
+}> {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "qcli528-")));
+  const questDirectory = join(root, "quest");
+  const lockPath = join(questDirectory, "alloc.lock");
+  const breakPath = `${lockPath}.break`;
+  try {
+    await mkdir(questDirectory, { recursive: true });
+    // This process is the lock holder, so the stale rule never breaks it.
+    await writeFile(lockPath, `${process.pid}\n${Date.now()}\n`, "utf8");
+    await writeFile(breakPath, `${process.pid}\n${Date.now()}\n`, "utf8");
+    let clock = 1_000_000;
+    const failure = await allocateId({
+      git: { listWorktrees: async () => [root] } as unknown as GitPort,
+      worktreeRoot: root,
+      commonDirectory: root,
+      marker: "T-",
+      family: "task",
+      recordDirectories: ["tasks"],
+      visibleIds: [],
+      processId: process.pid,
+      now: () => clock,
+      sleep: async (milliseconds) => {
+        clock += milliseconds * 40;
+      },
+      lockReadIo,
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(IdAllocationLockTimeoutError);
+    return { timeout: failure as IdAllocationLockTimeoutError, breakPath };
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+test("a break file that cannot be STAT'd is reported PRESENT with an unreadable age, never absent (QCLI-528, N2)", async () => {
+  const { timeout, breakPath } = await timeoutWithReadIo({
+    stat: async (path) => {
+      if (path.endsWith(".break"))
+        throw Object.assign(new Error("EACCES: permission denied"), {
+          code: "EACCES",
+        });
+      return stat(path);
+    },
+    readFile: (path) => readFile(path, "utf8"),
+  });
+  // PRESENT, not absent: the defect was collapsing EACCES into ENOENT, and
+  // "absent" is the branch that tells an operator the lock is safe to remove.
+  expect(timeout.breakFilePresent).toBe(true);
+  expect(timeout.breakHolderPid).toBeNull();
+  expect(timeout.breakFileAgeMilliseconds).toBeNull();
+  const hint = allocationLockTimeoutHint(timeout);
+  expect(hint).toContain(
+    `A break file EXISTS at ${breakPath} and its holder cannot be determined (its age could not be read)`,
+  );
+  expect(hint).not.toContain(`No break file exists at ${breakPath}`);
+});
+
+test("a break file removed between the stat and the read is reported ABSENT by the hint (QCLI-528, N1)", async () => {
+  const { timeout, breakPath } = await timeoutWithReadIo({
+    stat: (path) => stat(path),
+    readFile: (path) =>
+      path.endsWith(".break")
+        ? Promise.reject(
+            Object.assign(new Error("ENOENT: no such file or directory"), {
+              code: "ENOENT",
+            }),
+          )
+        : readFile(path, "utf8"),
+  });
+  // stat succeeded and the read then said ENOENT: the file was REMOVED in the
+  // window, which is absence -- the one state that licenses removing the lock.
+  expect(timeout.breakFilePresent).toBe(false);
+  expect(timeout.breakHolderPid).toBeNull();
+  expect(timeout.breakFileAgeMilliseconds).toBeNull();
+  expect(allocationLockTimeoutHint(timeout)).toContain(
+    `No break file exists at ${breakPath}.`,
+  );
+});
+
+test("a lock that cannot be STAT'd is never judged stale or removed (QCLI-528, N2)", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "qcli528-stale-")));
+  try {
+    const questDirectory = join(root, "quest");
+    await mkdir(questDirectory, { recursive: true });
+    const lockPath = join(questDirectory, "alloc.lock");
+    // Stale by BOTH halves of the rule -- dead pid and past the 30s window --
+    // so only the unreadable stat can save it.
+    const content = `${deadPid}\n${Date.now() - 60_000}\n`;
+    await writeFile(lockPath, content, "utf8");
+    const broke = await breakStaleLock(lockPath, () => Date.now(), {
+      readIo: {
+        stat: async () => {
+          throw Object.assign(new Error("EACCES: permission denied"), {
+            code: "EACCES",
+          });
+        },
+        readFile: (path) => readFile(path, "utf8"),
+      },
+    });
+    expect(broke).toBe(false);
+    expect(await readFile(lockPath, "utf8")).toBe(content);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 interface Workspace {
@@ -247,8 +379,11 @@ test("end to end: a live-pid break file is named in the hint, and removing the l
       input: Record<string, unknown>;
     };
     expect(error.error_type).toBe("conflict");
-    expect(error.hint).toContain(workspace.breakPath);
-    expect(error.hint).toContain(`LIVE pid ${process.pid}`);
+    // The exact clause, so a path that is only a substring cannot pass
+    // (QCLI-528, N7).
+    expect(error.hint).toContain(
+      `A break file EXISTS at ${workspace.breakPath}, held by LIVE pid ${process.pid}.`,
+    );
     expect(error.hint).toContain("NOT safe");
     expect(error.input.breakFilePresent).toBe(true);
     expect(error.input.breakHolderPid).toBe(process.pid);
@@ -277,6 +412,15 @@ test("end to end: an unreadable break file blocks breaking a stale lock and says
       "utf8",
     );
     await writeFile(workspace.breakPath, "", "utf8");
+    // QCLI-528, N4: a zero-byte break file has no stamp, so its age comes from
+    // its MTIME. Pin it 60s back: the reported age must be that mtime, and the
+    // hint must take the AGED branch rather than the write-window one (N8).
+    const breakMtime = now - 60_000;
+    await utimes(
+      workspace.breakPath,
+      new Date(breakMtime),
+      new Date(breakMtime),
+    );
 
     const result = quest(workspace.work, [
       "task",
@@ -292,16 +436,32 @@ test("end to end: an unreadable break file blocks breaking a stale lock and says
       input: Record<string, unknown>;
     };
     expect(error.error_type).toBe("conflict");
-    expect(error.hint).toContain(workspace.breakPath);
-    expect(error.hint).toContain("unreadable");
+    expect(error.hint).toContain(
+      `A break file EXISTS at ${workspace.breakPath} and its holder cannot be determined (it was written `,
+    );
     expect(error.hint).toContain("its holder cannot be determined");
+    // QCLI-528, N8: both unreadable branches share the quiescence and age
+    // clauses, so only branch-specific wording can tell which one ran. A file
+    // 60s old is outside the write window, so the AGED branch must be the one.
+    expect(error.hint).toContain(
+      "an empty or unreadable file may be a breaker killed before writing its pid",
+    );
+    expect(error.hint).not.toContain("may be a LIVE breaker mid-write");
     expect(error.hint).toContain("no quest process is running");
     expect(error.hint).toContain("older than 10s");
     expect(error.hint).toContain("NOT safe");
     expect(error.input.breakFilePresent).toBe(true);
     expect(error.input.breakHolderPid).toBeUndefined();
-    // The age the hint conditions removal on is carried on the wire.
-    expect(typeof error.input.breakFileStampedMillisecondsAgo).toBe("number");
+    // QCLI-528, N4: the age is carried on the wire under a name that does not
+    // claim a stamp, and for a zero-byte file it is measured from the MTIME
+    // set above (60s before the write, ~10s more by the timeout).
+    expect(error.input.breakFileStampedMillisecondsAgo).toBeUndefined();
+    expect(error.input.breakFileAgeMilliseconds as number).toBeGreaterThan(
+      65_000,
+    );
+    expect(error.input.breakFileAgeMilliseconds as number).toBeLessThan(
+      120_000,
+    );
     // The break file is still there: this path never clears it.
     expect(await readFile(workspace.breakPath, "utf8")).toBe("");
   } finally {
@@ -335,8 +495,12 @@ test("end to end: a readable break pid that is not running is named, and the bre
       input: Record<string, unknown>;
     };
     expect(error.error_type).toBe("conflict");
-    expect(error.hint).toContain(workspace.breakPath);
-    expect(error.hint).toContain(`pid ${deadPid}, which is not running`);
+    expect(error.hint).toContain(
+      `A break file EXISTS at ${workspace.breakPath}, held by pid ${deadPid}, which is not running.`,
+    );
+    expect(error.hint).toContain(
+      `Remove ${workspace.breakPath} first if it still names pid ${deadPid}`,
+    );
     expect(error.input.breakFilePresent).toBe(true);
     expect(error.input.breakHolderPid).toBe(deadPid);
     // This path never clears the break file, and never touches the lock.
