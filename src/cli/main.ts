@@ -86,6 +86,7 @@ import {
   type TaskResolutionKind,
   type TaskService,
   type TaskVocabularyContext,
+  TASK_LOCATIONS,
   taskResolutionKinds,
   VocabularyValueError,
 } from "../application/tasks/tasks.ts";
@@ -494,7 +495,7 @@ async function taskRecordIdsOnOtherRefs(
     const current = await git.currentBranch(root);
     const idsOn = async (ref: string) => {
       const listings = await Promise.all(
-        TASK_RECORD_SUBDIRECTORIES.map((subdirectory) =>
+        TASK_LOCATIONS.map((subdirectory) =>
           git.listFiles(root, ref, `.quest/${subdirectory}`),
         ),
       );
@@ -1395,11 +1396,6 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   } as const;
 }
 
-/** Subdirectories, relative to `<workspaceRoot>/.quest`, a task record can
- * live in across its lifecycle -- must track local-task-repository.ts's own
- * layout, or an id retained there would be invisible to this scan too. */
-const TASK_RECORD_SUBDIRECTORIES = ["tasks", "completed", "archive/tasks"];
-
 /** The same, for drafts. An archived draft keeps its id, so allocation has
  * to see `archive/drafts` too -- the same reason `nextPlanningId` lists
  * archived milestones. QCLI-290. */
@@ -1476,10 +1472,10 @@ async function nextTaskId(
     commonDirectory,
     marker,
     family: "task",
-    recordDirectories: TASK_RECORD_SUBDIRECTORIES,
+    recordDirectories: TASK_LOCATIONS,
     visibleIds: [
       ...(await tasks.listIncludingRetained()).map((task) => task.id),
-      ...(await idsOnOtherRefs(git, root, marker, TASK_RECORD_SUBDIRECTORIES)),
+      ...(await idsOnOtherRefs(git, root, marker, TASK_LOCATIONS)),
     ],
   });
 }
@@ -1796,9 +1792,8 @@ export async function writeInitInstructions(
 async function planningIdsOnOtherRefs(
   git: ReturnType<typeof createGitPort>,
   root: string,
-  prefix: "M" | "DEC",
+  marker: string,
 ): Promise<readonly string[]> {
-  const marker = `${prefix}-`;
   try {
     const refs = await git.listRefs(root);
     const documents = await Promise.all(
@@ -1868,7 +1863,7 @@ async function nextPlanningId(
     recordDirectories: null,
     visibleIds: [
       ...records.map((record) => record.id),
-      ...(await planningIdsOnOtherRefs(git, root, prefix)),
+      ...(await planningIdsOnOtherRefs(git, root, marker)),
     ],
   });
 }
@@ -2543,9 +2538,12 @@ export async function runQuest(
         commonDirectory: resolvedCommonDirectory,
         idsOnOtherRefs: async (marker, recordDirectories) =>
           recordDirectories === null
-            ? await planningIdsOnOtherRefs(git, root, "M")
+            ? await planningIdsOnOtherRefs(git, root, marker)
             : await idsOnOtherRefs(git, root, marker, recordDirectories),
-        releaseIds: async (family, marker, ids) =>
+        // QCLI-526 (QCLI-520 round-2 N2): the release carries the entries the
+        // reservation wrote, so it cannot withdraw another run's entry that
+        // happens to carry the same id and family.
+        releaseIds: async (family, marker, reservations) =>
           releaseIdBlock(
             {
               git,
@@ -2554,7 +2552,7 @@ export async function runQuest(
               marker,
               family,
             },
-            ids,
+            reservations,
           ),
         ...(onStaleLock === undefined ? {} : { recordStaleLock: onStaleLock }),
       });
@@ -5007,7 +5005,10 @@ export async function runQuest(
             : {}),
           ...(error.breakFileAgeMilliseconds !== null
             ? {
-                breakFileStampedMillisecondsAgo: error.breakFileAgeMilliseconds,
+                // QCLI-528: named for what it measures, not for the field it
+                // usually comes from -- a zero-byte break file has no stamp,
+                // so this age is its mtime.
+                breakFileAgeMilliseconds: error.breakFileAgeMilliseconds,
               }
             : {}),
         },
@@ -5079,6 +5080,16 @@ export async function runQuest(
     if (message.startsWith("migration_id_block_moved"))
       return failure("conflict", message, {
         hint: "Nothing was written. Re-run `quest migration backlog preview` and apply the digest it prints.",
+      });
+    // QCLI-526 (QCLI-520 round-2 N3): this is the refusal an operator meets
+    // most often -- the approved digest was recomputed from a source that has
+    // moved, or an allocation changed the ids -- and the remedy is the same
+    // re-preview the conflict above names. Its exit code deliberately stays
+    // validation (6): unlike id_block_moved, the input is not known to be
+    // retryable without a fresh preview (DEC-2).
+    if (message === "migration_approval_digest_mismatch")
+      return failure("validation", message, {
+        hint: "Nothing was written. Re-run `quest migration backlog preview` and apply the digest it prints -- a source or allocation change since the earlier preview is what makes the approved digest differ.",
       });
     if (kind === "conflict") return failure("conflict", message);
     if (message === "task_not_found") return failure("not_found", message);

@@ -32,6 +32,13 @@ import {
   transitionTask,
   unresolvedAtCompletion,
 } from "../../domain/tasks/tasks.ts";
+
+/** QCLI-526 (QCLI-520 round-2 N6) and QCLI-527 (QCLI-519 round-2 NIT): the task
+ * record locations, re-exported so the CLI layer can use the SINGLE list the
+ * domain defines without importing `domain/` directly (layer rule: cli ->
+ * application). Before this, the migration kept its own copy of this list and
+ * the CLI's id scanner held another, so either could drift from the domain. */
+export { TASK_LOCATIONS } from "../../domain/tasks/tasks.ts";
 import type { MigrationTransactionRepository } from "../../ports/backlog-import.ts";
 import type { PlanningRepository } from "../../ports/planning.ts";
 import {

@@ -99,6 +99,10 @@ export interface IdAllocationRequest {
   readonly now?: () => number;
   readonly processId?: number;
   readonly sleep?: (milliseconds: number) => Promise<void>;
+  /** QCLI-528: the two reads {@link readLock} performs, so a test can drive
+   * the stat-then-read window deterministically instead of racing a real
+   * filesystem. Production callers omit it and get `node:fs/promises`. */
+  readonly lockReadIo?: LockReadIo;
 }
 
 export interface IdAllocation {
@@ -138,7 +142,10 @@ export class IdAllocationLockTimeoutError extends Error {
     readonly waitedMilliseconds: number,
     /** `<lockPath>.break`, the file that serialises breakers. */
     readonly breakPath: string = `${lockPath}${BREAK_FILE_SUFFIX}`,
-    /** Whether anything exists at {@link breakPath} at all. */
+    /** Whether a file exists at {@link breakPath} at all. QCLI-528 (QCLI-522
+     * round 2, N2): true also when the file exists and cannot be stat'd --
+     * an unreadable file is not an absent one, and only absence licenses
+     * removing the lock. */
     readonly breakFilePresent: boolean = false,
     /** The breaker's pid as recorded, or null when the file is present but its
      * holder cannot be read (a breaker between creating the file and writing
@@ -148,11 +155,14 @@ export class IdAllocationLockTimeoutError extends Error {
     /** True only when a readable break pid names a process this machine can
      * still see. A live breaker means the lock must not be removed. */
     readonly breakHolderAlive: boolean = false,
-    /** How old the break file is, from its own stamp (or its mtime when the
-     * stamp is unreadable), or null when there is no file. QCLI-522 round 1,
-     * MAJOR 1: the removal advice is conditional on the age, because a young
-     * unreadable file is equally a LIVE breaker between creating it and
-     * writing its pid. */
+    /** How old the break file is. QCLI-528: this is the file's own stamp when
+     * one is readable, and its MTIME otherwise -- which is every zero-byte
+     * file, because the stamp is the second line. Null when there is no file
+     * at all, and null when the file exists but its stat failed with something
+     * other than ENOENT; {@link breakFilePresent} separates those two. QCLI-522
+     * round 1, MAJOR 1: the removal advice is conditional on the age, because
+     * a young unreadable file is equally a LIVE breaker between creating it
+     * and writing its pid. */
     readonly breakFileAgeMilliseconds: number | null = null,
   ) {
     super(
@@ -180,6 +190,12 @@ export class IdAllocationLockTimeoutError extends Error {
  * the window a breaker has to write its pid is exactly the one an operator
  * must not delete. `takeBreakFile` refuses to auto-clear the same state for
  * the same reason, so the hint cannot be stricter or looser than the module.
+ *
+ * QCLI-528: "cannot be read" includes a file that cannot be STAT'd with
+ * anything but ENOENT. That file is PRESENT with no readable age, so it takes
+ * the same branch and prints the existing "its age could not be read" clause --
+ * what it must never do is claim the file does not exist and call the lock safe
+ * to remove.
  *
  * This function, and the CLI path that calls it, never remove or clear the
  * break file -- they only report it.
@@ -223,14 +239,17 @@ export function allocationLockTimeoutHint(
         : `A break file EXISTS at ${error.breakPath} and its holder cannot be determined (${breakAgeClause}); an empty or unreadable file may be a breaker killed before writing its pid, and it blocks breaking a stale lock. This command never removes or clears it: remove ${error.breakPath} yourself only if no quest process is running and the file is older than ${breakStaleSeconds}s. Removing ${error.lockPath} is NOT safe until it is gone.`
       : error.breakHolderAlive
         ? `A break file EXISTS at ${error.breakPath}, held by LIVE pid ${error.breakHolderPid}. Removing ${error.lockPath} is NOT safe while that breaker is running, and this command never removes or clears the break file.`
-        : `A break file EXISTS at ${error.breakPath}, held by pid ${error.breakHolderPid}, which is not running. Remove ${error.breakPath} first -- while it is there a stale lock cannot be broken, and this command never clears it.`;
+        : `A break file EXISTS at ${error.breakPath}, held by pid ${error.breakHolderPid}, which is not running. Remove ${error.breakPath} first if it still names pid ${error.breakHolderPid} -- a reused pid would make that file another process's, so check the file itself; while it is there a stale lock cannot be broken, and this command never clears it.`;
   // The final sentence states the safe condition too, and for an unreadable
   // holder it must carry the AGE as well as process quiescence.
   const breakRemovalCondition =
     error.breakFilePresent && error.breakHolderPid === null
       ? `no quest process is running and ${error.breakPath} is older than ${breakStaleSeconds}s`
       : "no live break holder exists";
-  return `Retry the create. The lock ${age}, held by ${holder}; one whose holder pid is gone is broken automatically once it is 30s old, so a create after a crashed holder can fail for up to that long. ${breakClause} If it keeps failing, removing ${error.lockPath} is safe only when ${breakRemovalCondition} and ${holderGoneWhen}.`;
+  // QCLI-526 (QCLI-520 round-2 N5): this hint is reachable from `migration
+  // backlog apply` as well as from the create commands, so it addresses the
+  // caller generally rather than the create audience it was written for.
+  return `Retry the command. The lock ${age}, held by ${holder}; one whose holder pid is gone is broken automatically once it is 30s old, so a retry after a crashed holder can fail for up to that long. ${breakClause} If it keeps failing, removing ${error.lockPath} is safe only when ${breakRemovalCondition} and ${holderGoneWhen}.`;
 }
 
 /** QCLI-495 round 1, finding 5: `git worktree list` answered nothing while a
@@ -295,25 +314,61 @@ function processIsAlive(pid: number): boolean {
   }
 }
 
-/** The lock's holder, as `<pid>\n<epoch-millis>\n`. A holder is `null` only
- * when the lock has vanished, so a caller that reads it has the file in hand
- * and can decide about it without a second read. */
+/** The two filesystem reads {@link readLock} performs. QCLI-528: injectable so
+ * the stat-then-read window is drivable in a test without racing a real
+ * filesystem; production callers use {@link REAL_LOCK_IO}. */
+export interface LockReadIo {
+  readonly stat: (path: string) => Promise<{ readonly mtimeMs: number }>;
+  readonly readFile: (path: string) => Promise<string>;
+}
+
+const REAL_LOCK_IO: LockReadIo = {
+  stat: (path) => stat(path),
+  readFile: (path) => readFile(path, "utf8"),
+};
+
+/** A lock or break file this call could see. `pid` is null when the file is
+ * present but its holder cannot be read; `at` is null when the file is present
+ * but its age cannot be read either. */
+interface ReadLockHolder {
+  readonly pid: number | null;
+  readonly at: number | null;
+}
+
+/** The lock's holder, as `<pid>\n<epoch-millis>\n`. `null` means the file is
+ * ABSENT -- ENOENT on the stat, or ENOENT on the read after a successful stat,
+ * which is a file removed between the two (QCLI-522 round 1, MINOR 3). Every
+ * other outcome is PRESENT, and the split matters:
+ *
+ *  - a stat failure other than ENOENT (`EACCES`, `EIO`, `ELOOP`) leaves a file
+ *    whose age cannot be read; `pid` and `at` are both null (QCLI-528);
+ *  - a read failure other than ENOENT leaves the holder unreadable but the
+ *    stat's mtime is still an age, so `pid` is null and `at` is that mtime.
+ *
+ * QCLI-528 (QCLI-522 round 2, N2): the stat catch used to collapse EVERY
+ * failure into "absent", and absent is the branch the hint reads as "no break
+ * file exists" -- the branch that makes removing the lock sound safe. A file
+ * this command merely cannot stat is not an absent one, so it must never
+ * answer that way. An unreadable age is likewise never judged stale by
+ * {@link breakStaleLock}: only an age that was READ can prove abandonment. */
 async function readLock(
   lockPath: string,
-): Promise<{ readonly pid: number | null; readonly at: number } | null> {
+  io: LockReadIo = REAL_LOCK_IO,
+): Promise<ReadLockHolder | null> {
   // stat FIRST and readFile second: a holder between the two has created the
   // file and not yet written it, and the stat's mtime is then the age this
   // function reports. The reverse order loses that fallback to a race it
   // cannot see.
-  const info = await stat(lockPath).catch(() => null);
-  if (info === null) return null;
-  // QCLI-522 round 1, MINOR 3: a file removed between the stat and the read is
-  // ABSENT, not present-but-unreadable. Only ENOENT says that; any other read
-  // failure still leaves a file whose holder cannot be read, which is the
-  // state callers distinguish.
+  let info: { readonly mtimeMs: number };
+  try {
+    info = await io.stat(lockPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    return { pid: null, at: null };
+  }
   let body: string;
   try {
-    body = await readFile(lockPath, "utf8");
+    body = await io.readFile(lockPath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     body = "";
@@ -337,6 +392,9 @@ export interface BreakOptions {
    * still matched, and before it is removed -- where a second breaker has to
    * be refused by the break file and by nothing else. */
   readonly afterLockedReread?: () => Promise<void>;
+  /** QCLI-528: test seam for the stat-then-read window, as in
+   * {@link IdAllocationRequest.lockReadIo}. */
+  readonly readIo?: LockReadIo;
 }
 
 /**
@@ -364,17 +422,23 @@ export async function breakStaleLock(
   now: () => number,
   options: BreakOptions = {},
 ): Promise<boolean> {
-  const holder = await readLock(lockPath);
+  const io = options.readIo ?? REAL_LOCK_IO;
+  const holder = await readLock(lockPath, io);
   if (holder === null) return false;
+  // QCLI-528: an age that could not be READ is never an age that proves
+  // abandonment. Before the stat catch was narrowed this state was reported as
+  // an absent lock, which took this same early return; the fix must keep it a
+  // refusal rather than let a NaN age fall through the comparison.
+  if (holder.at === null) return false;
   if (now() - holder.at <= STALE_LOCK_MILLISECONDS) return false;
   if (holder.pid !== null && processIsAlive(holder.pid)) return false;
   await options.afterStaleJudgement?.();
   const breakPath = `${lockPath}${BREAK_FILE_SUFFIX}`;
   const processId = options.processId ?? process.pid;
-  const mine = await takeBreakFile(breakPath, now, processId);
+  const mine = await takeBreakFile(breakPath, now, processId, io);
   if (mine === null) return false;
   try {
-    const current = await readLock(lockPath);
+    const current = await readLock(lockPath, io);
     if (
       current === null ||
       current.pid !== holder.pid ||
@@ -388,7 +452,7 @@ export async function breakStaleLock(
     // Only a break file this call still owns: the clear rule below keeps a
     // live breaker's file in place, but a release that read someone else's
     // would take their serialisation with it.
-    const left = await readLock(breakPath);
+    const left = await readLock(breakPath, io);
     if (left !== null && left.pid === mine.pid && left.at === mine.at)
       await unlink(breakPath).catch(() => undefined);
   }
@@ -415,6 +479,7 @@ async function takeBreakFile(
   breakPath: string,
   now: () => number,
   processId: number,
+  io: LockReadIo,
 ): Promise<{ readonly pid: number; readonly at: number } | null> {
   try {
     const handle = await open(breakPath, "wx");
@@ -431,10 +496,11 @@ async function takeBreakFile(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
   }
-  const existing = await readLock(breakPath);
+  const existing = await readLock(breakPath, io);
   if (
     existing !== null &&
     existing.pid !== null &&
+    existing.at !== null &&
     now() - existing.at > BREAK_FILE_STALE_MILLISECONDS &&
     !processIsAlive(existing.pid)
   )
@@ -455,6 +521,7 @@ async function acquireLock(
   now: () => number,
   processId: number,
   sleep: (milliseconds: number) => Promise<void>,
+  io: LockReadIo = REAL_LOCK_IO,
 ): Promise<boolean> {
   const started = now();
   let broke = false;
@@ -474,28 +541,30 @@ async function acquireLock(
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
-    if (await breakStaleLock(lockPath, now, { processId })) {
+    if (await breakStaleLock(lockPath, now, { processId, readIo: io })) {
       broke = true;
       continue;
     }
     if (now() - started >= LOCK_WAIT_MILLISECONDS) {
-      const holder = await readLock(lockPath);
+      const holder = await readLock(lockPath, io);
       // QCLI-522: the break file decides whether the lock is safe to remove,
       // so what is at it is part of the answer. `readLock` answers null for an
-      // ABSENT file and `{pid: null}` for one whose holder cannot be read --
-      // the two states the hint must not conflate.
+      // ABSENT file and a holder with `pid: null` for one whose holder cannot
+      // be read -- the two states the hint must not conflate. QCLI-528: an
+      // unreadable STAT also answers present-with-no-age, so both ages below
+      // are null in that case rather than NaN.
       const breakPath = `${lockPath}${BREAK_FILE_SUFFIX}`;
-      const breaker = await readLock(breakPath);
+      const breaker = await readLock(breakPath, io);
       throw new IdAllocationLockTimeoutError(
         lockPath,
         holder?.pid ?? null,
-        holder === null ? null : now() - holder.at,
+        holder === null || holder.at === null ? null : now() - holder.at,
         now() - started,
         breakPath,
         breaker !== null,
         breaker?.pid ?? null,
         breaker?.pid != null && processIsAlive(breaker.pid),
-        breaker === null ? null : now() - breaker.at,
+        breaker === null || breaker.at === null ? null : now() - breaker.at,
       );
     }
     await sleep(LOCK_POLL_MILLISECONDS);
@@ -505,8 +574,12 @@ async function acquireLock(
 /** Releases only a lock this process still holds: a holder slow enough to be
  * broken as stale has already lost it, and unlinking on the way out would take
  * the new holder's lock instead. */
-async function releaseLock(lockPath: string, processId: number): Promise<void> {
-  const holder = await readLock(lockPath);
+async function releaseLock(
+  lockPath: string,
+  processId: number,
+  io: LockReadIo = REAL_LOCK_IO,
+): Promise<void> {
+  const holder = await readLock(lockPath, io);
   if (holder === null || holder.pid !== processId) return;
   await unlink(lockPath).catch(() => undefined);
 }
@@ -647,10 +720,25 @@ export interface IdBlockRequest extends IdAllocationRequest {
   readonly count: number;
 }
 
+/** One ledger entry a reservation wrote. QCLI-526 (QCLI-520 round-2 N2): a
+ * release is matched on the ENTRY, not on id plus family, because a different
+ * run that happens to reserve the same id and family must survive this run's
+ * release. `at` is one stamp per block, so re-reserving the same ids in the
+ * same millisecond is the only way two blocks collide -- and then the entries
+ * are interchangeable anyway. */
+export interface IdReservation {
+  readonly id: string;
+  readonly at: number;
+}
+
 export interface IdBlock {
   readonly ids: readonly string[];
   readonly brokeStaleLock: boolean;
   readonly lockPath: string | null;
+  /** Exactly the ledger entries this call wrote, so a failure path can hand
+   * back what THIS run reserved and nothing else (QCLI-526). Empty when
+   * nothing was reserved (no common dir, or a non-positive count). */
+  readonly reservations: readonly IdReservation[];
 }
 
 /** The block's first sequence: one above everything visible to this call,
@@ -727,12 +815,13 @@ export async function reserveIdBlock(
   request: IdBlockRequest,
 ): Promise<IdBlock> {
   if (request.count <= 0)
-    return { ids: [], brokeStaleLock: false, lockPath: null };
+    return { ids: [], brokeStaleLock: false, lockPath: null, reservations: [] };
   if (request.commonDirectory === null)
     return {
       ids: blockIds(request.visibleIds, request.marker, request.count),
       brokeStaleLock: false,
       lockPath: null,
+      reservations: [],
     };
 
   const now = request.now ?? Date.now;
@@ -743,7 +832,13 @@ export async function reserveIdBlock(
   const ledgerPath = join(directory, LEDGER_FILE_NAME);
 
   await mkdir(dirname(lockPath), { recursive: true });
-  const brokeStaleLock = await acquireLock(lockPath, now, processId, sleep);
+  const brokeStaleLock = await acquireLock(
+    lockPath,
+    now,
+    processId,
+    sleep,
+    request.lockReadIo,
+  );
   try {
     const visible = [...request.visibleIds, ...(await worktreeIds(request))];
     const visibleSet = new Set(visible);
@@ -758,17 +853,24 @@ export async function reserveIdBlock(
     const kept = reserved.filter(
       (entry) => !(entry.family === request.family && visibleSet.has(entry.id)),
     );
+    // One stamp for the whole block: these entries are what a failure path
+    // hands back, and what `releaseIdBlock` matches on (QCLI-526).
+    const stamp = now();
+    const entries: readonly IdReservation[] = ids.map((id) => ({
+      id,
+      at: stamp,
+    }));
     await writeLedger(
       ledgerPath,
       [
         ...kept,
-        ...ids.map((id) => ({ id, at: now(), family: request.family })),
+        ...entries.map((entry) => ({ ...entry, family: request.family })),
       ],
       processId,
     );
-    return { ids, brokeStaleLock, lockPath };
+    return { ids, brokeStaleLock, lockPath, reservations: entries };
   } finally {
-    await releaseLock(lockPath, processId);
+    await releaseLock(lockPath, processId, request.lockReadIo);
   }
 }
 
@@ -791,19 +893,23 @@ export type IdReleaseRequest = Omit<
  * `migration_approval_digest_mismatch` -- the plan is undone by a reservation
  * this run never used.
  *
- * Exactly the entries whose family matches AND whose id is in `ids` are
- * removed; another family's reservation is never touched, and the ledger is
- * rewritten only when something changed. It takes the same lock as
- * `reserveIdBlock`, so a concurrent allocator cannot interleave a read/write
- * pair, and applies the same TTL filter, so expired entries are pruned on the
- * same terms. With no common dir there is no ledger: a no-op that returns
- * false.
+ * Exactly the entries the reservation wrote are removed -- same family, same id
+ * AND same stamp. QCLI-526 (QCLI-520 round-2 N2): the first version matched on
+ * id plus family, so a release withdrawn by one run could take a DIFFERENT
+ * run's reservation of the same id and family with it, and the match no longer
+ * agreed with the note describing it as id, at and family. Another family's
+ * reservation is never touched, and the ledger is rewritten only when
+ * something changed. It takes the same lock as `reserveIdBlock`, so a
+ * concurrent allocator cannot interleave a read/write pair, and applies the
+ * same TTL filter, so expired entries are pruned on the same terms. With no
+ * common dir there is no ledger: a no-op that returns false.
  */
 export async function releaseIdBlock(
   request: IdReleaseRequest,
-  ids: readonly string[],
+  reservations: readonly IdReservation[],
 ): Promise<boolean> {
-  if (request.commonDirectory === null || ids.length === 0) return false;
+  if (request.commonDirectory === null || reservations.length === 0)
+    return false;
   const now = request.now ?? Date.now;
   const processId = request.processId ?? process.pid;
   const sleep = request.sleep ?? sleepFor;
@@ -812,20 +918,29 @@ export async function releaseIdBlock(
   const ledgerPath = join(directory, LEDGER_FILE_NAME);
 
   await mkdir(dirname(lockPath), { recursive: true });
-  await acquireLock(lockPath, now, processId, sleep);
+  await acquireLock(lockPath, now, processId, sleep, request.lockReadIo);
   try {
-    const wanted = new Set(ids);
+    // The stamp is part of the identity: an entry written by another run that
+    // happens to carry this id and family is a different entry (`at` is set
+    // when it was written), so it survives this release.
+    const wanted = new Set(
+      reservations.map((entry) => `${entry.id}\u0000${entry.at}`),
+    );
     const reserved = (await readLedger(ledgerPath)).filter(
       (entry) => now() - entry.at <= LEDGER_ENTRY_TTL_MILLISECONDS,
     );
     const kept = reserved.filter(
-      (entry) => !(entry.family === request.family && wanted.has(entry.id)),
+      (entry) =>
+        !(
+          entry.family === request.family &&
+          wanted.has(`${entry.id}\u0000${entry.at}`)
+        ),
     );
     if (kept.length === reserved.length) return false;
     await writeLedger(ledgerPath, kept, processId);
     return true;
   } finally {
-    await releaseLock(lockPath, processId);
+    await releaseLock(lockPath, processId, request.lockReadIo);
   }
 }
 
@@ -859,7 +974,13 @@ export async function allocateId(
   const ledgerPath = join(directory, LEDGER_FILE_NAME);
 
   await mkdir(dirname(lockPath), { recursive: true });
-  const brokeStaleLock = await acquireLock(lockPath, now, processId, sleep);
+  const brokeStaleLock = await acquireLock(
+    lockPath,
+    now,
+    processId,
+    sleep,
+    request.lockReadIo,
+  );
   try {
     const visible = [...request.visibleIds, ...(await worktreeIds(request))];
     const visibleSet = new Set(visible);
@@ -893,6 +1014,6 @@ export async function allocateId(
     );
     return { id, brokeStaleLock, lockPath };
   } finally {
-    await releaseLock(lockPath, processId);
+    await releaseLock(lockPath, processId, request.lockReadIo);
   }
 }

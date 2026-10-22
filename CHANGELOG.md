@@ -20,7 +20,7 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   over `.quest/` and no second decoder: `data` is the same shape `task view`
   returns, and `--max-notes`/`--fields` compose unchanged. It is a read, so
   there is no revision precondition and nothing is written, and it never
-  fetches: a ref that exists only on the remote must be fetched first. Three
+  fetches: a ref that exists only on the remote must be fetched first. Five
   failure outcomes, all naming the ref and (where one resolved) its sha: an id
   absent at the ref is `not_found` (exit 3, `input.code` `task_not_found`); a
   ref that does not resolve to a commit -- including a tree-ish or a blob-ish
@@ -49,12 +49,17 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   that cannot get the lock fails as a `conflict` (exit 5) after 10 seconds (a
   live holder, or a crashed one whose lock is not yet 30 seconds old), with a
   hint naming the lock path, its age, the holder pid and how to remove it. That
-  hint also reports the breaker's own `alloc.lock.break` file (QCLI-522):
-  removing the lock is said to be safe only when no live break holder exists;
-  a break file whose holder cannot be determined (an empty or unreadable file,
-  which is equally a live breaker between creating it and writing its pid) is
-  never given a cause, and removing it is advised only when no quest process is
-  running and the file is older than 10 seconds. This command never clears the
+  hint also reports the breaker's own `alloc.lock.break` file (QCLI-522,
+  QCLI-528): removing the lock is said to be safe only when no live break
+  holder exists; a break file whose holder cannot be determined -- an empty or
+  unreadable file, which is equally a live breaker between creating it and
+  writing its pid, a suspended one, or one killed before it wrote anything --
+  is described as undetermined rather than given a single asserted cause, and a
+  break file that cannot even be stat'd is reported present with an age that
+  could not be read, never as absent. Removing it is advised only when no quest
+  process is running and the file is older than 10 seconds, and a break file
+  naming a pid that is not running is to be removed only if it still names that
+  pid, because pid reuse can make that file another process's. This command never clears the
   break file itself; and a create whose `git worktree list` answers nothing
   fails as `drift` (exit 6) instead of falling back to refs alone. A create
   that loses the record write still leaves
@@ -66,6 +71,19 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   and an apply whose approved digest no longer describes the ids it would mint
   is refused (`migration_id_block_moved`) rather than renumbered silently. A
   `.quest` with no Git repository allocates as before.
+
+- **A failed migration apply reports its own failure, not the failure to hand
+  its id blocks back** (QCLI-526). `migration backlog apply` releases the
+  blocks it reserved on every failure path; that release now runs per family
+  inside its own try, so one family's release cannot skip the other's, and a
+  release that throws rides along as the original error's `cause` instead of
+  replacing it -- the conflict and source-fingerprint paths still return their
+  failed receipt. The release matches the ledger entries the reservation wrote
+  (id, stamp and family), so an entry another run wrote with the same id and
+  family survives. Both apply refusals name the same next step in their hint,
+  with their exit codes unchanged: `migration_id_block_moved` (conflict, exit
+  5) and `migration_approval_digest_mismatch` (validation, exit 6) each say to
+  re-run `migration backlog preview` and apply the digest it prints.
 
 - **Draft ids and the ids `cleanup` reports order by number too.** `draft list`
   put `D-10` and `D-11` between `D-1` and `D-2`, and `cleanup --dry-run` listed

@@ -164,6 +164,13 @@ test("a digest from a changed source is refused, and the current one applies (QC
     expect(refused.stdout + refused.stderr).toContain(
       "migration_approval_digest_mismatch",
     );
+    // QCLI-526 (QCLI-520 round-2 N3): this is the refusal an operator usually
+    // meets, so it carries the same re-preview step as
+    // migration_id_block_moved -- and still exits validation.
+    expect(refused.exitCode).toBe(6);
+    expect(refused.stderr).toContain(
+      "Re-run `quest migration backlog preview` and apply the digest it prints",
+    );
     // The refusal left the tree alone: a guard that refuses after writing is
     // not a guard.
     expect((await tree(root))["backlog/tasks/task-3.md"]).toBeDefined();
