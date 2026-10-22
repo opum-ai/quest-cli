@@ -49,12 +49,17 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   that cannot get the lock fails as a `conflict` (exit 5) after 10 seconds (a
   live holder, or a crashed one whose lock is not yet 30 seconds old), with a
   hint naming the lock path, its age, the holder pid and how to remove it. That
-  hint also reports the breaker's own `alloc.lock.break` file (QCLI-522):
-  removing the lock is said to be safe only when no live break holder exists;
-  a break file whose holder cannot be determined (an empty or unreadable file,
-  which is equally a live breaker between creating it and writing its pid) is
-  never given a cause, and removing it is advised only when no quest process is
-  running and the file is older than 10 seconds. This command never clears the
+  hint also reports the breaker's own `alloc.lock.break` file (QCLI-522,
+  QCLI-528): removing the lock is said to be safe only when no live break
+  holder exists; a break file whose holder cannot be determined -- an empty or
+  unreadable file, which is equally a live breaker between creating it and
+  writing its pid, a suspended one, or one killed before it wrote anything --
+  is described as undetermined rather than given a single asserted cause, and a
+  break file that cannot even be stat'd is reported present with an age that
+  could not be read, never as absent. Removing it is advised only when no quest
+  process is running and the file is older than 10 seconds, and a break file
+  naming a pid that is not running is to be removed only if it still names that
+  pid, because pid reuse can make that file another process's. This command never clears the
   break file itself; and a create whose `git worktree list` answers nothing
   fails as `drift` (exit 6) instead of falling back to refs alone. A create
   that loses the record write still leaves
