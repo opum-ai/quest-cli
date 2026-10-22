@@ -48,9 +48,16 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   is over 30 seconds old is broken, with a `Warning:` line on stderr; a create
   that cannot get the lock fails as a `conflict` (exit 5) after 10 seconds (a
   live holder, or a crashed one whose lock is not yet 30 seconds old), with a
-  hint naming the lock path, its age, the holder pid and how to remove it; and a create
-  whose `git worktree list` answers nothing fails as `drift` (exit 6) instead of
-  falling back to refs alone. A create that loses the record write still leaves
+  hint naming the lock path, its age, the holder pid and how to remove it. That
+  hint also reports the breaker's own `alloc.lock.break` file (QCLI-522):
+  removing the lock is said to be safe only when no live break holder exists;
+  a break file whose holder cannot be determined (an empty or unreadable file,
+  which is equally a live breaker between creating it and writing its pid) is
+  never given a cause, and removing it is advised only when no quest process is
+  running and the file is older than 10 seconds. This command never clears the
+  break file itself; and a create whose `git worktree list` answers nothing
+  fails as `drift` (exit 6) instead of falling back to refs alone. A create
+  that loses the record write still leaves
   its reservation, so the next id can skip a number for up to 7 days. **Not
   covered:** `--id` and creates on two machines. The Backlog.md migration is
   covered as of QCLI-520: `migration backlog apply` reserves its imported task
