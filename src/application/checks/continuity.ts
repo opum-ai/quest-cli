@@ -1,5 +1,9 @@
 import { aliasKey } from "../../domain/records.ts";
-import type { TaskState } from "../../domain/tasks/tasks.ts";
+import {
+  type TaskLocation,
+  type TaskState,
+  TASK_LOCATIONS,
+} from "../../domain/tasks/tasks.ts";
 import type { GitPort } from "../../ports/git.ts";
 
 /**
@@ -25,16 +29,13 @@ import type { GitPort } from "../../ports/git.ts";
  */
 
 /** The three task record locations a record moves through over its life.
- * Deliberately a copy of LocalTaskRepository's own layout -- and of the CLI's
- * TASK_RECORD_SUBDIRECTORIES list that tracks it -- because a location added
- * there but not here would make this check blind in the one direction that
- * matters: a record kept only where the check never reads would be reported as
- * dropped. */
-export const CONTINUITY_TASK_LOCATIONS = [
-  "tasks",
-  "completed",
-  "archive/tasks",
-] as const;
+ * QCLI-527 (QCLI-519 round-2 NIT): this is the DOMAIN's list, not a copy.
+ * There used to be four literals of these three names -- here, in the CLI's
+ * scanner, in the ref reader's path and in the allocator -- with nothing making
+ * them agree, so a location added to one made another blind exactly where a
+ * dropped record hides. One home means every reader moves together. */
+export const CONTINUITY_TASK_LOCATIONS: readonly TaskLocation[] =
+  TASK_LOCATIONS;
 
 /**
  * The current store as the check needs it: every task record, from every

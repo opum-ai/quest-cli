@@ -86,6 +86,7 @@ import {
   type TaskResolutionKind,
   type TaskService,
   type TaskVocabularyContext,
+  TASK_LOCATIONS,
   taskResolutionKinds,
   VocabularyValueError,
 } from "../application/tasks/tasks.ts";
@@ -494,7 +495,7 @@ async function taskRecordIdsOnOtherRefs(
     const current = await git.currentBranch(root);
     const idsOn = async (ref: string) => {
       const listings = await Promise.all(
-        TASK_RECORD_SUBDIRECTORIES.map((subdirectory) =>
+        TASK_LOCATIONS.map((subdirectory) =>
           git.listFiles(root, ref, `.quest/${subdirectory}`),
         ),
       );
@@ -1395,11 +1396,6 @@ function actor(parsed: NonNullable<ReturnType<typeof flags>>) {
   } as const;
 }
 
-/** Subdirectories, relative to `<workspaceRoot>/.quest`, a task record can
- * live in across its lifecycle -- must track local-task-repository.ts's own
- * layout, or an id retained there would be invisible to this scan too. */
-const TASK_RECORD_SUBDIRECTORIES = ["tasks", "completed", "archive/tasks"];
-
 /** The same, for drafts. An archived draft keeps its id, so allocation has
  * to see `archive/drafts` too -- the same reason `nextPlanningId` lists
  * archived milestones. QCLI-290. */
@@ -1476,10 +1472,10 @@ async function nextTaskId(
     commonDirectory,
     marker,
     family: "task",
-    recordDirectories: TASK_RECORD_SUBDIRECTORIES,
+    recordDirectories: TASK_LOCATIONS,
     visibleIds: [
       ...(await tasks.listIncludingRetained()).map((task) => task.id),
-      ...(await idsOnOtherRefs(git, root, marker, TASK_RECORD_SUBDIRECTORIES)),
+      ...(await idsOnOtherRefs(git, root, marker, TASK_LOCATIONS)),
     ],
   });
 }

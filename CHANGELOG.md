@@ -20,7 +20,7 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   over `.quest/` and no second decoder: `data` is the same shape `task view`
   returns, and `--max-notes`/`--fields` compose unchanged. It is a read, so
   there is no revision precondition and nothing is written, and it never
-  fetches: a ref that exists only on the remote must be fetched first. Three
+  fetches: a ref that exists only on the remote must be fetched first. Five
   failure outcomes, all naming the ref and (where one resolved) its sha: an id
   absent at the ref is `not_found` (exit 3, `input.code` `task_not_found`); a
   ref that does not resolve to a commit -- including a tree-ish or a blob-ish
