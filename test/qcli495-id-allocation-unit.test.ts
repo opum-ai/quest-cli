@@ -415,6 +415,68 @@ test("a breaker that judged a lock stale never removes the fresh lock a faster b
   }
 });
 
+test("a lock replaced with a different PID only is left in place (QCLI-525)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const now = Date.now();
+    // Judged stale: dead pid, 60s old. The replacement keeps the STAMP and
+    // changes only the PID (to this live process), so the locked reread's pid
+    // half is the only thing that can refuse it.
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    const replacement = `${process.pid}\n${now - 60_000}\n`;
+    let seamRan = false;
+    const broke = await breakStaleLock(repo.lockPath, () => now, {
+      afterStaleJudgement: async () => {
+        await unlink(repo.lockPath);
+        await writeFile(repo.lockPath, replacement, "utf8");
+        seamRan = true;
+      },
+    });
+    // The seam must have fired, or this proves nothing.
+    expect(seamRan).toBe(true);
+    expect(broke).toBe(false);
+    expect(await readFile(repo.lockPath, "utf8")).toBe(replacement);
+    // The breaker still cleans up its own break file on the refusal.
+    expect(
+      (await readdir(join(repo.common, "quest"))).filter((name) =>
+        name.startsWith("alloc.lock."),
+      ),
+    ).toEqual([]);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a lock replaced with a different STAMP only is left in place (QCLI-525)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const now = Date.now();
+    // Judged stale: dead pid, 60s old. The replacement keeps the (dead) PID and
+    // changes only the STAMP, so the locked reread's stamp half is the only
+    // thing that can refuse it.
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    const replacement = `${deadPid}\n${now}\n`;
+    let seamRan = false;
+    const broke = await breakStaleLock(repo.lockPath, () => now, {
+      afterStaleJudgement: async () => {
+        await unlink(repo.lockPath);
+        await writeFile(repo.lockPath, replacement, "utf8");
+        seamRan = true;
+      },
+    });
+    expect(seamRan).toBe(true);
+    expect(broke).toBe(false);
+    expect(await readFile(repo.lockPath, "utf8")).toBe(replacement);
+    expect(
+      (await readdir(join(repo.common, "quest"))).filter((name) =>
+        name.startsWith("alloc.lock."),
+      ),
+    ).toEqual([]);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
 test("a slow breaker leaves no orphaned lock when the faster holder finishes first (QCLI-495 round 2, NEW 2)", async () => {
   const repo = await repositoryDirectory();
   try {
