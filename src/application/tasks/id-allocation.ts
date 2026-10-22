@@ -230,7 +230,10 @@ export function allocationLockTimeoutHint(
     error.breakFilePresent && error.breakHolderPid === null
       ? `no quest process is running and ${error.breakPath} is older than ${breakStaleSeconds}s`
       : "no live break holder exists";
-  return `Retry the create. The lock ${age}, held by ${holder}; one whose holder pid is gone is broken automatically once it is 30s old, so a create after a crashed holder can fail for up to that long. ${breakClause} If it keeps failing, removing ${error.lockPath} is safe only when ${breakRemovalCondition} and ${holderGoneWhen}.`;
+  // QCLI-526 (QCLI-520 round-2 N5): this hint is reachable from `migration
+  // backlog apply` as well as from the create commands, so it addresses the
+  // caller generally rather than the create audience it was written for.
+  return `Retry the command. The lock ${age}, held by ${holder}; one whose holder pid is gone is broken automatically once it is 30s old, so a retry after a crashed holder can fail for up to that long. ${breakClause} If it keeps failing, removing ${error.lockPath} is safe only when ${breakRemovalCondition} and ${holderGoneWhen}.`;
 }
 
 /** QCLI-495 round 1, finding 5: `git worktree list` answered nothing while a
@@ -647,10 +650,25 @@ export interface IdBlockRequest extends IdAllocationRequest {
   readonly count: number;
 }
 
+/** One ledger entry a reservation wrote. QCLI-526 (QCLI-520 round-2 N2): a
+ * release is matched on the ENTRY, not on id plus family, because a different
+ * run that happens to reserve the same id and family must survive this run's
+ * release. `at` is one stamp per block, so re-reserving the same ids in the
+ * same millisecond is the only way two blocks collide -- and then the entries
+ * are interchangeable anyway. */
+export interface IdReservation {
+  readonly id: string;
+  readonly at: number;
+}
+
 export interface IdBlock {
   readonly ids: readonly string[];
   readonly brokeStaleLock: boolean;
   readonly lockPath: string | null;
+  /** Exactly the ledger entries this call wrote, so a failure path can hand
+   * back what THIS run reserved and nothing else (QCLI-526). Empty when
+   * nothing was reserved (no common dir, or a non-positive count). */
+  readonly reservations: readonly IdReservation[];
 }
 
 /** The block's first sequence: one above everything visible to this call,
@@ -727,12 +745,13 @@ export async function reserveIdBlock(
   request: IdBlockRequest,
 ): Promise<IdBlock> {
   if (request.count <= 0)
-    return { ids: [], brokeStaleLock: false, lockPath: null };
+    return { ids: [], brokeStaleLock: false, lockPath: null, reservations: [] };
   if (request.commonDirectory === null)
     return {
       ids: blockIds(request.visibleIds, request.marker, request.count),
       brokeStaleLock: false,
       lockPath: null,
+      reservations: [],
     };
 
   const now = request.now ?? Date.now;
@@ -758,15 +777,22 @@ export async function reserveIdBlock(
     const kept = reserved.filter(
       (entry) => !(entry.family === request.family && visibleSet.has(entry.id)),
     );
+    // One stamp for the whole block: these entries are what a failure path
+    // hands back, and what `releaseIdBlock` matches on (QCLI-526).
+    const stamp = now();
+    const entries: readonly IdReservation[] = ids.map((id) => ({
+      id,
+      at: stamp,
+    }));
     await writeLedger(
       ledgerPath,
       [
         ...kept,
-        ...ids.map((id) => ({ id, at: now(), family: request.family })),
+        ...entries.map((entry) => ({ ...entry, family: request.family })),
       ],
       processId,
     );
-    return { ids, brokeStaleLock, lockPath };
+    return { ids, brokeStaleLock, lockPath, reservations: entries };
   } finally {
     await releaseLock(lockPath, processId);
   }
@@ -791,19 +817,23 @@ export type IdReleaseRequest = Omit<
  * `migration_approval_digest_mismatch` -- the plan is undone by a reservation
  * this run never used.
  *
- * Exactly the entries whose family matches AND whose id is in `ids` are
- * removed; another family's reservation is never touched, and the ledger is
- * rewritten only when something changed. It takes the same lock as
- * `reserveIdBlock`, so a concurrent allocator cannot interleave a read/write
- * pair, and applies the same TTL filter, so expired entries are pruned on the
- * same terms. With no common dir there is no ledger: a no-op that returns
- * false.
+ * Exactly the entries the reservation wrote are removed -- same family, same id
+ * AND same stamp. QCLI-526 (QCLI-520 round-2 N2): the first version matched on
+ * id plus family, so a release withdrawn by one run could take a DIFFERENT
+ * run's reservation of the same id and family with it, and the match no longer
+ * agreed with the note describing it as id, at and family. Another family's
+ * reservation is never touched, and the ledger is rewritten only when
+ * something changed. It takes the same lock as `reserveIdBlock`, so a
+ * concurrent allocator cannot interleave a read/write pair, and applies the
+ * same TTL filter, so expired entries are pruned on the same terms. With no
+ * common dir there is no ledger: a no-op that returns false.
  */
 export async function releaseIdBlock(
   request: IdReleaseRequest,
-  ids: readonly string[],
+  reservations: readonly IdReservation[],
 ): Promise<boolean> {
-  if (request.commonDirectory === null || ids.length === 0) return false;
+  if (request.commonDirectory === null || reservations.length === 0)
+    return false;
   const now = request.now ?? Date.now;
   const processId = request.processId ?? process.pid;
   const sleep = request.sleep ?? sleepFor;
@@ -814,12 +844,21 @@ export async function releaseIdBlock(
   await mkdir(dirname(lockPath), { recursive: true });
   await acquireLock(lockPath, now, processId, sleep);
   try {
-    const wanted = new Set(ids);
+    // The stamp is part of the identity: an entry written by another run that
+    // happens to carry this id and family is a different entry (`at` is set
+    // when it was written), so it survives this release.
+    const wanted = new Set(
+      reservations.map((entry) => `${entry.id}\u0000${entry.at}`),
+    );
     const reserved = (await readLedger(ledgerPath)).filter(
       (entry) => now() - entry.at <= LEDGER_ENTRY_TTL_MILLISECONDS,
     );
     const kept = reserved.filter(
-      (entry) => !(entry.family === request.family && wanted.has(entry.id)),
+      (entry) =>
+        !(
+          entry.family === request.family &&
+          wanted.has(`${entry.id}\u0000${entry.at}`)
+        ),
     );
     if (kept.length === reserved.length) return false;
     await writeLedger(ledgerPath, kept, processId);
