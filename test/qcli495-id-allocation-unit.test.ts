@@ -18,6 +18,8 @@ import {
   breakStaleLock,
   IdAllocationLockTimeoutError,
   IdAllocationWorktreeReadError,
+  peekIdBlock,
+  reserveIdBlock,
 } from "../src/application/tasks/id-allocation.ts";
 import type { GitPort } from "../src/ports/git.ts";
 
@@ -524,13 +526,152 @@ test("a breaker never releases a break file that is no longer its own (QCLI-495 
   try {
     const now = Date.now();
     await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
-    const foreign = `${process.pid + 1}\n${now}\n`;
-    await breakStaleLock(repo.lockPath, () => now, {
-      afterLockedReread: async () => {
-        await writeFile(breakPath, foreign, "utf8");
-      },
-    });
+    // QCLI-523: the foreign file differs in BOTH halves -- a different pid
+    // AND a different stamp (now + 1). Pinning only the pid left the stamp
+    // half of the comparison untested, which is what this test used to do.
+    // Deliberately `process.pid + 1` and NOT `deadPid`: the release path
+    // (id-allocation.ts:277-279) has no liveness check, so any pid that is not
+    // the breaker's pins the same half, and `deadPid` would suggest liveness is
+    // part of what this fixture tests when it is not.
+    const foreign = `${process.pid + 1}\n${now + 1}\n`;
+    expect(
+      await breakStaleLock(repo.lockPath, () => now, {
+        afterLockedReread: async () => {
+          await writeFile(breakPath, foreign, "utf8");
+        },
+      }),
+    ).toBe(true);
     expect(await readFile(breakPath, "utf8")).toBe(foreign);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a breaker never releases a break file carrying its OWN pid but a different stamp (QCLI-523)", async () => {
+  const repo = await repositoryDirectory();
+  const breakPath = `${repo.lockPath}.break`;
+  try {
+    const now = Date.now();
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    // SAME pid as the breaker, DIFFERENT stamp. This is the only fixture that
+    // can tell "release only if pid and stamp are both mine" from "release if
+    // the pid is mine": every other foreign file in this suite differs by pid,
+    // so a pid-only release passes them. Mutating the release check in
+    // breakStaleLock to compare the pid alone turns THIS test red (measured).
+    expect(
+      await breakStaleLock(repo.lockPath, () => now, {
+        afterLockedReread: async () => {
+          await writeFile(breakPath, `${process.pid}\n${now + 1}\n`, "utf8");
+        },
+      }),
+    ).toBe(true);
+    expect(await readFile(breakPath, "utf8")).toBe(
+      `${process.pid}\n${now + 1}\n`,
+    );
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+/* ---- QCLI-520 round 1, MINOR 2: the block API's own unit coverage ---------
+ *
+ * The migration's end-to-end test proves two worktrees end up disjoint; it
+ * cannot isolate the block rules themselves, so they are pinned here against
+ * the allocator's real seams (clock, pid, Git port).
+ */
+
+const blockRequest = (repo: { root: string; common: string }) => ({
+  ...sharedRequest(repo),
+  git: portWithHook([repo.root]),
+  marker: "T-",
+  family: "task",
+});
+
+test("a zero-count block asks for nothing and writes nothing (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    expect(await peekIdBlock({ ...blockRequest(repo), count: 0 })).toEqual([]);
+    const reserved = await reserveIdBlock({
+      ...blockRequest(repo),
+      count: 0,
+    });
+    expect(reserved.ids).toEqual([]);
+    expect(reserved.brokeStaleLock).toBe(false);
+    expect(
+      await readFile(repo.ledgerPath, "utf8").catch(() => null),
+    ).toBeNull();
+    expect(await readFile(repo.lockPath, "utf8").catch(() => null)).toBeNull();
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a peek is exactly the block a reservation then writes when nothing moved (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const peeked = await peekIdBlock({ ...blockRequest(repo), count: 3 });
+    expect(peeked).toEqual(["T-1", "T-2", "T-3"]);
+    // The preview half must not move the floor the apply will read.
+    expect(
+      await readFile(repo.ledgerPath, "utf8").catch(() => null),
+    ).toBeNull();
+    const reserved = await reserveIdBlock({
+      ...blockRequest(repo),
+      count: 3,
+    });
+    expect(reserved.ids).toEqual(peeked);
+    const ledger = await readFile(repo.ledgerPath, "utf8");
+    for (const id of peeked) expect(ledger).toContain(`"id":"${id}"`);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a single id allocated after a reserved block lands ABOVE it (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const block = await reserveIdBlock({ ...blockRequest(repo), count: 2 });
+    expect(block.ids).toEqual(["T-1", "T-2"]);
+    const single = await allocateId({ ...blockRequest(repo) });
+    expect(single.id).toBe("T-3");
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a single id already allocated pushes a later block up (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const single = await allocateId({ ...blockRequest(repo) });
+    expect(single.id).toBe("T-1");
+    const block = await reserveIdBlock({ ...blockRequest(repo), count: 2 });
+    expect(block.ids).toEqual(["T-2", "T-3"]);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a breaker never releases a break file carrying a foreign pid but its OWN stamp (QCLI-523)", async () => {
+  const repo = await repositoryDirectory();
+  const breakPath = `${repo.lockPath}.break`;
+  try {
+    const now = Date.now();
+    await writeFile(repo.lockPath, `${deadPid}\n${now - 60_000}\n`, "utf8");
+    // A foreign pid with the breaker's own stamp -- the mirror of the case
+    // above, and the only fixture that pins the STAMP half of the comparison:
+    // every other foreign file here differs by pid too, so a release comparing
+    // the stamp alone passes them all. Together the two cases pin both halves
+    // of `left.pid === mine.pid && left.at === mine.at`.
+    expect(
+      await breakStaleLock(repo.lockPath, () => now, {
+        afterLockedReread: async () => {
+          await writeFile(breakPath, `${process.pid + 1}\n${now}\n`, "utf8");
+        },
+      }),
+    ).toBe(true);
+    expect(await readFile(breakPath, "utf8")).toBe(
+      `${process.pid + 1}\n${now}\n`,
+    );
   } finally {
     await repo.cleanup();
   }
