@@ -8,7 +8,10 @@ import { BacklogImporter } from "../adapters/migration/backlog/importer.ts";
 import { LocalPlanningRepository } from "../adapters/planning/local-planning-repository.ts";
 import { LocalQuestionRepository } from "../adapters/questions/local-question-repository.ts";
 import { LocalWorkspacePort } from "../adapters/workspaces/local-workspaces.ts";
-import { BacklogImportService } from "../application/migration/backlog-public.ts";
+import {
+  type BacklogIdAllocation,
+  BacklogImportService,
+} from "../application/migration/backlog-public.ts";
 import { PlanningService } from "../application/planning/planning.ts";
 import { QuestionService } from "../application/questions/questions.ts";
 import { LocalTaskRepository } from "../application/tasks/local-task-repository.ts";
@@ -65,11 +68,20 @@ export function createWorkspacePort() {
   return new LocalWorkspacePort();
 }
 
+/**
+ * QCLI-520: `allocation` wires the migration's minted ids through the SHARED
+ * allocator (QCLI-495's lock, ledger and worktree scan). `preview` and `apply`
+ * REFUSE by name without it (round 1, MINOR 5); a caller with no Git
+ * repository behind its store passes an allocation whose `commonDirectory()`
+ * resolves null, which the allocator degrades correctly. Omitted is therefore
+ * only for `status`/`rollback`, which mint no id.
+ */
 export function createBacklogImportService(
   root: string,
   source: string,
   backlogDirectory?: string,
   taskIdPrefix?: string,
+  allocation?: BacklogIdAllocation,
 ) {
   return new BacklogImportService(
     root,
@@ -80,6 +92,7 @@ export function createBacklogImportService(
     ),
     new LocalPlanningRepository(root),
     taskIdPrefix,
+    allocation,
   );
 }
 
