@@ -10,6 +10,29 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
+### Added
+
+- **`quest task view <id> --ref <ref>` reads a task record as it exists at a
+  git ref** (QCLI-519 / DEC-206 (c3)). The success envelope carries a
+  top-level `ref: {ref, sha}` beside `data` -- the ref exactly as you spelled
+  it, and the commit it resolved to after peeling (`v0.14.1` reports the
+  commit, not the annotated tag object) -- so a consumer needs no `git show`
+  over `.quest/` and no second decoder: `data` is the same shape `task view`
+  returns, and `--max-notes`/`--fields` compose unchanged. It is a read, so
+  there is no revision precondition and nothing is written, and it never
+  fetches: a ref that exists only on the remote must be fetched first. Three
+  failure outcomes, all naming the ref and (where one resolved) its sha: an id
+  absent at the ref is `not_found` (exit 3, `input.code` `task_not_found`); a
+  ref that does not resolve to a commit -- including a tree-ish or a blob-ish
+  such as `HEAD^{tree}` or `HEAD:.quest/tasks/T-1.json` -- is `not_found`
+  (exit 3, `input.code` `ref_not_resolvable`); and a `.quest` tree or record
+  that cannot be read is `drift` (exit 6, `ref_records_unreadable`, never read
+  as an empty ref). A duplicate id at the ref is `drift` (exit 6,
+  `ref_record_duplicate`, naming both paths in `input.paths`), and an
+  ambiguous reference is a `conflict` (exit 5), exactly as in the
+  working-tree read. The plain (non-`--json`) form ends with a one-line ref
+  footer naming the ref and commit.
+
 ### Fixed
 
 - **Two worktrees of one repository no longer mint the same id** (QCLI-495,

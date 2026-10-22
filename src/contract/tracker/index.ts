@@ -655,7 +655,10 @@ export class QuestTrackerClient {
         name: "task view",
         kind: "task.view",
         mutates: false,
-        filters: ["fields", "max-notes"],
+        // QCLI-519: `--ref` is advertised by the CLI and therefore part of the
+        // exact-equality comparison below; a manifest that grows a filter
+        // without this list fails every probe closed.
+        filters: ["fields", "max-notes", "ref"],
         fields: [
           "acceptanceCriteria",
           "aliases",

@@ -245,9 +245,22 @@ export const commandHelp: Record<
       "(k)) When `implementationNotes` is among the named fields AND the bound " +
       "was supplied, `data` also carries `notesOmitted` beside the named keys " +
       "(its value copied from the record); when the bounded field is not named, " +
-      "no marker is emitted. A projection itself reports no `fieldsOmitted` key.",
-    usage: "quest task view <id> [--max-notes N] [--fields id,status,title]",
-    flags: ["--max-notes", "--fields"],
+      "no marker is emitted. A projection itself reports no `fieldsOmitted` key. " +
+      "--ref <ref> (QCLI-519 / DEC-206 (c3)) reads the record AS IT EXISTS AT " +
+      "THAT GIT REF instead of in the working tree, and the success envelope " +
+      "carries a top-level `ref` object beside `data` -- `{ref, sha}`, the ref " +
+      "as you spelled it and the commit it resolved to -- so a caller needs no " +
+      "second decoder and no `git show` over `.quest/`. It is a read: no " +
+      "revision precondition, nothing written, and it does NOT fetch, so a ref " +
+      "that exists only on the remote must be fetched first. A task present " +
+      "only at the ref resolves; an id absent there is exit 3 " +
+      "(`task_not_found`, naming the ref and sha), a ref that does not resolve " +
+      "is exit 3 with a distinct `ref_not_resolvable` message, and a ref whose " +
+      "`.quest` tree or record cannot be read is exit 6 (drift, never read as " +
+      "an empty ref). --max-notes and --fields compose with it unchanged.",
+    usage:
+      "quest task view <id> [--max-notes N] [--fields id,status,title] [--ref <ref>]",
+    flags: ["--max-notes", "--fields", "--ref"],
   },
   search: {
     summary: "Search tasks by title and description.",

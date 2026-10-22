@@ -86,6 +86,35 @@ export function withCheckPositions<T extends Checklisted>(
   };
 }
 
+/**
+ * QCLI-276 / DEC-3 (extracted for QCLI-519): the `--max-notes` cap, as ONE
+ * function, because `task view` reaches it from two paths -- the working-tree
+ * read inside the command layer, and the `--ref` read whose record comes from
+ * `readTaskAtRef` -- and a second copy is a second place for the `slice(-0)`
+ * defect below to live.
+ *
+ * Notes append chronologically (mergeList pushes new entries at the array's
+ * end), so "most recent N" is the tail slice. QCLI-312: a cap of 0 means NONE,
+ * which `slice(-0)` gets WRONG -- `slice(0)` returns the WHOLE array, so the
+ * zero cap returned the full record with notesOmitted 0. Handle it explicitly:
+ * empty notes, every note omitted.
+ */
+export function withNoteCap<
+  T extends { readonly implementationNotes: readonly unknown[] },
+>(
+  full: T,
+  maxNotes: number | undefined,
+): T & { readonly notesOmitted?: number } {
+  if (maxNotes === undefined) return full;
+  const capped =
+    maxNotes === 0 ? [] : full.implementationNotes.slice(-maxNotes);
+  return {
+    ...full,
+    implementationNotes: capped,
+    notesOmitted: full.implementationNotes.length - capped.length,
+  } as T & { readonly notesOmitted: number };
+}
+
 export interface TaskCommandActor {
   readonly id: string;
   readonly kind: "human" | "delegated-agent";
@@ -379,23 +408,9 @@ export async function dispatchTrackerTaskCommand(
         request.reference,
       );
       const full = { ...withCheckPositions(task), revision };
-      // Notes append chronologically (mergeList pushes new entries at the
-      // array's end), so "most recent N" is the tail slice. QCLI-312: a cap of
-      // 0 means NONE, which `slice(-0)` gets WRONG -- `slice(0)` returns the
-      // WHOLE array, so the zero cap returned the full record with
-      // notesOmitted 0. Handle it explicitly: empty notes, every note omitted.
-      const capped =
-        request.maxNotes === undefined || request.maxNotes === 0
-          ? []
-          : full.implementationNotes.slice(-request.maxNotes);
-      const recorded =
-        request.maxNotes === undefined
-          ? full
-          : {
-              ...full,
-              implementationNotes: capped,
-              notesOmitted: full.implementationNotes.length - capped.length,
-            };
+      // QCLI-276 / DEC-3 cap, QCLI-519: shared with the `--ref` read so the
+      // zero-cap rule has one implementation (see {@link withNoteCap}).
+      const recorded = withNoteCap(full, request.maxNotes);
       // The full (or, under --max-notes, capped) record is returned as-is,
       // matching the declared `task.view` data type. `--fields` projection is
       // the caller's job at the CLI boundary (main.ts), the same place
