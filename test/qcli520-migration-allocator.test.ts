@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -473,3 +474,51 @@ test("preview and apply refuse by name when no allocator is wired (QCLI-520 roun
     await rm(sandbox, { recursive: true, force: true });
   }
 }, 60_000);
+
+test("an apply that breaks a stale allocation lock says so on stderr (QCLI-520 round 1, MINOR 1)", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "qcli520-stale-"));
+  const primary = join(sandbox, "primary");
+  const source = await sourceFixture();
+  try {
+    git(sandbox, "init", "-q", "-b", "dev", primary);
+    git(primary, "config", "user.email", "t@example.invalid");
+    git(primary, "config", "user.name", "T");
+    questOk(primary, ["init", "--name", "Probe", "--task-id-prefix", "T"]);
+    git(primary, "add", "-A");
+    git(primary, "commit", "-qm", "workspace");
+    // The allocator's stale rule, both halves: a pid this process reaped, and
+    // a stamp past the 30-second window. A PREVIEW peeks without taking the
+    // lock, so the stale file survives to the apply's reservation.
+    const reaped = spawnSync(process.execPath, ["--version"]);
+    if (reaped.pid === undefined) throw new Error("could not spawn a child");
+    await mkdir(join(primary, ".git", "quest"), { recursive: true });
+    await writeFile(
+      join(primary, ".git", "quest", "alloc.lock"),
+      `${reaped.pid}\n${Date.now() - 60_000}\n`,
+      "utf8",
+    );
+
+    const preview = JSON.parse(
+      questOk(primary, ["migration", "backlog", "preview", "--source", source])
+        .stdout,
+    ) as { data: { digest: string } };
+    const applied = quest(primary, [
+      "migration",
+      "backlog",
+      "apply",
+      "--source",
+      source,
+      "--digest",
+      preview.data.digest,
+      ...ACTOR,
+      "--json",
+    ]);
+    expect(applied.exitCode).toBe(0);
+    expect(applied.stderr).toContain(
+      "Warning: broke a stale id allocation lock at",
+    );
+    expect(applied.stderr).toContain("alloc.lock");
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+}, 120_000);
