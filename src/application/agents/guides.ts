@@ -203,8 +203,11 @@ after 7 days; a create that lost the record write still leaves its entry, so the
 skip a number for up to 7 days. Allocation uses no network and no fetch. A lock whose holder
 pid is gone and which is older than 30 seconds is broken, and the run prints a \`Warning:\`
 line on stderr saying so. A live holder is never broken: after 10 seconds the create fails as a
-\`conflict\` (exit 5) naming the lock path, the holder pid and the lock's stamp, and removing
-the lock is safe when that pid is not a quest process. If \`git worktree list\` answers nothing,
+\`conflict\` (exit 5) naming the lock path, the holder pid and the lock's stamp, and it reports
+the breaker's own \`alloc.lock.break\` file. Removing the lock is safe only when no live break
+holder exists; a break file whose holder cannot be read is never cleared automatically, and
+removing it is advised only when no quest process is running and the file is older than 10
+seconds. If \`git worktree list\` answers nothing,
 the create fails as \`drift\` (exit 6) rather than allocating from refs alone.
 
 **A duplicate id is still possible, and \`--across-refs\` reports it.** The

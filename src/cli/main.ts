@@ -4865,15 +4865,16 @@ export async function runQuest(
     // carries `input.actualRevision` when the losing write reported one.
     // QCLI-495 round 1, finding 6: the allocation lock timing out is
     // contention, so it is a conflict (exit 5) like the `.write.lock` timeout,
-    // and the hint names the one thing that unwedges it. It deliberately says
-    // how long this call WAITED and when the lock was stamped, never how long
-    // it was held -- nothing here measures that.
+    // and the hint names the one thing that unwedges it. It reports the LOCK's
+    // age -- never how long this call waited, which is in the error message,
+    // and nothing here measures how long the lock was held.
     //
     // QCLI-522: the hint (built in the application layer, where it is
     // testable without a ten-second spawn) also reports `alloc.lock.break` and
-    // its holder, because a live or unreadable break file makes removing the
-    // lock unsafe. The wording never offers to clear it: a named error showing
-    // the exact file is the ruling, never auto-clearing.
+    // its holder, because a live break holder -- or an unreadable one whose
+    // holder cannot be determined -- makes removing the lock unsafe. The
+    // wording never offers to clear it: a named error showing the exact file
+    // is the ruling, never auto-clearing.
     if (error instanceof IdAllocationLockTimeoutError)
       return failure("conflict", error.message, {
         hint: allocationLockTimeoutHint(error),
@@ -4887,6 +4888,11 @@ export async function runQuest(
             : {}),
           ...(error.lockAgeMilliseconds !== null
             ? { lockStampedMillisecondsAgo: error.lockAgeMilliseconds }
+            : {}),
+          ...(error.breakFileAgeMilliseconds !== null
+            ? {
+                breakFileStampedMillisecondsAgo: error.breakFileAgeMilliseconds,
+              }
             : {}),
         },
       });

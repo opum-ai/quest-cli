@@ -463,7 +463,9 @@ test("a live holder that never lets go makes a create fail as a conflict whose h
     expect(body.message).not.toMatch(/held (it )?for/u);
     expect(body.hint).toContain(lockPath);
     expect(body.hint).toContain(`pid ${process.pid}`);
-    expect(body.hint).toContain("not a quest process");
+    expect(body.hint).toContain(
+      `no process with pid ${process.pid} is running`,
+    );
     expect(body.input?.holderPid).toBe(process.pid);
     // The live holder's lock was not touched, and nothing was created.
     expect(await readFile(lockPath, "utf8")).toStartWith(`${process.pid}\n`);
