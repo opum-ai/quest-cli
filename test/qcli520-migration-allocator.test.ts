@@ -10,6 +10,19 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { LocalGitPort } from "../src/adapters/git/local-git.ts";
+import { BacklogImporter } from "../src/adapters/migration/backlog/importer.ts";
+import { LocalPlanningRepository } from "../src/adapters/planning/local-planning-repository.ts";
+import {
+  type BacklogIdAllocation,
+  BacklogIdAllocationMissingError,
+  BacklogImportService,
+} from "../src/application/migration/backlog-public.ts";
+import { releaseIdBlock } from "../src/application/tasks/id-allocation.ts";
+import type {
+  MigrationTransactionRepository,
+  MigrationTransactionResult,
+} from "../src/ports/backlog-import.ts";
 import { runCommand } from "./helpers/spawn.ts";
 
 /**
@@ -89,7 +102,11 @@ async function oldRuleIds(worktree: string, count: number): Promise<string[]> {
   const names = await readdir(directory).catch(() => [] as string[]);
   const highest = names
     .filter((name) => name.endsWith(".json"))
-    .map((name) => name.slice(".quest/tasks/".length, -".json".length))
+    // `names` is a bare `readdir` filename (`T-1.json`), not a path: slicing
+    // the `.quest/tasks/` prefix off it shortened every id to "". The control
+    // was then a constant and could not show a collision at all (QCLI-520
+    // round 1, MAJOR 1).
+    .map((name) => name.slice(0, -".json".length))
     .filter((id) => /^T-[1-9][0-9]*$/u.test(id))
     .reduce((maximum, id) => Math.max(maximum, Number(id.slice(2))), 0);
   return Array.from(
@@ -161,6 +178,23 @@ test("two worktrees that each migrate before either commits mint disjoint ids (a
       firstPreview.data.digest,
       ...ACTOR,
     ]);
+    // CONTROL, now with discriminating power (QCLI-520 round 1, MAJOR 1):
+    // the first apply put T-1/T-2 in the primary worktree, so the old rule
+    // would mint T-3/T-4 there -- while the second worktree still holds
+    // nothing and would mint T-1/T-2 again. That intersection is the real
+    // add/add collision, and it is invisible to a control whose ids are all
+    // empty strings.
+    const firstApplyIds = firstPreview.data.mappings.map(
+      (mapping) => mapping.targetIdentifier,
+    );
+    expect(firstApplyIds).toEqual(["T-1", "T-2"]);
+    expect(await oldRuleIds(primary, 2)).toEqual(["T-3", "T-4"]);
+    const secondOldRuleIds = await oldRuleIds(second, 2);
+    expect(secondOldRuleIds).toEqual(["T-1", "T-2"]);
+    expect(secondOldRuleIds.filter((id) => firstApplyIds.includes(id))).toEqual(
+      ["T-1", "T-2"],
+    );
+
     // NOTHING is committed between the two applies: the first worktree's
     // records exist only in its working tree, which is exactly the state
     // the pre-fix code could not see.
@@ -227,3 +261,215 @@ test("two worktrees that each migrate before either commits mint disjoint ids (a
     await rm(sandbox, { recursive: true, force: true });
   }
 }, 120_000);
+
+test("a task record committed on a branch no worktree has checked out raises the migration's block (QCLI-520 round 1, MAJOR 2)", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "qcli520-refs-"));
+  const primary = join(sandbox, "primary");
+  const source = await sourceFixture();
+  try {
+    git(sandbox, "init", "-q", "-b", "dev", primary);
+    git(primary, "config", "user.email", "t@example.invalid");
+    git(primary, "config", "user.name", "T");
+    questOk(primary, ["init", "--name", "Probe", "--task-id-prefix", "T"]);
+    git(primary, "add", "-A");
+    git(primary, "commit", "-qm", "workspace");
+
+    // T-5 exists ONLY on a sibling branch. `dev` -- what this repository's one
+    // worktree has checked out -- does not carry it, so neither the working
+    // tree nor the worktree scan can see it. The refs scan is the only source
+    // that can, and the migration must read it exactly as `task create` does.
+    git(primary, "checkout", "-q", "-b", "hidden");
+    await mkdir(join(primary, ".quest", "tasks"), { recursive: true });
+    await writeFile(
+      join(primary, ".quest", "tasks", "T-5.json"),
+      `${JSON.stringify({ id: "T-5", title: "branch-only", status: "To Do" })}\n`,
+      "utf8",
+    );
+    git(primary, "add", "-A");
+    git(primary, "commit", "-qm", "branch-only T-5");
+    git(primary, "checkout", "-q", "dev");
+
+    const preview = JSON.parse(
+      questOk(primary, ["migration", "backlog", "preview", "--source", source])
+        .stdout,
+    ) as { data: { mappings: { targetIdentifier: string }[] } };
+    // Without the refs wiring the block starts at T-1 and lands on the id
+    // `hidden` already carries.
+    expect(
+      preview.data.mappings.map((mapping) => mapping.targetIdentifier),
+    ).toEqual(["T-6", "T-7"]);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+}, 120_000);
+
+/* ---- MAJOR 3: release a failed apply's reservation -----------------------
+ *
+ * These build the service DIRECTLY rather than through the CLI, because the
+ * failure has to be injected where the CLI cannot reach it: the transaction
+ * repository's own return value. The allocator is the real one, against a
+ * real temporary Git repository, so the lock and ledger are the production
+ * ones -- only the record write is a stub.
+ */
+
+function stubRepository(
+  applyTransaction: () => Promise<MigrationTransactionResult>,
+): MigrationTransactionRepository {
+  return {
+    readAll: async () => ({ revision: "r1", taskRecords: [] }),
+    applyTransaction,
+    write: async () => ({ kind: "success", revision: "r1" }),
+    writeLifecycle: async () => ({ kind: "success", revision: "r1" }),
+  };
+}
+
+function conflictResult(): MigrationTransactionResult {
+  return {
+    kind: "conflict",
+    expectedRevision: "r1",
+    actualRevision: "r2",
+    operationId: "stub-operation",
+    ownedPaths: [],
+  };
+}
+
+function allocationFor(
+  root: string,
+  commonDirectory: string,
+): BacklogIdAllocation {
+  const git = new LocalGitPort();
+  return {
+    git,
+    worktreeRoot: root,
+    commonDirectory: async () => commonDirectory,
+    // MAJOR 2's source is not what this fixture exercises; an empty answer
+    // keeps it out of the way. The ledger and worktree sources stay real.
+    idsOnOtherRefs: async () => [],
+    releaseIds: (family, marker, ids) =>
+      releaseIdBlock(
+        { git, worktreeRoot: root, commonDirectory, marker, family },
+        ids,
+      ),
+  };
+}
+
+async function releaseFixture() {
+  const sandbox = await mkdtemp(join(tmpdir(), "qcli520-release-"));
+  const root = join(sandbox, "workspace");
+  git(sandbox, "init", "-q", "-b", "dev", root);
+  git(root, "config", "user.email", "t@example.invalid");
+  git(root, "config", "user.name", "T");
+  return {
+    sandbox,
+    root,
+    commonDirectory: join(root, ".git"),
+    ledgerPath: join(root, ".git", "quest", "reserved-ids"),
+    source: await sourceFixture(),
+  };
+}
+
+test("a failed apply releases the block it reserved, so the SAME approved digest retries and mints the same ids (QCLI-520 round 1, MAJOR 3)", async () => {
+  const fixture = await releaseFixture();
+  try {
+    const { root, commonDirectory, ledgerPath, source } = fixture;
+    const allocation = allocationFor(root, commonDirectory);
+    const failing = new BacklogImportService(
+      root,
+      new BacklogImporter(source),
+      stubRepository(async () => conflictResult()),
+      new LocalPlanningRepository(root),
+      "T",
+      allocation,
+    );
+    const preview = await failing.preview();
+    const failed = await failing.apply(preview.digest);
+    expect(failed.state).toBe("failed");
+
+    // (i) The run's own block -- tasks AND the milestone it got as far as --
+    // is gone from the ledger, not held for the 7-day TTL.
+    const ledger = await readFile(ledgerPath, "utf8");
+    for (const id of ["T-1", "T-2", "M-1"])
+      expect(ledger).not.toContain(`"${id}"`);
+
+    // (ii) The same digest applies, and it mints the ids the approved plan
+    // carries. A surviving reservation would make this peek start at T-3 and
+    // fail as migration_approval_digest_mismatch.
+    const succeeding = new BacklogImportService(
+      root,
+      new BacklogImporter(source),
+      stubRepository(async () => ({
+        kind: "success",
+        revision: "r2",
+        operationId: "stub-operation",
+        taskIds: [],
+        removedTaskIds: [],
+        milestoneIds: [],
+      })),
+      new LocalPlanningRepository(root),
+      "T",
+      allocation,
+    );
+    const applied = await succeeding.apply(preview.digest);
+    expect(applied.state).toBe("applied");
+    expect(applied.mappings.map((mapping) => mapping.targetIdentifier)).toEqual(
+      ["T-1", "T-2"],
+    );
+  } finally {
+    await rm(fixture.sandbox, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("an apply that THROWS after reserving releases the block too (QCLI-520 round 1, MAJOR 3)", async () => {
+  const fixture = await releaseFixture();
+  try {
+    const { root, commonDirectory, ledgerPath, source } = fixture;
+    const throwing = new BacklogImportService(
+      root,
+      new BacklogImporter(source),
+      stubRepository(async () => {
+        throw new Error("stub applyTransaction exploded");
+      }),
+      new LocalPlanningRepository(root),
+      "T",
+      allocationFor(root, commonDirectory),
+    );
+    const preview = await throwing.preview();
+    await expect(throwing.apply(preview.digest)).rejects.toThrow(
+      "stub applyTransaction exploded",
+    );
+    const ledger = await readFile(ledgerPath, "utf8").catch(() => "");
+    for (const id of ["T-1", "T-2", "M-1"])
+      expect(ledger).not.toContain(`"${id}"`);
+  } finally {
+    await rm(fixture.sandbox, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("preview and apply refuse by name when no allocator is wired (QCLI-520 round 1, MINOR 5)", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "qcli520-noalloc-"));
+  const root = join(sandbox, "workspace");
+  const source = await sourceFixture();
+  try {
+    git(sandbox, "init", "-q", "-b", "dev", root);
+    git(root, "config", "user.email", "t@example.invalid");
+    git(root, "config", "user.name", "T");
+    // No sixth constructor argument: the state the old code silently answered
+    // with the pre-QCLI-520 arithmetic. A caller with no Git repository must
+    // pass an allocation whose commonDirectory() resolves null instead.
+    const service = new BacklogImportService(
+      root,
+      new BacklogImporter(source),
+      stubRepository(async () => conflictResult()),
+      new LocalPlanningRepository(root),
+      "T",
+    );
+    await expect(service.preview()).rejects.toBeInstanceOf(
+      BacklogIdAllocationMissingError,
+    );
+    await expect(service.apply("any-digest")).rejects.toBeInstanceOf(
+      BacklogIdAllocationMissingError,
+    );
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+}, 60_000);

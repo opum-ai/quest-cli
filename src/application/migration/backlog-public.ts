@@ -37,9 +37,11 @@ import {
  * QCLI-520: what the migration needs to mint its ids through the SHARED
  * allocator (`src/application/tasks/id-allocation.ts`) instead of computing
  * them from its own worktree. The lock, the reservation ledger and the
- * worktree scan all hang off the repository's common git dir, so a service
- * with no Git repository behind its store gets none of this and keeps the
- * pre-QCLI-520 arithmetic.
+ * worktree scan all hang off the repository's common git dir, so a caller
+ * with no Git repository behind its store supplies an allocation whose
+ * `commonDirectory()` resolves null, which the allocator degrades correctly.
+ * A PREVIEW or APPLY with no allocation at all is refused by name rather
+ * than silently reverting to the pre-QCLI-520 arithmetic (round 1, MINOR 5).
  */
 export interface BacklogIdAllocation {
   readonly git: GitPort;
@@ -47,6 +49,37 @@ export interface BacklogIdAllocation {
   /** `git rev-parse --git-common-dir`, or null for a raw `QUEST_TASK_STORE`
    * caller -- the same contract `IdAllocationRequest.commonDirectory` carries. */
   readonly commonDirectory: () => Promise<string | null>;
+  /**
+   * QCLI-520 round 1 (MAJOR 2): the ids this family already carries on local
+   * refs. `quest task create` includes this source, and a migration that omits
+   * it mints onto an id a sibling branch already published -- which no
+   * worktree scan can see, because that branch is not checked out anywhere.
+   * `recordDirectories` is the family's file-per-record directories, or null
+   * for a family stored inside `.quest/planning.json`.
+   */
+  readonly idsOnOtherRefs: (
+    marker: string,
+    recordDirectories: readonly string[] | null,
+  ) => Promise<readonly string[]>;
+  /**
+   * QCLI-520 round 1 (MAJOR 3): withdraw a block this run reserved, under the
+   * allocator's lock. Called only on apply's failure paths after a
+   * reservation.
+   */
+  readonly releaseIds: (
+    family: string,
+    marker: string,
+    ids: readonly string[],
+  ) => Promise<boolean>;
+  /**
+   * QCLI-520 round 1 (MINOR 1): a reservation that broke a stale lock says so,
+   * exactly as a create's does. Optional: a caller with no output surface to
+   * warn through can omit it.
+   */
+  readonly recordStaleLock?: (block: {
+    readonly brokeStaleLock: boolean;
+    readonly lockPath: string | null;
+  }) => void;
 }
 
 export interface BacklogImportMapping {
@@ -107,6 +140,53 @@ export class BacklogMigrationRefusedError extends Error {
   ) {
     super(message);
   }
+}
+
+/**
+ * QCLI-520 round 1 (MINOR 4): the allocator answered with fewer ids than the
+ * count requested. Each call site this replaced fell back to the pre-QCLI-520
+ * arithmetic for the missing position, which would have written one batch
+ * numbered by two different schemes; a short block is a contract violation,
+ * not a partial success, so it is refused by name instead.
+ */
+export class BacklogIdBlockShortError extends Error {
+  constructor(detail: string) {
+    super(`migration_id_block_short: ${detail}`);
+    this.name = "BacklogIdBlockShortError";
+  }
+}
+
+/**
+ * QCLI-520 round 1 (MINOR 5): a preview or apply reached an import service
+ * with no id allocator wired. The pre-QCLI-520 arithmetic was silently used in
+ * that state, which is exactly the defect this task exists to close: a
+ * caller with a real repository behind its store must not lose the lock, the
+ * ledger and the worktree scan because a construction site forgot a parameter.
+ * A caller with NO repository supplies an allocation whose
+ * `commonDirectory()` resolves null, which the allocator degrades correctly.
+ */
+export class BacklogIdAllocationMissingError extends Error {
+  constructor() {
+    super(
+      "migration_id_allocation_missing: this Backlog migration has no id allocator wired, so its minted ids would bypass the shared lock, reservation ledger and worktree scan. A caller with no Git repository behind its store must pass an allocation whose commonDirectory() resolves null.",
+    );
+    this.name = "BacklogIdAllocationMissingError";
+  }
+}
+
+/** The id at `index` of a block the allocator returned, or a named refusal.
+ * QCLI-520 round 1 (MINOR 4): never a silent fallback to local arithmetic. */
+function requiredMintedId(
+  ids: readonly string[],
+  index: number,
+  count: number,
+  context: string,
+): string {
+  const id = ids[index];
+  if (id !== undefined) return id;
+  throw new BacklogIdBlockShortError(
+    `${context} answered ${ids.length} id(s) for a block of ${count}, so the id at position ${index + 1} is missing. Nothing was written.`,
+  );
 }
 
 interface Receipt {
@@ -313,10 +393,11 @@ async function previewWithPreservedIds(
   existingTaskRecords: readonly { readonly task: { readonly id: string } }[],
   options: BacklogPreservationOptions,
   /** QCLI-520: the shared allocator's block for the ids this run must MINT
-   * (the dotted subtasks). Optional so a caller with no Git repository behind
-   * its store keeps the pre-QCLI-520 arithmetic. The `marker` is the SOURCE
-   * family's -- a preserved-ids run mints `ODOC-<n>` in that family, not in
-   * the destination's task prefix. */
+   * (the dotted subtasks). The service always supplies it; the optional shape
+   * is this module function's own contract, not a fallback a caller may rely
+   * on (round 1, MINOR 5). The `marker` is the SOURCE family's -- a
+   * preserved-ids run mints `ODOC-<n>` in that family, not in the
+   * destination's task prefix. */
   mintIds?: (
     count: number,
     visibleIds: readonly string[],
@@ -366,9 +447,15 @@ async function previewWithPreservedIds(
   }[] = [];
   // QCLI-520: the dotted ids are the ones this run MINTS. Ask the shared
   // allocator for the whole block up front, so the numbers come from the same
-  // lock, ledger and worktree scan `quest task create` uses. The visible set
-  // includes every flat id this run preserves verbatim, so the block starts
-  // above them exactly as `mintCounter` did.
+  // refs, ledger and worktree sources `quest task create` uses. The visible
+  // set includes every flat id this run preserves verbatim, so the block
+  // starts above them exactly as `mintCounter` did.
+  //
+  // QCLI-520 round 1 (NIT): this call is the PEEK half in every path that
+  // reaches it -- `apply` hands `previewInternal` its peek source, and the
+  // matching block is RESERVED later, after these refusals have thrown. So no
+  // reservation is ever held while a refusal is being decided; a peek takes no
+  // lock and writes nothing, which is why it is safe to compute here.
   const dottedCount = inFamily.filter((record) =>
     dottedPattern.test(record.sourceIdentifier),
   ).length;
@@ -391,9 +478,16 @@ async function previewWithPreservedIds(
       assigned.push({ record, targetIdentifier: record.sourceIdentifier });
     } else if (dottedPattern.test(record.sourceIdentifier)) {
       mintCounter += 1;
-      const targetIdentifier = minted
-        ? (minted[mintedIndex++] ?? `${family}-${mintCounter}`)
-        : `${family}-${mintCounter}`;
+      const targetIdentifier =
+        minted === undefined
+          ? `${family}-${mintCounter}`
+          : requiredMintedId(
+              minted,
+              mintedIndex,
+              dottedCount,
+              "the id allocator",
+            );
+      mintedIndex += 1;
       assigned.push({
         record,
         targetIdentifier,
@@ -502,10 +596,10 @@ async function previewInternal(
   repository: PublicTaskRepository,
   taskIdPrefix: string,
   preserveSourceIds?: BacklogPreservationOptions,
-  /** QCLI-520: where minted TASK ids come from. The service passes the shared
-   * allocator's peek (preview) or reserve (apply); absent, the pre-QCLI-520
-   * arithmetic stays, which is what callers with no Git repository behind
-   * their store -- and the qualification fixtures -- keep getting. */
+  /** QCLI-520: where minted TASK ids come from. The service always passes the
+   * shared allocator's peek (preview) or reserve (apply); the optional shape
+   * is this module function's own contract, not a supported fallback (round
+   * 1, MINOR 5). */
   taskIds?: (
     count: number,
     visibleIds: readonly string[],
@@ -565,7 +659,14 @@ async function previewInternal(
     sourceIdentifier: record.sourceIdentifier,
     sourceFolder: record.sourceFolder,
     targetIdentifier:
-      minted?.[index] ?? `${taskIdPrefix}-${highest + index + 1}`,
+      minted === undefined
+        ? `${taskIdPrefix}-${highest + index + 1}`
+        : requiredMintedId(
+            minted,
+            index,
+            snapshot.records.length,
+            "the task id allocator",
+          ),
     aliases: record.aliases,
   }));
   // Deduped per mapping, not globally: a task's own newly minted canonical
@@ -628,8 +729,11 @@ export class BacklogImportService {
     private readonly repository: MigrationTransactionRepository,
     private readonly planning: PlanningRepository,
     private readonly taskIdPrefix: string = "T",
-    /** QCLI-520: absent means this caller has no Git repository behind its
-     * store, and the migration falls back to the pre-QCLI-520 arithmetic. */
+    /** QCLI-520: REQUIRED for preview/apply, which refuse by name without it
+     * (round 1, MINOR 5). A caller with no Git repository passes an allocation
+     * whose `commonDirectory()` resolves null -- no lock, ledger or worktree
+     * scan, exactly the allocator's own degraded contract. Optional only so
+     * `status`/`rollback`, which never mint an id, can omit it. */
     private readonly allocation?: BacklogIdAllocation,
   ) {}
 
@@ -646,48 +750,91 @@ export class BacklogImportService {
     markerOverride?: string,
   ): Promise<readonly string[]> {
     if (this.allocation === undefined || count <= 0) return [];
+    // Milestones are their own family with their own marker; tasks use the
+    // destination workspace's configured prefix, exactly as the local
+    // arithmetic did (QCLI-157) -- unless the caller names the SOURCE
+    // family's marker, which --preserve-source-ids does when it mints a
+    // dotted subtask's replacement id.
+    const marker =
+      markerOverride ?? (family === "task" ? `${this.taskIdPrefix}-` : "M-");
+    const recordDirectories =
+      family === "task" ? ["tasks", "completed", "archive/tasks"] : null;
     const request: IdBlockRequest = {
       git: this.allocation.git,
       worktreeRoot: this.allocation.worktreeRoot,
       commonDirectory: await this.allocation.commonDirectory(),
-      // Milestones are their own family with their own marker; tasks use the
-      // destination workspace's configured prefix, exactly as the local
-      // arithmetic did (QCLI-157) -- unless the caller names the SOURCE
-      // family's marker, which --preserve-source-ids does when it mints a
-      // dotted subtask's replacement id.
-      marker:
-        markerOverride ?? (family === "task" ? `${this.taskIdPrefix}-` : "M-"),
+      marker,
       family,
-      recordDirectories:
-        family === "task" ? ["tasks", "completed", "archive/tasks"] : null,
-      visibleIds,
+      recordDirectories,
+      // QCLI-520 round 1 (MAJOR 2): the same refs source `quest task create`
+      // reads. Without it, an id published on a branch that is checked out
+      // NOWHERE -- so neither this worktree nor the worktree scan can see it
+      // -- is invisible to the migration, which then mints straight onto it.
+      visibleIds: [
+        ...visibleIds,
+        ...(await this.allocation.idsOnOtherRefs(marker, recordDirectories)),
+      ],
       count,
     };
-    return mode === "peek"
-      ? await peekIdBlock(request)
-      : (await reserveIdBlock(request)).ids;
+    if (mode === "peek") {
+      const block = await peekIdBlock(request);
+      if (block.length !== count)
+        throw new BacklogIdBlockShortError(
+          `the ${family} id allocator peeked ${block.length} id(s) for a block of ${count}. Nothing was written.`,
+        );
+      return block;
+    }
+    const reserved = await reserveIdBlock(request);
+    // QCLI-520 round 1 (MINOR 1): a reservation can break a stale lock, and the
+    // caller must be able to say so exactly as a create does.
+    this.allocation.recordStaleLock?.(reserved);
+    if (reserved.ids.length !== count) {
+      // Never leave a block this run cannot use: a short answer is a contract
+      // violation, not a partial success.
+      await this.allocation.releaseIds(family, marker, reserved.ids);
+      throw new BacklogIdBlockShortError(
+        `the ${family} id allocator reserved ${reserved.ids.length} id(s) for a block of ${count}. The partial block was released.`,
+      );
+    }
+    return reserved.ids;
+  }
+
+  /** QCLI-520 round 1 (MAJOR 3): withdraw a block this run reserved. */
+  private async releaseBlock(
+    family: "task" | "milestone",
+    marker: string,
+    ids: readonly string[],
+  ): Promise<void> {
+    if (this.allocation === undefined || ids.length === 0) return;
+    await this.allocation.releaseIds(family, marker, ids);
   }
 
   async preview(
     preserveSourceIds?: BacklogPreservationOptions,
   ): Promise<BacklogPreview> {
+    // QCLI-520 round 1 (MINOR 5): a missing allocator used to select the old
+    // local arithmetic silently. A caller with no Git repository passes an
+    // allocation whose commonDirectory() resolves null instead.
+    if (this.allocation === undefined)
+      throw new BacklogIdAllocationMissingError();
     return (
       await previewInternal(
         this.source,
         this.repository,
         this.taskIdPrefix,
         preserveSourceIds,
-        this.taskIdSource("peek"),
+        this.taskIdSource(),
       )
     ).preview;
   }
 
-  /** The task-id source `previewInternal` consumes, or undefined when this
-   * service has no allocator (the fallback path). */
-  private taskIdSource(mode: "peek" | "reserve") {
+  /** The task-id source `previewInternal` consumes. It PEEKS only: `preview`
+   * must not move the floor, and `apply` captures its own peek so it can
+   * reserve the same block after the preview (and its refusals) is done. */
+  private taskIdSource() {
     if (this.allocation === undefined) return undefined;
     return (count: number, visibleIds: readonly string[], marker?: string) =>
-      this.idBlock("task", count, visibleIds, mode, marker);
+      this.idBlock("task", count, visibleIds, "peek", marker);
   }
 
   async apply(
@@ -695,6 +842,10 @@ export class BacklogImportService {
     preserveSourceIds?: BacklogPreservationOptions,
   ): Promise<Receipt> {
     const { root, source, repository, taskIdPrefix } = this;
+    // QCLI-520 round 1 (MINOR 5): see preview(). A caller with no Git
+    // repository passes an allocation whose commonDirectory() resolves null.
+    if (this.allocation === undefined)
+      throw new BacklogIdAllocationMissingError();
     const path = receiptPath(root, digest);
     const previous = await load(path);
     if (previous?.state === "applied") {
@@ -712,25 +863,22 @@ export class BacklogImportService {
     let peekedTaskIds: readonly string[] = [];
     let peekedVisibleIds: readonly string[] = [];
     let peekedMarker: string | undefined;
-    const peekTaskIds =
-      this.allocation === undefined
-        ? undefined
-        : async (
-            count: number,
-            visibleIds: readonly string[],
-            marker?: string,
-          ) => {
-            peekedVisibleIds = visibleIds;
-            peekedMarker = marker;
-            peekedTaskIds = await this.idBlock(
-              "task",
-              count,
-              visibleIds,
-              "peek",
-              marker,
-            );
-            return peekedTaskIds;
-          };
+    const peekTaskIds = async (
+      count: number,
+      visibleIds: readonly string[],
+      marker?: string,
+    ) => {
+      peekedVisibleIds = visibleIds;
+      peekedMarker = marker;
+      peekedTaskIds = await this.idBlock(
+        "task",
+        count,
+        visibleIds,
+        "peek",
+        marker,
+      );
+      return peekedTaskIds;
+    };
     const { preview, records } = await previewInternal(
       source,
       repository,
@@ -746,7 +894,21 @@ export class BacklogImportService {
     // id between this run's peek and its reserve, so the approved plan would
     // no longer describe what gets written -- refuse and ask for a re-preview
     // instead of minting numbers nobody approved.
-    if (peekTaskIds !== undefined && peekedTaskIds.length > 0) {
+    // QCLI-520 round 1 (MAJOR 3): every block THIS RUN reserves is remembered
+    // so a failure after the reservation can hand it back. An abandoned block
+    // would sit in the ledger for its 7-day TTL, so a retry carrying the same
+    // approved digest would peek above it and be refused as a digest
+    // mismatch -- undone by an id this run never minted.
+    let reservedTaskIds: readonly string[] = [];
+    let reservedMilestoneIds: readonly string[] = [];
+    const taskMarker = peekedMarker ?? `${taskIdPrefix}-`;
+    const releaseReservations = async () => {
+      await this.releaseBlock("task", taskMarker, reservedTaskIds);
+      await this.releaseBlock("milestone", "M-", reservedMilestoneIds);
+      reservedTaskIds = [];
+      reservedMilestoneIds = [];
+    };
+    if (peekedTaskIds.length > 0) {
       const reserved = await this.idBlock(
         "task",
         peekedTaskIds.length,
@@ -754,164 +916,187 @@ export class BacklogImportService {
         "reserve",
         peekedMarker,
       );
-      if (reserved.join("\n") !== peekedTaskIds.join("\n"))
+      if (reserved.join("\n") !== peekedTaskIds.join("\n")) {
+        // The block this run DID reserve is not the approved one; release it
+        // before refusing, or the retry would meet the same mismatch again.
+        await this.releaseBlock("task", taskMarker, reserved);
         throw new Error(
-          "migration_id_block_moved: another writer allocated task ids between this run's preview and its reservation, so the approved digest no longer describes the ids this migration would mint. Nothing was written. Re-run `quest migration backlog preview` and apply the digest it prints.",
+          "migration_id_block_moved: another writer allocated task ids between this run's peek and its reservation, so the approved digest no longer describes the ids this migration would mint. Nothing was written.",
         );
-    }
-    const receipt: Receipt = previous ?? {
-      schemaVersion: 1,
-      kind: "migration.backlog.receipt",
-      digest,
-      sourceFingerprint: preview.sourceFingerprint,
-      mappings: preview.mappings,
-      state: "applying",
-      survivors: [],
-      taskFingerprints: {},
-    };
-    await save(path, receipt);
-    const survivors = new Set(receipt.survivors);
-    const fingerprints = { ...receipt.taskFingerprints };
-    // Milestone names map deterministically: sorted distinct source names,
-    // reusing an existing planning milestone with the same exact title,
-    // otherwise allocating the next free M-<n> id.
-    const planningSnapshot = await this.planning.read();
-    const milestoneNames = Array.from(
-      new Set(
-        records
-          .map((record) => record.milestone?.trim())
-          .filter((name): name is string => !!name),
-      ),
-    ).sort();
-    const byTitle = new Map(
-      planningSnapshot.milestones.map((m) => [m.title, m]),
-    );
-    let nextMilestoneNumber = planningSnapshot.milestones.reduce(
-      (maximum, m) => Math.max(maximum, Number(m.id.slice(2))),
-      0,
-    );
-    // QCLI-520: milestone ids are minted only here (they never appear in the
-    // preview's mappings, so no approved digest depends on them), which is
-    // why reserving them straight away is safe: the ids are durable before
-    // any milestone record is written, so a second worktree's migration
-    // starts above them instead of reusing them.
-    const newMilestoneNames = milestoneNames.filter(
-      (name) => !byTitle.has(name),
-    );
-    const milestoneBlock = await this.idBlock(
-      "milestone",
-      newMilestoneNames.length,
-      planningSnapshot.milestones.map((m) => m.id),
-      "reserve",
-    );
-    const milestoneIdForName = new Map<string, string>();
-    for (const name of milestoneNames) {
-      const existing = byTitle.get(name);
-      if (existing) {
-        milestoneIdForName.set(name, existing.id);
-        continue;
       }
-      nextMilestoneNumber += 1;
-      const reservedIndex = newMilestoneNames.indexOf(name);
-      milestoneIdForName.set(
-        name,
-        milestoneBlock[reservedIndex] ?? `M-${nextMilestoneNumber}`,
-      );
+      reservedTaskIds = reserved;
     }
-    // Closure is computed over every mapping (not only non-survivors) so a
-    // resumed migration still yields fully closed forward/back references.
-    const rawImports = preview.mappings.map((mapping, index) => {
-      const record = records[index];
-      if (!record) throw new Error("migration_source_record_missing");
-      const name = record.milestone?.trim();
-      const milestoneId = name ? milestoneIdForName.get(name) : undefined;
-      return {
-        task: importedTask(record, mapping.targetIdentifier, milestoneId),
-        milestoneId,
+    try {
+      const receipt: Receipt = previous ?? {
+        schemaVersion: 1,
+        kind: "migration.backlog.receipt",
+        digest,
+        sourceFingerprint: preview.sourceFingerprint,
+        mappings: preview.mappings,
+        state: "applying",
+        survivors: [],
+        taskFingerprints: {},
       };
-    });
-    // A Backlog record's parentId/dependencies are raw pre-migration source
-    // ids (registered above as aliases on the sibling task they name), not
-    // the new canonical ids. Every other write path resolves links through
-    // canonicalizeTaskLinks before persisting; migration must too, or a
-    // migrated child's parentId keeps pointing at a string no current task
-    // actually has as its id, and --parent/--dependency lookups silently
-    // find nothing post-import (QCLI-157).
-    const linkedForImport = await repository.readAll();
-    const canonicalById = new Map(
-      canonicalizeTaskLinks([
-        ...linkedForImport.taskRecords.map((entry) => entry.task),
-        ...rawImports.map((entry) => entry.task),
-      ]).map((task) => [task.id, task]),
-    );
-    const taskChanges: {
-      readonly task: TaskState;
-      readonly location: "tasks";
-    }[] = [];
-    const imported: { id: string; milestoneId?: string }[] = [];
-    for (let index = 0; index < preview.mappings.length; index++) {
-      const mapping = preview.mappings[index];
-      const { milestoneId } = rawImports[index];
-      const task = canonicalById.get(mapping.targetIdentifier);
-      if (!task) throw new Error("migration_source_record_missing");
-      const current = await repository.readAll();
-      const existing = current.taskRecords.find(
-        (entry) => entry.task.id === task.id,
+      await save(path, receipt);
+      const survivors = new Set(receipt.survivors);
+      const fingerprints = { ...receipt.taskFingerprints };
+      // Milestone names map deterministically: sorted distinct source names,
+      // reusing an existing planning milestone with the same exact title,
+      // otherwise allocating the next free M-<n> id.
+      const planningSnapshot = await this.planning.read();
+      const milestoneNames = Array.from(
+        new Set(
+          records
+            .map((record) => record.milestone?.trim())
+            .filter((name): name is string => !!name),
+        ),
+      ).sort();
+      const byTitle = new Map(
+        planningSnapshot.milestones.map((m) => [m.title, m]),
       );
-      if (existing && fingerprint(existing.task) === fingerprints[task.id]) {
-        survivors.add(task.id);
-        continue;
+      // QCLI-520: milestone ids are minted only here (they never appear in the
+      // preview's mappings, so no approved digest depends on them), which is
+      // why reserving them straight away is safe: the ids are durable before
+      // any milestone record is written, so a second worktree's migration
+      // starts above them instead of reusing them.
+      const newMilestoneNames = milestoneNames.filter(
+        (name) => !byTitle.has(name),
+      );
+      const milestoneBlock = await this.idBlock(
+        "milestone",
+        newMilestoneNames.length,
+        planningSnapshot.milestones.map((m) => m.id),
+        "reserve",
+      );
+      reservedMilestoneIds = milestoneBlock;
+      const milestoneIdForName = new Map<string, string>();
+      for (const name of milestoneNames) {
+        const existing = byTitle.get(name);
+        if (existing) {
+          milestoneIdForName.set(name, existing.id);
+          continue;
+        }
+        const reservedIndex = newMilestoneNames.indexOf(name);
+        // QCLI-520 round 1 (MINOR 4): no fallback to `M-<n>` here. The service
+        // always has an allocator (MINOR 5), and idBlock refuses a short block,
+        // so a missing position at this point is a contract violation.
+        milestoneIdForName.set(
+          name,
+          requiredMintedId(
+            milestoneBlock,
+            reservedIndex,
+            newMilestoneNames.length,
+            "the milestone id allocator",
+          ),
+        );
       }
-      survivors.add(task.id);
-      fingerprints[task.id] = fingerprint(task);
-      taskChanges.push({ task, location: "tasks" });
-      imported.push({ id: task.id, milestoneId });
-    }
-    // Closure over every mapping (not only non-survivors) so a resumed
-    // migration still yields closed forward/back references.
-    const milestones = new Map<string, Milestone>();
-    for (const name of milestoneNames) {
-      const existing = byTitle.get(name);
-      const id = milestoneIdForName.get(name);
-      if (!id) continue;
-      const members = new Set(existing?.taskIds ?? []);
-      for (const entry of imported)
-        if (entry.milestoneId === id) members.add(entry.id);
-      milestones.set(id, {
-        // Spread first so a reused milestone keeps every field this import
-        // does not own -- `archived` above all, which a field-by-field
-        // rebuild would silently clear.
-        ...existing,
-        id: id as Milestone["id"],
-        title: name,
-        description: existing?.description,
-        status: existing?.status ?? "open",
-        taskIds: Array.from(members).sort(compareTaskIds),
+      // Closure is computed over every mapping (not only non-survivors) so a
+      // resumed migration still yields fully closed forward/back references.
+      const rawImports = preview.mappings.map((mapping, index) => {
+        const record = records[index];
+        if (!record) throw new Error("migration_source_record_missing");
+        const name = record.milestone?.trim();
+        const milestoneId = name ? milestoneIdForName.get(name) : undefined;
+        return {
+          task: importedTask(record, mapping.targetIdentifier, milestoneId),
+          milestoneId,
+        };
       });
-    }
-    await save(path, {
-      ...receipt,
-      survivors: Array.from(survivors).sort(),
-      taskFingerprints: fingerprints,
-    });
-    if (taskChanges.length > 0) {
-      const current = await repository.readAll();
-      const result = await repository.applyTransaction({
-        expectedTaskRevision: current.revision,
-        expectedPlanningRevision: planningSnapshot.revision,
-        operationId: `backlog-import-${digest}`,
-        ownedPaths: [
-          ".quest/migrations/backlog",
-          ...taskChanges.map(({ task }) => `.quest/tasks/${task.id}.json`),
-        ],
-        taskChanges,
-        milestones: [
-          ...planningSnapshot.milestones.filter((m) => !milestones.has(m.id)),
-          ...Array.from(milestones.values()),
-        ],
-        decisions: planningSnapshot.decisions,
+      // A Backlog record's parentId/dependencies are raw pre-migration source
+      // ids (registered above as aliases on the sibling task they name), not
+      // the new canonical ids. Every other write path resolves links through
+      // canonicalizeTaskLinks before persisting; migration must too, or a
+      // migrated child's parentId keeps pointing at a string no current task
+      // actually has as its id, and --parent/--dependency lookups silently
+      // find nothing post-import (QCLI-157).
+      const linkedForImport = await repository.readAll();
+      const canonicalById = new Map(
+        canonicalizeTaskLinks([
+          ...linkedForImport.taskRecords.map((entry) => entry.task),
+          ...rawImports.map((entry) => entry.task),
+        ]).map((task) => [task.id, task]),
+      );
+      const taskChanges: {
+        readonly task: TaskState;
+        readonly location: "tasks";
+      }[] = [];
+      const imported: { id: string; milestoneId?: string }[] = [];
+      for (let index = 0; index < preview.mappings.length; index++) {
+        const mapping = preview.mappings[index];
+        const { milestoneId } = rawImports[index];
+        const task = canonicalById.get(mapping.targetIdentifier);
+        if (!task) throw new Error("migration_source_record_missing");
+        const current = await repository.readAll();
+        const existing = current.taskRecords.find(
+          (entry) => entry.task.id === task.id,
+        );
+        if (existing && fingerprint(existing.task) === fingerprints[task.id]) {
+          survivors.add(task.id);
+          continue;
+        }
+        survivors.add(task.id);
+        fingerprints[task.id] = fingerprint(task);
+        taskChanges.push({ task, location: "tasks" });
+        imported.push({ id: task.id, milestoneId });
+      }
+      // Closure over every mapping (not only non-survivors) so a resumed
+      // migration still yields closed forward/back references.
+      const milestones = new Map<string, Milestone>();
+      for (const name of milestoneNames) {
+        const existing = byTitle.get(name);
+        const id = milestoneIdForName.get(name);
+        if (!id) continue;
+        const members = new Set(existing?.taskIds ?? []);
+        for (const entry of imported)
+          if (entry.milestoneId === id) members.add(entry.id);
+        milestones.set(id, {
+          // Spread first so a reused milestone keeps every field this import
+          // does not own -- `archived` above all, which a field-by-field
+          // rebuild would silently clear.
+          ...existing,
+          id: id as Milestone["id"],
+          title: name,
+          description: existing?.description,
+          status: existing?.status ?? "open",
+          taskIds: Array.from(members).sort(compareTaskIds),
+        });
+      }
+      await save(path, {
+        ...receipt,
+        survivors: Array.from(survivors).sort(),
+        taskFingerprints: fingerprints,
       });
-      if (result.kind === "conflict") {
+      if (taskChanges.length > 0) {
+        const current = await repository.readAll();
+        const result = await repository.applyTransaction({
+          expectedTaskRevision: current.revision,
+          expectedPlanningRevision: planningSnapshot.revision,
+          operationId: `backlog-import-${digest}`,
+          ownedPaths: [
+            ".quest/migrations/backlog",
+            ...taskChanges.map(({ task }) => `.quest/tasks/${task.id}.json`),
+          ],
+          taskChanges,
+          milestones: [
+            ...planningSnapshot.milestones.filter((m) => !milestones.has(m.id)),
+            ...Array.from(milestones.values()),
+          ],
+          decisions: planningSnapshot.decisions,
+        });
+        if (result.kind === "conflict") {
+          const failed = {
+            ...receipt,
+            state: "failed" as const,
+            survivors: Array.from(survivors).sort(),
+            taskFingerprints: fingerprints,
+          };
+          await save(path, failed);
+          await releaseReservations();
+          return failed;
+        }
+      }
+      const after = await source.readSnapshot();
+      if (after.fingerprint !== preview.sourceFingerprint) {
         const failed = {
           ...receipt,
           state: "failed" as const,
@@ -919,28 +1104,25 @@ export class BacklogImportService {
           taskFingerprints: fingerprints,
         };
         await save(path, failed);
+        await releaseReservations();
         return failed;
       }
-    }
-    const after = await source.readSnapshot();
-    if (after.fingerprint !== preview.sourceFingerprint) {
-      const failed = {
+      const applied = {
         ...receipt,
-        state: "failed" as const,
+        state: "applied" as const,
         survivors: Array.from(survivors).sort(),
         taskFingerprints: fingerprints,
       };
-      await save(path, failed);
-      return failed;
+      await save(path, applied);
+      // Success keeps the reservations: the records that carry them are now
+      // visible, so the ledger's own visibility rule prunes them.
+      return applied;
+    } catch (error) {
+      // Every throw after the reservation -- including a milestone block that
+      // was reserved but never used -- hands this run's blocks back.
+      await releaseReservations();
+      throw error;
     }
-    const applied = {
-      ...receipt,
-      state: "applied" as const,
-      survivors: Array.from(survivors).sort(),
-      taskFingerprints: fingerprints,
-    };
-    await save(path, applied);
-    return applied;
   }
 
   async status(digest: string): Promise<Receipt> {

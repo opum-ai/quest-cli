@@ -18,6 +18,8 @@ import {
   breakStaleLock,
   IdAllocationLockTimeoutError,
   IdAllocationWorktreeReadError,
+  peekIdBlock,
+  reserveIdBlock,
 } from "../src/application/tasks/id-allocation.ts";
 import type { GitPort } from "../src/ports/git.ts";
 
@@ -566,6 +568,84 @@ test("a breaker never releases a break file carrying its OWN pid but a different
     expect(await readFile(breakPath, "utf8")).toBe(
       `${process.pid}\n${now + 1}\n`,
     );
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+/* ---- QCLI-520 round 1, MINOR 2: the block API's own unit coverage ---------
+ *
+ * The migration's end-to-end test proves two worktrees end up disjoint; it
+ * cannot isolate the block rules themselves, so they are pinned here against
+ * the allocator's real seams (clock, pid, Git port).
+ */
+
+const blockRequest = (repo: { root: string; common: string }) => ({
+  ...sharedRequest(repo),
+  git: portWithHook([repo.root]),
+  marker: "T-",
+  family: "task",
+});
+
+test("a zero-count block asks for nothing and writes nothing (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    expect(await peekIdBlock({ ...blockRequest(repo), count: 0 })).toEqual([]);
+    const reserved = await reserveIdBlock({
+      ...blockRequest(repo),
+      count: 0,
+    });
+    expect(reserved.ids).toEqual([]);
+    expect(reserved.brokeStaleLock).toBe(false);
+    expect(
+      await readFile(repo.ledgerPath, "utf8").catch(() => null),
+    ).toBeNull();
+    expect(await readFile(repo.lockPath, "utf8").catch(() => null)).toBeNull();
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a peek is exactly the block a reservation then writes when nothing moved (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const peeked = await peekIdBlock({ ...blockRequest(repo), count: 3 });
+    expect(peeked).toEqual(["T-1", "T-2", "T-3"]);
+    // The preview half must not move the floor the apply will read.
+    expect(
+      await readFile(repo.ledgerPath, "utf8").catch(() => null),
+    ).toBeNull();
+    const reserved = await reserveIdBlock({
+      ...blockRequest(repo),
+      count: 3,
+    });
+    expect(reserved.ids).toEqual(peeked);
+    const ledger = await readFile(repo.ledgerPath, "utf8");
+    for (const id of peeked) expect(ledger).toContain(`"id":"${id}"`);
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a single id allocated after a reserved block lands ABOVE it (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const block = await reserveIdBlock({ ...blockRequest(repo), count: 2 });
+    expect(block.ids).toEqual(["T-1", "T-2"]);
+    const single = await allocateId({ ...blockRequest(repo) });
+    expect(single.id).toBe("T-3");
+  } finally {
+    await repo.cleanup();
+  }
+});
+
+test("a single id already allocated pushes a later block up (QCLI-520 round 1, MINOR 2)", async () => {
+  const repo = await repositoryDirectory();
+  try {
+    const single = await allocateId({ ...blockRequest(repo) });
+    expect(single.id).toBe("T-1");
+    const block = await reserveIdBlock({ ...blockRequest(repo), count: 2 });
+    expect(block.ids).toEqual(["T-2", "T-3"]);
   } finally {
     await repo.cleanup();
   }

@@ -195,9 +195,9 @@ three sources plus one, taken under an exclusive lock at
 two creates in two worktrees get distinct ids even before either record is committed. This
 covers the create commands: \`task create\`, \`draft create\` and \`draft promote\`, \`milestone create\`,
 \`decision create\` and \`question ask\`, and (QCLI-520) the ids \`migration backlog apply\` mints for
-imported tasks and milestones -- it reserves a whole block in one lock hold, so two worktrees
-migrating before either commits get distinct ids. It does not cover \`--id\` (an explicit id is
-the caller's).
+imported tasks and milestones -- it reserves two blocks, one per family, each in its own
+lock hold, so two worktrees migrating before either commits get distinct ids. It does not
+cover \`--id\` (an explicit id is the caller's).
 A ledger entry is dropped once a record with that id is visible in a ref or a worktree, or
 after 7 days; a create that lost the record write still leaves its entry, so the next id may
 skip a number for up to 7 days. Allocation uses no network and no fetch. A lock whose holder

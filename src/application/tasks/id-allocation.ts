@@ -649,6 +649,63 @@ export async function reserveIdBlock(
   }
 }
 
+/** QCLI-520 round 1 (MAJOR 3): what a release needs. No `visibleIds` and no
+ * `recordDirectories` -- releasing withdraws entries this run itself wrote, so
+ * it never scans a worktree or a record directory. */
+export type IdReleaseRequest = Omit<
+  IdAllocationRequest,
+  "visibleIds" | "recordDirectories"
+>;
+
+/**
+ * QCLI-520 round 1 (MAJOR 3): give back a block THIS RUN reserved.
+ *
+ * `migration backlog apply` reserves its task block (and then its milestone
+ * block) before it writes anything, and every failure path after that point
+ * writes nothing at all. Without this, the abandoned block stays in the ledger
+ * for its 7-day TTL, so a retry carrying the SAME approved digest peeks above
+ * it, computes a different block, and is refused as
+ * `migration_approval_digest_mismatch` -- the plan is undone by a reservation
+ * this run never used.
+ *
+ * Exactly the entries whose family matches AND whose id is in `ids` are
+ * removed; another family's reservation is never touched, and the ledger is
+ * rewritten only when something changed. It takes the same lock as
+ * `reserveIdBlock`, so a concurrent allocator cannot interleave a read/write
+ * pair, and applies the same TTL filter, so expired entries are pruned on the
+ * same terms. With no common dir there is no ledger: a no-op that returns
+ * false.
+ */
+export async function releaseIdBlock(
+  request: IdReleaseRequest,
+  ids: readonly string[],
+): Promise<boolean> {
+  if (request.commonDirectory === null || ids.length === 0) return false;
+  const now = request.now ?? Date.now;
+  const processId = request.processId ?? process.pid;
+  const sleep = request.sleep ?? sleepFor;
+  const directory = join(request.commonDirectory, ALLOCATION_DIRECTORY);
+  const lockPath = join(directory, LOCK_FILE_NAME);
+  const ledgerPath = join(directory, LEDGER_FILE_NAME);
+
+  await mkdir(dirname(lockPath), { recursive: true });
+  await acquireLock(lockPath, now, processId, sleep);
+  try {
+    const wanted = new Set(ids);
+    const reserved = (await readLedger(ledgerPath)).filter(
+      (entry) => now() - entry.at <= LEDGER_ENTRY_TTL_MILLISECONDS,
+    );
+    const kept = reserved.filter(
+      (entry) => !(entry.family === request.family && wanted.has(entry.id)),
+    );
+    if (kept.length === reserved.length) return false;
+    await writeLedger(ledgerPath, kept, processId);
+    return true;
+  } finally {
+    await releaseLock(lockPath, processId);
+  }
+}
+
 /**
  * Allocates one id for one family. The returned id is the caller's to write;
  * the reservation is already durable when this resolves, which is what lets a

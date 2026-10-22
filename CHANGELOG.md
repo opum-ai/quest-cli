@@ -31,11 +31,11 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   its reservation, so the next id can skip a number for up to 7 days. **Not
   covered:** `--id` and creates on two machines. The Backlog.md migration is
   covered as of QCLI-520: `migration backlog apply` reserves its imported task
-  and milestone ids as one block through this same allocator, so two worktrees
-  that each migrate before either commits get distinct ids -- and an apply
-  whose approved digest no longer describes the ids it would mint is refused
-  (`migration_id_block_moved`) rather than renumbered silently. A `.quest` with
-  no Git repository allocates as before.
+  and milestone ids as two blocks, one per family, through this same allocator,
+  so two worktrees that each migrate before either commits get distinct ids --
+  and an apply whose approved digest no longer describes the ids it would mint
+  is refused (`migration_id_block_moved`) rather than renumbered silently. A
+  `.quest` with no Git repository allocates as before.
 
 - **Draft ids and the ids `cleanup` reports order by number too.** `draft list`
   put `D-10` and `D-11` between `D-1` and `D-2`, and `cleanup --dry-run` listed

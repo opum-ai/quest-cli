@@ -70,10 +70,11 @@ export function createWorkspacePort() {
 
 /**
  * QCLI-520: `allocation` wires the migration's minted ids through the SHARED
- * allocator (QCLI-495's lock, ledger and worktree scan). Omitted, the service
- * keeps the pre-QCLI-520 arithmetic -- which is what a caller with no Git
- * repository behind its store needs, and what the qualification fixtures
- * assert.
+ * allocator (QCLI-495's lock, ledger and worktree scan). `preview` and `apply`
+ * REFUSE by name without it (round 1, MINOR 5); a caller with no Git
+ * repository behind its store passes an allocation whose `commonDirectory()`
+ * resolves null, which the allocator degrades correctly. Omitted is therefore
+ * only for `status`/`rollback`, which mint no id.
  */
 export function createBacklogImportService(
   root: string,

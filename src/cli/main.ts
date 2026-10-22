@@ -48,7 +48,10 @@ import {
   REPEATABLE_EDIT_FLAGS,
   REPEATABLE_LIST_FLAGS,
 } from "../application/command-parameters.ts";
-import { BacklogMigrationRefusedError } from "../application/migration/backlog-public.ts";
+import {
+  type BacklogIdAllocation,
+  BacklogMigrationRefusedError,
+} from "../application/migration/backlog-public.ts";
 import type { PlanningService } from "../application/planning/planning.ts";
 import type { QuestionService } from "../application/questions/questions.ts";
 import type {
@@ -61,6 +64,7 @@ import {
   IdAllocationLockTimeoutError,
   IdAllocationWorktreeReadError,
   type IdAllocation,
+  releaseIdBlock,
 } from "../application/tasks/id-allocation.ts";
 import {
   type DuplicateIdentityRecord,
@@ -1319,7 +1323,10 @@ async function idForCreate(
  * stderr-silence check already tolerates on a success envelope. */
 function withAllocationNotice(
   result: InvocationResult,
-  allocation: IdAllocation,
+  allocation: {
+    readonly brokeStaleLock: boolean;
+    readonly lockPath: string | null;
+  },
 ): InvocationResult {
   if (!allocation.brokeStaleLock) return result;
   return {
@@ -2470,6 +2477,44 @@ export async function runQuest(
         : undefined;
       const migrationBacklogFallback =
         "migration backlog requires preview --source, apply --source --digest, status --digest, or rollback --digest.";
+      /**
+       * QCLI-520: the migration's view of the shared allocator. Every source
+       * `quest task create` already reads is wired here too, through the same
+       * helpers -- the refs scan is MAJOR 2's fix, because a record committed
+       * on a branch no worktree has checked out is invisible to the worktree
+       * scan and would otherwise be minted onto.
+       *
+       * `commonDirectory` resolves null for a `QUEST_TASK_STORE` caller, which
+       * the allocator degrades correctly (no lock, ledger or worktree scan);
+       * that is the allocation the no-Git-repository caller supplies, not an
+       * absent allocator.
+       */
+      const backlogAllocation = (
+        onStaleLock?: (block: {
+          readonly brokeStaleLock: boolean;
+          readonly lockPath: string | null;
+        }) => void,
+      ): BacklogIdAllocation => ({
+        git,
+        worktreeRoot: root,
+        commonDirectory: resolvedCommonDirectory,
+        idsOnOtherRefs: async (marker, recordDirectories) =>
+          recordDirectories === null
+            ? await planningIdsOnOtherRefs(git, root, "M")
+            : await idsOnOtherRefs(git, root, marker, recordDirectories),
+        releaseIds: async (family, marker, ids) =>
+          releaseIdBlock(
+            {
+              git,
+              worktreeRoot: root,
+              commonDirectory: await resolvedCommonDirectory(),
+              marker,
+              family,
+            },
+            ids,
+          ),
+        ...(onStaleLock === undefined ? {} : { recordStaleLock: onStaleLock }),
+      });
       if (action === "preview" && source) {
         const previewFlags = [
           "--source",
@@ -2488,11 +2533,7 @@ export async function runQuest(
               source,
               backlogDirectory,
               await configuredTaskIdPrefix(),
-              {
-                git,
-                worktreeRoot: root,
-                commonDirectory: resolvedCommonDirectory,
-              },
+              backlogAllocation(),
             ).preview(preservation),
           },
           modeFor(parsed),
@@ -2516,23 +2557,33 @@ export async function runQuest(
             "denied",
             "Backlog migration writes require an explicit actor declaration.",
           );
-        return output(
-          {
-            schemaVersion: 1,
-            kind: "migration.backlog-applied",
-            data: await createBacklogImportService(
-              root,
-              source,
-              backlogDirectory,
-              await configuredTaskIdPrefix(),
-              {
-                git,
-                worktreeRoot: root,
-                commonDirectory: resolvedCommonDirectory,
-              },
-            ).apply(digest, preservation),
-          },
-          modeFor(parsed),
+        // QCLI-520 round 1 (MINOR 1): a reservation that broke a stale lock
+        // reports it on stderr with the same `Warning:` shape a create emits.
+        const allocationNotice: {
+          brokeStaleLock: boolean;
+          lockPath: string | null;
+        } = { brokeStaleLock: false, lockPath: null };
+        const applied = await createBacklogImportService(
+          root,
+          source,
+          backlogDirectory,
+          await configuredTaskIdPrefix(),
+          backlogAllocation((block) => {
+            if (!block.brokeStaleLock) return;
+            allocationNotice.brokeStaleLock = true;
+            allocationNotice.lockPath = block.lockPath;
+          }),
+        ).apply(digest, preservation);
+        return withAllocationNotice(
+          output(
+            {
+              schemaVersion: 1,
+              kind: "migration.backlog-applied",
+              data: applied,
+            },
+            modeFor(parsed),
+          ),
+          allocationNotice,
         );
       }
       if (action === "status" && digest) {
@@ -4885,6 +4936,15 @@ export async function runQuest(
     if (message === "dependency_target_not_found")
       return failure("validation", message, {
         hint: "The dependency/parent target must already exist -- forward references are not deferred. Create the target first with `quest task create`, then set the edge: --dependency/--parent at creation, or `quest task edit <id> --add-dependency <target-id>` (or --parent <target-id>) afterward.",
+      });
+    // QCLI-520 round 1 (MINOR 3): the approved plan's ids moved between this
+    // run's peek and its reservation. That is contention, not bad input --
+    // nothing was written and a fresh preview resolves it -- so it exits as a
+    // conflict (5) with the re-preview step named, exactly as the allocation
+    // lock timeout above does.
+    if (message.startsWith("migration_id_block_moved"))
+      return failure("conflict", message, {
+        hint: "Nothing was written. Re-run `quest migration backlog preview` and apply the digest it prints.",
       });
     if (kind === "conflict") return failure("conflict", message);
     if (message === "task_not_found") return failure("not_found", message);
