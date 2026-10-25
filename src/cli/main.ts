@@ -336,6 +336,11 @@ function renderRefFooter(ref: TaskRefProvenance): string {
  * managed CLAUDE.md block. Its quest wording is an open question for
  * opum-doc, not something this CLI invents.
  */
+/** DEC-238 (a10): the collaborator clause sits inside the one override line,
+ * for the committed project-file row only, byte-identical in lore-cli
+ * (LCLI-766). Every other row keeps the (a9) line unchanged. */
+const overrideCollaboratorClause = " for every collaborator";
+
 function renderAgentCheckLines(data: {
   readonly state?: string;
   readonly plugin?: AgentPluginCheck;
@@ -343,19 +348,12 @@ function renderAgentCheckLines(data: {
   const plugin = data.plugin;
   if (plugin === undefined) return { before: "", after: "" };
   const override = plugin.override;
-  // (a9) 6/7: no precedence claim. A committed project file also disables the
-  // plugin for every collaborator, which its `--scope local` remedy (this
-  // machine only) does not change. One sentence with an extra clause is a
-  // quest-side reading of (a9) 7; the byte form is open with lore-cli
-  // (LCLI-765).
-  const collaborators =
-    override?.scope === "project"
-      ? ", and the project file disables it for every collaborator"
-      : "";
   const before =
     override === undefined
       ? ""
-      : `plugin-claude-override ${override.file} (${override.scope} scope) sets ${questPluginId} to disabled, and is the effective setting in this checkout${collaborators}\n`;
+      : `plugin-claude-override ${override.file} (${override.scope} scope) sets ${questPluginId} to disabled${
+          override.scope === "project" ? overrideCollaboratorClause : ""
+        }, and is the effective setting in this checkout\n`;
   const after =
     data.state === undefined
       ? ""
@@ -2107,7 +2105,7 @@ export async function runQuest(
               skillSource:
                 'The skill file is target-independent and governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
               coverage:
-                "Up to two lines in the human and --plain output only, never in --json, and only on a run that reports plugin state; the override line exists only for a disabled, non-managed row. `agents-coverage <state> covers the managed block and the skill file only, not plugin enablement` states what the state verdict is about. `plugin-claude-override <file> (<scope> scope) sets opum-quest@opum to disabled, and is the effective setting in this checkout` (a committed .claude/settings.json adds `, and the project file disables it for every collaborator`) names the settings file that disables the plugin and prints BEFORE the dump that carries the remedy; the remedy is always `--scope local`, and no command that writes a settings file is ever executed (DEC-238 (a6), (a9), QCLI-532).",
+                "Up to two lines in the human and --plain output only, never in --json, and only on a run that reports plugin state; the override line exists only for a disabled, non-managed row. `agents-coverage <state> covers the managed block and the skill file only, not plugin enablement` states what the state verdict is about. `plugin-claude-override <file> (<scope> scope) sets opum-quest@opum to disabled, and is the effective setting in this checkout` (the committed .claude/settings.json row reads `sets opum-quest@opum to disabled for every collaborator, and is...`, DEC-238 (a10)) names the settings file that disables the plugin and prints BEFORE the dump that carries the remedy; the remedy is always `--scope local`, and no command that writes a settings file is ever executed (DEC-238 (a6), (a9), QCLI-532).",
             }
           : {}),
       };

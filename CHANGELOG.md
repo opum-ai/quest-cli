@@ -43,8 +43,8 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   key to a boolean; an explicit `true` in a higher file is no override. The
   human and `--plain` forms print `plugin-claude-override <file> (<scope>
   scope) sets opum-quest@opum to disabled, and is the effective setting in
-  this checkout` before the dump (a committed project file adds `, and the
-  project file disables it for every collaborator`), and `agents-coverage
+  this checkout` before the dump (the committed project-file row reads `sets
+  opum-quest@opum to disabled for every collaborator, and is...`, DEC-238 (a10)), and `agents-coverage
   <state> covers the managed block and the skill file only, not plugin
   enablement` after it. The remedy for an override is
   `claude plugin enable opum-quest@opum --scope local`, printed and never run:

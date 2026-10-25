@@ -119,8 +119,8 @@ async function calls(): Promise<string[]> {
   }
 }
 
-const overrideLine = (file: string, scope: string, tail = "") =>
-  `plugin-claude-override ${file} (${scope} scope) sets opum-quest@opum to disabled, and is the effective setting in this checkout${tail}`;
+const overrideLine = (file: string, scope: string, collaborators = "") =>
+  `plugin-claude-override ${file} (${scope} scope) sets opum-quest@opum to disabled${collaborators}, and is the effective setting in this checkout`;
 
 async function settings(file: string, enabled: boolean) {
   await mkdir(join(root, ".claude"), { recursive: true });
@@ -194,11 +194,11 @@ test("claude: a committed project override gets the local remedy and the collabo
   );
   const human = await quest("agents", "--check", "--target", "claude");
   expect(human.stdout).toContain(
-    overrideLine(
-      ".claude/settings.json",
-      "project",
-      ", and the project file disables it for every collaborator",
-    ),
+    overrideLine(".claude/settings.json", "project", " for every collaborator"),
+  );
+  // DEC-238 (a10): the ruled bytes, verbatim.
+  expect(human.stdout).toContain(
+    "plugin-claude-override .claude/settings.json (project scope) sets opum-quest@opum to disabled for every collaborator, and is the effective setting in this checkout",
   );
   await settings("settings.local.json", false);
   const both = await quest("agents", "--check", "--target", "claude", "--json");
