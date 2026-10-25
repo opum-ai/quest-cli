@@ -98,6 +98,12 @@ export const unnamableScopeRemedy = `the Claude scope that decided this state ca
  * lore-cli (LCLI-604) under ruling (d), plugin id swapped. */
 export const managedScopeRemedy = `managed by your Claude Code administrator: ${questPluginId} is set in the managed settings, which only an administrator can change`;
 
+/** DEC-238 (a9) 7: a disabling managed row gets no command, and this text. An
+ * installed managed row keeps managedScopeRemedy, since nothing there is
+ * disabled. */
+export const managedScopeDisabledRemedy =
+  "an administrator's managed setting disables it";
+
 /** A managed deciding row is never updated or enabled (ruling 28). */
 function claudeScopeManaged(
   runtime: AgentRuntime,
@@ -190,10 +196,9 @@ function remedyFor(
       : `${cli} plugin marketplace add ${marketplaceRepository} && ${cli} plugin add ${questPluginId}`;
   // Ruling 28: no `--scope managed` command is ever offered; only an
   // administrator can change a managed row.
-  if (
-    (state === "disabled" || state === "installed") &&
-    claudeScopeManaged(runtime, scope)
-  )
+  if (state === "disabled" && claudeScopeManaged(runtime, scope))
+    return managedScopeDisabledRemedy;
+  if (state === "installed" && claudeScopeManaged(runtime, scope))
     return managedScopeRemedy;
   // DEC-238 (a6) Q1 / (a9) 7: an override only exists on a disabled row, and
   // its remedy always names `--scope local`: the listing's install scope
