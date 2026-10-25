@@ -10,7 +10,10 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { managedScopeRemedy } from "../src/application/agents/agent-plugins.ts";
+import {
+  managedScopeDisabledRemedy,
+  managedScopeRemedy,
+} from "../src/application/agents/agent-plugins.ts";
 
 /**
  * QCLI-381, ruling 28 (opum-doc ADR Amendment 6, 44326c5): Claude scopes rank
@@ -88,6 +91,12 @@ async function calls(): Promise<string[]> {
 
 const check = () => plugin("--check", "--target", "claude");
 
+test("a disabling managed row reads the (a9) 7 text, with no command", () => {
+  expect(managedScopeDisabledRemedy).toBe(
+    "an administrator's managed setting disables it",
+  );
+});
+
 test("the managed remedy is the string agreed with lore-cli, plugin id swapped", () => {
   // LCLI-604 implementation note at lore-cli 6f6a527c (#301), opum-lore@opum
   // there. One string for both states, and no OS path.
@@ -124,7 +133,7 @@ for (const order of ["managed first", "managed last"] as const) {
     expect(await check()).toMatchObject({
       state: "disabled",
       scope: "managed",
-      remedy: managedScopeRemedy,
+      remedy: managedScopeDisabledRemedy,
     });
   });
 
@@ -191,7 +200,7 @@ test("a disabled managed row is not enabled or updated, and carries the managed 
     scope: "managed",
     update: "not-run",
     updateDetail: managedDetail,
-    remedy: managedScopeRemedy,
+    remedy: managedScopeDisabledRemedy,
   });
   expect(await calls()).toEqual(["claude plugin list --json"]);
 });
@@ -206,7 +215,7 @@ for (const order of ["enabled first", "disabled first"] as const) {
     expect(await check()).toMatchObject({
       state: "disabled",
       scope: "managed",
-      remedy: managedScopeRemedy,
+      remedy: managedScopeDisabledRemedy,
     });
   });
 }

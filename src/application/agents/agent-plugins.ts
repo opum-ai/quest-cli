@@ -1,4 +1,5 @@
 import type {
+  AgentPluginOverride,
   AgentPluginPort,
   AgentPluginUpdateOutcome,
   AgentRuntime,
@@ -40,6 +41,12 @@ export interface AgentPluginCheck {
   readonly version?: string;
   /** The install scope that decided the state, where the runtime has one. */
   readonly scope?: string;
+  /**
+   * The project settings file that disables this plugin, where one does
+   * (DEC-238 (a6), QCLI-531). Absent means no project file sets it, so the
+   * runtime's own deciding scope is the one to name.
+   */
+  readonly override?: AgentPluginOverride;
   /** Why the state is not-detectable. */
   readonly reason?: string;
   /** What to run next, printed and never executed by init or --check. */
@@ -90,6 +97,12 @@ export const unnamableScopeRemedy = `the Claude scope that decided this state ca
  * string for installed and disabled alike and no OS path, agreed with
  * lore-cli (LCLI-604) under ruling (d), plugin id swapped. */
 export const managedScopeRemedy = `managed by your Claude Code administrator: ${questPluginId} is set in the managed settings, which only an administrator can change`;
+
+/** DEC-238 (a9) 7: a disabling managed row gets no command, and this text. An
+ * installed managed row keeps managedScopeRemedy, since nothing there is
+ * disabled. */
+export const managedScopeDisabledRemedy =
+  "an administrator's managed setting disables it";
 
 /** A managed deciding row is never updated or enabled (ruling 28). */
 function claudeScopeManaged(
@@ -174,6 +187,7 @@ function remedyFor(
   runtime: AgentRuntime,
   state: AgentPluginState,
   scope?: string,
+  override?: AgentPluginOverride,
 ): string | undefined {
   const cli = runtime === "claude" ? "claude" : "codex";
   if (state === "not-installed")
@@ -182,24 +196,28 @@ function remedyFor(
       : `${cli} plugin marketplace add ${marketplaceRepository} && ${cli} plugin add ${questPluginId}`;
   // Ruling 28: no `--scope managed` command is ever offered; only an
   // administrator can change a managed row.
-  if (
-    (state === "disabled" || state === "installed") &&
-    claudeScopeManaged(runtime, scope)
-  )
+  if (state === "disabled" && claudeScopeManaged(runtime, scope))
+    return managedScopeDisabledRemedy;
+  if (state === "installed" && claudeScopeManaged(runtime, scope))
     return managedScopeRemedy;
+  // DEC-238 (a6) Q1 / (a9) 7: an override only exists on a disabled row, and
+  // its remedy always names `--scope local`: the listing's install scope
+  // fails "already enabled at user scope", and for a committed project file
+  // local is the machine-only scope that outranks it.
+  const commandScope = override === undefined ? scope : "local";
   // An unscoped `claude plugin enable`/`update` would act at Claude's default
   // scope, which may not be the row this state came from (ruling 26 iii), so
   // no command is offered at all.
   if (
     (state === "disabled" || state === "installed") &&
-    claudeScopeUnnamable(runtime, scope)
+    claudeScopeUnnamable(runtime, commandScope)
   )
     return unnamableScopeRemedy;
   if (state === "disabled")
     // Codex has no enable command (codex-cli 0.155.1); enablement is this
     // config key, which is what its own list command reads.
     return runtime === "claude"
-      ? `${cli} plugin enable ${questPluginId}${scopeFlag(scope)}`
+      ? `${cli} plugin enable ${questPluginId}${scopeFlag(commandScope)}`
       : `set enabled = true under [plugins."${questPluginId}"] in $CODEX_HOME/config.toml (default ~/.codex/config.toml)`;
   if (state === "installed") return questPluginUpdateCommand(runtime, scope);
   return undefined;
@@ -229,13 +247,21 @@ export async function detectQuestPlugin(
   const version =
     row?.version !== undefined ? printable(row.version) : undefined;
   const scope = row?.scope !== undefined ? printable(row.scope) : undefined;
-  const remedy = remedyFor(runtime, state, scope);
+  // Only a disabled, non-managed row carries an override (finding 1(b)): on
+  // any other state the file is not what decided the reported state, and the
+  // update path must never act on it.
+  const override =
+    state === "disabled" && !claudeScopeManaged(runtime, scope)
+      ? row?.override
+      : undefined;
+  const remedy = remedyFor(runtime, state, scope, override);
   return {
     runtime,
     id: questPluginId,
     state,
     ...(version ? { version } : {}),
     ...(scope ? { scope } : {}),
+    ...(override ? { override } : {}),
     ...(remedy !== undefined ? { remedy } : {}),
   };
 }
@@ -267,9 +293,9 @@ export async function updateQuestPlugin(
       updateDetail: notRunDetail(detected, runtimeNamed),
     };
   // Ruling 26 (iii): an update names its deciding scope and never updates a
-  // row the reported state did not come from. A scope that cannot be put into
-  // a command cannot be named, so nothing runs, and the remedy is already
-  // prose rather than an unscoped command (see remedyFor).
+  // row the reported state did not come from. No settings override reaches
+  // here: it is attached to disabled rows only, which never update, and
+  // nothing on this path writes a settings file (DEC-238 (a9)).
   if (claudeScopeUnnamable(runtime, detected.scope))
     return {
       ...detected,

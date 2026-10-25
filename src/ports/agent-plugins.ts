@@ -12,6 +12,23 @@ export interface ListedAgentPlugin {
   /** The install scope whose row decided this entry, where the runtime has
    * scopes (Claude: local, project, user, managed). */
   readonly scope?: string;
+  /** Where a project-local settings file disables this plugin, which the
+   * runtime's listing does not report (DEC-238 (a6), QCLI-531). */
+  readonly override?: AgentPluginOverride;
+}
+
+/**
+ * A Claude settings file that disables a plugin, and the `--scope` a command
+ * must name to reach that same file. The listing reports the row's install
+ * scope, not this: a local override beside a user-scope row lists as `user`,
+ * and an enable command with that scope fails "already enabled at user
+ * scope" (DEC-238 (a6) Q1, RULED A).
+ */
+export interface AgentPluginOverride {
+  /** The settings file, relative to the checkout root. */
+  readonly file: string;
+  /** local for .claude/settings.local.json, project for .claude/settings.json. */
+  readonly scope: string;
 }
 
 /** A runtime's installed plugins, or why they could not be read. An
