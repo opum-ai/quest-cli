@@ -101,7 +101,14 @@ async function quest(...arguments_: readonly string[]) {
     stdout: await new Response(child.stdout).text(),
     stderr: await new Response(child.stderr).text(),
   };
-  return { ...result, json: JSON.parse(result.stdout || result.stderr) };
+  // Parsed on access, not eagerly: a human-form call returns plain text, and
+  // a test that asserts on `stdout` must not fail on an unparseable payload.
+  return {
+    ...result,
+    get json() {
+      return JSON.parse(result.stdout || result.stderr);
+    },
+  };
 }
 
 async function calls(): Promise<string[]> {
@@ -160,6 +167,33 @@ for (const runtime of ["claude", "codex"] as const) {
         ? "claude plugin enable opum-quest@opum"
         : '[plugins."opum-quest@opum"]',
     );
+  });
+
+  test(`${runtime}: state is scoped to the managed block and says so while the plugin is disabled`, async () => {
+    // QCLI-531 / DEC-238 (a4) RULED A: a disabled plugin never changes
+    // `state` or the exit code, so the payload names what `state` covers.
+    await fake(runtime, { listing: row(false) });
+    const init = await quest(
+      "agents",
+      "--update-instructions",
+      "--target",
+      runtime,
+    );
+    expect(init.exitCode).toBe(0);
+    const result = await quest(
+      "agents",
+      "--check",
+      "--target",
+      runtime,
+      "--json",
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.json.data.state).toBe("current");
+    expect(result.json.data.stateScope).toBe("managed-block");
+    expect(result.json.data.plugin.state).toBe("disabled");
+    const human = await quest("agents", "--check", "--target", runtime);
+    expect(human.exitCode).toBe(0);
+    expect(human.stdout).toContain("stateScope: managed-block");
   });
 
   test(`${runtime}: --update-instructions RUNS the update for an installed plugin`, async () => {
