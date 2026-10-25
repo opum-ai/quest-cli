@@ -280,7 +280,16 @@ test("claude: a managed row with a local file disable keeps the managed remedy a
     "--json",
   );
   expect(result.json.data.plugin.override).toBeUndefined();
-  expect(result.json.data.plugin.remedy).toContain("administrator");
+  // DEC-238 (a9) 7: the ruled text byte for byte, and no command anywhere.
+  expect(result.json.data.plugin.remedy).toBe(
+    "an administrator's managed setting disables it",
+  );
+  const human = await quest("agents", "--check", "--target", "claude");
+  expect(human.stdout).toContain(
+    "an administrator's managed setting disables it",
+  );
+  expect(human.stdout).not.toContain("claude plugin");
+  expect(human.stdout).not.toContain("plugin-claude-override");
 });
 
 test("claude: with no settings file there is no override in --json, --plain or the human view", async () => {
