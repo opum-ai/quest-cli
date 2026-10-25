@@ -145,6 +145,12 @@ test("claude: a local settings override is named, and the remedy targets that fi
   expect(result.json.data.plugin.remedy).not.toContain("--scope user");
   // The listing's own row scope is still reported as the runtime gave it.
   expect(result.json.data.plugin.scope).toBe("user");
+  // DEC-238 (a6): the sentence is its own record in the human view, with
+  // lore-cli's bytes and only the plugin id swapped.
+  const human = await quest("agents", "--check", "--target", "claude");
+  expect(human.stdout).toContain(
+    "plugin-claude-override .claude/settings.local.json (local scope) sets opum-quest@opum to disabled, and wins over the user-scope row",
+  );
 });
 
 test("claude: a project settings override names --scope project, and local wins over it", async () => {
@@ -247,9 +253,10 @@ for (const runtime of ["claude", "codex"] as const) {
     );
   });
 
-  test(`${runtime}: state is scoped to the managed block and says so while the plugin is disabled`, async () => {
-    // QCLI-531 / DEC-238 (a4) RULED A: a disabled plugin never changes
-    // `state` or the exit code, so the payload names what `state` covers.
+  test(`${runtime}: the coverage sentence states what the state verdict covers`, async () => {
+    // DEC-238 (a6), QCLI-532: the sentence is lore-cli's (LCLI-765) with this
+    // CLI's own verdict word, printed as its own record in human/--plain only.
+    // A disabled plugin changes neither `state` nor the exit code.
     await fake(runtime, { listing: row(false) });
     const init = await quest(
       "agents",
@@ -267,11 +274,13 @@ for (const runtime of ["claude", "codex"] as const) {
     );
     expect(result.exitCode).toBe(0);
     expect(result.json.data.state).toBe("current");
-    expect(result.json.data.stateScope).toBe("managed-block");
+    expect(result.json.data.stateScope).toBeUndefined();
     expect(result.json.data.plugin.state).toBe("disabled");
     const human = await quest("agents", "--check", "--target", runtime);
     expect(human.exitCode).toBe(0);
-    expect(human.stdout).toContain("stateScope: managed-block");
+    expect(human.stdout).toContain(
+      "agents-coverage current covers the managed block and the skill file only, not plugin enablement",
+    );
   });
 
   test(`${runtime}: --update-instructions RUNS the update for an installed plugin`, async () => {

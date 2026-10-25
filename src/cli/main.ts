@@ -19,6 +19,7 @@ import {
   type AgentPluginCheck,
   type AgentRuntime,
   detectQuestPlugin,
+  questPluginId,
   runtimeForTarget,
   updateQuestPlugin,
 } from "../application/agents/agent-plugins.ts";
@@ -318,6 +319,38 @@ function renderScopeFooter(scope: ListingScope): string {
  */
 function renderRefFooter(ref: TaskRefProvenance): string {
   return `\nRead at ${ref.ref} (commit ${ref.sha}).\n`;
+}
+
+/**
+ * The human and `--plain` sentences DEC-238 (a6) fixes (QCLI-532). They are
+ * printed as their own records and never appear in `--json`, which carries the
+ * structure instead (`plugin.override` names the settings file and its scope).
+ * The bytes are lore-cli's (LCLI-765) with the plugin id swapped, so the same
+ * statement reads identically from both CLIs.
+ *
+ * The reachability line is deliberately absent: it fires in lore only when
+ * skill_source is "plugin" and no per-repo skill exists, and quest has no
+ * skill-source concept at all -- its guidance reaches agents through the
+ * managed CLAUDE.md block. Its quest wording is an open question for
+ * opum-doc, not something this CLI invents.
+ */
+function renderAgentCheckLines(data: {
+  readonly state?: string;
+  readonly plugin?: AgentPluginCheck;
+}): string {
+  const plugin = data.plugin;
+  if (plugin === undefined) return "";
+  const lines: string[] = [];
+  const override = plugin.override;
+  if (override !== undefined)
+    lines.push(
+      `plugin-claude-override ${override.file} (${override.scope} scope) sets ${questPluginId} to disabled, and wins over the user-scope row`,
+    );
+  if (data.state !== undefined)
+    lines.push(
+      `agents-coverage ${data.state} covers the managed block and the skill file only, not plugin enablement`,
+    );
+  return lines.map((line) => `${line}\n`).join("");
 }
 
 /**
@@ -2063,8 +2096,8 @@ export async function runQuest(
                 'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
                 'The skill file is target-independent and governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
-              stateScope:
-                'data.state reports the managed instructions block in the target file only (CLAUDE.md for --target claude, AGENTS.md by default, GEMINI.md for antigravity). It is not a statement about plugin enablement: data.plugin carries that separately, and a disabled or missing plugin never changes data.state or the exit code (QCLI-531, DEC-238 (a4)). data.stateScope names this limit as "managed-block" so a machine reader can carry it.',
+              coverage:
+                "Two lines in the human and --plain output only, never in --json, and only on a run that reports plugin state. `agents-coverage <state> covers the managed block and the skill file only, not plugin enablement` states what the state verdict is about. `plugin-claude-override <file> (<scope> scope) sets opum-quest@opum to disabled, and wins over the user-scope row` names the project settings file that overrides the plugin; the remedy then names that file scope, not the install scope the listing reports (DEC-238 (a6), QCLI-532).",
             }
           : {}),
       };
@@ -2427,22 +2460,23 @@ export async function runQuest(
                 runtime,
                 targetValue !== undefined,
               );
+      // DEC-238 (a6), QCLI-532: `state` answers for the managed instructions
+      // block alone. The human and --plain views say so in the shared
+      // `agents-coverage` sentence rather than a JSON field, and the override
+      // sentence uses the same bytes lore-cli emits for opum-lore with only
+      // the plugin id swapped. `--json` carries the structure instead:
+      // `plugin.override` names the settings file and its scope.
+      const data = { ...instructionsResult, skill: skillResult, plugin };
       return output(
         {
           schemaVersion: 1,
           kind: "agent.instructions-status",
-          // QCLI-531 (DEC-238 (a4), RULED A): `state` answers for the managed
-          // instructions block alone. Say so in the payload itself, because a
-          // disabled opum-quest plugin leaves `state: current` untouched and
-          // the CLI never reports enablement through `state` or the exit code.
-          data: {
-            ...instructionsResult,
-            stateScope: "managed-block",
-            skill: skillResult,
-            plugin,
-          },
+          data,
         },
         modeFor(parsed),
+        [],
+        {},
+        () => `${renderHumanPayload(data)}${renderAgentCheckLines(data)}`,
       );
     }
     if (arguments_[0] === "completion" && arguments_[1] === "bash") {
