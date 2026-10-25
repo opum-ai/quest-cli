@@ -1,11 +1,12 @@
-import { realpathSync } from "node:fs";
-import { sep } from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
+import { join, sep } from "node:path";
 import {
   printable,
   questPluginUpdateSteps,
 } from "../../domain/agent-plugins.ts";
 import type {
   AgentPluginListing,
+  AgentPluginOverride,
   AgentPluginPort,
   AgentPluginUpdateOutcome,
   AgentRuntime,
@@ -260,6 +261,40 @@ function decodeCodex(
   return listed;
 }
 
+/**
+ * The Claude settings files that can disable a plugin for this checkout, in
+ * Claude's own precedence below managed: local beats project. Read directly,
+ * because `claude plugin list --json` reports the row's install scope rather
+ * than the file that overrides it (DEC-238 (a6) Q1, RULED A; the printed
+ * `--scope user` remedy fails "already enabled at user scope" under a local
+ * override).
+ */
+const claudeOverrideFiles = [
+  { file: ".claude/settings.local.json", scope: "local" },
+  { file: ".claude/settings.json", scope: "project" },
+] as const;
+
+/** Where a project settings file disables `id`, or undefined. A missing or
+ * unreadable file is not an override: only an explicit `false` counts. */
+function readClaudeOverride(
+  root: string,
+  id: string,
+): AgentPluginOverride | undefined {
+  for (const candidate of claudeOverrideFiles) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(join(root, candidate.file), "utf8"));
+    } catch {
+      continue;
+    }
+    if (!isRecord(parsed)) continue;
+    const enabled = parsed.enabledPlugins;
+    if (isRecord(enabled) && enabled[id] === false)
+      return { file: candidate.file, scope: candidate.scope };
+  }
+  return undefined;
+}
+
 /** Reaches each runtime only through its public CLI, never its internal
  * files (ADR ruling (d): lore and quest detect the same way). */
 export class CliAgentPluginPort implements AgentPluginPort {
@@ -303,7 +338,16 @@ export class CliAgentPluginPort implements AgentPluginPort {
           kind: "unavailable",
           reason: `${runtime} plugin list --json returned an unrecognised shape.`,
         }
-      : { kind: "listed", plugins };
+      : {
+          kind: "listed",
+          plugins:
+            runtime === "claude"
+              ? plugins.map((plugin) => {
+                  const override = readClaudeOverride(this.root, plugin.id);
+                  return override ? { ...plugin, override } : plugin;
+                })
+              : plugins,
+        };
   }
 
   /**

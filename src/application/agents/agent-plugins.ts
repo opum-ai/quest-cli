@@ -1,4 +1,5 @@
 import type {
+  AgentPluginOverride,
   AgentPluginPort,
   AgentPluginUpdateOutcome,
   AgentRuntime,
@@ -40,6 +41,12 @@ export interface AgentPluginCheck {
   readonly version?: string;
   /** The install scope that decided the state, where the runtime has one. */
   readonly scope?: string;
+  /**
+   * The project settings file that disables this plugin, where one does
+   * (DEC-238 (a6), QCLI-531). Absent means no project file sets it, so the
+   * runtime's own deciding scope is the one to name.
+   */
+  readonly override?: AgentPluginOverride;
   /** Why the state is not-detectable. */
   readonly reason?: string;
   /** What to run next, printed and never executed by init or --check. */
@@ -174,6 +181,7 @@ function remedyFor(
   runtime: AgentRuntime,
   state: AgentPluginState,
   scope?: string,
+  override?: AgentPluginOverride,
 ): string | undefined {
   const cli = runtime === "claude" ? "claude" : "codex";
   if (state === "not-installed")
@@ -187,21 +195,27 @@ function remedyFor(
     claudeScopeManaged(runtime, scope)
   )
     return managedScopeRemedy;
+  // DEC-238 (a6) Q1, RULED A: a command must name the scope where the
+  // OVERRIDE lives, not the row's install scope the listing reports. A local
+  // override beside a user row lists as `user`, and an enable with that scope
+  // fails "already enabled at user scope".
+  const commandScope = override?.scope ?? scope;
   // An unscoped `claude plugin enable`/`update` would act at Claude's default
   // scope, which may not be the row this state came from (ruling 26 iii), so
   // no command is offered at all.
   if (
     (state === "disabled" || state === "installed") &&
-    claudeScopeUnnamable(runtime, scope)
+    claudeScopeUnnamable(runtime, commandScope)
   )
     return unnamableScopeRemedy;
   if (state === "disabled")
     // Codex has no enable command (codex-cli 0.155.1); enablement is this
     // config key, which is what its own list command reads.
     return runtime === "claude"
-      ? `${cli} plugin enable ${questPluginId}${scopeFlag(scope)}`
+      ? `${cli} plugin enable ${questPluginId}${scopeFlag(commandScope)}`
       : `set enabled = true under [plugins."${questPluginId}"] in $CODEX_HOME/config.toml (default ~/.codex/config.toml)`;
-  if (state === "installed") return questPluginUpdateCommand(runtime, scope);
+  if (state === "installed")
+    return questPluginUpdateCommand(runtime, commandScope);
   return undefined;
 }
 
@@ -229,13 +243,15 @@ export async function detectQuestPlugin(
   const version =
     row?.version !== undefined ? printable(row.version) : undefined;
   const scope = row?.scope !== undefined ? printable(row.scope) : undefined;
-  const remedy = remedyFor(runtime, state, scope);
+  const override = row?.override;
+  const remedy = remedyFor(runtime, state, scope, override);
   return {
     runtime,
     id: questPluginId,
     state,
     ...(version ? { version } : {}),
     ...(scope ? { scope } : {}),
+    ...(override ? { override } : {}),
     ...(remedy !== undefined ? { remedy } : {}),
   };
 }
@@ -267,16 +283,17 @@ export async function updateQuestPlugin(
       updateDetail: notRunDetail(detected, runtimeNamed),
     };
   // Ruling 26 (iii): an update names its deciding scope and never updates a
-  // row the reported state did not come from. A scope that cannot be put into
-  // a command cannot be named, so nothing runs, and the remedy is already
-  // prose rather than an unscoped command (see remedyFor).
-  if (claudeScopeUnnamable(runtime, detected.scope))
+  // row the reported state did not come from. DEC-238 (a6): when a project
+  // settings file overrides the row, that file's own scope is the one the
+  // command must name, or the update acts on a different row.
+  const decidingScope = detected.override?.scope ?? detected.scope;
+  if (claudeScopeUnnamable(runtime, decidingScope))
     return {
       ...detected,
       update: "not-run",
       updateDetail: "the deciding scope could not be named in a command",
     };
-  const outcome = await port.update(runtime, plainScope(detected.scope));
+  const outcome = await port.update(runtime, plainScope(decidingScope));
   const { remedy: _remedy, ...rest } = detected;
   const detail = printable(outcome.detail);
   return {
@@ -288,6 +305,6 @@ export async function updateQuestPlugin(
     // A failed update keeps its command visible so it can be run by hand.
     ...(outcome.ok
       ? {}
-      : { remedy: questPluginUpdateCommand(runtime, detected.scope) }),
+      : { remedy: questPluginUpdateCommand(runtime, decidingScope) }),
   };
 }

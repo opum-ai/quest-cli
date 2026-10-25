@@ -119,6 +119,84 @@ async function calls(): Promise<string[]> {
   }
 }
 
+test("claude: a local settings override is named, and the remedy targets that file's scope", async () => {
+  // DEC-238 (a6) Q1 RULED A. The listing reports the user-scope row, so a
+  // remedy built from it prints `--scope user`, which fails "already enabled
+  // at user scope" while .claude/settings.local.json disables the plugin.
+  await fake("claude", { listing: claudeRow(false) });
+  await mkdir(join(root, ".claude"), { recursive: true });
+  await writeFile(
+    join(root, ".claude/settings.local.json"),
+    JSON.stringify({ enabledPlugins: { "opum-quest@opum": false } }),
+  );
+  const result = await quest(
+    "agents",
+    "--check",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(result.exitCode).toBe(0);
+  expect(result.json.data.plugin.override).toEqual({
+    file: ".claude/settings.local.json",
+    scope: "local",
+  });
+  expect(result.json.data.plugin.remedy).toContain("--scope local");
+  expect(result.json.data.plugin.remedy).not.toContain("--scope user");
+  // The listing's own row scope is still reported as the runtime gave it.
+  expect(result.json.data.plugin.scope).toBe("user");
+});
+
+test("claude: a project settings override names --scope project, and local wins over it", async () => {
+  await fake("claude", { listing: claudeRow(false) });
+  await mkdir(join(root, ".claude"), { recursive: true });
+  await writeFile(
+    join(root, ".claude/settings.json"),
+    JSON.stringify({ enabledPlugins: { "opum-quest@opum": false } }),
+  );
+  const project = await quest(
+    "agents",
+    "--check",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(project.json.data.plugin.override).toEqual({
+    file: ".claude/settings.json",
+    scope: "project",
+  });
+  expect(project.json.data.plugin.remedy).toContain("--scope project");
+  await writeFile(
+    join(root, ".claude/settings.local.json"),
+    JSON.stringify({ enabledPlugins: { "opum-quest@opum": false } }),
+  );
+  const both = await quest("agents", "--check", "--target", "claude", "--json");
+  expect(both.json.data.plugin.override).toEqual({
+    file: ".claude/settings.local.json",
+    scope: "local",
+  });
+  expect(both.json.data.plugin.remedy).toContain("--scope local");
+});
+
+test("codex: no project settings override is read, and the codex remedy is unchanged", async () => {
+  await fake("codex", { listing: codexRow(false) });
+  await mkdir(join(root, ".claude"), { recursive: true });
+  await writeFile(
+    join(root, ".claude/settings.local.json"),
+    JSON.stringify({ enabledPlugins: { "opum-quest@opum": false } }),
+  );
+  const result = await quest(
+    "agents",
+    "--check",
+    "--target",
+    "codex",
+    "--json",
+  );
+  expect(result.exitCode).toBe(0);
+  expect(result.json.data.plugin.override).toBeUndefined();
+  expect(result.json.data.plugin.remedy).toContain("$CODEX_HOME/config.toml");
+});
+
 for (const runtime of ["claude", "codex"] as const) {
   const row = runtime === "claude" ? claudeRow : codexRow;
 
