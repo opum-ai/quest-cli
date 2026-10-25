@@ -195,11 +195,11 @@ function remedyFor(
     claudeScopeManaged(runtime, scope)
   )
     return managedScopeRemedy;
-  // DEC-238 (a6) Q1, RULED A: a command must name the scope where the
-  // OVERRIDE lives, not the row's install scope the listing reports. A local
-  // override beside a user row lists as `user`, and an enable with that scope
-  // fails "already enabled at user scope".
-  const commandScope = override?.scope ?? scope;
+  // DEC-238 (a6) Q1 / (a9) 7: an override only exists on a disabled row, and
+  // its remedy always names `--scope local`: the listing's install scope
+  // fails "already enabled at user scope", and for a committed project file
+  // local is the machine-only scope that outranks it.
+  const commandScope = override === undefined ? scope : "local";
   // An unscoped `claude plugin enable`/`update` would act at Claude's default
   // scope, which may not be the row this state came from (ruling 26 iii), so
   // no command is offered at all.
@@ -214,8 +214,7 @@ function remedyFor(
     return runtime === "claude"
       ? `${cli} plugin enable ${questPluginId}${scopeFlag(commandScope)}`
       : `set enabled = true under [plugins."${questPluginId}"] in $CODEX_HOME/config.toml (default ~/.codex/config.toml)`;
-  if (state === "installed")
-    return questPluginUpdateCommand(runtime, commandScope);
+  if (state === "installed") return questPluginUpdateCommand(runtime, scope);
   return undefined;
 }
 
@@ -243,7 +242,13 @@ export async function detectQuestPlugin(
   const version =
     row?.version !== undefined ? printable(row.version) : undefined;
   const scope = row?.scope !== undefined ? printable(row.scope) : undefined;
-  const override = row?.override;
+  // Only a disabled, non-managed row carries an override (finding 1(b)): on
+  // any other state the file is not what decided the reported state, and the
+  // update path must never act on it.
+  const override =
+    state === "disabled" && !claudeScopeManaged(runtime, scope)
+      ? row?.override
+      : undefined;
   const remedy = remedyFor(runtime, state, scope, override);
   return {
     runtime,
@@ -283,17 +288,16 @@ export async function updateQuestPlugin(
       updateDetail: notRunDetail(detected, runtimeNamed),
     };
   // Ruling 26 (iii): an update names its deciding scope and never updates a
-  // row the reported state did not come from. DEC-238 (a6): when a project
-  // settings file overrides the row, that file's own scope is the one the
-  // command must name, or the update acts on a different row.
-  const decidingScope = detected.override?.scope ?? detected.scope;
-  if (claudeScopeUnnamable(runtime, decidingScope))
+  // row the reported state did not come from. No settings override reaches
+  // here: it is attached to disabled rows only, which never update, and
+  // nothing on this path writes a settings file (DEC-238 (a9)).
+  if (claudeScopeUnnamable(runtime, detected.scope))
     return {
       ...detected,
       update: "not-run",
       updateDetail: "the deciding scope could not be named in a command",
     };
-  const outcome = await port.update(runtime, plainScope(decidingScope));
+  const outcome = await port.update(runtime, plainScope(detected.scope));
   const { remedy: _remedy, ...rest } = detected;
   const detail = printable(outcome.detail);
   return {
@@ -305,6 +309,6 @@ export async function updateQuestPlugin(
     // A failed update keeps its command visible so it can be run by hand.
     ...(outcome.ok
       ? {}
-      : { remedy: questPluginUpdateCommand(runtime, decidingScope) }),
+      : { remedy: questPluginUpdateCommand(runtime, detected.scope) }),
   };
 }

@@ -1,4 +1,4 @@
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync, statSync } from "node:fs";
 import { join, sep } from "node:path";
 import {
   printable,
@@ -274,8 +274,11 @@ const claudeOverrideFiles = [
   { file: ".claude/settings.json", scope: "project" },
 ] as const;
 
-/** Where a project settings file disables `id`, or undefined. A missing or
- * unreadable file is not an override: only an explicit `false` counts. */
+/** Where a project settings file disables `id`, or undefined. The first file
+ * (local before project) that sets the key to ANY boolean decides, as in
+ * Claude's own precedence, so an explicit `true` in local stops the search
+ * and is no override. A missing, unreadable, non-regular or oversized file
+ * sets nothing. */
 function readClaudeOverride(
   root: string,
   id: string,
@@ -283,20 +286,28 @@ function readClaudeOverride(
   for (const candidate of claudeOverrideFiles) {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(readFileSync(join(root, candidate.file), "utf8"));
+      const path = join(root, candidate.file);
+      const stat = statSync(path);
+      if (!stat.isFile() || stat.size > maxPluginOutputBytes) continue;
+      parsed = JSON.parse(readFileSync(path, "utf8"));
     } catch {
       continue;
     }
     if (!isRecord(parsed)) continue;
     const enabled = parsed.enabledPlugins;
-    if (isRecord(enabled) && enabled[id] === false)
-      return { file: candidate.file, scope: candidate.scope };
+    if (!isRecord(enabled) || typeof enabled[id] !== "boolean") continue;
+    return enabled[id] === false
+      ? { file: candidate.file, scope: candidate.scope }
+      : undefined;
   }
   return undefined;
 }
 
-/** Reaches each runtime only through its public CLI, never its internal
- * files (ADR ruling (d): lore and quest detect the same way). */
+/** Reaches each runtime through its public CLI, never its internal files
+ * (ADR ruling (d): lore and quest detect the same way). The one exception is
+ * Claude's project settings files, read by readClaudeOverride for the file
+ * that disables a plugin, which the listing does not report (DEC-238 (a6)
+ * Q1, RULED A). Nothing here writes a settings file. */
 export class CliAgentPluginPort implements AgentPluginPort {
   constructor(
     private readonly root: string,

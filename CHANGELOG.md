@@ -35,6 +35,22 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **`quest agents --check` names the settings file that disables the
+  `opum-quest` Claude plugin, and never writes one** (QCLI-531 / QCLI-532,
+  DEC-238 (a6), (a9)). `--json` carries `plugin.override` (`file`, `scope`)
+  only on a disabled, non-managed row, decided by the first of
+  `.claude/settings.local.json` then `.claude/settings.json` that sets the
+  key to a boolean; an explicit `true` in a higher file is no override. The
+  human and `--plain` forms print `plugin-claude-override <file> (<scope>
+  scope) sets opum-quest@opum to disabled, and is the effective setting in
+  this checkout` before the dump (a committed project file adds `, and the
+  project file disables it for every collaborator`), and `agents-coverage
+  <state> covers the managed block and the skill file only, not plugin
+  enablement` after it. The remedy for an override is
+  `claude plugin enable opum-quest@opum --scope local`, printed and never run:
+  `--update-instructions` stays report-only for anything that writes settings.
+  `data.stateScope`, which never reached a release, is gone.
+
 - **Two worktrees of one repository no longer mint the same id** (QCLI-495,
   DEC-179 part 1). Allocation was refs-aware only, so two sessions that each
   created a record before committing both took N+1, and the merge was an add/add

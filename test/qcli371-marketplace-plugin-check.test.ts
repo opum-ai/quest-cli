@@ -119,16 +119,23 @@ async function calls(): Promise<string[]> {
   }
 }
 
-test("claude: a local settings override is named, and the remedy targets that file's scope", async () => {
+const overrideLine = (file: string, scope: string, tail = "") =>
+  `plugin-claude-override ${file} (${scope} scope) sets opum-quest@opum to disabled, and is the effective setting in this checkout${tail}`;
+
+async function settings(file: string, enabled: boolean) {
+  await mkdir(join(root, ".claude"), { recursive: true });
+  await writeFile(
+    join(root, ".claude", file),
+    JSON.stringify({ enabledPlugins: { "opum-quest@opum": enabled } }),
+  );
+}
+
+test("claude: a local settings override is named, and the remedy is --scope local", async () => {
   // DEC-238 (a6) Q1 RULED A. The listing reports the user-scope row, so a
   // remedy built from it prints `--scope user`, which fails "already enabled
   // at user scope" while .claude/settings.local.json disables the plugin.
   await fake("claude", { listing: claudeRow(false) });
-  await mkdir(join(root, ".claude"), { recursive: true });
-  await writeFile(
-    join(root, ".claude/settings.local.json"),
-    JSON.stringify({ enabledPlugins: { "opum-quest@opum": false } }),
-  );
+  await settings("settings.local.json", false);
   const result = await quest(
     "agents",
     "--check",
@@ -145,21 +152,32 @@ test("claude: a local settings override is named, and the remedy targets that fi
   expect(result.json.data.plugin.remedy).not.toContain("--scope user");
   // The listing's own row scope is still reported as the runtime gave it.
   expect(result.json.data.plugin.scope).toBe("user");
-  // DEC-238 (a6): the sentence is its own record in the human view, with
-  // lore-cli's bytes and only the plugin id swapped.
+  // --json carries the structure, not the sentences.
+  expect(result.stdout).not.toContain("plugin-claude-override");
+  expect(result.stdout).not.toContain("agents-coverage");
   const human = await quest("agents", "--check", "--target", "claude");
   expect(human.stdout).toContain(
-    "plugin-claude-override .claude/settings.local.json (local scope) sets opum-quest@opum to disabled, and wins over the user-scope row",
+    overrideLine(".claude/settings.local.json", "local"),
   );
+  expect(human.stdout).not.toContain("wins over");
+  expect(human.stdout).not.toContain("collaborator");
+  // (a9) 5: the override line comes before the remedy, in both forms.
+  for (const out of [
+    human.stdout,
+    (await quest("agents", "--check", "--target", "claude", "--plain")).stdout,
+  ]) {
+    expect(out).toContain(overrideLine(".claude/settings.local.json", "local"));
+    expect(out.indexOf("plugin-claude-override")).toBeLessThan(
+      out.indexOf("claude plugin enable"),
+    );
+  }
 });
 
-test("claude: a project settings override names --scope project, and local wins over it", async () => {
+test("claude: a committed project override gets the local remedy and the collaborator clause", async () => {
+  // DEC-238 (a9) 7: the project file disables it for every collaborator, and
+  // the machine-only way past it is --scope local, never --scope project.
   await fake("claude", { listing: claudeRow(false) });
-  await mkdir(join(root, ".claude"), { recursive: true });
-  await writeFile(
-    join(root, ".claude/settings.json"),
-    JSON.stringify({ enabledPlugins: { "opum-quest@opum": false } }),
-  );
+  await settings("settings.json", false);
   const project = await quest(
     "agents",
     "--check",
@@ -171,17 +189,126 @@ test("claude: a project settings override names --scope project, and local wins 
     file: ".claude/settings.json",
     scope: "project",
   });
-  expect(project.json.data.plugin.remedy).toContain("--scope project");
-  await writeFile(
-    join(root, ".claude/settings.local.json"),
-    JSON.stringify({ enabledPlugins: { "opum-quest@opum": false } }),
+  expect(project.json.data.plugin.remedy).toBe(
+    "claude plugin enable opum-quest@opum --scope local",
   );
+  const human = await quest("agents", "--check", "--target", "claude");
+  expect(human.stdout).toContain(
+    overrideLine(
+      ".claude/settings.json",
+      "project",
+      ", and the project file disables it for every collaborator",
+    ),
+  );
+  await settings("settings.local.json", false);
   const both = await quest("agents", "--check", "--target", "claude", "--json");
   expect(both.json.data.plugin.override).toEqual({
     file: ".claude/settings.local.json",
     scope: "local",
   });
-  expect(both.json.data.plugin.remedy).toContain("--scope local");
+});
+
+test("claude: an explicit local true beats a project false, so there is no override", async () => {
+  // Opus finding 1(a): Claude's precedence is local over project, so the
+  // plugin is enabled and the project file is not the deciding one.
+  await fake("claude", { listing: claudeRow(false) });
+  await settings("settings.local.json", true);
+  await settings("settings.json", false);
+  const result = await quest(
+    "agents",
+    "--check",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(result.json.data.plugin.override).toBeUndefined();
+  expect(result.json.data.plugin.remedy).toBe(
+    "claude plugin enable opum-quest@opum --scope user",
+  );
+  const human = await quest("agents", "--check", "--target", "claude");
+  expect(human.stdout).not.toContain("plugin-claude-override");
+});
+
+test("claude: an installed row ignores a file disable, and the update runs at the row scope", async () => {
+  // Opus finding 1(b): the override is gated on state. An installed row with
+  // a project false must not reach `--scope project`, nor print the sentence.
+  await fake("claude", { listing: claudeRow(true) });
+  await settings("settings.json", false);
+  const check = await quest(
+    "agents",
+    "--check",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(check.json.data.plugin.state).toBe("installed");
+  expect(check.json.data.plugin.override).toBeUndefined();
+  expect(check.json.data.plugin.remedy).toContain("--scope user");
+  const human = await quest("agents", "--check", "--target", "claude");
+  expect(human.stdout).not.toContain("plugin-claude-override");
+  const update = await quest(
+    "agents",
+    "--update-instructions",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(update.exitCode).toBe(0);
+  const ran = await calls();
+  expect(ran).toContain("claude plugin update opum-quest@opum --scope user");
+  expect(ran.filter((call) => call.includes("--scope project"))).toEqual([]);
+  expect(ran.filter((call) => call.includes("plugin enable"))).toEqual([]);
+});
+
+test("claude: a managed row with a local file disable keeps the managed remedy and no override", async () => {
+  await fake("claude", {
+    listing: JSON.stringify([
+      {
+        id: "opum-quest@opum",
+        version: "0.9.9",
+        enabled: false,
+        scope: "managed",
+      },
+    ]),
+  });
+  await settings("settings.local.json", false);
+  const result = await quest(
+    "agents",
+    "--check",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(result.json.data.plugin.override).toBeUndefined();
+  expect(result.json.data.plugin.remedy).toContain("administrator");
+});
+
+test("claude: with no settings file there is no override in --json, --plain or the human view", async () => {
+  await fake("claude", { listing: claudeRow(false) });
+  const json = await quest("agents", "--check", "--target", "claude", "--json");
+  expect(json.json.data.plugin.override).toBeUndefined();
+  expect(json.stdout).not.toContain("plugin-claude-override");
+  for (const form of [[], ["--plain"]]) {
+    const out = await quest("agents", "--check", "--target", "claude", ...form);
+    expect(out.stdout).not.toContain("plugin-claude-override");
+    expect(out.stdout).toContain("agents-coverage ");
+  }
+});
+
+test("claude: a non-regular settings file is not read", async () => {
+  // Opus finding 3: a directory (or symlink to a device) at the settings path
+  // is skipped rather than read.
+  await fake("claude", { listing: claudeRow(false) });
+  await mkdir(join(root, ".claude/settings.local.json"), { recursive: true });
+  const result = await quest(
+    "agents",
+    "--check",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(result.exitCode).toBe(0);
+  expect(result.json.data.plugin.override).toBeUndefined();
 });
 
 test("codex: no project settings override is read, and the codex remedy is unchanged", async () => {
@@ -254,7 +381,7 @@ for (const runtime of ["claude", "codex"] as const) {
   });
 
   test(`${runtime}: the coverage sentence states what the state verdict covers`, async () => {
-    // DEC-238 (a6), QCLI-532: the sentence is lore-cli's (LCLI-765) with this
+    // DEC-238 (a6), QCLI-532: the sentence is shared with lore-cli (LCLI-765) with this
     // CLI's own verdict word, printed as its own record in human/--plain only.
     // A disabled plugin changes neither `state` nor the exit code.
     await fake(runtime, { listing: row(false) });
