@@ -24,6 +24,3 @@
 # fleet's separately governed cleanup decision.
 [tracker]
 backend = "quest"
-
-[agents]
-skill_source = "plugin"
