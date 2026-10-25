@@ -2063,6 +2063,8 @@ export async function runQuest(
                 'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
                 'The skill file is target-independent and governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
+              stateScope:
+                'data.state reports the managed instructions block in the target file only (CLAUDE.md for --target claude, AGENTS.md by default, GEMINI.md for antigravity). It is not a statement about plugin enablement: data.plugin carries that separately, and a disabled or missing plugin never changes data.state or the exit code (QCLI-531, DEC-238 (a4)). data.stateScope names this limit as "managed-block" so a machine reader can carry it.',
             }
           : {}),
       };
@@ -2429,7 +2431,16 @@ export async function runQuest(
         {
           schemaVersion: 1,
           kind: "agent.instructions-status",
-          data: { ...instructionsResult, skill: skillResult, plugin },
+          // QCLI-531 (DEC-238 (a4), RULED A): `state` answers for the managed
+          // instructions block alone. Say so in the payload itself, because a
+          // disabled opum-quest plugin leaves `state: current` untouched and
+          // the CLI never reports enablement through `state` or the exit code.
+          data: {
+            ...instructionsResult,
+            stateScope: "managed-block",
+            skill: skillResult,
+            plugin,
+          },
         },
         modeFor(parsed),
       );
