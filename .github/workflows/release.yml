@@ -65,6 +65,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: 24
@@ -133,11 +135,13 @@ jobs:
       - name: Gate on the opum-cli-e2e qualification receipt
         env:
           GH_TOKEN: ${{ secrets.E2E_RECEIPT_READ_TOKEN || secrets.GITHUB_TOKEN }}
+          # DEC-240 (4): a step output reaches the shell through env:.
+          QUALIFICATION_RUN_ID: ${{ steps.qualification.outputs.run_id }}
         run: |
           set -euo pipefail
           node scripts/qualification/e2e-receipt.mjs --require \
             --bundle candidate \
-            --run-id "${{ steps.qualification.outputs.run_id }}" \
+            --run-id "$QUALIFICATION_RUN_ID" \
             --commit "${GITHUB_SHA}" \
             --version "$(node -p "require('./package.json').version")"
 

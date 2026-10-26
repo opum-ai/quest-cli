@@ -54,7 +54,7 @@ const defaultRun = (command, args, options = {}) =>
 export function readPin(workflowText) {
   const pins = [
     ...workflowText.matchAll(
-      /npm install -g @opum-ai\/lore@([0-9A-Za-z.+-]+)\b/g,
+      /npm install -g (?:--ignore-scripts )?@opum-ai\/lore@([0-9A-Za-z.+-]+)\b/g,
     ),
   ].map((match) => match[1]);
   if (pins.length !== 1)

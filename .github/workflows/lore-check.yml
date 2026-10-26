@@ -148,6 +148,8 @@ jobs:
       LORE_SOURCE_REF: bbe15535d850d8830ced18f1fb14b1b47fe19df3
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
@@ -195,7 +197,7 @@ jobs:
         id: lore
         run: |
           set -euo pipefail
-          if npm install -g @opum-ai/lore@0.14.1; then
+          if npm install -g --ignore-scripts @opum-ai/lore@0.14.1; then
             echo "method=npm" >> "$GITHUB_OUTPUT"
             echo "::notice::lore 0.14.1 installed from npm, exactly as before DEC-169"
           else
@@ -240,6 +242,10 @@ jobs:
           echo "$bin" >> "$GITHUB_PATH"
 
       - name: lore on PATH reports this checkout's pair version
+        # DEC-240 (4): the step output reaches the shell through env:, never
+        # interpolated as an expression inside run:.
+        env:
+          LORE_METHOD: ${{ steps.lore.outputs.method }}
         run: |
           set -euo pipefail
           declared="$(node -p "require('./package.json').version")"
@@ -248,7 +254,7 @@ jobs:
             echo "::error::the lore on PATH reports $reported but this checkout's package.json is $declared. The pair rule requires them equal; a mismatch means the source ref and the declaration have drifted apart, named HERE as a ref problem rather than later as a pair-lock refusal that reads like a lore defect."
             exit 1
           fi
-          if [ "${{ steps.lore.outputs.method }}" = "source" ]; then
+          if [ "$LORE_METHOD" = "source" ]; then
             resolved="$(command -v lore)"
             expected="$RUNNER_TEMP/lore-bin/lore"
             if [ "$resolved" != "$expected" ]; then

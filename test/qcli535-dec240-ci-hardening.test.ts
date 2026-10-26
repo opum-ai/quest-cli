@@ -1,0 +1,255 @@
+import { expect, test } from "bun:test";
+import {
+  mkdtemp,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+/**
+ * QCLI-535, DEC-240 (opum-doc, 2026-10-25): the CI-hardening rules this
+ * repository's workflows must keep. Each rule has the scan that holds the
+ * workflows to it and, where a behaviour is claimed, the proof run BOTH ways:
+ * the hardened form succeeds and the unhardened control does not.
+ */
+
+const REPO = join(import.meta.dir, "..");
+const WORKFLOWS = join(REPO, ".github/workflows");
+const reader = join(REPO, "scripts/read-declared-quest-version.mjs");
+
+async function workflows(): Promise<{ name: string; lines: string[] }[]> {
+  const names = (await readdir(WORKFLOWS)).filter((n) => n.endsWith(".yml"));
+  expect(names.length).toBeGreaterThan(0);
+  return Promise.all(
+    names.map(async (name) => ({
+      name,
+      lines: (await readFile(join(WORKFLOWS, name), "utf8")).split("\n"),
+    })),
+  );
+}
+
+async function spawn(cmd: string[], cwd?: string) {
+  const child = Bun.spawn(cmd, { cwd, stdout: "pipe", stderr: "pipe" });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  return { stdout, stderr, exitCode };
+}
+
+test("DEC-240 (2): every actions/checkout step sets persist-credentials: false", async () => {
+  let checkouts = 0;
+  for (const { name, lines } of await workflows()) {
+    lines.forEach((line, index) => {
+      const step = /^(\s*)- uses: actions\/checkout@/.exec(line);
+      if (!step) return;
+      checkouts += 1;
+      // The step's own keys: every following line indented deeper than `- `,
+      // up to the next step or dedent.
+      const body: string[] = [];
+      for (const next of lines.slice(index + 1)) {
+        if (next.trim() === "") continue;
+        const indent = next.length - next.trimStart().length;
+        if (indent <= (step[1] ?? "").length) break;
+        body.push(next.trim());
+      }
+      expect(
+        body.includes("persist-credentials: false"),
+        `${name}:${index + 1} actions/checkout must set persist-credentials: false (no job here pushes with the token)`,
+      ).toBe(true);
+    });
+  }
+  // A positive control: the scan read the checkouts it claims to cover.
+  expect(checkouts).toBeGreaterThanOrEqual(9);
+});
+
+test("DEC-240 (4): no step output is interpolated inside a run: body", async () => {
+  let outputs = 0;
+  for (const { name, lines } of await workflows()) {
+    lines.forEach((line, index) => {
+      if (!/\$\{\{[^}]*\bsteps\./.test(line)) return;
+      outputs += 1;
+      // A `key: ${{ ... }}` line (env:, with:, if:) is the sanctioned form;
+      // `run:` is not a key whose value may carry an expression.
+      const key = /^\s*(?:- )?([A-Za-z_][\w-]*):\s/.exec(line);
+      expect(
+        key !== null && key[1] !== "run",
+        `${name}:${index + 1} interpolates a step output into a shell body: ${line.trim()}`,
+      ).toBe(true);
+    });
+  }
+  // The scan met the env:/with:/if: uses it permits, so it read real lines.
+  expect(outputs).toBeGreaterThan(0);
+});
+
+test("DEC-240 (1): every npm install of lore or quest passes --ignore-scripts", async () => {
+  let installs = 0;
+  for (const { name, lines } of await workflows()) {
+    lines.forEach((line, index) => {
+      if (!/npm install\b/.test(line) || !/@opum-ai\/(lore|quest)\b/.test(line))
+        return;
+      installs += 1;
+      expect(
+        line.includes("--ignore-scripts"),
+        `${name}:${index + 1} installs lore or quest without --ignore-scripts: ${line.trim()}`,
+      ).toBe(true);
+    });
+  }
+  expect(installs).toBeGreaterThanOrEqual(1);
+  const prepublish = await readFile(
+    join(REPO, "scripts/qualification/prepublish.mjs"),
+    "utf8",
+  );
+  expect(prepublish).toContain('"--ignore-scripts"');
+});
+
+test("DEC-240 (1): an install with a failing postinstall dependency succeeds only with --ignore-scripts", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "qcli535-npm-"));
+  try {
+    const dep = join(dir, "dep");
+    await mkdir(dep);
+    await writeFile(
+      join(dep, "package.json"),
+      JSON.stringify({
+        name: "dec240-failing-postinstall",
+        version: "1.0.0",
+        scripts: { postinstall: "exit 1" },
+      }),
+    );
+    // A directory dependency is symlinked and never runs its own lifecycle
+    // scripts, so the control would pass vacuously; a packed tarball is
+    // installed as a copy, which is how a registry dependency arrives.
+    const packed = await spawn(
+      ["npm", "pack", "--pack-destination", dir, dep],
+      dir,
+    );
+    expect(packed.exitCode).toBe(0);
+    const tarball = join(dir, packed.stdout.trim().split("\n").pop() ?? "");
+    const base = [
+      "npm",
+      "install",
+      "--no-audit",
+      "--no-fund",
+      "--offline",
+      "--package-lock=false",
+    ];
+    const hardened = join(dir, "hardened");
+    const control = join(dir, "control");
+    await mkdir(hardened);
+    await mkdir(control);
+    const ok = await spawn(
+      [...base, "--ignore-scripts", "--prefix", hardened, tarball],
+      dir,
+    );
+    expect(ok.exitCode).toBe(0);
+    // The control: the same install without the flag runs the script and
+    // fails, so the success above is the flag's doing and not a vacuous pass.
+    // npm 12 blocks dependency scripts by default (allowScripts) while npm 11,
+    // which a runner's Node 24 ships, runs them; the control asks for them
+    // explicitly so it means the same on both. The flag is an unknown config
+    // to npm 11, which warns and carries on.
+    const bad = await spawn(
+      [
+        ...base,
+        "--dangerously-allow-all-scripts",
+        "--prefix",
+        control,
+        tarball,
+      ],
+      dir,
+    );
+    expect(bad.exitCode).not.toBe(0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+const BEGIN = "<!-- quest:agent-instructions:begin -->";
+const END = "<!-- quest:agent-instructions:end -->";
+
+async function readVersion(inside: string, outside = "") {
+  const dir = await mkdtemp(join(tmpdir(), "qcli535-ver-"));
+  try {
+    const file = join(dir, "CLAUDE.md");
+    await writeFile(file, `${outside}\n${BEGIN}\n${inside}\n${END}\n`);
+    return await spawn(["node", reader, file]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+test("DEC-240 (3): the Quest version is read only inside the markers, and only an exact X.Y.Z", async () => {
+  const good = await readVersion(
+    "This project uses Quest CLI 0.14.1 for tracker operations. A guide for the Quest CLI version lives elsewhere.",
+    "Quest CLI 9.9.9 outside the block is never read.",
+  );
+  expect(good.exitCode).toBe(0);
+  expect(good.stdout).toBe("0.14.1\n");
+
+  for (const partial of [
+    "0.14",
+    "0",
+    "^0.14.1",
+    "~0.14.1",
+    "0.14.x",
+    "0.14.1-rc.1",
+    "v0.14.1",
+    "0.14.1.2",
+  ]) {
+    const result = await readVersion(
+      `This project uses Quest CLI ${partial} for tracker operations.`,
+    );
+    expect(result.exitCode, partial).toBe(1);
+    // Failed by name, printing nothing a later step could consume.
+    expect(result.stdout, partial).toBe("");
+    expect(result.stderr, partial).toContain("::error file=");
+    expect(result.stderr, partial).toContain("is not exactly X.Y.Z");
+    expect(result.stderr, partial).toContain(JSON.stringify(partial));
+  }
+});
+
+test("DEC-240 (3): a version outside the markers, or two inside, or none, is refused", async () => {
+  const outside = await readVersion(
+    "No version line here.",
+    "Quest CLI 0.14.1",
+  );
+  expect(outside.exitCode).toBe(1);
+  expect(outside.stdout).toBe("");
+  expect(outside.stderr).toContain("No 'Quest CLI <version>' line found");
+
+  const two = await readVersion("Quest CLI 0.14.1 and Quest CLI 0.15.0");
+  expect(two.exitCode).toBe(1);
+  expect(two.stderr).toContain("more than one Quest CLI version");
+
+  const dir = await mkdtemp(join(tmpdir(), "qcli535-nomark-"));
+  try {
+    const file = join(dir, "CLAUDE.md");
+    await writeFile(file, "Quest CLI 0.14.1\n");
+    const bare = await spawn(["node", reader, file]);
+    expect(bare.exitCode).toBe(1);
+    expect(bare.stderr).toContain("markers were not both found");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("DEC-240 (3): this repository's own CLAUDE.md reads, and the workflow uses the reader", async () => {
+  const own = await spawn(["node", reader, join(REPO, "CLAUDE.md")]);
+  expect(own.exitCode).toBe(0);
+  const packaged = JSON.parse(
+    await readFile(join(REPO, "package.json"), "utf8"),
+  ).version;
+  expect(own.stdout.trim()).toBe(packaged);
+  const tracker = await readFile(
+    join(WORKFLOWS, "tracker-integrity.yml"),
+    "utf8",
+  );
+  expect(tracker).toContain("scripts/read-declared-quest-version.mjs");
+  // The loose regex that accepted a prefix of a partial version is gone.
+  expect(tracker).not.toContain("[0-9][0-9.]*");
+});

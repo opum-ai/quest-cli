@@ -82,6 +82,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
@@ -90,12 +92,9 @@ jobs:
       - name: CLAUDE.md's declared Quest version matches this package
         run: |
           set -euo pipefail
-          declared="$(sed -n '/<!-- quest:agent-instructions:begin -->/,/<!-- quest:agent-instructions:end -->/p' CLAUDE.md \
-            | sed -n 's/.*Quest CLI \([0-9][0-9.]*\).*/\1/p' | head -1)"
-          if [ -z "$declared" ]; then
-            echo "::error file=CLAUDE.md::No 'Quest CLI <version>' line found in the managed block. Tracker integrity cannot be checked against an undeclared version."
-            exit 1
-          fi
+          # DEC-240 (3): read only inside the managed block's markers, and
+          # only an exact X.Y.Z; anything else fails by name in the script.
+          declared="$(node scripts/read-declared-quest-version.mjs CLAUDE.md)"
           packaged="$(node -p "require('./package.json').version")"
           if [ "$declared" != "$packaged" ]; then
             echo "::error file=CLAUDE.md::The managed block declares Quest CLI $declared but package.json is $packaged. Regenerate the block with 'quest agents --update-instructions --target claude'."
