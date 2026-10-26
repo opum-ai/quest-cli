@@ -54,7 +54,7 @@ const defaultRun = (command, args, options = {}) =>
 export function readPin(workflowText) {
   const pins = [
     ...workflowText.matchAll(
-      /npm install -g @opum-ai\/lore@([0-9A-Za-z.+-]+)\b/g,
+      /npm install -g (?:--ignore-scripts )?@opum-ai\/lore@([0-9A-Za-z.+-]+)\b/g,
     ),
   ].map((match) => match[1]);
   if (pins.length !== 1)
@@ -113,8 +113,11 @@ export async function exportSchemas(version, { run = defaultRun } = {}) {
     // Installed into its own prefix rather than run through npx, so the
     // fetch carries both registry pins like every other release-script npm
     // call (QCLI-400), and the version exported is exactly the one named.
+    // DEC-240 (1): this runs on a runner holding GH_TOKEN (issues: write), so
+    // no dependency of lore may execute a lifecycle script here.
     await run("npm", [
       "install",
+      "--ignore-scripts",
       "--prefix",
       tool,
       "--no-save",
