@@ -19,7 +19,16 @@ function fail(file, message) {
 }
 
 const file = process.argv[2] ?? "CLAUDE.md";
-const text = readFileSync(file, "utf8");
+let text;
+try {
+  text = readFileSync(file, "utf8");
+} catch (error) {
+  // A missing or unreadable file is a named failure, not an uncaught throw.
+  fail(
+    file,
+    `cannot read the file to find the Quest version: ${error.code ?? error.message}.`,
+  );
+}
 // Each marker exactly once: a missing, repeated or reversed marker means the
 // block's extent is ambiguous, and a version read from an ambiguous block is
 // not a version this job may trust. Line endings do not matter (CRLF files

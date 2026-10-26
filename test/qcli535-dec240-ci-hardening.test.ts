@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  access,
   mkdtemp,
   mkdir,
   readdir,
@@ -30,6 +31,15 @@ async function workflows(): Promise<{ name: string; lines: string[] }[]> {
       lines: (await readFile(join(WORKFLOWS, name), "utf8")).split("\n"),
     })),
   );
+}
+
+async function exists(path: string) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function spawn(cmd: string[], cwd?: string) {
@@ -132,20 +142,31 @@ test("DEC-240 (1): every npm install a script runs passes --ignore-scripts", asy
   expect(installs).toBeGreaterThanOrEqual(2);
 });
 
-const MARKER = "DEC240_POSTINSTALL_RAN";
-
 test("DEC-240 (1): an install with a failing postinstall dependency succeeds only with --ignore-scripts", async () => {
   const dir = await mkdtemp(join(tmpdir(), "qcli535-npm-"));
   try {
     const dep = join(dir, "dep");
     await mkdir(dep);
+    // The script proves it ran by writing a sentinel FILE at a path npm's own
+    // failure text never mentions; its command line carries no such path, so a
+    // sentinel can exist only if the script actually executed.
+    const hardenedSentinel = join(dir, "ran-hardened");
+    const controlSentinel = join(dir, "ran-control");
     await writeFile(
       join(dep, "package.json"),
       JSON.stringify({
         name: "dec240-failing-postinstall",
         version: "1.0.0",
-        scripts: { postinstall: `echo ${MARKER} >&2; exit 1` },
+        scripts: { postinstall: "node postinstall.js" },
       }),
+    );
+    await writeFile(
+      join(dep, "postinstall.js"),
+      `const fs = require("node:fs");
+const arm = process.env.npm_config_prefix.endsWith("hardened") ? ${JSON.stringify(hardenedSentinel)} : ${JSON.stringify(controlSentinel)};
+fs.writeFileSync(arm, "ran");
+process.exit(1);
+`,
     );
     // A directory dependency is symlinked and never runs its own lifecycle
     // scripts, so the control would pass vacuously; a packed tarball is
@@ -179,12 +200,12 @@ test("DEC-240 (1): an install with a failing postinstall dependency succeeds onl
       dir,
     );
     expect(ok.exitCode).toBe(0);
-    expect(`${ok.stdout}${ok.stderr}`).not.toContain(MARKER);
+    expect(await exists(hardenedSentinel)).toBe(false);
     // The control fails BECAUSE the postinstall ran and failed, not for some
-    // unrelated reason: its output names the script's own marker.
+    // unrelated reason: the script left its sentinel file behind.
     const bad = await spawn([...base, "--prefix", control, tarball], dir);
     expect(bad.exitCode).not.toBe(0);
-    expect(`${bad.stdout}${bad.stderr}`).toContain(MARKER);
+    expect(await exists(controlSentinel)).toBe(true);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -310,6 +331,21 @@ test("DEC-240 (3): each marker must appear exactly once, in order, and CRLF file
     );
     expect(crlfPartial.exitCode).toBe(1);
     expect(crlfPartial.stderr).toContain("is not exactly X.Y.Z");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("DEC-240 (3): a missing CLAUDE.md fails with a named ::error, not an uncaught throw", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "qcli535-missing-"));
+  try {
+    const result = await spawn(["node", reader, join(dir, "CLAUDE.md")]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("::error file=");
+    expect(result.stderr).toContain("cannot read the file");
+    expect(result.stderr).toContain("ENOENT");
+    expect(result.stderr).not.toContain("at readFileSync");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

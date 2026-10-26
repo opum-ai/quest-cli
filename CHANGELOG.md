@@ -14,8 +14,10 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 - **CI is hardened per DEC-240** (QCLI-535). Every `actions/checkout` step sets
   `persist-credentials: false` (no job here pushes with the token), the pinned
-  lore install in the gate and the release-time lore install pass
-  `--ignore-scripts`, the one step output that reached a `run:` body in
+  lore install in the gate and the lore install in the weekly
+  pin-staleness schema export (`exportSchemas` in `lore-pin-staleness.mjs`)
+  pass `--ignore-scripts` (the candidate install in `prepublish.mjs` already
+  did), the one step output that reached a `run:` body in
   `lore-check.yml` and in `release.yml` now arrives through `env:`, and the
   tracker-integrity job reads the declared Quest version with
   `scripts/read-declared-quest-version.mjs`, which accepts only an exact
