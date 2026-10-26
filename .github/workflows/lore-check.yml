@@ -217,7 +217,8 @@ jobs:
             exit 1
           }
           git -C "$dest" checkout --quiet "$LORE_SOURCE_REF"
-          echo "bun-version=$(cat "$dest/.bun-version")" >> "$GITHUB_OUTPUT"
+          bun_version="$(cat "$dest/.bun-version")"
+          echo "bun-version=${bun_version}" >> "$GITHUB_OUTPUT"
 
       # lore-cli's lockfile was written by its OWN pinned runtime; a different
       # bun compares against another runtime's lock and fails for a reason that

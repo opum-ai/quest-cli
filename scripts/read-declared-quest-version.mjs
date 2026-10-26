@@ -20,10 +20,18 @@ function fail(file, message) {
 
 const file = process.argv[2] ?? "CLAUDE.md";
 const text = readFileSync(file, "utf8");
+// Each marker exactly once: a missing, repeated or reversed marker means the
+// block's extent is ambiguous, and a version read from an ambiguous block is
+// not a version this job may trust. Line endings do not matter (CRLF files
+// carry the same markers).
+const count = (needle) => text.split(needle).length - 1;
 const start = text.indexOf(BEGIN);
-const stop = text.indexOf(END, start + 1);
-if (start === -1 || stop === -1)
-  fail(file, "the managed Quest block markers were not both found.");
+const stop = text.indexOf(END);
+if (count(BEGIN) !== 1 || count(END) !== 1 || stop < start)
+  fail(
+    file,
+    `the managed Quest block markers must each appear exactly once and in order (begin x${count(BEGIN)}, end x${count(END)}).`,
+  );
 
 const block = text.slice(start + BEGIN.length, stop);
 // Every `Quest CLI <token>` inside the block whose whole whitespace-delimited

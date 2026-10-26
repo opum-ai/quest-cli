@@ -65,7 +65,8 @@ test("DEC-240 (2): every actions/checkout step sets persist-credentials: false",
     });
   }
   // A positive control: the scan read the checkouts it claims to cover.
-  expect(checkouts).toBeGreaterThanOrEqual(9);
+  // Exactly the checkout steps there are: a new one is a deliberate edit here.
+  expect(checkouts).toBe(10);
 });
 
 test("DEC-240 (4): no step output is interpolated inside a run: body", async () => {
@@ -101,12 +102,37 @@ test("DEC-240 (1): every npm install of lore or quest passes --ignore-scripts", 
     });
   }
   expect(installs).toBeGreaterThanOrEqual(1);
-  const prepublish = await readFile(
-    join(REPO, "scripts/qualification/prepublish.mjs"),
-    "utf8",
-  );
-  expect(prepublish).toContain('"--ignore-scripts"');
 });
+
+test("DEC-240 (1): every npm install a script runs passes --ignore-scripts", async () => {
+  // Workflows reach installs through the scripts they invoke (QCLI-535 review
+  // F1: lore-pin-staleness.mjs installs lore on a runner holding GH_TOKEN).
+  // Scan every script rather than guess which ones a workflow names.
+  const dirs = ["scripts", "scripts/qualification"];
+  let installs = 0;
+  for (const dir of dirs) {
+    const entries = (await readdir(join(REPO, dir))).filter((n) =>
+      /\.(mjs|ts)$/.test(n),
+    );
+    for (const name of entries) {
+      const text = await readFile(join(REPO, dir, name), "utf8");
+      for (const call of text.matchAll(/"npm",\s*\[([^\]]*)\]/g)) {
+        const args = call[1] ?? "";
+        if (!/"install"/.test(args)) continue;
+        installs += 1;
+        expect(
+          args.includes('"--ignore-scripts"'),
+          `${dir}/${name} runs an npm install without --ignore-scripts`,
+        ).toBe(true);
+      }
+    }
+  }
+  // The scan found the installs it claims to cover: exportSchemas and the
+  // candidate clean install at least.
+  expect(installs).toBeGreaterThanOrEqual(2);
+});
+
+const MARKER = "DEC240_POSTINSTALL_RAN";
 
 test("DEC-240 (1): an install with a failing postinstall dependency succeeds only with --ignore-scripts", async () => {
   const dir = await mkdtemp(join(tmpdir(), "qcli535-npm-"));
@@ -118,7 +144,7 @@ test("DEC-240 (1): an install with a failing postinstall dependency succeeds onl
       JSON.stringify({
         name: "dec240-failing-postinstall",
         version: "1.0.0",
-        scripts: { postinstall: "exit 1" },
+        scripts: { postinstall: `echo ${MARKER} >&2; exit 1` },
       }),
     );
     // A directory dependency is symlinked and never runs its own lifecycle
@@ -130,6 +156,11 @@ test("DEC-240 (1): an install with a failing postinstall dependency succeeds onl
     );
     expect(packed.exitCode).toBe(0);
     const tarball = join(dir, packed.stdout.trim().split("\n").pop() ?? "");
+    // The same install both times; the only difference is --ignore-scripts.
+    // npm 12 blocks dependency scripts by default (allowScripts) while npm 11,
+    // which a runner's Node 24 ships, runs them, so BOTH arms force scripts on
+    // explicitly and mean the same on either. The flag is an unknown config to
+    // npm 11, which warns and carries on.
     const base = [
       "npm",
       "install",
@@ -137,6 +168,7 @@ test("DEC-240 (1): an install with a failing postinstall dependency succeeds onl
       "--no-fund",
       "--offline",
       "--package-lock=false",
+      "--dangerously-allow-all-scripts",
     ];
     const hardened = join(dir, "hardened");
     const control = join(dir, "control");
@@ -147,23 +179,12 @@ test("DEC-240 (1): an install with a failing postinstall dependency succeeds onl
       dir,
     );
     expect(ok.exitCode).toBe(0);
-    // The control: the same install without the flag runs the script and
-    // fails, so the success above is the flag's doing and not a vacuous pass.
-    // npm 12 blocks dependency scripts by default (allowScripts) while npm 11,
-    // which a runner's Node 24 ships, runs them; the control asks for them
-    // explicitly so it means the same on both. The flag is an unknown config
-    // to npm 11, which warns and carries on.
-    const bad = await spawn(
-      [
-        ...base,
-        "--dangerously-allow-all-scripts",
-        "--prefix",
-        control,
-        tarball,
-      ],
-      dir,
-    );
+    expect(`${ok.stdout}${ok.stderr}`).not.toContain(MARKER);
+    // The control fails BECAUSE the postinstall ran and failed, not for some
+    // unrelated reason: its output names the script's own marker.
+    const bad = await spawn([...base, "--prefix", control, tarball], dir);
     expect(bad.exitCode).not.toBe(0);
+    expect(`${bad.stdout}${bad.stderr}`).toContain(MARKER);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -232,7 +253,7 @@ test("DEC-240 (3): a version outside the markers, or two inside, or none, is ref
     await writeFile(file, "Quest CLI 0.14.1\n");
     const bare = await spawn(["node", reader, file]);
     expect(bare.exitCode).toBe(1);
-    expect(bare.stderr).toContain("markers were not both found");
+    expect(bare.stderr).toContain("must each appear exactly once");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -252,4 +273,44 @@ test("DEC-240 (3): this repository's own CLAUDE.md reads, and the workflow uses 
   expect(tracker).toContain("scripts/read-declared-quest-version.mjs");
   // The loose regex that accepted a prefix of a partial version is gone.
   expect(tracker).not.toContain("[0-9][0-9.]*");
+});
+
+test("DEC-240 (3): each marker must appear exactly once, in order, and CRLF files read", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "qcli535-marks-"));
+  try {
+    const run = async (body: string) => {
+      const file = join(dir, "CLAUDE.md");
+      await writeFile(file, body);
+      return spawn(["node", reader, file]);
+    };
+    const line = "Quest CLI 0.14.1 for tracker operations.";
+    const refused = [
+      ["a repeated begin", `${BEGIN}\n${BEGIN}\n${line}\n${END}\n`],
+      ["a repeated end", `${BEGIN}\n${line}\n${END}\n${END}\n`],
+      [
+        "two whole blocks",
+        `${BEGIN}\n${line}\n${END}\n${BEGIN}\n${line}\n${END}\n`,
+      ],
+      ["reversed markers", `${END}\n${line}\n${BEGIN}\n`],
+      ["no end marker", `${BEGIN}\n${line}\n`],
+      ["no begin marker", `${line}\n${END}\n`],
+    ] as const;
+    for (const [name, body] of refused) {
+      const result = await run(body);
+      expect(result.exitCode, name).toBe(1);
+      expect(result.stdout, name).toBe("");
+      expect(result.stderr, name).toContain("must each appear exactly once");
+    }
+    // CRLF line endings read the same, and a partial version is still refused.
+    const crlf = await run(`${BEGIN}\r\n${line}\r\n${END}\r\n`);
+    expect(crlf.exitCode).toBe(0);
+    expect(crlf.stdout).toBe("0.14.1\n");
+    const crlfPartial = await run(
+      `${BEGIN}\r\nQuest CLI 0.14 for x.\r\n${END}\r\n`,
+    );
+    expect(crlfPartial.exitCode).toBe(1);
+    expect(crlfPartial.stderr).toContain("is not exactly X.Y.Z");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

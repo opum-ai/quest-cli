@@ -139,11 +139,12 @@ jobs:
           QUALIFICATION_RUN_ID: ${{ steps.qualification.outputs.run_id }}
         run: |
           set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
           node scripts/qualification/e2e-receipt.mjs --require \
             --bundle candidate \
             --run-id "$QUALIFICATION_RUN_ID" \
             --commit "${GITHUB_SHA}" \
-            --version "$(node -p "require('./package.json').version")"
+            --version "$version"
 
       # QCLI-267. The tag, the commit and package.json must agree, and the
       # commit must be reachable from main. A tag outside the mainline is the
@@ -358,8 +359,10 @@ jobs:
       - name: Verify npm serves the qualified bundle, tarball for tarball
         if: ${{ inputs.publish == true }}
         run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
           node scripts/qualification/bundle-integrity.mjs \
-            --bundle candidate --version "$(node -p "require('./package.json').version")"
+            --bundle candidate --version "$version"
 
       # QCLI-267, the half that names the defect directly: the registry's own
       # gitHead for what was just published must be the commit it was released
@@ -370,5 +373,7 @@ jobs:
       - name: Verify the registry's provenance matches what was released
         if: ${{ inputs.publish == true }}
         run: |
+          set -euo pipefail
+          launcher="$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")"
           node scripts/qualification/release-provenance.mjs --post \
-            --version "$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")"
+            --version "$launcher"
