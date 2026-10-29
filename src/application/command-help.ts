@@ -305,7 +305,7 @@ export const commandHelp: Record<
   "task edit": {
     summary:
       "Edit an existing task's fields, or append/remove list items. " +
-      '--priority "" CLEARS the priority (QCLI-539): the stored record loses its priority key and `task view` reads it back as null; an empty value is never stored. ' +
+      '--priority "" CLEARS the priority (QCLI-539): the stored record loses its priority key and `task view` omits it (`--fields priority` reads null); `task edit` never stores an empty priority. ' +
       "CREATE/EDIT NAMING SPLIT (QCLI-283, QCLI-484): `task create` and `task edit` spell several " +
       "list fields differently, and this help describes the EDIT side. Create sets a list " +
       "wholesale with --label, --reference, --assignee, --dependency and --modified-file; edit " +

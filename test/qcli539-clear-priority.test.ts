@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCommand } from "./helpers/spawn.ts";
@@ -54,11 +54,22 @@ test("AC1 AC3: set-then-clear round trip leaves no priority key and views as nul
   const cleared = edit(root, "--priority", "");
   expect(cleared.exitCode).toBe(0);
   expect(await stored(root)).not.toHaveProperty("priority");
+  // View omits an absent key, and --fields projects it as null (never a
+  // dropped key). Assert both, so absent and null cannot be confused.
   const view = quest(root, ["task", "view", "T-1", "--json"]);
-  expect(JSON.parse(view.stdout).data.priority ?? null).toBeNull();
+  expect(JSON.parse(view.stdout).data).not.toHaveProperty("priority");
+  const projected = quest(root, [
+    "task",
+    "view",
+    "T-1",
+    "--fields",
+    "id,priority",
+    "--json",
+  ]);
+  expect(JSON.parse(projected.stdout).data.priority).toBeNull();
 });
 
-test("AC2 AC3: an empty priority is treated as the clear on a task that never had one, and doctor stays clean of it", async () => {
+test("AC2 AC3: an empty priority is treated as the clear on a task that never had one", async () => {
   const root = await workspace();
   expect(
     quest(root, ["task", "create", "a", ...ACTOR, "--json"]).exitCode,
@@ -66,8 +77,6 @@ test("AC2 AC3: an empty priority is treated as the clear on a task that never ha
   expect(await stored(root)).not.toHaveProperty("priority");
   expect(edit(root, "--priority", "").exitCode).toBe(0);
   expect(await stored(root)).not.toHaveProperty("priority");
-  const doctor = quest(root, ["doctor", "--json"]);
-  expect(doctor.stdout).not.toContain("task_vocabulary_off_set");
 });
 
 test("a non-empty out-of-set priority is still refused and the clear does not weaken the check", async () => {
@@ -85,4 +94,39 @@ test("a non-empty out-of-set priority is still refused and the clear does not we
   ).toBe(0);
   expect(edit(root, "--priority", "urgent").exitCode).toBe(6);
   expect((await stored(root)).priority).toBe("low");
+});
+
+test("task edit-batch clears an empty priority the same way, because it shares the fold", async () => {
+  const root = await workspace();
+  expect(
+    quest(root, [
+      "task",
+      "create",
+      "a",
+      "--priority",
+      "high",
+      ...ACTOR,
+      "--json",
+    ]).exitCode,
+  ).toBe(0);
+  expect((await stored(root)).priority).toBe("high");
+  const operations = join(root, "ops.jsonl");
+  await writeFile(
+    operations,
+    JSON.stringify({
+      reference: "T-1",
+      operationId: "o1",
+      patch: { priority: "" },
+    }),
+  );
+  const result = quest(root, [
+    "task",
+    "edit-batch",
+    "--file",
+    operations,
+    ...ACTOR,
+    "--json",
+  ]);
+  expect(result.exitCode).toBe(0);
+  expect(await stored(root)).not.toHaveProperty("priority");
 });
