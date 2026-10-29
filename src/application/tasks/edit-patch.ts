@@ -145,7 +145,11 @@ export function foldEditPatch(
   // title/priority/type/ordinal); only the public edit vocabulary omitted them,
   // which left a typo in a title permanently unfixable (QCLI-133).
   if (patch.title !== undefined) next.title = patch.title;
-  if (patch.priority !== undefined) next.priority = patch.priority;
+  // QCLI-539: an empty priority CLEARS the field, as the vocabulary check has
+  // always documented ("an empty value (which clears the field)"). Storing the
+  // empty string left a key outside every configured set and no way back.
+  if (patch.priority !== undefined)
+    next.priority = patch.priority === "" ? undefined : patch.priority;
   if (patch.type !== undefined) next.type = patch.type;
   if (patch.ordinal !== undefined) next.ordinal = patch.ordinal;
   if (patch.summary !== undefined) next.summary = patch.summary;

@@ -50,6 +50,13 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Fixed
 
+- **`quest task edit --priority ""` clears the priority instead of storing an
+  empty string** (QCLI-539). The vocabulary check has always documented an empty
+  value as the clear, but the edit fold wrote it verbatim, leaving a
+  `"priority":""` key outside every configured set that quest had no way to
+  remove. The key is now dropped and `task view` reads null. A non-empty
+  out-of-set value is still refused (exit 6). `--type ""` is unchanged.
+
 - **`quest agents --check` names the settings file that disables the
   `opum-quest` Claude plugin, and never writes one** (QCLI-531 / QCLI-532,
   DEC-238 (a6), (a9)). `--json` carries `plugin.override` (`file`, `scope`)
