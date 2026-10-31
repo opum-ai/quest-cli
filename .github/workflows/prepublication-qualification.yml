@@ -157,6 +157,13 @@ jobs:
         env:
           QUEST_QUALIFICATION_TARGET: ${{ matrix.target }}
           QUEST_QUALIFICATION_STRICT: "1"
+      # QCLI-543 / ODOC-556: the Codex skill path and the non-interactive init
+      # notice run on the real Windows runners. A step, not a job: it rides the
+      # job's own dispatch/tag `if` above, so it adds no per-PR platform matrix
+      # (OPAG-166, platform matrices on tags and releases only).
+      - name: Codex skill path and init notice (Windows legs)
+        if: startsWith(matrix.target, 'win32')
+        run: bun test test/qcli543-codex-skill-path.test.ts
       # Only this runner can build this target — Bun cannot cross-compile
       # bun-windows-aarch64 at all — so the package it just built is uploaded
       # for the bundle job to collect. Without this a six-platform candidate

@@ -381,6 +381,11 @@ test("a bare init under the test harness (no TTY) prints the notice on stderr, e
   const result = await run(bare, "init");
   expect(result.exitCode).toBe(0);
   expect(result.stderr).toContain("no interactive terminal was detected");
+  // Evidence line for the Windows legs (QCLI-543): the runner's own streams and
+  // what the child reported, so a run shows which terminals it measured.
+  console.log(
+    `QCLI-543 isTTY ${process.platform}/${process.arch}: runner stdin=${process.stdin.isTTY} stdout=${process.stdout.isTTY}; child notice: ${result.stderr.split("\n")[0]}`,
+  );
   expect(result.stderr).toContain("--agent-instructions --target");
   expect(await exists(join(bare, ".quest/workspace.toml"))).toBe(true);
   expect(await exists(join(bare, "AGENTS.md"))).toBe(false);
