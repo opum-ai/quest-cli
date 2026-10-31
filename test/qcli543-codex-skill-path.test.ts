@@ -84,19 +84,23 @@ const exists = (path: string) =>
     () => false,
   );
 
-test("the path function: codex gets .agents, claude keeps .claude, antigravity is unchanged, and the default target is codex", () => {
+test("the path function: codex and antigravity get .agents, claude keeps .claude, and the default target is codex", () => {
   expect(codexQuestSkillPath).toBe(".agents/skills/quest/SKILL.md");
   expect(questSkillPathForTarget("codex")).toBe(codexQuestSkillPath);
   expect(questSkillPathForTarget()).toBe(codexQuestSkillPath);
   expect(questSkillPathForTarget("claude")).toBe(questSkillPath);
-  expect(questSkillPathForTarget("antigravity")).toBe(questSkillPath);
+  expect(questSkillPathForTarget("antigravity")).toBe(codexQuestSkillPath);
   expect(questSkillPathsForTargets(["codex", "claude"])).toEqual([
     codexQuestSkillPath,
     questSkillPath,
   ]);
-  // claude and antigravity share one file, written once.
+  // codex and antigravity share one file, written once (QCLI-548).
+  expect(questSkillPathsForTargets(["codex", "antigravity"])).toEqual([
+    codexQuestSkillPath,
+  ]);
   expect(questSkillPathsForTargets(["claude", "antigravity"])).toEqual([
     questSkillPath,
+    codexQuestSkillPath,
   ]);
 });
 
@@ -250,7 +254,7 @@ test("a leftover .claude skill in a Codex-only workspace reports as drift and is
   );
 });
 
-test("an antigravity workspace's .claude skill is NOT a leftover under --check --target codex", async () => {
+test("an Antigravity-only init writes .agents/skills and GEMINI.md, and nothing under .claude/ (QCLI-548)", async () => {
   const root = await repository();
   expect(
     (
@@ -264,27 +268,34 @@ test("an antigravity workspace's .claude skill is NOT a leftover under --check -
       )
     ).exitCode,
   ).toBe(0);
-  expect(await exists(join(root, ".claude/skills/quest/SKILL.md"))).toBe(true);
+  expect(await files(root)).toEqual([
+    ".agents/skills/quest/SKILL.md",
+    ".quest/workspace.toml",
+    "GEMINI.md",
+  ]);
   const check = await run(
     root,
     "agents",
     "--check",
     "--target",
-    "codex",
+    "antigravity",
     "--json",
   );
-  expect(JSON.parse(check.stdout)).toMatchObject({
-    data: { state: "missing" },
-  });
   expect(check.exitCode).toBe(0);
 });
 
-test("the leftover check is pure: only a codex target without a Claude-path target can leave one", () => {
+test("the leftover check is pure: a codex or antigravity target without a Claude target can leave one", () => {
   const present = "x";
   expect(checkLeftoverClaudeSkill(present, "codex", false)?.state).toBe(
     "drift",
   );
+  expect(checkLeftoverClaudeSkill(present, "antigravity", false)?.state).toBe(
+    "drift",
+  );
   expect(checkLeftoverClaudeSkill(present, "codex", true)).toBeUndefined();
+  expect(
+    checkLeftoverClaudeSkill(present, "antigravity", true),
+  ).toBeUndefined();
   expect(checkLeftoverClaudeSkill(present, "claude", false)).toBeUndefined();
   expect(checkLeftoverClaudeSkill(undefined, "codex", false)).toBeUndefined();
 });
@@ -553,5 +564,196 @@ for (const mode of ["plugin", "none"] as const) {
       `${questSkillPath} is a leftover: a codex target reads its skill from ${codexQuestSkillPath} and this workspace generates none. Move or delete it by hand; quest never deletes it, --force included.`,
     );
     expect(await readFile(leftover, "utf8")).toBe(generated);
+  });
+}
+
+// ---- QCLI-548 / ODOC-556 ruling 28b8ed5: Antigravity writes the .agents file --
+
+test("writeInitInstructions: codex+antigravity share ONE skill file; claude+antigravity get both locations (QCLI-548)", async () => {
+  const shared = await repository();
+  const sharedResult = await writeInitInstructions(
+    createAgentInstructionPort(shared),
+    ["codex", "antigravity"],
+    undefined,
+    undefined,
+  );
+  expect(sharedResult.skillsByPath).toBeUndefined();
+  expect(sharedResult.skill).toMatchObject({ state: "current" });
+  expect(await exists(join(shared, codexQuestSkillPath))).toBe(true);
+  expect(await exists(join(shared, ".claude"))).toBe(false);
+
+  const split = await repository();
+  const splitResult = await writeInitInstructions(
+    createAgentInstructionPort(split),
+    ["claude", "antigravity"],
+    undefined,
+    undefined,
+  );
+  expect(Object.keys(splitResult.skillsByPath ?? {})).toEqual([
+    questSkillPath,
+    codexQuestSkillPath,
+  ]);
+  expect(await exists(join(split, questSkillPath))).toBe(true);
+  expect(await exists(join(split, codexQuestSkillPath))).toBe(true);
+});
+
+const ANTIGRAVITY_REPO_LEFTOVER = `${questSkillPath} is a leftover: quest now writes its Antigravity skill to ${codexQuestSkillPath}. Move or delete it by hand; quest never deletes it.`;
+
+async function antigravityWorkspaceWithClaudeLeftover(): Promise<{
+  root: string;
+  leftover: string;
+  generated: string;
+}> {
+  const root = await repository();
+  expect(
+    (
+      await run(
+        root,
+        "init",
+        "--agent-instructions",
+        "--target",
+        "antigravity",
+        "--json",
+      )
+    ).exitCode,
+  ).toBe(0);
+  const generated = await readFile(join(root, codexQuestSkillPath), "utf8");
+  const leftover = join(root, questSkillPath);
+  await mkdir(join(root, ".claude/skills/quest"), { recursive: true });
+  await writeFile(leftover, generated);
+  return { root, leftover, generated };
+}
+
+test("repo mode: a .claude skill only an Antigravity target accounts for is drift (GEMINI.md alone does not exempt it) and --force never removes it", async () => {
+  const root = await repository();
+  await run(
+    root,
+    "init",
+    "--agent-instructions",
+    "--target",
+    "antigravity",
+    "--json",
+  );
+  // Control: green before the leftover exists.
+  expect(
+    (await run(root, "agents", "--check", "--target", "antigravity", "--json"))
+      .exitCode,
+  ).toBe(0);
+  const generated = await readFile(join(root, codexQuestSkillPath), "utf8");
+  const leftover = join(root, questSkillPath);
+  await mkdir(join(root, ".claude/skills/quest"), { recursive: true });
+  await writeFile(leftover, generated);
+
+  const check = await run(
+    root,
+    "agents",
+    "--check",
+    "--target",
+    "antigravity",
+    "--json",
+  );
+  expect(check.exitCode).toBe(6);
+  const failure = JSON.parse(check.stderr) as {
+    error_type: string;
+    message: string;
+  };
+  expect(failure.error_type).toBe("drift");
+  expect(failure.message).toBe(ANTIGRAVITY_REPO_LEFTOVER);
+  const forced = await run(
+    root,
+    "agents",
+    "--update-instructions",
+    "--target",
+    "antigravity",
+    "--force",
+    "--json",
+  );
+  expect(forced.exitCode).toBe(0);
+  expect(await readFile(leftover, "utf8")).toBe(generated);
+});
+
+test("quest help agents: the force and skillSource details name antigravity beside codex and never promise to remove the .claude skill for either (QCLI-548)", async () => {
+  const root = await repository();
+  const help = await run(root, "help", "agents", "--json");
+  expect(help.exitCode).toBe(0);
+  const text = help.stdout;
+  expect(text).toContain(
+    "(.agents/skills/quest/SKILL.md for codex and antigravity, .claude/skills/quest/SKILL.md for claude)",
+  );
+  expect(text).toContain(
+    "For a codex or antigravity target the old .claude/skills/quest/SKILL.md is never removed",
+  );
+  expect(text).not.toContain(
+    "for codex, .claude/skills/quest/SKILL.md otherwise",
+  );
+  expect(text).not.toContain("For a codex target the old .claude");
+  expect(text).toContain(
+    "A codex or antigravity target's old .claude skill is never removed in any skill-source mode",
+  );
+});
+
+test("repo mode: a CLAUDE.md Quest block (a Claude target) does exempt the .claude skill for an Antigravity target", async () => {
+  const w = await antigravityWorkspaceWithClaudeLeftover();
+  expect(await exists(join(w.root, codexQuestSkillPath))).toBe(true);
+  await run(
+    w.root,
+    "agents",
+    "--update-instructions",
+    "--target",
+    "claude",
+    "--json",
+  );
+  expect(await exists(join(w.root, "CLAUDE.md"))).toBe(true);
+  const check = await run(
+    w.root,
+    "agents",
+    "--check",
+    "--target",
+    "antigravity",
+    "--json",
+  );
+  expect(check.exitCode).toBe(0);
+});
+
+for (const mode of ["plugin", "none"] as const) {
+  test(`skill_source=${mode}: an Antigravity target's byte-exact generated .claude skill survives --force and --check names it (QCLI-548)`, async () => {
+    const w = await antigravityWorkspaceWithClaudeLeftover();
+    await rm(join(w.root, codexQuestSkillPath));
+    expect(
+      (
+        await run(
+          w.root,
+          "init",
+          "--reconfigure",
+          "--skill-source",
+          mode,
+          "--json",
+        )
+      ).exitCode,
+    ).toBe(0);
+    const update = await run(
+      w.root,
+      "agents",
+      "--update-instructions",
+      "--target",
+      "antigravity",
+      "--force",
+      "--json",
+    );
+    expect(update.exitCode).toBe(0);
+    expect(await readFile(w.leftover, "utf8")).toBe(w.generated);
+    const check = await run(
+      w.root,
+      "agents",
+      "--check",
+      "--target",
+      "antigravity",
+      "--json",
+    );
+    expect(check.exitCode).toBe(6);
+    expect((JSON.parse(check.stderr) as { message: string }).message).toBe(
+      `${questSkillPath} is a leftover: an antigravity target reads its skill from ${codexQuestSkillPath} and this workspace generates none. Move or delete it by hand; quest never deletes it, --force included.`,
+    );
+    expect(await readFile(w.leftover, "utf8")).toBe(w.generated);
   });
 }

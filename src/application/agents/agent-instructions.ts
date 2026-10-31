@@ -236,9 +236,8 @@ export async function inspectQuestAgentInstructions(
   return checkQuestAgentInstructions(await port.read(path), target);
 }
 
-/** The Claude Code skill location, and the path every target other than codex
- * writes (claude, and antigravity, which no ruling has moved). Kept under its
- * original name so existing importers do not change. */
+/** The Claude Code skill location: where a claude target writes its skill.
+ * Kept under its original name so existing importers do not change. */
 export const questSkillPath = ".claude/skills/quest/SKILL.md";
 
 /** QCLI-543 / ODOC-556: where Codex reads repository skills --
@@ -247,19 +246,19 @@ export const questSkillPath = ".claude/skills/quest/SKILL.md";
  * not documented there. lore writes `.agents/skills/lore/SKILL.md`. */
 export const codexQuestSkillPath = ".agents/skills/quest/SKILL.md";
 
-/** The skill file a target reads. A codex target gets the `.agents` path and
- * never `.claude/`; a claude target keeps `.claude/`. Antigravity is unruled
- * (opum-doc ruled codex and claude only) and stays on the path it has always
- * used. Forward slashes on purpose: the port resolves them on every platform. */
+/** The skill file a target reads. A codex or antigravity target gets the
+ * `.agents` path, the same file, and never `.claude/` (opum-doc ODOC-556,
+ * ruling 28b8ed5); a claude target keeps `.claude/`. Forward slashes on
+ * purpose: the port resolves them on every platform. */
 export function questSkillPathForTarget(
   target: AgentInstructionTarget = "codex",
 ): string {
-  return target === "codex" ? codexQuestSkillPath : questSkillPath;
+  return target === "claude" ? questSkillPath : codexQuestSkillPath;
 }
 
 /** The distinct skill files for a set of targets, in first-seen order, so a
  * codex+claude workspace gets both files and two targets sharing one path
- * (claude and antigravity) write it once. */
+ * (codex and antigravity) write it once. */
 export function questSkillPathsForTargets(
   targets: readonly AgentInstructionTarget[],
 ): readonly string[] {
@@ -267,31 +266,36 @@ export function questSkillPathsForTargets(
 }
 
 /** A Claude-path skill left behind in a workspace that no longer targets
- * it. `claudePathInUse` is true when CLAUDE.md or GEMINI.md carries a Quest
- * block (claude and antigravity both read that path), which is the only record
- * of such a target there is. Reported, never deleted
- * (opum-doc ruling, ODOC-556). Only a codex target can be the one that left it. */
+ * it. `claudePathInUse` is true when CLAUDE.md carries a Quest block (only a
+ * claude target reads that path since the Antigravity ruling, ODOC-556
+ * 28b8ed5), which is the only record of such a target there is. Reported,
+ * never deleted (opum-doc ruling, ODOC-556). A codex or antigravity target can
+ * be the one that left it. */
 export function checkLeftoverClaudeSkill(
   leftover: string | undefined,
   target: AgentInstructionTarget,
   claudePathInUse: boolean,
   generatesSkill = true,
 ): { readonly state: "drift"; readonly message: string } | undefined {
-  // The in-use exemption is repo mode's: only there does a claude or
-  // antigravity target keep a per-repository skill at the Claude path. Under
+  // The in-use exemption is repo mode's: only there does a claude target keep
+  // a per-repository skill at the Claude path. Under
   // plugin or none no target does, so the file is a leftover whatever else
   // the workspace targets.
   if (
-    target !== "codex" ||
+    target === "claude" ||
     (claudePathInUse && generatesSkill) ||
     leftover === undefined
   )
     return undefined;
+  const [name, article] =
+    target === "antigravity"
+      ? (["Antigravity", "an antigravity"] as const)
+      : (["Codex", "a codex"] as const);
   return {
     state: "drift",
     message: generatesSkill
-      ? `${questSkillPath} is a leftover: quest now writes its Codex skill to ${codexQuestSkillPath}. Move or delete it by hand; quest never deletes it.`
-      : `${questSkillPath} is a leftover: a codex target reads its skill from ${codexQuestSkillPath} and this workspace generates none. Move or delete it by hand; quest never deletes it, --force included.`,
+      ? `${questSkillPath} is a leftover: quest now writes its ${name} skill to ${codexQuestSkillPath}. Move or delete it by hand; quest never deletes it.`
+      : `${questSkillPath} is a leftover: ${article} target reads its skill from ${codexQuestSkillPath} and this workspace generates none. Move or delete it by hand; quest never deletes it, --force included.`,
   };
 }
 

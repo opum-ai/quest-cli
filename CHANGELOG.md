@@ -60,8 +60,11 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   omitted) now writes `.agents/skills/quest/SKILL.md`; `claude` keeps
   `.claude/skills/quest/SKILL.md`; a codex+claude workspace gets both, reported
   in `quest init`'s additive `data.skillsByPath` (`data.skill` keeps its shape
-  for a single file); antigravity is unchanged, as no ruling moved it. lore
-  moves to `.agents/skills/lore/SKILL.md` in the same pair release.
+  for a single file); an `antigravity` target writes the same `.agents` file as
+  codex (QCLI-548, opum-doc ODOC-556 ruling 28b8ed5), so a codex+antigravity
+  workspace has one skill file and claude+antigravity has both locations;
+  `GEMINI.md` is written exactly as before. lore moves to
+  `.agents/skills/lore/SKILL.md` in the same pair release.
   **Behaviour change to know about:** an existing Codex-only workspace that
   already has `.claude/skills/quest/SKILL.md` now reports it as drift under
   `quest agents --check` (message: "is a leftover ... Move or delete it by
@@ -71,17 +74,20 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   reported as a leftover that names the path, and removing it is the owner's
   (QCLI-545, opum-doc ODOC-556 R1, overriding QCLI-309 for that path). A
   claude target's own orphan under `plugin` or `none` is unchanged. In `repo`
-  mode only, a workspace with a Quest block in CLAUDE.md or GEMINI.md still
-  uses that path and stays green; under `plugin` or `none` the file is a
-  leftover whatever else the workspace targets. Separately, a bare `quest
-  init` whose stdin or stdout is not a terminal (Git Bash on Windows, an IDE
-  terminal, a pipe) used to write no agent instructions or skill and print
-  nothing; it now prints a notice on stderr naming `--agent-instructions
-  --target` and `--skill-source`, with the exit code and the initialized
-  workspace unchanged. `--json`, `--plain`, any flag and `--reconfigure` get a
-  clean stderr. The operator's report that the
-  skill landed under `.quest/` was a misread, confirmed first-party: on
-  Windows the Codex target wrote `.claude/skills/quest`, and no code path
+  mode only, a workspace with a Quest block in CLAUDE.md (a Claude target)
+  still uses that path and stays green; a GEMINI.md block alone no longer does,
+  because an Antigravity target now writes `.agents` too, so an existing
+  Antigravity workspace's `.claude/skills/quest/SKILL.md` reports as drift under
+  `quest agents --check --target antigravity` (QCLI-548). Under `plugin` or
+  `none` the file is a leftover whatever else the workspace targets.
+  Separately, a bare `quest init` whose stdin or stdout is not a terminal (Git
+  Bash on Windows, an IDE terminal, a pipe) used to write no agent
+  instructions or skill and print nothing; it now prints a notice on stderr
+  naming `--agent-instructions --target` and `--skill-source`, with the exit
+  code and the initialized workspace unchanged. `--json`, `--plain`, any flag
+  and `--reconfigure` get a clean stderr. The operator's report that the skill
+  landed under `.quest/` was a misread, confirmed first-party: on Windows the
+  Codex target wrote `.claude/skills/quest`, and no code path
   writes a skill under `.quest/`.
 
 - **`quest task edit --priority ""` clears the priority instead of storing an
