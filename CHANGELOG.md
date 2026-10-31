@@ -10,6 +10,8 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
+## 0.14.2
+
 ### Changed
 
 - **CI is hardened per DEC-240** (QCLI-535). Every `actions/checkout` step sets
