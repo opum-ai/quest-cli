@@ -2126,7 +2126,7 @@ export async function runQuest(
               plugin:
                 'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
-                'WHICH skill file follows --target (codex: .agents/skills/quest/SKILL.md; claude and antigravity: .claude/skills/quest/SKILL.md), but WHETHER one is generated is governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
+                'WHICH skill file follows --target (codex and antigravity: .agents/skills/quest/SKILL.md; claude: .claude/skills/quest/SKILL.md), but WHETHER one is generated is governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
               coverage:
                 "Up to two lines in the human and --plain output only, never in --json, and only on a run that reports plugin state; the override line exists only for a disabled, non-managed row. `agents-coverage <state> covers the managed block and the skill file only, not plugin enablement` states what the state verdict is about. `plugin-claude-override <file> (<scope> scope) sets opum-quest@opum to disabled, and is the effective setting in this checkout` (the committed .claude/settings.json row reads `sets opum-quest@opum to disabled for every collaborator, and is...`, DEC-238 (a10)) names the settings file that disables the plugin and prints BEFORE the dump that carries the remedy; the remedy is always `--scope local`, and no command that writes a settings file is ever executed (DEC-238 (a6), (a9), QCLI-532).",
             }
@@ -2456,26 +2456,22 @@ export async function runQuest(
             agentSkillSource,
             force,
           );
-      // A Claude-path skill left in a Codex-only workspace is reported, never
-      // deleted (opum-doc ruling, ODOC-556). A Quest block in CLAUDE.md or GEMINI.md
-      // is the record that the Claude path is also in use, so a codex+claude workspace
-      // stays green under either --target.
+      // A Claude-path skill left in a workspace with no Claude target is
+      // reported, never deleted (opum-doc ruling, ODOC-556). A Quest block in
+      // CLAUDE.md is the record that the Claude path is also in use, so a
+      // codex+claude workspace stays green under either --target. GEMINI.md
+      // no longer counts: an antigravity target writes .agents (ruling 28b8ed5).
       let leftoverResult: ReturnType<typeof checkLeftoverClaudeSkill>;
       if (check) {
-        // The Claude-path skill is legitimately in use by a claude target AND
-        // by antigravity, which has always written it there.
-        let claudePathInUse = false;
-        for (const other of ["claude", "antigravity"] as const)
-          if (
-            (
-              await inspectQuestAgentInstructions(
-                agentInstructionPort,
-                agentInstructionPathForTarget(other),
-                other,
-              )
-            ).state !== "missing"
-          )
-            claudePathInUse = true;
+        // The Claude-path skill is legitimately in use only by a claude target.
+        const claudePathInUse =
+          (
+            await inspectQuestAgentInstructions(
+              agentInstructionPort,
+              agentInstructionPathForTarget("claude"),
+              "claude",
+            )
+          ).state !== "missing";
         leftoverResult = checkLeftoverClaudeSkill(
           await agentInstructionPort.read(questSkillPath),
           target ?? "codex",

@@ -481,7 +481,8 @@ files by hand.
 
 \`quest agents --update-instructions\` writes a small versioned block into
 AGENTS.md and installs the Quest skill: at \`.agents/skills/quest/SKILL.md\` for
-the codex target (where Codex reads repository skills) and at
+the codex and antigravity targets (where Codex reads repository skills; the
+same one file) and at
 \`.claude/skills/quest/SKILL.md\` for claude. The
 block is delimited and merged into surrounding content; the skill file is
 Quest-owned in full, so any edit to it reads as drift.
