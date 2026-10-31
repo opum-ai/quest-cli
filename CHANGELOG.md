@@ -65,15 +65,22 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   **Behaviour change to know about:** an existing Codex-only workspace that
   already has `.claude/skills/quest/SKILL.md` now reports it as drift under
   `quest agents --check` (message: "is a leftover ... Move or delete it by
-  hand; quest never deletes it", exit 6), and `--force` never removes it. A
-  workspace with a Quest block in CLAUDE.md or GEMINI.md still uses that path
+  hand; quest never deletes it", exit 6), and under the default
+  `skill_source = "repo"` `--force` does not remove it. Under
+  `skill_source = "plugin"` or `"none"` the existing orphan path (QCLI-309) is
+  unchanged: `--force` still removes a byte-exact generated
+  `.claude/skills/quest/SKILL.md` even for a codex target. Whether that
+  should hold for a codex target is a pending ruling (opum-doc), not changed
+  here. A workspace with a Quest block in CLAUDE.md or GEMINI.md still uses that path
   and stays green. Separately, a bare `quest init` whose stdin or stdout is not
   a terminal (Git Bash on Windows, an IDE terminal, a pipe) used to write no
   agent instructions or skill and print nothing; it now prints a notice on
   stderr naming `--agent-instructions --target` and `--skill-source`, with the
   exit code and the initialized workspace unchanged. `--json`, `--plain`, any
-  flag and `--reconfigure` get a clean stderr. The `.quest/` placement the
-  operator reported is unreproduced: no code path writes a skill there.
+  flag and `--reconfigure` get a clean stderr. The operator's report that the
+  skill landed under `.quest/` was a misread, confirmed first-party: on
+  Windows the Codex target wrote `.claude/skills/quest`, and no code path
+  writes a skill under `.quest/`.
 
 - **`quest task edit --priority ""` clears the priority instead of storing an
   empty string** (QCLI-539). The vocabulary check has always documented an empty
