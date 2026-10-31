@@ -277,7 +277,15 @@ export function checkLeftoverClaudeSkill(
   claudePathInUse: boolean,
   generatesSkill = true,
 ): { readonly state: "drift"; readonly message: string } | undefined {
-  if (target !== "codex" || claudePathInUse || leftover === undefined)
+  // The in-use exemption is repo mode's: only there does a claude or
+  // antigravity target keep a per-repository skill at the Claude path. Under
+  // plugin or none no target does, so the file is a leftover whatever else
+  // the workspace targets.
+  if (
+    target !== "codex" ||
+    (claudePathInUse && generatesSkill) ||
+    leftover === undefined
+  )
     return undefined;
   return {
     state: "drift",

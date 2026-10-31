@@ -462,8 +462,9 @@ for (const mode of ["plugin", "none"] as const) {
       message: string;
     };
     expect(body.error_type).toBe("drift");
-    expect(body.message).toContain(questSkillPath);
-    expect(body.message).toContain("never deletes it");
+    expect(body.message).toBe(
+      `${questSkillPath} is a leftover: a codex target reads its skill from ${codexQuestSkillPath} and this workspace generates none. Move or delete it by hand; quest never deletes it, --force included.`,
+    );
     expect(await readFile(leftover, "utf8")).toBe(generated);
   });
 }
@@ -493,3 +494,64 @@ test("skill_source=none: a claude target still removes its own byte-exact orphan
   expect(update.exitCode).toBe(0);
   expect(await exists(leftover)).toBe(false);
 });
+
+// Review of #699 blocking 1: the in-use exemption is repo mode's. Under plugin
+// or none no target keeps a per-repository skill at the Claude path, so a
+// CLAUDE.md Quest block must not silence the leftover.
+for (const mode of ["plugin", "none"] as const) {
+  test(`skill_source=${mode} with a CLAUDE.md Quest block: --check --target codex still exits 6 naming the .claude skill`, async () => {
+    const root = await repository();
+    await run(
+      root,
+      "init",
+      "--agent-instructions",
+      "--target",
+      "codex",
+      "--json",
+    );
+    await run(
+      root,
+      "agents",
+      "--update-instructions",
+      "--target",
+      "claude",
+      "--json",
+    );
+    expect(await exists(join(root, "CLAUDE.md"))).toBe(true);
+    const generated = await readFile(
+      join(root, ".agents/skills/quest/SKILL.md"),
+      "utf8",
+    );
+    const leftover = join(root, ".claude/skills/quest/SKILL.md");
+    await mkdir(join(root, ".claude/skills/quest"), { recursive: true });
+    await writeFile(leftover, generated);
+    await rm(join(root, ".agents/skills/quest/SKILL.md"));
+    await rm(join(root, ".claude/skills/quest/SKILL.md"));
+    await writeFile(leftover, generated);
+    expect(
+      (
+        await run(
+          root,
+          "init",
+          "--reconfigure",
+          "--skill-source",
+          mode,
+          "--json",
+        )
+      ).exitCode,
+    ).toBe(0);
+    const check = await run(
+      root,
+      "agents",
+      "--check",
+      "--target",
+      "codex",
+      "--json",
+    );
+    expect(check.exitCode).toBe(6);
+    expect((JSON.parse(check.stderr) as { message: string }).message).toBe(
+      `${questSkillPath} is a leftover: a codex target reads its skill from ${codexQuestSkillPath} and this workspace generates none. Move or delete it by hand; quest never deletes it, --force included.`,
+    );
+    expect(await readFile(leftover, "utf8")).toBe(generated);
+  });
+}

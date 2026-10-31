@@ -70,13 +70,16 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   the generated content exactly: for a codex target the old Claude path is
   reported as a leftover that names the path, and removing it is the owner's
   (QCLI-545, opum-doc ODOC-556 R1, overriding QCLI-309 for that path). A
-  claude target's own orphan under `plugin` or `none` is unchanged. A workspace with a Quest block in CLAUDE.md or GEMINI.md
-  still uses that path and stays green. Separately, a bare `quest init` whose stdin or stdout is not
-  a terminal (Git Bash on Windows, an IDE terminal, a pipe) used to write no
-  agent instructions or skill and print nothing; it now prints a notice on
-  stderr naming `--agent-instructions --target` and `--skill-source`, with the
-  exit code and the initialized workspace unchanged. `--json`, `--plain`, any
-  flag and `--reconfigure` get a clean stderr. The operator's report that the
+  claude target's own orphan under `plugin` or `none` is unchanged. In `repo`
+  mode only, a workspace with a Quest block in CLAUDE.md or GEMINI.md still
+  uses that path and stays green; under `plugin` or `none` the file is a
+  leftover whatever else the workspace targets. Separately, a bare `quest
+  init` whose stdin or stdout is not a terminal (Git Bash on Windows, an IDE
+  terminal, a pipe) used to write no agent instructions or skill and print
+  nothing; it now prints a notice on stderr naming `--agent-instructions
+  --target` and `--skill-source`, with the exit code and the initialized
+  workspace unchanged. `--json`, `--plain`, any flag and `--reconfigure` get a
+  clean stderr. The operator's report that the
   skill landed under `.quest/` was a misread, confirmed first-party: on
   Windows the Codex target wrote `.claude/skills/quest`, and no code path
   writes a skill under `.quest/`.
