@@ -1804,9 +1804,10 @@ export async function writeInitInstructions(
   // file, and they differ only in what they assert ships instead.
   //
   // QCLI-543 (ODOC-556): the skill is no longer target-independent. A codex
-  // target writes it where Codex reads repository skills (.agents/skills),
-  // a claude target keeps .claude/skills, and a codex+claude selection writes
-  // both. Never .claude/ for a Codex-only target.
+  // target or an antigravity target writes it where Codex reads repository
+  // skills (.agents/skills, one shared file), a claude target keeps
+  // .claude/skills, and a claude+codex/antigravity selection writes both.
+  // Never .claude/ for a codex-only or antigravity-only target.
   let skill: AgentInstructionCheck | undefined;
   let skillsByPath: Record<string, AgentInstructionCheck> | undefined;
   if (
@@ -2122,7 +2123,7 @@ export async function runQuest(
               target:
                 "--target selects codex (AGENTS.md, the default), claude (CLAUDE.md), or antigravity (GEMINI.md); each call checks or updates exactly one file. A --check with no --target checks AGENTS.md only, and exits 6 naming the --target to use when AGENTS.md has no Quest block but CLAUDE.md or GEMINI.md carries one.",
               force:
-                'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover skill file at the target\'s own path (.agents/skills/quest/SKILL.md for codex, .claude/skills/quest/SKILL.md otherwise) reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file. For a codex target the old .claude/skills/quest/SKILL.md is never removed in any skill-source mode, --force included: --check reports it as a leftover and names the path (ODOC-556).',
+                'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover skill file at the target\'s own path (.agents/skills/quest/SKILL.md for codex and antigravity, .claude/skills/quest/SKILL.md for claude) reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file. For a codex or antigravity target the old .claude/skills/quest/SKILL.md is never removed in any skill-source mode, --force included: --check reports it as a leftover and names the path (ODOC-556).',
               plugin:
                 'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
@@ -2439,9 +2440,9 @@ export async function runQuest(
             instructionsPath,
             target,
           );
-      // QCLI-543/545: the skill file follows the target, in every skill-source
+      // QCLI-543/545/548: the skill file follows the target, in every skill-source
       // mode. The OLD Claude path is never this handler's to remove for a
-      // codex target (opum-doc ODOC-556 R1): it is reported as a leftover below
+      // codex or antigravity target (opum-doc ODOC-556 R1): it is reported as a leftover below
       // and only ever deleted by its owner, so it is not an orphan candidate.
       const skillPath = questSkillPathForTarget(target);
       const skillResult = check

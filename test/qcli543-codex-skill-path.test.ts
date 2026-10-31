@@ -653,10 +653,13 @@ test("repo mode: a .claude skill only an Antigravity target accounts for is drif
     "--json",
   );
   expect(check.exitCode).toBe(6);
-  expect((JSON.parse(check.stderr) as { message: string }).message).toBe(
-    ANTIGRAVITY_REPO_LEFTOVER,
-  );
-  await run(
+  const failure = JSON.parse(check.stderr) as {
+    error_type: string;
+    message: string;
+  };
+  expect(failure.error_type).toBe("drift");
+  expect(failure.message).toBe(ANTIGRAVITY_REPO_LEFTOVER);
+  const forced = await run(
     root,
     "agents",
     "--update-instructions",
@@ -665,7 +668,28 @@ test("repo mode: a .claude skill only an Antigravity target accounts for is drif
     "--force",
     "--json",
   );
+  expect(forced.exitCode).toBe(0);
   expect(await readFile(leftover, "utf8")).toBe(generated);
+});
+
+test("quest help agents: the force and skillSource details name antigravity beside codex and never promise to remove the .claude skill for either (QCLI-548)", async () => {
+  const root = await repository();
+  const help = await run(root, "help", "agents", "--json");
+  expect(help.exitCode).toBe(0);
+  const text = help.stdout;
+  expect(text).toContain(
+    "(.agents/skills/quest/SKILL.md for codex and antigravity, .claude/skills/quest/SKILL.md for claude)",
+  );
+  expect(text).toContain(
+    "For a codex or antigravity target the old .claude/skills/quest/SKILL.md is never removed",
+  );
+  expect(text).not.toContain(
+    "for codex, .claude/skills/quest/SKILL.md otherwise",
+  );
+  expect(text).not.toContain("For a codex target the old .claude");
+  expect(text).toContain(
+    "A codex or antigravity target's old .claude skill is never removed in any skill-source mode",
+  );
 });
 
 test("repo mode: a CLAUDE.md Quest block (a Claude target) does exempt the .claude skill for an Antigravity target", async () => {

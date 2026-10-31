@@ -36,8 +36,8 @@ export class WorkspaceError extends Error {
 
 /** Where the quest Claude Code skill for this workspace comes from: "repo"
  * (default) generates the quest skill into this repository
- * (.agents/skills/quest/SKILL.md for codex, .claude/skills/quest/SKILL.md for
- * claude);
+ * (.agents/skills/quest/SKILL.md for codex and antigravity,
+ * .claude/skills/quest/SKILL.md for claude);
  * "plugin" declares it ships instead from the opum-quest Claude Code plugin,
  * so quest agents stops writing or proposing the per-repo copy; "none"
  * declares this workspace has no quest skill file at all and none is
