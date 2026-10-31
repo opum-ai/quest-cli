@@ -2122,7 +2122,7 @@ export async function runQuest(
               target:
                 "--target selects codex (AGENTS.md, the default), claude (CLAUDE.md), or antigravity (GEMINI.md); each call checks or updates exactly one file. A --check with no --target checks AGENTS.md only, and exits 6 naming the --target to use when AGENTS.md has no Quest block but CLAUDE.md or GEMINI.md carries one.",
               force:
-                'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover skill file reports as drift at either path (a codex target checks both .agents/skills/quest/SKILL.md and .claude/skills/quest/SKILL.md; any other target checks .claude/skills/quest/SKILL.md); --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
+                'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover skill file at the target\'s own path (.agents/skills/quest/SKILL.md for codex, .claude/skills/quest/SKILL.md otherwise) reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file. For a codex target the old .claude/skills/quest/SKILL.md is never removed in any skill-source mode, --force included: --check reports it as a leftover and names the path (ODOC-556).',
               plugin:
                 'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
@@ -2439,39 +2439,29 @@ export async function runQuest(
             instructionsPath,
             target,
           );
-      // QCLI-543: the skill file follows the target. A generating workspace
-      // checks/writes the target's own skill path. A workspace that generates
-      // none ("plugin"/"none") keeps reporting an orphan at EITHER path, as it
-      // always did for the one path it had.
+      // QCLI-543/545: the skill file follows the target, in every skill-source
+      // mode. The OLD Claude path is never this handler's to remove for a
+      // codex target (opum-doc ODOC-556 R1): it is reported as a leftover below
+      // and only ever deleted by its owner, so it is not an orphan candidate.
       const skillPath = questSkillPathForTarget(target);
-      const orphanPaths = generatesQuestSkillFile(agentSkillSource)
-        ? [skillPath]
-        : [...new Set([skillPath, questSkillPath])];
-      const skillResults: AgentInstructionCheck[] = [];
-      for (const path of orphanPaths)
-        skillResults.push(
-          check
-            ? await inspectQuestSkillFile(
-                agentInstructionPort,
-                path,
-                agentSkillSource,
-              )
-            : await updateQuestSkillFile(
-                agentInstructionPort,
-                path,
-                agentSkillSource,
-                force,
-              ),
-        );
-      const skillResult = (skillResults.find(
-        (result) => result.state !== "current",
-      ) ?? skillResults[0]) as AgentInstructionCheck;
+      const skillResult = check
+        ? await inspectQuestSkillFile(
+            agentInstructionPort,
+            skillPath,
+            agentSkillSource,
+          )
+        : await updateQuestSkillFile(
+            agentInstructionPort,
+            skillPath,
+            agentSkillSource,
+            force,
+          );
       // A Claude-path skill left in a Codex-only workspace is reported, never
       // deleted (opum-doc ruling, ODOC-556). A Quest block in CLAUDE.md or GEMINI.md
       // is the record that the Claude path is also in use, so a codex+claude workspace
       // stays green under either --target.
       let leftoverResult: ReturnType<typeof checkLeftoverClaudeSkill>;
-      if (check && generatesQuestSkillFile(agentSkillSource)) {
+      if (check) {
         // The Claude-path skill is legitimately in use by a claude target AND
         // by antigravity, which has always written it there.
         let claudePathInUse = false;
@@ -2490,6 +2480,7 @@ export async function runQuest(
           await agentInstructionPort.read(questSkillPath),
           target ?? "codex",
           claudePathInUse,
+          generatesQuestSkillFile(agentSkillSource),
         );
       }
       if (check) {

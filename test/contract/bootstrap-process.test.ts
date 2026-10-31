@@ -850,10 +850,14 @@ test("--skill-source plugin: --force never deletes a hand-edited skill file (QCL
     await mkdir(join(root, ".claude", "skills", "quest"), { recursive: true });
     await writeFile(skillFile, "a human wrote this on purpose\n");
 
+    // --target claude: the .claude path is a claude target's own orphan. For a
+    // codex target it is a leftover that is never removed at all (QCLI-545).
     const forced = await run(
       root,
       "agents",
       "--update-instructions",
+      "--target",
+      "claude",
       "--force",
       "--json",
     );
