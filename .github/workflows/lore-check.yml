@@ -132,20 +132,20 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       # DEC-169 (opum-doc, 2026-10-07, opum-ai/opum-doc#809): for the paired
-      # 0.14.2 release this job installs the pinned lore from npm as always, and
+      # 0.15.0 release this job installs the pinned lore from npm as always, and
       # FALLS BACK to building it from a lore-cli git commit when npm does not yet
       # have it -- the mirror of lore-cli's own setup-quest action (lore-cli
       # DEC-55). It exists because the pair rule refuses a 0.12.0 lore against
-      # this 0.14.2 tree (exit 6), while lore cannot publish 0.14.2 until
+      # this 0.15.0 tree (exit 6), while lore cannot publish 0.15.0 until
       # quest-cli's `main` reads it (scripts/version-parity.mjs reads the peer's
       # main, not the registry). The source fallback lets this job go green before
-      # either side publishes; both mains then carry 0.14.2 and both publishes
+      # either side publishes; both mains then carry 0.15.0 and both publishes
       # follow. The pair moved here from 0.14.0, which was tagged on both sides
-      # and never published (DEC-204 (2)). TEMPORARY: once 0.14.2 is on npm a
+      # and never published (DEC-204 (2)). TEMPORARY: once 0.15.0 is on npm a
       # follow-up PR drops this variable and the npm install is again the only
       # path. The value is a lore-cli commit carrying this checkout's version; the
       # assertion step below fails loudly if it does not.
-      LORE_SOURCE_REF: dff81a039ea5d4df7705ef1040802d14e3385b30
+      LORE_SOURCE_REF: af4bc9d8c1b6fc4eba9204da95c3bd96a1306199
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -197,12 +197,12 @@ jobs:
         id: lore
         run: |
           set -euo pipefail
-          if npm install -g --ignore-scripts @opum-ai/lore@0.14.2; then
+          if npm install -g --ignore-scripts @opum-ai/lore@0.15.0; then
             echo "method=npm" >> "$GITHUB_OUTPUT"
-            echo "::notice::lore 0.14.2 installed from npm, exactly as before DEC-169"
+            echo "::notice::lore 0.15.0 installed from npm, exactly as before DEC-169"
           else
             echo "method=source" >> "$GITHUB_OUTPUT"
-            echo "::notice::lore 0.14.2 is not on npm; building opum-ai/lore-cli at $LORE_SOURCE_REF"
+            echo "::notice::lore 0.15.0 is not on npm; building opum-ai/lore-cli at $LORE_SOURCE_REF"
           fi
 
       - if: steps.lore.outputs.method == 'source'
