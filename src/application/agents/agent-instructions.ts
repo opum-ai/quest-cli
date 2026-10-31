@@ -236,7 +236,53 @@ export async function inspectQuestAgentInstructions(
   return checkQuestAgentInstructions(await port.read(path), target);
 }
 
+/** The Claude Code skill location, and the path every target other than codex
+ * writes (claude, and antigravity, which no ruling has moved). Kept under its
+ * original name so existing importers do not change. */
 export const questSkillPath = ".claude/skills/quest/SKILL.md";
+
+/** QCLI-543 / ODOC-556: where Codex reads repository skills --
+ * `$REPO_ROOT/.agents/skills`, per Codex's own documentation
+ * (learn.chatgpt.com/docs/build-skills, read 2026-10-31); `.codex/skills` is
+ * not documented there. lore writes `.agents/skills/lore/SKILL.md`. */
+export const codexQuestSkillPath = ".agents/skills/quest/SKILL.md";
+
+/** The skill file a target reads. A codex target gets the `.agents` path and
+ * never `.claude/`; a claude target keeps `.claude/`. Antigravity is unruled
+ * (opum-doc ruled codex and claude only) and stays on the path it has always
+ * used. Forward slashes on purpose: the port resolves them on every platform. */
+export function questSkillPathForTarget(
+  target: AgentInstructionTarget = "codex",
+): string {
+  return target === "codex" ? codexQuestSkillPath : questSkillPath;
+}
+
+/** The distinct skill files for a set of targets, in first-seen order, so a
+ * codex+claude workspace gets both files and two targets sharing one path
+ * (claude and antigravity) write it once. */
+export function questSkillPathsForTargets(
+  targets: readonly AgentInstructionTarget[],
+): readonly string[] {
+  return [...new Set(targets.map((target) => questSkillPathForTarget(target)))];
+}
+
+/** A Claude-path skill left behind in a workspace that no longer targets
+ * it. `claudePathInUse` is true when CLAUDE.md or GEMINI.md carries a Quest
+ * block (claude and antigravity both read that path), which is the only record
+ * of such a target there is. Reported, never deleted
+ * (opum-doc ruling, ODOC-556). Only a codex target can be the one that left it. */
+export function checkLeftoverClaudeSkill(
+  leftover: string | undefined,
+  target: AgentInstructionTarget,
+  claudePathInUse: boolean,
+): { readonly state: "drift"; readonly message: string } | undefined {
+  if (target !== "codex" || claudePathInUse || leftover === undefined)
+    return undefined;
+  return {
+    state: "drift",
+    message: `${questSkillPath} is a leftover: quest now writes its Codex skill to ${codexQuestSkillPath}. Move or delete it by hand; quest never deletes it.`,
+  };
+}
 
 /** Where the opum-quest Claude Code plugin's copy of the skill is committed,
  * relative to the repository root. The marketplace federates the plugin from
@@ -312,6 +358,7 @@ export function generatesQuestSkillFile(
 export function checkQuestSkillFile(
   content: string | undefined,
   skillSource: AgentSkillSource = "repo",
+  path: string = questSkillPath,
 ): AgentInstructionCheck {
   if (!generatesQuestSkillFile(skillSource)) {
     if (content === undefined) return { state: "current" };
@@ -321,7 +368,7 @@ export function checkQuestSkillFile(
         : 'this workspace\'s agents.skillSource is "none", so it generates no quest skill file and none ships from anywhere else';
     return {
       state: "orphaned",
-      message: `${questSkillPath} should not exist: ${reason}. Delete it, or run \`quest agents --force\` to remove it if it exactly matches the generated content.`,
+      message: `${path} should not exist: ${reason}. Delete it, or run \`quest agents --force\` to remove it if it exactly matches the generated content.`,
     };
   }
   if (content === undefined) return { state: "missing" };
@@ -347,7 +394,7 @@ export async function updateQuestSkillFile(
   force = false,
 ): Promise<AgentInstructionCheck> {
   const current = await port.read(path);
-  const check = checkQuestSkillFile(current, skillSource);
+  const check = checkQuestSkillFile(current, skillSource, path);
   if (!generatesQuestSkillFile(skillSource)) {
     if (check.state === "orphaned" && force && current === questSkillContent) {
       await port.remove(path);
@@ -366,5 +413,5 @@ export async function inspectQuestSkillFile(
   path = questSkillPath,
   skillSource: AgentSkillSource = "repo",
 ): Promise<AgentInstructionCheck> {
-  return checkQuestSkillFile(await port.read(path), skillSource);
+  return checkQuestSkillFile(await port.read(path), skillSource, path);
 }

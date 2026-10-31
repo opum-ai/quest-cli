@@ -279,7 +279,7 @@ test("a directory left with task records but no workspace.toml refuses plain ini
 
 test("--agent-instructions also installs the quest skill, and agents --check/--update-instructions cover both targets", async () => {
   const root = await repository();
-  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  const skillFile = join(root, ".agents", "skills", "quest", "SKILL.md");
   try {
     const initialized = await run(
       root,
@@ -647,7 +647,7 @@ test("--skill-source none stops the Claude-provider skill file being written on 
 
 test("--skill-source none: a leftover skill file reports orphaned with a message that never claims a plugin ships it, and --force removes a byte-exact one (QCLI-309)", async () => {
   const root = await repository();
-  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  const skillFile = join(root, ".agents", "skills", "quest", "SKILL.md");
   try {
     // An already-initialized workspace that already has the stray file --
     // the state the reporter was actually in. --reconfigure persists the
@@ -681,7 +681,7 @@ test("--skill-source none: a leftover skill file reports orphaned with a message
     expect(drift).toMatchObject({ error_type: "drift" });
     // The whole point of the value: the diagnosis names the file and the
     // reason without asserting anything false about where a skill comes from.
-    expect(drift.message).toContain(".claude/skills/quest/SKILL.md");
+    expect(drift.message).toContain(".agents/skills/quest/SKILL.md");
     expect(drift.message).toContain('agents.skillSource is "none"');
     expect(drift.message).not.toContain("plugin");
 
@@ -718,7 +718,7 @@ test("--skill-source none: a leftover skill file reports orphaned with a message
 
 test("--skill-source none: --force never deletes a hand-edited skill file, exactly as under plugin (QCLI-309)", async () => {
   const root = await repository();
-  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  const skillFile = join(root, ".agents", "skills", "quest", "SKILL.md");
   try {
     expect(
       await run(root, "init", "--agent-instructions", "--json"),
@@ -756,7 +756,7 @@ test("--skill-source none: --force never deletes a hand-edited skill file, exact
 
 test("--skill-source plugin persisted from a prior call still lets a LATER, bare --agent-instructions request materialize the skill once -- explicit beats a PERSISTED config, unlike an explicit --skill-source given in the same breath (QCLI-254)", async () => {
   const root = await repository();
-  const skillFile = join(root, ".claude", "skills", "quest", "SKILL.md");
+  const skillFile = join(root, ".agents", "skills", "quest", "SKILL.md");
   try {
     expect(await run(root, "init", "--json")).toMatchObject({ exitCode: 0 });
     expect(

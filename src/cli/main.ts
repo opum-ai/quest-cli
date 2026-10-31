@@ -7,11 +7,14 @@ import {
   agentInstructionPathForTarget,
   type AgentInstructionCheck,
   type AgentInstructionTarget,
+  checkLeftoverClaudeSkill,
   generatesQuestSkillFile,
   inspectQuestAgentInstructions,
   inspectQuestSkillFile,
   questAgentInstructions,
   questSkillPath,
+  questSkillPathForTarget,
+  questSkillPathsForTargets,
   updateQuestAgentInstructions,
   updateQuestSkillFile,
 } from "../application/agents/agent-instructions.ts";
@@ -121,6 +124,7 @@ import {
   createTaskService,
   createWorkspacePort,
 } from "./composition.ts";
+import { initGate, nonInteractiveInitNotice } from "./init-gate.ts";
 import { migrationSmokeResult } from "./migration-smoke.ts";
 import { renderHumanPayload, renderTabSeparatedRows } from "./render.ts";
 
@@ -1743,6 +1747,10 @@ export interface InitInstructionsWriteResult {
     Record<string, AgentInstructionCheck>
   >;
   readonly skill?: AgentInstructionCheck;
+  /** QCLI-543: additive, present only when MORE THAN ONE skill file was
+   * written (a codex+claude selection), keyed by repository-relative path.
+   * `skill` keeps its single-object shape for every one-file caller. */
+  readonly skillsByPath?: Readonly<Record<string, AgentInstructionCheck>>;
 }
 
 /**
@@ -1791,17 +1799,32 @@ export async function writeInitInstructions(
   // explicit, not explicit versus config, and between two explicit
   // instructions in the same breath the more specific one wins. "Do not
   // generate a skill here" is more specific than "set up agent
-  // instructions", so skip the write. The skill file is Claude-specific but
-  // not per-target: it is written once whenever any instructions were
-  // written, regardless of which/how many targets were selected (unchanged
-  // from QCLI-254). QCLI-309: "none" skips for the same reason "plugin"
-  // does -- both declare this repository generates no skill file, and they
-  // differ only in what they assert ships instead.
-  const skill =
-    agentSkillSource === undefined || generatesQuestSkillFile(agentSkillSource)
-      ? await updateQuestSkillFile(agentInstructionPort)
-      : undefined;
-  return { instructions, instructionsByTarget, skill };
+  // instructions", so skip the write. QCLI-309: "none" skips for the same
+  // reason "plugin" does -- both declare this repository generates no skill
+  // file, and they differ only in what they assert ships instead.
+  //
+  // QCLI-543 (ODOC-556): the skill is no longer target-independent. A codex
+  // target writes it where Codex reads repository skills (.agents/skills),
+  // a claude target keeps .claude/skills, and a codex+claude selection writes
+  // both. Never .claude/ for a Codex-only target.
+  let skill: AgentInstructionCheck | undefined;
+  let skillsByPath: Record<string, AgentInstructionCheck> | undefined;
+  if (
+    agentSkillSource === undefined ||
+    generatesQuestSkillFile(agentSkillSource)
+  ) {
+    const selected: readonly AgentInstructionTarget[] =
+      interactiveTargets !== undefined && interactiveTargets.length > 0
+        ? interactiveTargets
+        : [scriptedTarget ?? "codex"];
+    const paths = questSkillPathsForTargets(selected);
+    const written: Record<string, AgentInstructionCheck> = {};
+    for (const path of paths)
+      written[path] = await updateQuestSkillFile(agentInstructionPort, path);
+    skill = written[paths[0] as string];
+    if (paths.length > 1) skillsByPath = written;
+  }
+  return { instructions, instructionsByTarget, skill, skillsByPath };
 }
 
 /**
@@ -2099,11 +2122,11 @@ export async function runQuest(
               target:
                 "--target selects codex (AGENTS.md, the default), claude (CLAUDE.md), or antigravity (GEMINI.md); each call checks or updates exactly one file. A --check with no --target checks AGENTS.md only, and exits 6 naming the --target to use when AGENTS.md has no Quest block but CLAUDE.md or GEMINI.md carries one.",
               force:
-                'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover .claude/skills/quest/SKILL.md reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
+                'When this workspace\'s agents.skill_source is "plugin" or "none", a leftover skill file (.agents/skills/quest/SKILL.md for codex, .claude/skills/quest/SKILL.md otherwise) reports as drift; --force removes it only if its bytes exactly match the generated content, never a hand-edited file.',
               plugin:
                 'QCLI-371: with the claude or codex target, data.plugin reports the opum-quest marketplace plugin through that runtime\'s own `plugin list --json`: "installed", "disabled" (installed with enabled:false, never reported as installed), "not-installed", or "not-detectable" (the runtime CLI is absent or unreadable). --check only reports it and prints the remedy. --update-instructions with an explicit --target runs the update for an installed plugin (`claude plugin update opum-quest@opum --scope <scope>`, or `codex plugin marketplace upgrade opum` then `codex plugin add opum-quest@opum`, which refreshes every opum plugin for Codex) and never installs or enables one; with no --target it names no runtime, so it only reports and prints the update command. Claude rows for other projects are ignored, and the most specific applicable scope decides enablement. Neither changes the exit code. QUEST_AGENT_PLUGINS=off skips detection entirely.',
               skillSource:
-                'The skill file is target-independent and governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
+                'WHICH skill file follows --target (codex: .agents/skills/quest/SKILL.md; claude and antigravity: .claude/skills/quest/SKILL.md), but WHETHER one is generated is governed by agents.skill_source, not --target: "repo" (default) generates it, "plugin" declares it ships from the opum-quest Claude Code plugin, "none" declares this workspace has no quest skill file at all. Set it with `quest init --skill-source <value>`, or on an existing workspace with `quest init --reconfigure --skill-source <value>`.',
               coverage:
                 "Up to two lines in the human and --plain output only, never in --json, and only on a run that reports plugin state; the override line exists only for a disabled, non-managed row. `agents-coverage <state> covers the managed block and the skill file only, not plugin enablement` states what the state verdict is about. `plugin-claude-override <file> (<scope> scope) sets opum-quest@opum to disabled, and is the effective setting in this checkout` (the committed .claude/settings.json row reads `sets opum-quest@opum to disabled for every collaborator, and is...`, DEC-238 (a10)) names the settings file that disables the plugin and prints BEFORE the dump that carries the remedy; the remedy is always `--scope local`, and no command that writes a settings file is ever executed (DEC-238 (a6), (a9), QCLI-532).",
             }
@@ -2183,12 +2206,14 @@ export async function runQuest(
       // --reconfigure updates an existing workspace; the interactive wizard
       // is shaped around a fresh workspace's three questions and does not
       // fit that, so it never applies here regardless of TTY state.
-      const interactive =
-        !reconfigure &&
-        stdoutIsTty &&
-        stdinIsTty &&
-        !explicitOutputMode &&
-        !explicitFlagsGiven;
+      const gate = initGate({
+        reconfigure,
+        stdoutIsTty,
+        stdinIsTty,
+        explicitOutputMode,
+        explicitFlagsGiven,
+      });
+      const interactive = gate.interactive;
       let name = one(parsed, "--name");
       let taskIdPrefix = one(parsed, "--task-id-prefix");
       let writeInstructions = parsed.values.has("--agent-instructions");
@@ -2234,6 +2259,9 @@ export async function runQuest(
         | Readonly<Record<string, AgentInstructionCheck>>
         | undefined;
       let skill: AgentInstructionCheck | undefined;
+      let skillsByPath:
+        | Readonly<Record<string, AgentInstructionCheck>>
+        | undefined;
       // QCLI-371 (ADR ruling (a), Amendments 1-2): with a claude or codex
       // target selected, report whether that runtime has the opum-quest
       // plugin, after target selection and before any instruction or skill
@@ -2257,7 +2285,7 @@ export async function runQuest(
       }
       if (writeInstructions) {
         const agentInstructionPort = createAgentInstructionPort(process.cwd());
-        ({ instructions, instructionsByTarget, skill } =
+        ({ instructions, instructionsByTarget, skill, skillsByPath } =
           await writeInitInstructions(
             agentInstructionPort,
             interactiveTargets,
@@ -2265,7 +2293,7 @@ export async function runQuest(
             agentSkillSource,
           ));
       }
-      return output(
+      const initResult = output(
         {
           schemaVersion: 1,
           kind: reconfigure
@@ -2277,11 +2305,20 @@ export async function runQuest(
             instructions,
             instructionsByTarget,
             skill,
+            skillsByPath,
             plugins,
           },
         },
         modeFor(parsed),
       );
+      // QCLI-543: a bare init that could not run its wizard says so and names
+      // the flags, instead of leaving the user to find no bridge was written.
+      return gate.notice
+        ? {
+            ...initResult,
+            stderr: nonInteractiveInitNotice({ stdinIsTty, stdoutIsTty }),
+          }
+        : initResult;
     }
     if (arguments_[0] === "instructions") {
       // Any leading dash is a flag, not a guide name: `-x` must be a usage
@@ -2402,18 +2439,59 @@ export async function runQuest(
             instructionsPath,
             target,
           );
-      const skillResult = check
-        ? await inspectQuestSkillFile(
-            agentInstructionPort,
-            questSkillPath,
-            agentSkillSource,
+      // QCLI-543: the skill file follows the target. A generating workspace
+      // checks/writes the target's own skill path. A workspace that generates
+      // none ("plugin"/"none") keeps reporting an orphan at EITHER path, as it
+      // always did for the one path it had.
+      const skillPath = questSkillPathForTarget(target);
+      const orphanPaths = generatesQuestSkillFile(agentSkillSource)
+        ? [skillPath]
+        : [...new Set([skillPath, questSkillPath])];
+      const skillResults: AgentInstructionCheck[] = [];
+      for (const path of orphanPaths)
+        skillResults.push(
+          check
+            ? await inspectQuestSkillFile(
+                agentInstructionPort,
+                path,
+                agentSkillSource,
+              )
+            : await updateQuestSkillFile(
+                agentInstructionPort,
+                path,
+                agentSkillSource,
+                force,
+              ),
+        );
+      const skillResult = (skillResults.find(
+        (result) => result.state !== "current",
+      ) ?? skillResults[0]) as AgentInstructionCheck;
+      // A Claude-path skill left in a Codex-only workspace is reported, never
+      // deleted (opum-doc ruling, ODOC-556). A Quest block in CLAUDE.md or GEMINI.md
+      // is the record that the Claude path is also in use, so a codex+claude workspace
+      // stays green under either --target.
+      let leftoverResult: ReturnType<typeof checkLeftoverClaudeSkill>;
+      if (check && generatesQuestSkillFile(agentSkillSource)) {
+        // The Claude-path skill is legitimately in use by a claude target AND
+        // by antigravity, which has always written it there.
+        let claudePathInUse = false;
+        for (const other of ["claude", "antigravity"] as const)
+          if (
+            (
+              await inspectQuestAgentInstructions(
+                agentInstructionPort,
+                agentInstructionPathForTarget(other),
+                other,
+              )
+            ).state !== "missing"
           )
-        : await updateQuestSkillFile(
-            agentInstructionPort,
-            questSkillPath,
-            agentSkillSource,
-            force,
-          );
+            claudePathInUse = true;
+        leftoverResult = checkLeftoverClaudeSkill(
+          await agentInstructionPort.read(questSkillPath),
+          target ?? "codex",
+          claudePathInUse,
+        );
+      }
       if (check) {
         // QCLI-373: a bare --check reads AGENTS.md. When that file has no Quest
         // block but another target's file does, exiting 0 would report on the
@@ -2441,6 +2519,8 @@ export async function runQuest(
           return failure("drift", instructionsResult.message);
         if (skillResult.state === "drift" || skillResult.state === "orphaned")
           return failure("drift", skillResult.message);
+        if (leftoverResult !== undefined)
+          return failure("drift", leftoverResult.message);
         if (
           requireInstalled &&
           (instructionsResult.state === "missing" ||
