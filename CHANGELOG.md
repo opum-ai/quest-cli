@@ -65,19 +65,21 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   **Behaviour change to know about:** an existing Codex-only workspace that
   already has `.claude/skills/quest/SKILL.md` now reports it as drift under
   `quest agents --check` (message: "is a leftover ... Move or delete it by
-  hand; quest never deletes it", exit 6), and under the default
-  `skill_source = "repo"` `--force` does not remove it. Under
-  `skill_source = "plugin"` or `"none"` the existing orphan path (QCLI-309) is
-  unchanged: `--force` still removes a byte-exact generated
-  `.claude/skills/quest/SKILL.md` even for a codex target. Whether that
-  should hold for a codex target is a pending ruling (opum-doc), not changed
-  here. A workspace with a Quest block in CLAUDE.md or GEMINI.md still uses that path
-  and stays green. Separately, a bare `quest init` whose stdin or stdout is not
-  a terminal (Git Bash on Windows, an IDE terminal, a pipe) used to write no
-  agent instructions or skill and print nothing; it now prints a notice on
-  stderr naming `--agent-instructions --target` and `--skill-source`, with the
-  exit code and the initialized workspace unchanged. `--json`, `--plain`, any
-  flag and `--reconfigure` get a clean stderr. The operator's report that the
+  hand; quest never deletes it", exit 6), and `--force` does not remove it in
+  any skill-source mode (`repo`, `plugin` or `none`), even when its bytes match
+  the generated content exactly: for a codex target the old Claude path is
+  reported as a leftover that names the path, and removing it is the owner's
+  (QCLI-545, opum-doc ODOC-556 R1, overriding QCLI-309 for that path). A
+  claude target's own orphan under `plugin` or `none` is unchanged. In `repo`
+  mode only, a workspace with a Quest block in CLAUDE.md or GEMINI.md still
+  uses that path and stays green; under `plugin` or `none` the file is a
+  leftover whatever else the workspace targets. Separately, a bare `quest
+  init` whose stdin or stdout is not a terminal (Git Bash on Windows, an IDE
+  terminal, a pipe) used to write no agent instructions or skill and print
+  nothing; it now prints a notice on stderr naming `--agent-instructions
+  --target` and `--skill-source`, with the exit code and the initialized
+  workspace unchanged. `--json`, `--plain`, any flag and `--reconfigure` get a
+  clean stderr. The operator's report that the
   skill landed under `.quest/` was a misread, confirmed first-party: on
   Windows the Codex target wrote `.claude/skills/quest`, and no code path
   writes a skill under `.quest/`.

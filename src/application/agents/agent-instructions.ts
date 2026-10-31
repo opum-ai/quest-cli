@@ -275,12 +275,23 @@ export function checkLeftoverClaudeSkill(
   leftover: string | undefined,
   target: AgentInstructionTarget,
   claudePathInUse: boolean,
+  generatesSkill = true,
 ): { readonly state: "drift"; readonly message: string } | undefined {
-  if (target !== "codex" || claudePathInUse || leftover === undefined)
+  // The in-use exemption is repo mode's: only there does a claude or
+  // antigravity target keep a per-repository skill at the Claude path. Under
+  // plugin or none no target does, so the file is a leftover whatever else
+  // the workspace targets.
+  if (
+    target !== "codex" ||
+    (claudePathInUse && generatesSkill) ||
+    leftover === undefined
+  )
     return undefined;
   return {
     state: "drift",
-    message: `${questSkillPath} is a leftover: quest now writes its Codex skill to ${codexQuestSkillPath}. Move or delete it by hand; quest never deletes it.`,
+    message: generatesSkill
+      ? `${questSkillPath} is a leftover: quest now writes its Codex skill to ${codexQuestSkillPath}. Move or delete it by hand; quest never deletes it.`
+      : `${questSkillPath} is a leftover: a codex target reads its skill from ${codexQuestSkillPath} and this workspace generates none. Move or delete it by hand; quest never deletes it, --force included.`,
   };
 }
 
