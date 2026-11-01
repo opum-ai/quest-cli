@@ -145,7 +145,7 @@ jobs:
       # follow-up PR drops this variable and the npm install is again the only
       # path. The value is a lore-cli commit carrying this checkout's version; the
       # assertion step below fails loudly if it does not.
-      LORE_SOURCE_REF: af4bc9d8c1b6fc4eba9204da95c3bd96a1306199
+      LORE_SOURCE_REF: eb13ece3ffa6ed2c3ad17362476e7045eecfafa1
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
