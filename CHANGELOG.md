@@ -10,47 +10,9 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
-## 0.14.2
+## 0.15.0
 
-### Changed
-
-- **CI is hardened per DEC-240** (QCLI-535). Every `actions/checkout` step sets
-  `persist-credentials: false` (no job here pushes with the token), the pinned
-  lore install in the gate and the lore install in the weekly
-  pin-staleness schema export (`exportSchemas` in `lore-pin-staleness.mjs`)
-  pass `--ignore-scripts` (the candidate install in `prepublish.mjs` already
-  did), the one step output that reached a `run:` body in
-  `lore-check.yml` and in `release.yml` now arrives through `env:`, and the
-  tracker-integrity job reads the declared Quest version with
-  `scripts/read-declared-quest-version.mjs`, which accepts only an exact
-  `X.Y.Z` found inside the managed block's markers and fails by name on a
-  partial version, a range or a stray second declaration. The lore pin
-  staleness reader accepts the new install line. No published artifact changes.
-
-### Added
-
-- **`quest task view <id> --ref <ref>` reads a task record as it exists at a
-  git ref** (QCLI-519 / DEC-206 (c3)). The success envelope carries a
-  top-level `ref: {ref, sha}` beside `data` -- the ref exactly as you spelled
-  it, and the commit it resolved to after peeling (`v0.14.1` reports the
-  commit, not the annotated tag object) -- so a consumer needs no `git show`
-  over `.quest/` and no second decoder: `data` is the same shape `task view`
-  returns, and `--max-notes`/`--fields` compose unchanged. It is a read, so
-  there is no revision precondition and nothing is written, and it never
-  fetches: a ref that exists only on the remote must be fetched first. Five
-  failure outcomes, all naming the ref and (where one resolved) its sha: an id
-  absent at the ref is `not_found` (exit 3, `input.code` `task_not_found`); a
-  ref that does not resolve to a commit -- including a tree-ish or a blob-ish
-  such as `HEAD^{tree}` or `HEAD:.quest/tasks/T-1.json` -- is `not_found`
-  (exit 3, `input.code` `ref_not_resolvable`); and a `.quest` tree or record
-  that cannot be read is `drift` (exit 6, `ref_records_unreadable`, never read
-  as an empty ref). A duplicate id at the ref is `drift` (exit 6,
-  `ref_record_duplicate`, naming both paths in `input.paths`), and an
-  ambiguous reference is a `conflict` (exit 5), exactly as in the
-  working-tree read. The plain (non-`--json`) form ends with a one-line ref
-  footer naming the ref and commit.
-
-### Fixed
+### Changed (breaking)
 
 - **A Codex target now gets its skill where Codex reads repository skills, and a
   bare `quest init` that cannot run its wizard says so** (QCLI-543, opum-doc
@@ -91,6 +53,54 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   landed under `.quest/` was a misread, confirmed first-party: on Windows the
   Codex target wrote `.claude/skills/quest`, and no code path
   writes a skill under `.quest/`.
+  **Upgrade step:** after upgrading, run `quest agents --update-instructions`
+  with your `--target`, then delete the old-path `.claude/skills/quest/SKILL.md`
+  by hand (quest never deletes it, `--force` included); `quest agents --check`
+  exits 0 again once that file is gone or a Claude target in `repo` mode uses it.
+  This is why the pair is 0.15.0 rather than 0.14.2: a remapped `--check` exit
+  code (0 to 6 on an unchanged workspace) is breaking for a caller that gates CI
+  on it (opum-doc ODOC-556, OA-r354-pair-0142-semver).
+
+
+### Changed
+
+- **CI is hardened per DEC-240** (QCLI-535). Every `actions/checkout` step sets
+  `persist-credentials: false` (no job here pushes with the token), the pinned
+  lore install in the gate and the lore install in the weekly
+  pin-staleness schema export (`exportSchemas` in `lore-pin-staleness.mjs`)
+  pass `--ignore-scripts` (the candidate install in `prepublish.mjs` already
+  did), the one step output that reached a `run:` body in
+  `lore-check.yml` and in `release.yml` now arrives through `env:`, and the
+  tracker-integrity job reads the declared Quest version with
+  `scripts/read-declared-quest-version.mjs`, which accepts only an exact
+  `X.Y.Z` found inside the managed block's markers and fails by name on a
+  partial version, a range or a stray second declaration. The lore pin
+  staleness reader accepts the new install line. No published artifact changes.
+
+### Added
+
+- **`quest task view <id> --ref <ref>` reads a task record as it exists at a
+  git ref** (QCLI-519 / DEC-206 (c3)). The success envelope carries a
+  top-level `ref: {ref, sha}` beside `data` -- the ref exactly as you spelled
+  it, and the commit it resolved to after peeling (`v0.14.1` reports the
+  commit, not the annotated tag object) -- so a consumer needs no `git show`
+  over `.quest/` and no second decoder: `data` is the same shape `task view`
+  returns, and `--max-notes`/`--fields` compose unchanged. It is a read, so
+  there is no revision precondition and nothing is written, and it never
+  fetches: a ref that exists only on the remote must be fetched first. Five
+  failure outcomes, all naming the ref and (where one resolved) its sha: an id
+  absent at the ref is `not_found` (exit 3, `input.code` `task_not_found`); a
+  ref that does not resolve to a commit -- including a tree-ish or a blob-ish
+  such as `HEAD^{tree}` or `HEAD:.quest/tasks/T-1.json` -- is `not_found`
+  (exit 3, `input.code` `ref_not_resolvable`); and a `.quest` tree or record
+  that cannot be read is `drift` (exit 6, `ref_records_unreadable`, never read
+  as an empty ref). A duplicate id at the ref is `drift` (exit 6,
+  `ref_record_duplicate`, naming both paths in `input.paths`), and an
+  ambiguous reference is a `conflict` (exit 5), exactly as in the
+  working-tree read. The plain (non-`--json`) form ends with a one-line ref
+  footer naming the ref and commit.
+
+### Fixed
 
 - **`quest task edit --priority ""` clears the priority instead of storing an
   empty string** (QCLI-539). The vocabulary check has always documented an empty
