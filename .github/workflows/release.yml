@@ -366,7 +366,8 @@ jobs:
 
       # QCLI-267, the half that names the defect directly: the registry's own
       # gitHead for what was just published must be the commit it was released
-      # from. This is the only moment both halves exist and can be compared --
+      # from. QCLI-555: a tarball publish records NO gitHead, so --bundle ties
+      # the served launcher to the commit through the qualified bundle instead. This is the only moment both halves exist and can be compared --
       # afterwards a history rewrite can silently make the claim false, and
       # nothing can repair it. A red here is a real release problem, not CDN
       # lag: the step above has already waited for propagation.
@@ -376,4 +377,4 @@ jobs:
           set -euo pipefail
           launcher="$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")"
           node scripts/qualification/release-provenance.mjs --post \
-            --version "$launcher"
+            --version "$launcher" --bundle candidate
