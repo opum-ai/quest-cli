@@ -364,16 +364,26 @@ jobs:
           node scripts/qualification/bundle-integrity.mjs \
             --bundle candidate --version "$version"
 
-      # QCLI-267, the half that names the defect directly: the registry's own
-      # gitHead for what was just published must be the commit it was released
-      # from. This is the only moment both halves exist and can be compared --
-      # afterwards a history rewrite can silently make the claim false, and
-      # nothing can repair it. A red here is a real release problem, not CDN
-      # lag: the step above has already waited for propagation.
+      # QCLI-267, the half that names the defect directly: what the registry
+      # serves must be tied to the commit it was released from. This is the
+      # only moment both halves exist and can be compared -- afterwards a
+      # history rewrite can silently make the claim false, and nothing can
+      # repair it. A red here is a real release problem, not CDN lag: the step
+      # above has already waited for propagation.
+      #
+      # QCLI-555: a tarball publish records NO gitHead on the registry, so
+      # --bundle and --run-id tie the served launcher to the commit through
+      # opum-cli-e2e's receipt instead. That read needs the same token as the
+      # receipt gate above (the existing E2E_RECEIPT_READ_TOKEN, nothing new).
       - name: Verify the registry's provenance matches what was released
         if: ${{ inputs.publish == true }}
+        env:
+          GH_TOKEN: ${{ secrets.E2E_RECEIPT_READ_TOKEN || secrets.GITHUB_TOKEN }}
+          # DEC-240 (4): a step output reaches the shell through env:.
+          QUALIFICATION_RUN_ID: ${{ steps.qualification.outputs.run_id }}
         run: |
           set -euo pipefail
           launcher="$(node -p "require('./candidate/evidence/package-metadata.json').launcher.stagedVersion")"
           node scripts/qualification/release-provenance.mjs --post \
-            --version "$launcher"
+            --version "$launcher" --bundle candidate \
+            --run-id "$QUALIFICATION_RUN_ID"

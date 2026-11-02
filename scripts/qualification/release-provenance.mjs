@@ -21,11 +21,27 @@
 //           as X-rc.N (QCLI-399), so after staging @opum-ai/quest@X does not
 //           exist yet.
 //
+//           QCLI-555: npm records gitHead only when a publish runs from a git
+//           checkout, and the tarball route (`npm publish <file>` of the
+//           qualified bundle, which publish-release.mjs, promote-release.mjs
+//           and release.yml all use) records none: no @opum-ai/quest from
+//           0.11.0 on carries one. When the registry records NO gitHead, and
+//           `--bundle <dir> --run-id <id>` name the downloaded
+//           quest-candidate-bundle and the qualification run on the tag, the
+//           check instead ties the registry to the commit through opum-cli-e2e's
+//           receipt (DEC-251 a3): the receipt must bind the commit and the
+//           launcher tarball's sha256, and npm's served dist.integrity must be
+//           that tarball's sha512. The bundle's own sourceCommit is a claim,
+//           never the binding. See provenance-tarball-route.mjs. A gitHead the
+//           registry DOES record is still compared and still must equal the
+//           commit: a contradiction is never treated as an absence.
+//
 // Neither mode can repair an old release. The point is that a NEW one cannot
 // silently acquire a claim the repository contradicts.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { verifyTarballRoute } from "./provenance-tarball-route.mjs";
 import { REGISTRY_PINS } from "./registry-visibility.mjs";
 
 const mode = process.argv[2];
@@ -57,6 +73,18 @@ if (
   console.error(
     `--version must be ${version} or ${version}-rc.<N>, got ${postVersion}`,
   );
+  process.exit(2);
+}
+const bundleFlag = process.argv.indexOf("--bundle");
+const bundleDir = bundleFlag === -1 ? undefined : process.argv[bundleFlag + 1];
+if (bundleFlag !== -1 && (!bundleDir || bundleDir.startsWith("--"))) {
+  console.error("--bundle requires a directory");
+  process.exit(2);
+}
+const runIdFlag = process.argv.indexOf("--run-id");
+const runId = runIdFlag === -1 ? undefined : process.argv[runIdFlag + 1];
+if (runIdFlag !== -1 && (!runId || runId.startsWith("--"))) {
+  console.error("--run-id requires a value");
   process.exit(2);
 }
 const sha = process.env.GITHUB_SHA ?? git("rev-parse", "HEAD");
@@ -123,12 +151,34 @@ try {
 }
 
 if (!published) {
-  // npm omits gitHead when the publish had no git context. That is not a
-  // mismatch, but it is the absence of provenance, so say so loudly rather
-  // than passing quietly.
-  fail(
-    `${name}@${postVersion} was published with no gitHead. The registry now records no provenance for it, and nothing later can add one.`,
+  // npm omits gitHead when the publish had no git context -- every tarball
+  // publish. That is not a mismatch, but it is the absence of a registry
+  // gitHead, so it passes only through the bundle route below, never quietly.
+  if (!bundleDir)
+    fail(
+      `${name}@${postVersion} was published with no gitHead, which is what a tarball publish records. Re-run with --bundle <dir> --run-id <id>, naming the downloaded quest-candidate-bundle and the qualification run on the tag, so the served tarball can be tied to ${sha} through opum-cli-e2e's receipt (QCLI-555); nothing later can add a gitHead.`,
+    );
+  if (!runId)
+    fail(
+      "--bundle needs --run-id <id>: the prepublication-qualification run on the release tag, which opum-cli-e2e's receipt must name.",
+    );
+  const routed = await verifyTarballRoute({
+    name,
+    bundleDir,
+    version,
+    postVersion,
+    commit: sha,
+    runId,
+  });
+  if (!routed.ok)
+    fail(
+      `${name}@${postVersion} records no gitHead and the served bytes cannot be tied to ${sha}:\n${routed.problems.join("\n")}`,
+    );
+  if (routed.override) console.log(routed.override);
+  console.log(
+    `Provenance post-check passed (tarball route): ${name}@${postVersion} records no gitHead; its served integrity equals the tarball ${routed.source} binds to ${sha}.`,
   );
+  process.exit(0);
 }
 
 if (published !== sha)
