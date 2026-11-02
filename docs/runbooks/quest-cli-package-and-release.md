@@ -777,38 +777,54 @@ GITHUB_REF=refs/tags/v<version> node scripts/qualification/release-provenance.mj
 # main through `gh api`, so it needs an authenticated `gh`.
 node scripts/check-breaking-bump.mjs --pair
 
-# After publishing: the registry's record for the staged version must name the
-# commit it was released from. --version names the launcher's X-rc.N, because
-# the platforms stage at X and the wrapper at X-rc.N (QCLI-399). --bundle is the
-# downloaded quest-candidate-bundle directory (QCLI-555, below).
-GITHUB_SHA=<released-commit> node scripts/qualification/release-provenance.mjs --post --version <X-rc.N> --bundle <bundle-dir>
+# After publishing: what the registry serves for the staged version must be tied
+# to the commit it was released from. --version names the launcher's X-rc.N,
+# because the platforms stage at X and the wrapper at X-rc.N (QCLI-399).
+# --bundle is the qualified quest-candidate-bundle, downloaded from the
+# prepublication-qualification run on the release tag, and --run-id is that run
+# (QCLI-555, below). The gh in use must be able to read opum-ai/opum-cli-e2e.
+gh run download <run-id> --name quest-candidate-bundle --dir <bundle-dir>
+GITHUB_SHA=<released-commit> node scripts/qualification/release-provenance.mjs --post --version <X-rc.N> --bundle <bundle-dir> --run-id <run-id>
 ```
 
-**Why `--post` takes `--bundle` (QCLI-555).** npm records `gitHead` only when a
-publish runs from a git checkout. Every route this pipeline publishes by is a
-tarball (`npm publish <file>`), and no `@opum-ai/quest` from 0.11.0 on carries a
-`gitHead` (0.3.0 to 0.10.0 do), so a check that demanded one could never pass
-where it runs; it stopped 0.15.0's staging at `0.15.0-rc.1`. QCLI-267's intent
-is unchanged: the registry's record must name the released commit. Now, when the
-registry records **no** `gitHead`, `--post` requires that `--bundle` names the
-bundle whose `evidence/package-metadata.json` `sourceCommit` is the released
-commit and whose launcher tarball (`tarballs/` for the rc, `final/` for X) has
-the sha512 npm serves as `dist.integrity`. A `gitHead` the registry does record
-is still compared and still must equal the commit; a mismatch is never treated
-as an absence. Run it again with `--version <X> --bundle <bundle-dir>` after the
-promotion publishes the X launcher.
+**Why `--post` takes `--bundle` and `--run-id` (QCLI-555, DEC-251 a3).** From
+0.11.0 on the registry itself names no commit for `@opum-ai/quest`: npm records
+`gitHead` only when a publish runs from a git checkout, every route this
+pipeline publishes by is a tarball (`npm publish <file>`), and 0.3.0 to 0.10.0
+are the last versions that carry one. A check that demanded a `gitHead` could
+never pass where it runs, and it stopped 0.15.0's staging at `0.15.0-rc.1`.
+QCLI-267's intent is unchanged: what the registry serves must be tied to the
+released commit. So when the registry records **no** `gitHead`, `--post` ties
+the served bytes to the commit through the receipt-bound bundle. It runs
+opum-cli-e2e's receipt gate on `--bundle` (`requireQualification`, the same
+gate as step 5 and `release.yml`'s receipt step): the receipt must bind the
+released commit and the run, and the launcher tarball's sha256 (the rc's
+`tarballs` entry, or `launcherSubstitution.finalTarball` for X). Then npm's
+served `dist.integrity` for the launcher must be that bundle tarball's sha512,
+read from `tarballs/` for the rc and `final/` for X; the bundle file is the
+bridge from the receipt's sha256 to npm's sha512. A `gitHead` the registry does
+record is still compared and still must equal the commit; a mismatch is never
+treated as an absence.
 
-What this does not prove: `sourceCommit` is the bundle's own claim. The bytes'
-binding to that commit is the opum-cli-e2e receipt gate that ran before staging,
-so this check is only as strong as that one.
+The bundle's own `evidence/package-metadata.json` `sourceCommit` is a claim the
+bundle makes about itself and is never the binding: a directory holding the
+served tarball and a hand-written `sourceCommit` is refused, because no receipt
+binds it. This check is only as strong as opum-cli-e2e's receipt.
 
-Not chosen: putting `gitHead=<released sha>` into the packed launcher's
-`package.json`. A local `npm pack` (npm 12.2.1, scratch package, positive control
-in the same run) keeps a `gitHead` present in the source manifest and reports
-none when it is absent, so the tarball CAN carry one. Whether the registry then
-serves it for a tarball publish cannot be shown without a real publish, which is
-the operator's, so it is unmeasured. It would also change the launcher bytes, so
-it could apply only from a later release than 0.15.0.
+After the promotion publishes the X launcher, run the same command with
+`--version <X>` and the same bundle and run id: the bundle carries the X
+launcher in `final/`, and the bundle artifact is kept for 90 days. `promote-release.mjs`
+does not run this check; it is a hand step.
+
+Not chosen for 0.15.0: putting `gitHead=<released sha>` into the packed
+launcher's `package.json`. A local `npm pack` (npm 12.2.1, scratch package,
+positive control in the same run) keeps a `gitHead` present in the source
+manifest and reports none when it is absent, so a tarball CAN carry one. A
+planted `gitHead` also changes the tarball's sha256, so the qualified 0.15.0
+bytes cannot take it without re-qualification. Whether the registry serves it
+for a tarball publish cannot be shown without a real publish, which is the
+operator's, so it is unmeasured. DEC-251 (a3) ruled the fallback above for
+0.15.0; the preferred route is a separate task for the next release.
 
 Found while running the 0.13.0 publish (main `5996e24a`), where both gate scripts
 were run by hand precisely because the local route does not: `release-provenance --pre`

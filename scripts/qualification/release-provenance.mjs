@@ -26,22 +26,22 @@
 //           qualified bundle, which publish-release.mjs, promote-release.mjs
 //           and release.yml all use) records none: no @opum-ai/quest from
 //           0.11.0 on carries one. When the registry records NO gitHead, and
-//           `--bundle <dir>` names the qualified quest-candidate-bundle, the
-//           check instead ties the registry to the commit through the bundle:
-//           npm's served dist.integrity for the launcher must be the bundle
-//           tarball's sha512, and the bundle's own sourceCommit must be the
-//           released commit. A gitHead the registry DOES record is still
-//           compared and still must equal the commit: a contradiction is never
-//           treated as an absence.
+//           `--bundle <dir> --run-id <id>` name the downloaded
+//           quest-candidate-bundle and the qualification run on the tag, the
+//           check instead ties the registry to the commit through opum-cli-e2e's
+//           receipt (DEC-251 a3): the receipt must bind the commit and the
+//           launcher tarball's sha256, and npm's served dist.integrity must be
+//           that tarball's sha512. The bundle's own sourceCommit is a claim,
+//           never the binding. See provenance-tarball-route.mjs. A gitHead the
+//           registry DOES record is still compared and still must equal the
+//           commit: a contradiction is never treated as an absence.
 //
 // Neither mode can repair an old release. The point is that a NEW one cannot
 // silently acquire a claim the repository contradicts.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
-import { registryHoldsTarball } from "./bundle-integrity.mjs";
-import { tarballName } from "./e2e-receipt.mjs";
+import { readFileSync } from "node:fs";
+import { verifyTarballRoute } from "./provenance-tarball-route.mjs";
 import { REGISTRY_PINS } from "./registry-visibility.mjs";
 
 const mode = process.argv[2];
@@ -79,6 +79,12 @@ const bundleFlag = process.argv.indexOf("--bundle");
 const bundleDir = bundleFlag === -1 ? undefined : process.argv[bundleFlag + 1];
 if (bundleFlag !== -1 && (!bundleDir || bundleDir.startsWith("--"))) {
   console.error("--bundle requires a directory");
+  process.exit(2);
+}
+const runIdFlag = process.argv.indexOf("--run-id");
+const runId = runIdFlag === -1 ? undefined : process.argv[runIdFlag + 1];
+if (runIdFlag !== -1 && (!runId || runId.startsWith("--"))) {
+  console.error("--run-id requires a value");
   process.exit(2);
 }
 const sha = process.env.GITHUB_SHA ?? git("rev-parse", "HEAD");
@@ -150,38 +156,27 @@ if (!published) {
   // gitHead, so it passes only through the bundle route below, never quietly.
   if (!bundleDir)
     fail(
-      `${name}@${postVersion} was published with no gitHead, which is what a tarball publish records. Re-run with --bundle <dir> naming the qualified quest-candidate-bundle so the served tarball can be tied to ${sha} through it (QCLI-555); nothing later can add a gitHead.`,
+      `${name}@${postVersion} was published with no gitHead, which is what a tarball publish records. Re-run with --bundle <dir> --run-id <id>, naming the downloaded quest-candidate-bundle and the qualification run on the tag, so the served tarball can be tied to ${sha} through opum-cli-e2e's receipt (QCLI-555); nothing later can add a gitHead.`,
     );
-  const metadataPath = join(bundleDir, "evidence", "package-metadata.json");
-  let sourceCommit;
-  try {
-    sourceCommit = JSON.parse(readFileSync(metadataPath, "utf8"))?.sourceCommit;
-  } catch (error) {
+  if (!runId)
     fail(
-      `Could not read the bundle's ${metadataPath}: ${error instanceof Error ? error.message : String(error)}`,
+      "--bundle needs --run-id <id>: the prepublication-qualification run on the release tag, which opum-cli-e2e's receipt must name.",
     );
-  }
-  if (sourceCommit !== sha)
+  const routed = await verifyTarballRoute({
+    name,
+    bundleDir,
+    version,
+    postVersion,
+    commit: sha,
+    runId,
+  });
+  if (!routed.ok)
     fail(
-      `${name}@${postVersion} records no gitHead, and the bundle names sourceCommit ${sourceCommit ?? "(none)"} but this release is ${sha}. Nothing ties the served bytes to the released commit.`,
+      `${name}@${postVersion} records no gitHead and the served bytes cannot be tied to ${sha}:\n${routed.problems.join("\n")}`,
     );
-  // The staged rc is in tarballs/; the never-staged X launcher is in final/.
-  const file = tarballName(name, postVersion);
-  const tarball = [
-    join(bundleDir, "tarballs", file),
-    join(bundleDir, "final", file),
-  ].find((candidate) => existsSync(candidate));
-  if (!tarball)
-    fail(
-      `The bundle at ${bundleDir} carries no ${file} in tarballs/ or final/.`,
-    );
-  const held = await registryHoldsTarball(name, postVersion, tarball);
-  if (!held.ok)
-    fail(
-      `${name}@${postVersion} is not the bundle's tarball: the registry serves ${held.actual ?? "(unreadable)"}, the bundle holds ${held.expected}. The served bytes are not the ones bound to ${sha}.`,
-    );
+  if (routed.override) console.log(routed.override);
   console.log(
-    `Provenance post-check passed (tarball route): ${name}@${postVersion} records no gitHead; its served integrity equals the bundle tarball, and the bundle's sourceCommit == ${sha}.`,
+    `Provenance post-check passed (tarball route): ${name}@${postVersion} records no gitHead; its served integrity equals the tarball ${routed.source} binds to ${sha}.`,
   );
   process.exit(0);
 }
