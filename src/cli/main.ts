@@ -56,7 +56,12 @@ import {
   type BacklogIdAllocation,
   BacklogMigrationRefusedError,
 } from "../application/migration/backlog-public.ts";
-import type { PlanningService } from "../application/planning/planning.ts";
+import type {
+  DecisionDecidedBy,
+  DecisionScope,
+  DecisionStatus,
+  PlanningService,
+} from "../application/planning/planning.ts";
 import type { QuestionService } from "../application/questions/questions.ts";
 import type {
   AcrossRefsCoverage,
@@ -3061,6 +3066,10 @@ export async function runQuest(
         if (refused) return refused;
       }
       const isMilestone = group === "milestone";
+      // QCLI-447: `--adr` and `--supersedes` take one id each, on both
+      // decision write commands, so the parser must treat a repeat as arity-
+      // correct rather than as a duplicate.
+      const decisionRepeatable = ["--adr", "--supersedes"];
       const parsed = flags(
         rest.slice(
           action === "create" ||
@@ -3072,9 +3081,11 @@ export async function runQuest(
             : 0,
         ),
         action === "create"
-          ? ["--task"]
-          : action === "edit" && isMilestone
-            ? ["--add-task", "--remove-task", "--replace-task"]
+          ? ["--task", ...(isMilestone ? [] : decisionRepeatable)]
+          : action === "edit"
+            ? isMilestone
+              ? ["--add-task", "--remove-task", "--replace-task"]
+              : decisionRepeatable
             : [],
       );
       if (!action || !parsed)
@@ -3122,6 +3133,12 @@ export async function runQuest(
           "--context",
           "--outcome",
           "--task",
+          // QCLI-447: the widened decision record's inputs. Kept off the
+          // milestone branch so `milestone create --scope ...` is still an
+          // unrecognized flag rather than a silently discarded one.
+          ...(isMilestone
+            ? []
+            : ["--source", "--decided-by", "--scope", "--adr", "--supersedes"]),
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -3144,6 +3161,17 @@ export async function runQuest(
           ),
         );
         const id = allocation.id;
+        // Each `one()` call runs once: it throws on a repeated flag, so a
+        // second read would be a second arity check rather than a lookup.
+        // Absent inputs stay absent from the record (`{}` spread), so a
+        // decision created without them carries the old key set exactly.
+        const source = one(parsed, "--source");
+        const decidedBy = one(parsed, "--decided-by") as
+          | DecisionDecidedBy
+          | undefined;
+        const scope = one(parsed, "--scope") as DecisionScope | undefined;
+        const adrs = parsed.values.get("--adr");
+        const supersedes = parsed.values.get("--supersedes");
         const result = isMilestone
           ? await planning.createMilestone(
               {
@@ -3163,10 +3191,13 @@ export async function runQuest(
                 title: rest[0],
                 context: one(parsed, "--context"),
                 outcome: one(parsed, "--outcome") ?? "Undecided",
-                status: (one(parsed, "--status") ?? "proposed") as
-                  | "proposed"
-                  | "accepted"
-                  | "superseded",
+                status: (one(parsed, "--status") ??
+                  "proposed") as DecisionStatus,
+                ...(source === undefined ? {} : { source }),
+                ...(decidedBy === undefined ? {} : { decidedBy }),
+                ...(scope === undefined ? {} : { scope }),
+                ...(adrs === undefined ? {} : { adrs }),
+                ...(supersedes === undefined ? {} : { supersedes }),
               },
               crypto.randomUUID(),
             );
@@ -3215,7 +3246,7 @@ export async function runQuest(
           "--outcome",
           ...(isMilestone
             ? ["--add-task", "--remove-task", "--replace-task"]
-            : []),
+            : ["--source", "--decided-by", "--scope", "--adr", "--supersedes"]),
           "--actor",
           "--actor-kind",
           "--accountable-human",
@@ -3228,6 +3259,22 @@ export async function runQuest(
             "denied",
             `${group} writes require an explicit actor declaration.`,
           );
+        // Read each input once: `one()` refuses a repeat, so a second read
+        // would be a second arity check rather than a lookup. An absent input
+        // is spread away, so an edit that names none of the widened fields
+        // leaves an existing record's key set exactly as it was.
+        const title = one(parsed, "--title");
+        const description = one(parsed, "--description");
+        const context = one(parsed, "--context");
+        const outcome = one(parsed, "--outcome");
+        const status = one(parsed, "--status");
+        const source = one(parsed, "--source");
+        const decidedBy = one(parsed, "--decided-by") as
+          | DecisionDecidedBy
+          | undefined;
+        const scope = one(parsed, "--scope") as DecisionScope | undefined;
+        const adrs = parsed.values.get("--adr");
+        const supersedes = parsed.values.get("--supersedes");
         const existingMilestone = isMilestone
           ? await planning.viewMilestone(rest[0])
           : undefined;
@@ -3235,15 +3282,11 @@ export async function runQuest(
           ? await planning.updateMilestone(
               {
                 ...existingMilestone,
-                ...(one(parsed, "--title")
-                  ? { title: one(parsed, "--title") }
-                  : {}),
-                ...(one(parsed, "--description") !== undefined
-                  ? { description: one(parsed, "--description") }
-                  : {}),
-                ...(one(parsed, "--status")
+                ...(title ? { title } : {}),
+                ...(description !== undefined ? { description } : {}),
+                ...(status
                   ? {
-                      status: one(parsed, "--status") as "open" | "closed",
+                      status: status as "open" | "closed",
                     }
                   : {}),
                 taskIds: updatedMilestoneTaskIds(
@@ -3257,23 +3300,15 @@ export async function runQuest(
           : await planning.updateDecision(
               {
                 ...(await planning.viewDecision(rest[0])),
-                ...(one(parsed, "--title")
-                  ? { title: one(parsed, "--title") }
-                  : {}),
-                ...(one(parsed, "--context") !== undefined
-                  ? { context: one(parsed, "--context") }
-                  : {}),
-                ...(one(parsed, "--outcome")
-                  ? { outcome: one(parsed, "--outcome") }
-                  : {}),
-                ...(one(parsed, "--status")
-                  ? {
-                      status: one(parsed, "--status") as
-                        | "proposed"
-                        | "accepted"
-                        | "superseded",
-                    }
-                  : {}),
+                ...(title ? { title } : {}),
+                ...(context !== undefined ? { context } : {}),
+                ...(outcome ? { outcome } : {}),
+                ...(status ? { status: status as DecisionStatus } : {}),
+                ...(source === undefined ? {} : { source }),
+                ...(decidedBy === undefined ? {} : { decidedBy }),
+                ...(scope === undefined ? {} : { scope }),
+                ...(adrs === undefined ? {} : { adrs }),
+                ...(supersedes === undefined ? {} : { supersedes }),
               },
               crypto.randomUUID(),
             );

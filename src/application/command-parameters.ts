@@ -193,6 +193,13 @@ export const REPEATABLE_LIST_FLAGS = [
 ] as const;
 
 /**
+ * QCLI-447: `decision create` and `decision edit` take one `--adr` and one
+ * `--supersedes` per id, so both are repeatable rather than a single scalar
+ * holding a comma-separated list. The argv parser is handed this same list.
+ */
+export const REPEATABLE_DECISION_FLAGS = ["--adr", "--supersedes"] as const;
+
+/**
  * Repeatability is PER COMMAND, not global: `--type` is one scalar on
  * `task create` and a repeatable filter on `task list`. A single merged set
  * gets that wrong in the direction that matters, telling a caller to repeat a
@@ -212,6 +219,10 @@ const REPEATABLE_BY_COMMAND: Readonly<Record<string, readonly string[]>> = {
   // handed this same list), so the manifest must report it repeatable rather
   // than as a single scalar.
   "question ask": ["--option"],
+  // QCLI-447: both decision write commands take one id per `--adr` and one
+  // per `--supersedes`, and the parser is handed this same list.
+  "decision create": REPEATABLE_DECISION_FLAGS,
+  "decision edit": REPEATABLE_DECISION_FLAGS,
 };
 const BOOLEAN = new Set<string>(BOOLEAN_FLAGS);
 const JSON_ARRAY = new Set<string>(JSON_ARRAY_FLAGS);
