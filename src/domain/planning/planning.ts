@@ -5,7 +5,23 @@ import { RecordValidationError } from "../records.ts";
 export type MilestoneId = `M-${number}`;
 export type DecisionId = `DEC-${number}`;
 export type MilestoneStatus = "open" | "closed";
-export type DecisionStatus = "proposed" | "accepted" | "superseded";
+/**
+ * QCLI-447 / opum-doc seq 179(c). The design's full decision set is
+ * `proposed` -> `accepted`, `rejected`, `withdrawn` or `superseded`
+ * (`questions-decisions-and-adrs.md`). Before this, a proposal withdrawn
+ * without an answer had to be stored as `superseded` (DEC-139); `withdrawn`
+ * is the status that now says what actually happened.
+ */
+export type DecisionStatus =
+  | "proposed"
+  | "accepted"
+  | "superseded"
+  | "rejected"
+  | "withdrawn";
+/** Who made the ruling: the operator, or `opum-doc` on the operator's behalf. */
+export type DecisionDecidedBy = "operator" | "opum-doc";
+/** What a ruling binds: everything (`cross-repo`) or one component. */
+export type DecisionScope = "cross-repo" | `component:${string}`;
 
 export interface Milestone {
   readonly id: MilestoneId;
@@ -27,7 +43,22 @@ export interface Decision {
   readonly context?: string;
   readonly outcome: string;
   readonly status: DecisionStatus;
+  /**
+   * QCLI-447 / opum-doc seq 179(c): what produced this ruling -- a question id,
+   * a request id (a Quest task of type `request`), or the literal `delegated`
+   * when `opum-doc` decided on the operator's behalf. Optional so a record
+   * written before this field existed still validates and reads unchanged.
+   */
+  readonly source?: string;
+  readonly decidedBy?: DecisionDecidedBy;
+  readonly scope?: DecisionScope;
+  /** ADR ids in the owning repository's Lore docs, linked both ways. */
+  readonly adrs?: readonly string[];
+  /** Decision ids this ruling supersedes. */
+  readonly supersedes?: readonly string[];
 }
+
+const decisionScopeSchema = z.string().regex(/^(?:cross-repo|component:.+)$/);
 
 const milestoneSchema = z.object({
   id: z.string().regex(/^M-[1-9][0-9]*$/),
@@ -42,7 +73,18 @@ const decisionSchema = z.object({
   title: z.string().min(1),
   context: z.string().optional(),
   outcome: z.string().min(1),
-  status: z.enum(["proposed", "accepted", "superseded"]),
+  status: z.enum([
+    "proposed",
+    "accepted",
+    "superseded",
+    "rejected",
+    "withdrawn",
+  ]),
+  source: z.string().min(1).optional(),
+  decidedBy: z.enum(["operator", "opum-doc"]).optional(),
+  scope: decisionScopeSchema.optional(),
+  adrs: z.array(z.string().min(1)).optional(),
+  supersedes: z.array(z.string().min(1)).optional(),
 });
 
 function unique(values: readonly string[], name: string): void {
@@ -61,7 +103,10 @@ export function milestone(value: Milestone): Milestone {
 export function decision(value: Decision): Decision {
   const parsed = decisionSchema.safeParse(value);
   if (!parsed.success) throw new RecordValidationError("Invalid decision.");
-  return parsed.data as Decision;
+  const result = parsed.data as Decision;
+  unique(result.adrs ?? [], "Decision adr ids");
+  unique(result.supersedes ?? [], "Decision supersedes ids");
+  return result;
 }
 
 export function milestoneId(value: string): MilestoneId {

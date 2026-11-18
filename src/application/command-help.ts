@@ -548,7 +548,8 @@ export const commandHelp: Record<
     flags: [],
   },
   "decision create": {
-    summary: "Create a decision record.",
+    summary:
+      "Create a decision record. QCLI-447: --source names what produced the ruling (a question id, a request id, or `delegated`), --decided-by who made it (`operator` or `opum-doc`), --scope what it binds (`cross-repo` or `component:<repo>`), and --adr/--supersedes one id each, repeatable. Status may be proposed, accepted, rejected, withdrawn or superseded.",
     usage:
       'quest decision create "<title>" --actor <name> --actor-kind human [--outcome "..."]',
     flags: [
@@ -557,14 +558,31 @@ export const commandHelp: Record<
       "--description",
       "--context",
       "--outcome",
+      "--source",
+      "--decided-by",
+      "--scope",
+      "--adr",
+      "--supersedes",
       ...ACTOR_FLAGS,
     ],
   },
   "decision edit": {
-    summary: "Edit a decision's fields.",
+    summary:
+      "Edit a decision's fields, including the QCLI-447 set (source, decidedBy, scope, adrs, supersedes) and the rejected/withdrawn statuses. A supplied --adr or --supersedes replaces the stored list.",
     usage:
       'quest decision edit <id> --outcome "..." --actor <name> --actor-kind human',
-    flags: ["--title", "--status", "--context", "--outcome", ...ACTOR_FLAGS],
+    flags: [
+      "--title",
+      "--status",
+      "--context",
+      "--outcome",
+      "--source",
+      "--decided-by",
+      "--scope",
+      "--adr",
+      "--supersedes",
+      ...ACTOR_FLAGS,
+    ],
   },
   "decision delete": {
     summary: "Delete a decision.",

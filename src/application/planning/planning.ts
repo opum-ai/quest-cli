@@ -31,6 +31,14 @@ export type {
   PlanningRepository,
   PlanningSnapshot,
 } from "../../ports/planning.ts";
+// QCLI-447: the CLI may import only application (the layer check enforces it),
+// so the widened decision vocabulary is re-exported here for `main.ts` to type
+// its flag values against, rather than duplicated as inline string unions.
+export type {
+  DecisionDecidedBy,
+  DecisionScope,
+  DecisionStatus,
+} from "../../domain/planning/planning.ts";
 
 export type PlanningMutationResult = Awaited<
   ReturnType<PlanningRepository["write"]>
