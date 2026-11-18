@@ -49,6 +49,7 @@ read, edit or complete tracker state, so writes stay attributed and consistent.
 - \`task pause\` / \`start\`        Park an In Progress task, or bring it back
 - \`task complete\` / \`archive\` / \`demote\`   Move a task through its terminal or prior status
 - \`task close\`                  Retire a never-worked task as a duplicate, superseded, or won't-do
+- \`task block\` / \`task unblock\`  Block a task on an open question id (\`Q-N\`); the block clears itself when the question is answered or withdrawn, so \`unblock\` is only for clearing it early (QCLI-448)
 - \`task status-flow\`            Print the configured task status set and terminal statuses
 - \`task binding\`                Bind an agent to a task under the Opum workflow contract
 - \`draft create/list/view/promote/archive\`   Draft lifecycle (an idea not yet promoted to a task)

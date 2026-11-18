@@ -5,6 +5,7 @@ import {
   type GateEvent,
   replayGateHistory,
 } from "../gates/gates.ts";
+import { isQuestionId, type QuestionStatus } from "../questions/questions.ts";
 import {
   aliasKey,
   type CanonicalId,
@@ -951,6 +952,35 @@ export function activeBlockers(
   return [...open.values()];
 }
 
+/** Every stored question's status, by id, for read-time blocker derivation. */
+export type QuestionStatusIndex = ReadonlyMap<string, QuestionStatus>;
+
+/**
+ * QCLI-448: a task may name a QUESTION id as its blocker, and that block
+ * clears when the question resolves -- derived HERE, at read time, rather
+ * than by a second task write (opum-doc's operator-questions design, step 7:
+ * "the blocker clears when the question is answered").
+ *
+ * An active blocker whose `blockId` is a question id is still active only
+ * while that question is `open`; it goes inactive once the question is
+ * `answered` or `withdrawn`, with the task record untouched. A `Q-N` absent
+ * from `questionStatuses` is treated as STILL BLOCKING: the map covers every
+ * question record that exists, so an absent id is a dangling reference, and a
+ * reference that cannot be resolved is not a resolution (fail closed). A
+ * `blockId` outside the question grammar is an ordinary blocker and keeps
+ * {@link activeBlockers}' result exactly.
+ */
+export function activeBlockersForReadiness(
+  events: readonly BlockerEvent[],
+  questionStatuses: QuestionStatusIndex,
+): readonly BlockerEvent[] {
+  return activeBlockers(events).filter((event) => {
+    if (!isQuestionId(event.blockId)) return true;
+    const status = questionStatuses.get(event.blockId);
+    return status === undefined || status === "open";
+  });
+}
+
 export type ClaimState = "unclaimed" | "live" | "reclaimable";
 export function claimState(task: TaskState, now: Date): ClaimState {
   if (!task.claim) return "unclaimed";
@@ -1289,6 +1319,13 @@ export function evaluateReadySet(
   tasks: readonly TaskState[],
   now: Date,
   policy = defaultLifecyclePolicy,
+  /**
+   * QCLI-448: when supplied, a question-named blocker is derived at read time
+   * (active only while its question is open). Omitted, every blocker uses the
+   * authored open/cleared history alone -- the behavior before question
+   * blockers existed, which callers with no question store keep.
+   */
+  questionStatuses?: QuestionStatusIndex,
 ): ReadySet {
   const configured = lifecyclePolicy(policy);
   const links = validateTaskGraph(tasks);
@@ -1312,7 +1349,12 @@ export function evaluateReadySet(
       excluded.push({ taskId: task.id, reason: "dependency_incomplete" });
       continue;
     }
-    if (activeBlockers(task.blockers).length) {
+    if (
+      (questionStatuses === undefined
+        ? activeBlockers(task.blockers)
+        : activeBlockersForReadiness(task.blockers, questionStatuses)
+      ).length
+    ) {
       excluded.push({ taskId: task.id, reason: "explicitly_blocked" });
       continue;
     }

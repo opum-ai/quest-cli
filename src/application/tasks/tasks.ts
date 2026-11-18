@@ -1,5 +1,6 @@
 import { RecordValidationError } from "../../domain/records.ts";
 import {
+  activeBlockers,
   canonicalizeTaskLinks,
   closeMilestoneReference,
   closeTask,
@@ -31,7 +32,10 @@ import {
   taskState,
   transitionTask,
   unresolvedAtCompletion,
+  type QuestionStatusIndex,
 } from "../../domain/tasks/tasks.ts";
+import { isQuestionId } from "../../domain/questions/questions.ts";
+import type { QuestionRepository } from "../../ports/questions.ts";
 
 /** QCLI-526 (QCLI-520 round-2 N6) and QCLI-527 (QCLI-519 round-2 NIT): the task
  * record locations, re-exported so the CLI layer can use the SINGLE list the
@@ -405,6 +409,13 @@ export class TaskService {
      * on untouched, so a broken table breaks no read command.
      */
     private readonly configuredVocabularyProblem?: string,
+    /**
+     * QCLI-448: the question store, read only to DERIVE question-named
+     * blockers during readiness. Optional so every existing caller -- tests,
+     * migration, the binding read model -- keeps today's behaviour, where a
+     * blocker resolves from its authored open/cleared history alone.
+     */
+    private readonly questions?: QuestionRepository,
   ) {
     // Blocker #4 (fourth pass): the batch port is injected as a real typed
     // constructor argument; no structural `as unknown` casting anywhere.
@@ -651,6 +662,12 @@ export class TaskService {
             this.taskRecords(snapshot).map((record) => record.task),
             query.now ?? new Date(),
             this.lifecycle,
+            // QCLI-448: derive question-named blockers from the question
+            // store, read once per listing after the task snapshot. The two
+            // reads are not one transaction; a question resolving between
+            // them is the same benign point-in-time skew every readiness
+            // answer has, never a second task write.
+            await this.questionStatuses(),
           ).ready,
         )
       : undefined;
@@ -1369,6 +1386,121 @@ export class TaskService {
       : result;
   }
   /**
+   * QCLI-448 / opum-doc's operator-questions design, step 7: a task names a
+   * QUESTION id as its blocker, and the block clears when that question
+   * resolves. The clear is DERIVED at read time (see
+   * {@link activeBlockersForReadiness}), so answering or withdrawing the
+   * question is the whole fix -- there is no second task write to forget.
+   *
+   * The id is validated as a question id, not merely as a non-empty string,
+   * so `blockId` cannot quietly hold an arbitrary reason label. When this
+   * service has a question store, the named question must EXIST and be OPEN:
+   * blocking on a resolved question would author a block that is inactive the
+   * moment it is read, and blocking on a missing one would author a dangling
+   * reference that fails closed forever.
+   *
+   * `reason` is required and stored on the opened event, matching the
+   * blocking design's "non-empty human-readable reason" for a blocker open.
+   */
+  async blockOnQuestion(
+    reference: string,
+    questionReference: string,
+    actorId: string,
+    operationId: string,
+    reason: string,
+    options?: TaskEditOptions,
+  ): Promise<TaskMutationResult> {
+    const blockId = this.questionBlockerId(questionReference);
+    if (this.questions !== undefined) {
+      const question = (await this.questions.readAll()).find(
+        (record) => record.id === blockId,
+      );
+      if (!question) throw new RecordValidationError("question_not_found");
+      if (question.status !== "open")
+        throw new RecordValidationError("question_not_open");
+    }
+    return this.appendBlocker(
+      reference,
+      "opened",
+      blockId,
+      actorId,
+      operationId,
+      reason,
+      options,
+    );
+  }
+
+  /**
+   * Clear a question-named blocker early, while the question is still open --
+   * the manual counterpart to the derived clear. Append-only: the opened
+   * event and its reason stay in the record, and `reason` here is the
+   * required explanation the blocking design asks a clear event to carry.
+   */
+  async unblockQuestion(
+    reference: string,
+    questionReference: string,
+    actorId: string,
+    operationId: string,
+    reason: string,
+    options?: TaskEditOptions,
+  ): Promise<TaskMutationResult> {
+    const blockId = this.questionBlockerId(questionReference);
+    return this.appendBlocker(
+      reference,
+      "cleared",
+      blockId,
+      actorId,
+      operationId,
+      reason,
+      options,
+    );
+  }
+
+  /** The write path accepts a question id and nothing else (QCLI-448). */
+  private questionBlockerId(reference: string): string {
+    if (!isQuestionId(reference))
+      throw new RecordValidationError(
+        `${JSON.stringify(reference)} is not a question id. A question blocker names a Q-N record (for example Q-7); use the question commands to ask one first.`,
+      );
+    return reference;
+  }
+
+  /**
+   * Append one blocker event and write, through the same single-record edit
+   * path every other metadata write uses (so the record's location, revision,
+   * `updatedAt` and --if-revision behavior are all unchanged). The event
+   * stream's own validity is checked BEFORE the write because `taskState`
+   * validates the record shape, not the open/clear history: a duplicate open,
+   * an unknown or repeated clear, or a clear with no reason must refuse
+   * without persisting.
+   */
+  private async appendBlocker(
+    reference: string,
+    kind: "opened" | "cleared",
+    blockId: string,
+    actorId: string,
+    operationId: string,
+    reason: string,
+    options?: TaskEditOptions,
+  ): Promise<TaskMutationResult> {
+    const snapshot = await this.repository.readAll();
+    const records = this.taskRecords(snapshot);
+    const selected = findTask(
+      records.map((record) => record.task),
+      reference,
+    );
+    const current = records.find((record) => record.task.id === selected.id);
+    if (!current) throw new RecordValidationError("task_not_found");
+    const blockers = [
+      ...current.task.blockers,
+      { kind, blockId, actorId, at: this.now().toISOString(), reason },
+    ];
+    // Throws on invalid history; a refusal here writes nothing.
+    activeBlockers(blockers);
+    return this.editOn(snapshot, reference, { blockers }, operationId, options);
+  }
+
+  /**
    * A plain field patch to `status`, nothing more -- deliberately does not
    * relocate the record even when the new status is terminal (QCLI-221).
    * Status and on-disk location are independent by design: only
@@ -1692,6 +1824,22 @@ export class TaskService {
       this.taskRecords(snapshot).map((record) => record.task),
       now,
       this.lifecycle,
+      // QCLI-448: derive question-named blockers from the question store.
+      await this.questionStatuses(),
+    );
+  }
+
+  /**
+   * QCLI-448: every stored question's status by id, or undefined when this
+   * service has no question store -- which keeps a blocker resolving from its
+   * authored open/cleared history alone, exactly as before question blockers
+   * existed. Read-only; readiness never writes either store.
+   */
+  private async questionStatuses(): Promise<QuestionStatusIndex | undefined> {
+    if (this.questions === undefined) return undefined;
+    const stored = await this.questions.readAll();
+    return new Map(
+      stored.map((question) => [question.id, question.status] as const),
     );
   }
 }

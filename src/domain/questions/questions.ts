@@ -128,10 +128,19 @@ function unique(values: readonly string[], name: string): void {
     throw new RecordValidationError(`${name} cannot contain duplicates.`);
 }
 
+/**
+ * QCLI-448: the id grammar as a predicate, so a task blocker can RECOGNISE a
+ * question reference (and derive its state at read time) without constructing
+ * a record or throwing on an ordinary non-question block id.
+ */
+export function isQuestionId(value: string): value is QuestionId {
+  return /^Q-[1-9][0-9]*$/.test(value);
+}
+
 export function questionId(value: string): QuestionId {
-  if (!/^Q-[1-9][0-9]*$/.test(value))
+  if (!isQuestionId(value))
     throw new RecordValidationError(`Invalid question id: ${value}`);
-  return value as QuestionId;
+  return value;
 }
 
 /** Structural validation shared by every entry point that stores a record. */

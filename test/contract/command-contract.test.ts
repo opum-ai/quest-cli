@@ -587,6 +587,18 @@ test("the live manifest is non-empty and matches its result golden", () => {
       fields: ["finalSummary", "resolution"],
     },
     {
+      name: "task block",
+      schemaVersion: 1,
+      kind: "task.blocked",
+      mutates: true,
+    },
+    {
+      name: "task unblock",
+      schemaVersion: 1,
+      kind: "task.unblocked",
+      mutates: true,
+    },
+    {
       name: "draft create",
       schemaVersion: 1,
       kind: "draft.created",
