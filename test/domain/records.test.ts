@@ -97,15 +97,76 @@ test("collectAliasCollisions reports every collision instead of stopping at the 
       [alias("ODOC-1"), alias("ODOC-3")],
     ),
   ).toEqual([
-    { candidate: "ODOC-1", conflictsWith: "ODOC-1" },
-    { candidate: "ODOC-3", conflictsWith: "ODOC-3" },
+    {
+      candidate: "ODOC-1",
+      conflictsWith: "ODOC-1",
+      index: 0,
+      origin: "destination",
+    },
+    {
+      candidate: "ODOC-3",
+      conflictsWith: "ODOC-3",
+      index: 2,
+      origin: "destination",
+    },
   ]);
   // A duplicate WITHIN the candidate list itself is also a collision, caught
   // against the first occurrence -- the same fold-aware key as everywhere
   // else in this module.
   expect(collectAliasCollisions(["STRASSE", "straße"], [])).toEqual([
-    { candidate: "straße", conflictsWith: "STRASSE" },
+    {
+      candidate: "straße",
+      conflictsWith: "STRASSE",
+      index: 1,
+      origin: "candidate",
+    },
   ]);
+});
+
+test("a collision distinguishes a destination claim from an in-batch renumbering, and names the occupant (QCLI-322, QCLI-357)", () => {
+  // Same sentence as a QCLI-155 dual claim, different origin: this is what a
+  // positional renumbering shift produces, and the two must be tellable apart
+  // without parsing the message.
+  expect(collectAliasCollisions(["ODOC-2", "ODOC-2"], [])).toEqual([
+    {
+      candidate: "ODOC-2",
+      conflictsWith: "ODOC-2",
+      index: 1,
+      origin: "candidate",
+    },
+  ]);
+  expect(
+    collectAliasCollisions(
+      ["ODOC-2"],
+      [{ ...alias("odoc-2"), occupant: { taskId: "ODOC-7", kind: "alias" } }],
+    ),
+  ).toEqual([
+    {
+      candidate: "ODOC-2",
+      conflictsWith: "odoc-2",
+      index: 0,
+      origin: "destination",
+      occupant: { taskId: "ODOC-7", kind: "alias" },
+    },
+  ]);
+  // The human message names which kind of claim the occupant holds.
+  expect(() =>
+    assertAliasesAvailable(
+      ["ODOC-2"],
+      [
+        {
+          ...alias("ODOC-2"),
+          occupant: { taskId: "ODOC-7", kind: "canonical" },
+        },
+      ],
+    ),
+  ).toThrow('conflicts with "ODOC-2" (the canonical id of ODOC-7).');
+  expect(() =>
+    assertAliasesAvailable(
+      ["ODOC-2"],
+      [{ ...alias("ODOC-2"), occupant: { taskId: "ODOC-7", kind: "alias" } }],
+    ),
+  ).toThrow('conflicts with "ODOC-2" (a registered alias of ODOC-7).');
 });
 
 test("actors are opaque, distinguish kinds, and require accountable humans for delegation", () => {

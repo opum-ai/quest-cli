@@ -735,10 +735,29 @@ test("a case-only id collision with a live task is refused, not silently overwri
       "--json",
     ]);
     expect(preview.exitCode).toBe(5);
+    // QCLI-322/QCLI-357 deliberately changed this message: the collision
+    // clause now names WHICH kind of claim the destination holds, and the
+    // error carries a structured `input`. The QCLI-256 remedy prose after the
+    // first sentence is byte-identical to what it was.
     expect(JSON.parse(preview.stderr)).toMatchObject({
       error_type: "conflict",
       message:
-        'Alias collision: "qcli-1" conflicts with "QCLI-1". If this is from positional renumbering (for example a dotted subtask flattening and shifting a later allocation), --preserve-source-ids --source-family <PREFIX> avoids it by keeping each record\'s own source id instead. If instead this exact id is already a live, unrelated claim in the destination workspace, --preserve-source-ids will not resolve it -- rename or remove the conflicting record in the destination, or rename the id in the source, before retrying.',
+        'Alias collision: "qcli-1" conflicts with "QCLI-1" (the canonical id of QCLI-1). If this is from positional renumbering (for example a dotted subtask flattening and shifting a later allocation), --preserve-source-ids --source-family <PREFIX> avoids it by keeping each record\'s own source id instead. If instead this exact id is already a live, unrelated claim in the destination workspace, --preserve-source-ids will not resolve it -- rename or remove the conflicting record in the destination, or rename the id in the source, before retrying.',
+      input: {
+        cause: "destination_claim",
+        preservationWouldResolve: false,
+        families: ["qcli"],
+        collisions: [
+          {
+            candidate: "qcli-1",
+            conflictsWith: "QCLI-1",
+            cause: "destination_claim",
+            family: "qcli",
+            preservationWouldResolve: false,
+            occupant: { taskId: "QCLI-1", kind: "canonical" },
+          },
+        ],
+      },
     });
 
     // Refused at preview: nothing was written under the colliding id.
@@ -961,5 +980,284 @@ test("status and rollback report a never-previewed digest as not_found on exit 3
     });
   } finally {
     await rm(store, { recursive: true, force: true });
+  }
+});
+
+/** A real workspace (git init + quest init) at the given task-id prefix. */
+async function workspace(prefix: string, label: string): Promise<string> {
+  const store = await mkdtemp(join(tmpdir(), `quest-backlog-${label}-`));
+  await Bun.spawn(["git", "init", "-q"], { cwd: store }).exited;
+  const init = await questNative(store, [
+    "init",
+    "--task-id-prefix",
+    prefix,
+    "--json",
+  ]);
+  expect(init.exitCode).toBe(0);
+  return store;
+}
+
+/** A Backlog source tree holding one markdown task per id. */
+async function backlogSource(
+  label: string,
+  ids: readonly string[],
+  parents: Readonly<Record<string, string>> = {},
+): Promise<string> {
+  const source = await mkdtemp(join(tmpdir(), `quest-backlog-${label}-src-`));
+  const tasks = join(source, "backlog", "tasks");
+  await mkdir(tasks, { recursive: true });
+  for (const id of ids) {
+    const parent = parents[id] === undefined ? "" : `parent: ${parents[id]}\n`;
+    await writeFile(
+      join(tasks, `${id}.md`),
+      `---\nid: ${id}\ntitle: Task ${id}\nstatus: To Do\n${parent}---\n\nBody.\n`,
+    );
+  }
+  return source;
+}
+
+async function existingTask(store: string, id: string): Promise<void> {
+  const created = await quest(store, [
+    "task",
+    "create",
+    `Existing ${id}`,
+    "--id",
+    id,
+    "--actor",
+    "migration-owner",
+    "--actor-kind",
+    "human",
+    "--json",
+  ]);
+  expect(created.exitCode).toBe(0);
+}
+
+async function refusedPreview(store: string, source: string) {
+  const result = await questNative(store, [
+    "migration",
+    "backlog",
+    "preview",
+    "--source",
+    source,
+    "--json",
+  ]);
+  expect(result.exitCode).toBe(5);
+  return JSON.parse(result.stderr);
+}
+
+test("repro A (renumbering) and repro B (dual claim) produce DIFFERENT structured refusals (QCLI-322)", async () => {
+  // The two shapes QCLI-256 could only name in prose. Repro A is a dotted
+  // subtask shifting a later allocation inside an EMPTY destination; repro B
+  // is a genuine, unrelated live claim. Same command, same exit code, and
+  // before QCLI-322 the same sentence differing only in the quoted id.
+  const emptyStore = await workspace("TASK", "reproA");
+  const emptySource = await backlogSource(
+    "reproA",
+    ["TASK-1", "TASK-1.1", "TASK-2", "TASK-3"],
+    { "TASK-1.1": "TASK-1" },
+  );
+  const claimedStore = await workspace("TASK", "reproB");
+  const claimedSource = await backlogSource("reproB", ["TASK-1", "TASK-2"]);
+  try {
+    for (const id of ["TASK-1", "TASK-2"]) await existingTask(claimedStore, id);
+
+    const renumbered = await refusedPreview(emptyStore, emptySource);
+    const duel = await refusedPreview(claimedStore, claimedSource);
+
+    // The cause, and the measured preservation verdict, are what distinguish
+    // them -- both were prose-only before QCLI-322.
+    expect(renumbered.input).toMatchObject({
+      cause: "positional_renumbering",
+      preservationWouldResolve: true,
+    });
+    expect(renumbered.input.collisions[0]).toMatchObject({
+      cause: "positional_renumbering",
+      family: "TASK",
+      preservationWouldResolve: true,
+    });
+    expect(renumbered.input.collisions[0].occupant).toBeUndefined();
+    // T1 (QCLI-322 review): toMatchObject ignores extra keys, so pin the
+    // exact public key set of one entry per mode.
+    expect(Object.keys(renumbered.input.collisions[0]).sort()).toEqual([
+      "candidate",
+      "cause",
+      "conflictsWith",
+      "family",
+      "preservationWouldResolve",
+    ]);
+
+    expect(duel.input).toMatchObject({
+      cause: "destination_claim",
+      preservationWouldResolve: false,
+    });
+    expect(duel.input.collisions[0]).toMatchObject({
+      cause: "destination_claim",
+      family: "TASK",
+      preservationWouldResolve: false,
+      occupant: { taskId: "TASK-1", kind: "canonical" },
+    });
+
+    // AC3: DIFFERENT structured output, not the same sentence with a
+    // different id.
+    expect(renumbered.input.cause).not.toBe(duel.input.cause);
+    expect(renumbered.input.preservationWouldResolve).not.toBe(
+      duel.input.preservationWouldResolve,
+    );
+
+    // AC2: the promise is kept -- preservation genuinely resolves A...
+    const preserved = await questNative(emptyStore, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      emptySource,
+      "--preserve-source-ids",
+      "--source-family",
+      "TASK",
+      "--json",
+    ]);
+    expect(preserved.exitCode).toBe(0);
+    // ...and genuinely does not resolve B.
+    const stillRefused = await questNative(claimedStore, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      claimedSource,
+      "--preserve-source-ids",
+      "--source-family",
+      "TASK",
+      "--json",
+    ]);
+    expect(stillRefused.exitCode).toBe(5);
+    expect(JSON.parse(stillRefused.stderr).message).toStartWith(
+      "Backlog id preservation refused:",
+    );
+  } finally {
+    for (const dir of [emptyStore, emptySource, claimedStore, claimedSource])
+      await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("the refusal names whether the destination key is a canonical id or a registered alias (QCLI-357)", async () => {
+  const store = await workspace("QCLI", "occupant");
+  const source = await backlogSource("occupant", ["TASK-2"]);
+  try {
+    // QCLI-1 holds TASK-2 as a REGISTERED ALIAS, not as its canonical id.
+    const created = await quest(store, [
+      "task",
+      "create",
+      "Alias holder",
+      "--id",
+      "QCLI-1",
+      "--alias",
+      "TASK-2",
+      "--actor",
+      "migration-owner",
+      "--actor-kind",
+      "human",
+      "--json",
+    ]);
+    expect(created.exitCode).toBe(0);
+
+    const error = await refusedPreview(store, source);
+    expect(error.message).toContain(
+      'conflicts with "TASK-2" (a registered alias of QCLI-1).',
+    );
+    expect(error.input.collisions[0]).toMatchObject({
+      candidate: "TASK-2",
+      cause: "destination_claim",
+      occupant: { taskId: "QCLI-1", kind: "alias" },
+    });
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("a multi-family source reports every family, and the colliding record's own (QCLI-322 AC4)", async () => {
+  const store = await workspace("TASK", "families");
+  const source = await backlogSource("families", ["TASK-1", "LORE-1"]);
+  try {
+    await existingTask(store, "TASK-1");
+    const input = (await refusedPreview(store, source)).input;
+    // Which family the colliding record belongs to...
+    expect(input.collisions[0].family).toBe("TASK");
+    // ...and every family the source holds, so a consumer can warn that an
+    // import of one leaves the other behind BEFORE anything is applied.
+    expect([...input.families].sort()).toEqual(["LORE", "TASK"]);
+  } finally {
+    await rm(store, { recursive: true, force: true });
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test("a cross-family positional collision names the colliding record's own family, and the verdict matches the retry (QCLI-322 review, B1)", async () => {
+  // OCLI-1 sorts first and is minted ODOC-1; ODOC-1's own source alias then
+  // collides with that minted id. The collision is candidate-vs-candidate,
+  // and the two records are in DIFFERENT families -- so attributing it by
+  // candidate string names the record that claimed the key first (OCLI) and
+  // reports a verdict measured for the wrong family. The retry below is the
+  // proof: it uses the family the refusal names.
+  const store = await workspace("ODOC", "crossfamily");
+  const resolvable = await backlogSource("crossfamily-ok", [
+    "OCLI-1",
+    "ODOC-1",
+  ]);
+  const unresolvable = await backlogSource(
+    "crossfamily-orphan",
+    ["OCLI-1", "ODOC-1", "ODOC-5.1"],
+    { "ODOC-5.1": "ODOC-5" },
+  );
+  try {
+    // ODOC's own preservation run refuses on the orphan, so the refusal must
+    // say false -- and the retry it points at must refuse too.
+    const orphan = await refusedPreview(store, unresolvable);
+    expect(orphan.input.collisions[0]).toMatchObject({
+      candidate: "ODOC-1",
+      cause: "positional_renumbering",
+      family: "ODOC",
+      preservationWouldResolve: false,
+    });
+    expect([...orphan.input.families].sort()).toEqual(["OCLI", "ODOC"]);
+    const refusedRetry = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      unresolvable,
+      "--preserve-source-ids",
+      "--source-family",
+      "ODOC",
+      "--json",
+    ]);
+    expect(refusedRetry.exitCode).toBe(5);
+    expect(JSON.parse(refusedRetry.stderr).message).toStartWith(
+      "Backlog id preservation refused:",
+    );
+
+    // Without the orphan the same collision is resolvable, the verdict says
+    // true, and the retry it points at succeeds.
+    const clean = await refusedPreview(store, resolvable);
+    expect(clean.input.collisions[0]).toMatchObject({
+      candidate: "ODOC-1",
+      family: "ODOC",
+      preservationWouldResolve: true,
+    });
+    const okRetry = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      resolvable,
+      "--preserve-source-ids",
+      "--source-family",
+      "ODOC",
+      "--json",
+    ]);
+    expect(okRetry.exitCode).toBe(0);
+  } finally {
+    for (const dir of [store, resolvable, unresolvable])
+      await rm(dir, { recursive: true, force: true });
   }
 });
