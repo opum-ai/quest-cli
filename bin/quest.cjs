@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 "use strict";
 
-const { spawnSync } = require("node:child_process");
+const { spawn } = require("node:child_process");
+const os = require("node:os");
+const { isatty } = require("node:tty");
 const { existsSync } = require("node:fs");
 const { join } = require("node:path");
 
@@ -28,12 +30,103 @@ if (!existsSync(binary)) {
   return;
 }
 
-const result = spawnSync(binary, process.argv.slice(2), { stdio: "inherit" });
-if (result.error) {
-  console.error(`Quest could not start ${packageName}: ${result.error.message}`);
-  process.exitCode = 1;
-} else if (typeof result.status === "number") {
-  process.exitCode = result.status;
-} else {
-  process.exitCode = 1;
+// QCLI-567 / DEC-282 (a1) item 7: the native child must not outlive this
+// wrapper when the wrapper is stopped by SIGTERM, SIGINT or SIGHUP, or exits
+// on an uncaught exception. spawnSync blocked the event loop, so a signal
+// killed the wrapper while the native binary kept running (orphaned, PPID 1).
+// Run it asynchronously, forward the terminating signals, and sweep on exit.
+//
+// Off a terminal the child gets its own process group (and, on POSIX, its own
+// session), so a kill reaches anything it spawned too. On a terminal it stays
+// in the foreground group: a background group would be stopped by
+// SIGTTIN/SIGTTOU on terminal I/O.
+//
+// Design ruled by DEC-282 (a2) (opum-doc ODOC-634): off a terminal the child is
+// in its own session and group, a forwarded signal goes to that group, and the
+// wrapper sweeps the group on exit; on a terminal it stays in the caller's
+// foreground group so Ctrl-C works as before. When the child dies by a signal
+// the wrapper dies by that same signal (re-raised), as foreground-child and
+// tini do, so a caller sees death by signal, not exit 128+n.
+//
+// Known limit, until the lifeline pipe ships (DEC-282 (a2) item 2): SIGKILL of
+// the wrapper, or a caller's group-wide SIGKILL off a terminal, cannot be
+// intercepted and can orphan the child. The documented caller remedy is
+// TERM-then-KILL: SIGTERM the wrapper (or a group the caller created for it),
+// wait a few seconds, then SIGKILL. A plain SIGTERM is fully handled here.
+const ownGroup = platform !== "win32" && !isatty(0);
+let child;
+let spawnFailed = false;
+
+function signalChild(signal) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  try {
+    if (ownGroup && typeof child.pid === "number") process.kill(-child.pid, signal);
+    else child.kill(signal);
+  } catch {
+    // The child is already gone.
+  }
 }
+
+// Registered before the spawn, so no signal can land between the two and kill
+// the wrapper by default action while the child is already running.
+for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+  try {
+    process.on(signal, () => signalChild(signal));
+  } catch {
+    // The signal is not supported on this platform.
+  }
+}
+function sweepGroup() {
+  if (!child) return;
+  if (ownGroup && typeof child.pid === "number") {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+    } catch {
+      // Nothing left in the group.
+    }
+  } else {
+    signalChild("SIGKILL");
+  }
+}
+// Covers an uncaught exception or any other exit path that skips the handlers.
+// In its own group the whole group is swept even after the child itself has
+// exited: a grandchild started with SIGINT ignored survives a forwarded
+// SIGINT, and must still not outlive the wrapper. A group with no members
+// left answers ESRCH, which is the normal case.
+process.on("exit", sweepGroup);
+
+child = spawn(binary, process.argv.slice(2), {
+  stdio: "inherit",
+  detached: ownGroup,
+});
+child.on("error", (error) => {
+  spawnFailed = true;
+  console.error(`Quest could not start ${packageName}: ${error.message}`);
+  process.exitCode = 1;
+});
+child.on("close", (status, signal) => {
+  // A spawn failure also emits 'close', with a negative errno status; the
+  // failure has already set exit status 1.
+  if (spawnFailed) return;
+  if (typeof status === "number" && status >= 0) {
+    process.exitCode = status;
+    return;
+  }
+  const number = signal && os.constants.signals[signal];
+  if (!number) {
+    process.exitCode = 1;
+    return;
+  }
+  // Re-raise the child's terminating signal on ourselves. A signal kill skips
+  // the 'exit' handlers, so sweep the group first; then restore the default
+  // disposition and die by the signal. If the signal does not kill us (it is
+  // ignored or blocked), fall back to the conventional 128+n status.
+  sweepGroup();
+  process.exitCode = 128 + number;
+  for (const name of ["SIGTERM", "SIGINT", "SIGHUP"]) process.removeAllListeners(name);
+  try {
+    process.kill(process.pid, signal);
+  } catch {
+    // Not permitted on this platform; the exit status above stands.
+  }
+});
