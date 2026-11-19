@@ -41,13 +41,18 @@ if (!existsSync(binary)) {
 // in the foreground group: a background group would be stopped by
 // SIGTTIN/SIGTTOU on terminal I/O.
 //
-// Known limits. SIGKILL of the wrapper cannot be intercepted by any handler,
-// so the child can outlive it. Off a terminal the trade-off is sharper: the
-// child has left the caller's process group, so a caller's group-wide SIGKILL
-// (kill -9 -<pgid>, killpg) now reaches only the wrapper and orphans the
-// child, where the old wrapper kept both in one group. Staying in the
-// caller's group would keep that working but could not sweep grandchildren.
-// Which placement is right is pending a design ruling (QCLI-567).
+// Design ruled by DEC-282 (a2) (opum-doc ODOC-634): off a terminal the child is
+// in its own session and group, a forwarded signal goes to that group, and the
+// wrapper sweeps the group on exit; on a terminal it stays in the caller's
+// foreground group so Ctrl-C works as before. When the child dies by a signal
+// the wrapper dies by that same signal (re-raised), as foreground-child and
+// tini do, so a caller sees death by signal, not exit 128+n.
+//
+// Known limit, until the lifeline pipe ships (DEC-282 (a2) item 2): SIGKILL of
+// the wrapper, or a caller's group-wide SIGKILL off a terminal, cannot be
+// intercepted and can orphan the child. The documented caller remedy is
+// TERM-then-KILL: SIGTERM the wrapper (or a group the caller created for it),
+// wait a few seconds, then SIGKILL. A plain SIGTERM is fully handled here.
 const ownGroup = platform !== "win32" && !isatty(0);
 let child;
 let spawnFailed = false;
@@ -71,12 +76,7 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
     // The signal is not supported on this platform.
   }
 }
-// Covers an uncaught exception or any other exit path that skips the handlers.
-// In its own group the whole group is swept even after the child itself has
-// exited: a grandchild started with SIGINT ignored survives a forwarded
-// SIGINT, and must still not outlive the wrapper. A group with no members
-// left answers ESRCH, which is the normal case.
-process.on("exit", () => {
+function sweepGroup() {
   if (!child) return;
   if (ownGroup && typeof child.pid === "number") {
     try {
@@ -87,7 +87,13 @@ process.on("exit", () => {
   } else {
     signalChild("SIGKILL");
   }
-});
+}
+// Covers an uncaught exception or any other exit path that skips the handlers.
+// In its own group the whole group is swept even after the child itself has
+// exited: a grandchild started with SIGINT ignored survives a forwarded
+// SIGINT, and must still not outlive the wrapper. A group with no members
+// left answers ESRCH, which is the normal case.
+process.on("exit", sweepGroup);
 
 child = spawn(binary, process.argv.slice(2), {
   stdio: "inherit",
@@ -102,8 +108,25 @@ child.on("close", (status, signal) => {
   // A spawn failure also emits 'close', with a negative errno status; the
   // failure has already set exit status 1.
   if (spawnFailed) return;
-  if (typeof status === "number" && status >= 0) process.exitCode = status;
-  else if (signal && os.constants.signals[signal])
-    process.exitCode = 128 + os.constants.signals[signal];
-  else process.exitCode = 1;
+  if (typeof status === "number" && status >= 0) {
+    process.exitCode = status;
+    return;
+  }
+  const number = signal && os.constants.signals[signal];
+  if (!number) {
+    process.exitCode = 1;
+    return;
+  }
+  // Re-raise the child's terminating signal on ourselves. A signal kill skips
+  // the 'exit' handlers, so sweep the group first; then restore the default
+  // disposition and die by the signal. If the signal does not kill us (it is
+  // ignored or blocked), fall back to the conventional 128+n status.
+  sweepGroup();
+  process.exitCode = 128 + number;
+  for (const name of ["SIGTERM", "SIGINT", "SIGHUP"]) process.removeAllListeners(name);
+  try {
+    process.kill(process.pid, signal);
+  } catch {
+    // Not permitted on this platform; the exit status above stands.
+  }
 });

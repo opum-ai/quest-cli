@@ -87,7 +87,7 @@ wait`;
 // POSIX only: process groups, /bin/sh stand-ins and kill(0) liveness probes.
 for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
   test.skipIf(process.platform === "win32")(
-    `${signal} to the wrapper mid-run leaves no quest process alive and the wrapper exits non-zero`,
+    `${signal} to the wrapper mid-run leaves no quest process alive and the wrapper does not exit 0`,
     async () => {
       const root = await rig(LONG_RUNNING);
       let pids: number[] = [];
@@ -126,10 +126,9 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
           3_000,
         );
 
-        expect(result.signal).toBeNull();
-        // The stand-in shell's own status on a signal is shell-specific; the
-        // exact signal-to-status mapping is pinned by a test below.
-        expect(result.code).toBeGreaterThan(0);
+        // How the wrapper itself dies depends on how the stand-in shell dies;
+        // the signal-to-status behaviour is pinned by a test below.
+        expect(result.signal !== null || (result.code ?? 0) > 0).toBe(true);
       } finally {
         proc?.kill("SIGKILL");
         for (const pid of pids) if (alive(pid)) process.kill(pid, "SIGKILL");
@@ -153,12 +152,14 @@ test.skipIf(process.platform === "win32")(
 );
 
 test.skipIf(process.platform === "win32")(
-  "a child killed by a signal maps to 128 plus the signal number",
+  "a child killed by a signal makes the wrapper die by that same signal, not exit 128+n",
   async () => {
     const root = await rig("kill -TERM $$\nsleep 5");
     try {
       const { exited } = runWrapper(root);
-      expect((await exited).code).toBe(143);
+      const result = await exited;
+      expect(result.signal).toBe("SIGTERM");
+      expect(result.code).toBeNull();
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -203,6 +204,104 @@ test.skipIf(process.platform === "win32")(
       const { exited } = runWrapper(root);
       expect((await exited).code).toBe(1);
     } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+// Process-group placement (DEC-282 (a2) item 1). The stand-in records its own
+// process group and its parent's (the wrapper's).
+const PGIDS = `WP=$(ps -o ppid= -p $$ | tr -d ' ')
+echo "$(ps -o pgid= -p $$ | tr -d ' ') $(ps -o pgid= -p $WP | tr -d ' ')" > "$(dirname "$0")/../../../../pgids.out"`;
+
+async function readPgids(root: string): Promise<[number, number]> {
+  const text = await waitFor("pgids", async () => {
+    try {
+      const t = (await readFile(join(root, "pgids.out"), "utf8")).trim();
+      return t.split(" ").length === 2 ? t : undefined;
+    } catch {
+      return undefined;
+    }
+  });
+  const [child, wrapper] = text.split(" ").map((n) => Number.parseInt(n, 10));
+  return [child as number, wrapper as number];
+}
+
+test.skipIf(process.platform === "win32")(
+  "off a terminal the child runs in its own process group, apart from the wrapper's",
+  async () => {
+    const root = await rig(PGIDS);
+    try {
+      const { exited } = runWrapper(root);
+      await exited;
+      const [child, wrapper] = await readPgids(root);
+      expect(child).not.toBe(wrapper);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+const hasScript = Bun.which("script") !== null;
+test.skipIf(process.platform === "win32" || !hasScript)(
+  "on a terminal the child stays in the wrapper's foreground group",
+  async () => {
+    const root = await rig(PGIDS);
+    try {
+      const wrapper = join(root, "bin", "quest.cjs");
+      const args =
+        process.platform === "darwin"
+          ? ["-q", "/dev/null", "node", wrapper]
+          : ["-qec", `node ${wrapper}`, "/dev/null"];
+      const proc = spawn("script", args, {
+        // /dev/null as stdin: `script` rejects the socket a "pipe" becomes.
+        stdio: ["ignore", "ignore", "ignore"],
+      });
+      const done = new Promise((resolve) => proc.on("exit", resolve));
+      try {
+        const [child, wrapperGroup] = await readPgids(root);
+        expect(child).toBe(wrapperGroup);
+      } finally {
+        proc.kill("SIGKILL");
+        await done;
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "a child that dies by a signal still has its group swept before the wrapper re-raises",
+  async () => {
+    const root = await rig(`sleep 300 &
+echo $! > "$(dirname "$0")/../../../../grandchild.pid"
+kill -TERM $$
+wait`);
+    let grandchild: number | undefined;
+    try {
+      const { exited } = runWrapper(root);
+      const result = await exited;
+      expect(result.signal).toBe("SIGTERM");
+      grandchild = await waitFor("grandchild pid", async () => {
+        try {
+          const n = Number.parseInt(
+            await readFile(join(root, "grandchild.pid"), "utf8"),
+            10,
+          );
+          return Number.isNaN(n) ? undefined : n;
+        } catch {
+          return undefined;
+        }
+      });
+      await waitFor(
+        "grandchild to die",
+        () => (alive(grandchild as number) ? undefined : true),
+        3_000,
+      );
+    } finally {
+      if (grandchild !== undefined && alive(grandchild))
+        process.kill(grandchild, "SIGKILL");
       await rm(root, { recursive: true, force: true });
     }
   },
