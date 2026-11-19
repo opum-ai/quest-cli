@@ -383,7 +383,12 @@ for (const name of ["PIPE", "USR1"] as const) {
         const result = await exited;
         expect(result.signal).toBeNull();
         expect(result.code).toBe(expected);
+        // A self-kill with SIGUSR1 starts Node's inspector on
+        // 127.0.0.1:9229. Check every trace of it, so a bound port or a slow
+        // inspector cannot keep a mutant green.
         expect(stderr()).not.toContain("Debugger listening");
+        expect(stderr()).not.toMatch(/inspector/i);
+        expect(stderr()).not.toContain("9229");
       } finally {
         await rm(root, { recursive: true, force: true });
       }

@@ -29,11 +29,12 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   action, it exits `128+n` instead.
   **Residual, stated until the lifeline ships (QCLI-571, DEC-282 (a2) item 2):**
   SIGKILL of the wrapper, or a caller's group-wide SIGKILL off a terminal,
-  cannot be intercepted and can still orphan the child. With a terminal on any of the three the child
-  shares the caller's group, so a SIGTERM to the wrapper reaches the
-  child only, not its grandchildren. The caller remedy is
-  TERM-then-KILL: SIGTERM the wrapper, wait a few seconds, then SIGKILL. A
-  plain SIGTERM, which is what Node `execFile` timeouts send, is fully handled.
+  cannot be intercepted and can still orphan the child. With a terminal on any
+  of the three the child shares the caller's group, so a SIGTERM to the wrapper
+  reaches the child only, not its grandchildren. The caller remedy is
+  TERM-then-KILL: SIGTERM the wrapper, wait a few seconds, then SIGKILL. Off a
+  terminal, a plain SIGTERM, which is what Node `execFile` timeouts send, is
+  fully handled.
 
 ## 0.15.0
 

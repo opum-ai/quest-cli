@@ -45,15 +45,20 @@ if (!existsSync(binary)) {
 // Design ruled by DEC-282 (a2) (opum-doc ODOC-634): off a terminal the child is
 // in its own session and group, a forwarded signal goes to that group, and the
 // wrapper sweeps the group on exit; with a terminal on any of fds 0-2 it stays
-// in the caller's group so Ctrl-C works as before. When the child dies by a signal
-// the wrapper dies by that same signal (re-raised), as foreground-child and
-// tini do, so a caller sees death by signal, not exit 128+n.
+// in the caller's group so Ctrl-C works as before. When the child dies by a
+// signal the wrapper dies by that same signal (re-raised), as foreground-child
+// and tini do, so a caller sees death by signal, not exit 128+n. The exception
+// is SIGPIPE, SIGXFSZ and SIGUSR1, which Node does not leave at the default
+// action: for those it exits 128+n (see NODE_HANDLED).
 //
-// Known limit, until the lifeline pipe ships (DEC-282 (a2) item 2): SIGKILL of
-// the wrapper, or a caller's group-wide SIGKILL off a terminal, cannot be
-// intercepted and can orphan the child. The documented caller remedy is
-// TERM-then-KILL: SIGTERM the wrapper (or a group the caller created for it),
-// wait a few seconds, then SIGKILL. A plain SIGTERM is fully handled here.
+// Known limits, until the lifeline pipe ships (QCLI-571, DEC-282 (a2) item 2):
+// SIGKILL of the wrapper, or a caller's group-wide SIGKILL off a terminal,
+// cannot be intercepted and can orphan the child. With a terminal on any of
+// fds 0-2 the child shares the caller's group, so a SIGTERM to the wrapper
+// reaches the child only, not its grandchildren. The documented caller remedy
+// is TERM-then-KILL: SIGTERM the wrapper (or a group the caller created for
+// it), wait a few seconds, then SIGKILL. Off a terminal a plain SIGTERM is
+// fully handled here.
 //
 // DEC-282 (a3): own the group only when NONE of fds 0, 1 or 2 is a terminal,
 // which is every daemon and supervisor caller. With any of them on a terminal
@@ -118,6 +123,9 @@ try {
 } catch (error) {
   // spawn() throws synchronously for some failures (ENOEXEC, E2BIG), where it
   // reports others (ENOENT, EACCES) through the 'error' event.
+  // Whether a given bad file gets here is platform-specific: glibc's execvp
+  // retries an ENOEXEC file through /bin/sh, so on Linux a text file runs as a
+  // script instead of throwing.
   startFailed(error);
   return;
 }
