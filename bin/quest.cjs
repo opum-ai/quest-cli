@@ -38,13 +38,14 @@ if (!existsSync(binary)) {
 //
 // Off a terminal the child gets its own session and process group (setsid), so
 // a kill reaches anything it spawned too; the cost is that it has no
-// controlling terminal. On a terminal it stays in the caller's foreground
-// group, so it keeps the terminal and Ctrl-C reaches it as before.
+// controlling terminal. When any of stdin, stdout or stderr is a terminal it
+// stays in the caller's group, so it keeps the terminal and Ctrl-C reaches it
+// as before.
 //
 // Design ruled by DEC-282 (a2) (opum-doc ODOC-634): off a terminal the child is
 // in its own session and group, a forwarded signal goes to that group, and the
-// wrapper sweeps the group on exit; on a terminal it stays in the caller's
-// foreground group so Ctrl-C works as before. When the child dies by a signal
+// wrapper sweeps the group on exit; with a terminal on any of fds 0-2 it stays
+// in the caller's group so Ctrl-C works as before. When the child dies by a signal
 // the wrapper dies by that same signal (re-raised), as foreground-child and
 // tini do, so a caller sees death by signal, not exit 128+n.
 //
@@ -53,7 +54,13 @@ if (!existsSync(binary)) {
 // intercepted and can orphan the child. The documented caller remedy is
 // TERM-then-KILL: SIGTERM the wrapper (or a group the caller created for it),
 // wait a few seconds, then SIGKILL. A plain SIGTERM is fully handled here.
-const ownGroup = platform !== "win32" && !isatty(0);
+//
+// DEC-282 (a3): own the group only when NONE of fds 0, 1 or 2 is a terminal,
+// which is every daemon and supervisor caller. With any of them on a terminal
+// the child stays in the caller's group, so Ctrl-\, Ctrl-Z and /dev/tty
+// prompts (an ssh passphrase during a git fetch) keep working.
+const ownGroup =
+  platform !== "win32" && !isatty(0) && !isatty(1) && !isatty(2);
 let child;
 let spawnFailed = false;
 

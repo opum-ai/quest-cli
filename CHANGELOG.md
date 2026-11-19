@@ -17,18 +17,20 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   and (a2)). `bin/quest.cjs` ran the child with `spawnSync`, which blocks the
   event loop, so a caller that timed out and killed only the wrapper left the
   native process running (PPID 1). It now spawns asynchronously, forwards those
-  three signals, and, off a terminal, runs the child in its own session and
+  three signals, and, when none of stdin, stdout and stderr is a terminal
+  (every daemon and supervisor caller), runs the child in its own session and
   process group: a forwarded signal goes to the group and the wrapper sweeps
-  the group on exit, so grandchildren (`git`, `gh`) die with it. On a terminal
-  the child stays in the caller's foreground group, so Ctrl-C works as before.
+  the group on exit, so grandchildren (`git`, `gh`) die with it. When any of
+  the three is a terminal the child stays in the caller's group, so Ctrl-C,
+  Ctrl-Z and `/dev/tty` prompts work as before.
   When the child dies by a signal the wrapper now dies by the same signal
   (re-raised), where 0.15.0 exited `1`, so a caller sees death by signal; for
   SIGPIPE, SIGXFSZ and SIGUSR1, which Node does not leave at the default
   action, it exits `128+n` instead.
   **Residual, stated until the lifeline ships (QCLI-571, DEC-282 (a2) item 2):**
   SIGKILL of the wrapper, or a caller's group-wide SIGKILL off a terminal,
-  cannot be intercepted and can still orphan the child. On a terminal the child
-  shares the caller's foreground group, so a SIGTERM to the wrapper reaches the
+  cannot be intercepted and can still orphan the child. With a terminal on any of the three the child
+  shares the caller's group, so a SIGTERM to the wrapper reaches the
   child only, not its grandchildren. The caller remedy is
   TERM-then-KILL: SIGTERM the wrapper, wait a few seconds, then SIGKILL. A
   plain SIGTERM, which is what Node `execFile` timeouts send, is fully handled.
