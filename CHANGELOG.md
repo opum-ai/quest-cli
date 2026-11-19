@@ -22,11 +22,14 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   the group on exit, so grandchildren (`git`, `gh`) die with it. On a terminal
   the child stays in the caller's foreground group, so Ctrl-C works as before.
   When the child dies by a signal the wrapper now dies by the same signal
-  (re-raised), instead of exiting `128+n`, so a caller sees death by signal.
-  A spawn failure exits 1.
-  **Residual, stated until the lifeline ships (DEC-282 (a2) item 2):** SIGKILL
-  of the wrapper, or a caller's group-wide SIGKILL off a terminal, cannot be
-  intercepted and can still orphan the child. The caller remedy is
+  (re-raised), where 0.15.0 exited `1`, so a caller sees death by signal; for
+  SIGPIPE, SIGXFSZ and SIGUSR1, which Node does not leave at the default
+  action, it exits `128+n` instead.
+  **Residual, stated until the lifeline ships (QCLI-571, DEC-282 (a2) item 2):**
+  SIGKILL of the wrapper, or a caller's group-wide SIGKILL off a terminal,
+  cannot be intercepted and can still orphan the child. On a terminal the child
+  shares the caller's foreground group, so a SIGTERM to the wrapper reaches the
+  child only, not its grandchildren. The caller remedy is
   TERM-then-KILL: SIGTERM the wrapper, wait a few seconds, then SIGKILL. A
   plain SIGTERM, which is what Node `execFile` timeouts send, is fully handled.
 

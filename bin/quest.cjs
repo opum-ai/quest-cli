@@ -36,10 +36,10 @@ if (!existsSync(binary)) {
 // killed the wrapper while the native binary kept running (orphaned, PPID 1).
 // Run it asynchronously, forward the terminating signals, and sweep on exit.
 //
-// Off a terminal the child gets its own process group (and, on POSIX, its own
-// session), so a kill reaches anything it spawned too. On a terminal it stays
-// in the foreground group: a background group would be stopped by
-// SIGTTIN/SIGTTOU on terminal I/O.
+// Off a terminal the child gets its own session and process group (setsid), so
+// a kill reaches anything it spawned too; the cost is that it has no
+// controlling terminal. On a terminal it stays in the caller's foreground
+// group, so it keeps the terminal and Ctrl-C reaches it as before.
 //
 // Design ruled by DEC-282 (a2) (opum-doc ODOC-634): off a terminal the child is
 // in its own session and group, a forwarded signal goes to that group, and the
@@ -76,6 +76,8 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
     // The signal is not supported on this platform.
   }
 }
+const NODE_HANDLED = new Set(["SIGPIPE", "SIGXFSZ", "SIGUSR1"]);
+
 function sweepGroup() {
   if (!child) return;
   if (ownGroup && typeof child.pid === "number") {
@@ -95,15 +97,24 @@ function sweepGroup() {
 // left answers ESRCH, which is the normal case.
 process.on("exit", sweepGroup);
 
-child = spawn(binary, process.argv.slice(2), {
-  stdio: "inherit",
-  detached: ownGroup,
-});
-child.on("error", (error) => {
+function startFailed(error) {
   spawnFailed = true;
   console.error(`Quest could not start ${packageName}: ${error.message}`);
   process.exitCode = 1;
-});
+}
+
+try {
+  child = spawn(binary, process.argv.slice(2), {
+    stdio: "inherit",
+    detached: ownGroup,
+  });
+} catch (error) {
+  // spawn() throws synchronously for some failures (ENOEXEC, E2BIG), where it
+  // reports others (ENOENT, EACCES) through the 'error' event.
+  startFailed(error);
+  return;
+}
+child.on("error", startFailed);
 child.on("close", (status, signal) => {
   // A spawn failure also emits 'close', with a negative errno status; the
   // failure has already set exit status 1.
@@ -123,6 +134,10 @@ child.on("close", (status, signal) => {
   // ignored or blocked), fall back to the conventional 128+n status.
   sweepGroup();
   process.exitCode = 128 + number;
+  // Node does not leave these at the default action: it ignores SIGPIPE and
+  // SIGXFSZ (a self-kill would do nothing), and SIGUSR1 starts the inspector
+  // on 127.0.0.1:9229. Exit 128+n for them instead of self-killing.
+  if (NODE_HANDLED.has(signal)) return;
   for (const name of ["SIGTERM", "SIGINT", "SIGHUP"]) process.removeAllListeners(name);
   try {
     process.kill(process.pid, signal);

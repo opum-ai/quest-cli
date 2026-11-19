@@ -10,7 +10,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { constants as osConstants, tmpdir } from "node:os";
 import { join } from "node:path";
 
 /**
@@ -235,6 +235,8 @@ test.skipIf(process.platform === "win32")(
       const { exited } = runWrapper(root);
       await exited;
       const [child, wrapper] = await readPgids(root);
+      expect(Number.isInteger(child)).toBe(true);
+      expect(Number.isInteger(wrapper)).toBe(true);
       expect(child).not.toBe(wrapper);
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -242,10 +244,13 @@ test.skipIf(process.platform === "win32")(
   },
 );
 
+// A missing `script` skips this test locally, but FAILS it under CI: a silent
+// skip there would leave the on-terminal placement unproven.
 const hasScript = Bun.which("script") !== null;
-test.skipIf(process.platform === "win32" || !hasScript)(
+test.skipIf(process.platform === "win32" || (!hasScript && !process.env.CI))(
   "on a terminal the child stays in the wrapper's foreground group",
   async () => {
+    expect(hasScript).toBe(true);
     const root = await rig(PGIDS);
     try {
       const wrapper = join(root, "bin", "quest.cjs");
@@ -260,6 +265,8 @@ test.skipIf(process.platform === "win32" || !hasScript)(
       const done = new Promise((resolve) => proc.on("exit", resolve));
       try {
         const [child, wrapperGroup] = await readPgids(root);
+        expect(Number.isInteger(child)).toBe(true);
+        expect(Number.isInteger(wrapperGroup)).toBe(true);
         expect(child).toBe(wrapperGroup);
       } finally {
         proc.kill("SIGKILL");
@@ -302,6 +309,70 @@ wait`);
     } finally {
       if (grandchild !== undefined && alive(grandchild))
         process.kill(grandchild, "SIGKILL");
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+/** Run the wrapper with stderr captured. */
+function runCapturing(root: string, nodeArgs: string[] = []) {
+  const proc = spawn("node", [...nodeArgs, join(root, "bin", "quest.cjs")], {
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  let stderr = "";
+  proc.stderr?.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  const exited = new Promise<{ code: number | null; signal: string | null }>(
+    (resolve) => proc.on("close", (code, signal) => resolve({ code, signal })),
+  );
+  return { exited, stderr: () => stderr };
+}
+
+// Node ignores SIGPIPE/SIGXFSZ and turns SIGUSR1 into "start the inspector",
+// so a self-kill with those signals either does nothing or opens a debugger
+// port. The wrapper exits 128+n for them instead.
+for (const name of ["PIPE", "USR1"] as const) {
+  const expected = 128 + (osConstants.signals[`SIG${name}`] ?? 0);
+  test.skipIf(process.platform === "win32")(
+    `a child killed by SIG${name} makes the wrapper exit 128+n with no debugger started`,
+    async () => {
+      const root = await rig(`kill -${name} $$\nsleep 5`);
+      try {
+        const { exited, stderr } = runCapturing(root);
+        const result = await exited;
+        expect(result.signal).toBeNull();
+        expect(result.code).toBe(expected);
+        expect(stderr()).not.toContain("Debugger listening");
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+}
+
+test.skipIf(process.platform === "win32")(
+  "a spawn() that throws synchronously prints the start-failure message, exits 1, and shows no stack",
+  async () => {
+    const root = await rig("exit 0");
+    try {
+      // Node reports ENOEXEC and E2BIG by throwing from spawn() rather than
+      // via the 'error' event, but whether a real file gets there is
+      // platform-specific (glibc's execvp retries ENOEXEC through /bin/sh). A
+      // preload makes the throw deterministic on every platform.
+      const preload = join(root, "throwing-spawn.cjs");
+      await writeFile(
+        preload,
+        `require("node:child_process").spawn = () => {
+  throw Object.assign(new Error("spawn ENOEXEC"), { code: "ENOEXEC" });
+};\n`,
+      );
+      const { exited, stderr } = runCapturing(root, ["--require", preload]);
+      const result = await exited;
+      expect(result.code).toBe(1);
+      expect(stderr()).toContain("Quest could not start");
+      expect(stderr()).not.toMatch(/\n\s+at /);
+    } finally {
       await rm(root, { recursive: true, force: true });
     }
   },
