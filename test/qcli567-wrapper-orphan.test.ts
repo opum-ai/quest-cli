@@ -247,31 +247,71 @@ test.skipIf(process.platform === "win32")(
 // A missing `script` skips this test locally, but FAILS it under CI: a silent
 // skip there would leave the on-terminal placement unproven.
 const hasScript = Bun.which("script") !== null;
-test.skipIf(process.platform === "win32" || (!hasScript && !process.env.CI))(
-  "on a terminal the child stays in the wrapper's foreground group",
+
+/** Run `shellCommand` (a /bin/sh command line) with every fd on a pty, under
+ * script(1), and read the pgids the stand-in recorded. */
+async function pgidsUnderPty(root: string, shellCommand: string) {
+  const args =
+    process.platform === "darwin"
+      ? ["-q", "/dev/null", "sh", "-c", shellCommand]
+      : ["-qec", `sh -c '${shellCommand}'`, "/dev/null"];
+  const proc = spawn("script", args, {
+    // /dev/null as stdin: `script` rejects the socket a "pipe" becomes.
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+  const done = new Promise((resolve) => proc.on("exit", resolve));
+  try {
+    return await readPgids(root);
+  } finally {
+    proc.kill("SIGKILL");
+    await done;
+  }
+}
+
+// A missing `script` skips these tests locally, but FAILS them under CI: a
+// silent skip there would leave the on-terminal placement unproven.
+const ptyTest = (name: string, body: () => Promise<void>) =>
+  test.skipIf(process.platform === "win32" || (!hasScript && !process.env.CI))(
+    name,
+    async () => {
+      expect(hasScript).toBe(true);
+      await body();
+    },
+  );
+
+ptyTest(
+  "with every fd on a terminal the child stays in the wrapper's group",
   async () => {
-    expect(hasScript).toBe(true);
     const root = await rig(PGIDS);
     try {
-      const wrapper = join(root, "bin", "quest.cjs");
-      const args =
-        process.platform === "darwin"
-          ? ["-q", "/dev/null", "node", wrapper]
-          : ["-qec", `node ${wrapper}`, "/dev/null"];
-      const proc = spawn("script", args, {
-        // /dev/null as stdin: `script` rejects the socket a "pipe" becomes.
-        stdio: ["ignore", "ignore", "ignore"],
-      });
-      const done = new Promise((resolve) => proc.on("exit", resolve));
-      try {
-        const [child, wrapperGroup] = await readPgids(root);
-        expect(Number.isInteger(child)).toBe(true);
-        expect(Number.isInteger(wrapperGroup)).toBe(true);
-        expect(child).toBe(wrapperGroup);
-      } finally {
-        proc.kill("SIGKILL");
-        await done;
-      }
+      const [child, wrapperGroup] = await pgidsUnderPty(
+        root,
+        `node ${join(root, "bin", "quest.cjs")}`,
+      );
+      expect(Number.isInteger(child)).toBe(true);
+      expect(Number.isInteger(wrapperGroup)).toBe(true);
+      expect(child).toBe(wrapperGroup);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+// DEC-282 (a3): a terminal on ANY of fds 0-2 keeps the child in the caller's
+// group (Ctrl-Z, Ctrl-\\, /dev/tty prompts). Here stdin is a pipe and stdout
+// and stderr are the terminal.
+ptyTest(
+  "with stdin piped but stdout on a terminal the child stays in the wrapper's group",
+  async () => {
+    const root = await rig(PGIDS);
+    try {
+      const [child, wrapperGroup] = await pgidsUnderPty(
+        root,
+        `: | node ${join(root, "bin", "quest.cjs")}`,
+      );
+      expect(Number.isInteger(child)).toBe(true);
+      expect(Number.isInteger(wrapperGroup)).toBe(true);
+      expect(child).toBe(wrapperGroup);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -343,7 +383,12 @@ for (const name of ["PIPE", "USR1"] as const) {
         const result = await exited;
         expect(result.signal).toBeNull();
         expect(result.code).toBe(expected);
+        // A self-kill with SIGUSR1 starts Node's inspector on
+        // 127.0.0.1:9229. Check every trace of it, so a bound port or a slow
+        // inspector cannot keep a mutant green.
         expect(stderr()).not.toContain("Debugger listening");
+        expect(stderr()).not.toMatch(/inspector/i);
+        expect(stderr()).not.toContain("9229");
       } finally {
         await rm(root, { recursive: true, force: true });
       }
