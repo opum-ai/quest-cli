@@ -1182,3 +1182,73 @@ test("a multi-family source reports every family, and the colliding record's own
     await rm(source, { recursive: true, force: true });
   }
 });
+
+test("a cross-family positional collision names the colliding record's own family, and the verdict matches the retry (QCLI-322 review, B1)", async () => {
+  // OCLI-1 sorts first and is minted ODOC-1; ODOC-1's own source alias then
+  // collides with that minted id. The collision is candidate-vs-candidate,
+  // and the two records are in DIFFERENT families -- so attributing it by
+  // candidate string names the record that claimed the key first (OCLI) and
+  // reports a verdict measured for the wrong family. The retry below is the
+  // proof: it uses the family the refusal names.
+  const store = await workspace("ODOC", "crossfamily");
+  const resolvable = await backlogSource("crossfamily-ok", [
+    "OCLI-1",
+    "ODOC-1",
+  ]);
+  const unresolvable = await backlogSource(
+    "crossfamily-orphan",
+    ["OCLI-1", "ODOC-1", "ODOC-5.1"],
+    { "ODOC-5.1": "ODOC-5" },
+  );
+  try {
+    // ODOC's own preservation run refuses on the orphan, so the refusal must
+    // say false -- and the retry it points at must refuse too.
+    const orphan = await refusedPreview(store, unresolvable);
+    expect(orphan.input.collisions[0]).toMatchObject({
+      candidate: "ODOC-1",
+      cause: "positional_renumbering",
+      family: "ODOC",
+      preservationWouldResolve: false,
+    });
+    expect([...orphan.input.families].sort()).toEqual(["OCLI", "ODOC"]);
+    const refusedRetry = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      unresolvable,
+      "--preserve-source-ids",
+      "--source-family",
+      "ODOC",
+      "--json",
+    ]);
+    expect(refusedRetry.exitCode).toBe(5);
+    expect(JSON.parse(refusedRetry.stderr).message).toStartWith(
+      "Backlog id preservation refused:",
+    );
+
+    // Without the orphan the same collision is resolvable, the verdict says
+    // true, and the retry it points at succeeds.
+    const clean = await refusedPreview(store, resolvable);
+    expect(clean.input.collisions[0]).toMatchObject({
+      candidate: "ODOC-1",
+      family: "ODOC",
+      preservationWouldResolve: true,
+    });
+    const okRetry = await questNative(store, [
+      "migration",
+      "backlog",
+      "preview",
+      "--source",
+      resolvable,
+      "--preserve-source-ids",
+      "--source-family",
+      "ODOC",
+      "--json",
+    ]);
+    expect(okRetry.exitCode).toBe(0);
+  } finally {
+    for (const dir of [store, resolvable, unresolvable])
+      await rm(dir, { recursive: true, force: true });
+  }
+});

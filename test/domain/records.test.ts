@@ -97,14 +97,29 @@ test("collectAliasCollisions reports every collision instead of stopping at the 
       [alias("ODOC-1"), alias("ODOC-3")],
     ),
   ).toEqual([
-    { candidate: "ODOC-1", conflictsWith: "ODOC-1", origin: "destination" },
-    { candidate: "ODOC-3", conflictsWith: "ODOC-3", origin: "destination" },
+    {
+      candidate: "ODOC-1",
+      conflictsWith: "ODOC-1",
+      index: 0,
+      origin: "destination",
+    },
+    {
+      candidate: "ODOC-3",
+      conflictsWith: "ODOC-3",
+      index: 2,
+      origin: "destination",
+    },
   ]);
   // A duplicate WITHIN the candidate list itself is also a collision, caught
   // against the first occurrence -- the same fold-aware key as everywhere
   // else in this module.
   expect(collectAliasCollisions(["STRASSE", "straße"], [])).toEqual([
-    { candidate: "straße", conflictsWith: "STRASSE", origin: "candidate" },
+    {
+      candidate: "straße",
+      conflictsWith: "STRASSE",
+      index: 1,
+      origin: "candidate",
+    },
   ]);
 });
 
@@ -113,7 +128,12 @@ test("a collision distinguishes a destination claim from an in-batch renumbering
   // positional renumbering shift produces, and the two must be tellable apart
   // without parsing the message.
   expect(collectAliasCollisions(["ODOC-2", "ODOC-2"], [])).toEqual([
-    { candidate: "ODOC-2", conflictsWith: "ODOC-2", origin: "candidate" },
+    {
+      candidate: "ODOC-2",
+      conflictsWith: "ODOC-2",
+      index: 1,
+      origin: "candidate",
+    },
   ]);
   expect(
     collectAliasCollisions(
@@ -124,6 +144,7 @@ test("a collision distinguishes a destination claim from an in-batch renumbering
     {
       candidate: "ODOC-2",
       conflictsWith: "odoc-2",
+      index: 0,
       origin: "destination",
       occupant: { taskId: "ODOC-7", kind: "alias" },
     },

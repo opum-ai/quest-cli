@@ -162,7 +162,9 @@ export interface BacklogAliasCollisionDetails {
  * QCLI-322: the default-mode alias-collision refusal. A subclass of
  * {@link RecordConflictError} so every existing catch still sees a conflict,
  * carrying the structured report a programmatic caller branches on instead
- * of parsing the message -- which stays the QCLI-256 prose, unchanged.
+ * of parsing the message. The message keeps the QCLI-256 remedy paragraph
+ * byte for byte; its first sentence gains an occupant clause on a
+ * destination claim (QCLI-357), which a positional collision does not get.
  */
 export class BacklogAliasCollisionError extends RecordConflictError {
   constructor(
@@ -651,12 +653,17 @@ const ALIAS_COLLISION_ADVICE =
   "If this is from positional renumbering (for example a dotted subtask flattening and shifting a later allocation), --preserve-source-ids --source-family <PREFIX> avoids it by keeping each record's own source id instead. If instead this exact id is already a live, unrelated claim in the destination workspace, --preserve-source-ids will not resolve it -- rename or remove the conflicting record in the destination, or rename the id in the source, before retrying.";
 
 /**
- * QCLI-322: build the default-mode alias-collision refusal. The message keeps
- * the QCLI-256 prose; the details carry what a programmatic caller needs --
- * which of the two collision shapes each pair is, the id family the colliding
- * record belongs to and every family the source holds, who already owns a
- * destination key, and whether preservation would actually resolve the
- * collision.
+ * QCLI-322: build the default-mode alias-collision refusal. The details carry
+ * what a programmatic caller needs -- which of the two collision shapes each
+ * pair is, the id family the colliding record belongs to and every family the
+ * source holds, who already owns a destination key, and whether preservation
+ * would actually resolve the collision.
+ *
+ * The message keeps the QCLI-256 remedy paragraph byte for byte. The FIRST
+ * sentence is not unchanged: on a destination claim it gains an occupant
+ * clause naming the owning task and whether the key is its canonical id or a
+ * registered alias (QCLI-357's ask). A positional-renumbering collision has no
+ * occupant, so its first sentence stays byte-identical too.
  *
  * `preservationWouldResolve` is MEASURED, not inferred: the preservation
  * analysis is run for the colliding record's family and its own verdict is
@@ -668,7 +675,10 @@ const ALIAS_COLLISION_ADVICE =
  */
 async function defaultModeAliasCollision(
   collisions: readonly AliasCollision[],
-  sourceByCandidate: ReadonlyMap<string, string>,
+  candidateSources: readonly {
+    readonly display: string;
+    readonly sourceIdentifier: string;
+  }[],
   snapshot: {
     readonly fingerprint: string;
     readonly records: readonly BacklogImportRecord[];
@@ -707,13 +717,13 @@ async function defaultModeAliasCollision(
         taskIds,
       );
       resolves = true;
-    } catch (error) {
-      if (
-        error instanceof BacklogMigrationRefusedError ||
-        error instanceof RecordValidationError
-      )
-        resolves = false;
-      else throw error;
+    } catch {
+      // A probe failure never escapes: the caller asked for a conflict, and a
+      // probe that throws for its own reasons (a short id block, an
+      // unreadable family) must not replace the exit-5 refusal with a
+      // different error. It reads as "preservation would not resolve this",
+      // which is the safe direction: it promises nothing.
+      resolves = false;
     }
     verdicts.set(family, resolves);
     return resolves;
@@ -721,8 +731,11 @@ async function defaultModeAliasCollision(
 
   const details: BacklogAliasCollisionDetail[] = [];
   for (const collision of collisions) {
+    // Attributed by OCCURRENCE, never by the candidate string: two records can
+    // produce the same display, and the reported one is the later claimant
+    // (QCLI-322 review, B1).
     const sourceIdentifier =
-      sourceByCandidate.get(alias(collision.candidate).key) ?? "";
+      candidateSources[collision.index]?.sourceIdentifier ?? "";
     const family = sourceFamily(sourceIdentifier) ?? null;
     details.push({
       candidate: collision.candidate,
@@ -846,28 +859,31 @@ async function previewInternal(
   // per-record grouping of its own, so it cannot tell "claimed by this exact
   // task, about to receive that string as its own alias" apart from "claimed
   // by a different task"; only the caller knows which candidates belong to
-  // the same mapping (QCLI-157). The source id behind each candidate is kept
-  // so a refusal can name the record's id family (QCLI-322).
-  const sourceByCandidate = new Map<string, string>();
-  const candidates = mappings.flatMap((mapping) => {
-    const perTask = new Map<string, string>();
-    for (const candidate of [mapping.targetIdentifier, ...mapping.aliases]) {
-      const key = alias(candidate).key;
-      if (!perTask.has(key)) perTask.set(key, candidate);
-    }
-    const kept = [...perTask.values()];
-    for (const candidate of kept) {
-      const key = alias(candidate).key;
-      if (!sourceByCandidate.has(key))
-        sourceByCandidate.set(key, mapping.sourceIdentifier);
-    }
-    return kept;
-  });
+  // the same mapping (QCLI-157).
+  //
+  // Each surviving candidate keeps the source id of the record that produced
+  // THAT OCCURRENCE (QCLI-322 review, B1). A candidate string can be produced
+  // by two records, and a collision is then attributed to the record that
+  // claimed the key last, not first -- so this is an occurrence-aligned list,
+  // never a lookup by candidate string.
+  const candidateSources: { display: string; sourceIdentifier: string }[] =
+    mappings.flatMap((mapping) => {
+      const perTask = new Map<string, string>();
+      for (const candidate of [mapping.targetIdentifier, ...mapping.aliases]) {
+        const key = alias(candidate).key;
+        if (!perTask.has(key)) perTask.set(key, candidate);
+      }
+      return [...perTask.values()].map((display) => ({
+        display,
+        sourceIdentifier: mapping.sourceIdentifier,
+      }));
+    });
+  const candidates = candidateSources.map((entry) => entry.display);
   const collisions = collectAliasCollisions(candidates, occupied);
   if (collisions.length > 0)
     throw await defaultModeAliasCollision(
       collisions,
-      sourceByCandidate,
+      candidateSources,
       snapshot,
       occupied,
       existing.taskRecords,

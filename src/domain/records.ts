@@ -125,6 +125,13 @@ export type AliasCollisionOrigin = "destination" | "candidate";
 export interface AliasCollision {
   readonly candidate: string;
   readonly conflictsWith: string;
+  /** The candidate's 0-based position in the list handed to
+   * {@link collectAliasCollisions}. A caller that needs to attribute a
+   * collision to the record that OWNS this occurrence must key on the
+   * occurrence, not on the candidate string: two records can produce the
+   * same display, and the first claimant is then a different record from the
+   * one being reported (QCLI-322 review, B1). */
+  readonly index: number;
   /** The discriminator that tells a destination claim from an in-batch
    * collision without parsing the message (QCLI-322). */
   readonly origin: AliasCollisionOrigin;
@@ -202,13 +209,14 @@ export function collectAliasCollisions(
 ): readonly AliasCollision[] {
   const seen = seedClaims(existing);
   const collisions: AliasCollision[] = [];
-  for (const display of candidates) {
+  for (const [index, display] of candidates.entries()) {
     const entry = alias(display);
     const claim = seen.get(entry.key);
     if (claim !== undefined) {
       collisions.push({
         candidate: display,
         conflictsWith: claim.display,
+        index,
         origin: claim.origin,
         ...(claim.occupant === undefined ? {} : { occupant: claim.occupant }),
       });

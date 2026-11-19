@@ -5089,7 +5089,8 @@ export async function runQuest(
     // QCLI-322: the default-mode alias-collision refusal. Same rationale --
     // the generic conflict fallback would keep the message and drop the
     // structured cause/preservation verdict a programmatic caller branches
-    // on. The message itself is the QCLI-256 prose, unchanged.
+    // on. The message keeps the QCLI-256 remedy paragraph byte for byte; its
+    // first sentence gains an occupant clause on a destination claim.
     if (error instanceof BacklogAliasCollisionError)
       return failure("conflict", error.message, { input: error.details });
     // QCLI-261: same rationale as BacklogMigrationRefusedError above -- the
