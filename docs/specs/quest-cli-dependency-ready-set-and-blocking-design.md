@@ -66,13 +66,11 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
    whose `block_id` is a question id additionally derives its current meaning from that
    question's authored record, read at the same revision (the task read and the question
    read are not one transaction, so a working-tree skew between them is possible): the
-   block is active only
-   while the question is `open` (see
+   block is active only while the question is `open` (see
    [Question-named blockers](#question-named-blockers-qcli-448)). Readiness therefore
    reads two authored stores -- the task records, and the question store, the latter on
    every evaluation rather than only when a blocker names a question -- and no projection
-   may repair or override either. The derivation is
-   a read; it is never a second task write.
+   may repair or override either. The derivation is a read, never a second task write.
 3. Graph validation and cycle detection complete before any ready task is returned. A
    malformed graph produces no partial ready set.
 4. Readiness is evaluated at a named Git revision and with an injected clock instant,
@@ -184,7 +182,8 @@ present later in the same authored history. A QUESTION-named blocker is addition
 by its question record at the same revision, though the two reads are not one
 transaction and a working-tree skew between them is possible: it is active only while
 that question is `open`; an `answered` or `withdrawn` question makes it inactive even
-though no cleared event exists; and a `Q-N` id with no question record at that revision fails CLOSED and stays
+though no cleared event exists; and a `Q-N` id with no question record at that revision
+fails CLOSED and stays
 active, because a reference that cannot be resolved is not a resolution. A task is
 explicitly blocked when its active-blocker set is non-empty. Opening a duplicate id,
 clearing an unknown id, or clearing an already-cleared blocker is invalid authored history
@@ -241,10 +240,11 @@ which is the behavior before question blockers existed.
 
 READ SIDE: the authored `blockers` array is HISTORY, not the answer to "what is blocking
 this task now" -- an answered question's `opened` event stays in it. Once it exists,
-consumers read a derived `activeBlockers` field on `quest task view --json` and
-`quest task list --json`, computed on read and never stored, and the raw array MUST NOT be
-described as the source of "blocked". That projection is `QCLI-565`, filed from the
-`ODOC-620` extension recorded on the `ODOC-480` note; until it ships,
+consumers read a derived field (the ruling's example is `activeBlockers`) on
+`quest task view --json` and `quest task list --json`, computed on read and never stored,
+and the raw array MUST NOT be described as the source of "blocked". That projection is
+`QCLI-565`, filed from the `ODOC-620` extension recorded in an `ODOC-480` note; until it
+ships,
 `quest task list --ready` is the only read-side surface that reflects a question-derived
 clear.
 
@@ -259,9 +259,9 @@ the write surface above is this repository's implementation of it:
 Source: `opum-doc` `ODOC-480` on `origin/dev`, commit
 `f6390ed883dd551c596a3828a45f08ef37076a2f` (2026-11-18T23:54:20Z), note "GROOMING
 2026-11-18, second routing batch", the seq-179 rulings recorded under `ODOC-607`. The
-read side is the `ODOC-620` extension, recorded on the same note and read at `opum-doc`
-`origin/dev` `4c0361da8e96d4f918ffa0059b53c0f5021296b1`. The operator-questions design
-this implements is
+read side is the `ODOC-620` extension, recorded in a separate `ODOC-480` note ("QCLI-448
+follow-up") and read at `opum-doc` `origin/dev`
+`4c0361da8e96d4f918ffa0059b53c0f5021296b1`. The operator-questions design this implements is
 `opum-doc` `docs/reference/operator-questions-in-quest-design.md` at `opum-doc` **dev**
 (`f6390ed8`, blob `9f8403c8e836a9af567abec7152123a22abf2240`), step 7; it is not the
 `main` revision.
