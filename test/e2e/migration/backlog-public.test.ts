@@ -1096,6 +1096,20 @@ test("repro A (renumbering) and repro B (dual claim) produce DIFFERENT structure
       preservationWouldResolve: false,
       occupant: { taskId: "TASK-1", kind: "canonical" },
     });
+    // QCLI-570 (N8): the entry that HAS an occupant, and the occupant's own
+    // keys, are pinned too.
+    expect(Object.keys(duel.input.collisions[0]).sort()).toEqual([
+      "candidate",
+      "cause",
+      "conflictsWith",
+      "family",
+      "occupant",
+      "preservationWouldResolve",
+    ]);
+    expect(Object.keys(duel.input.collisions[0].occupant).sort()).toEqual([
+      "kind",
+      "taskId",
+    ]);
 
     // AC3: DIFFERENT structured output, not the same sentence with a
     // different id.

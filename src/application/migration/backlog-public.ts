@@ -150,7 +150,9 @@ export interface BacklogAliasCollisionDetail {
 export interface BacklogAliasCollisionDetails {
   /** The shared cause when every collision has one, else `mixed`. */
   readonly cause: "positional_renumbering" | "destination_claim" | "mixed";
-  /** True only when preservation would resolve every collision reported. */
+  /** True only when preservation would resolve every collision reported.
+   * On a multi-family source this is a conjunction of separate per-family
+   * runs (each imports one family), never a single-run promise. */
   readonly preservationWouldResolve: boolean;
   readonly collisions: readonly BacklogAliasCollisionDetail[];
   /** Every id family the source holds, in first-seen order, so a caller can
