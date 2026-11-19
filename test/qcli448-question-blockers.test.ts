@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { createTaskService } from "../src/cli/composition.ts";
 import { runQuest } from "../src/cli/main.ts";
 import type { QuestionStatus } from "../src/domain/questions/questions.ts";
 import {
@@ -485,4 +486,394 @@ test("readiness derives question blockers from question status and fails closed 
       statuses([["Q-7", "open"]]),
     ),
   ).toEqual({ ready: ["T-1"], excluded: [] });
+});
+
+/**
+ * B1 (line 182 of the blocking design): a question-named blocker's id IS the
+ * question reference, not an interval label, so re-blocking the same question
+ * MUST reuse the same `Q-N`. The append-only history separates the intervals
+ * by event order, and the event-history rules key on the ACTIVE interval.
+ */
+test("a task may block, unblock, and block again on the same question id (QCLI-448)", async () => {
+  await withStore(async (run) => {
+    const taskId = await createTaskCli(run, "Re-block the same question");
+    const questionId = await ask(run);
+    const block = () =>
+      run([
+        "task",
+        "block",
+        taskId,
+        "--question",
+        questionId,
+        "--reason",
+        "waiting for the ruling",
+        ...OPERATOR,
+        "--json",
+      ]);
+
+    expect((await block()).exitCode).toBe(0);
+    expect(await readyIds(run)).not.toContain(taskId);
+
+    expect(
+      (
+        await run([
+          "task",
+          "unblock",
+          taskId,
+          "--question",
+          questionId,
+          "--reason",
+          "proceeding early",
+          ...OPERATOR,
+          "--json",
+        ])
+      ).exitCode,
+    ).toBe(0);
+    expect(await readyIds(run)).toContain(taskId);
+
+    // The SAME Q-N is reused; no new id is minted for the second interval.
+    const again = await block();
+    expect({ exitCode: again.exitCode, stderr: again.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    const blockers = (
+      JSON.parse(again.stdout) as {
+        data: { blockers: readonly BlockerEvent[] };
+      }
+    ).data.blockers;
+    expect(blockers.map((event) => [event.kind, event.blockId])).toEqual([
+      ["opened", questionId],
+      ["cleared", questionId],
+      ["opened", questionId],
+    ]);
+    expect(await readyIds(run)).not.toContain(taskId);
+  });
+});
+
+test("blocking on a withdrawn question is refused as not open (QCLI-448)", async () => {
+  await withStore(async (run) => {
+    const taskId = await createTaskCli(run, "Withdrawn before blocking");
+    const questionId = await ask(run, "Withdraw first");
+    expect(
+      (
+        await run([
+          "question",
+          "withdraw",
+          questionId,
+          "--reason",
+          "no longer relevant",
+          ...OPERATOR,
+          "--json",
+        ])
+      ).exitCode,
+    ).toBe(0);
+
+    const blocked = await run([
+      "task",
+      "block",
+      taskId,
+      "--question",
+      questionId,
+      "--reason",
+      "x",
+      ...OPERATOR,
+      "--json",
+    ]);
+    expect(blocked.exitCode).toBe(6);
+    expect((JSON.parse(blocked.stderr) as { message: string }).message).toBe(
+      "question_not_open",
+    );
+
+    // A refusal writes nothing.
+    const view = await run(["task", "view", taskId, "--json"]);
+    expect(
+      (JSON.parse(view.stdout) as { data: { blockers: readonly unknown[] } })
+        .data.blockers,
+    ).toEqual([]);
+  });
+});
+
+test("a repeat unblock on an already-cleared interval is refused (QCLI-448)", async () => {
+  await withStore(async (run) => {
+    const taskId = await createTaskCli(run, "Repeat clear");
+    const questionId = await ask(run);
+    expect(
+      (
+        await run([
+          "task",
+          "block",
+          taskId,
+          "--question",
+          questionId,
+          "--reason",
+          "waiting",
+          ...OPERATOR,
+          "--json",
+        ])
+      ).exitCode,
+    ).toBe(0);
+    const unblock = () =>
+      run([
+        "task",
+        "unblock",
+        taskId,
+        "--question",
+        questionId,
+        "--reason",
+        "proceeding",
+        ...OPERATOR,
+        "--json",
+      ]);
+    expect((await unblock()).exitCode).toBe(0);
+
+    const repeat = await unblock();
+    expect(repeat.exitCode).toBe(6);
+    expect((JSON.parse(repeat.stderr) as { message: string }).message).toBe(
+      "blocker_unknown_or_repeat_clear",
+    );
+
+    // The refused repeat wrote nothing: the record still holds one clear.
+    const view = await run(["task", "view", taskId, "--json"]);
+    expect(
+      (
+        JSON.parse(view.stdout) as {
+          data: { blockers: readonly BlockerEvent[] };
+        }
+      ).data.blockers.map((event) => event.kind),
+    ).toEqual(["opened", "cleared"]);
+  });
+});
+
+test("--if-revision guards both task block and task unblock (QCLI-448)", async () => {
+  await withStore(async (run) => {
+    const taskId = await createTaskCli(run, "Guarded blocker writes");
+    const questionId = await ask(run);
+    const revisionOf = async (): Promise<string> => {
+      const view = await run(["task", "view", taskId, "--json"]);
+      return (JSON.parse(view.stdout) as { data: { revision: string } }).data
+        .revision;
+    };
+    const revision = await revisionOf();
+
+    // A stale revision refuses and writes nothing.
+    const staleBlock = await run([
+      "task",
+      "block",
+      taskId,
+      "--question",
+      questionId,
+      "--reason",
+      "waiting",
+      "--if-revision",
+      "stale-revision",
+      ...OPERATOR,
+      "--json",
+    ]);
+    expect(staleBlock.exitCode).toBe(5);
+    expect(
+      (JSON.parse(staleBlock.stderr) as { error_type: string }).error_type,
+    ).toBe("conflict");
+    expect(
+      (
+        JSON.parse(staleBlock.stderr) as {
+          input: { sentRevision: string; actualRevision: string };
+        }
+      ).input.sentRevision,
+    ).toBe("stale-revision");
+    expect(
+      (
+        JSON.parse((await run(["task", "view", taskId, "--json"])).stdout) as {
+          data: { blockers: readonly unknown[] };
+        }
+      ).data.blockers,
+    ).toEqual([]);
+
+    // The current revision is accepted.
+    const guardedBlock = await run([
+      "task",
+      "block",
+      taskId,
+      "--question",
+      questionId,
+      "--reason",
+      "waiting",
+      "--if-revision",
+      revision,
+      ...OPERATOR,
+      "--json",
+    ]);
+    expect(guardedBlock.exitCode).toBe(0);
+
+    // The revision captured before the block is now stale for the unblock.
+    const staleUnblock = await run([
+      "task",
+      "unblock",
+      taskId,
+      "--question",
+      questionId,
+      "--reason",
+      "proceeding",
+      "--if-revision",
+      revision,
+      ...OPERATOR,
+      "--json",
+    ]);
+    expect(staleUnblock.exitCode).toBe(5);
+    expect(
+      (JSON.parse(staleUnblock.stderr) as { error_type: string }).error_type,
+    ).toBe("conflict");
+    expect(
+      (JSON.parse(staleUnblock.stderr) as { input: { sentRevision: string } })
+        .input.sentRevision,
+    ).toBe(revision);
+    // Nothing was written: the opened interval is still the only event.
+    expect(
+      (
+        JSON.parse((await run(["task", "view", taskId, "--json"])).stdout) as {
+          data: { blockers: readonly BlockerEvent[] };
+        }
+      ).data.blockers.map((event) => event.kind),
+    ).toEqual(["opened"]);
+
+    const guardedUnblock = await run([
+      "task",
+      "unblock",
+      taskId,
+      "--question",
+      questionId,
+      "--reason",
+      "proceeding",
+      "--if-revision",
+      await revisionOf(),
+      ...OPERATOR,
+      "--json",
+    ]);
+    expect(guardedUnblock.exitCode).toBe(0);
+  });
+});
+
+/**
+ * N5: block and unblock resolve a retained record cross-location, exactly as
+ * every other edit does. These assertions pin the behavior the CLI reaches.
+ */
+test("block and unblock reach a COMPLETED and an ARCHIVED task (QCLI-448)", async () => {
+  await withStore(async (run) => {
+    const exercise = async (taskId: string, title: string): Promise<void> => {
+      const questionId = await ask(run, `Question for ${title}`);
+      expect(
+        (
+          await run([
+            "task",
+            "block",
+            taskId,
+            "--question",
+            questionId,
+            "--reason",
+            "waiting on the answer",
+            ...OPERATOR,
+            "--json",
+          ])
+        ).exitCode,
+      ).toBe(0);
+      expect(
+        (
+          await run([
+            "task",
+            "unblock",
+            taskId,
+            "--question",
+            questionId,
+            "--reason",
+            "no longer waiting",
+            ...OPERATOR,
+            "--json",
+          ])
+        ).exitCode,
+      ).toBe(0);
+      const view = await run(["task", "view", taskId, "--json"]);
+      expect(view.exitCode).toBe(0);
+      expect(
+        (
+          JSON.parse(view.stdout) as {
+            data: { blockers: readonly BlockerEvent[] };
+          }
+        ).data.blockers.map((event) => event.kind),
+      ).toEqual(["opened", "cleared"]);
+    };
+
+    const completed = await createTaskCli(run, "Completed then blocked");
+    expect(
+      (await run(["task", "start", completed, ...OPERATOR, "--json"])).exitCode,
+    ).toBe(0);
+    expect(
+      (await run(["task", "complete", completed, ...OPERATOR, "--json"]))
+        .exitCode,
+    ).toBe(0);
+    await exercise(completed, "the completed task");
+
+    const archived = await createTaskCli(run, "Archived then blocked");
+    expect(
+      (await run(["task", "archive", archived, ...OPERATOR, "--json"]))
+        .exitCode,
+    ).toBe(0);
+    await exercise(archived, "the archived task");
+  });
+});
+
+/**
+ * N2: the service-level readiness seam (`TaskService.ready()`) shares the
+ * question derivation with `task list --ready`. It is given a test rather
+ * than having the argument removed: dropping the question index there would
+ * make two readiness consumers answer the same question by different rules,
+ * the exact second-authority defect invariant 2 forbids.
+ */
+test("TaskService.ready derives question blockers from its question store (QCLI-448)", async () => {
+  await withStore(async (run, store) => {
+    const taskId = await createTaskCli(run, "Service readiness");
+    const questionId = await ask(run);
+    expect(
+      (
+        await run([
+          "task",
+          "block",
+          taskId,
+          "--question",
+          questionId,
+          "--reason",
+          "waiting",
+          ...OPERATOR,
+          "--json",
+        ])
+      ).exitCode,
+    ).toBe(0);
+
+    const service = createTaskService(store);
+    const blocked = await service.ready(new Date());
+    expect(blocked.ready).not.toContain(taskId);
+    expect(blocked.excluded).toContainEqual({
+      taskId,
+      reason: "explicitly_blocked",
+    });
+
+    expect(
+      (
+        await run([
+          "question",
+          "answer",
+          questionId,
+          "--choice",
+          "A",
+          ...OPERATOR,
+          "--json",
+        ])
+      ).exitCode,
+    ).toBe(0);
+    const resumed = await service.ready(new Date());
+    expect(resumed.ready).toContain(taskId);
+    expect(resumed.excluded).not.toContainEqual({
+      taskId,
+      reason: "explicitly_blocked",
+    });
+  });
 });
