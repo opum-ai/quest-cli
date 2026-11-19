@@ -236,6 +236,14 @@ test("a preserved id colliding with an existing destination id refuses the whole
       "ODOC-1",
       "ODOC-2",
     ]);
+    // T1 (QCLI-322 review, B3): the public entry is exactly the documented
+    // shape; the internal `index` must not leak.
+    const entry = envelope.input.collisions[0] as Record<string, unknown>;
+    expect(Object.keys(entry).sort()).toEqual(
+      entry.occupant === undefined
+        ? ["candidate", "conflictsWith", "origin"]
+        : ["candidate", "conflictsWith", "occupant", "origin"],
+    );
     expect(envelope.input.unpreservable).toEqual([]);
 
     // Refused at batch scope: neither record was written, not even the one

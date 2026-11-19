@@ -627,7 +627,10 @@ programmatic caller branches on data rather than parsing that message:
 - `cause` -- `destination_claim` (the key is already live in the
   destination) or `positional_renumbering` (an in-batch claim: a dotted
   subtask shifted an allocation, two source records fold to one key, or an
-  earlier record's minted id landed on a later record's own), or `mixed` when
+  earlier record's minted id landed on a later record's own, or the reverse: a
+  later record's minted id landed on an earlier record's source alias, in
+  which case the reported record, and so `family`, is the MINTING record, so a
+  candidate such as `ODOC-2` can carry family `PX`), or `mixed` when
   the reported collisions differ. `collisions[]` carries it per pair, so a
   caller never needs the aggregate.
 - `collisions[]` -- each pair's `candidate`, `conflictsWith`, `cause`, the
@@ -641,7 +644,9 @@ programmatic caller branches on data rather than parsing that message:
 - `families` -- every id family the source holds, in first-seen order. An id
   whose family prefix cannot be parsed carries no family and is not listed.
 - `preservationWouldResolve` -- true only when preservation would resolve
-  every collision reported.
+  every collision reported. On a source holding more than one family this is
+  a conjunction of separate per-family runs, not a single-run promise; see
+  the multi-family paragraph below.
 
 **`preservationWouldResolve` is measured, not inferred.** The refusal runs
 the preservation analysis for the colliding record's family (read-only, the

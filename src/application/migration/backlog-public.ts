@@ -186,7 +186,7 @@ export class BacklogMigrationRefusedError extends Error {
   constructor(
     message: string,
     readonly details: {
-      readonly collisions: readonly AliasCollision[];
+      readonly collisions: readonly Omit<AliasCollision, "index">[];
       readonly unpreservable: readonly BacklogUnpreservableRecord[];
     },
   ) {
@@ -599,7 +599,20 @@ async function previewWithPreservedIds(
       parts.push(`${unpreservable.length} unpreservable record(s)`);
     throw new BacklogMigrationRefusedError(
       `Backlog id preservation refused: ${parts.join(", ")}. See the itemized report for detail. No further flag resolves a remaining id collision here: rename or remove the conflicting record in the destination workspace, or rename the id in the source, then retry.`,
-      { collisions, unpreservable },
+      {
+        // Project to the documented public shape: `index` is an internal
+        // position in the candidate list and must not reach `input`
+        // (QCLI-322 review, B3).
+        collisions: collisions.map(
+          ({ candidate, conflictsWith, origin, occupant }) => ({
+            candidate,
+            conflictsWith,
+            origin,
+            ...(occupant === undefined ? {} : { occupant }),
+          }),
+        ),
+        unpreservable,
+      },
     );
   }
 

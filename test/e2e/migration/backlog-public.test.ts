@@ -1076,6 +1076,15 @@ test("repro A (renumbering) and repro B (dual claim) produce DIFFERENT structure
       preservationWouldResolve: true,
     });
     expect(renumbered.input.collisions[0].occupant).toBeUndefined();
+    // T1 (QCLI-322 review): toMatchObject ignores extra keys, so pin the
+    // exact public key set of one entry per mode.
+    expect(Object.keys(renumbered.input.collisions[0]).sort()).toEqual([
+      "candidate",
+      "cause",
+      "conflictsWith",
+      "family",
+      "preservationWouldResolve",
+    ]);
 
     expect(duel.input).toMatchObject({
       cause: "destination_claim",
