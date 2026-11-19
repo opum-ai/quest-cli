@@ -238,12 +238,19 @@ test("a preserved id colliding with an existing destination id refuses the whole
     ]);
     // T1 (QCLI-322 review, B3): the public entry is exactly the documented
     // shape; the internal `index` must not leak.
-    const entry = envelope.input.collisions[0] as Record<string, unknown>;
-    expect(Object.keys(entry).sort()).toEqual(
-      entry.occupant === undefined
-        ? ["candidate", "conflictsWith", "origin"]
-        : ["candidate", "conflictsWith", "occupant", "origin"],
-    );
+    // Every entry here is a destination claim, so the 4-key set is expected
+    // unconditionally: dropping `occupant` must fail this.
+    for (const entry of envelope.input.collisions as Record<
+      string,
+      unknown
+    >[]) {
+      expect(Object.keys(entry).sort()).toEqual([
+        "candidate",
+        "conflictsWith",
+        "occupant",
+        "origin",
+      ]);
+    }
     expect(envelope.input.unpreservable).toEqual([]);
 
     // Refused at batch scope: neither record was written, not even the one
