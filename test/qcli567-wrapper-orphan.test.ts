@@ -315,8 +315,8 @@ wait`);
 );
 
 /** Run the wrapper with stderr captured. */
-function runCapturing(root: string) {
-  const proc = spawn("node", [join(root, "bin", "quest.cjs")], {
+function runCapturing(root: string, nodeArgs: string[] = []) {
+  const proc = spawn("node", [...nodeArgs, join(root, "bin", "quest.cjs")], {
     stdio: ["ignore", "ignore", "pipe"],
   });
   let stderr = "";
@@ -352,24 +352,22 @@ for (const name of ["PIPE", "USR1"] as const) {
 }
 
 test.skipIf(process.platform === "win32")(
-  "a native binary that throws at spawn (ENOEXEC) prints the start-failure message, exits 1, and shows no stack",
+  "a spawn() that throws synchronously prints the start-failure message, exits 1, and shows no stack",
   async () => {
     const root = await rig("exit 0");
     try {
-      // Not a script and not a binary: execve answers ENOEXEC, which Node
-      // reports by throwing from spawn() rather than via the 'error' event.
+      // Node reports ENOEXEC and E2BIG by throwing from spawn() rather than
+      // via the 'error' event, but whether a real file gets there is
+      // platform-specific (glibc's execvp retries ENOEXEC through /bin/sh). A
+      // preload makes the throw deterministic on every platform.
+      const preload = join(root, "throwing-spawn.cjs");
       await writeFile(
-        join(
-          root,
-          "node_modules",
-          "@opum-ai",
-          `quest-${process.platform}-${process.arch}`,
-          "bin",
-          "quest",
-        ),
-        "not a program\n",
+        preload,
+        `require("node:child_process").spawn = () => {
+  throw Object.assign(new Error("spawn ENOEXEC"), { code: "ENOEXEC" });
+};\n`,
       );
-      const { exited, stderr } = runCapturing(root);
+      const { exited, stderr } = runCapturing(root, ["--require", preload]);
       const result = await exited;
       expect(result.code).toBe(1);
       expect(stderr()).toContain("Quest could not start");
