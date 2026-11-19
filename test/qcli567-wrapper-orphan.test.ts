@@ -69,14 +69,10 @@ async function rig(body: string) {
   return root;
 }
 
-function runWrapper(root: string) {
-  const proc = spawn(
-    process.execPath === "" ? "node" : "node",
-    [join(root, "bin", "quest.cjs")],
-    {
-      stdio: ["ignore", "ignore", "ignore"],
-    },
-  );
+function runWrapper(root: string, stdin: "ignore" | "pipe" = "ignore") {
+  const proc = spawn("node", [join(root, "bin", "quest.cjs")], {
+    stdio: [stdin, "ignore", "ignore"],
+  });
   const exited = new Promise<{ code: number | null; signal: string | null }>(
     (resolve) => proc.on("exit", (code, signal) => resolve({ code, signal })),
   );
@@ -88,65 +84,126 @@ sleep 300 &
 echo $! > "$(dirname "$0")/../../../../grandchild.pid"
 wait`;
 
+// POSIX only: process groups, /bin/sh stand-ins and kill(0) liveness probes.
 for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
-  test(`${signal} to the wrapper mid-run leaves no quest process alive and the wrapper exits non-zero`, async () => {
-    const root = await rig(LONG_RUNNING);
-    let pids: number[] = [];
-    try {
-      const { proc, exited } = runWrapper(root);
-      const read = async (name: string) => {
-        try {
-          const n = Number.parseInt(
-            await readFile(join(root, name), "utf8"),
-            10,
-          );
-          return Number.isNaN(n) ? undefined : n;
-        } catch {
-          return undefined;
-        }
-      };
-      const child = await waitFor("child pid", () => read("child.pid"));
-      const grandchild = await waitFor("grandchild pid", () =>
-        read("grandchild.pid"),
-      );
-      pids = [child, grandchild];
-      // Positive control: both are alive before the kill.
-      expect(alive(child)).toBe(true);
-      expect(alive(grandchild)).toBe(true);
+  test.skipIf(process.platform === "win32")(
+    `${signal} to the wrapper mid-run leaves no quest process alive and the wrapper exits non-zero`,
+    async () => {
+      const root = await rig(LONG_RUNNING);
+      let pids: number[] = [];
+      let proc: ReturnType<typeof runWrapper>["proc"] | undefined;
+      let exited!: ReturnType<typeof runWrapper>["exited"];
+      try {
+        ({ proc, exited } = runWrapper(root));
+        const read = async (name: string) => {
+          try {
+            const n = Number.parseInt(
+              await readFile(join(root, name), "utf8"),
+              10,
+            );
+            return Number.isNaN(n) ? undefined : n;
+          } catch {
+            return undefined;
+          }
+        };
+        const child = await waitFor("child pid", () => read("child.pid"));
+        const grandchild = await waitFor("grandchild pid", () =>
+          read("grandchild.pid"),
+        );
+        pids = [child, grandchild];
+        // Positive control: both are alive before the kill.
+        expect(alive(child)).toBe(true);
+        expect(alive(grandchild)).toBe(true);
 
-      proc.kill(signal);
-      const result = await exited;
-      expect(result.signal).toBeNull();
-      // The stand-in shell's own status on a signal is shell-specific; the
-      // exact signal-to-status mapping is pinned by the test below.
-      expect(result.code).toBeGreaterThan(0);
+        proc.kill(signal);
+        const result = await exited;
 
-      await waitFor("native processes to die", () =>
-        pids.every((pid) => !alive(pid)) ? true : undefined,
-      );
-    } finally {
-      for (const pid of pids) if (alive(pid)) process.kill(pid, "SIGKILL");
-      await rm(root, { recursive: true, force: true });
-    }
-  });
+        // The no-survivor assertion comes first, so a wrapper that dies without
+        // cleaning up fails HERE rather than on a status check.
+        await waitFor(
+          "native processes to die",
+          () => (pids.every((pid) => !alive(pid)) ? true : undefined),
+          3_000,
+        );
+
+        expect(result.signal).toBeNull();
+        // The stand-in shell's own status on a signal is shell-specific; the
+        // exact signal-to-status mapping is pinned by a test below.
+        expect(result.code).toBeGreaterThan(0);
+      } finally {
+        proc?.kill("SIGKILL");
+        for (const pid of pids) if (alive(pid)) process.kill(pid, "SIGKILL");
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 }
 
-test("the wrapper exits with the child's own status", async () => {
-  const root = await rig("exit 7");
-  try {
-    const { exited } = runWrapper(root);
-    expect((await exited).code).toBe(7);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
+test.skipIf(process.platform === "win32")(
+  "the wrapper exits with the child's own status",
+  async () => {
+    const root = await rig("exit 7");
+    try {
+      const { exited } = runWrapper(root);
+      expect((await exited).code).toBe(7);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
-test("a child killed by a signal maps to 128 plus the signal number", async () => {
-  const root = await rig("kill -TERM $$\nsleep 5");
-  try {
-    const { exited } = runWrapper(root);
-    expect((await exited).code).toBe(143);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
+test.skipIf(process.platform === "win32")(
+  "a child killed by a signal maps to 128 plus the signal number",
+  async () => {
+    const root = await rig("kill -TERM $$\nsleep 5");
+    try {
+      const { exited } = runWrapper(root);
+      expect((await exited).code).toBe(143);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "piped stdin reaches the native child intact through the wrapper",
+  async () => {
+    const root = await rig('cat > "$(dirname "$0")/../../../../stdin.out"');
+    try {
+      const { proc, exited } = runWrapper(root, "pipe");
+      proc.stdin?.write("alpha;");
+      await sleep(300);
+      proc.stdin?.end("beta");
+      expect((await exited).code).toBe(0);
+      expect(await readFile(join(root, "stdin.out"), "utf8")).toBe(
+        "alpha;beta",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "a native binary that cannot be started exits 1, not a negated errno",
+  async () => {
+    const root = await rig("exit 0");
+    try {
+      await chmod(
+        join(
+          root,
+          "node_modules",
+          "@opum-ai",
+          `quest-${process.platform}-${process.arch}`,
+          "bin",
+          "quest",
+        ),
+        0o644,
+      );
+      const { exited } = runWrapper(root);
+      expect((await exited).code).toBe(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
