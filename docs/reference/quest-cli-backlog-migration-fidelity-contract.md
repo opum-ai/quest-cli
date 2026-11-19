@@ -604,6 +604,50 @@ changes.** Nothing else about this feature does; a change that dropped
 alias construction would silently break every such citation without
 touching `targetIdentifier` at all.
 
+### Default-mode alias collisions: the structured refusal (added 2026-11-18 by QCLI-322)
+
+The default positional-renumbering path refuses an id collision with the
+QCLI-256 prose message, unchanged. It also carries a structured `input` on
+the `conflict` error envelope, so a programmatic caller branches on data
+rather than parsing that message:
+
+- `cause` -- `destination_claim` (the key is already live in the
+  destination) or `positional_renumbering` (a dotted subtask shifted an
+  allocation inside this batch), or `mixed` when the reported collisions
+  differ. `collisions[]` carries it per pair, so a caller never needs the
+  aggregate.
+- `collisions[]` -- each pair's `candidate`, `conflictsWith`, `cause`,
+  the Backlog id `family` the colliding record belongs to, its
+  `preservationWouldResolve` verdict, and, for a destination claim,
+  `occupant` naming the owning task and whether the key is that task's
+  canonical id or one of its registered aliases.
+- `families` -- every id family the source holds, in first-seen order.
+- `preservationWouldResolve` -- true only when preservation would resolve
+  every collision reported.
+
+**`preservationWouldResolve` is measured, not inferred.** The refusal runs
+the preservation analysis for the colliding record's family (read-only, the
+same peek `--preserve-source-ids` performs) and reports its verdict, so a
+refusal that promises preservation would resolve a collision is never
+followed by a preservation run that refuses.
+
+**Multi-family sources are answered per family, never as one yes or no.**
+Preservation imports one family per run, so a source holding more than one
+family (lore-cli's `LCLI`+`LORE`, opum-doc's `ODOC`+`OCLI`) has no
+single answer: each collision names its own record's family and that
+family's verdict, and `families` names everything the source would
+otherwise leave behind, so a caller can warn that importing one family
+leaves the other behind before anything is applied. Answering only for the
+colliding record's own family, silently, is rejected: on a two-family
+backlog it walks an operator into a partial import undiscovered until
+afterward.
+
+Regression coverage: `test/e2e/migration/backlog-public.test.ts` covers the
+positional-renumbering and destination-claim repros producing different
+structured output, the measured preservation verdict in both directions, the
+occupant of both kinds (canonical id and registered alias), and the
+multi-family report.
+
 Regression coverage:
 `test/e2e/migration/backlog-preserve-source-ids.test.ts` asserts
 `mapping.aliases` contains the dotted source spelling for a translated

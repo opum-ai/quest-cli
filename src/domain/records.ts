@@ -102,30 +102,87 @@ export function alias(display: string): Alias {
   return { display, key: aliasKey(display) };
 }
 
-/** Detects every collision before a caller attempts an authored write. */
-export function assertAliasesAvailable(
-  candidates: readonly string[],
-  existing: readonly Alias[],
-): readonly Alias[] {
-  const seen = new Map(existing.map((entry) => [entry.key, entry.display]));
-  const result: Alias[] = [];
-  for (const display of candidates) {
-    const entry = alias(display);
-    const collision = seen.get(entry.key);
-    if (collision !== undefined) {
-      throw new RecordConflictError(
-        `Alias collision: ${JSON.stringify(display)} conflicts with ${JSON.stringify(collision)}.`,
-      );
-    }
-    seen.set(entry.key, entry.display);
-    result.push(entry);
-  }
-  return result;
+/** What already holds an alias key: the owning task, and whether that key is
+ * the task's own canonical id or one of its registered aliases. Carried from
+ * where the occupied set is built rather than re-derived at a refusal, so the
+ * provenance cannot drift from the claim it describes (QCLI-357, QCLI-322). */
+export interface AliasOccupant {
+  readonly taskId: string;
+  readonly kind: "canonical" | "alias";
 }
+
+/** An alias in an occupied set, naming the task that holds it when the caller
+ * knows. A bare {@link Alias} is still accepted everywhere one is. */
+export interface OccupiedAlias extends Alias {
+  readonly occupant?: AliasOccupant;
+}
+
+/** Where a colliding key was already claimed: live in the destination before
+ * this batch, or by an earlier candidate in the same batch -- which is what a
+ * positional renumbering shift produces. */
+export type AliasCollisionOrigin = "destination" | "candidate";
 
 export interface AliasCollision {
   readonly candidate: string;
   readonly conflictsWith: string;
+  /** The discriminator that tells a destination claim from an in-batch
+   * collision without parsing the message (QCLI-322). */
+  readonly origin: AliasCollisionOrigin;
+  /** Present when the occupied set named who holds the key. */
+  readonly occupant?: AliasOccupant;
+}
+
+interface ClaimedKey {
+  readonly display: string;
+  readonly origin: AliasCollisionOrigin;
+  readonly occupant?: AliasOccupant;
+}
+
+/** Seeds the claimed-key map from the occupied set. A later entry wins, which
+ * is this module's behaviour since before QCLI-322. */
+function seedClaims(
+  existing: readonly OccupiedAlias[],
+): Map<string, ClaimedKey> {
+  const seen = new Map<string, ClaimedKey>();
+  for (const entry of existing) {
+    const occupant = entry.occupant;
+    seen.set(entry.key, {
+      display: entry.display,
+      origin: "destination",
+      ...(occupant === undefined ? {} : { occupant }),
+    });
+  }
+  return seen;
+}
+
+/** Names the occupant in a human message, so an operator can find the record
+ * without a second read (QCLI-357). */
+export function occupantClause(occupant: AliasOccupant | undefined): string {
+  if (occupant === undefined) return "";
+  return occupant.kind === "canonical"
+    ? ` (the canonical id of ${occupant.taskId})`
+    : ` (a registered alias of ${occupant.taskId})`;
+}
+
+/** Detects every collision before a caller attempts an authored write. */
+export function assertAliasesAvailable(
+  candidates: readonly string[],
+  existing: readonly OccupiedAlias[],
+): readonly Alias[] {
+  const seen = seedClaims(existing);
+  const result: Alias[] = [];
+  for (const display of candidates) {
+    const entry = alias(display);
+    const claim = seen.get(entry.key);
+    if (claim !== undefined) {
+      throw new RecordConflictError(
+        `Alias collision: ${JSON.stringify(display)} conflicts with ${JSON.stringify(claim.display)}${occupantClause(claim.occupant)}.`,
+      );
+    }
+    seen.set(entry.key, { display: entry.display, origin: "candidate" });
+    result.push(entry);
+  }
+  return result;
 }
 
 /**
@@ -134,21 +191,30 @@ export interface AliasCollision {
  * conflict set in a single pass (a batch migration, for example) rather than
  * fail fast at write time and force the operator to rediscover the next
  * collision on a second attempt.
+ *
+ * Each collision says where the key was already claimed, and who holds it
+ * when the occupied set knows: the same walk as the assert, so the two can
+ * never disagree about a collision (QCLI-357, QCLI-322).
  */
 export function collectAliasCollisions(
   candidates: readonly string[],
-  existing: readonly Alias[],
+  existing: readonly OccupiedAlias[],
 ): readonly AliasCollision[] {
-  const seen = new Map(existing.map((entry) => [entry.key, entry.display]));
+  const seen = seedClaims(existing);
   const collisions: AliasCollision[] = [];
   for (const display of candidates) {
     const entry = alias(display);
-    const collision = seen.get(entry.key);
-    if (collision !== undefined) {
-      collisions.push({ candidate: display, conflictsWith: collision });
+    const claim = seen.get(entry.key);
+    if (claim !== undefined) {
+      collisions.push({
+        candidate: display,
+        conflictsWith: claim.display,
+        origin: claim.origin,
+        ...(claim.occupant === undefined ? {} : { occupant: claim.occupant }),
+      });
       continue;
     }
-    seen.set(entry.key, entry.display);
+    seen.set(entry.key, { display: entry.display, origin: "candidate" });
   }
   return collisions;
 }

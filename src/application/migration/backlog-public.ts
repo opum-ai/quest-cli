@@ -6,10 +6,12 @@ import {
   type Alias,
   alias,
   type AliasCollision,
+  type AliasOccupant,
   canonicalIdPrefixPattern,
   type CanonicalId,
-  assertAliasesAvailable,
   collectAliasCollisions,
+  type OccupiedAlias,
+  occupantClause,
   RecordConflictError,
   RecordValidationError,
 } from "../../domain/records.ts";
@@ -126,6 +128,50 @@ export interface BacklogUnpreservableRecord {
   readonly sourceIdentifier: string;
   readonly reason: "malformed_source_id" | "parent_not_found";
   readonly detail?: string;
+}
+
+/**
+ * One id collision as the default-mode refusal reports it (QCLI-322): the
+ * pair, which of the two shapes it is, the source id family the colliding
+ * record belongs to, whether preservation would resolve it (measured by
+ * running the preservation analysis, never inferred), and -- when the
+ * destination already holds the key -- which record holds it.
+ */
+export interface BacklogAliasCollisionDetail {
+  readonly candidate: string;
+  readonly conflictsWith: string;
+  readonly cause: "positional_renumbering" | "destination_claim";
+  /** The colliding record's own Backlog id family, e.g. `LCLI`. */
+  readonly family: string | null;
+  readonly preservationWouldResolve: boolean;
+  readonly occupant?: AliasOccupant;
+}
+
+export interface BacklogAliasCollisionDetails {
+  /** The shared cause when every collision has one, else `mixed`. */
+  readonly cause: "positional_renumbering" | "destination_claim" | "mixed";
+  /** True only when preservation would resolve every collision reported. */
+  readonly preservationWouldResolve: boolean;
+  readonly collisions: readonly BacklogAliasCollisionDetail[];
+  /** Every id family the source holds, in first-seen order, so a caller can
+   * say what an import of one family would leave behind (QCLI-322 AC4). */
+  readonly families: readonly string[];
+}
+
+/**
+ * QCLI-322: the default-mode alias-collision refusal. A subclass of
+ * {@link RecordConflictError} so every existing catch still sees a conflict,
+ * carrying the structured report a programmatic caller branches on instead
+ * of parsing the message -- which stays the QCLI-256 prose, unchanged.
+ */
+export class BacklogAliasCollisionError extends RecordConflictError {
+  constructor(
+    message: string,
+    readonly details: BacklogAliasCollisionDetails,
+  ) {
+    super(message);
+    this.name = "BacklogAliasCollisionError";
+  }
 }
 
 /**
@@ -595,6 +641,117 @@ async function previewWithPreservedIds(
   };
 }
 
+/**
+ * The QCLI-256 advice, kept verbatim: naming only the renumbering remedy left
+ * an operator hitting the other cause reading advice that cannot work for
+ * them (fleet-reported 2026-09-09, confirmed live). QCLI-322 makes the two
+ * causes machine-readable instead of inventing a third sentence.
+ */
+const ALIAS_COLLISION_ADVICE =
+  "If this is from positional renumbering (for example a dotted subtask flattening and shifting a later allocation), --preserve-source-ids --source-family <PREFIX> avoids it by keeping each record's own source id instead. If instead this exact id is already a live, unrelated claim in the destination workspace, --preserve-source-ids will not resolve it -- rename or remove the conflicting record in the destination, or rename the id in the source, before retrying.";
+
+/**
+ * QCLI-322: build the default-mode alias-collision refusal. The message keeps
+ * the QCLI-256 prose; the details carry what a programmatic caller needs --
+ * which of the two collision shapes each pair is, the id family the colliding
+ * record belongs to and every family the source holds, who already owns a
+ * destination key, and whether preservation would actually resolve the
+ * collision.
+ *
+ * `preservationWouldResolve` is MEASURED, not inferred: the preservation
+ * analysis is run for the colliding record's family and its own verdict is
+ * used. Inferring it from the seed-vs-candidate distinction would sometimes
+ * promise a resolution and then refuse on the retry, because preservation can
+ * refuse on its own grounds (an unresolvable parent, or preserved ids that
+ * collide among themselves) -- the exact failure QCLI-256 was raised to stop,
+ * in a new costume.
+ */
+async function defaultModeAliasCollision(
+  collisions: readonly AliasCollision[],
+  sourceByCandidate: ReadonlyMap<string, string>,
+  snapshot: {
+    readonly fingerprint: string;
+    readonly records: readonly BacklogImportRecord[];
+  },
+  occupied: readonly Alias[],
+  existingTaskRecords: readonly { readonly task: { readonly id: string } }[],
+  taskIds?: (
+    count: number,
+    visibleIds: readonly string[],
+    marker?: string,
+  ) => Promise<readonly string[]>,
+): Promise<BacklogAliasCollisionError> {
+  const families = [
+    ...new Set(
+      snapshot.records
+        .map((record) => sourceFamily(record.sourceIdentifier))
+        .filter((family): family is string => family !== undefined),
+    ),
+  ];
+  const verdicts = new Map<string, boolean>();
+  const preservationWouldResolve = async (
+    family: string | null,
+  ): Promise<boolean> => {
+    if (family === null) return false;
+    const known = verdicts.get(family);
+    if (known !== undefined) return known;
+    let resolves: boolean;
+    try {
+      // Read-only: a preview peek, the same analysis `--preserve-source-ids`
+      // runs, and nothing is written or reserved for it.
+      await previewWithPreservedIds(
+        snapshot,
+        occupied,
+        existingTaskRecords,
+        { family },
+        taskIds,
+      );
+      resolves = true;
+    } catch (error) {
+      if (
+        error instanceof BacklogMigrationRefusedError ||
+        error instanceof RecordValidationError
+      )
+        resolves = false;
+      else throw error;
+    }
+    verdicts.set(family, resolves);
+    return resolves;
+  };
+
+  const details: BacklogAliasCollisionDetail[] = [];
+  for (const collision of collisions) {
+    const sourceIdentifier =
+      sourceByCandidate.get(alias(collision.candidate).key) ?? "";
+    const family = sourceFamily(sourceIdentifier) ?? null;
+    details.push({
+      candidate: collision.candidate,
+      conflictsWith: collision.conflictsWith,
+      cause:
+        collision.origin === "destination"
+          ? "destination_claim"
+          : "positional_renumbering",
+      family,
+      preservationWouldResolve: await preservationWouldResolve(family),
+      ...(collision.occupant === undefined
+        ? {}
+        : { occupant: collision.occupant }),
+    });
+  }
+
+  const causes = new Set(details.map((detail) => detail.cause));
+  const first = details[0];
+  const message = `Alias collision: ${JSON.stringify(first.candidate)} conflicts with ${JSON.stringify(first.conflictsWith)}${occupantClause(first.occupant)}. ${ALIAS_COLLISION_ADVICE}`;
+  return new BacklogAliasCollisionError(message, {
+    cause: causes.size === 1 ? first.cause : "mixed",
+    preservationWouldResolve: details.every(
+      (detail) => detail.preservationWouldResolve,
+    ),
+    collisions: details,
+    families,
+  });
+}
+
 async function previewInternal(
   source: BacklogImportSource,
   repository: PublicTaskRepository,
@@ -626,9 +783,17 @@ async function previewInternal(
   if (relevantDuplicateIds.length)
     throw new Error("backlog_cross_folder_duplicate_id");
   const existing = await repository.readAll();
-  const occupied: Alias[] = existing.taskRecords.flatMap((entry) => [
-    alias(entry.task.id),
-    ...entry.task.aliases.map(alias),
+  // QCLI-357: each occupied key carries WHO holds it, built here beside the
+  // claim itself rather than re-derived at a refusal by a second read.
+  const occupied: OccupiedAlias[] = existing.taskRecords.flatMap((entry) => [
+    {
+      ...alias(entry.task.id),
+      occupant: { taskId: entry.task.id, kind: "canonical" as const },
+    },
+    ...entry.task.aliases.map((registered) => ({
+      ...alias(registered),
+      occupant: { taskId: entry.task.id, kind: "alias" as const },
+    })),
   ]);
   if (preserveSourceIds)
     return previewWithPreservedIds(
@@ -677,40 +842,37 @@ async function previewInternal(
   // id and its own registered aliases legitimately coincide (most visibly
   // when the destination taskIdPrefix matches the source's own display
   // prefix, so e.g. "FX-1" is both the new id and the bare source alias for
-  // that SAME task) -- that is not a collision. assertAliasesAvailable has
-  // no per-record grouping of its own, so it cannot tell "claimed by this
-  // exact task, about to receive that string as its own alias" apart from
-  // "claimed by a different task"; only the caller knows which candidates
-  // belong to the same mapping (QCLI-157).
+  // that SAME task) -- that is not a collision. The alias walk has no
+  // per-record grouping of its own, so it cannot tell "claimed by this exact
+  // task, about to receive that string as its own alias" apart from "claimed
+  // by a different task"; only the caller knows which candidates belong to
+  // the same mapping (QCLI-157). The source id behind each candidate is kept
+  // so a refusal can name the record's id family (QCLI-322).
+  const sourceByCandidate = new Map<string, string>();
   const candidates = mappings.flatMap((mapping) => {
     const perTask = new Map<string, string>();
     for (const candidate of [mapping.targetIdentifier, ...mapping.aliases]) {
       const key = alias(candidate).key;
       if (!perTask.has(key)) perTask.set(key, candidate);
     }
-    return [...perTask.values()];
+    const kept = [...perTask.values()];
+    for (const candidate of kept) {
+      const key = alias(candidate).key;
+      if (!sourceByCandidate.has(key))
+        sourceByCandidate.set(key, mapping.sourceIdentifier);
+    }
+    return kept;
   });
-  try {
-    assertAliasesAvailable(candidates, occupied);
-  } catch (error) {
-    // Deliberately cause-agnostic about WHICH of two collision shapes this
-    // is -- positional renumbering shifting an allocation when a dotted
-    // subtask flattens, or a genuine, unrelated id already live in the
-    // destination -- since the two look identical from here and claiming
-    // one would be a diagnosis this code cannot make (QCLI-155, QCLI-166's
-    // 2026-09-02 opum-agent migration-preview report). What changed
-    // (fleet-reported, 2026-09-09): naming only the renumbering remedy left
-    // an operator hitting the OTHER cause reading advice that cannot work
-    // for them, with no way to tell which one they have -- confirmed live,
-    // --preserve-source-ids does not resolve a genuine dual claim, it only
-    // re-reports it as "Backlog id preservation refused". Name both causes
-    // and both remedies instead of picking one.
-    if (error instanceof RecordConflictError)
-      throw new RecordConflictError(
-        `${error.message} If this is from positional renumbering (for example a dotted subtask flattening and shifting a later allocation), --preserve-source-ids --source-family <PREFIX> avoids it by keeping each record's own source id instead. If instead this exact id is already a live, unrelated claim in the destination workspace, --preserve-source-ids will not resolve it -- rename or remove the conflicting record in the destination, or rename the id in the source, before retrying.`,
-      );
-    throw error;
-  }
+  const collisions = collectAliasCollisions(candidates, occupied);
+  if (collisions.length > 0)
+    throw await defaultModeAliasCollision(
+      collisions,
+      sourceByCandidate,
+      snapshot,
+      occupied,
+      existing.taskRecords,
+      taskIds,
+    );
   const digest = fingerprint({
     sourceFingerprint: snapshot.fingerprint,
     mappings,

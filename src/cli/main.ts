@@ -54,6 +54,7 @@ import {
 } from "../application/command-parameters.ts";
 import {
   type BacklogIdAllocation,
+  BacklogAliasCollisionError,
   BacklogMigrationRefusedError,
 } from "../application/migration/backlog-public.ts";
 import type {
@@ -5084,6 +5085,12 @@ export async function runQuest(
     // generic `kind === "conflict"` fallback below would keep only the
     // summary message and drop the list the operator needs to act on it.
     if (error instanceof BacklogMigrationRefusedError)
+      return failure("conflict", error.message, { input: error.details });
+    // QCLI-322: the default-mode alias-collision refusal. Same rationale --
+    // the generic conflict fallback would keep the message and drop the
+    // structured cause/preservation verdict a programmatic caller branches
+    // on. The message itself is the QCLI-256 prose, unchanged.
+    if (error instanceof BacklogAliasCollisionError)
       return failure("conflict", error.message, { input: error.details });
     // QCLI-261: same rationale as BacklogMigrationRefusedError above -- the
     // generic `kind === "conflict"` fallback would keep only the bare message
