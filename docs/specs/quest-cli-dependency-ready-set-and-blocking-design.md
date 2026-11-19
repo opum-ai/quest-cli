@@ -235,6 +235,8 @@ directly rather than through `quest task list`: when a question-status index is 
 fails closed. A caller with no question store keeps the authored open/cleared history alone,
 which is the behavior before question blockers existed.
 
+READ SIDE: the authored `blockers` array is HISTORY, not the answer to "what is blocking this task now" — an answered question's `opened` event stays in it. Once it exists, consumers read a derived `activeBlockers` field on `quest task view --json` and `quest task list --json`, computed on read and never stored, and the raw array MUST NOT be described as the source of "blocked". That projection is `QCLI-565`, filed from the ruling below; until it ships, `quest task list --ready` is the only read-side surface that reflects a question-derived clear.
+
 This design was ruled by `opum-doc`, and the ruling is recorded verbatim:
 
 > QCLI-448: not sequenced behind QCLI-447 and needs no write-path decision. A question
