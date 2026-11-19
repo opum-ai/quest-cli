@@ -89,6 +89,8 @@ export interface CommandManifestEntry {
     | "task archive"
     | "task demote"
     | "task close"
+    | "task block"
+    | "task unblock"
     | "draft create"
     | "draft list"
     | "draft view"
@@ -642,6 +644,24 @@ export const commandManifest = {
       kind: "task.closed",
       mutates: true,
       fields: ["finalSummary", "resolution"],
+    },
+    {
+      // QCLI-448: name a QUESTION id as this task's blocker. No `fields`:
+      // the settable inputs are `--question`, `--reason` and `--if-revision`,
+      // which `parameters` already reports, while `data` is the whole task
+      // record (whose `blockers` array is what changed).
+      name: "task block",
+      schemaVersion: 1,
+      kind: "task.blocked",
+      mutates: true,
+    },
+    {
+      // QCLI-448: the manual clear (append a cleared event) while a question
+      // is still open; the DERIVED clear needs no command at all.
+      name: "task unblock",
+      schemaVersion: 1,
+      kind: "task.unblocked",
+      mutates: true,
     },
     {
       name: "draft create",

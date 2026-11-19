@@ -62,9 +62,15 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
 
 1. Every dependency endpoint resolves to exactly one canonical `T-<sequence>` task in the
    same evaluation scope before graph evaluation begins.
-2. Dependency edges, blocker events, and their current meanings come only from authored
-   task records. A projection may accelerate evaluation but may not repair or override
-   them.
+2. Dependency edges and blocker events come only from authored task records. A blocker
+   whose `block_id` is a question id additionally derives its current meaning from that
+   question's authored record, read at the same revision (the task read and the question
+   read are not one transaction, so a working-tree skew between them is possible): the
+   block is active only while the question is `open` (see
+   [Question-named blockers](#question-named-blockers-qcli-448)). Readiness therefore
+   reads two authored stores -- the task records, and the question store, the latter on
+   every evaluation rather than only when a blocker names a question -- and no projection
+   may repair or override either. The derivation is a read, never a second task write.
 3. Graph validation and cycle detection complete before any ready task is returned. A
    malformed graph produces no partial ready set.
 4. Readiness is evaluated at a named Git revision and with an injected clock instant,
@@ -167,20 +173,98 @@ choose wire spelling but may not remove these fields or meanings.
 
 | Event | Required data and validity |
 | --- | --- |
-| Blocker opened | A record-local stable `block_id`, non-empty human-readable `reason`, author identity, authored time, and optional evidence links. The id is unique within that task record. |
-| Blocker cleared | The same `block_id`, clearing author, authored time, and evidence or explanation showing why the reason no longer applies. It must reference one open blocker and may occur once. |
+| Blocker opened | A record-local stable `block_id`, non-empty human-readable `reason`, author identity, authored time, and optional evidence links. The id is unique among that task's ACTIVE intervals. |
+| Blocker cleared | The same `block_id`, clearing author, authored time, and evidence or explanation showing why the reason no longer applies. It must reference one open interval, and a later open of the same `block_id` starts a new interval. |
 
-At revision `R`, a blocker is active exactly when its opened event is present and no valid
-cleared event for that `block_id` is present later in the same authored history. A task is
+At revision `R`, an ORDINARY blocker (one whose `block_id` is not a question id) is active
+exactly when its opened event is present and no valid cleared event for that `block_id` is
+present later in the same authored history. A QUESTION-named blocker is additionally gated
+by its question record at the same revision, though the two reads are not one
+transaction and a working-tree skew between them is possible: it is active only while
+that question is `open`; an `answered` or `withdrawn` question makes it inactive even
+though no cleared event exists; and a `Q-N` id with no question record at that revision
+fails CLOSED and stays
+active, because a reference that cannot be resolved is not a resolution. A task is
 explicitly blocked when its active-blocker set is non-empty. Opening a duplicate id,
 clearing an unknown id, or clearing an already-cleared blocker is invalid authored history
 and returns a named `validation` diagnostic on exit `6`; it is never repaired in a projection.
+Duplicate and already-cleared are evaluated against the ACTIVE interval only, so an `opened`
+event that follows a `cleared` event for the same id opens a new interval and is valid.
 
-`block_id` is local correlation within one canonical task, not another task identity and
-not a second global namespace. The blocker events stay in that task's one Git-tracked
-file. Clearing a blocker appends evidence; it never deletes or rewrites why the task was
-blocked. Reopening the same real-world concern after it cleared uses a new `block_id`, so
-each interval remains auditable.
+`block_id` is local correlation within one canonical task. It is not a task identity and is
+not a second global namespace, but it is not opaque either: an id matching the question
+grammar (`^Q-[1-9][0-9]*$`) refers into the question store and carries the derived semantics
+above. Any other non-empty string is an ordinary correlation id with no second-record
+meaning. A question-shaped `block_id` is therefore a reference into an existing authored
+namespace, not the declaration of a new one, and the blocker events themselves stay in that
+task's one Git-tracked file. Clearing a blocker appends evidence; it never deletes or
+rewrites why the task was blocked.
+
+Reopening the same real-world concern after it cleared uses a new `block_id`, so each
+interval remains auditable. A question-named blocker is the deliberate exception, because
+its id IS the question reference rather than an interval label: blocking again on the same
+question reuses the same `Q-N`, and the append-only history separates the intervals by
+event order (`opened`, `cleared`, `opened`) under one id. The event-history rules therefore
+key on the active interval, not on whether an id has ever appeared, and re-blocking a
+question that a task cleared early is valid authored history. `quest task block` and
+`quest task unblock` reach this shape for the first time under QCLI-448.
+
+### Question-named blockers (QCLI-448)
+
+A task may name a question id as its blocker instead of an ordinary correlation id. The
+task record stores the reference exactly as any other blocker event; the block is cleared
+by DERIVATION, not by a second task write. At revision `R`:
+
+- `quest task block <task> --question Q-N --reason <text>` appends an `opened` event whose
+  `block_id` is `Q-N`. The id MUST match the question grammar; a value that does not is a
+  `validation` failure on exit `6`. The named question MUST exist at `R` (`question_not_found`,
+  exit `3`) and MUST be `open` (`question_not_open`, exit `6`). Opening a second block for a
+  question already active on that task is `blocker_duplicate_open` on exit `6`.
+- `quest task unblock <task> --question Q-N --reason <text>` appends a `cleared` event for
+  the active `Q-N` interval. It is the EARLY clear only: answering or withdrawing the
+  question clears every task naming it with no task command at all. Clearing a question the
+  task is not currently blocked on, including a second clear of an already-cleared interval,
+  is `blocker_unknown_or_repeat_clear` on exit `6`.
+- `quest task list --ready` OMITS a task whose only active blockers are open questions, and
+  lists it again once the question is `answered` or `withdrawn`. No per-task exclusion line
+  appears in that listing's output; the task simply does not appear.
+- Both commands accept the same optional `--if-revision` per-record precondition `task edit`
+  takes. A stale value is an exit `5` conflict carrying the sent and actual revisions, and
+  it writes nothing, so a guarded block or unblock has no unguarded window.
+
+The same rules govern every readiness consumer, including one that reads the task store
+directly rather than through `quest task list`: when a question-status index is supplied, a
+`Q-N` blocker is filtered by the question's status, and a `Q-N` absent from that index
+fails closed. A caller with no question store keeps the authored open/cleared history alone,
+which is the behavior before question blockers existed.
+
+READ SIDE: the authored `blockers` array is HISTORY, not the answer to "what is blocking
+this task now" -- an answered question's `opened` event stays in it. Once it exists,
+consumers read a derived field (the ruling's example is `activeBlockers`) on
+`quest task view --json` and `quest task list --json`, computed on read and never stored,
+and the raw array MUST NOT be described as the source of "blocked". That projection is
+`QCLI-565`, filed from the `ODOC-620` extension recorded in an `ODOC-480` note; until it
+ships,
+`quest task list --ready` is the only read-side surface that reflects a question-derived
+clear.
+
+The read-time derivation was ruled by `opum-doc`, and that ruling is recorded verbatim;
+the write surface above is this repository's implementation of it:
+
+> QCLI-448: not sequenced behind QCLI-447 and needs no write-path decision. A question
+> blocker is derived at read time (blocked while the named question is open), so resolving
+> the question clears it with no second write. Measure the blockers field first, as AC2
+> says; report a gap to opum-doc rather than designing around it.
+
+Source: `opum-doc` `ODOC-480` on `origin/dev`, commit
+`f6390ed883dd551c596a3828a45f08ef37076a2f` (2026-11-18T23:54:20Z), note "GROOMING
+2026-11-18, second routing batch", the seq-179 rulings recorded under `ODOC-607`. The
+read side is the `ODOC-620` extension, recorded in a separate `ODOC-480` note ("QCLI-448
+follow-up") and read at `opum-doc` `origin/dev`
+`4c0361da8e96d4f918ffa0059b53c0f5021296b1`. The operator-questions design this implements is
+`opum-doc` `docs/reference/operator-questions-in-quest-design.md` at `opum-doc` **dev**
+(`f6390ed8`, blob `9f8403c8e836a9af567abec7152123a22abf2240`), step 7; it is not the
+`main` revision.
 
 ### Claimable ready-set predicate
 
@@ -269,7 +353,10 @@ An implementation is conformant only if focused tests cover at least:
 - an isolated unclaimed task appearing in the ready set;
 - each ready-predicate clause independently excluding a task;
 - live, expired/reclaimable, and anomalous lease evaluation with an injected clock;
-- blocker open, clear, duplicate-open, unknown-clear, and repeat-clear histories; and
+- blocker open, clear, duplicate-open, unknown-clear, and repeat-clear histories;
+- a question-named blocker: open, derived clear on answer, derived clear on withdraw,
+  early `task unblock`, repeat clear, re-block on the same question id, a dangling
+  question id failing closed, and a block refused on a question that is not open; and
 - projection rebuild producing the same ordered result as a cold authoritative read.
 
 ## Open questions

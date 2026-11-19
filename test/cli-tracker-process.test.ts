@@ -1234,6 +1234,31 @@ async function buildSweepHarness(
         ...actor,
         "--plain",
       ],
+      // QCLI-448: `created` is Closed by the entry above, so the question
+      // blocker pair rides `bound` instead; `questionToAnswer` is still open
+      // here (its `question answer` entry comes later in manifest order).
+      "task block": [
+        "task",
+        "block",
+        bound,
+        "--question",
+        questionToAnswer,
+        "--reason",
+        "plain smoke blocker",
+        ...actor,
+        "--plain",
+      ],
+      "task unblock": [
+        "task",
+        "unblock",
+        bound,
+        "--question",
+        questionToAnswer,
+        "--reason",
+        "plain smoke clear",
+        ...actor,
+        "--plain",
+      ],
       "draft create": ["draft", "create", "Plain draft", ...actor, "--plain"],
       "draft list": ["draft", "list", "--plain"],
       "draft view": ["draft", "view", draft, "--plain"],

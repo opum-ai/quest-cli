@@ -171,6 +171,8 @@ export function createTaskService(
     undefined,
     context.vocabulary,
     context.problem,
+    // QCLI-448: readiness derives question-named blockers from this store.
+    new LocalQuestionRepository(root),
   );
 }
 

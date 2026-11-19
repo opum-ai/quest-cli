@@ -465,6 +465,20 @@ export const commandHelp: Record<
       'quest task close <id> --resolution <duplicate|superseded|wont-do> [--survivor <id>] [--final-summary "text"] --actor <name> --actor-kind human',
     flags: ["--resolution", "--survivor", "--final-summary", ...ACTOR_FLAGS],
   },
+  "task block": {
+    summary:
+      "Name a QUESTION id as this task's blocker (QCLI-448): the task is blocked while the question is open, and the block clears AUTOMATICALLY when that question is answered (`quest question answer`) or withdrawn (`quest question withdraw`) -- there is no second task write, and no command to run, when it resolves. Readiness derives the block from the question record at read time, so `quest task list --ready` omits the task while the question is open and lists it again once the question reaches either terminal state; the task record's own `updatedAt` and `blockers` array are unchanged by that clear. --question takes a question id (Q-N) validated against the question grammar, and the named question must already exist and be open -- asking one is `quest question ask`. --reason is REQUIRED and is stored on the opened event in the task's append-only `blockers` array, beside the acting --actor, so the record says why the task waited. Opening a second block for a question already active on this task is refused (blocker_duplicate_open). --if-revision is the same optional per-record precondition `task edit` takes, so a guarded block has no unguarded window.",
+    usage:
+      'quest task block <id> --question Q-N --reason "<why this task waits>" --actor <name> --actor-kind human',
+    flags: ["--question", "--reason", "--if-revision", ...ACTOR_FLAGS],
+  },
+  "task unblock": {
+    summary:
+      "Clear this task's block on a question EARLY, while the question is still open -- for a task that no longer needs the answer. This is the manual counterpart to the derived clear, not a prerequisite for it: answering or withdrawing the question unblocks every task naming it with no task write at all (QCLI-448). --question names the question whose block is being cleared and a REQUIRED --reason carries the explanation the blocking design asks a clear event for; both are appended to the task's append-only `blockers` array, so the opened event and its reason stay in the record rather than being deleted. Clearing a question the task was not blocked on, or clearing the same block twice, is refused (blocker_unknown_or_repeat_clear). --if-revision is the optional per-record precondition, as on `task block`.",
+    usage:
+      'quest task unblock <id> --question Q-N --reason "<why the block no longer applies>" --actor <name> --actor-kind human',
+    flags: ["--question", "--reason", "--if-revision", ...ACTOR_FLAGS],
+  },
   "draft create": {
     summary: "Create a draft (a task idea not yet promoted into the tracker).",
     usage: 'quest draft create "<title>" --actor <name> --actor-kind human',

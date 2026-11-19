@@ -3711,6 +3711,8 @@ export async function runQuest(
         "start",
         "demote",
         "close",
+        "block",
+        "unblock",
       ].includes(command ?? "")
     ) {
       const refused = flagShapedPositional(
@@ -3893,6 +3895,76 @@ export async function runQuest(
             stdout: `${result.stdout}${relocationStagingHint(data, mutation.relocatedTo, RELOCATION_LEAD[command] ?? command)}`,
           }
         : result;
+    }
+    if ((command === "block" || command === "unblock") && rest[0]) {
+      // QCLI-448: a task names a question id as its blocker. The block is
+      // DERIVED at read time -- it is active while the question is open and
+      // inactive once the question is answered or withdrawn -- so `unblock`
+      // exists only for clearing a block EARLY, while the question is still
+      // open. Resolving the question needs neither command.
+      const commandName = command === "block" ? "task block" : "task unblock";
+      const parsed = flags(rest.slice(1));
+      const blockerFlags = [
+        "--question",
+        "--reason",
+        "--if-revision",
+        "--actor",
+        "--actor-kind",
+        "--accountable-human",
+      ];
+      if (!parsed || !only(parsed, blockerFlags))
+        return usageFailure(
+          parsed,
+          blockerFlags,
+          `${commandName} requires --question <Q-N> and --reason <text>.`,
+        );
+      const question = one(parsed, "--question");
+      const reason = one(parsed, "--reason");
+      if (!question || !reason)
+        return failure(
+          "usage",
+          `${commandName} requires --question <Q-N> and --reason <text>. Nothing was written.`,
+          {
+            hint:
+              command === "block"
+                ? "Ask the question first with `quest question ask`; --question names its Q-N id."
+                : "Name the question whose block is being cleared; --reason says why the block no longer applies.",
+          },
+        );
+      const writeActor = actor(parsed);
+      if (!writeActor)
+        return failure(
+          "denied",
+          "Tracker writes require an explicit actor declaration.",
+        );
+      const tasks = await taskService();
+      const options = { ifRevision: one(parsed, "--if-revision") };
+      const mutation =
+        command === "block"
+          ? await tasks.blockOnQuestion(
+              rest[0],
+              question,
+              writeActor.id,
+              crypto.randomUUID(),
+              reason,
+              options,
+            )
+          : await tasks.unblockQuestion(
+              rest[0],
+              question,
+              writeActor.id,
+              crypto.randomUUID(),
+              reason,
+              options,
+            );
+      return output(
+        {
+          schemaVersion: 1,
+          kind: command === "block" ? "task.blocked" : "task.unblocked",
+          data: withCheckPositions(recordFromMutation(mutation, "task")),
+        },
+        modeFor(parsed),
+      );
     }
     if (command === "demote" && rest[0]) {
       const parsed = flags(rest.slice(1));
