@@ -36,6 +36,18 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   terminal, a plain SIGTERM, which is what Node `execFile` timeouts send, is
   fully handled.
 
+### Known residual
+
+- **A caller that spawns the wrapper with stdout and stderr piped, as lore
+  does, gets the native `quest` in its own process group** (DEC-282 (a4),
+  QCLI-571). The wrapper sees no terminal there, so a group SIGKILL of the
+  caller, such as `kill(-lorepid, SIGKILL)`, reaches the wrapper but not native
+  `quest`. SIGKILL or an OOM kill of the caller leaves it running; a SIGTERM to
+  the caller races the wrapper's own sweep. The lifeline (QCLI-571) closes it:
+  native `quest` exits when its wrapper's pipe closes, whoever killed the
+  wrapper. It does not block this release and is scheduled as the first item of
+  the following patch release.
+
 ## 0.15.0
 
 ### Changed (breaking)
