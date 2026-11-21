@@ -53,10 +53,11 @@ release of everything under `## 0.15.0` below, plus this section.
   stdout and stderr byte for byte, only when the plan identity matches (each
   planned ref's sha), the record finished while the waiter waited, and the same
   build wrote it. Anything else recomputes. **The cold run is as slow as before,
-  or slightly slower: about 650 s at the measured 40-ref, 2,000-record shape**,
-  because it is the run that fills the cache.
-  **How this lock differs from the one before it.** The holder re-stamps the lock
-  every few seconds, and staleness is judged by silence since the last stamp,
+  or slightly slower: 619 to 623 s measured at the 40-ref, 2,000-record shape
+  (allow about 650 s)**, because it is the run that fills the cache.
+  **How this lock differs from the 0.15.0 lock (the release candidate), which
+  broke any holder older than 10 minutes.** The holder re-stamps the lock every
+  30 seconds, and staleness is judged by silence since the last stamp,
   never by the holder's age. A live holder on the same host is NEVER broken by
   age (a wedged one is bounded by each waiter's 660 s wait, after which that
   waiter runs unlocked and writes one `note: ` line on stderr); a dead same-host
@@ -75,10 +76,13 @@ release of everything under `## 0.15.0` below, plus this section.
   re-read). It is bounded to the newest 64 manifests by last use, plus every key
   the current run itself used; pruning also garbage-collects blob files that no
   surviving manifest references. Writes are atomic. **The first run on a
-  repository is as slow as before** -- about 620 s at a 40-ref, 2,000-real-record
-  shape -- because it is the run that fills the cache; later runs are fast. The
+  repository is as slow as before** -- 619 to 623 s measured at a 40-ref,
+  2,000-real-record shape -- because it is the run that fills the cache; later runs are fast. The
   drift hint no longer says "Nothing was written -- the view is read-only"; it
-  now names the cache as the one thing the view writes. If the cache FAILS (an
+  now names what the view may have written: the read cache under
+  `across-refs-cache/` and the whole-result records under
+  `across-refs-results/` (the transient lock file `across-refs.lock` is not
+  named). If the cache FAILS (an
   unwritable directory, ENOSPC, an unreadable common dir), the command writes one
   `note: `-prefixed stderr line, at most once per process, naming the cause and
   saying the read ran uncached; it writes nothing to stdout and changes no exit
