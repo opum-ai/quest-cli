@@ -25,10 +25,11 @@ import {
  * `inspect(...).commonDirectory`, which is already `realpath`'d against the
  * worktree (see `src/adapters/workspaces/local-workspaces.ts`).
  *
- * WAITER REUSE IS NOT HERE. Acquiring serialises the read; it cannot tell a
- * waiter whether the ref hashes it captured before waiting still match the
- * result the previous holder wrote. That handshake needs QCLI-563's cache and
- * joins later; this wrapper does not re-read anything after acquiring.
+ * WAITER REUSE IS NOT THIS WRAPPER'S JOB. Acquiring serialises the read; it
+ * cannot tell a waiter whether the ref hashes it captured before waiting still
+ * match the result the previous holder wrote. QCLI-563's cache has landed, and
+ * the reuse handshake belongs to the layer that owns it (Q568-INT part B); this
+ * wrapper does not re-read anything after acquiring.
  *
  * READ-ONLY IS NOT "CREATES NOTHING". The view may create
  * `<git-common-dir>/quest/` and a transient lock file there while it runs.
@@ -69,9 +70,13 @@ export interface AcrossRefsView {
 
 /**
  * Margin added to the lock's own `staleAfterMs` for the wiring's wait. A
- * normal 60-90 s read releases the lock far sooner; a crashed holder is broken
- * as stale at `staleAfterMs`. The margin only keeps a waiter from expiring in
- * the same instant the stale detector is about to break the lock. Derived from
+ * normal 60-90 s read releases the lock far sooner. Since DEC-282 (a16) the
+ * lock breaks a holder as follows: a DEAD same-host pid after the 30 s floor,
+ * a cross-host holder after `staleAfterMs` of SILENCE since its last heartbeat,
+ * and a LIVE same-host holder NEVER. So this wait is the ONLY limit on a live
+ * same-host holder (the measured cold run takes 619-623 s, under the 660 s
+ * bound); the margin keeps a waiter from expiring in the same instant a
+ * cross-host silence break is about to fire. Derived from
  * `DEFAULT_STALE_AFTER_MS` in one place so the two cannot drift.
  */
 export const ACROSS_REFS_WAIT_MARGIN_MS = 60_000;
@@ -157,7 +162,9 @@ export class AcrossRefsLockedService implements AcrossRefsView {
         this.note(
           `note: task list --across-refs ran unlocked:
 timed out after ${Math.round(error.waitedMs)}ms waiting for the
-common-directory lock at ${error.lockPath}.`,
+common-directory lock at ${error.lockPath}${error.holder === null ? "" : ` (held by pid ${error.holder.pid})`}.
+If that is not a running quest process, remove the lock file ${error.lockPath}
+(and ${error.breakPath} only if no breaker is running).`,
         );
         return proceedUnlocked();
       });

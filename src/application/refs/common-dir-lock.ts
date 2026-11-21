@@ -44,10 +44,10 @@ import { setTimeout as delay } from "node:timers/promises";
  *     `pidGoneFloorMs` (the dead-pid rule);
  *  3. ANOTHER HOST -> liveness cannot be probed here, so stale once silence
  *     exceeds `staleAfterMs`;
- *  4. NO `host` on the record (written before this field existed), or an
- *     unreadable body -> ALSO unconfirmable. lore-cli#746's record REQUIRES
- *     `hostname`, so a record missing it parses as unreadable there; this
- *     follows that choice and uses the `pidGoneFloorMs` bound.
+ *  4. an UNREADABLE body -> the `pidGoneFloorMs` bound; a READABLE record with
+ *     NO `host` (written before this field existed) cannot prove a same-host
+ *     identity, so it is judged by silence against `staleAfterMs` like another
+ *     host's (lore-cli 809fbb83, `isLockSnapshotStale`).
  *
  * A holder that keeps beating therefore never reaches either silence bound,
  * and a same-host holder that merely stops beating while still alive is never
@@ -71,20 +71,29 @@ import { setTimeout as delay } from "node:timers/promises";
  * no gap to race in and, absent a breaker stalled past `staleAfterMs` between
  * its re-read and its unlink, never moves a live holder's file. THE HEARTBEAT
  * AND THE RELEASE RE-VERIFY UNDER THE SAME `.break` FILE, so a holder that has
- * already lost its lock to a breaker neither rewrites nor deletes a successor's
- * record: both re-read the lock and compare its TOKEN before touching it.
+ * already lost its lock to a breaker normally neither rewrites nor deletes a
+ * successor's record (residual (3) below is the exception): both re-read the lock and compare its TOKEN before touching it.
  *
- * TWO RESIDUALS REMAIN, and they are acceptable ONLY because this lock is
+ * THREE RESIDUALS REMAIN, and they are acceptable ONLY because this lock is
  * advisory. (1) A breaker stalled past `staleAfterMs` between its locked
  * re-read and its unlink has its `.break` cleared by age alone (N1) and re-taken
  * by a successor, so on resuming it can unlink a lock the successor has since
  * put in place -- the re-read compared the LOCK bytes, not the `.break` handoff,
  * and the unlink is not re-validated. That can produce two concurrent holders,
- * whose worst cost is one duplicated ref read. (2) Release now serialises
+ * whose worst cost is one duplicated ref read. (2) Release serialises
  * through the same `.break` file, so a release that cannot take it (a breaker
- * mid-recovery, or a process exit while a heartbeat holds it) leaves the lock to
- * the dead-pid/age backstop rather than risk deleting another holder's file:
- * recovery is DELAYED, never wrong. Nothing correctness-critical depends on this
+ * mid-recovery, or a process exit while a heartbeat holds it) leaves the lock
+ * rather than risk deleting another holder's file: recovery is DELAYED, never
+ * wrong. Release keeps its exit hook registered
+ * until it has unlinked the lock or confirmed the lock is not ours, and retries
+ * `.break` once after clearing a stale one, so the only stranding left is a
+ * breaker that stays live across both attempts; the process's exit then
+ * unlinks the lock. (3) A heartbeat and a breaker can still run together when a
+ * `.break` is cleared by age or by the check-then-unlink above: the beat's
+ * `rename` is unconditional, so it can resurrect the lock after the breaker's
+ * unlink or overwrite a third contender's fresh record with the old token,
+ * leaving that contender holding nothing it can release. The cost is again
+ * only duplicated work. Nothing correctness-critical depends on this
  * lock; Git's conditional ref update remains the ordering authority.
  *
  * STALENESS RESTS ON THE WALL CLOCK (N4). A backward jump can delay recovery
@@ -99,14 +108,13 @@ import { setTimeout as delay } from "node:timers/promises";
  * updatedAt, host}`; `updatedAt` (the liveness stamp) and `host` (this process's
  * `os.hostname()`) are NEW here and optional. A record written before this
  * change has neither: a reader falls back to `startedAt` for the stamp and, for
- * the missing host, to the unconfirmable branch described above (lore-cli#746's
- * record requires a hostname, so a missing one parses as unreadable there and
- * takes the `pidGoneFloorMs` bound). An OLDER reader ignores the extra keys and
+ * the missing host, to branch 4 above (judged by silence against
+ * `staleAfterMs`, as lore does). An OLDER reader ignores the extra keys and
  * keeps using `startedAt`, so both directions parse. The consequence of running
  * two CLI versions against one common directory: an old waiter still ages a new
  * holder from `startedAt` and can break it at `staleAfterMs` of run time, and an
- * old-format holder (no `host`) is unconfirmable to a new waiter and is broken
- * once its silence passes `pidGoneFloorMs`. Both are bounded by the advisory
+ * old-format holder (no `host`) is broken by a new waiter once its silence
+ * passes `staleAfterMs`. Both are bounded by the advisory
  * contract.
  *
  * WAITER REUSE IS THE CALLER'S JOB, NOT THIS MODULE'S. Acquiring the lock only
@@ -131,8 +139,9 @@ export const DEFAULT_COMMON_DIR_LOCK_NAME = "across-refs";
  * reaches it; the measured cold run is 619-623 s, under this bound, and a
  * beating holder keeps its stamp fresh so its silence never approaches it.
  *
- * A record with NO `host` is treated like an unreadable body (lore-cli#746
- * requires a hostname), so it takes {@link DEFAULT_PID_GONE_FLOOR_MS} instead.
+ * An UNREADABLE body takes {@link DEFAULT_PID_GONE_FLOOR_MS} instead; a
+ * readable record with NO `host` is judged against THIS bound, like another
+ * host's (lore-cli 809fbb83, `isLockSnapshotStale`).
  */
 export const DEFAULT_STALE_AFTER_MS = 10 * 60 * 1_000;
 
@@ -185,9 +194,9 @@ export interface CommonDirLockOwner {
   readonly updatedAt?: number;
   /**
    * `os.hostname()` of the holder (DEC-282 (a16)). Optional on read: a record
-   * written before this field existed has none, and is then treated as
-   * unconfirmable (lore-cli#746 requires a hostname, so a missing one parses as
-   * an unreadable body there). Written at acquire and preserved by heartbeat
+   * written before this field existed has none, and is then judged by silence
+   * against `staleAfterMs` like another host's (lore's `isLockSnapshotStale`).
+   * Written at acquire and preserved by heartbeat
    * rewrites.
    */
   readonly host?: string;
@@ -231,8 +240,8 @@ export interface CommonDirLockOptions {
   /**
    * The dead-pid rule requires the lock to be at least this old. A fresh
    * dead-pid file is treated as mid-write, not abandoned. Also the silence
-   * bound for an unreadable body or a record with no `host` (liveness
-   * unconfirmable; DEC-282 (a16)).
+   * bound for an UNREADABLE body (a readable record with no `host` uses
+   * `staleAfterMs`; DEC-282 (a16)).
    */
   readonly pidGoneFloorMs?: number;
   /**
@@ -375,7 +384,7 @@ function commonDirLockTimeoutMessage(
           ? `A break file EXISTS at ${details.breakPath}, but reading it failed with "${details.breakReadError}" (${breakAgeClause}); the ${seconds(details.staleAfterMs)} age backstop is the only route past it, and only if it can then be removed.`
           : `A break file EXISTS at ${details.breakPath} and its holder cannot be read (${breakAgeClause}); the ${seconds(details.staleAfterMs)} age backstop is the only route past it, and only if it can then be removed.`;
 
-  return `Timed out after ${Math.round(details.waitedMs)}ms waiting for the common-directory lock at ${details.lockPath} (${held}). ${breakClause} This lock is advisory: the caller may proceed without it, and concurrent runs then duplicate the ref read and nothing else. If you prefer to clear it by hand, remove ${details.breakPath} only when no breaker is running.`;
+  return `Timed out after ${Math.round(details.waitedMs)}ms waiting for the common-directory lock at ${details.lockPath} (${held}). ${breakClause} This lock is advisory: the caller may proceed without it, and concurrent runs then duplicate the ref read and nothing else. If you prefer to clear it by hand: remove ${details.breakPath} only when no breaker is running; and if the holder${details.holder === null ? "" : ` (pid ${details.holder.pid})`} is not a running quest process (a reused pid or a stopped process is never broken by age on its own host), remove the LOCK file ${details.lockPath} itself.`;
 }
 
 /**
@@ -646,7 +655,7 @@ function parseOwner(raw: string): CommonDirLockOwner | null {
   // `updatedAt` and `host` are optional: a record written before either existed
   // has none. A non-finite `updatedAt` is ignored (the stamp falls back to
   // `startedAt`); a missing/blank `host` is left undefined, which the stale rule
-  // treats as unconfirmable (DEC-282 (a16)).
+  // judges by silence against `staleAfterMs` (DEC-282 (a16)).
   return {
     pid,
     startedAt,
@@ -764,10 +773,10 @@ async function timeoutError(
  *     `pidGoneFloorMs` (the mid-write guard folds into that floor);
  *  3. record on ANOTHER host -> its pid cannot be probed here, so stale once
  *     silence exceeds `staleAfterMs`;
- *  4. an unreadable body, or a record with NO `host` (written before (a16)) ->
- *     also unconfirmable. lore-cli#746's record parser REQUIRES a hostname, so
- *     a missing one parses as an unreadable body there; this follows that and
- *     uses the same `pidGoneFloorMs` bound.
+ *  4. an UNREADABLE body -> the `pidGoneFloorMs` bound; a READABLE record with
+ *     NO `host` (written before (a16)) cannot prove a same-host identity, so it
+ *     is judged by silence against `staleAfterMs`, like another host's. This is
+ *     lore's rule (lore-cli 809fbb83, `isLockSnapshotStale`).
  */
 function isSnapshotStale(
   snapshot: LockSnapshot,
@@ -775,9 +784,12 @@ function isSnapshotStale(
 ): boolean {
   const silence = snapshotAge(snapshot, opts.now());
   const owner = snapshot.owner;
-  // 4: unreadable body, or a pre-(a16) record with no host.
-  if (owner === null || owner.host === undefined)
-    return silence > opts.pidGoneFloorMs;
+  // 4a: an UNREADABLE body proves nothing about identity -> the floor.
+  if (owner === null) return silence > opts.pidGoneFloorMs;
+  // 4b: a READABLE record that cannot prove a same-host identity (no `host`,
+  // written before (a16)) is judged by silence against `staleAfterMs`, exactly
+  // like another host's (lore-cli `isLockSnapshotStale`, lore-cli 809fbb83).
+  if (owner.host === undefined) return silence > opts.staleAfterMs;
   if (owner.host === opts.host) {
     // 1 and 2: a same-host LIVE pid is never stale; a dead one waits the floor.
     if (opts.isAlive(owner.pid)) return false;
@@ -1025,7 +1037,6 @@ function makeHandle(
       if (released) return;
       released = true;
       clearInterval(timer);
-      process.removeListener("exit", onExit);
       // Let a beat already running finish: it holds `.break` while it runs, so
       // waiting here means the release below neither races it for that file nor
       // lets it rewrite the record after we remove it.
@@ -1033,27 +1044,41 @@ function makeHandle(
 
       // Release under `.break`, like the breaker: a holder that already lost
       // its lock must not delete a successor's record, and a breaker mid-recovery
-      // owns the transition. If the break file cannot be taken, leave the lock
-      // to the dead-pid/age backstop rather than delete the wrong file.
-      let mine: CommonDirLockOwner | null;
-      try {
-        mine = await takeBreakFile(breakPath, opts);
-      } catch {
-        return;
-      }
+      // owns the transition. The exit hook STAYS REGISTERED until this call has
+      // either unlinked the lock or confirmed it is not ours (S2): a release
+      // that gives up must not strand a lock owned by a live pid that no longer
+      // beats, which no same-host waiter would ever break.
+      const take = async (): Promise<CommonDirLockOwner | null> => {
+        try {
+          return await takeBreakFile(breakPath, opts);
+        } catch {
+          return null;
+        }
+      };
+      // takeBreakFile returns null both for "held by someone live" and for "I
+      // just cleared a stale `.break`"; retry ONCE so the second case does not
+      // make this release bail (a `.break` left by a holder SIGKILLed mid-beat).
+      const mine = (await take()) ?? (await take());
       if (mine === null) return;
       try {
         let raw: string;
         try {
           raw = await readFile(opts.lockPath, "utf8");
         } catch (error) {
-          if (errnoCode(error) === "ENOENT") return;
+          if (errnoCode(error) === "ENOENT") {
+            process.removeListener("exit", onExit);
+            return;
+          }
           throw error;
         }
         // Never delete a lock someone else now holds: our file may have been
         // judged stale and recovered while we were running.
-        if (parseOwner(raw)?.token !== owner.token) return;
+        if (parseOwner(raw)?.token !== owner.token) {
+          process.removeListener("exit", onExit);
+          return;
+        }
         await unlinkIfPresent(opts.lockPath);
+        process.removeListener("exit", onExit);
       } finally {
         try {
           await releaseOwnedBreakFile(breakPath, mine.token);
