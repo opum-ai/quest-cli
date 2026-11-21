@@ -286,6 +286,13 @@ test("a pathological expiry proceeds unlocked by default with one stderr line", 
   expect(notes[0]).toMatch(/^note: /u);
   expect(notes[0]).toContain("ran unlocked");
   expect(notes[0]).toContain("timed out");
+  // S4: the hand remedy names the LOCK file; with no readable holder it says so
+  // instead of pointing "that" at nothing (N-d).
+  expect(notes[0]).toContain(
+    `remove the lock file ${resolveCommonDirLockPath(commonDir)}`,
+  );
+  expect(notes[0]).toContain("holder could not be read");
+  expect(notes[0]).not.toContain("held by pid");
   // A timeout is the expiry path, not recorded as a broken mechanism.
   expect(service.lastLockError).toBeNull();
 });
@@ -373,4 +380,40 @@ test("the default note sink writes exactly one line to process.stderr", async ()
   expect(writes).toHaveLength(1);
   expect(writes[0]).toMatch(/^note: .*ran unlocked/u);
   expect(writes[0]?.endsWith("\n")).toBe(true);
+});
+
+test("the expiry note names the holder pid and the LOCK file to remove (S4)", async () => {
+  const commonDir = await tempCommonDir();
+  const lockPath = resolveCommonDirLockPath(commonDir);
+  const base = timeoutError(commonDir);
+  const timeout = new CommonDirLockTimeoutError({
+    lockPath,
+    waitedMs: DEFAULT_ACROSS_REFS_WAIT_TIMEOUT_MS,
+    holder: { pid: 4242, startedAt: 1, token: "t", host: "h" },
+    lockAgeMs: null,
+    breakPath: base.breakPath,
+    breakFilePresent: false,
+    breakHolderPid: null,
+    breakHolderAlive: false,
+    breakFileAgeMs: null,
+    breakReadError: null,
+    staleAfterMs: DEFAULT_STALE_AFTER_MS,
+    pidGoneFloorMs: 30_000,
+    breakStaleAfterMs: 10_000,
+  });
+  const { notes, writeNote } = noteCollector();
+  const service = new AcrossRefsLockedService(
+    { view: async () => OUTCOME },
+    async () => commonDir,
+    {
+      acquire: async () => {
+        throw timeout;
+      },
+      writeNote,
+    },
+  );
+  await service.view(REQUEST);
+  expect(notes).toHaveLength(1);
+  expect(notes[0]).toContain("held by pid 4242");
+  expect(notes[0]).toContain(`remove the lock file ${lockPath}`);
 });

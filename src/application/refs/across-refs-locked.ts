@@ -240,7 +240,7 @@ export class AcrossRefsLockedService implements AcrossRefsView {
           `note: task list --across-refs ran unlocked:
 timed out after ${Math.round(error.waitedMs)}ms waiting for the
 common-directory lock at ${error.lockPath}${error.holder === null ? "" : ` (held by pid ${error.holder.pid})`}.
-If that is not a running quest process, remove the lock file ${error.lockPath}
+${error.holder === null ? "Its holder could not be read; if no quest process is running" : "If that pid is not a running quest process"}, remove the lock file ${error.lockPath}
 (and ${error.breakPath} only if no breaker is running).`,
         );
         return proceedUnlocked();
