@@ -65,6 +65,11 @@ test("initialization writes only its declared authored path in a non-bare worktr
 });
 
 test("enrollment retains a shared Git common directory and distinct worktree paths", async () => {
+  // R9: `repository()` creates the clone under os.tmpdir(), so on a Windows
+  // runner the path carries the `RUNNER~1` 8.3 short-name spelling. This is the
+  // case that catches a realpath implementation that canonicalises one
+  // worktree to the short form and the other to the long form -- which would
+  // give one clone two common directories and split the advisory lock.
   const root = await repository();
   const second = `${root}-second`;
   try {
