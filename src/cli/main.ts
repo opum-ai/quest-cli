@@ -488,15 +488,14 @@ async function acrossRefsListing(
     const message = readZeroRefs
       ? `task list --across-refs read 0 refs: ${unread.join(", ")}. An empty read is a failure, not a pass -- it cannot be told apart from a wrong repository, a wrong ref, or an unreachable remote.`
       : `task list --across-refs read ${coverage.refsRead.length} of ${coverage.refsRead.length + coverage.refsUnreadable.length} planned ref(s) and could not read ${unread.join(", ")}. Coverage is incomplete, so this is NOT a statement about the repository.`;
-    // QCLI-563: this hint predates the read cache and now overstates the
-    // promise -- the view writes its cache under
-    // `<git-common-dir>/quest/across-refs-cache/`. This hint is part of the
-    // error envelope (stderr), so the WORDING IS DELIBERATELY UNCHANGED here;
-    // any change must be routed to the contract owner (opum-cli-e2e). Only this
-    // comment was added.
+    // QCLI-563: the view now writes a read cache under
+    // `<git-common-dir>/quest/across-refs-cache/` (refs that did read are
+    // cached even when another ref was unreadable), so the hint names exactly
+    // what is and is not written. No opum-cli-e2e suite asserts the old text
+    // ("Nothing was written -- the view is read-only"; read by ref 2026-11-21).
     return failure("drift", message, {
       input: { coverage },
-      hint: "Nothing was written -- the view is read-only. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
+      hint: "No ref, tracker record or working-tree file was written; only the across-refs read cache under <git-common-dir>/quest/across-refs-cache/ may have been. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
     });
   }
 
