@@ -11,6 +11,7 @@ import {
 import { join } from "node:path";
 
 import type { GitPort } from "../../ports/git.ts";
+import { CONTINUITY_TASK_LOCATIONS } from "../checks/continuity.ts";
 
 /**
  * QCLI-563 (DEC-282 (a13), option A): the two-level, content-addressed cache
@@ -259,6 +260,12 @@ function blobPath(blobsDirectory: string, oid: string): string {
   return join(blobsDirectory, oid);
 }
 
+/** A task location this cache is allowed to serve. The three names are the
+ *  domain's own list (QCLI-527), so a manifest written by any build names one
+ *  of them; anything else -- `__proto__`, `constructor`, a path, a typo -- is
+ *  not a location this cache wrote, and the document is corrupt. */
+const KNOWN_LOCATIONS: ReadonlySet<string> = new Set(CONTINUITY_TASK_LOCATIONS);
+
 /** Parse and validate a manifest. Returns null for anything that is not the
  *  expected shape (the caller treats that as a corrupt MISS). */
 function parseManifest(text: string, key: string): ManifestDocument | null {
@@ -269,7 +276,10 @@ function parseManifest(text: string, key: string): ManifestDocument | null {
       document.version !== CACHE_VERSION ||
       document.key !== key ||
       !Array.isArray(document.locations) ||
-      !document.locations.every((location) => typeof location === "string") ||
+      !document.locations.every(
+        (location) =>
+          typeof location === "string" && KNOWN_LOCATIONS.has(location),
+      ) ||
       !Array.isArray(document.entries)
     )
       return null;
@@ -281,7 +291,18 @@ function parseManifest(text: string, key: string): ManifestDocument | null {
         path?: unknown;
         blob?: unknown;
       };
-      if (typeof location !== "string" || typeof path !== "string") return null;
+      // QCLI-568 Q568-INT B nit 5: the location is a BUCKET KEY on the read
+      // path (`locations[entry.location]`), and a manifest is untrusted input
+      // from the shared directory. Only the domain's three location names are
+      // valid, so a hostile `__proto__`/`constructor` row is corrupt rather
+      // than a prototype write.
+      if (
+        typeof location !== "string" ||
+        !KNOWN_LOCATIONS.has(location) ||
+        !document.locations.includes(location) ||
+        typeof path !== "string"
+      )
+        return null;
       if (
         blob !== null &&
         (typeof blob !== "string" || !SHA_PATTERN.test(blob))
@@ -368,7 +389,13 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
     }
     const manifest = parseManifest(text, key);
     if (manifest === null) return { kind: "corrupt" };
-    const locations: Record<string, AcrossRefsCachedFile[]> = {};
+    // QCLI-568 Q568-INT B nit 5: a NULL-PROTOTYPE map, so no location name --
+    // however hostile the manifest -- can reach Object.prototype through the
+    // bucket assignment below. `parseManifest` already refuses an unknown
+    // location; this is the second, independent guard.
+    const locations: Record<string, AcrossRefsCachedFile[]> = Object.create(
+      null,
+    ) as Record<string, AcrossRefsCachedFile[]>;
     for (const location of manifest.locations) locations[location] = [];
     for (const entry of manifest.entries) {
       let bucket = locations[entry.location];
