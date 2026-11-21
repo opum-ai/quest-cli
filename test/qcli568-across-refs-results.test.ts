@@ -1,5 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readdir,
@@ -678,7 +679,133 @@ test("the build identity is the version plus a stable digest of the running code
       "u",
     ),
   );
-  // Stable within a process, and memoised for the hot path.
+  // Stable within a process, and computed ONCE: the memo returns the same
+  // promise (deleting the `??=` makes these two distinct).
   expect(await computeBuildIdentity()).toBe(first);
+  expect(currentBuildIdentity()).toBe(currentBuildIdentity());
   expect(await currentBuildIdentity()).toBe(first);
+});
+
+test("a source run is detected positively and the resolved root is pinned (B1)", async () => {
+  const { resolveSourceRoot } = await import(
+    "../src/application/refs/build-identity.ts"
+  );
+  const repositoryRoot = join(import.meta.dirname, "..");
+  const moduleDirectory = join(repositoryRoot, "src", "application", "refs");
+  // This checkout IS a source run: the root is exactly `<repo>/src`.
+  expect(resolveSourceRoot(moduleDirectory)).toBe(join(repositoryRoot, "src"));
+  // A compiled binary's modules live under a virtual root: never a root, and in
+  // particular never `/` (two levels above `/$bunfs/root/application/refs` is
+  // `/$bunfs/root`, and a bare `/` has no `src`).
+  expect(resolveSourceRoot("/$bunfs/root/application/refs")).toBeNull();
+  expect(resolveSourceRoot("/application/refs")).toBeNull();
+  expect(resolveSourceRoot("/")).toBeNull();
+  // A `src`-named directory without `cli/main.ts` is not this program's source.
+  const stray = await mkdtemp(join(tmpdir(), "qcli568-notsrc-"));
+  roots.push(stray);
+  await mkdir(join(stray, "src", "a", "b"), { recursive: true });
+  expect(resolveSourceRoot(join(stray, "src", "a", "b"))).toBeNull();
+});
+
+test("a source-run identity covers src bytes, and a partial read can never share one (B1, S1)", async () => {
+  const { computeBuildIdentity } = await import(
+    "../src/application/refs/build-identity.ts"
+  );
+  const checkout = await mkdtemp(join(tmpdir(), "qcli568-srcid-"));
+  roots.push(checkout);
+  const moduleDirectory = join(checkout, "src", "application", "refs");
+  await mkdir(moduleDirectory, { recursive: true });
+  await mkdir(join(checkout, "src", "cli"), { recursive: true });
+  await writeFile(join(checkout, "src", "cli", "main.ts"), "export {};\n");
+  await writeFile(join(moduleDirectory, "a.ts"), "export const a = 1;\n");
+  const runtime = join(checkout, "runtime");
+  await writeFile(runtime, "runtime bytes");
+  const inputs = { version: "9.9.9", execPath: runtime, moduleDirectory };
+
+  const before = await computeBuildIdentity(inputs);
+  // Deterministic for unchanged bytes.
+  expect(await computeBuildIdentity(inputs)).toBe(before);
+  // One source byte changes the identity (dropping the src walk keeps it).
+  await writeFile(join(moduleDirectory, "a.ts"), "export const a = 2;\n");
+  const after = await computeBuildIdentity(inputs);
+  expect(after).not.toBe(before);
+
+  // A compiled-style module directory: no src walk, so the src byte is not
+  // read and the identity is the runtime's alone, stable and not nonce'd.
+  const compiled = {
+    ...inputs,
+    moduleDirectory: "/$bunfs/root/application/refs",
+  };
+  const compiledA = await computeBuildIdentity(compiled);
+  await writeFile(join(moduleDirectory, "a.ts"), "export const a = 3;\n");
+  expect(await computeBuildIdentity(compiled)).toBe(compiledA);
+
+  // An unreadable runtime folds in a per-process nonce: it matches nothing.
+  const missing = { ...inputs, execPath: join(checkout, "absent") };
+  expect(await computeBuildIdentity(missing)).not.toBe(
+    await computeBuildIdentity(missing),
+  );
+});
+
+test.skipIf(process.getuid?.() === 0)(
+  "an unreadable source file folds in a nonce instead of truncating the digest (S1)",
+  async () => {
+    const { computeBuildIdentity } = await import(
+      "../src/application/refs/build-identity.ts"
+    );
+    const checkout = await mkdtemp(join(tmpdir(), "qcli568-srcfail-"));
+    roots.push(checkout);
+    const moduleDirectory = join(checkout, "src", "application", "refs");
+    await mkdir(moduleDirectory, { recursive: true });
+    await mkdir(join(checkout, "src", "cli"), { recursive: true });
+    await writeFile(join(checkout, "src", "cli", "main.ts"), "export {};\n");
+    const unreadable = join(moduleDirectory, "b.ts");
+    await writeFile(unreadable, "export const b = 1;\n");
+    const runtime = join(checkout, "runtime");
+    await writeFile(runtime, "runtime bytes");
+    const inputs = { version: "9.9.9", execPath: runtime, moduleDirectory };
+
+    await chmod(unreadable, 0o000);
+    try {
+      const one = await computeBuildIdentity(inputs);
+      const two = await computeBuildIdentity(inputs);
+      // Different on every call: a partial read can only MISS, never replay.
+      expect(one).not.toBe(two);
+    } finally {
+      await chmod(unreadable, 0o644);
+    }
+  },
+);
+
+test("an ENOTDIR whose path IS the non-directory has the same signature as one below it (S2)", async () => {
+  const { failureSignature } = await import(
+    "../src/application/refs/across-refs-cache.ts"
+  );
+  const directory = await mkdtemp(join(tmpdir(), "qcli568-enotdir-"));
+  roots.push(directory);
+  const file = join(directory, "quest");
+  await writeFile(file, "not a directory\n");
+  const enotdir = (path: string) =>
+    Object.assign(new Error(`ENOTDIR: not a directory, open '${path}'`), {
+      code: "ENOTDIR",
+      path,
+    });
+
+  const atTheFile = failureSignature(enotdir(file));
+  const belowTheFile = failureSignature(
+    enotdir(join(file, "across-refs-cache", "manifests")),
+  );
+  // One broken ancestor is one cause, whether the error names it or something
+  // under it.
+  expect(atTheFile).toBe(`code:ENOTDIR@${file}`);
+  expect(belowTheFile).toBe(atTheFile);
+  // A different code in the same place is a different cause.
+  expect(
+    failureSignature(
+      Object.assign(new Error("EACCES: permission denied"), {
+        code: "EACCES",
+        path: join(file, "x"),
+      }),
+    ),
+  ).not.toBe(atTheFile);
 });

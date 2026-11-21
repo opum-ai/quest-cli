@@ -634,56 +634,73 @@ test.skipIf(IS_ROOT)(
  * and the other replays the record it wrote: its `coverage.discoveredAt` is the
  * holder's instant, so an equal stdout proves a replay, not a recompute.
  */
+/**
+ * The lock exposes no evidence that a waiter has reached `acquire`, so the
+ * barrier is a hold time, escalated on failure instead of guessed once: a replay
+ * needs both CLIs waiting before the lock opens, and a cold spawn that was slower
+ * than the hold just recomputes (a different `discoveredAt`). A real regression
+ * -- no replay at all -- fails every attempt.
+ */
+const HOLD_ATTEMPTS_MS = [2_500, 6_000, 12_000] as const;
+
 for (const mode of ["json", "human"] as const) {
   test(`two processes: the replaying waiter's stdout and stderr equal the holder's byte for byte (${mode})`, async () => {
-    const { root, linked, cleanup } = await fixture();
-    try {
-      const port = new LocalWorkspacePort();
-      const canonical = await resolveCanonicalCommonDir(root, port);
-      // A cache note, so STDERR is non-empty and its replay is compared too.
-      await mkdir(join(canonical, "quest"), { recursive: true });
-      await writeFile(
-        join(canonical, "quest", "across-refs-cache"),
-        "not a directory\n",
-        "utf8",
-      );
-      const args = [
-        "task",
-        "list",
-        "--across-refs",
-        "--ref",
-        "HEAD",
-        ...(mode === "json" ? ["--json"] : []),
-      ];
-      const spawn = (cwd: string) =>
-        Bun.spawn([process.execPath, MAIN, ...args], {
-          cwd,
-          env: { ...process.env },
-          stdout: "pipe",
-          stderr: "pipe",
-        });
-      const collect = async (child: ReturnType<typeof spawn>) => ({
-        exitCode: await child.exited,
-        stdout: await new Response(child.stdout).text(),
-        stderr: await new Response(child.stderr).text(),
+    const args = [
+      "task",
+      "list",
+      "--across-refs",
+      "--ref",
+      "HEAD",
+      ...(mode === "json" ? ["--json"] : []),
+    ];
+    const spawn = (cwd: string) =>
+      Bun.spawn([process.execPath, MAIN, ...args], {
+        cwd,
+        env: { ...process.env },
+        stdout: "pipe",
+        stderr: "pipe",
       });
+    const collect = async (child: ReturnType<typeof spawn>) => ({
+      exitCode: await child.exited,
+      stdout: await new Response(child.stdout).text(),
+      stderr: await new Response(child.stderr).text(),
+    });
 
-      const held = await acquireCommonDirLock(canonical, { pollMs: 20 });
-      const first = spawn(root);
-      const second = spawn(linked);
-      // Both CLIs must be waiting, not merely spawned, before the lock opens.
-      await Bun.sleep(2_500);
-      await held.release();
-      const [a, b] = await Promise.all([collect(first), collect(second)]);
+    const attempt = async (holdMs: number) => {
+      const { root, linked, cleanup } = await fixture();
+      try {
+        const port = new LocalWorkspacePort();
+        const canonical = await resolveCanonicalCommonDir(root, port);
+        // A cache note, so STDERR is non-empty and its replay is compared too.
+        await mkdir(join(canonical, "quest"), { recursive: true });
+        await writeFile(
+          join(canonical, "quest", "across-refs-cache"),
+          "not a directory\n",
+          "utf8",
+        );
+        const held = await acquireCommonDirLock(canonical, { pollMs: 20 });
+        const first = spawn(root);
+        const second = spawn(linked);
+        await Bun.sleep(holdMs);
+        await held.release();
+        const [a, b] = await Promise.all([collect(first), collect(second)]);
+        return { a, b };
+      } finally {
+        await cleanup();
+      }
+    };
 
-      expect(a.exitCode).toBe(0);
-      expect(b.exitCode).toBe(0);
-      expect(a.stdout.length).toBeGreaterThan(0);
-      expect(a.stderr).toMatch(/across-refs read cache is unavailable/u);
-      expect(b.stdout).toBe(a.stdout);
-      expect(b.stderr).toBe(a.stderr);
-    } finally {
-      await cleanup();
+    let last = await attempt(HOLD_ATTEMPTS_MS[0]);
+    for (const holdMs of HOLD_ATTEMPTS_MS.slice(1)) {
+      if (last.a.stdout === last.b.stdout) break;
+      last = await attempt(holdMs);
     }
-  }, 120_000);
+    const { a, b } = last;
+    expect(a.exitCode).toBe(0);
+    expect(b.exitCode).toBe(0);
+    expect(a.stdout.length).toBeGreaterThan(0);
+    expect(a.stderr).toMatch(/across-refs read cache is unavailable/u);
+    expect(b.stdout).toBe(a.stdout);
+    expect(b.stderr).toBe(a.stderr);
+  }, 240_000);
 }

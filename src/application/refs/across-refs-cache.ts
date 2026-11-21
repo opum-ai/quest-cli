@@ -228,11 +228,13 @@ export function failureSignature(value: unknown): string {
   return `code:${code}@${dirname(failingPath)}`;
 }
 
-/** The nearest ancestor of `path` that exists and is NOT a directory, or null
+/** The nearest ancestor of `path` (or `path` itself) that exists and is NOT a directory, or null
  *  when none can be found (the walk is best-effort and only runs when a note is
  *  about to be written). */
 function nonDirectoryAncestor(path: string): string | null {
-  let current = dirname(path);
+  // Start at the path ITSELF: an ENOTDIR from readdir or opendir names the
+  // non-directory as its own path.
+  let current = path;
   for (let depth = 0; depth < 64; depth += 1) {
     try {
       if (!lstatSync(current).isDirectory()) return current;
