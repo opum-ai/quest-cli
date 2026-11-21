@@ -45,6 +45,26 @@ interface SeededOwner {
   readonly pid: number;
   readonly startedAt: number;
   readonly token: string;
+  /** QCLI-568 Q568-INT A: the liveness stamp; absent on a pre-heartbeat record. */
+  readonly updatedAt?: number;
+}
+
+/**
+ * Poll until `predicate` holds or the deadline passes. Used only to wait for a
+ * real heartbeat to land on an injected clock, so the heartbeat tests assert a
+ * state rather than sleeping a guess.
+ */
+async function waitFor(
+  predicate: () => Promise<boolean> | boolean,
+  timeoutMs = 2_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await predicate()) return;
+    if (Date.now() > deadline)
+      throw new Error(`condition not met within ${timeoutMs}ms`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 async function seedLock(
@@ -837,4 +857,305 @@ test("withCommonDirLock lets a waiter reuse the result the previous holder wrote
   // waited on the lock and skipped its own read.
   expect(workRuns).toBe(1);
   expect(first).toBe(second);
+});
+
+/* -------------------------------------------------------------------------- */
+/* QCLI-568 Q568-INT A: the heartbeat (DEC-282 (a15))                          */
+/*                                                                             */
+/* A live holder refreshes a liveness stamp; staleness is judged on the        */
+/* SILENCE since that stamp, never on the holder's acquisition age. Each test  */
+/* below was run against the listed mutant and observed RED before the fix was */
+/* restored (see the commit body).                                             */
+/* -------------------------------------------------------------------------- */
+
+test("(a) a live holder older than staleAfterMs that keeps heartbeating is NOT broken", async () => {
+  const commonDir = await tempCommonDir();
+  const base = 1_700_000_000_000;
+  const clock = { t: base };
+  const lockPath = resolveCommonDirLockPath(commonDir);
+
+  const holder = await acquireCommonDirLock(commonDir, {
+    now: () => clock.t,
+    heartbeatMs: 20,
+    staleAfterMs: 1_000,
+    pidGoneFloorMs: 30_000,
+    pollMs: 5,
+    waitTimeoutMs: 2_000,
+  });
+  try {
+    const held = JSON.parse(await readFile(lockPath, "utf8")) as SeededOwner;
+    // The holder's ACQUISITION stamp is now five times the stale bound old --
+    // exactly the state the old age-only rule broke while the run was alive.
+    clock.t = base + 5_000;
+    // POSITIVE CONTROL: a real beat lands on the injected clock, so staleness
+    // is genuinely being measured from a refreshed stamp, not from a lucky time.
+    await waitFor(async () => {
+      const current = JSON.parse(
+        await readFile(lockPath, "utf8"),
+      ) as SeededOwner;
+      return current.updatedAt === clock.t;
+    });
+
+    // A waiter judging by SILENCE sees a live holder and waits for it.
+    const error = await acquireCommonDirLock(commonDir, {
+      now: () => clock.t,
+      isAlive: () => true,
+      staleAfterMs: 1_000,
+      pidGoneFloorMs: 30_000,
+      pollMs: 5,
+      waitTimeoutMs: 100,
+    }).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(CommonDirLockTimeoutError);
+    // The beating holder's file is untouched, not broken and replaced.
+    expect(
+      ((await readFile(lockPath, "utf8").then(JSON.parse)) as SeededOwner)
+        .token,
+    ).toBe(held.token);
+  } finally {
+    await holder.release();
+  }
+});
+
+test("(b) a SILENT holder with a live-looking pid IS broken after staleAfterMs of silence", async () => {
+  const commonDir = await tempCommonDir();
+  const base = 1_700_000_000_000;
+  await seedLock(commonDir, {
+    pid: process.pid,
+    startedAt: base,
+    updatedAt: base,
+    token: "silent-holder",
+  });
+
+  // Silence is 5 s against a 1 s bound, and the pid LOOKS alive. A rule that
+  // lets pid-liveness win over silence (lore-cli#746's F2 shape) leaves this
+  // holder in place forever; the DEC-282 (a15) invariant breaks it.
+  const lock = await acquireCommonDirLock(commonDir, {
+    now: () => base + 5_000,
+    isAlive: () => true,
+    staleAfterMs: 1_000,
+    pollMs: 5,
+    waitTimeoutMs: 1_000,
+  });
+  expect((await readSeededOwner(commonDir)).token).not.toBe("silent-holder");
+  await lock.release();
+});
+
+test("(c1) the heartbeat timer is unref'd and stopped on release", async () => {
+  const commonDir = await tempCommonDir();
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
+  const created: ReturnType<typeof setInterval>[] = [];
+  const cleared: ReturnType<typeof setInterval>[] = [];
+  const unrefCalled = new WeakMap<object, () => boolean>();
+
+  globalThis.setInterval = ((...args: Parameters<typeof setInterval>) => {
+    const timer = originalSetInterval(...args);
+    let called = false;
+    const unref = timer.unref?.bind(timer);
+    if (unref !== undefined) {
+      timer.unref = () => {
+        called = true;
+        return unref();
+      };
+    }
+    unrefCalled.set(timer as unknown as object, () => called);
+    created.push(timer);
+    return timer;
+  }) as typeof setInterval;
+  globalThis.clearInterval = ((timer: Parameters<typeof clearInterval>[0]) => {
+    cleared.push(timer as ReturnType<typeof setInterval>);
+    return originalClearInterval(timer);
+  }) as typeof clearInterval;
+
+  try {
+    const lock = await acquireCommonDirLock(commonDir, { heartbeatMs: 60_000 });
+    await lock.release();
+  } finally {
+    globalThis.setInterval = originalSetInterval;
+    globalThis.clearInterval = originalClearInterval;
+  }
+
+  // POSITIVE CONTROL: the heartbeat STARTED. A build with no heartbeat creates
+  // no timer, and every assertion below would then be vacuously satisfied.
+  expect(created).toHaveLength(1);
+  expect(unrefCalled.get(created[0] as unknown as object)?.()).toBe(true);
+  expect(cleared).toContain(created[0]);
+});
+
+test("(c2) a process can exit while holding the lock (the heartbeat does not hold it open)", async () => {
+  const commonDir = await tempCommonDir();
+  const modulePath = fileURLToPath(
+    new URL("../src/application/refs/common-dir-lock.ts", import.meta.url),
+  );
+  const scriptPath = join(commonDir, "exiting-holder.ts");
+  await writeFile(
+    scriptPath,
+    [
+      `import { acquireCommonDirLock } from ${JSON.stringify(modulePath)};`,
+      "const commonDir = process.argv[2];",
+      "await acquireCommonDirLock(commonDir, { heartbeatMs: 60_000 });",
+      'process.stdout.write("held\\n");',
+      // NOTHING else keeps the event loop alive. If the heartbeat were ref'd,
+      // this process would hang until killed; unref'd, it exits on its own.
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const child = Bun.spawn([process.execPath, scriptPath, commonDir], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdout = child.stdout;
+  if (!stdout) throw new Error("child stdout was not piped");
+  const reader = stdout.getReader();
+  const decoder = new TextDecoder();
+  let output = "";
+  try {
+    const readyBy = Date.now() + 5_000;
+    while (!output.includes("held")) {
+      if (Date.now() > readyBy) throw new Error("child never printed held");
+      const { value, done } = await reader.read();
+      if (done) break;
+      output += decoder.decode(value, { stream: true });
+    }
+    reader.releaseLock();
+    expect(output).toContain("held");
+
+    const exited = await Promise.race([
+      child.exited.then(() => true),
+      new Promise<boolean>((resolve) =>
+        setTimeout(() => resolve(false), 3_000),
+      ),
+    ]);
+    if (!exited) {
+      child.kill(9);
+      await child.exited;
+    }
+    // A ref'd heartbeat would have kept it alive past the 3 s bound.
+    expect(exited).toBe(true);
+    expect(child.exitCode).toBe(0);
+  } finally {
+    try {
+      child.kill(9);
+    } catch {
+      // Already gone.
+    }
+  }
+}, 15_000);
+
+test("(d) a heartbeat never resurrects or clobbers a lock the holder no longer owns", async () => {
+  const commonDir = await tempCommonDir();
+  const base = 1_700_000_000_000;
+  const clock = { t: base };
+  const lockPath = resolveCommonDirLockPath(commonDir);
+  const breakPath = `${lockPath}.break`;
+
+  const holder = await acquireCommonDirLock(commonDir, {
+    now: () => clock.t,
+    heartbeatMs: 15,
+    staleAfterMs: 600_000,
+    pollMs: 5,
+    waitTimeoutMs: 1_000,
+  });
+  const successor: SeededOwner = {
+    pid: 424_242,
+    startedAt: base,
+    updatedAt: base,
+    token: "successor",
+  };
+  try {
+    const token = (JSON.parse(await readFile(lockPath, "utf8")) as SeededOwner)
+      .token;
+
+    // Serialise the replacement with the heartbeat: take `.break` ourselves
+    // (called `mine`, so it is not a stale breaker) so no beat can run between
+    // our read and our write. Then hand the path to a successor.
+    await waitFor(async () => {
+      try {
+        const handle = await open(breakPath, "wx");
+        await handle.writeFile(
+          `${JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "test-breaker" })}\n`,
+          "utf8",
+        );
+        await handle.close();
+        return true;
+      } catch (error) {
+        if ((error as { readonly code?: string }).code !== "EEXIST")
+          throw error;
+        return false;
+      }
+    });
+    await writeFile(lockPath, `${JSON.stringify(successor)}\n`, "utf8");
+    await unlink(breakPath);
+
+    // Several beats now fire, each seeing a token that is not the holder's.
+    clock.t = base + 10_000;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // No beat may touch the successor's record -- not its token, not its stamp.
+    expect(JSON.parse(await readFile(lockPath, "utf8"))).toEqual(successor);
+
+    // Release is token-checked too: it must not delete the successor's file.
+    await holder.release();
+    expect(JSON.parse(await readFile(lockPath, "utf8"))).toEqual(successor);
+    expect(token).not.toBe(successor.token);
+  } finally {
+    await unlink(lockPath).catch(() => undefined);
+    await unlink(breakPath).catch(() => undefined);
+  }
+});
+
+test("(e) a heartbeat write failure does not throw into the holder's run", async () => {
+  const commonDir = await tempCommonDir();
+  const base = 1_700_000_000_000;
+  const clock = { t: base };
+  const lockPath = resolveCommonDirLockPath(commonDir);
+
+  const holder = await acquireCommonDirLock(commonDir, {
+    now: () => clock.t,
+    heartbeatMs: 10,
+    staleAfterMs: 600_000,
+    pollMs: 5,
+    waitTimeoutMs: 1_000,
+  });
+  let temporary = "";
+  try {
+    const token = (JSON.parse(await readFile(lockPath, "utf8")) as SeededOwner)
+      .token;
+    temporary = `${lockPath}.${token}.tmp`;
+
+    // POSITIVE CONTROL: a beat succeeds first, so the failure below is measured
+    // against a heartbeat that is known to run.
+    clock.t = base + 1_000;
+    await waitFor(async () => {
+      const current = JSON.parse(
+        await readFile(lockPath, "utf8"),
+      ) as SeededOwner;
+      return current.updatedAt === clock.t;
+    });
+
+    // Occupy the beat's temp path with a DIRECTORY, so its write must fail.
+    await mkdir(temporary, { recursive: true });
+    clock.t = base + 2_000;
+
+    // The holder's own run carries on (this is the "does not throw" part)...
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    // ...and the failed write left the last successful stamp in place.
+    expect(
+      (JSON.parse(await readFile(lockPath, "utf8")) as SeededOwner).updatedAt,
+    ).toBe(base + 1_000);
+
+    // The holder still releases cleanly after the failed beats.
+    await holder.release();
+    expect(await pathExists(lockPath)).toBe(false);
+  } finally {
+    await rm(temporary, { recursive: true, force: true }).catch(
+      () => undefined,
+    );
+  }
 });
