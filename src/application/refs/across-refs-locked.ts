@@ -141,7 +141,7 @@ export class AcrossRefsLockedService implements AcrossRefsView {
         // The lock is advisory; concurrent runs duplicate the ref read and
         // nothing else. Say so once on stderr so the wedge is not silent.
         this.note(
-          `task list --across-refs ran unlocked: timed out after ${Math.round(
+          `note: task list --across-refs ran unlocked: timed out after ${Math.round(
             error.waitedMs,
           )}ms waiting for the common-directory lock at ${error.lockPath}.`,
         );
@@ -211,10 +211,13 @@ export class AcrossRefsLockedService implements AcrossRefsView {
   }
 }
 
-/** The broken-mechanism note: names the cause and says the run was unlocked. */
+/** The broken-mechanism note: names the cause and says the run was unlocked.
+ * The `note: ` prefix is deliberate -- opum-cli-e2e's `stderrSilentOnSuccess`
+ * check accepts stderr lines that start with warning/note/hint, so a success
+ * row that hits a broken lock must not go red. */
 function brokenMechanismNote(error: unknown): string {
   const cause = error instanceof Error ? error.message : String(error);
-  return `task list --across-refs ran unlocked: the common-directory lock is unusable (${oneLine(cause)}).`;
+  return `note: task list --across-refs ran unlocked: the common-directory lock is unusable (${oneLine(cause)}).`;
 }
 
 /** Collapse a multi-line message to one line for a single stderr write. */

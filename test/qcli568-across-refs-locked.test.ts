@@ -191,6 +191,7 @@ test("a broken lock mechanism proceeds unlocked with exactly one stderr line", a
   expect(notes[0]?.split("\n").filter((part) => part.length > 0)).toHaveLength(
     1,
   );
+  expect(notes[0]).toMatch(/^note: /u);
   expect(notes[0]).toContain("ran unlocked");
   expect(notes[0]).toContain("EACCES");
 });
@@ -217,6 +218,7 @@ test("an absent common directory proceeds unlocked and is not created", async ()
   expect(runs).toBe(1);
   expect(service.lastLockError).toBeTruthy();
   expect(notes).toHaveLength(1);
+  expect(notes[0]).toMatch(/^note: /u);
   expect(notes[0]).toContain("ran unlocked");
   // F9: the lock's mkdir is non-recursive, so a wrong root fails loudly rather
   // than silently creating a stray `<root>/quest`.
@@ -245,6 +247,7 @@ test("an unresolvable common directory proceeds unlocked with one stderr line", 
   expect(runs).toBe(1);
   expect(service.lastLockError).toBeInstanceOf(Error);
   expect(notes).toHaveLength(1);
+  expect(notes[0]).toMatch(/^note: /u);
   expect(notes[0]).toContain("ran unlocked");
   expect(notes[0]).toContain("not a git repository");
 });
@@ -275,6 +278,7 @@ test("a pathological expiry proceeds unlocked by default with one stderr line", 
   expect(outcome).toBe(OUTCOME);
   expect(runs).toBe(1);
   expect(notes).toHaveLength(1);
+  expect(notes[0]).toMatch(/^note: /u);
   expect(notes[0]).toContain("ran unlocked");
   expect(notes[0]).toContain("timed out");
   // A timeout is the expiry path, not recorded as a broken mechanism.
