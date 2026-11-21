@@ -239,6 +239,32 @@ export class LocalGitPort implements GitPort {
     return output.split("\n").filter((line) => line.length > 0);
   }
 
+  /** QCLI-563: the strict listing with each path's blob oid, which `ls-tree`
+   *  already reports (`<mode> <type> <oid>\t<path>`). One process, no per-path
+   *  hash. An absent prefix answers `[]`; a refused listing throws. */
+  async listBlobsRequired(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly { readonly path: string; readonly oid: string }[]> {
+    const output = await requiredGit(repositoryPath, [
+      "ls-tree",
+      "-r",
+      revision,
+      prefix,
+    ]);
+    const rows: { path: string; oid: string }[] = [];
+    for (const line of output.split("\n")) {
+      if (line.length === 0) continue;
+      const tab = line.indexOf("\t");
+      if (tab < 0) continue;
+      const oid = line.slice(0, tab).split(" ")[2] ?? "";
+      if (!/^[0-9a-f]{40}$/u.test(oid)) continue;
+      rows.push({ path: line.slice(tab + 1), oid });
+    }
+    return rows;
+  }
+
   async mergeBase(
     repositoryPath: string,
     a: string,

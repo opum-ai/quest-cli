@@ -1,4 +1,5 @@
 import { beforeAll, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
   chmod,
@@ -309,13 +310,36 @@ async function clearCache(root: string): Promise<void> {
 async function writeCacheDocument(
   root: string,
   key: string,
-  locations: AcrossRefsCachedLocations,
+  locations: Record<string, readonly { path: string; text: string | null }[]>,
 ): Promise<void> {
-  const directory = cacheDirectory(root);
-  await mkdir(directory, { recursive: true });
+  // The two-level layout: a manifest naming each path's blob oid (null = unread)
+  // plus one blob file per unique text. `locations` are the manifest's covered
+  // locations, so passing fewer than three exercises "a location is missing".
+  const manifests = join(cacheDirectory(root), "manifests");
+  const blobs = join(cacheDirectory(root), "blobs");
+  await mkdir(manifests, { recursive: true });
+  await mkdir(blobs, { recursive: true });
+  const entries: { location: string; path: string; blob: string | null }[] = [];
+  for (const [location, files] of Object.entries(locations)) {
+    for (const file of files) {
+      if (file.text === null) {
+        entries.push({ location, path: file.path, blob: null });
+        continue;
+      }
+      const oid = createHash("sha1").update(file.text).digest("hex");
+      entries.push({ location, path: file.path, blob: oid });
+      await writeFile(join(blobs, oid), file.text);
+    }
+  }
   await writeFile(
-    join(directory, `${key}.json`),
-    JSON.stringify({ kind: "records", version: 1, key, locations }),
+    join(manifests, `${key}.json`),
+    JSON.stringify({
+      kind: "manifest",
+      version: 2,
+      key,
+      locations: Object.keys(locations),
+      entries,
+    }),
   );
 }
 
@@ -428,16 +452,24 @@ test("a realistic gated record survives warm == cold, identity included (F6/R2-7
     cold.entries.map((entry) => [entry.id, entry.identity]),
   );
 
-  // The cache holds RAW text (with the gate event stream), not parsed records.
+  // The cache holds RAW text (with the gate event stream), not parsed records:
+  // the manifest names the blob, and the blob file holds the text.
   const key = git(fixture.root, "rev-parse", "refs/heads/feature:.quest");
-  const document = JSON.parse(
-    await readFile(join(cacheDirectory(fixture.root), `${key}.json`), "utf8"),
-  ) as {
-    locations: Record<string, { path: string; text: string | null }[]>;
-  };
-  expect(
-    document.locations.tasks?.some((file) => file.text?.includes("gateEvents")),
-  ).toBe(true);
+  const manifest = JSON.parse(
+    await readFile(
+      join(cacheDirectory(fixture.root), "manifests", `${key}.json`),
+      "utf8",
+    ),
+  ) as { entries: { path: string; blob: string | null }[] };
+  const gated = manifest.entries.find(
+    (entry) => entry.path === ".quest/tasks/T-10.json",
+  );
+  expect(gated?.blob).toMatch(/^[0-9a-f]{40}$/u);
+  const blob = await readFile(
+    join(cacheDirectory(fixture.root), "blobs", gated?.blob ?? ""),
+    "utf8",
+  );
+  expect(blob.includes("gateEvents")).toBe(true);
 });
 
 test("a corrupt cache entry falls back to a normal read, never fails", async () => {
@@ -445,7 +477,11 @@ test("a corrupt cache entry falls back to a normal read, never fails", async () 
   const refs = ["refs/heads/feature"];
   const first = await viewWith(fixture.root, refs);
   const key = git(fixture.root, "rev-parse", "refs/heads/feature:.quest");
-  const entryPath = join(cacheDirectory(fixture.root), `${key}.json`);
+  const entryPath = join(
+    cacheDirectory(fixture.root),
+    "manifests",
+    `${key}.json`,
+  );
   expect(existsSync(entryPath)).toBe(true);
   await writeFile(entryPath, "{ this is not the cache document }");
 
@@ -459,7 +495,7 @@ test("a corrupt cache entry falls back to a normal read, never fails", async () 
     kind: string;
     key: string;
   };
-  expect(repaired.kind).toBe("records");
+  expect(repaired.kind).toBe("manifest");
   expect(repaired.key).toBe(key);
 });
 
@@ -542,7 +578,11 @@ test("the dot-file filter is re-run on every read (a cached journal is ignored)"
 test("an UNREADABLE ref is never cached as empty, and stays unreadable", async () => {
   await clearCache(fixture.root);
   const key = git(fixture.root, "rev-parse", "refs/heads/broken:.quest");
-  const entryPath = join(cacheDirectory(fixture.root), `${key}.json`);
+  const entryPath = join(
+    cacheDirectory(fixture.root),
+    "manifests",
+    `${key}.json`,
+  );
 
   const first = await new AcrossRefsViewService(
     new LocalGitPort(),
@@ -587,9 +627,9 @@ test("a ref with NO .quest tree is cached as its own distinct state", async () =
   const first = await viewWith(fixture.root, ["refs/heads/noquest"]);
   expect(first.entries).toEqual([]);
   expect(first.coverage.complete).toBe(true);
-  expect(existsSync(join(cacheDirectory(fixture.root), `${key}.json`))).toBe(
-    true,
-  );
+  expect(
+    existsSync(join(cacheDirectory(fixture.root), "manifests", `${key}.json`)),
+  ).toBe(true);
 
   const second = await viewWith(fixture.root, ["refs/heads/noquest"]);
   expect(lastCalls).toEqual([]);
@@ -603,18 +643,19 @@ test("a non-selected file is written with text: null (S3)", async () => {
   const { entries } = await viewWith(fixture.root, ["refs/heads/extras"]);
   // The journal is not a record, so it is not in the view...
   expect(entriesById(entries).has("T-1")).toBe(true);
-  // ...and the written document still names it, with no text, so a wider
+  // ...and the written manifest still names it, with `blob: null`, so a wider
   // filter would miss rather than be served a shorter set.
   const key = git(fixture.root, "rev-parse", "refs/heads/extras:.quest");
-  const document = JSON.parse(
-    await readFile(join(cacheDirectory(fixture.root), `${key}.json`), "utf8"),
-  ) as {
-    locations: Record<string, { path: string; text: string | null }[]>;
-  };
-  const journal = document.locations.tasks?.find((file) =>
-    file.path.endsWith("/.journal"),
+  const manifest = JSON.parse(
+    await readFile(
+      join(cacheDirectory(fixture.root), "manifests", `${key}.json`),
+      "utf8",
+    ),
+  ) as { entries: { path: string; blob: string | null }[] };
+  const journal = manifest.entries.find((entry) =>
+    entry.path.endsWith("/.journal"),
   );
-  expect(journal?.text).toBeNull();
+  expect(journal?.blob).toBeNull();
 });
 
 test("the per-process materialized cache reads a shared tree once (S2)", async () => {
@@ -636,7 +677,7 @@ test("the per-process materialized cache reads a shared tree once (S2)", async (
   const cache: AcrossRefsCachePort = {
     async read(asked) {
       reads.push(asked);
-      return asked === key ? locations : null;
+      return asked === key ? { kind: "hit", locations } : { kind: "miss" };
     },
     async write() {},
     async touch() {},
@@ -888,7 +929,7 @@ test("the injected cache is consulted by tree hash and re-materialized", async (
   };
   const cache: AcrossRefsCachePort = {
     async read(asked) {
-      return asked === key ? locations : null;
+      return asked === key ? { kind: "hit", locations } : { kind: "miss" };
     },
     async write() {},
     async touch(asked) {
@@ -916,38 +957,41 @@ test("AcrossRefsCache ignores a document written for a different key (R2-5)", as
   const directory = await mkdtemp(join(tmpdir(), "qcli563-cache-"));
   try {
     const cache = AcrossRefsCache.underCommonDirectory(directory);
+    const cacheDir = join(directory, "quest", "across-refs-cache");
     const wrong = "0".repeat(40);
     await cache.write("a".repeat(40), {
-      tasks: [],
-      completed: [],
-      "archive/tasks": [],
+      locations: ["tasks", "completed", "archive/tasks"],
+      entries: [],
+      blobs: new Map(),
     });
-    // A file in the right place whose DOCUMENT names another key is a miss.
+    // A manifest in the right place whose DOCUMENT names another key is corrupt.
+    await mkdir(join(cacheDir, "manifests"), { recursive: true });
     await writeFile(
-      join(directory, "quest", "across-refs-cache", `${wrong}.json`),
+      join(cacheDir, "manifests", `${wrong}.json`),
       JSON.stringify({
-        kind: "records",
-        version: 1,
+        kind: "manifest",
+        version: 2,
         key: "b".repeat(40),
-        locations: { tasks: [], completed: [], "archive/tasks": [] },
+        locations: [],
+        entries: [],
       }),
     );
-    expect(await cache.read(wrong)).toBeNull();
-    expect(await cache.read("c".repeat(40))).toBeNull();
-    // A REAL escaped document: `../escape` resolves to
-    // `<dir>/quest/escape.json` from the cache directory, so writing a valid
-    // document there proves the key pattern -- not mere absence -- is what
-    // refuses it.
+    expect((await cache.read(wrong)).kind).toBe("corrupt");
+    expect((await cache.read("c".repeat(40))).kind).toBe("miss");
+    // A REAL escaped manifest: `../escape` resolves to `<cache>/escape.json`, so
+    // a valid manifest there proves the key pattern -- not mere absence -- is
+    // what refuses it.
     await writeFile(
-      join(directory, "quest", "escape.json"),
+      join(cacheDir, "escape.json"),
       JSON.stringify({
-        kind: "records",
-        version: 1,
+        kind: "manifest",
+        version: 2,
         key: "../escape",
-        locations: { tasks: [], completed: [], "archive/tasks": [] },
+        locations: [],
+        entries: [],
       }),
     );
-    expect(await cache.read("../escape")).toBeNull();
+    expect((await cache.read("../escape")).kind).toBe("miss");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -1002,31 +1046,28 @@ test("batchCheck answers present/absent and refuses a poisoned spec (R2-3/R2-6)"
   expect((await port.batchCheck(fixture.root, ["HEAD\r"])).size).toBe(0);
 });
 
-// ---- F2: the cache is bounded, touches on hit, and cleans a failed write ----
+// ---- bounded cache, GC, touch on hit, failed-write cleanup ----
 
 interface MemoryIo {
   readonly io: CacheIo;
   readonly files: Map<string, string>;
   readonly mtimes: Map<string, number>;
   readonly unlinked: string[];
-  setMtime(path: string, ms: number): void;
+  seed(path: string, content: string, mtime: number): void;
 }
 
-/** An in-memory filesystem whose `rename` stamps a fresh mtime, so pruning and
- *  touching are deterministic and need no real clock. */
-function memoryIo(seed: Record<string, number> = {}): MemoryIo {
-  let clock = Math.max(0, ...Object.values(seed));
+/** An in-memory filesystem whose `rename` stamps a fresh mtime, per-directory
+ *  `readdir`, so pruning, GC and touching are deterministic. */
+function memoryIo(): MemoryIo {
+  let clock = 0;
   const files = new Map<string, string>();
   const mtimes = new Map<string, number>();
   const unlinked: string[] = [];
-  for (const [path, ms] of Object.entries(seed)) {
-    files.set(path, "{}");
-    mtimes.set(path, ms);
-  }
   const io: CacheIo = {
     async readFile(path) {
       const value = files.get(path);
-      if (value === undefined) throw new Error("ENOENT");
+      if (value === undefined)
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       return value;
     },
     async writeFile(path, data) {
@@ -1034,7 +1075,8 @@ function memoryIo(seed: Record<string, number> = {}): MemoryIo {
     },
     async rename(from, to) {
       const value = files.get(from);
-      if (value === undefined) throw new Error("ENOENT");
+      if (value === undefined)
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       files.delete(from);
       files.set(to, value);
       mtimes.set(to, ++clock);
@@ -1044,16 +1086,21 @@ function memoryIo(seed: Record<string, number> = {}): MemoryIo {
       unlinked.push(path);
     },
     async mkdir() {},
-    async readdir() {
-      return [...files.keys()].map((path) =>
-        path.slice(path.lastIndexOf("/") + 1),
-      );
+    async readdir(dir) {
+      const prefix = dir.endsWith("/") ? dir : `${dir}/`;
+      return [...files.keys()]
+        .filter(
+          (path) =>
+            path.startsWith(prefix) && !path.slice(prefix.length).includes("/"),
+        )
+        .map((path) => path.slice(prefix.length));
     },
     async utimes(path, _atime, mtime) {
       mtimes.set(path, mtime.getTime());
     },
     async stat(path) {
-      if (!files.has(path)) throw new Error("ENOENT");
+      if (!files.has(path))
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       return { mtimeMs: mtimes.get(path) ?? 0 };
     },
   };
@@ -1062,17 +1109,34 @@ function memoryIo(seed: Record<string, number> = {}): MemoryIo {
     files,
     mtimes,
     unlinked,
-    setMtime: (path, ms) => mtimes.set(path, ms),
+    seed: (path, content, mtime) => {
+      files.set(path, content);
+      mtimes.set(path, mtime);
+      clock = Math.max(clock, mtime);
+    },
   };
 }
 
 const keyFor = (n: number) => `${n}`.repeat(40);
+const manifestJson = (
+  key: string,
+  entries: { location: string; path: string; blob: string | null }[] = [],
+) =>
+  JSON.stringify({
+    kind: "manifest",
+    version: 2,
+    key,
+    locations: ["tasks", "completed", "archive/tasks"],
+    entries,
+  });
+const manifestFile = (directory: string, key: string) =>
+  `${directory}/manifests/${key}.json`;
 
-test("prune keeps the newest N entries by mtime (F2/R2-8)", async () => {
+test("prune keeps the newest N manifests by mtime (F2/R2-8)", async () => {
   const directory = "/cache";
-  const seed: Record<string, number> = {};
-  for (let n = 1; n <= 6; n++) seed[`${directory}/${keyFor(n)}.json`] = n;
-  const memory = memoryIo(seed);
+  const memory = memoryIo();
+  for (let n = 1; n <= 6; n++)
+    memory.seed(manifestFile(directory, keyFor(n)), manifestJson(keyFor(n)), n);
   const cache = new AcrossRefsCache(directory, {
     maxEntries: 3,
     io: memory.io,
@@ -1082,50 +1146,86 @@ test("prune keeps the newest N entries by mtime (F2/R2-8)", async () => {
 
   const remaining = [...memory.files.keys()].sort();
   expect(remaining).toEqual([
-    `${directory}/${keyFor(4)}.json`,
-    `${directory}/${keyFor(5)}.json`,
-    `${directory}/${keyFor(6)}.json`,
+    manifestFile(directory, keyFor(4)),
+    manifestFile(directory, keyFor(5)),
+    manifestFile(directory, keyFor(6)),
   ]);
   expect(memory.unlinked.sort()).toEqual([
-    `${directory}/${keyFor(1)}.json`,
-    `${directory}/${keyFor(2)}.json`,
-    `${directory}/${keyFor(3)}.json`,
+    manifestFile(directory, keyFor(1)),
+    manifestFile(directory, keyFor(2)),
+    manifestFile(directory, keyFor(3)),
   ]);
 });
 
-test("prune protects this run's keys even when it uses more than the bound (R2-8)", async () => {
+test("prune protects this run's keys even past the bound (R2-8)", async () => {
   const directory = "/cache";
-  const seed: Record<string, number> = {};
-  for (let n = 1; n <= 6; n++) seed[`${directory}/${keyFor(n)}.json`] = n;
-  const memory = memoryIo(seed);
+  const memory = memoryIo();
+  for (let n = 1; n <= 6; n++)
+    memory.seed(manifestFile(directory, keyFor(n)), manifestJson(keyFor(n)), n);
   const cache = new AcrossRefsCache(directory, {
     maxEntries: 3,
     io: memory.io,
   });
 
-  // The run used the OLDEST key; it must survive, and the remaining budget
-  // (3 - 1 = 2) goes to the newest of the rest.
   await cache.prune(new Set([keyFor(1)]));
 
   const remaining = [...memory.files.keys()].sort();
   expect(remaining).toEqual([
-    `${directory}/${keyFor(1)}.json`,
-    `${directory}/${keyFor(5)}.json`,
-    `${directory}/${keyFor(6)}.json`,
+    manifestFile(directory, keyFor(1)),
+    manifestFile(directory, keyFor(5)),
+    manifestFile(directory, keyFor(6)),
   ]);
 });
 
-test("a cache hit touches the entry so it is kept (F2)", async () => {
+test("prune GCs blobs referenced by no surviving manifest (S1)", async () => {
   const directory = "/cache";
   const memory = memoryIo();
-  const cache = new AcrossRefsCache(directory, { io: memory.io });
+  const survivor = "a".repeat(40);
+  const stale = "b".repeat(40);
+  const orphan = "c".repeat(40);
+  // maxEntries 1: the newer manifest survives, the older one (and its blob) go.
+  memory.seed(
+    manifestFile(directory, keyFor(1)),
+    manifestJson(keyFor(1), [
+      { location: "tasks", path: ".quest/tasks/T-1.json", blob: survivor },
+    ]),
+    2,
+  );
+  memory.seed(
+    manifestFile(directory, keyFor(2)),
+    manifestJson(keyFor(2), [
+      { location: "tasks", path: ".quest/tasks/T-2.json", blob: stale },
+    ]),
+    1,
+  );
+  memory.seed(`${directory}/blobs/${survivor}`, "survivor", 0);
+  memory.seed(`${directory}/blobs/${stale}`, "stale", 0);
+  memory.seed(`${directory}/blobs/${orphan}`, "orphan", 0);
+  const cache = new AcrossRefsCache(directory, {
+    maxEntries: 1,
+    io: memory.io,
+  });
+
+  await cache.prune(new Set());
+
+  expect(memory.files.has(manifestFile(directory, keyFor(1)))).toBe(true);
+  expect(memory.files.has(manifestFile(directory, keyFor(2)))).toBe(false);
+  // The survivor's blob stays; the evicted manifest's blob and the orphan go.
+  expect(memory.files.has(`${directory}/blobs/${survivor}`)).toBe(true);
+  expect(memory.files.has(`${directory}/blobs/${stale}`)).toBe(false);
+  expect(memory.files.has(`${directory}/blobs/${orphan}`)).toBe(false);
+});
+
+test("a cache hit touches the manifest so it is kept (F2)", async () => {
+  const directory = "/cache";
+  const memory = memoryIo();
   const key = keyFor(7);
-  await cache.write(key, { tasks: [], completed: [], "archive/tasks": [] });
-  const before = memory.mtimes.get(`${directory}/${key}.json`) ?? 0;
+  memory.seed(manifestFile(directory, key), manifestJson(key), 1);
+  const cache = new AcrossRefsCache(directory, { io: memory.io });
 
   await cache.touch(key);
-  expect(memory.mtimes.get(`${directory}/${key}.json`) ?? 0).toBeGreaterThan(
-    before,
+  expect(memory.mtimes.get(manifestFile(directory, key)) ?? 0).toBeGreaterThan(
+    1,
   );
 });
 
@@ -1142,9 +1242,9 @@ test("a failed write unlinks its temp file and leaves no residue (F2)", async ()
   };
   const cache = new AcrossRefsCache(directory, { io });
   await cache.write(keyFor(8), {
-    tasks: [],
-    completed: [],
-    "archive/tasks": [],
+    locations: ["tasks", "completed", "archive/tasks"],
+    entries: [],
+    blobs: new Map(),
   });
 
   expect(temporary).toMatch(/\.tmp$/u);
@@ -1152,7 +1252,7 @@ test("a failed write unlinks its temp file and leaves no residue (F2)", async ()
   expect([...memory.files.keys()].some((path) => path.endsWith(".tmp"))).toBe(
     false,
   );
-  expect(memory.files.has(`${directory}/${keyFor(8)}.json`)).toBe(false);
+  expect(memory.files.has(manifestFile(directory, keyFor(8)))).toBe(false);
 });
 
 test("a write whose RENAME fails after the write still leaves no temp (R2-9)", async () => {
@@ -1163,19 +1263,17 @@ test("a write whose RENAME fails after the write still leaves no temp (R2-9)", a
     ...memory.io,
     async writeFile(path, data) {
       temporary = path;
-      // The temp file is really created...
       await memory.io.writeFile(path, data);
     },
     async rename() {
-      // ...and the rename is what fails.
       throw new Error("rename failed");
     },
   };
   const cache = new AcrossRefsCache(directory, { io });
   await cache.write(keyFor(9), {
-    tasks: [],
-    completed: [],
-    "archive/tasks": [],
+    locations: ["tasks", "completed", "archive/tasks"],
+    entries: [],
+    blobs: new Map(),
   });
 
   expect(temporary).toMatch(/\.tmp$/u);
@@ -1183,24 +1281,54 @@ test("a write whose RENAME fails after the write still leaves no temp (R2-9)", a
   expect([...memory.files.keys()].some((path) => path.endsWith(".tmp"))).toBe(
     false,
   );
-  expect(memory.files.has(`${directory}/${keyFor(9)}.json`)).toBe(false);
+  expect(memory.files.has(manifestFile(directory, keyFor(9)))).toBe(false);
 });
 
 test("prune unlinks only STALE temp files (R2-9)", async () => {
   const directory = "/cache";
   const now = Date.now();
-  const oldTemp = `${directory}/old.tmp`;
-  const freshTemp = `${directory}/fresh.tmp`;
-  const memory = memoryIo({
-    [oldTemp]: now - 2 * 60 * 60 * 1000,
-    [freshTemp]: now,
-  });
+  const oldTemp = `${directory}/manifests/old.tmp`;
+  const freshTemp = `${directory}/manifests/fresh.tmp`;
+  const oldBlobTemp = `${directory}/blobs/old.tmp`;
+  const memory = memoryIo();
+  memory.seed(oldTemp, "x", now - 2 * 60 * 60 * 1000);
+  memory.seed(freshTemp, "x", now);
+  memory.seed(oldBlobTemp, "x", now - 2 * 60 * 60 * 1000);
   const cache = new AcrossRefsCache(directory, { io: memory.io });
 
   await cache.prune(new Set());
 
   expect(memory.files.has(oldTemp)).toBe(false);
   expect(memory.files.has(freshTemp)).toBe(true);
-  expect(memory.unlinked).toContain(oldTemp);
-  expect(memory.unlinked).not.toContain(freshTemp);
+  expect(memory.files.has(oldBlobTemp)).toBe(false);
+});
+
+test("a MISSING blob is a MISS that repairs, never a shorter set (S1)", async () => {
+  await clearCache(fixture.root);
+  const refs = ["refs/heads/feature"];
+  const first = await viewWith(fixture.root, refs);
+  const key = git(fixture.root, "rev-parse", "refs/heads/feature:.quest");
+  const manifest = JSON.parse(
+    await readFile(
+      join(cacheDirectory(fixture.root), "manifests", `${key}.json`),
+      "utf8",
+    ),
+  ) as { entries: { path: string; blob: string | null }[] };
+  const entry = manifest.entries.find(
+    (row) => row.path === ".quest/tasks/T-3.json",
+  );
+  expect(entry?.blob).toMatch(/^[0-9a-f]{40}$/u);
+  const blobPath = join(
+    cacheDirectory(fixture.root),
+    "blobs",
+    entry?.blob ?? "",
+  );
+  await rm(blobPath);
+
+  const second = await viewWith(fixture.root, refs);
+  // It did NOT serve a set missing T-3: it read fresh and restored the blob.
+  expect(lastCalls.length).toBeGreaterThan(0);
+  expect(entriesById(second.entries).get("T-3")?.title).toBe("only on feature");
+  expect(existsSync(blobPath)).toBe(true);
+  expect(JSON.stringify(second.entries)).toBe(JSON.stringify(first.entries));
 });

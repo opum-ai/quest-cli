@@ -133,6 +133,17 @@ export interface GitPort {
     prefix: string,
   ): Promise<readonly string[]>;
   /**
+   * QCLI-563 (S1/two-level): the strict listing of {@link listFilesRequired},
+   * but carrying each path's BLOB OID as `git ls-tree` already reports it, so a
+   * caller can content-address a file without a second process per path. A
+   * refused listing REJECTS; an absent prefix answers `[]`.
+   */
+  listBlobsRequired(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly { readonly path: string; readonly oid: string }[]>;
+  /**
    * QCLI-415: the best common ancestor of two revisions, as `git merge-base
    * <a> <b>` resolves it. Rejects when either revision is unresolvable or the
    * histories are unrelated.

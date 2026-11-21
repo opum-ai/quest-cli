@@ -16,6 +16,8 @@ import {
   type AcrossRefsCachePort,
   type AcrossRefsCachedFile,
   type AcrossRefsCachedLocations,
+  type AcrossRefsManifestEntry,
+  type AcrossRefsWritePayload,
   AcrossRefsCache,
   acrossRefsRefKey,
   cacheFailureCause,
@@ -886,6 +888,7 @@ export class AcrossRefsViewService {
     }
 
     let treeKey: string | undefined;
+    let rewriteBlobs = false;
     if (cache !== null) {
       // Use the batch-probed key when it spoke for a PRESENT commit; after a
       // fetch, or with no probe, derive it for this one ref.
@@ -905,34 +908,39 @@ export class AcrossRefsViewService {
           };
         }
         const cached = await cache.read(treeKey);
-        if (cached !== null) {
-          const materialized = materialize(cached);
-          if (materialized.kind === "records") {
-            this.materializedCache.set(treeKey, materialized.records);
-            // A hit means this tree was used now, so pruning keeps it.
-            await cache.touch(treeKey);
-            return {
-              kind: "read",
-              ref: { provenance, records: materialized.records },
-            };
+        if (cached.kind === "hit") {
+          const covered = CONTINUITY_TASK_LOCATIONS.every(
+            (location) => cached.locations[location] !== undefined,
+          );
+          if (covered) {
+            const materialized = materialize(cached.locations);
+            if (materialized.kind === "records") {
+              this.materializedCache.set(treeKey, materialized.records);
+              // A hit means this tree was used now, so pruning keeps it.
+              await cache.touch(treeKey);
+              return {
+                kind: "read",
+                ref: { provenance, records: materialized.records },
+              };
+            }
           }
-          // A corrupt, truncated, truncated-by-filter or no-longer-valid entry
-          // is a MISS, never a failure: fall through and read the tree normally.
+          // A corrupt blob, a manifest missing a location, or text we cannot
+          // materialize is a MISS that repairs itself: rewrite this key's blobs.
+          rewriteBlobs = true;
+        } else if (cached.kind === "corrupt") {
+          rewriteBlobs = true;
         }
+        // kind "miss" is ordinary operation; blobs already present stay put.
       }
     }
 
-    // The STRICT listing (QCLI-417 F1). `listFiles` answers `[]` for a listing
-    // Git refused as well as for a prefix that holds nothing, and this view
-    // cannot tell those apart in its output: a ref whose tree is unreadable
-    // would read as a ref with no records, and the coverage report would call
-    // that complete. Measured with a deleted tree object: `complete: true`,
-    // `refsUnreadable: []`, `data: []`, exit 0.
-    let listings: readonly (readonly string[])[];
+    // The STRICT listing (QCLI-417 F1), now carrying each path's blob oid so the
+    // cache can content-address the text without a second process per path.
+    let listings: Awaited<ReturnType<GitPort["listBlobsRequired"]>>[];
     try {
       listings = await Promise.all(
         CONTINUITY_TASK_LOCATIONS.map((location) =>
-          this.git.listFilesRequired(
+          this.git.listBlobsRequired(
             repositoryPath,
             planned.sha,
             `.quest/${location}`,
@@ -944,22 +952,24 @@ export class AcrossRefsViewService {
         `${planned.ref} could not be listed at ${planned.sha}: ${describe(error)}`,
       );
     }
-    // R2-2: keep an entry for EVERY listed path. A path this filter selects is
-    // read now and stored with its text; one it does not select is stored with
-    // `text: null`, so a build with a WIDER filter sees it and treats the entry
-    // as a miss rather than being silently served a shorter record set. Parsing,
-    // validation and the duplicate check are `materialize`'s job, so a hit and a
-    // fresh read apply the same rules to the same bytes.
+    // R2-2 / two-level: keep a manifest row for EVERY listed path. A selected
+    // path is read now and stored as a blob (by oid); an unselected one is a row
+    // with `blob: null`, so a build with a WIDER filter misses rather than being
+    // served a shorter record set. Parsing, validation and the duplicate check
+    // are `materialize`'s job, so a hit and a fresh read apply the same rules.
+    const entries: AcrossRefsManifestEntry[] = [];
+    const blobs = new Map<string, string>();
     const locations: Record<string, readonly AcrossRefsCachedFile[]> = {};
     for (const [index, location] of CONTINUITY_TASK_LOCATIONS.entries()) {
       const files: AcrossRefsCachedFile[] = [];
-      for (const path of listings[index] ?? []) {
+      for (const { path, oid } of listings[index] ?? []) {
         // The same filter the repository reader applies (local-task-
         // repository.ts): dot-prefixed files beside the records are
         // operational metadata (a journal), never authored records.
         const name = path.slice(path.lastIndexOf("/") + 1);
         const selected = !name.startsWith(".") && name.endsWith(".json");
         if (!selected) {
+          entries.push({ location, path, blob: null });
           files.push({ path, text: null });
           continue;
         }
@@ -970,6 +980,8 @@ export class AcrossRefsViewService {
         // false green rather than the honest gap.
         if (blob === null)
           return unreadable(`${planned.ref} carries an unreadable ${path}`);
+        entries.push({ location, path, blob: oid });
+        blobs.set(oid, blob);
         files.push({ path, text: blob });
       }
       locations[location] = files;
@@ -1003,7 +1015,12 @@ export class AcrossRefsViewService {
     // from unreadable and must stay different.
     if (cache !== null && treeKey !== undefined) {
       this.materializedCache.set(treeKey, materialized.records);
-      await cache.write(treeKey, locations);
+      const payload: AcrossRefsWritePayload = {
+        locations: CONTINUITY_TASK_LOCATIONS,
+        entries,
+        blobs,
+      };
+      await cache.write(treeKey, payload, { rewriteBlobs });
     }
     return {
       kind: "read",
