@@ -203,3 +203,66 @@ test("outside a git repo the note precedes the envelope and the envelope stays l
     await rm(nonGit, { recursive: true, force: true });
   }
 }, 120_000);
+
+test("a THROWN inner view still writes the unlocked note before the envelope (QCLI-568 T1)", async () => {
+  const { root, linked, cleanup } = await fixture();
+  try {
+    // Broken mechanism, as in the R1 row: `<main>/.git/quest` is a FILE.
+    const questPath = join(root, ".git", "quest");
+    await rm(questPath, { recursive: true, force: true });
+    await writeFile(questPath, "not a directory\n", "utf8");
+
+    // `--parent NOPE-1` makes the INNER view THROW (RecordValidationError
+    // task_not_found) instead of returning a failure envelope. Measured at the
+    // pre-fix head: exit 3, stdout empty, and NO note line -- the regression
+    // this row pins.
+    const result = runQuest(linked, [
+      "task",
+      "list",
+      "--across-refs",
+      "--ref",
+      "HEAD",
+      "--parent",
+      "NOPE-1",
+      "--json",
+    ]);
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stdout).toBe("");
+    const lines = result.stderr.split("\n").filter((line) => line.length > 0);
+    // The note survives the throw and precedes the envelope.
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^note: .*ran unlocked/u);
+    // The JSON envelope is the LAST line.
+    expect(JSON.parse(lines[lines.length - 1] ?? "").error_type).toBe(
+      "not_found",
+    );
+  } finally {
+    await cleanup();
+  }
+}, 120_000);
+
+test("the broken-file fixture is caught from the MAIN checkout too (QCLI-568 T1)", async () => {
+  const { root, cleanup } = await fixture();
+  try {
+    const questPath = join(root, ".git", "quest");
+    await rm(questPath, { recursive: true, force: true });
+    await writeFile(questPath, "not a directory\n", "utf8");
+
+    const result = runQuest(root, [
+      "task",
+      "list",
+      "--across-refs",
+      "--ref",
+      "HEAD",
+      "--json",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    const lines = result.stderr.split("\n").filter((line) => line.length > 0);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^note: .*ran unlocked/u);
+  } finally {
+    await cleanup();
+  }
+}, 120_000);

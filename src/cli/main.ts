@@ -471,15 +471,26 @@ async function acrossRefsListing(
   // error envelope, which must stay the LAST line of stderr; the normal locked
   // path contributes nothing.
   const notes: string[] = [];
-  const outcome = await createAcrossRefsService((line) =>
-    notes.push(line),
-  ).view({
-    repositoryPath: root,
-    refs: parsed.values.get("--ref"),
-    pullRequests,
-    allowPartial: parsed.values.has("--allow-partial"),
-    filter,
-  });
+  const outcome = await (async () => {
+    const view = createAcrossRefsService((line) => notes.push(line));
+    try {
+      return await view.view({
+        repositoryPath: root,
+        refs: parsed.values.get("--ref"),
+        pullRequests,
+        allowPartial: parsed.values.has("--allow-partial"),
+        filter,
+      });
+    } catch (error) {
+      // T1: if the inner view THROWS on an unlocked path (a refused --parent,
+      // a rejected --status, a git/IO failure), runQuest's outer catch builds a
+      // fresh envelope and never reaches finish() below. Write the notes now --
+      // they precede that envelope, which is emitted last -- so the run is not
+      // silent, then rethrow to the normal error mapping.
+      for (const line of notes) process.stderr.write(line);
+      throw error;
+    }
+  })();
   const finish = (result: InvocationResult): InvocationResult =>
     notes.length === 0
       ? result

@@ -170,10 +170,17 @@ async function assertNoSymlinkEscape(
 
 /**
  * R9: canonicalise with the OS-NATIVE realpath. Bun's `fs/promises` realpath can
- * disagree with the OS on Windows 8.3 short names (`RUNNER~1`), which would give
- * one clone two `commonDirectory` values and split the advisory across-refs lock
- * between its worktrees. `realpathSync.native` asks the OS directly and is
- * identical to the previous behaviour on Linux/macOS.
+ * leave an 8.3 short name (`RUNNER~1`) on one call and the long name on another.
+ * On NTFS those spellings are the SAME directory entry, so `open(wx)` on either
+ * contends on one file and the advisory lock cannot be split by spelling.
+ * What differs is STRING identity: two `commonDirectory` values compare unequal
+ * (`enrollWorkspace`'s `toBe`), registry de-duplication can store the same clone
+ * twice, the path printed in a note moves between runs, and any future
+ * cache/reuse keyed on the string would miss. These three canonicalisation sites
+ * feed EVERY `inspect()` caller -- `taskStoreRoot` (main.ts), the id-allocation
+ * common directory, and composition's `repositoryId` -- not only `--across-refs`.
+ * `realpathSync.native` asks the OS directly and is identical to the previous
+ * behaviour on Linux/macOS.
  */
 async function nativeRealpath(path: string): Promise<string> {
   return realpathSync.native(path);
