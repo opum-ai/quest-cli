@@ -123,9 +123,10 @@ try {
 } catch (error) {
   // spawn() throws synchronously for some failures (ENOEXEC, E2BIG), where it
   // reports others (ENOENT, EACCES) through the 'error' event.
-  // Whether a given bad file gets here is platform-specific: glibc's execvp
-  // retries an ENOEXEC file through /bin/sh, so on Linux a text file runs as a
-  // script instead of throwing.
+  // Whether a given bad file gets here is platform-specific: glibc's execvp is
+  // believed to retry an ENOEXEC file through /bin/sh, so on Linux a text file
+  // can run as a script instead of throwing. (Inferred, not read from a log; a
+  // green preload-based test does not confirm it.)
   startFailed(error);
   return;
 }
