@@ -105,6 +105,10 @@ import {
   type TaskBindingReadModel,
 } from "../application/claims/opum-agent-workflow.ts";
 import { AcrossRefsViewService } from "../application/refs/across-refs.ts";
+import {
+  AcrossRefsLockedService,
+  type AcrossRefsView,
+} from "../application/refs/across-refs-locked.ts";
 
 /** Inferred rather than annotated with the `ports/git.ts` interface type:
  * `cli` may depend on `application`, never on `ports` directly (see
@@ -189,8 +193,19 @@ export function createContinuityCheckService(
 
 /** QCLI-417: the read-only across-refs view. The forge seam is the real `gh`
  * shell-out here; the tests that cannot use a forge inject their own
- * RefDiscoveryPort into AcrossRefsViewService directly. */
-export function createAcrossRefsService(): AcrossRefsViewService {
+ * RefDiscoveryPort into AcrossRefsViewService directly.
+ *
+ * QCLI-568: the view is wrapped in the advisory common-directory lock so two
+ * runs from different worktrees of one clone serialise. The lock's common
+ * directory is resolved by the workspace port, which realpaths
+ * `git rev-parse --git-common-dir` against the worktree (F9) -- passing the
+ * raw relative value would create a stray `<wrong-root>/quest` in the main
+ * worktree. */
+export function createAcrossRefsService(): AcrossRefsView {
   const git = new LocalGitPort();
-  return new AcrossRefsViewService(git, new GhRefDiscovery(git));
+  const view = new AcrossRefsViewService(git, new GhRefDiscovery(git));
+  const workspace = createWorkspacePort();
+  return new AcrossRefsLockedService(view, async (repositoryPath) => {
+    return (await workspace.inspect(repositoryPath)).commonDirectory;
+  });
 }
