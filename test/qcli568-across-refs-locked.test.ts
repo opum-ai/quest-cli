@@ -337,3 +337,35 @@ test("releases the lock when the inner view throws", async () => {
   await lock.release();
   expect(await pathExists(resolveCommonDirLockPath(commonDir))).toBe(false);
 });
+
+test("the default note sink writes exactly one line to process.stderr", async () => {
+  const commonDir = await tempCommonDir();
+  const boom = new Error("EACCES: permission denied");
+  const writes: string[] = [];
+  const original = process.stderr.write;
+  // No writeNote option: exercise the wrapper's own default sink, which is what
+  // a non-CLI construction falls back to (and what mutant (c) removes).
+  process.stderr.write = ((chunk: unknown) => {
+    writes.push(String(chunk));
+    return true;
+  }) as typeof process.stderr.write;
+  try {
+    const service = new AcrossRefsLockedService(
+      { view: async () => OUTCOME },
+      async () => commonDir,
+      {
+        acquire: async () => {
+          throw boom;
+        },
+      },
+    );
+    const outcome = await service.view(REQUEST);
+    expect(outcome).toBe(OUTCOME);
+  } finally {
+    process.stderr.write = original;
+  }
+
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatch(/^note: .*ran unlocked/u);
+  expect(writes[0]?.endsWith("\n")).toBe(true);
+});
