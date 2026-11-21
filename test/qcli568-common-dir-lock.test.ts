@@ -366,6 +366,7 @@ test("a live break file serialises breakers", async () => {
     // breaker waits instead of clearing a paused breaker's file.
     startedAt: Date.now() - 60_000,
     token: "live-breaker",
+    host: osHostname(),
   };
   await writeFile(breakPath, `${JSON.stringify(liveBreaker)}\n`, "utf8");
 
@@ -833,6 +834,7 @@ test("release never deletes a lock carrying another holder's token", async () =>
     pid: 1,
     startedAt: Date.now(),
     token: "someone-else",
+    host: osHostname(),
   };
   await writeFile(path, `${JSON.stringify(replacement)}\n`, "utf8");
 
@@ -897,8 +899,10 @@ test("withCommonDirLock lets a waiter reuse the result the previous holder wrote
 /* restored. Round 2 mutants: (a2) livenessStamp -> startedAt only; (b)        */
 /* delete the same-host `isAlive` line; (f) release without the one            */
 /* takeBreakFile retry; (g) release removes the exit hook before taking        */
-/* `.break`; the no-host test, a readable no-host record judged at the floor;  */
-/* the unreadable-body test, an unreadable body judged at staleAfterMs.        */
+/* `.break`; the no-host test, `host` made optional in parseOwner (the record  */
+/* then reads as unprovable, not unreadable); the unprovable rows, a parseable */
+/* unprovable record judged at the floor; the unreadable-body test, an         */
+/* unreadable body judged at staleAfterMs.                                     */
 /* -------------------------------------------------------------------------- */
 
 test("(a) a live holder older than staleAfterMs that keeps heartbeating is NOT broken", async () => {
@@ -1095,6 +1099,7 @@ const UNPROVABLE: readonly {
   { name: "an empty token", owner: { token: "" } },
   { name: "a non-positive pid", owner: { pid: 0 } },
   { name: "a non-integer pid", owner: { pid: 4.5 } },
+  { name: "an unsafe-integer pid", owner: { pid: 2 ** 60 } },
 ];
 
 for (const { name, owner } of UNPROVABLE) {
@@ -1276,7 +1281,7 @@ test("(c2) a process can exit while holding the lock (the heartbeat does not hol
   }
 }, 15_000);
 
-test("(d) a heartbeat never resurrects or clobbers a lock the holder no longer owns", async () => {
+test("(d) a heartbeat does not resurrect or clobber a lock the holder no longer owns (outside residual (3))", async () => {
   const commonDir = await tempCommonDir();
   const base = 1_700_000_000_000;
   const clock = { t: base };
@@ -1295,6 +1300,7 @@ test("(d) a heartbeat never resurrects or clobbers a lock the holder no longer o
     startedAt: base,
     updatedAt: base,
     token: "successor",
+    host: osHostname(),
   };
   try {
     const token = (JSON.parse(await readFile(lockPath, "utf8")) as SeededOwner)

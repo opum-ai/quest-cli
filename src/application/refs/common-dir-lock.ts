@@ -114,8 +114,12 @@ import { setTimeout as delay } from "node:timers/promises";
  * change has neither: a reader falls back to `startedAt` for the stamp and, for
  * the missing host, to branch 4 above (a record with no `host` is UNREADABLE and
  * takes the `pidGoneFloorMs` bound, as in lore). No released quest wrote this
- * lock before this change, so that window is theoretical. An OLDER reader ignores the extra keys and
- * keeps using `startedAt`, so both directions parse. The consequence of running
+ * lock before this change, so that window is theoretical. The same parser reads
+ * the `.break` file, whose body is `{pid, startedAt, token, host}` (no
+ * `updatedAt`, which is why `updatedAt` must stay optional): a hostless `.break`
+ * is unreadable too, so one with a dead pid is kept until `staleAfterMs` rather
+ * than cleared at `breakStaleAfterMs`, as lore keeps its own. An OLDER reader
+ * ignores the extra keys and keeps using `startedAt`, so both directions parse. The consequence of running
  * two CLI versions against one common directory: an old waiter still ages a new
  * holder from `startedAt` and can break it at `staleAfterMs` of run time, and an
  * old-format holder (no `host`, unreadable to a new waiter) is broken once its
@@ -202,12 +206,11 @@ export interface CommonDirLockOwner {
    */
   readonly updatedAt?: number;
   /**
-   * `os.hostname()` of the holder (DEC-282 (a16)). Optional on read: a record
-   * written before this field existed has none, and is then UNREADABLE (it takes the
-   * `pidGoneFloorMs` bound), as in lore. Written at acquire and preserved by
-   * heartbeat rewrites.
+   * `os.hostname()` of the holder (DEC-282 (a16)). REQUIRED to parse: a body
+   * with no string `host` is UNREADABLE (it takes the `pidGoneFloorMs` bound), as
+   * in lore. Written at acquire and preserved by heartbeat rewrites.
    */
-  readonly host?: string;
+  readonly host: string;
 }
 
 export interface CommonDirLockOptions {
@@ -242,7 +245,8 @@ export interface CommonDirLockOptions {
    * Identity written to the lock record and compared when judging a holder's
    * liveness (DEC-282 (a16)). Defaults to `os.hostname()`; injected for
    * deterministic tests. A holder whose `host` equals this one is probed by
-   * pid here; a different host (or a record with no host) cannot be confirmed.
+   * pid here; a different host cannot be confirmed here. (A record with no
+   * `host` does not parse at all: it is unreadable and takes the floor.)
    */
   readonly host?: string;
   /**
@@ -807,11 +811,10 @@ function isSnapshotStale(
   // 4b: readable but unable to PROVE a same-host identity (different or empty
   // host, empty token, non-positive or non-integer pid) -> staleAfterMs.
   const provesSameHost =
-    owner.host !== undefined &&
     owner.host !== "" &&
     owner.host === opts.host &&
     owner.token !== "" &&
-    Number.isInteger(owner.pid) &&
+    Number.isSafeInteger(owner.pid) &&
     owner.pid > 0;
   if (!provesSameHost) return silence > opts.staleAfterMs;
   // 1 and 2: a same-host LIVE pid is never stale; a dead one waits the floor.
