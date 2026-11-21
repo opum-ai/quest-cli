@@ -49,18 +49,22 @@ export function currentBuildIdentity(): Promise<string> {
   return cached;
 }
 
+/** A module directory that is a RECOGNISED compiled-binary virtual root:
+ *  `/$bunfs/root` (POSIX) or `B:\~BUN\root` (Windows). Anchored at the start,
+ *  so an unrelated directory that merely contains the text does not qualify. */
+export function isCompiledRoot(moduleDirectory: string): boolean {
+  return (
+    /^\/\$bunfs(\/|$)/u.test(moduleDirectory) ||
+    /^[A-Za-z]:\\~BUN(\\|$)/u.test(moduleDirectory)
+  );
+}
+
 /**
  * The `src/` root of a SOURCE run, or null when this is not one (a compiled
  * binary, whose modules live under a `$bunfs` virtual root, or any layout that
  * is not `<root>/src/<dir>/<file>` with `<root>/src/cli/main.ts` present).
  * `moduleDirectory` is this module's directory (`src/application/refs`).
  */
-/** A module directory that is a RECOGNISED compiled-binary virtual root:
- *  `/$bunfs/root` (POSIX) or `B:\~BUN\root` (Windows). */
-export function isCompiledRoot(moduleDirectory: string): boolean {
-  return moduleDirectory.includes("$bunfs") || moduleDirectory.includes("~BUN");
-}
-
 export function resolveSourceRoot(moduleDirectory: string): string | null {
   if (isCompiledRoot(moduleDirectory)) return null;
   const root = resolve(moduleDirectory, "..", "..");

@@ -631,10 +631,11 @@ test.skipIf(IS_ROOT)(
 /**
  * Holder and waiter are two REAL processes. A test-held lock keeps both inside
  * `acquire` until each has begun waiting, so whichever wins the lock computes
- * and the other replays the record it wrote: its `coverage.discoveredAt` is the
- * holder's instant, so an equal stdout proves a replay, not a recompute.
- */
-/**
+ * and the other replays the record it wrote. In JSON mode the waiter's
+ * `coverage.discoveredAt` is the holder's instant, so an equal stdout proves a
+ * replay, not a recompute; human output has no timestamp, so the human row only
+ * shows the two renderings agree.
+ *
  * The lock exposes no evidence that a waiter has reached `acquire`, so the
  * barrier is a hold time, escalated on failure instead of guessed once: a replay
  * needs both CLIs waiting before the lock opens, and a cold spawn that was slower

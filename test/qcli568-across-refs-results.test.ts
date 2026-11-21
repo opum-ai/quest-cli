@@ -749,10 +749,18 @@ test("a source-run identity covers src bytes, and a partial read can never share
   }
   // ANYTHING ELSE (an unpacked layout) is unrecognised: a nonce, so two calls
   // differ. (The old two-way logic hashed the runtime alone and shared one.)
-  const unknown = { ...inputs, moduleDirectory: "/opt/dist/application/refs" };
-  expect(await computeBuildIdentity(unknown)).not.toBe(
-    await computeBuildIdentity(unknown),
-  );
+  // The recognised roots are ANCHORED: a directory that merely contains the
+  // text is unrecognised too (red under a substring match).
+  for (const other of [
+    "/opt/dist/application/refs",
+    "/opt/~BUNdle/application/refs",
+    "/opt/$bunfs-copy/application/refs",
+  ]) {
+    const unknown = { ...inputs, moduleDirectory: other };
+    expect(await computeBuildIdentity(unknown)).not.toBe(
+      await computeBuildIdentity(unknown),
+    );
+  }
 
   // An unreadable runtime folds in a per-process nonce: it matches nothing.
   const missing = { ...inputs, execPath: join(checkout, "absent") };
