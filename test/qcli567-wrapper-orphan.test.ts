@@ -32,6 +32,15 @@ function alive(pid: number): boolean {
   }
 }
 
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await readFile(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function waitFor<T>(
   what: string,
   probe: () => Promise<T | undefined> | T | undefined,
@@ -244,8 +253,6 @@ test.skipIf(process.platform === "win32")(
   },
 );
 
-// A missing `script` skips this test locally, but FAILS it under CI: a silent
-// skip there would leave the on-terminal placement unproven.
 const hasScript = Bun.which("script") !== null;
 
 /** Run `shellCommand` (a /bin/sh command line) with every fd on a pty, under
@@ -318,6 +325,48 @@ ptyTest(
   },
 );
 
+// Each clause of the own-group predicate needs its own witness, or dropping one
+// leaves every pty test green because another fd is still a terminal. Here
+// stdin is a pipe and stdout is /dev/null, so ONLY stderr is a terminal: this
+// goes red if `&& !isatty(2)` is dropped.
+ptyTest(
+  "with stdin piped and stdout on /dev/null but stderr on a terminal the child stays in the wrapper's group",
+  async () => {
+    const root = await rig(PGIDS);
+    try {
+      const [child, wrapperGroup] = await pgidsUnderPty(
+        root,
+        `: | node ${join(root, "bin", "quest.cjs")} >/dev/null`,
+      );
+      expect(Number.isInteger(child)).toBe(true);
+      expect(Number.isInteger(wrapperGroup)).toBe(true);
+      expect(child).toBe(wrapperGroup);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+// Mirror of the previous test: here stdin is a pipe and stderr is /dev/null, so
+// ONLY stdout is a terminal: this goes red if `&& !isatty(1)` is dropped.
+ptyTest(
+  "with stdin piped and stderr on /dev/null but stdout on a terminal the child stays in the wrapper's group",
+  async () => {
+    const root = await rig(PGIDS);
+    try {
+      const [child, wrapperGroup] = await pgidsUnderPty(
+        root,
+        `: | node ${join(root, "bin", "quest.cjs")} 2>/dev/null`,
+      );
+      expect(Number.isInteger(child)).toBe(true);
+      expect(Number.isInteger(wrapperGroup)).toBe(true);
+      expect(child).toBe(wrapperGroup);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
 test.skipIf(process.platform === "win32")(
   "a child that dies by a signal still has its group swept before the wrapper re-raises",
   async () => {
@@ -379,13 +428,48 @@ for (const name of ["PIPE", "USR1"] as const) {
     async () => {
       const root = await rig(`kill -${name} $$\nsleep 5`);
       try {
-        const { exited, stderr } = runCapturing(root);
+        // F4 witness (QCLI-572 / #750 finding 2). A re-raise of SIGUSR1 does
+        // not kill the wrapper, so the exit status and signal below cannot
+        // distinguish it: the status stays 128+n and the signal stays null.
+        // The inspector also prints asynchronously, so its absence from stderr
+        // is not reliable evidence either. A --require preload wraps
+        // process.kill instead: it records any attempt to kill OUR OWN pid with
+        // SIGUSR1 to a marker file and swallows it, so the witness is
+        // deterministic and the inspector never runs. The armed marker proves
+        // the instrument loaded; the self-kill marker must be ABSENT, because
+        // the wrapper never re-raises SIGUSR1 to itself.
+        const armed = join(root, "preload-armed.marker");
+        const selfKill = join(root, "selfkill-usr1.marker");
+        const preload = join(root, "kill-witness.cjs");
+        await writeFile(
+          preload,
+          `"use strict";
+const fs = require("node:fs");
+const realKill = process.kill.bind(process);
+const armed = ${JSON.stringify(armed)};
+const selfKill = ${JSON.stringify(selfKill)};
+fs.writeFileSync(armed, String(process.pid));
+process.kill = function (pid, signal) {
+  if (pid === process.pid && signal === "SIGUSR1") {
+    fs.writeFileSync(selfKill, String(signal));
+    return true;
+  }
+  return realKill(pid, signal);
+};
+`,
+        );
+        const { exited, stderr } = runCapturing(root, ["--require", preload]);
         const result = await exited;
         expect(result.signal).toBeNull();
         expect(result.code).toBe(expected);
-        // A self-kill with SIGUSR1 starts Node's inspector on
-        // 127.0.0.1:9229. Check every trace of it, so a bound port or a slow
-        // inspector cannot keep a mutant green.
+        // Positive control: the preload loaded and wrapped process.kill.
+        expect(await fileExists(armed)).toBe(true);
+        if (name === "USR1") {
+          // The deterministic proof: no self-kill was attempted.
+          expect(await fileExists(selfKill)).toBe(false);
+        }
+        // Secondary only (see the note above): a re-raise that somehow printed
+        // before the wrapper exited would still be caught here.
         expect(stderr()).not.toContain("Debugger listening");
         expect(stderr()).not.toMatch(/inspector/i);
         expect(stderr()).not.toContain("9229");
