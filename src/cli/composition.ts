@@ -260,9 +260,10 @@ export async function resolveCanonicalCommonDir(
  * default sink, and a failed cache stays silent.
  *
  * QCLI-568 Q568-INT B item 3: notes are guarded PER SOURCE. The lock may report
- * one broken-mechanism or expiry line; the cache may report one failure; and
- * the cache's line is SUPPRESSED only when the lock failed for the SAME CAUSE
- * (a broken common directory breaks both, and one cause deserves one line).
+ * one broken-mechanism or expiry line; the cache may report one failure; the
+ * result-record store may report one more; and the cache's line is SUPPRESSED
+ * only when the lock failed for the SAME CAUSE (a broken common directory
+ * breaks both, and one cause deserves one line).
  * A lock EXPIRY is a different cause, so an expiry followed by an unrelated
  * cache failure reports BOTH lines.
  */
@@ -288,10 +289,13 @@ export function createAcrossRefsService(
   const canonicalDirectory = (repositoryPath: string) =>
     resolveCanonicalCommonDir(repositoryPath, workspace);
 
-  // One guard PER SOURCE (item 3). Neither drops a different cause reported by
-  // the other: the lock's expiry note and a cache ENOSPC are two facts.
+  // One guard PER SOURCE (item 3): the lock, the read cache and the
+  // result-record store each get their own, so none drops a different cause
+  // reported by another (a cache EACCES and a result store ENOTDIR are two
+  // facts, Opus round 2 on #777).
   let lockNoted = false;
   let cacheNoted = false;
+  let recordNoted = false;
   // Set once the lock wrapper exists, and read only while a view is running.
   let locked: AcrossRefsLockedService | undefined;
   const lockSink =
@@ -308,6 +312,14 @@ export function createAcrossRefsService(
       : (line: string) => {
           if (cacheNoted) return;
           cacheNoted = true;
+          onNote(line);
+        };
+  const recordSink =
+    onNote === undefined
+      ? undefined
+      : (line: string) => {
+          if (recordNoted) return;
+          recordNoted = true;
           onNote(line);
         };
   // Suppress a cache note only for the lock's own broken-mechanism CAUSE. An
@@ -331,7 +343,7 @@ export function createAcrossRefsService(
     ...(lockSink === undefined ? {} : { writeNote: lockSink }),
     ...(cacheSink === undefined
       ? {}
-      : { onRecordFailure: cacheSink, onReplayNote: cacheSink }),
+      : { onRecordFailure: recordSink, onReplayNote: cacheSink }),
     ...(options.results === undefined
       ? {}
       : { resultsFor: () => options.results ?? null }),

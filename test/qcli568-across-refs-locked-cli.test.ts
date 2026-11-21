@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readdir,
@@ -20,6 +21,7 @@ import { LocalWorkspacePort } from "../src/adapters/workspaces/local-workspaces.
 import { LocalGitPort } from "../src/adapters/git/local-git.ts";
 import { AcrossRefsViewService } from "../src/application/refs/across-refs.ts";
 import {
+  acquireCommonDirLock,
   CommonDirLockTimeoutError,
   DEFAULT_STALE_AFTER_MS,
   resolveCommonDirLockPath,
@@ -514,3 +516,174 @@ test("a lock expiry plus a cache failure gives TWO note lines (QCLI-568 B item 3
     await cleanup();
   }
 }, 120_000);
+
+/**
+ * QCLI-568 Q568-INT B, Opus round 2 on #777: three rows on the note guards.
+ *
+ * Each needs a cache failure whose errno CODE coincides with the lock's, in a
+ * DIFFERENT directory, which is only reachable as a non-root user (a mode-000
+ * directory), so they skip as root.
+ */
+const IS_ROOT = process.getuid?.() === 0;
+
+async function lockedDirectory(path: string): Promise<void> {
+  await mkdir(path, { recursive: true });
+  await chmod(path, 0o000);
+}
+
+function eaccesError(path: string): Error {
+  return Object.assign(new Error(`EACCES: permission denied, open '${path}'`), {
+    code: "EACCES",
+    path,
+  });
+}
+
+test.skipIf(IS_ROOT)(
+  "a broken-mechanism lock plus a DIFFERENT-cause cache failure gives TWO lines (QCLI-568 B item 3)",
+  async () => {
+    const { root, cleanup } = await fixture();
+    const port = new LocalWorkspacePort();
+    const canonical = await resolveCanonicalCommonDir(root, port);
+    const cacheDir = join(canonical, "quest", "across-refs-cache");
+    try {
+      // The lock's own failure: EACCES on the lock's `.break`, in `quest/`.
+      // The cache's failure: EACCES too, but inside its OWN mode-000 directory.
+      // Same code, different directory: a CATEGORY in common, not a cause.
+      await lockedDirectory(cacheDir);
+      const notes: string[] = [];
+      const service = createAcrossRefsService((line) => notes.push(line), {
+        lock: {
+          acquire: async (commonDir) => {
+            throw eaccesError(`${resolveCommonDirLockPath(commonDir)}.break`);
+          },
+        },
+      });
+      const outcome = await service.view({
+        repositoryPath: root,
+        refs: ["HEAD"],
+        allowPartial: false,
+      });
+
+      expect(outcome.kind).toBe("view");
+      const lines = notes
+        .join("")
+        .split("\n")
+        .filter((line) => line.length > 0);
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toMatch(/^note: .*ran unlocked/u);
+      expect(lines[1]).toMatch(
+        /^note: the across-refs read cache is unavailable/u,
+      );
+    } finally {
+      await chmod(cacheDir, 0o755).catch(() => undefined);
+      await cleanup();
+    }
+  },
+  120_000,
+);
+
+test.skipIf(IS_ROOT)(
+  "a cache failure and a result-record failure of DIFFERENT causes give TWO lines (QCLI-568 B item 3)",
+  async () => {
+    const { root, cleanup } = await fixture();
+    const port = new LocalWorkspacePort();
+    const canonical = await resolveCanonicalCommonDir(root, port);
+    const cacheDir = join(canonical, "quest", "across-refs-cache");
+    try {
+      // Cache: EACCES. Result store: its directory name is a regular FILE, so
+      // the record write is ENOTDIR. The record store has its OWN guard, so the
+      // cache's earlier line must not swallow it.
+      await lockedDirectory(cacheDir);
+      await writeFile(
+        join(canonical, "quest", "across-refs-results"),
+        "not a directory\n",
+        "utf8",
+      );
+      const notes: string[] = [];
+      const service = createAcrossRefsService((line) => notes.push(line));
+      const outcome = await service.view({
+        repositoryPath: root,
+        refs: ["HEAD"],
+        allowPartial: false,
+      });
+
+      expect(outcome.kind).toBe("view");
+      // The sink receives each note as one call; count calls, not newlines.
+      expect(notes).toHaveLength(2);
+      expect(
+        notes.some((line) =>
+          /^note: the across-refs read cache is unavailable/u.test(line),
+        ),
+      ).toBe(true);
+      expect(
+        notes.some((line) =>
+          /^note: the across-refs result record is unavailable/u.test(line),
+        ),
+      ).toBe(true);
+    } finally {
+      await chmod(cacheDir, 0o755).catch(() => undefined);
+      await cleanup();
+    }
+  },
+  120_000,
+);
+
+/**
+ * Holder and waiter are two REAL processes. A test-held lock keeps both inside
+ * `acquire` until each has begun waiting, so whichever wins the lock computes
+ * and the other replays the record it wrote: its `coverage.discoveredAt` is the
+ * holder's instant, so an equal stdout proves a replay, not a recompute.
+ */
+for (const mode of ["json", "human"] as const) {
+  test(`two processes: the replaying waiter's stdout and stderr equal the holder's byte for byte (${mode})`, async () => {
+    const { root, linked, cleanup } = await fixture();
+    try {
+      const port = new LocalWorkspacePort();
+      const canonical = await resolveCanonicalCommonDir(root, port);
+      // A cache note, so STDERR is non-empty and its replay is compared too.
+      await mkdir(join(canonical, "quest"), { recursive: true });
+      await writeFile(
+        join(canonical, "quest", "across-refs-cache"),
+        "not a directory\n",
+        "utf8",
+      );
+      const args = [
+        "task",
+        "list",
+        "--across-refs",
+        "--ref",
+        "HEAD",
+        ...(mode === "json" ? ["--json"] : []),
+      ];
+      const spawn = (cwd: string) =>
+        Bun.spawn([process.execPath, MAIN, ...args], {
+          cwd,
+          env: { ...process.env },
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+      const collect = async (child: ReturnType<typeof spawn>) => ({
+        exitCode: await child.exited,
+        stdout: await new Response(child.stdout).text(),
+        stderr: await new Response(child.stderr).text(),
+      });
+
+      const held = await acquireCommonDirLock(canonical, { pollMs: 20 });
+      const first = spawn(root);
+      const second = spawn(linked);
+      // Both CLIs must be waiting, not merely spawned, before the lock opens.
+      await Bun.sleep(2_500);
+      await held.release();
+      const [a, b] = await Promise.all([collect(first), collect(second)]);
+
+      expect(a.exitCode).toBe(0);
+      expect(b.exitCode).toBe(0);
+      expect(a.stdout.length).toBeGreaterThan(0);
+      expect(a.stderr).toMatch(/across-refs read cache is unavailable/u);
+      expect(b.stdout).toBe(a.stdout);
+      expect(b.stderr).toBe(a.stderr);
+    } finally {
+      await cleanup();
+    }
+  }, 120_000);
+}

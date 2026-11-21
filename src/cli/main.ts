@@ -528,7 +528,7 @@ async function acrossRefsListing(
     return finish(
       failure("drift", message, {
         input: { coverage },
-        hint: "No ref, tracker record or working-tree file was written; only the across-refs read cache under <git-common-dir>/quest/across-refs-cache/ may have been. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
+        hint: "No ref, tracker record or working-tree file was written; only the across-refs read cache under <git-common-dir>/quest/across-refs-cache/ and the whole-result records under <git-common-dir>/quest/across-refs-results/ may have been. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
       }),
     );
   }

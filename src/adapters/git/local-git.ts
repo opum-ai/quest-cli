@@ -106,6 +106,11 @@ function isPrefix(prefix: string, path: string): boolean {
  *
  * Empty lines are the trailing newline and are ignored; only a row that carries
  * content and cannot be parsed is a failure.
+ *
+ * The object name must be 40 hex digits (SHA-1). A SHA-256 object-format
+ * repository (64 hex) therefore reports every listing as unparseable: that is
+ * loud and the ref reads as unreadable, which is deliberate -- the old
+ * behaviour silently shortened or skipped such rows.
  */
 export function parseBlobListing(
   output: string,

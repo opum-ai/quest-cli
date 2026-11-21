@@ -259,8 +259,10 @@ function setLike(
  * The normalised REQUEST FINGERPRINT a whole-result record is filed under
  * (QCLI-568 Q568-INT B). Every input whose value can change the answer is in
  * it: the explicit refs and pull requests IN ORDER (order is output), the
- * filters (set-like ones normalised, scalar ones folded case-insensitively
- * where the filter folds them), `allowPartial`, and `includeArchived`.
+ * filters (set-like ones sorted and de-duplicated; scalar ones kept VERBATIM,
+ * not case-folded, so two spellings that the filter treats alike merely miss
+ * each other, which only costs a recompute), `allowPartial`, and
+ * `includeArchived`.
  *
  * `repositoryPath` is deliberately ABSENT. A record lives under one clone's
  * git common directory, which is exactly the scope over which the path can

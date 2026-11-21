@@ -326,6 +326,37 @@ test("a ref sha that moved after the record was made is not replayed", async () 
   await rm(fixture.root, { recursive: true, force: true });
 }, 120_000);
 
+// ---- (c2) the BUILD is an input: a different build misses and recomputes ----
+
+test("a record written by a DIFFERENT build is not replayed (Q568-INT B, Opus round 2)", async () => {
+  const fixture = await createFixture();
+  const counting = new CountingView(viewFor());
+  // Fixed clock: the record always looks "finished while we waited", and the
+  // plan identity is unchanged, so the ONLY discriminator is the build id.
+  const clock = 3_000_000;
+  const serviceFor = (build: string) =>
+    new AcrossRefsLockedService(counting, async () => fixture.commonDir, {
+      pollMs: 2,
+      now: () => clock,
+      writeNote: () => undefined,
+      buildId: async () => build,
+    });
+  const req = request(fixture, ["refs/heads/dev"]);
+
+  await serviceFor("build-a").view(req);
+  expect(counting.executeCount).toBe(1);
+
+  // Another build, same request, same refs: it must recompute (mutant removing
+  // the `recorded.buildId === buildId` clause replays and stays at 1).
+  await serviceFor("build-b").view(req);
+  expect(counting.executeCount).toBe(2);
+
+  // CONTROL: the same build now replays the record build-b just wrote.
+  await serviceFor("build-b").view(req);
+  expect(counting.executeCount).toBe(2);
+  await rm(fixture.root, { recursive: true, force: true });
+}, 120_000);
+
 // ---- (d) a record older than the waiter's wait start is not replayed ----
 
 test("a record finished BEFORE this run started waiting is not replayed", async () => {
@@ -585,6 +616,7 @@ function sampleRecord(finishedAt: number): AcrossRefsResultRecord {
     },
     notes: [],
     holderToken: "token",
+    buildId: "build-a",
   };
 }
 
@@ -632,4 +664,21 @@ test("the results store writes atomically and only under a strict key", async ()
   expect((await store.read(key))?.finishedAt).toBe(7);
   await writeFile(join(directory, `${key}.json`), "{}", "utf8");
   expect(await store.read(key)).toBeNull();
+});
+
+test("the build identity is the version plus a stable digest of the running code (Q568-INT B)", async () => {
+  const { computeBuildIdentity, currentBuildIdentity } = await import(
+    "../src/application/refs/build-identity.ts"
+  );
+  const { QUEST_VERSION } = await import("../src/application/version.ts");
+  const first = await computeBuildIdentity();
+  expect(first).toMatch(
+    new RegExp(
+      `^${QUEST_VERSION.replace(/[.+]/gu, "\\$&")}\\+sha256:[0-9a-f]{64}$`,
+      "u",
+    ),
+  );
+  // Stable within a process, and memoised for the hot path.
+  expect(await computeBuildIdentity()).toBe(first);
+  expect(await currentBuildIdentity()).toBe(first);
 });

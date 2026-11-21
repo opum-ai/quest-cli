@@ -13,6 +13,7 @@ import {
   type AcrossRefsResultsPort,
   resultsFailureNote,
 } from "./across-refs-results.ts";
+import { currentBuildIdentity } from "./build-identity.ts";
 import {
   acquireCommonDirLock,
   type CommonDirLockHandle,
@@ -167,6 +168,10 @@ export interface AcrossRefsLockedOptions {
    * null disables recording for that run (the read still streams normally).
    */
   readonly resultsFor?: (commonDir: string) => AcrossRefsResultsPort | null;
+  /** The running build's identity (its version plus a digest of its code). A
+   *  record is replayed only by the build that wrote it. Defaults to
+   *  {@link currentBuildIdentity}; injectable so a test can play two builds. */
+  readonly buildId?: () => Promise<string>;
   /** Epoch-millisecond clock for the wait start and a record's `finishedAt`.
    *  Defaults to `Date.now`; injectable so a test can decide, without sleeping,
    *  whether a record finished while a waiter was waiting. */
@@ -190,6 +195,7 @@ export class AcrossRefsLockedService implements AcrossRefsView {
     commonDir: string,
   ) => AcrossRefsResultsPort | null;
   private readonly clock: () => number;
+  private readonly buildId: () => Promise<string>;
   private readonly onRecordFailure: (line: string) => void;
   private readonly onReplayNote: (line: string) => void;
   private swallowedLockError: unknown = null;
@@ -219,6 +225,7 @@ export class AcrossRefsLockedService implements AcrossRefsView {
       options.resultsFor ??
       ((commonDir) => AcrossRefsResults.underCommonDirectory(commonDir));
     this.clock = options.now ?? (() => Date.now());
+    this.buildId = options.buildId ?? currentBuildIdentity;
     this.onRecordFailure = options.onRecordFailure ?? this.writeNote;
     this.onReplayNote = options.onReplayNote ?? this.writeNote;
     this.onTimeout =
@@ -354,10 +361,12 @@ If that is not a running quest process, remove the lock file ${error.lockPath}
 
     const fingerprint = acrossRefsRequestFingerprint(request);
     const identity = acrossRefsPlanIdentity(planResult);
+    const buildId = await this.buildId();
     const recorded = await results.read(fingerprint);
     if (
       recorded !== null &&
       recorded.planIdentity === identity &&
+      recorded.buildId === buildId &&
       recorded.finishedAt >= waitStartedAt
     ) {
       // Keep it alive across this replay's prune, so a THIRD matching waiter
@@ -379,6 +388,7 @@ If that is not a running quest process, remove the lock file ${error.lockPath}
         outcome,
         notes: this.inner.takeNotes?.() ?? [],
         holderToken: randomUUID(),
+        buildId,
       });
       if (cause !== null) this.reportRecordFailure(resultsFailureNote(cause));
       await results.prune(new Set([fingerprint]));

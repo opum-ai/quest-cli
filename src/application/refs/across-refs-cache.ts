@@ -1,3 +1,4 @@
+import { lstatSync } from "node:fs";
 import {
   mkdir,
   readdir,
@@ -8,7 +9,7 @@ import {
   utimes,
   writeFile,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import type { GitPort } from "../../ports/git.ts";
 import { CONTINUITY_TASK_LOCATIONS } from "../checks/continuity.ts";
@@ -189,22 +190,74 @@ export function cacheFailureCause(error: unknown): string {
  *
  * The lock and the read cache both reach `<git-common-dir>/quest`, and when
  * that entry is a regular file both fail with `ENOTDIR` -- but each error names
- * its OWN path, so the message text differs and only the errno code is shared.
- * Comparing codes first, and the first message line second, is therefore what
- * "the same cause" means here. It NEVER equates two errors that merely share a
- * category: an ENOSPC cache write beside an expired lock has no code on the
- * lock side, so the signatures differ and both notes appear.
+ * its OWN path, so the message text differs. "The same cause" is therefore the
+ * errno CODE plus WHERE it failed: the failing path's parent directory, or for
+ * ENOTDIR the nearest ancestor that is not a directory (the real culprit, which
+ * the leaf path being opened does not name). A broken `quest` entry therefore
+ * reads as one cause for the lock and the cache. A code alone is a CATEGORY, not
+ * a cause (Opus round 2 on #777): EACCES on the lock's `.break` and EACCES on a
+ * separately-permissioned cache file in a DIFFERENT directory share only the
+ * category, so their signatures differ and both notes appear.
+ *
+ * When no failing path can be recovered (a value with no `path` and no quoted
+ * path in its message) the signature falls back to the code alone, or to the
+ * first message line, and so equates fewer causes than it could -- the safe
+ * direction: it can only report MORE notes, never hide a different cause.
  *
  * Accepts either a thrown value or an already-formatted cause string (the
  * shape the cache's note sink receives).
  */
 export function failureSignature(value: unknown): string {
-  const code = (value as { code?: unknown } | null)?.code;
-  if (typeof code === "string" && code !== "") return `code:${code}`;
-  const text = typeof value === "string" ? value : cacheFailureCause(value);
-  const head = text.split("\n")[0]?.trim() ?? "";
+  const head = failureHead(value);
+  const thrownCode = (value as { code?: unknown } | null)?.code;
   const coded = /^([A-Z][A-Z0-9_]+):/u.exec(head);
-  return coded === null ? `message:${head}` : `code:${coded[1]}`;
+  const code =
+    typeof thrownCode === "string" && thrownCode !== ""
+      ? thrownCode
+      : (coded?.[1] ?? null);
+  const failingPath = failingPathOf(value, head);
+  if (code === null) return `message:${head}`;
+  if (failingPath === null) return `code:${code}`;
+  // ENOTDIR names the leaf that was being opened, but the cause is an ANCESTOR
+  // that is not a directory; two reporters that hit the same broken ancestor
+  // must compare equal, so name that ancestor when it can be found.
+  if (code === "ENOTDIR") {
+    const culprit = nonDirectoryAncestor(failingPath);
+    if (culprit !== null) return `code:${code}@${culprit}`;
+  }
+  return `code:${code}@${dirname(failingPath)}`;
+}
+
+/** The nearest ancestor of `path` that exists and is NOT a directory, or null
+ *  when none can be found (the walk is best-effort and only runs when a note is
+ *  about to be written). */
+function nonDirectoryAncestor(path: string): string | null {
+  let current = dirname(path);
+  for (let depth = 0; depth < 64; depth += 1) {
+    try {
+      if (!lstatSync(current).isDirectory()) return current;
+    } catch {
+      // ENOENT/ENOTDIR here: keep walking up.
+    }
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+  return null;
+}
+
+function failureHead(value: unknown): string {
+  const text = typeof value === "string" ? value : cacheFailureCause(value);
+  return text.split("\n")[0]?.trim() ?? "";
+}
+
+/** The path a filesystem error names: its `path` property, else the first
+ *  single-quoted absolute path in the message (`mkdir '/x/y'`). */
+function failingPathOf(value: unknown, head: string): string | null {
+  const own = (value as { path?: unknown } | null)?.path;
+  if (typeof own === "string" && own !== "") return own;
+  const quoted = /'((?:\/|[A-Za-z]:[\\/])[^']*)'/u.exec(head);
+  return quoted?.[1] ?? null;
 }
 
 function isMissing(error: unknown): boolean {

@@ -76,6 +76,10 @@ export interface AcrossRefsResultRecord {
   /** The recording run's own token, for diagnostics and for a reader that wants
    *  to say which run produced a record. */
   readonly holderToken: string;
+  /** The identity of the build that wrote the record (version plus a digest of
+   *  its code). A reader of a DIFFERENT build misses and recomputes: the build
+   *  is an input to the answer (Q568-INT B, Opus round 2). */
+  readonly buildId: string;
 }
 
 export interface AcrossRefsResultsPort {
@@ -96,7 +100,7 @@ export interface AcrossRefsResultsPort {
 }
 
 /** Bumped when the on-disk record shape changes. */
-export const RESULTS_VERSION = 1;
+export const RESULTS_VERSION = 2;
 
 /** How many records a prune keeps (plus any key the current run used). */
 export const DEFAULT_MAX_RESULTS = 16;
@@ -132,6 +136,7 @@ interface ResultDocument {
   readonly planIdentity: string;
   readonly finishedAt: number;
   readonly holderToken: string;
+  readonly buildId: string;
   readonly notes: readonly string[];
   readonly outcome: AcrossRefsViewOutcome;
 }
@@ -150,6 +155,7 @@ function parseRecord(
       typeof document.finishedAt !== "number" ||
       !Number.isFinite(document.finishedAt) ||
       typeof document.holderToken !== "string" ||
+      typeof document.buildId !== "string" ||
       !Array.isArray(document.notes) ||
       !document.notes.every((note) => typeof note === "string")
     )
@@ -178,6 +184,7 @@ function parseRecord(
       outcome: outcome as AcrossRefsViewOutcome,
       notes: [...document.notes],
       holderToken: document.holderToken,
+      buildId: document.buildId,
     };
   } catch {
     return null;
@@ -242,6 +249,7 @@ export class AcrossRefsResults implements AcrossRefsResultsPort {
       planIdentity: record.planIdentity,
       finishedAt: record.finishedAt,
       holderToken: record.holderToken,
+      buildId: record.buildId,
       notes: [...record.notes],
       outcome: record.outcome,
     };
