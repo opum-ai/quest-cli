@@ -278,6 +278,11 @@ test("a pathological expiry proceeds unlocked by default with one stderr line", 
   expect(outcome).toBe(OUTCOME);
   expect(runs).toBe(1);
   expect(notes).toHaveLength(1);
+  // The note is authored across lines for readability; exactly one line must
+  // reach the sink (R6 -- removing oneLine from the note path reds this).
+  expect(notes[0]?.split("\n").filter((part) => part.length > 0)).toHaveLength(
+    1,
+  );
   expect(notes[0]).toMatch(/^note: /u);
   expect(notes[0]).toContain("ran unlocked");
   expect(notes[0]).toContain("timed out");

@@ -30,6 +30,14 @@ import {
  * result the previous holder wrote. That handshake needs QCLI-563's cache and
  * joins later; this wrapper does not re-read anything after acquiring.
  *
+ * READ-ONLY IS NOT "CREATES NOTHING". The view may create
+ * `<git-common-dir>/quest/` and a transient lock file there while it runs.
+ * That is a directory and a file beside the repository's GIT metadata, never a
+ * tracker record; the lock file is removed on release, or recovered by the
+ * stale backstop. The one-line note on an unlocked path EMBEDS ABSOLUTE PATHS
+ * (the lock path, and any errno text from a broken mechanism), so a caller
+ * capturing stderr should treat it as machine-local, not a stable message.
+ *
  * THE LOCK IS ADVISORY, SO A READ-ONLY LISTING NEVER FAILS BECAUSE OF IT
  * (DEC-282 (a8), recorded under ODOC-610). Two unlocked paths exist, and
  * NEITHER IS SILENT (each writes exactly one line to stderr naming the cause
@@ -42,13 +50,16 @@ import {
  *     throws). There is no lock to wait on, so the run PROCEEDS UNLOCKED and
  *     records the swallowed error on {@link AcrossRefsLockedService.lastLockError}.
  *
- *  2. A PATHOLOGICAL EXPIRY -- the wait elapsed without acquiring while a
- *     holder is still live. This is unreachable against a normal holder: the
- *     wait is {@link DEFAULT_ACROSS_REFS_WAIT_TIMEOUT_MS}, derived from the
- *     lock's own `staleAfterMs` (10 min) PLUS a margin, so a holder has been
- *     released or broken as stale before any waiter gives up. The policy is a
- *     single named seam, {@link AcrossRefsLockedOptions.onTimeout}; its DEFAULT
- *     proceeds unlocked (a read-only listing never fails because of the lock).
+ *  2. A PATHOLOGICAL-BUT-REACHABLE EXPIRY -- the wait elapsed without acquiring
+ *     while holders are still live. It is NOT unreachable behind a normal
+ *     holder: waiters POLL and are not FIFO, and this wiring serialises without
+ *     waiter reuse, so a QUEUE of live holders can in principle outlast one
+ *     waiter's wait. The wait is bounded PER WAITER FROM ITS OWN START, not
+ *     against a single holder: it is {@link DEFAULT_ACROSS_REFS_WAIT_TIMEOUT_MS},
+ *     derived from the lock's own `staleAfterMs` (10 min) PLUS a margin. The
+ *     policy is a single named seam, {@link AcrossRefsLockedOptions.onTimeout};
+ *     its DEFAULT proceeds unlocked (a read-only listing never fails because of
+ *     the lock).
  */
 
 /** What a `--across-refs` read needs; satisfied by `AcrossRefsViewService`. */
@@ -67,8 +78,9 @@ export const ACROSS_REFS_WAIT_MARGIN_MS = 60_000;
 
 /**
  * The wiring's wait: `staleAfterMs + margin` (about 11 minutes with the
- * default 10-minute `staleAfterMs`). Expiry is therefore reachable only in a
- * pathological state, not behind a legitimately running holder (F5).
+ * default 10-minute `staleAfterMs`). It is bounded PER WAITER FROM ITS OWN
+ * START; a queue of live holders can in principle outlast it, so expiry is
+ * pathological but not unreachable (F5).
  */
 export const DEFAULT_ACROSS_REFS_WAIT_TIMEOUT_MS =
   DEFAULT_STALE_AFTER_MS + ACROSS_REFS_WAIT_MARGIN_MS;
@@ -140,10 +152,12 @@ export class AcrossRefsLockedService implements AcrossRefsView {
         // DEC-282 (a8): a read-only listing never fails because of the lock.
         // The lock is advisory; concurrent runs duplicate the ref read and
         // nothing else. Say so once on stderr so the wedge is not silent.
+        // Authored across lines for readability; `note()` collapses it to the
+        // single line the stderr contract requires (R6).
         this.note(
-          `note: task list --across-refs ran unlocked: timed out after ${Math.round(
-            error.waitedMs,
-          )}ms waiting for the common-directory lock at ${error.lockPath}.`,
+          `note: task list --across-refs ran unlocked:
+timed out after ${Math.round(error.waitedMs)}ms waiting for the
+common-directory lock at ${error.lockPath}.`,
         );
         return proceedUnlocked();
       });
@@ -161,6 +175,9 @@ export class AcrossRefsLockedService implements AcrossRefsView {
   }
 
   async view(request: AcrossRefsRequest): Promise<AcrossRefsOutcome> {
+    // R5: reset per invocation so a reused service never reports a previous
+    // run's swallowed error.
+    this.swallowedLockError = null;
     const proceedUnlocked = () => this.inner.view(request);
 
     let commonDir: string;
