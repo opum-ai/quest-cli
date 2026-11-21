@@ -154,6 +154,36 @@ export class LocalGitPort implements GitPort {
     ]);
   }
 
+  /** QCLI-563 (F10): many object probes in one `git cat-file --batch-check`.
+   *  `--batch-check` echoes each input line in order and answers either
+   *  `<oid> <type> <size>` or `<input> missing` (or `ambiguous`). `git()` trims
+   *  the whole stdout, so the split below is line-aligned with `specs`. An exit
+   *  failure or a short answer returns an EMPTY map, never a partial lie: the
+   *  caller falls back to per-spec probes. */
+  async batchCheck(
+    repositoryPath: string,
+    specs: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>> {
+    const answers = new Map<string, string | null>();
+    if (specs.length === 0) return answers;
+    const result = await git(repositoryPath, ["cat-file", "--batch-check"], {
+      stdin: `${specs.join("\n")}\n`,
+    });
+    if (result.code !== 0) return answers;
+    const lines = result.stdout.split("\n");
+    if (lines.length < specs.length) return answers;
+    for (const [index, spec] of specs.entries()) {
+      const line = lines[index] ?? "";
+      if (line.endsWith(" missing") || line.endsWith(" ambiguous")) {
+        answers.set(spec, null);
+        continue;
+      }
+      const oid = line.split(/\s+/u)[0] ?? "";
+      answers.set(spec, /^[0-9a-f]{40}$/u.test(oid) ? oid : null);
+    }
+    return answers;
+  }
+
   async readBlob(
     repositoryPath: string,
     revision: string,

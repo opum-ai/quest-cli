@@ -76,6 +76,18 @@ export interface GitPort {
     path: string,
   ): Promise<string>;
   /**
+   * QCLI-563 (F10): answers many object probes in ONE Git process
+   * (`git cat-file --batch-check`), for a caller that would otherwise spawn one
+   * `cat-file` per probe. Maps each spec to the object id it names, or to null
+   * where the object is missing. A spec the adapter could not answer at all is
+   * ABSENT from the map, so the caller falls back to the single-probe path
+   * rather than mistaking "not answered" for "not present".
+   */
+  batchCheck(
+    repositoryPath: string,
+    specs: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>>;
+  /**
    * QCLI-563: `<git-common-dir>` resolved to an absolute path, as
    * `git rev-parse --git-common-dir` reports it. Every worktree of one clone
    * shares this directory, which is why a cache placed under it is shared by

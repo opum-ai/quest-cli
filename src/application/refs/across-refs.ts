@@ -14,7 +14,8 @@ import type { RefDiscoveryPort } from "../../ports/ref-discovery.ts";
 import { CONTINUITY_TASK_LOCATIONS } from "../checks/continuity.ts";
 import {
   type AcrossRefsCachePort,
-  type AcrossRefsCachedRecord,
+  type AcrossRefsCachedFile,
+  type AcrossRefsCachedLocations,
   AcrossRefsCache,
   acrossRefsRefKey,
 } from "./across-refs-cache.ts";
@@ -43,13 +44,17 @@ import {
  * merge policy for tracker state is a much larger decision than this view, and
  * the caller is the one who can resolve it.
  *
- * THE VIEW NEVER WRITES. It reads blobs and trees at SHAs, may fetch missing
- * OBJECTS through a bare refspec with an explicit empty `--refmap=` (objects
- * and FETCH_HEAD only -- no ref, and no remote-tracking ref either; a bare
- * refspec alone still let Git's opportunistic update move
- * `refs/remotes/origin/dev`), and never touches the working tree: a record
- * that exists only uncommitted in a checkout is not in the view, which
- * `quest help task list --across-refs` says in as many words.
+ * THE VIEW WRITES NO REF, NO TRACKER RECORD AND NO WORKING-TREE FILE. It reads
+ * blobs and trees at SHAs, may fetch missing OBJECTS through a bare refspec with
+ * an explicit empty `--refmap=` (objects and FETCH_HEAD only -- no ref, and no
+ * remote-tracking ref either; a bare refspec alone still let Git's
+ * opportunistic update move `refs/remotes/origin/dev`), and never touches the
+ * working tree: a record that exists only uncommitted in a checkout is not in
+ * the view, which `quest help task list --across-refs` says in as many words.
+ * Since QCLI-563 it DOES write one thing: its read cache under
+ * `<git-common-dir>/quest/across-refs-cache/`, addressed by `.quest` tree hash,
+ * so an unchanged ref is not re-read. That cache never holds a ref, a record or
+ * a working-tree file, and no command reads it as authority.
  *
  * `refProvenance`, not `provenance`: lore's query hits already use the latter
  * name for a different shape, and the two CLIs ship the byte-identical inner
@@ -238,7 +243,10 @@ interface PlannedRef {
   readonly failure?: string;
 }
 
-interface RefRecord extends AcrossRefsCachedRecord {}
+interface RefRecord {
+  readonly task: TaskState;
+  readonly archived: boolean;
+}
 
 interface ReadRef {
   readonly provenance: AcrossRefsProvenance;
@@ -305,18 +313,88 @@ function labelFromUrl(url: string, number: number): string | null {
   return slug === undefined ? null : `${slug.replace(/\.git$/u, "")}#${number}`;
 }
 
+/**
+ * QCLI-563 (F4): turn RAW cached/read files into records, re-running every rule
+ * a fresh read applies -- the dot-file filter, `JSON.parse`, `taskState` and the
+ * duplicate-id check -- on every call. A cache entry is therefore never trusted
+ * as parsed state; it is only trusted as bytes that came from this tree.
+ *
+ * `missing` means a task location the raw material does not cover: the caller
+ * treats that as a cache MISS (never as an empty location), so a truncated
+ * document cannot make a ref look lighter than it is.
+ */
+type Materialized =
+  | { readonly kind: "records"; readonly records: readonly RefRecord[] }
+  | { readonly kind: "missing" }
+  | { readonly kind: "malformed"; readonly path: string }
+  | { readonly kind: "invalid"; readonly path: string }
+  | {
+      readonly kind: "duplicate";
+      readonly id: string;
+      readonly previous: string;
+      readonly path: string;
+    };
+
+function materialize(locations: AcrossRefsCachedLocations): Materialized {
+  const records: RefRecord[] = [];
+  const pathsById = new Map<string, string>();
+  for (const location of CONTINUITY_TASK_LOCATIONS) {
+    const files = locations[location];
+    if (files === undefined) return { kind: "missing" };
+    for (const file of files) {
+      // The same filter the repository reader applies (local-task-
+      // repository.ts): dot-prefixed files beside the records are operational
+      // metadata (a journal), never authored records. Re-run here so a cached
+      // or hand-edited document cannot smuggle one in.
+      const name = file.path.slice(file.path.lastIndexOf("/") + 1);
+      if (name.startsWith(".") || !name.endsWith(".json")) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(file.text);
+      } catch {
+        return { kind: "malformed", path: file.path };
+      }
+      let task: TaskState;
+      try {
+        task = taskState(parsed as TaskState);
+      } catch {
+        return { kind: "invalid", path: file.path };
+      }
+      // A duplicate id inside one ref is NOT resolved by keeping the first
+      // (QCLI-417 F4). Every other command fails closed on it, so the ref goes
+      // unreadable and names both paths.
+      const key = aliasKey(task.id);
+      const previous = pathsById.get(key);
+      if (previous !== undefined)
+        return { kind: "duplicate", id: task.id, previous, path: file.path };
+      pathsById.set(key, file.path);
+      records.push({ task, archived: location === "archive/tasks" });
+    }
+  }
+  return { kind: "records", records };
+}
+
+/**
+ * What one batch probe learned about a planned ref. `present` is whether the
+ * commit object is already local; `treeKey` is the cache key (a `.quest` tree
+ * hash or `root-<sha>`), or null when a present commit yielded no key. `null` is
+ * distinct from "no probe": a ref ABSENT from the probe map is probed the old
+ * way, per ref.
+ */
+interface RefProbe {
+  readonly present: boolean;
+  readonly treeKey: string | null;
+}
+
 export class AcrossRefsViewService {
   /**
-   * QCLI-563: records already parsed in THIS process, by `.quest` tree hash, so
-   * a tree shared by several refs is parsed once per run rather than once per
-   * ref. Keyed by the same content-addressed id as the on-disk cache, so the
-   * in-memory copy cannot serve a changed tree either -- a changed tree has a
-   * different key.
+   * QCLI-563: raw material already read in THIS process, by cache key, so a tree
+   * shared by several refs is read from disk once per run rather than once per
+   * ref. It stores RAW files, not parsed records: the filter, `JSON.parse`,
+   * `taskState` and the duplicate check are re-run on every use, exactly as they
+   * are for a disk hit (F4).
    */
-  private readonly treeCache = new Map<
-    string,
-    readonly AcrossRefsCachedRecord[]
-  >();
+  private readonly rawCache = new Map<string, AcrossRefsCachedLocations>();
   /** undefined: not resolved yet; null: caching is unavailable here. */
   private locatedCache: AcrossRefsCachePort | null | undefined;
 
@@ -353,10 +431,72 @@ export class AcrossRefsViewService {
     return resolved;
   }
 
+  /**
+   * QCLI-563 (F10): answer presence and the cache key for every planned ref in
+   * ONE `git cat-file --batch-check` process instead of two spawns per ref. The
+   * three specs per commit are `<sha>^{commit}` (is it local?), `<sha>:.quest`
+   * (the tree-hash key), and `<sha>^{tree}` (the `root-<sha>` key for a ref with
+   * no `.quest`). Refs whose commit is absent are still probed per ref in
+   * `readRef`, because a fetch may make them present; refs the batch could not
+   * answer are simply left out so they fall back the same way.
+   */
+  private async probePlannedRefs(
+    repositoryPath: string,
+    refs: readonly PlannedRef[],
+  ): Promise<ReadonlyMap<string, RefProbe>> {
+    const probes = new Map<string, RefProbe>();
+    const shas = [
+      ...new Set(
+        refs
+          .filter(
+            (ref) =>
+              ref.failure === undefined && /^[0-9a-f]{40}$/u.test(ref.sha),
+          )
+          .map((ref) => ref.sha),
+      ),
+    ];
+    if (shas.length === 0) return probes;
+    const specs: string[] = [];
+    for (const sha of shas)
+      specs.push(`${sha}^{commit}`, `${sha}:.quest`, `${sha}^{tree}`);
+    let answers: ReadonlyMap<string, string | null>;
+    try {
+      answers = await this.git.batchCheck(repositoryPath, specs);
+    } catch {
+      return probes;
+    }
+    for (const sha of shas) {
+      const commitSpec = `${sha}^{commit}`;
+      // Absent means the batch did not answer it; that is a fallback, not an
+      // "object missing".
+      if (!answers.has(commitSpec)) continue;
+      const commit = answers.get(commitSpec) ?? null;
+      if (commit === null) {
+        probes.set(sha, { present: false, treeKey: null });
+        continue;
+      }
+      const quest = answers.get(`${sha}:.quest`) ?? null;
+      if (quest !== null) {
+        probes.set(sha, { present: true, treeKey: quest });
+        continue;
+      }
+      const root = answers.get(`${sha}^{tree}`) ?? null;
+      probes.set(sha, {
+        present: true,
+        treeKey: root === null ? null : `root-${root}`,
+      });
+    }
+    return probes;
+  }
+
   async view(request: AcrossRefsRequest): Promise<AcrossRefsOutcome> {
     const plan = await this.plan(request);
     if (plan.kind === "absent") return plan;
 
+    const probes = await this.probePlannedRefs(
+      request.repositoryPath,
+      plan.refs,
+    );
     const read: ReadRef[] = [];
     const unreadable: AcrossRefsUnreadable[] = [...plan.unreadable];
     // Sequential on purpose: `git cat-file` is one process per blob, and the
@@ -371,7 +511,11 @@ export class AcrossRefsViewService {
         });
         continue;
       }
-      const opened = await this.readRef(request.repositoryPath, planned);
+      const opened = await this.readRef(
+        request.repositoryPath,
+        planned,
+        probes.get(planned.sha),
+      );
       if (opened.kind === "unreadable") unreadable.push(opened.ref);
       else read.push(opened.ref);
     }
@@ -628,10 +772,20 @@ export class AcrossRefsViewService {
    * they are absent, and the presence probe is a real one: `listFiles` answers
    * `[]` and `readBlob` answers `null` for a missing object and for a failed
    * read alike, so neither can decide whether a fetch is needed.
+   *
+   * QCLI-563: a ref whose `.quest` tree was already read -- in this process, or
+   * by an earlier run into the shared cache directory -- is answered from that
+   * raw material WITHOUT listing or reading a single blob. The cache key is the
+   * content-addressed tree hash and the only invalidation rule: a changed
+   * `.quest` hashes differently, so a stale answer is impossible by construction.
+   * A ref with NO `.quest` tree is its own distinct cacheable state (a
+   * `root-<sha>` key; see {@link acrossRefsRefKey}). The raw material is
+   * re-parsed and re-validated by {@link materialize} on EVERY read.
    */
   private async readRef(
     repositoryPath: string,
     planned: PlannedRef,
+    probe: RefProbe | undefined,
   ): Promise<
     | { readonly kind: "read"; readonly ref: ReadRef }
     | { readonly kind: "unreadable"; readonly ref: AcrossRefsUnreadable }
@@ -655,7 +809,14 @@ export class AcrossRefsViewService {
       },
     });
 
-    if (!(await this.git.hasRevision(repositoryPath, planned.sha))) {
+    // Presence: the batch probe answered for this ref when it could; otherwise
+    // probe this one ref. A probe that said "absent" still goes through the
+    // fetch path, because a PR head's objects may live only on the remote.
+    const present =
+      probe !== undefined
+        ? probe.present
+        : await this.git.hasRevision(repositoryPath, planned.sha);
+    if (!present) {
       if (planned.sourceRef === undefined)
         return unreadable(
           `${planned.ref} resolves to ${planned.sha}, which is not present in this repository`,
@@ -673,28 +834,31 @@ export class AcrossRefsViewService {
         );
     }
 
-    // QCLI-563: answer from the cache when this ref's `.quest` TREE is one
-    // already read -- in this process, or by an earlier run into the shared
-    // cache directory. The tree hash is the invalidation key and the only one:
-    // a changed `.quest` hashes differently, so a stale answer is impossible by
-    // construction rather than by an expiry rule. A ref with NO `.quest` tree is
-    // its own distinct cacheable state (a `root-<sha>` key; see
-    // {@link acrossRefsRefKey}); an unreadable ref is never cached at all (see
-    // the write guard below). The commit/tree must be present first (the
-    // `hasRevision`/fetch above), so a ref whose object was never fetched is
-    // still fetched before a cache lookup is attempted.
     const cache = await this.resolveCache(repositoryPath);
     let treeKey: string | undefined;
     if (cache !== null) {
-      treeKey = await acrossRefsRefKey(this.git, repositoryPath, planned.sha);
+      // Use the batch-probed key when it spoke for a PRESENT commit; after a
+      // fetch, or with no probe, derive it for this one ref.
+      treeKey = probe?.present
+        ? (probe.treeKey ?? undefined)
+        : await acrossRefsRefKey(this.git, repositoryPath, planned.sha);
       if (treeKey !== undefined) {
-        const inMemory = this.treeCache.get(treeKey);
-        if (inMemory !== undefined)
-          return { kind: "read", ref: { provenance, records: inMemory } };
-        const stored = await cache.read(treeKey);
-        if (stored !== null) {
-          this.treeCache.set(treeKey, stored);
-          return { kind: "read", ref: { provenance, records: stored } };
+        const fromMemory = this.rawCache.get(treeKey);
+        const cached =
+          fromMemory !== undefined ? fromMemory : await cache.read(treeKey);
+        if (cached !== null) {
+          const materialized = materialize(cached);
+          if (materialized.kind === "records") {
+            if (fromMemory === undefined) this.rawCache.set(treeKey, cached);
+            // A hit means this tree was used now, so pruning keeps it.
+            await cache.touch(treeKey);
+            return {
+              kind: "read",
+              ref: { provenance, records: materialized.records },
+            };
+          }
+          // A corrupt, truncated or no-longer-valid entry is a MISS, never a
+          // failure: fall through and read the tree normally.
         }
       }
     }
@@ -721,14 +885,16 @@ export class AcrossRefsViewService {
         `${planned.ref} could not be listed at ${planned.sha}: ${describe(error)}`,
       );
     }
-    const records: RefRecord[] = [];
-    const pathsById = new Map<string, string>();
+    // Keep the RAW text of each candidate file. Parsing, validation and the
+    // duplicate check are `materialize`'s job, so a cache hit and a fresh read
+    // apply exactly the same rules to the same bytes.
+    const locations: Record<string, readonly AcrossRefsCachedFile[]> = {};
     for (const [index, location] of CONTINUITY_TASK_LOCATIONS.entries()) {
+      const files: AcrossRefsCachedFile[] = [];
       for (const path of listings[index] ?? []) {
         // The same filter the repository reader applies (local-task-
         // repository.ts): dot-prefixed files beside the records are
-        // operational metadata (a journal), never authored records, and
-        // parsing one would wedge this view on a committed journal.
+        // operational metadata (a journal), never authored records.
         const name = path.slice(path.lastIndexOf("/") + 1);
         if (name.startsWith(".") || !name.endsWith(".json")) continue;
         const blob = await this.git.readBlob(repositoryPath, planned.sha, path);
@@ -738,35 +904,26 @@ export class AcrossRefsViewService {
         // false green rather than the honest gap.
         if (blob === null)
           return unreadable(`${planned.ref} carries an unreadable ${path}`);
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(blob);
-        } catch {
-          return unreadable(`${planned.ref} carries a malformed ${path}`);
-        }
-        let task: TaskState;
-        try {
-          task = taskState(parsed as TaskState);
-        } catch {
-          return unreadable(`${planned.ref} carries an invalid ${path}`);
-        }
-        // A duplicate id inside one ref is NOT resolved by keeping the first
-        // (QCLI-417 F4). Every other command fails closed on it with a
-        // RecordDuplicateIdentityError -- usually a half-staged relocation
-        // that left the record in tasks/ and completed/ at once -- so a view
-        // that silently picked one would answer about a state the repository
-        // itself refuses to read. The ref goes unreadable and names both
-        // paths, which is what makes the coverage incomplete instead of
-        // confidently wrong.
-        const key = aliasKey(task.id);
-        const previous = pathsById.get(key);
-        if (previous !== undefined)
-          return unreadable(
-            `${planned.ref} carries ${task.id} at both ${previous} and ${path}`,
-          );
-        pathsById.set(key, path);
-        records.push({ task, archived: location === "archive/tasks" });
+        files.push({ path, text: blob });
       }
+      locations[location] = files;
+    }
+    const materialized = materialize(locations);
+    if (materialized.kind !== "records") {
+      if (materialized.kind === "missing")
+        // Unreachable: every location was just populated.
+        return unreadable(`${planned.ref} could not be read at ${planned.sha}`);
+      if (materialized.kind === "malformed")
+        return unreadable(
+          `${planned.ref} carries a malformed ${materialized.path}`,
+        );
+      if (materialized.kind === "invalid")
+        return unreadable(
+          `${planned.ref} carries an invalid ${materialized.path}`,
+        );
+      return unreadable(
+        `${planned.ref} carries ${materialized.id} at both ${materialized.previous} and ${materialized.path}`,
+      );
     }
     // QCLI-563: cache only a read that SUCCEEDED. Every `return unreadable`
     // above bypasses this line, so an unreadable ref is never stored as an
@@ -775,10 +932,13 @@ export class AcrossRefsViewService {
     // read of zero records and IS cached, under its own key; that is different
     // from unreadable and must stay different.
     if (cache !== null && treeKey !== undefined) {
-      this.treeCache.set(treeKey, records);
-      await cache.write(treeKey, records);
+      this.rawCache.set(treeKey, locations);
+      await cache.write(treeKey, locations);
     }
-    return { kind: "read", ref: { provenance, records } };
+    return {
+      kind: "read",
+      ref: { provenance, records: materialized.records },
+    };
   }
 
   /**
