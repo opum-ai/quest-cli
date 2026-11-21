@@ -156,30 +156,38 @@ export class LocalGitPort implements GitPort {
 
   /** QCLI-563 (F10): many object probes in one `git cat-file --batch-check`.
    *  `--batch-check` echoes each input line in order and answers either
-   *  `<oid> <type> <size>` or `<input> missing` (or `ambiguous`). `git()` trims
-   *  the whole stdout, so the split below is line-aligned with `specs`. An exit
-   *  failure or a short answer returns an EMPTY map, never a partial lie: the
-   *  caller falls back to per-spec probes. */
+   *  `<oid> <type> <size>`, `<input> missing`, or `<input> ambiguous`. Only an
+   *  EXACT `${spec} missing` line means "absent" (mapped to null). An ambiguous
+   *  or unparseable line is left OUT of the map -- the port contract is that
+   *  "unanswerable" is absent, so the caller falls back to a per-spec probe
+   *  rather than mistaking a refusal for a missing object. Any line/spec
+   *  misalignment (including extra lines), or a spec carrying a newline, returns
+   *  an EMPTY map for the same reason. */
   async batchCheck(
     repositoryPath: string,
     specs: readonly string[],
   ): Promise<ReadonlyMap<string, string | null>> {
     const answers = new Map<string, string | null>();
     if (specs.length === 0) return answers;
+    if (specs.some((spec) => spec.includes("\n") || spec.includes("\r")))
+      return answers;
     const result = await git(repositoryPath, ["cat-file", "--batch-check"], {
       stdin: `${specs.join("\n")}\n`,
     });
     if (result.code !== 0) return answers;
     const lines = result.stdout.split("\n");
-    if (lines.length < specs.length) return answers;
+    if (lines.length !== specs.length) return answers;
     for (const [index, spec] of specs.entries()) {
       const line = lines[index] ?? "";
-      if (line.endsWith(" missing") || line.endsWith(" ambiguous")) {
+      if (line === `${spec} missing`) {
         answers.set(spec, null);
         continue;
       }
       const oid = line.split(/\s+/u)[0] ?? "";
-      answers.set(spec, /^[0-9a-f]{40}$/u.test(oid) ? oid : null);
+      // Present objects are `<oid> <type> <size>`; anything else (including
+      // `<spec> ambiguous`) is left unanswered.
+      if (/^[0-9a-f]{40}$/u.test(oid) && line.split(/\s+/u).length === 3)
+        answers.set(spec, oid);
     }
     return answers;
   }

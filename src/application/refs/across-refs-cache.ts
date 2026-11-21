@@ -27,18 +27,23 @@ import type { GitPort } from "../../ports/git.ts";
  * its own distinct, cacheable state, keyed `root-<root tree hash>` (see
  * {@link acrossRefsRefKey}).
  *
- * WHAT IS CACHED IS RAW MATERIAL: `{ location: [{path, text}] }` -- the text of
- * each record-candidate file, exactly as read from Git. The domain work -- the
- * dot-file filter, `JSON.parse`, `taskState` validation and the duplicate-id
- * check -- is re-run on EVERY cache read by the caller, so a cache written by one
- * build can never hand another build a record it would not itself produce.
- * CACHE_VERSION therefore describes only the on-disk DOCUMENT shape, not the
- * domain's record semantics.
+ * WHAT IS CACHED IS RAW MATERIAL: `{ location: [{path, text}] }` for EVERY
+ * path `listFilesRequired` returned, exactly as read from Git. The domain work
+ * -- the dot-file filter, `JSON.parse`, `taskState` validation and the
+ * duplicate-id check -- is re-run on EVERY cache read by the caller, so a cache
+ * written by one build can never hand another build a record it would not
+ * itself produce. A path this build's filter did not select is stored with
+ * `text: null` rather than omitted: a build with a WIDER filter then sees the
+ * path, needs its text, and treats the entry as a MISS instead of being
+ * silently served a shorter record set. CACHE_VERSION therefore describes only
+ * the on-disk DOCUMENT shape, not the domain's record semantics.
  *
- * THE CACHE IS BOUNDED and its mtime means last-used: a successful write prunes
- * the directory to the newest {@link DEFAULT_MAX_ENTRIES} entries by mtime, and
- * a cache hit touches the entry, so a frequently-read tree is not evicted in
- * favour of a one-off one.
+ * THE CACHE IS BOUNDED and its mtime means last-used: {@link AcrossRefsCache.prune}
+ * runs ONCE at the end of a view, keeps the keys that view used regardless of
+ * age, and trims the rest to the newest {@link DEFAULT_MAX_ENTRIES}; a cache hit
+ * touches the entry, so mtime tracks last use. Pruning once (not per write)
+ * keeps a run that touches more than the bound from evicting its own entries.
+ * It also unlinks `.tmp` files older than an hour, leftover from a crashed write.
  *
  * AN UNREADABLE REF IS NEVER CACHED AS EMPTY: only a read that SUCCEEDED reaches
  * the write, so a transient failure is re-read next time rather than served.
@@ -50,11 +55,13 @@ import type { GitPort } from "../../ports/git.ts";
  * by a failed write is unlinked.
  */
 
-/** One record-candidate file as it was read from Git: its path and its raw
- *  text. Parsing and validation happen on every read, not here. */
+/** One file under a task location. `text` is the raw Git content for a path the
+ *  writing build selected, and NULL for a path it did not read: a reader with a
+ *  wider filter sees the null and treats the entry as a miss (never a shorter
+ *  record set). Parsing and validation happen on every read, not here. */
 export interface AcrossRefsCachedFile {
   readonly path: string;
-  readonly text: string;
+  readonly text: string | null;
 }
 
 /** The raw material of one ref, grouped by the task location it was found in.
@@ -72,11 +79,14 @@ export interface AcrossRefsCachePort {
   /** The raw material stored for `key`, or null on a miss OR any unreadable or
    *  malformed entry -- the two are deliberately the same answer. */
   read(key: string): Promise<AcrossRefsCachedLocations | null>;
-  /** Store `locations` under `key`, then prune to the newest entries. Never
-   *  rejects. */
+  /** Store `locations` under `key`. Never rejects. */
   write(key: string, locations: AcrossRefsCachedLocations): Promise<void>;
   /** Mark `key` as used now, so pruning keeps it. Never rejects. */
   touch(key: string): Promise<void>;
+  /** Bound the directory once, at the end of a view: keep every key in
+   *  `protectedKeys` regardless of age, trim the rest to the newest entries, and
+   *  unlink stale temp files. Never rejects. */
+  prune(protectedKeys: ReadonlySet<string>): Promise<void>;
 }
 
 /**
@@ -113,8 +123,12 @@ const defaultIo: CacheIo = {
  */
 const CACHE_VERSION = 1;
 
-/** How many entries a write keeps. */
+/** How many entries a prune keeps (plus any key the current view used). */
 export const DEFAULT_MAX_ENTRIES = 64;
+
+/** A `.tmp` file older than this is residue from a crashed write, not a write in
+ *  flight, and prune unlinks it. */
+export const STALE_TMP_MILLISECONDS = 60 * 60 * 1_000;
 
 const FILE_SUFFIX = ".json";
 
@@ -194,7 +208,10 @@ function locationsOf(value: unknown): AcrossRefsCachedLocations | null {
     for (const file of files) {
       if (typeof file !== "object" || file === null) return null;
       const { path, text } = file as { path?: unknown; text?: unknown };
-      if (typeof path !== "string" || typeof text !== "string") return null;
+      // `text: null` is a path the writing build did not read; the caller
+      // decides whether that is a miss, so it is part of the valid shape.
+      if (typeof path !== "string") return null;
+      if (text !== null && typeof text !== "string") return null;
       clean.push({ path, text });
     }
     locations[location] = clean;
@@ -258,11 +275,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
       key,
       locations,
     };
-    const written = await this.writeJsonAtomically(
-      recordPath(this.directory, key),
-      document,
-    );
-    if (written) await this.prune();
+    await this.writeJsonAtomically(recordPath(this.directory, key), document);
   }
 
   async touch(key: string): Promise<void> {
@@ -273,19 +286,42 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
       .catch(() => undefined);
   }
 
-  /** Keep only the newest `maxEntries` record documents by mtime. Temp files
-   *  (any suffix other than `.json`) are not entries and are left alone. */
-  private async prune(): Promise<void> {
+  /**
+   * R2-8: bound the directory ONCE, at the end of a view. Pruning per write
+   * thrashes when one run uses more than `maxEntries` distinct keys: every new
+   * write would evict one of the same run's earlier entries. So the keys this
+   * view used are PROTECTED (never evicted however many there are), and the
+   * remaining budget -- `maxEntries` minus the protected count -- goes to the
+   * newest unprotected entries. The effective bound is therefore at least
+   * `maxEntries` and at least the size of the run.
+   *
+   * R2-9: a `.tmp` file older than {@link STALE_TMP_MILLISECONDS} is residue
+   * from a crashed write and is unlinked here too.
+   */
+  async prune(protectedKeys: ReadonlySet<string>): Promise<void> {
     let names: string[];
     try {
       names = await this.io.readdir(this.directory);
     } catch {
       return;
     }
+    const now = Date.now();
     const entries: { readonly path: string; readonly mtimeMs: number }[] = [];
     for (const name of names) {
-      if (!name.endsWith(FILE_SUFFIX)) continue;
       const path = join(this.directory, name);
+      if (name.endsWith(".tmp")) {
+        try {
+          const stats = await this.io.stat(path);
+          if (now - stats.mtimeMs > STALE_TMP_MILLISECONDS)
+            await this.io.unlink(path).catch(() => undefined);
+        } catch {
+          // A vanishing temp file is not this cache's problem.
+        }
+        continue;
+      }
+      if (!name.endsWith(FILE_SUFFIX)) continue;
+      const key = name.slice(0, -FILE_SUFFIX.length);
+      if (protectedKeys.has(key)) continue;
       try {
         const stats = await this.io.stat(path);
         entries.push({ path, mtimeMs: stats.mtimeMs });
@@ -293,9 +329,10 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
         // A vanishing entry is not this cache's problem.
       }
     }
-    if (entries.length <= this.maxEntries) return;
+    const budget = Math.max(0, this.maxEntries - protectedKeys.size);
+    if (entries.length <= budget) return;
     entries.sort((a, b) => b.mtimeMs - a.mtimeMs);
-    for (const stale of entries.slice(this.maxEntries))
+    for (const stale of entries.slice(budget))
       await this.io.unlink(stale.path).catch(() => undefined);
   }
 

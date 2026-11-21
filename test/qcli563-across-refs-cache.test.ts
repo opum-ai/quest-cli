@@ -382,14 +382,18 @@ test("a changed ref re-reads ONLY that ref, and shows the edit (F7/F8)", async (
   }
 });
 
-test("a realistic gated record survives warm == cold, identity included (F6)", async () => {
+test("a realistic gated record survives warm == cold, identity included (F6/R2-7)", async () => {
   await clearCache(fixture.root);
-  const refs = ["refs/heads/feature"];
+  // dev AND feature, so identity is non-trivial: T-10 is one task read from both
+  // refs (shared createdAt -> `task`), while T-1 is on both with no createdAt
+  // (two states that cannot be compared -> `unresolved`).
+  const refs = ["refs/heads/dev", "refs/heads/feature"];
   const cold = await viewWith(fixture.root, refs);
   expect(lastCalls.length).toBeGreaterThan(0);
-  const gated = entriesById(cold.entries).get("T-10");
-  expect(gated?.identity).toBe("task");
-  expect(gated?.title).toBe("a gated task");
+  const coldById = entriesById(cold.entries);
+  expect(coldById.get("T-10")?.identity).toBe("task");
+  expect(coldById.get("T-10")?.title).toBe("a gated task");
+  expect(coldById.get("T-1")?.identity).toBe("unresolved");
 
   const warm = await viewWith(fixture.root, refs);
   expect(lastCalls).toEqual([]);
@@ -403,10 +407,10 @@ test("a realistic gated record survives warm == cold, identity included (F6)", a
   const document = JSON.parse(
     await readFile(join(cacheDirectory(fixture.root), `${key}.json`), "utf8"),
   ) as {
-    locations: Record<string, { path: string; text: string }[]>;
+    locations: Record<string, { path: string; text: string | null }[]>;
   };
   expect(
-    document.locations.tasks?.some((file) => file.text.includes("gateEvents")),
+    document.locations.tasks?.some((file) => file.text?.includes("gateEvents")),
   ).toBe(true);
 });
 
@@ -471,6 +475,22 @@ test("a document missing a location is a cache miss", async () => {
   expect(entriesById(entries).get("T-3")?.title).toBe("only on feature");
 });
 
+test("a cached path the writer did not read is a MISS for a wider filter (R2-2)", async () => {
+  await clearCache(fixture.root);
+  const key = git(fixture.root, "rev-parse", "refs/heads/feature:.quest");
+  // The entry lists the path but stores `text: null`: the writing build's filter
+  // did not read it. A reader that selects it must re-read, never be served a
+  // shorter record set.
+  await writeCacheDocument(fixture.root, key, {
+    tasks: [{ path: ".quest/tasks/T-3.json", text: null }],
+    completed: [],
+    "archive/tasks": [],
+  });
+  const { entries } = await viewWith(fixture.root, ["refs/heads/feature"]);
+  expect(lastCalls.length).toBeGreaterThan(0);
+  expect(entriesById(entries).get("T-3")?.title).toBe("only on feature");
+});
+
 test("the dot-file filter is re-run on every read (a cached journal is ignored)", async () => {
   await clearCache(fixture.root);
   const key = git(fixture.root, "rev-parse", "refs/heads/feature:.quest");
@@ -480,9 +500,9 @@ test("the dot-file filter is re-run on every read (a cached journal is ignored)"
         path: ".quest/tasks/T-3.json",
         text: taskRecord("T-3", "from cache"),
       },
-      // Operational metadata beside the records: never an authored record, and
-      // invalid JSON on purpose -- parsing it would fail the read.
-      { path: ".quest/tasks/.journal", text: "{ not a record" },
+      // Operational metadata beside the records: a writer stores it with
+      // `text: null`; the reader's filter must skip it, whatever it holds.
+      { path: ".quest/tasks/.journal", text: null },
     ],
     completed: [],
     "archive/tasks": [],
@@ -552,6 +572,78 @@ test("a ref with NO .quest tree is cached as its own distinct state", async () =
   ]);
 });
 
+test("a sha that became present is not fetched twice (R2-4)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "qcli563-shared-head-"));
+  try {
+    const work = join(root, "work");
+    const origin = join(root, "origin.git");
+    const outsider = join(root, "outsider");
+    git(root, "init", "-q", "-b", "dev", work);
+    git(work, "config", "user.email", "t@example.invalid");
+    git(work, "config", "user.name", "T");
+    await mkdir(join(work, ".quest", "tasks"), { recursive: true });
+    await writeFile(
+      join(work, ".quest", "tasks", "T-1.json"),
+      taskRecord("T-1", "on dev"),
+    );
+    git(work, "add", "-A");
+    git(work, "commit", "-qm", "dev");
+    git(root, "clone", "-q", "--bare", work, origin);
+
+    // A commit whose objects exist ONLY in the origin.
+    git(root, "clone", "-q", origin, outsider);
+    git(outsider, "config", "user.email", "t@example.invalid");
+    git(outsider, "config", "user.name", "T");
+    await mkdir(join(outsider, ".quest", "tasks"), { recursive: true });
+    await writeFile(
+      join(outsider, ".quest", "tasks", "T-2.json"),
+      taskRecord("T-2", "on the shared head"),
+    );
+    git(outsider, "add", "-A");
+    git(outsider, "commit", "-qm", "shared head");
+    const shared = git(outsider, "rev-parse", "HEAD");
+    git(origin, "fetch", "-q", outsider, "refs/heads/dev");
+    // Both PR refs name the SAME head sha.
+    git(origin, "update-ref", "refs/pull/1/head", shared);
+    git(origin, "update-ref", "refs/pull/2/head", shared);
+
+    // A fixture writes `origin` by editing .git/config, never `git remote add`.
+    const configPath = join(work, ".git", "config");
+    const original = await readFile(configPath, "utf8");
+    await writeFile(
+      configPath,
+      `${original.trimEnd()}\n[remote "origin"]\n\turl = ${origin}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n`,
+    );
+    expect(
+      run(work, ["git", "cat-file", "-e", `${shared}^{commit}`]).exitCode,
+    ).not.toBe(0);
+
+    let fetches = 0;
+    const port = new LocalGitPort();
+    const fetch = port.fetchRef.bind(port);
+    port.fetchRef = async (repositoryPath, remote, ref) => {
+      fetches += 1;
+      return fetch(repositoryPath, remote, ref);
+    };
+    const outcome = await new AcrossRefsViewService(port, discovery).view({
+      repositoryPath: work,
+      pullRequests: [1, 2],
+      allowPartial: false,
+    });
+    if (outcome.kind !== "view") throw new Error("expected a view");
+    // The pre-loop probe said both were absent; the first fetch made the sha
+    // present, so the second ref must NOT fetch it again.
+    expect(fetches).toBe(1);
+    expect(outcome.coverage.refsRead.map((read) => read.ref)).toEqual([
+      "refs/pull/1/head",
+      "refs/pull/2/head",
+    ]);
+    expect(outcome.entries.map((entry) => entry.id)).toContain("T-2");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("the injected cache is consulted by tree hash and re-materialized", async () => {
   await clearCache(fixture.root);
   const key = git(fixture.root, "rev-parse", "refs/heads/feature:.quest");
@@ -574,6 +666,7 @@ test("the injected cache is consulted by tree hash and re-materialized", async (
     async touch(asked) {
       touched.push(asked);
     },
+    async prune() {},
   };
   const outcome = await new AcrossRefsViewService(
     new LocalGitPort(),
@@ -589,6 +682,83 @@ test("the injected cache is consulted by tree hash and re-materialized", async (
   if (outcome.kind !== "view") throw new Error("expected a view");
   expect(touched).toEqual([key]);
   expect(outcome.entries.map((entry) => entry.id)).toContain("T-77");
+});
+
+test("AcrossRefsCache ignores a document written for a different key (R2-5)", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "qcli563-cache-"));
+  try {
+    const cache = AcrossRefsCache.underCommonDirectory(directory);
+    const wrong = "0".repeat(40);
+    await cache.write("a".repeat(40), {
+      tasks: [],
+      completed: [],
+      "archive/tasks": [],
+    });
+    // A file in the right place whose DOCUMENT names another key is a miss.
+    await writeFile(
+      join(directory, "quest", "across-refs-cache", `${wrong}.json`),
+      JSON.stringify({
+        kind: "records",
+        version: 1,
+        key: "b".repeat(40),
+        locations: { tasks: [], completed: [], "archive/tasks": [] },
+      }),
+    );
+    expect(await cache.read(wrong)).toBeNull();
+    expect(await cache.read("c".repeat(40))).toBeNull();
+    // A key that is not a tree hash and not a root-tree key can never be used
+    // as a path.
+    expect(await cache.read("../../escape")).toBeNull();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("the CLI writes the shared cache under the git common dir (composition, R2-5)", async () => {
+  await clearCache(fixture.root);
+  const cacheDir = cacheDirectory(fixture.root);
+  const first = quest(fixture.root, [
+    "task",
+    "list",
+    "--across-refs",
+    "--ref",
+    "refs/heads/feature",
+    "--json",
+  ]);
+  expect({ exit: first.exitCode, stderr: first.stderr }).toEqual({
+    exit: 0,
+    stderr: "",
+  });
+  expect(existsSync(cacheDir)).toBe(true);
+
+  const second = quest(fixture.root, [
+    "task",
+    "list",
+    "--across-refs",
+    "--ref",
+    "refs/heads/feature",
+    "--json",
+  ]);
+  expect(second.exitCode).toBe(0);
+  // `coverage.discoveredAt` is the instant of THIS population read and moves by
+  // design, so the data is what must be identical across the runs.
+  const firstData = (JSON.parse(first.stdout) as { data: unknown }).data;
+  const secondData = (JSON.parse(second.stdout) as { data: unknown }).data;
+  expect(secondData).toEqual(firstData);
+});
+
+test("batchCheck answers present/absent and refuses a poisoned spec (R2-3/R2-6)", async () => {
+  const port = new LocalGitPort();
+  const present = `${fixture.devSha}^{commit}`;
+  const tree = `${fixture.devSha}:.quest`;
+  const absent = `${"0".repeat(40)}^{commit}`;
+  const answers = await port.batchCheck(fixture.root, [present, tree, absent]);
+  expect(answers.get(present)).toBe(fixture.devSha);
+  expect(answers.get(tree)).toMatch(/^[0-9a-f]{40}$/u);
+  // An exact "<spec> missing" line is the ONLY absent answer.
+  expect(answers.get(absent)).toBeNull();
+  // A spec carrying a newline is refused wholesale, not misparsed.
+  expect((await port.batchCheck(fixture.root, ["HEAD\nmain"])).size).toBe(0);
 });
 
 // ---- F2: the cache is bounded, touches on hit, and cleans a failed write ----
@@ -657,22 +827,17 @@ function memoryIo(seed: Record<string, number> = {}): MemoryIo {
 
 const keyFor = (n: number) => `${n}`.repeat(40);
 
-test("prune keeps the newest N entries by mtime (F2)", async () => {
+test("prune keeps the newest N entries by mtime (F2/R2-8)", async () => {
   const directory = "/cache";
   const seed: Record<string, number> = {};
-  for (let n = 1; n <= 5; n++) seed[`${directory}/${keyFor(n)}.json`] = n;
+  for (let n = 1; n <= 6; n++) seed[`${directory}/${keyFor(n)}.json`] = n;
   const memory = memoryIo(seed);
   const cache = new AcrossRefsCache(directory, {
     maxEntries: 3,
     io: memory.io,
   });
 
-  // A sixth write is the newest (rename stamps clock+1 = 6).
-  await cache.write(keyFor(6), {
-    tasks: [],
-    completed: [],
-    "archive/tasks": [],
-  });
+  await cache.prune(new Set());
 
   const remaining = [...memory.files.keys()].sort();
   expect(remaining).toEqual([
@@ -684,6 +849,28 @@ test("prune keeps the newest N entries by mtime (F2)", async () => {
     `${directory}/${keyFor(1)}.json`,
     `${directory}/${keyFor(2)}.json`,
     `${directory}/${keyFor(3)}.json`,
+  ]);
+});
+
+test("prune protects this run's keys even when it uses more than the bound (R2-8)", async () => {
+  const directory = "/cache";
+  const seed: Record<string, number> = {};
+  for (let n = 1; n <= 6; n++) seed[`${directory}/${keyFor(n)}.json`] = n;
+  const memory = memoryIo(seed);
+  const cache = new AcrossRefsCache(directory, {
+    maxEntries: 3,
+    io: memory.io,
+  });
+
+  // The run used the OLDEST key; it must survive, and the remaining budget
+  // (3 - 1 = 2) goes to the newest of the rest.
+  await cache.prune(new Set([keyFor(1)]));
+
+  const remaining = [...memory.files.keys()].sort();
+  expect(remaining).toEqual([
+    `${directory}/${keyFor(1)}.json`,
+    `${directory}/${keyFor(5)}.json`,
+    `${directory}/${keyFor(6)}.json`,
   ]);
 });
 
@@ -725,4 +912,54 @@ test("a failed write unlinks its temp file and leaves no residue (F2)", async ()
     false,
   );
   expect(memory.files.has(`${directory}/${keyFor(8)}.json`)).toBe(false);
+});
+
+test("a write whose RENAME fails after the write still leaves no temp (R2-9)", async () => {
+  const directory = "/cache";
+  let temporary = "";
+  const memory = memoryIo();
+  const io: CacheIo = {
+    ...memory.io,
+    async writeFile(path, data) {
+      temporary = path;
+      // The temp file is really created...
+      await memory.io.writeFile(path, data);
+    },
+    async rename() {
+      // ...and the rename is what fails.
+      throw new Error("rename failed");
+    },
+  };
+  const cache = new AcrossRefsCache(directory, { io });
+  await cache.write(keyFor(9), {
+    tasks: [],
+    completed: [],
+    "archive/tasks": [],
+  });
+
+  expect(temporary).toMatch(/\.tmp$/u);
+  expect(memory.unlinked).toContain(temporary);
+  expect([...memory.files.keys()].some((path) => path.endsWith(".tmp"))).toBe(
+    false,
+  );
+  expect(memory.files.has(`${directory}/${keyFor(9)}.json`)).toBe(false);
+});
+
+test("prune unlinks only STALE temp files (R2-9)", async () => {
+  const directory = "/cache";
+  const now = Date.now();
+  const oldTemp = `${directory}/old.tmp`;
+  const freshTemp = `${directory}/fresh.tmp`;
+  const memory = memoryIo({
+    [oldTemp]: now - 2 * 60 * 60 * 1000,
+    [freshTemp]: now,
+  });
+  const cache = new AcrossRefsCache(directory, { io: memory.io });
+
+  await cache.prune(new Set());
+
+  expect(memory.files.has(oldTemp)).toBe(false);
+  expect(memory.files.has(freshTemp)).toBe(true);
+  expect(memory.unlinked).toContain(oldTemp);
+  expect(memory.unlinked).not.toContain(freshTemp);
 });

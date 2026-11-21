@@ -321,11 +321,15 @@ function labelFromUrl(url: string, number: number): string | null {
  *
  * `missing` means a task location the raw material does not cover: the caller
  * treats that as a cache MISS (never as an empty location), so a truncated
- * document cannot make a ref look lighter than it is.
+ * document cannot make a ref look lighter than it is. `unavailable` means a
+ * path THIS filter selects was stored with `text: null` (the writing build did
+ * not read it): also a MISS, so a build with a wider filter re-reads instead of
+ * being served a shorter record set (R2-2).
  */
 type Materialized =
   | { readonly kind: "records"; readonly records: readonly RefRecord[] }
   | { readonly kind: "missing" }
+  | { readonly kind: "unavailable"; readonly path: string }
   | { readonly kind: "malformed"; readonly path: string }
   | { readonly kind: "invalid"; readonly path: string }
   | {
@@ -348,6 +352,9 @@ function materialize(locations: AcrossRefsCachedLocations): Materialized {
       // or hand-edited document cannot smuggle one in.
       const name = file.path.slice(file.path.lastIndexOf("/") + 1);
       if (name.startsWith(".") || !name.endsWith(".json")) continue;
+      // R2-2: this build's filter selects the path, but the entry was written by
+      // a build that did not read it. That is a MISS, not an empty record.
+      if (file.text === null) return { kind: "unavailable", path: file.path };
       let parsed: unknown;
       try {
         parsed = JSON.parse(file.text);
@@ -388,13 +395,13 @@ interface RefProbe {
 
 export class AcrossRefsViewService {
   /**
-   * QCLI-563: raw material already read in THIS process, by cache key, so a tree
-   * shared by several refs is read from disk once per run rather than once per
-   * ref. It stores RAW files, not parsed records: the filter, `JSON.parse`,
-   * `taskState` and the duplicate check are re-run on every use, exactly as they
-   * are for a disk hit (F4).
+   * QCLI-563 / R2-1: MATERIALIZED records per cache key, in THIS process, so a
+   * tree shared by several refs is parsed and validated once per run rather than
+   * once per ref. Safe within one build (the code cannot change mid-process), so
+   * it does not reopen F4: the per-read re-validation that matters is across
+   * builds, which the on-disk format guarantees.
    */
-  private readonly rawCache = new Map<string, AcrossRefsCachedLocations>();
+  private readonly materializedCache = new Map<string, readonly RefRecord[]>();
   /** undefined: not resolved yet; null: caching is unavailable here. */
   private locatedCache: AcrossRefsCachePort | null | undefined;
 
@@ -497,6 +504,10 @@ export class AcrossRefsViewService {
       request.repositoryPath,
       plan.refs,
     );
+    // One cache handle for the whole view, so it can be pruned once at the end
+    // with this run's keys exempt (R2-8).
+    const cache = await this.resolveCache(request.repositoryPath);
+    const usedKeys = new Set<string>();
     const read: ReadRef[] = [];
     const unreadable: AcrossRefsUnreadable[] = [...plan.unreadable];
     // Sequential on purpose: `git cat-file` is one process per blob, and the
@@ -515,10 +526,15 @@ export class AcrossRefsViewService {
         request.repositoryPath,
         planned,
         probes.get(planned.sha),
+        cache,
+        usedKeys,
       );
       if (opened.kind === "unreadable") unreadable.push(opened.ref);
       else read.push(opened.ref);
     }
+    // R2-8: prune ONCE here with every key this run touched exempt, so a run
+    // that uses more than `maxEntries` distinct trees does not evict its own.
+    if (cache !== null) await cache.prune(usedKeys);
 
     const coverage: AcrossRefsCoverage = {
       // Complete is relative to the population named in this same object (the
@@ -786,6 +802,8 @@ export class AcrossRefsViewService {
     repositoryPath: string,
     planned: PlannedRef,
     probe: RefProbe | undefined,
+    cache: AcrossRefsCachePort | null,
+    usedKeys: Set<string>,
   ): Promise<
     | { readonly kind: "read"; readonly ref: ReadRef }
     | { readonly kind: "unreadable"; readonly ref: AcrossRefsUnreadable }
@@ -809,13 +827,15 @@ export class AcrossRefsViewService {
       },
     });
 
-    // Presence: the batch probe answered for this ref when it could; otherwise
-    // probe this one ref. A probe that said "absent" still goes through the
-    // fetch path, because a PR head's objects may live only on the remote.
-    const present =
-      probe !== undefined
-        ? probe.present
-        : await this.git.hasRevision(repositoryPath, planned.sha);
+    // Presence. R2-4: a probe that said "absent" was taken BEFORE this
+    // sequential loop fetched anything, so re-check now -- a shared sha, or one
+    // fetched as an ancestor, may already be local, and fetching again could be
+    // needless network work (or a false unreadable when offline).
+    let present: boolean;
+    if (probe === undefined)
+      present = await this.git.hasRevision(repositoryPath, planned.sha);
+    else if (probe.present) present = true;
+    else present = await this.git.hasRevision(repositoryPath, planned.sha);
     if (!present) {
       if (planned.sourceRef === undefined)
         return unreadable(
@@ -834,7 +854,6 @@ export class AcrossRefsViewService {
         );
     }
 
-    const cache = await this.resolveCache(repositoryPath);
     let treeKey: string | undefined;
     if (cache !== null) {
       // Use the batch-probed key when it spoke for a PRESENT commit; after a
@@ -843,13 +862,22 @@ export class AcrossRefsViewService {
         ? (probe.treeKey ?? undefined)
         : await acrossRefsRefKey(this.git, repositoryPath, planned.sha);
       if (treeKey !== undefined) {
-        const fromMemory = this.rawCache.get(treeKey);
-        const cached =
-          fromMemory !== undefined ? fromMemory : await cache.read(treeKey);
+        usedKeys.add(treeKey);
+        // R2-1: MATERIALIZED records, per tree, within this process. A tree
+        // shared by several refs is parsed/validated once, not once per ref.
+        const materializedRecords = this.materializedCache.get(treeKey);
+        if (materializedRecords !== undefined) {
+          await cache.touch(treeKey);
+          return {
+            kind: "read",
+            ref: { provenance, records: materializedRecords },
+          };
+        }
+        const cached = await cache.read(treeKey);
         if (cached !== null) {
           const materialized = materialize(cached);
           if (materialized.kind === "records") {
-            if (fromMemory === undefined) this.rawCache.set(treeKey, cached);
+            this.materializedCache.set(treeKey, materialized.records);
             // A hit means this tree was used now, so pruning keeps it.
             await cache.touch(treeKey);
             return {
@@ -857,8 +885,8 @@ export class AcrossRefsViewService {
               ref: { provenance, records: materialized.records },
             };
           }
-          // A corrupt, truncated or no-longer-valid entry is a MISS, never a
-          // failure: fall through and read the tree normally.
+          // A corrupt, truncated, truncated-by-filter or no-longer-valid entry
+          // is a MISS, never a failure: fall through and read the tree normally.
         }
       }
     }
@@ -885,9 +913,12 @@ export class AcrossRefsViewService {
         `${planned.ref} could not be listed at ${planned.sha}: ${describe(error)}`,
       );
     }
-    // Keep the RAW text of each candidate file. Parsing, validation and the
-    // duplicate check are `materialize`'s job, so a cache hit and a fresh read
-    // apply exactly the same rules to the same bytes.
+    // R2-2: keep an entry for EVERY listed path. A path this filter selects is
+    // read now and stored with its text; one it does not select is stored with
+    // `text: null`, so a build with a WIDER filter sees it and treats the entry
+    // as a miss rather than being silently served a shorter record set. Parsing,
+    // validation and the duplicate check are `materialize`'s job, so a hit and a
+    // fresh read apply the same rules to the same bytes.
     const locations: Record<string, readonly AcrossRefsCachedFile[]> = {};
     for (const [index, location] of CONTINUITY_TASK_LOCATIONS.entries()) {
       const files: AcrossRefsCachedFile[] = [];
@@ -896,7 +927,11 @@ export class AcrossRefsViewService {
         // repository.ts): dot-prefixed files beside the records are
         // operational metadata (a journal), never authored records.
         const name = path.slice(path.lastIndexOf("/") + 1);
-        if (name.startsWith(".") || !name.endsWith(".json")) continue;
+        const selected = !name.startsWith(".") && name.endsWith(".json");
+        if (!selected) {
+          files.push({ path, text: null });
+          continue;
+        }
         const blob = await this.git.readBlob(repositoryPath, planned.sha, path);
         // One unreadable record fails the whole ref, on QCLI-415's rule: a
         // record this view cannot read is a record whose absence it also could
@@ -910,8 +945,12 @@ export class AcrossRefsViewService {
     }
     const materialized = materialize(locations);
     if (materialized.kind !== "records") {
-      if (materialized.kind === "missing")
-        // Unreachable: every location was just populated.
+      if (
+        materialized.kind === "missing" ||
+        materialized.kind === "unavailable"
+      )
+        // Unreachable on a fresh read: every location was populated and every
+        // selected path was read just above.
         return unreadable(`${planned.ref} could not be read at ${planned.sha}`);
       if (materialized.kind === "malformed")
         return unreadable(
@@ -932,7 +971,7 @@ export class AcrossRefsViewService {
     // read of zero records and IS cached, under its own key; that is different
     // from unreadable and must stay different.
     if (cache !== null && treeKey !== undefined) {
-      this.rawCache.set(treeKey, locations);
+      this.materializedCache.set(treeKey, materialized.records);
       await cache.write(treeKey, locations);
     }
     return {
