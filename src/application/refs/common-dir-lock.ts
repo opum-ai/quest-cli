@@ -39,17 +39,23 @@ import { setTimeout as delay } from "node:timers/promises";
  * `<lock>.break`, and under it re-read the lock and remove it only if it still
  * matches the snapshot that was judged stale. While the stale lock exists
  * nobody can `open(wx)` over it, and breakers are serialised, so recovery has
- * no gap to race in and never moves a live holder's file.
+ * no gap to race in and, absent a breaker stalled past `staleAfterMs` between
+ * its re-read and its unlink, never moves a live holder's file.
  *
  * TWO RESIDUALS REMAIN, and they are acceptable ONLY because this lock is
  * advisory. (1) Release is read-then-unlink: past the age backstop, or with a
  * reused pid, a holder's release can delete a successor's lock. (2) The
  * `.break` file could otherwise wedge recovery forever; it is cleared on age
  * alone past `staleAfterMs` (N1), so a wedged breaker delays recovery by at
- * most that backstop. Either residual can therefore produce two concurrent
- * holders -- which duplicates the ref read and nothing else. Nothing
- * correctness-critical depends on this lock; Git's conditional ref update
- * remains the ordering authority.
+ * most that backstop. That age-alone clearing is also the second residual: a
+ * breaker stalled past `staleAfterMs` between its locked re-read and its
+ * unlink, whose `.break` was aged out and re-taken by a successor breaker, can
+ * on resuming unlink a lock the successor has since put in place -- the re-read
+ * compared the LOCK bytes, not the `.break` handoff, and the unlink is not
+ * re-validated. Either residual can therefore produce two concurrent holders
+ * -- which duplicates the ref read and nothing else. Nothing correctness-
+ * critical depends on this lock; Git's conditional ref update remains the
+ * ordering authority.
  *
  * STALENESS RESTS ON THE WALL CLOCK (N4). A backward jump can delay recovery
  * and a forward jump can hasten it; for an advisory lock whose worst cost is
@@ -188,13 +194,17 @@ export interface CommonDirLockTimeoutDetails {
   readonly breakHolderPid: number | null;
   readonly breakHolderAlive: boolean;
   readonly breakFileAgeMs: number | null;
+  /** The error text when reading the `.break` itself failed (non-ENOENT), so
+   * the message can name it instead of claiming an automatic clear (R3-5).
+   * null when the file was read (whether or not its body parsed). */
+  readonly breakReadError: string | null;
   readonly staleAfterMs: number;
   readonly pidGoneFloorMs: number;
   readonly breakStaleAfterMs: number;
 }
 
 /**
- * The wait expired with a live holder still in place.
+ * The wait expired without acquiring the lock.
  *
  * This is a DELIBERATE, TYPED outcome rather than a generic failure: the lock
  * is advisory, so the caller decides whether to proceed unlocked (the
@@ -204,8 +214,9 @@ export interface CommonDirLockTimeoutDetails {
  *
  * It also carries the `.break` file's state (N1(b)), because that file decides
  * whether recovery is happening at all: absent is transient contention, a live
- * breaker is in progress, and an unreadable breaker is ambiguous but is now
- * cleared automatically past `staleAfterMs` rather than wedging forever.
+ * breaker is in progress, and an unreadable breaker is ambiguous. When the read
+ * itself failed, the detail carries that error verbatim (R3-5) rather than
+ * asserting the file will be cleared.
  */
 export class CommonDirLockTimeoutError extends Error {
   readonly lockPath: string;
@@ -217,6 +228,7 @@ export class CommonDirLockTimeoutError extends Error {
   readonly breakHolderPid: number | null;
   readonly breakHolderAlive: boolean;
   readonly breakFileAgeMs: number | null;
+  readonly breakReadError: string | null;
 
   constructor(details: CommonDirLockTimeoutDetails) {
     super(commonDirLockTimeoutMessage(details));
@@ -230,6 +242,7 @@ export class CommonDirLockTimeoutError extends Error {
     this.breakHolderPid = details.breakHolderPid;
     this.breakHolderAlive = details.breakHolderAlive;
     this.breakFileAgeMs = details.breakFileAgeMs;
+    this.breakReadError = details.breakReadError;
   }
 }
 
@@ -257,7 +270,9 @@ function commonDirLockTimeoutMessage(
       ? `A break file EXISTS at ${details.breakPath}, held by LIVE pid ${details.breakHolderPid} (${breakAgeClause}); a breaker is mid-recovery and blocks recovery until it finishes or the file passes the ${seconds(details.staleAfterMs)} age backstop.`
       : details.breakHolderPid !== null
         ? `A break file EXISTS at ${details.breakPath}, held by pid ${details.breakHolderPid}, which is not running (${breakAgeClause}); it is cleared automatically once older than ${seconds(details.breakStaleAfterMs)}, or at ${seconds(details.staleAfterMs)} regardless of pid.`
-        : `A break file EXISTS at ${details.breakPath} and its holder cannot be read (${breakAgeClause}); it is cleared automatically once older than ${seconds(details.staleAfterMs)}.`;
+        : details.breakReadError !== null
+          ? `A break file EXISTS at ${details.breakPath}, but reading it failed with "${details.breakReadError}" (${breakAgeClause}); the ${seconds(details.staleAfterMs)} age backstop is the only route past it, and only if it can then be removed.`
+          : `A break file EXISTS at ${details.breakPath} and its holder cannot be read (${breakAgeClause}); the ${seconds(details.staleAfterMs)} age backstop is the only route past it, and only if it can then be removed.`;
 
   return `Timed out after ${Math.round(details.waitedMs)}ms waiting for the common-directory lock at ${details.lockPath} (${held}). ${breakClause} This lock is advisory: the caller may proceed without it, and concurrent runs then duplicate the ref read and nothing else. If you prefer to clear it by hand, remove ${details.breakPath} only when no breaker is running.`;
 }
@@ -296,7 +311,7 @@ export async function acquireCommonDirLock(
 ): Promise<CommonDirLockHandle> {
   const opts = resolveOptions(commonDir, options);
   const startedWaitingAt = performance.now();
-  let lastHolder: CommonDirLockOwner | null = null;
+  let lastSnapshot: LockSnapshot | null = null;
 
   for (let attempt = 0; ; attempt += 1) {
     if (
@@ -306,11 +321,21 @@ export async function acquireCommonDirLock(
       throw await timeoutError(
         opts,
         performance.now() - startedWaitingAt,
-        lastHolder,
+        lastSnapshot,
       );
     }
 
-    await mkdir(opts.lockDir, { recursive: true });
+    // NON-RECURSIVE on purpose (F9): `lockDir` is `<commonDir>/quest`, and the
+    // common directory must already exist. If a wrong or relative root reached
+    // us, this fails with ENOENT instead of silently creating a stray
+    // `<wrong-root>/quest`; the caller treats that as a broken lock mechanism
+    // and proceeds unlocked. An already-created `quest/` (a concurrent creator,
+    // or a caller that seeded it) is the only tolerated error.
+    try {
+      await mkdir(opts.lockDir);
+    } catch (error) {
+      if (errnoCode(error) !== "EEXIST") throw error;
+    }
 
     const owner: CommonDirLockOwner = {
       pid: process.pid,
@@ -350,7 +375,7 @@ export async function acquireCommonDirLock(
       // removed it may be about to create. Retry immediately.
       continue;
     }
-    lastHolder = snapshot.owner;
+    lastSnapshot = snapshot;
 
     if (await breakStaleLock(opts, snapshot)) continue;
 
@@ -546,12 +571,13 @@ function snapshotAge(snapshot: LockSnapshot, nowMs: number): number {
 async function timeoutError(
   opts: ResolvedOptions,
   waitedMs: number,
-  holder: CommonDirLockOwner | null,
+  lastSnapshot: LockSnapshot | null,
 ): Promise<CommonDirLockTimeoutError> {
   const breakPath = `${opts.lockPath}${BREAK_FILE_SUFFIX}`;
   let present = false;
   let breakHolder: CommonDirLockOwner | null = null;
   let breakAgeMs: number | null = null;
+  let breakReadError: string | null = null;
   try {
     const snapshot = await readSnapshot(breakPath);
     present = snapshot !== null;
@@ -559,20 +585,27 @@ async function timeoutError(
       breakHolder = snapshot.owner;
       breakAgeMs = snapshotAge(snapshot, opts.now());
     }
-  } catch {
+  } catch (error) {
+    // Present but the read itself failed: name the error (R3-5), never call
+    // the path free -- only ENOENT licenses that, and ENOENT returns null.
     present = true;
+    breakReadError = error instanceof Error ? error.message : String(error);
   }
+  // The LAST snapshot is kept so the lock's age is still known when its body is
+  // unreadable: `snapshotAge` falls back to the file's mtime then (R3-5).
   return new CommonDirLockTimeoutError({
     lockPath: opts.lockPath,
     waitedMs,
-    holder,
-    lockAgeMs: holder === null ? null : opts.now() - holder.startedAt,
+    holder: lastSnapshot?.owner ?? null,
+    lockAgeMs:
+      lastSnapshot === null ? null : snapshotAge(lastSnapshot, opts.now()),
     breakPath,
     breakFilePresent: present,
     breakHolderPid: breakHolder?.pid ?? null,
     breakHolderAlive:
       breakHolder !== null ? opts.isAlive(breakHolder.pid) : false,
     breakFileAgeMs: breakAgeMs,
+    breakReadError,
     staleAfterMs: opts.staleAfterMs,
     pidGoneFloorMs: opts.pidGoneFloorMs,
     breakStaleAfterMs: opts.breakStaleAfterMs,
@@ -662,9 +695,10 @@ async function takeBreakFile(
   if (existing !== null && isBreakFileStale(existing, opts)) {
     // Check-then-unlink residual, recorded not closed (as in id-allocation):
     // two clearers can race for an aged or dead breaker's file and a loser's
-    // unlink can hit the winner's fresh file. It needs a killed or wedged
-    // breaker, two clearers and a third breaker in the same instant, and the
-    // subsequent locked re-read must still match before anything is removed.
+    // unlink can hit the winner's fresh file. The subsequent locked re-read
+    // compares the LOCK bytes only -- it does NOT protect this `.break` handoff,
+    // so a breaker whose file was aged out can still finish its own unlink (see
+    // residual (2) in the module docblock).
     await unlinkIfPresent(breakPath);
   }
   return null;
