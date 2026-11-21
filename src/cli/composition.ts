@@ -202,21 +202,44 @@ export function createContinuityCheckService(
  * raw relative value would create a stray `<wrong-root>/quest` in the main
  * worktree.
  *
- * R4: `onNote` receives the one-line unlocked-path note. The CLI passes a
- * collector so the line travels on `InvocationResult.stderr` (never a direct
- * `process.stderr` write); omitting it falls back to the wrapper's own default
- * sink, which is what the unit tests use. */
+ * R4: `onNote` receives the one-line notes the invocation reports on stderr:
+ * the unlocked-path note of DEC-282 (a8), and (QCLI-563 / DEC-282 (a11)) the
+ * single note a read-cache FAILURE reports. The CLI passes a collector so the
+ * lines travel on `InvocationResult.stderr` (and, on a thrown view, ahead of
+ * the error envelope); omitting it falls back to the lock wrapper's own
+ * default sink, and a failed cache stays silent. */
 export function createAcrossRefsService(
   onNote?: (line: string) => void,
 ): AcrossRefsView {
   const git = new LocalGitPort();
-  const view = new AcrossRefsViewService(git, new GhRefDiscovery(git));
+  // One note per invocation across BOTH sinks. DEC-282 (a8) item 2 and (a11)
+  // each promise ONE stderr line; a broken common directory fails the lock and
+  // the cache for the same cause, and would otherwise report twice. The first
+  // note wins (the lock is attempted first); the second would only repeat the
+  // cause. A decision for the pair owner if the two lines should both appear.
+  let noted = false;
+  const once =
+    onNote === undefined
+      ? undefined
+      : (line: string) => {
+          if (noted) return;
+          noted = true;
+          onNote(line);
+        };
+  const view = new AcrossRefsViewService(
+    git,
+    new GhRefDiscovery(git),
+    undefined,
+    undefined,
+    undefined,
+    once,
+  );
   const workspace = createWorkspacePort();
   return new AcrossRefsLockedService(
     view,
     async (repositoryPath) => {
       return (await workspace.inspect(repositoryPath)).commonDirectory;
     },
-    onNote === undefined ? {} : { writeNote: onNote },
+    once === undefined ? {} : { writeNote: once },
   );
 }
