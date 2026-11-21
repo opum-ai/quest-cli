@@ -12,6 +12,12 @@ import {
 import type { GitPort } from "../../ports/git.ts";
 import type { RefDiscoveryPort } from "../../ports/ref-discovery.ts";
 import { CONTINUITY_TASK_LOCATIONS } from "../checks/continuity.ts";
+import {
+  type AcrossRefsCachePort,
+  type AcrossRefsCachedRecord,
+  AcrossRefsCache,
+  acrossRefsRefKey,
+} from "./across-refs-cache.ts";
 
 /**
  * QCLI-417 / DEC-40 (operator-accepted 2026-09-29), recorded as the opum-doc
@@ -232,10 +238,7 @@ interface PlannedRef {
   readonly failure?: string;
 }
 
-interface RefRecord {
-  readonly task: TaskState;
-  readonly archived: boolean;
-}
+interface RefRecord extends AcrossRefsCachedRecord {}
 
 interface ReadRef {
   readonly provenance: AcrossRefsProvenance;
@@ -303,12 +306,52 @@ function labelFromUrl(url: string, number: number): string | null {
 }
 
 export class AcrossRefsViewService {
+  /**
+   * QCLI-563: records already parsed in THIS process, by `.quest` tree hash, so
+   * a tree shared by several refs is parsed once per run rather than once per
+   * ref. Keyed by the same content-addressed id as the on-disk cache, so the
+   * in-memory copy cannot serve a changed tree either -- a changed tree has a
+   * different key.
+   */
+  private readonly treeCache = new Map<
+    string,
+    readonly AcrossRefsCachedRecord[]
+  >();
+  /** undefined: not resolved yet; null: caching is unavailable here. */
+  private locatedCache: AcrossRefsCachePort | null | undefined;
+
   constructor(
     private readonly git: GitPort,
     private readonly discovery: RefDiscoveryPort,
     private readonly policy: LifecyclePolicy = defaultLifecyclePolicy,
     private readonly now: () => Date = () => new Date(),
+    /** QCLI-563: an injected cache (tests); production falls back to the shared
+     * directory under this repository's git common dir. */
+    private readonly cache?: AcrossRefsCachePort,
   ) {}
+
+  /**
+   * The cache this run reads and writes. An injected one wins; otherwise the
+   * shared directory under the clone's common dir. A repository with no Git
+   * behind it (or an unreadable common dir) simply disables caching -- that is
+   * a slower answer, never a failed one.
+   */
+  private async resolveCache(
+    repositoryPath: string,
+  ): Promise<AcrossRefsCachePort | null> {
+    if (this.cache !== undefined) return this.cache;
+    if (this.locatedCache !== undefined) return this.locatedCache;
+    let resolved: AcrossRefsCachePort | null;
+    try {
+      resolved = AcrossRefsCache.underCommonDirectory(
+        await this.git.commonDirectory(repositoryPath),
+      );
+    } catch {
+      resolved = null;
+    }
+    this.locatedCache = resolved;
+    return resolved;
+  }
 
   async view(request: AcrossRefsRequest): Promise<AcrossRefsOutcome> {
     const plan = await this.plan(request);
@@ -630,6 +673,32 @@ export class AcrossRefsViewService {
         );
     }
 
+    // QCLI-563: answer from the cache when this ref's `.quest` TREE is one
+    // already read -- in this process, or by an earlier run into the shared
+    // cache directory. The tree hash is the invalidation key and the only one:
+    // a changed `.quest` hashes differently, so a stale answer is impossible by
+    // construction rather than by an expiry rule. A ref with NO `.quest` tree is
+    // its own distinct cacheable state (a `root-<sha>` key; see
+    // {@link acrossRefsRefKey}); an unreadable ref is never cached at all (see
+    // the write guard below). The commit/tree must be present first (the
+    // `hasRevision`/fetch above), so a ref whose object was never fetched is
+    // still fetched before a cache lookup is attempted.
+    const cache = await this.resolveCache(repositoryPath);
+    let treeKey: string | undefined;
+    if (cache !== null) {
+      treeKey = await acrossRefsRefKey(this.git, repositoryPath, planned.sha);
+      if (treeKey !== undefined) {
+        const inMemory = this.treeCache.get(treeKey);
+        if (inMemory !== undefined)
+          return { kind: "read", ref: { provenance, records: inMemory } };
+        const stored = await cache.read(treeKey);
+        if (stored !== null) {
+          this.treeCache.set(treeKey, stored);
+          return { kind: "read", ref: { provenance, records: stored } };
+        }
+      }
+    }
+
     // The STRICT listing (QCLI-417 F1). `listFiles` answers `[]` for a listing
     // Git refused as well as for a prefix that holds nothing, and this view
     // cannot tell those apart in its output: a ref whose tree is unreadable
@@ -698,6 +767,16 @@ export class AcrossRefsViewService {
         pathsById.set(key, path);
         records.push({ task, archived: location === "archive/tasks" });
       }
+    }
+    // QCLI-563: cache only a read that SUCCEEDED. Every `return unreadable`
+    // above bypasses this line, so an unreadable ref is never stored as an
+    // empty (or partial) one -- the coverage report keeps naming it until it
+    // actually reads. A genuinely empty (or absent) `.quest` is a successful
+    // read of zero records and IS cached, under its own key; that is different
+    // from unreadable and must stay different.
+    if (cache !== null && treeKey !== undefined) {
+      this.treeCache.set(treeKey, records);
+      await cache.write(treeKey, records);
     }
     return { kind: "read", ref: { provenance, records } };
   }

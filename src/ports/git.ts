@@ -64,6 +64,25 @@ export interface GitPush {
 export interface GitPort {
   readRevision(repositoryPath: string, ref: string): Promise<string>;
   /**
+   * QCLI-563: the object id of the tree at `<revision>:<path>` (for the
+   * across-refs cache, `<commit>:".quest"`), or a rejection when that tree is
+   * absent or unreadable. A Git tree is content-addressed, so this id is a
+   * change-detection key that cannot drift with time: the same id names the
+   * same records, and a different id names different ones.
+   */
+  treeHash(
+    repositoryPath: string,
+    revision: string,
+    path: string,
+  ): Promise<string>;
+  /**
+   * QCLI-563: `<git-common-dir>` resolved to an absolute path, as
+   * `git rev-parse --git-common-dir` reports it. Every worktree of one clone
+   * shares this directory, which is why a cache placed under it is shared by
+   * all of them. Rejects where there is no Git repository behind the path.
+   */
+  commonDirectory(repositoryPath: string): Promise<string>;
+  /**
    * Revision-pinned blob read: returns the object content at
    * `<revision>:<path>` or null when absent. Immune to worktree symlinks.
    */

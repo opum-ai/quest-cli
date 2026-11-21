@@ -138,6 +138,22 @@ export class LocalGitPort implements GitPort {
     return requiredGit(repositoryPath, ["rev-parse", "--verify", ref]);
   }
 
+  /** QCLI-563: the content-addressed id of the tree at `<revision>:<path>`.
+   *  `--verify` rejects an object that is absent (a pruned tree, a path that
+   *  holds no tree), which the caller reads as "no cache key, so read it the
+   *  normal way" rather than as a failure. */
+  async treeHash(
+    repositoryPath: string,
+    revision: string,
+    path: string,
+  ): Promise<string> {
+    return requiredGit(repositoryPath, [
+      "rev-parse",
+      "--verify",
+      `${revision}:${path}`,
+    ]);
+  }
+
   async readBlob(
     repositoryPath: string,
     revision: string,
@@ -576,7 +592,9 @@ export class LocalGitPort implements GitPort {
     };
   }
 
-  private async commonDirectory(repositoryPath: string): Promise<string> {
+  /** QCLI-563: the common directory every worktree of this clone shares, made
+   *  public so the across-refs cache can live under it. */
+  async commonDirectory(repositoryPath: string): Promise<string> {
     const value = await requiredGit(repositoryPath, [
       "rev-parse",
       "--git-common-dir",
