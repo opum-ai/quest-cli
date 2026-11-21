@@ -38,9 +38,22 @@ import { setTimeout as delay } from "node:timers/promises";
  * id-allocation.ts`: breakers take a second exclusive file,
  * `<lock>.break`, and under it re-read the lock and remove it only if it still
  * matches the snapshot that was judged stale. While the stale lock exists
- * nobody can `open(wx)` over it, and with breakers serialised nobody else can
- * remove it, so there is no gap to race in and no moment the path is free
- * while a live holder owns it.
+ * nobody can `open(wx)` over it, and breakers are serialised, so recovery has
+ * no gap to race in and never moves a live holder's file.
+ *
+ * TWO RESIDUALS REMAIN, and they are acceptable ONLY because this lock is
+ * advisory. (1) Release is read-then-unlink: past the age backstop, or with a
+ * reused pid, a holder's release can delete a successor's lock. (2) The
+ * `.break` file could otherwise wedge recovery forever; it is cleared on age
+ * alone past `staleAfterMs` (N1), so a wedged breaker delays recovery by at
+ * most that backstop. Either residual can therefore produce two concurrent
+ * holders -- which duplicates the ref read and nothing else. Nothing
+ * correctness-critical depends on this lock; Git's conditional ref update
+ * remains the ordering authority.
+ *
+ * STALENESS RESTS ON THE WALL CLOCK (N4). A backward jump can delay recovery
+ * and a forward jump can hasten it; for an advisory lock whose worst cost is
+ * duplicated work that is acceptable.
  *
  * WAITER REUSE IS THE CALLER'S JOB, NOT THIS MODULE'S. Acquiring the lock only
  * serialises the read; it cannot tell a waiter whether the ref hashes it
@@ -97,11 +110,18 @@ export interface CommonDirLockOptions {
   /**
    * Lock basename, default {@link DEFAULT_COMMON_DIR_LOCK_NAME}. Rejected if it
    * could escape the lock directory (no path separators, no leading dot).
+   *
+   * RESERVED NAME: `alloc` forms `<commonDir>/quest/alloc.lock`, which is
+   * `src/application/tasks/id-allocation.ts`'s own lock. Passing it here would
+   * make the two unrelated locks contend; the name is documented as reserved
+   * rather than rejected so a caller that reads this learns why.
    */
   readonly name?: string;
   /**
-   * Age-only backstop: past this age a holder is stale even if its pid is
-   * alive. Separate from and larger than {@link pidGoneFloorMs}.
+   * Age-only backstop, for both the lock and the `.break` file: past this age
+   * a file is stale regardless of what its pid says. Normally larger than
+   * {@link pidGoneFloorMs}; when it is smaller the backstop simply dominates,
+   * which is what the deterministic age tests rely on.
    */
   readonly staleAfterMs?: number;
   /**
@@ -109,7 +129,11 @@ export interface CommonDirLockOptions {
    * dead-pid file is treated as mid-write, not abandoned.
    */
   readonly pidGoneFloorMs?: number;
-  /** Age floor for clearing a dead breaker's `.break` file. */
+  /**
+   * Age floor for clearing a `.break` file whose pid is readable and gone.
+   * An unreadable or live-pid `.break` is still cleared past `staleAfterMs`
+   * (age alone), so a wedged breaker cannot disable recovery forever (N1).
+   */
   readonly breakStaleAfterMs?: number;
   /** Bound on the wait. On expiry a {@link CommonDirLockTimeoutError} is thrown. */
   readonly waitTimeoutMs?: number;
@@ -126,6 +150,10 @@ export interface CommonDirLockOptions {
    * Injected for deterministic tests. The WAIT DEADLINE is deliberately read
    * from the monotonic clock instead, so a frozen injected clock can never turn
    * a bounded wait into an unbounded one.
+   *
+   * This is a WALL clock (N4): a backward jump delays recovery and a forward
+   * jump hastens it. The only cost is duplicated work, which the advisory
+   * contract accepts.
    */
   readonly now?: () => number;
   /**
@@ -146,6 +174,25 @@ export interface CommonDirLockHandle {
   release(): Promise<void>;
 }
 
+/** Everything the timeout message needs, gathered at throw time. */
+export interface CommonDirLockTimeoutDetails {
+  readonly lockPath: string;
+  readonly waitedMs: number;
+  readonly holder: CommonDirLockOwner | null;
+  readonly lockAgeMs: number | null;
+  readonly breakPath: string;
+  /** False only when the file is provably ABSENT (ENOENT). A file that exists
+   * but cannot be read is present-and-unreadable, never absent. */
+  readonly breakFilePresent: boolean;
+  /** The breaker's pid, or null when the file is absent or unreadable. */
+  readonly breakHolderPid: number | null;
+  readonly breakHolderAlive: boolean;
+  readonly breakFileAgeMs: number | null;
+  readonly staleAfterMs: number;
+  readonly pidGoneFloorMs: number;
+  readonly breakStaleAfterMs: number;
+}
+
 /**
  * The wait expired with a live holder still in place.
  *
@@ -154,27 +201,65 @@ export interface CommonDirLockHandle {
  * `--across-refs` read is safe to run concurrently, it just duplicates work)
  * or to report the contention. The message says so, because a bare timeout
  * string reads like an error in a read-only command that has no failure.
+ *
+ * It also carries the `.break` file's state (N1(b)), because that file decides
+ * whether recovery is happening at all: absent is transient contention, a live
+ * breaker is in progress, and an unreadable breaker is ambiguous but is now
+ * cleared automatically past `staleAfterMs` rather than wedging forever.
  */
 export class CommonDirLockTimeoutError extends Error {
   readonly lockPath: string;
   readonly waitedMs: number;
   readonly holder: CommonDirLockOwner | null;
+  readonly lockAgeMs: number | null;
+  readonly breakPath: string;
+  readonly breakFilePresent: boolean;
+  readonly breakHolderPid: number | null;
+  readonly breakHolderAlive: boolean;
+  readonly breakFileAgeMs: number | null;
 
-  constructor(
-    lockPath: string,
-    waitedMs: number,
-    holder: CommonDirLockOwner | null,
-  ) {
-    const heldBy =
-      holder === null ? "no readable holder" : `held by pid ${holder.pid}`;
-    super(
-      `Timed out after ${Math.round(waitedMs)}ms waiting for the common-directory lock at ${lockPath} (${heldBy}); the lock is advisory and the caller may proceed without it`,
-    );
+  constructor(details: CommonDirLockTimeoutDetails) {
+    super(commonDirLockTimeoutMessage(details));
     this.name = "CommonDirLockTimeoutError";
-    this.lockPath = lockPath;
-    this.waitedMs = waitedMs;
-    this.holder = holder;
+    this.lockPath = details.lockPath;
+    this.waitedMs = details.waitedMs;
+    this.holder = details.holder;
+    this.lockAgeMs = details.lockAgeMs;
+    this.breakPath = details.breakPath;
+    this.breakFilePresent = details.breakFilePresent;
+    this.breakHolderPid = details.breakHolderPid;
+    this.breakHolderAlive = details.breakHolderAlive;
+    this.breakFileAgeMs = details.breakFileAgeMs;
   }
+}
+
+function seconds(milliseconds: number | null): string | null {
+  return milliseconds === null ? null : `${Math.round(milliseconds / 1000)}s`;
+}
+
+/** The timeout text, in one function so a test can assert it exactly. */
+function commonDirLockTimeoutMessage(
+  details: CommonDirLockTimeoutDetails,
+): string {
+  const holder =
+    details.holder === null
+      ? "no readable holder"
+      : `pid ${details.holder.pid}`;
+  const lockAge = seconds(details.lockAgeMs);
+  const held = `${holder}${lockAge === null ? "" : `, stamped ${lockAge} ago`}`;
+
+  const breakAge = seconds(details.breakFileAgeMs);
+  const breakAgeClause =
+    breakAge === null ? "its age could not be read" : `written ${breakAge} ago`;
+  const breakClause = !details.breakFilePresent
+    ? `No break file exists at ${details.breakPath}.`
+    : details.breakHolderPid !== null && details.breakHolderAlive
+      ? `A break file EXISTS at ${details.breakPath}, held by LIVE pid ${details.breakHolderPid} (${breakAgeClause}); a breaker is mid-recovery and blocks recovery until it finishes or the file passes the ${seconds(details.staleAfterMs)} age backstop.`
+      : details.breakHolderPid !== null
+        ? `A break file EXISTS at ${details.breakPath}, held by pid ${details.breakHolderPid}, which is not running (${breakAgeClause}); it is cleared automatically once older than ${seconds(details.breakStaleAfterMs)}, or at ${seconds(details.staleAfterMs)} regardless of pid.`
+        : `A break file EXISTS at ${details.breakPath} and its holder cannot be read (${breakAgeClause}); it is cleared automatically once older than ${seconds(details.staleAfterMs)}.`;
+
+  return `Timed out after ${Math.round(details.waitedMs)}ms waiting for the common-directory lock at ${details.lockPath} (${held}). ${breakClause} This lock is advisory: the caller may proceed without it, and concurrent runs then duplicate the ref read and nothing else. If you prefer to clear it by hand, remove ${details.breakPath} only when no breaker is running.`;
 }
 
 /**
@@ -218,8 +303,8 @@ export async function acquireCommonDirLock(
       attempt > 0 &&
       performance.now() - startedWaitingAt >= opts.waitTimeoutMs
     ) {
-      throw new CommonDirLockTimeoutError(
-        opts.lockPath,
+      throw await timeoutError(
+        opts,
         performance.now() - startedWaitingAt,
         lastHolder,
       );
@@ -245,7 +330,14 @@ export async function acquireCommonDirLock(
         await unlinkIfPresent(opts.lockPath);
         throw error;
       }
-      await handle.close();
+      try {
+        await handle.close();
+      } catch (error) {
+        // F4 minor: the body was written but the handle did not close cleanly,
+        // and we have no handle to return; do not leave the lock behind.
+        await unlinkIfPresent(opts.lockPath);
+        throw error;
+      }
       created = true;
     } catch (error) {
       if (errnoCode(error) !== "EEXIST") throw error;
@@ -415,6 +507,13 @@ function parseOwner(raw: string): CommonDirLockOwner | null {
   return { pid, startedAt, token };
 }
 
+/**
+ * Read the file and then its stat (N3(a)). The order is safe: `mtimeMs` is
+ * consulted only when the body has no readable owner, and if the file was
+ * replaced between the two calls the stat reports the REPLACEMENT's age, which
+ * can only make the computed age YOUNGER -- the conservative direction, since
+ * a younger file is less likely to be judged stale.
+ */
 async function readSnapshot(lockPath: string): Promise<LockSnapshot | null> {
   let raw: string;
   try {
@@ -439,6 +538,48 @@ function snapshotAge(snapshot: LockSnapshot, nowMs: number): number {
 }
 
 /**
+ * Gather the `.break` state for the timeout message (N1(b)). A non-ENOENT
+ * failure while reading it is reported as PRESENT but unreadable, never as
+ * absent: only ENOENT licenses calling the path free (the same distinction
+ * id-allocation's QCLI-528 fix draws).
+ */
+async function timeoutError(
+  opts: ResolvedOptions,
+  waitedMs: number,
+  holder: CommonDirLockOwner | null,
+): Promise<CommonDirLockTimeoutError> {
+  const breakPath = `${opts.lockPath}${BREAK_FILE_SUFFIX}`;
+  let present = false;
+  let breakHolder: CommonDirLockOwner | null = null;
+  let breakAgeMs: number | null = null;
+  try {
+    const snapshot = await readSnapshot(breakPath);
+    present = snapshot !== null;
+    if (snapshot !== null) {
+      breakHolder = snapshot.owner;
+      breakAgeMs = snapshotAge(snapshot, opts.now());
+    }
+  } catch {
+    present = true;
+  }
+  return new CommonDirLockTimeoutError({
+    lockPath: opts.lockPath,
+    waitedMs,
+    holder,
+    lockAgeMs: holder === null ? null : opts.now() - holder.startedAt,
+    breakPath,
+    breakFilePresent: present,
+    breakHolderPid: breakHolder?.pid ?? null,
+    breakHolderAlive:
+      breakHolder !== null ? opts.isAlive(breakHolder.pid) : false,
+    breakFileAgeMs: breakAgeMs,
+    staleAfterMs: opts.staleAfterMs,
+    pidGoneFloorMs: opts.pidGoneFloorMs,
+    breakStaleAfterMs: opts.breakStaleAfterMs,
+  });
+}
+
+/**
  * The stale rule, ported from `id-allocation.ts:433-434` plus an age-only
  * backstop:
  *
@@ -458,20 +599,27 @@ function isSnapshotStale(
 }
 
 /**
- * A break file is cleared only when it is older than `breakStaleAfterMs` AND
- * its pid is readable and gone. An unreadable holder is NEVER cleared: a
- * breaker killed between `open(wx)` and its body write leaves exactly that,
- * and clearing on age alone would let a live-but-paused breaker lose its
- * serialisation. Ported from `id-allocation.ts:504-509`.
+ * N1: a `.break` file may NOT disable recovery forever. Its rule is:
+ *
+ *  1. older than `staleAfterMs` -> clear whatever its pid says, including an
+ *     unreadable body or a pid that looks alive through reuse (the age-only
+ *     backstop);
+ *  2. otherwise an unreadable body is kept (it may be a breaker mid-write);
+ *  3. otherwise older than `breakStaleAfterMs` AND its pid is gone -> clear.
+ *
+ * This deliberately diverges from `id-allocation.ts`, which never clears an
+ * unreadable or live-looking break file: there the fail-closed side protects
+ * id uniqueness, while this lock is advisory and its worst case is duplicated
+ * work. A wedged breaker costs at most `staleAfterMs`, not forever.
  */
 function isBreakFileStale(
   snapshot: LockSnapshot,
   opts: ResolvedOptions,
 ): boolean {
+  const age = snapshotAge(snapshot, opts.now());
+  if (age > opts.staleAfterMs) return true;
   if (snapshot.owner === null) return false;
-  if (snapshotAge(snapshot, opts.now()) <= opts.breakStaleAfterMs) {
-    return false;
-  }
+  if (age <= opts.breakStaleAfterMs) return false;
   return !opts.isAlive(snapshot.owner.pid);
 }
 
@@ -498,7 +646,13 @@ async function takeBreakFile(
       await unlinkIfPresent(breakPath);
       throw error;
     }
-    await handle.close();
+    try {
+      await handle.close();
+    } catch (error) {
+      // We created it and cannot hand it back; do not leave a wedged break.
+      await unlinkIfPresent(breakPath);
+      throw error;
+    }
     return owner;
   } catch (error) {
     if (errnoCode(error) !== "EEXIST") throw error;
@@ -507,10 +661,10 @@ async function takeBreakFile(
   const existing = await readSnapshot(breakPath);
   if (existing !== null && isBreakFileStale(existing, opts)) {
     // Check-then-unlink residual, recorded not closed (as in id-allocation):
-    // two clearers can race for a dead breaker's file and a loser's unlink can
-    // hit the winner's fresh file. It needs a killed breaker, two clearers and
-    // a third breaker in the same instant, and the subsequent locked re-read
-    // must still match before anything is removed.
+    // two clearers can race for an aged or dead breaker's file and a loser's
+    // unlink can hit the winner's fresh file. It needs a killed or wedged
+    // breaker, two clearers and a third breaker in the same instant, and the
+    // subsequent locked re-read must still match before anything is removed.
     await unlinkIfPresent(breakPath);
   }
   return null;
@@ -546,9 +700,16 @@ async function breakStaleLock(
     return true;
   } finally {
     // Clear only a break file this call still owns: a release that read
-    // someone else's would take their serialisation with it.
-    const left = await readSnapshot(breakPath);
-    if (left?.owner?.token === mine.token) await unlinkIfPresent(breakPath);
+    // someone else's would take their serialisation with it. N3(c): this is
+    // best-effort like id-allocation -- an unreadable or unremovable break file
+    // must not mask the outcome of the recovery, and the `staleAfterMs`
+    // backstop clears it later anyway.
+    try {
+      const left = await readSnapshot(breakPath);
+      if (left?.owner?.token === mine.token) await unlinkIfPresent(breakPath);
+    } catch {
+      // Leave it to the age backstop.
+    }
   }
 }
 
