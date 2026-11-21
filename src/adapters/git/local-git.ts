@@ -138,6 +138,60 @@ export class LocalGitPort implements GitPort {
     return requiredGit(repositoryPath, ["rev-parse", "--verify", ref]);
   }
 
+  /** QCLI-563: the content-addressed id of the tree at `<revision>:<path>`.
+   *  `--verify` rejects an object that is absent (a pruned tree, a path that
+   *  holds no tree), which the caller reads as "no cache key, so read it the
+   *  normal way" rather than as a failure. */
+  async treeHash(
+    repositoryPath: string,
+    revision: string,
+    path: string,
+  ): Promise<string> {
+    return requiredGit(repositoryPath, [
+      "rev-parse",
+      "--verify",
+      `${revision}:${path}`,
+    ]);
+  }
+
+  /** QCLI-563 (F10): many object probes in one `git cat-file --batch-check`.
+   *  `--batch-check` echoes each input line in order and answers either
+   *  `<oid> <type> <size>`, `<input> missing`, or `<input> ambiguous`. Only an
+   *  EXACT `${spec} missing` line means "absent" (mapped to null). An ambiguous
+   *  or unparseable line is left OUT of the map -- the port contract is that
+   *  "unanswerable" is absent, so the caller falls back to a per-spec probe
+   *  rather than mistaking a refusal for a missing object. Any line/spec
+   *  misalignment (including extra lines), or a spec carrying a newline, returns
+   *  an EMPTY map for the same reason. */
+  async batchCheck(
+    repositoryPath: string,
+    specs: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>> {
+    const answers = new Map<string, string | null>();
+    if (specs.length === 0) return answers;
+    if (specs.some((spec) => spec.includes("\n") || spec.includes("\r")))
+      return answers;
+    const result = await git(repositoryPath, ["cat-file", "--batch-check"], {
+      stdin: `${specs.join("\n")}\n`,
+    });
+    if (result.code !== 0) return answers;
+    const lines = result.stdout.split("\n");
+    if (lines.length !== specs.length) return answers;
+    for (const [index, spec] of specs.entries()) {
+      const line = lines[index] ?? "";
+      if (line === `${spec} missing`) {
+        answers.set(spec, null);
+        continue;
+      }
+      const oid = line.split(/\s+/u)[0] ?? "";
+      // Present objects are `<oid> <type> <size>`; anything else (including
+      // `<spec> ambiguous`) is left unanswered.
+      if (/^[0-9a-f]{40}$/u.test(oid) && line.split(/\s+/u).length === 3)
+        answers.set(spec, oid);
+    }
+    return answers;
+  }
+
   async readBlob(
     repositoryPath: string,
     revision: string,
@@ -183,6 +237,32 @@ export class LocalGitPort implements GitPort {
       prefix,
     ]);
     return output.split("\n").filter((line) => line.length > 0);
+  }
+
+  /** QCLI-563: the strict listing with each path's blob oid, which `ls-tree`
+   *  already reports (`<mode> <type> <oid>\t<path>`). One process, no per-path
+   *  hash. An absent prefix answers `[]`; a refused listing throws. */
+  async listBlobsRequired(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly { readonly path: string; readonly oid: string }[]> {
+    const output = await requiredGit(repositoryPath, [
+      "ls-tree",
+      "-r",
+      revision,
+      prefix,
+    ]);
+    const rows: { path: string; oid: string }[] = [];
+    for (const line of output.split("\n")) {
+      if (line.length === 0) continue;
+      const tab = line.indexOf("\t");
+      if (tab < 0) continue;
+      const oid = line.slice(0, tab).split(" ")[2] ?? "";
+      if (!/^[0-9a-f]{40}$/u.test(oid)) continue;
+      rows.push({ path: line.slice(tab + 1), oid });
+    }
+    return rows;
   }
 
   async mergeBase(
@@ -576,7 +656,9 @@ export class LocalGitPort implements GitPort {
     };
   }
 
-  private async commonDirectory(repositoryPath: string): Promise<string> {
+  /** QCLI-563: the common directory every worktree of this clone shares, made
+   *  public so the across-refs cache can live under it. */
+  async commonDirectory(repositoryPath: string): Promise<string> {
     const value = await requiredGit(repositoryPath, [
       "rev-parse",
       "--git-common-dir",

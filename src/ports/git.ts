@@ -64,6 +64,37 @@ export interface GitPush {
 export interface GitPort {
   readRevision(repositoryPath: string, ref: string): Promise<string>;
   /**
+   * QCLI-563: the object id of the tree at `<revision>:<path>` (for the
+   * across-refs cache, `<commit>:".quest"`), or a rejection when that tree is
+   * absent or unreadable. A Git tree is content-addressed, so this id is a
+   * change-detection key that cannot drift with time: the same id names the
+   * same records, and a different id names different ones.
+   */
+  treeHash(
+    repositoryPath: string,
+    revision: string,
+    path: string,
+  ): Promise<string>;
+  /**
+   * QCLI-563 (F10): answers many object probes in ONE Git process
+   * (`git cat-file --batch-check`), for a caller that would otherwise spawn one
+   * `cat-file` per probe. Maps each spec to the object id it names, or to null
+   * where the object is missing. A spec the adapter could not answer at all is
+   * ABSENT from the map, so the caller falls back to the single-probe path
+   * rather than mistaking "not answered" for "not present".
+   */
+  batchCheck(
+    repositoryPath: string,
+    specs: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>>;
+  /**
+   * QCLI-563: `<git-common-dir>` resolved to an absolute path, as
+   * `git rev-parse --git-common-dir` reports it. Every worktree of one clone
+   * shares this directory, which is why a cache placed under it is shared by
+   * all of them. Rejects where there is no Git repository behind the path.
+   */
+  commonDirectory(repositoryPath: string): Promise<string>;
+  /**
    * Revision-pinned blob read: returns the object content at
    * `<revision>:<path>` or null when absent. Immune to worktree symlinks.
    */
@@ -101,6 +132,17 @@ export interface GitPort {
     revision: string,
     prefix: string,
   ): Promise<readonly string[]>;
+  /**
+   * QCLI-563 (S1/two-level): the strict listing of {@link listFilesRequired},
+   * but carrying each path's BLOB OID as `git ls-tree` already reports it, so a
+   * caller can content-address a file without a second process per path. A
+   * refused listing REJECTS; an absent prefix answers `[]`.
+   */
+  listBlobsRequired(
+    repositoryPath: string,
+    revision: string,
+    prefix: string,
+  ): Promise<readonly { readonly path: string; readonly oid: string }[]>;
   /**
    * QCLI-415: the best common ancestor of two revisions, as `git merge-base
    * <a> <b>` resolves it. Rejects when either revision is unresolvable or the
