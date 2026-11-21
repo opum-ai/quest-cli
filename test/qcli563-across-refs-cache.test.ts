@@ -830,9 +830,13 @@ test("the CLI is unchanged when the cache dir is unwritable (S5)", async () => {
       "refs/heads/feature",
       "--json",
     ]);
-    // stdout, exit code and JSON are unchanged by the failed cache.
+    // stdout, exit code and JSON are unchanged by the failed cache, and (S5,
+    // DEC-282 (a11), now connected through the #767 result-stderr sink) the
+    // failure is reported by exactly ONE note line on stderr.
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
+    const lines = result.stderr.split("\n").filter((line) => line !== "");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^note: .*read cache is unavailable.*uncached/);
     const data = JSON.parse(result.stdout) as { data: { id: string }[] };
     expect(data.data.map((entry) => entry.id)).toContain("T-2");
   } finally {

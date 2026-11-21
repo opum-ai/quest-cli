@@ -163,7 +163,7 @@ jobs:
       # (OPAG-166, platform matrices on tags and releases only).
       - name: Codex skill path and init notice (Windows legs)
         if: startsWith(matrix.target, 'win32')
-        run: bun test test/qcli543-codex-skill-path.test.ts
+        run: bun test test/qcli543-codex-skill-path.test.ts test/integration/workspaces/local-workspaces.test.ts
       # Only this runner can build this target — Bun cannot cross-compile
       # bun-windows-aarch64 at all — so the package it just built is uploaded
       # for the bundle job to collect. Without this a six-platform candidate

@@ -466,17 +466,41 @@ async function acrossRefsListing(
     limit: limitValue(one(parsed, "--limit")),
   };
 
-  const outcome = await createAcrossRefsService().view({
-    repositoryPath: root,
-    refs: parsed.values.get("--ref"),
-    pullRequests,
-    allowPartial: parsed.values.has("--allow-partial"),
-    filter,
-  });
+  // R4: the lock wrapper records any unlocked-path note here instead of
+  // writing process.stderr directly. Prepending it keeps the note BEFORE any
+  // error envelope, which must stay the LAST line of stderr; the normal locked
+  // path contributes nothing.
+  const notes: string[] = [];
+  const outcome = await (async () => {
+    const view = createAcrossRefsService((line) => notes.push(line));
+    try {
+      return await view.view({
+        repositoryPath: root,
+        refs: parsed.values.get("--ref"),
+        pullRequests,
+        allowPartial: parsed.values.has("--allow-partial"),
+        filter,
+      });
+    } catch (error) {
+      // T1: if the inner view THROWS on an unlocked path (a refused --parent,
+      // a rejected --status, a git/IO failure), runQuest's outer catch builds a
+      // fresh envelope and never reaches finish() below. Write the notes now --
+      // they precede that envelope, which is emitted last -- so the run is not
+      // silent, then rethrow to the normal error mapping.
+      for (const line of notes) process.stderr.write(line);
+      throw error;
+    }
+  })();
+  const finish = (result: InvocationResult): InvocationResult =>
+    notes.length === 0
+      ? result
+      : { ...result, stderr: `${notes.join("")}${result.stderr}` };
   if (outcome.kind === "absent")
-    return failure("not_found", outcome.message, {
-      hint: "`quest task list` without --across-refs answers about this checkout alone and still works.",
-    });
+    return finish(
+      failure("not_found", outcome.message, {
+        hint: "`quest task list` without --across-refs answers about this checkout alone and still works.",
+      }),
+    );
 
   const { entries, coverage } = outcome;
   const readZeroRefs = coverage.refsRead.length === 0;
@@ -493,17 +517,21 @@ async function acrossRefsListing(
     // cached even when another ref was unreadable), so the hint names exactly
     // what is and is not written. No opum-cli-e2e suite asserts the old text
     // ("Nothing was written -- the view is read-only"; read by ref 2026-11-21).
-    return failure("drift", message, {
-      input: { coverage },
-      hint: "No ref, tracker record or working-tree file was written; only the across-refs read cache under <git-common-dir>/quest/across-refs-cache/ may have been. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
-    });
+    return finish(
+      failure("drift", message, {
+        input: { coverage },
+        hint: "No ref, tracker record or working-tree file was written; only the across-refs read cache under <git-common-dir>/quest/across-refs-cache/ may have been. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
+      }),
+    );
   }
 
-  return output(
-    { schemaVersion: 1, kind: "task.list-across-refs", data: entries },
-    mode,
-    [],
-    { coverage },
+  return finish(
+    output(
+      { schemaVersion: 1, kind: "task.list-across-refs", data: entries },
+      mode,
+      [],
+      { coverage },
+    ),
   );
 }
 

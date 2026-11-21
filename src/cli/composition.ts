@@ -105,6 +105,10 @@ import {
   type TaskBindingReadModel,
 } from "../application/claims/opum-agent-workflow.ts";
 import { AcrossRefsViewService } from "../application/refs/across-refs.ts";
+import {
+  AcrossRefsLockedService,
+  type AcrossRefsView,
+} from "../application/refs/across-refs-locked.ts";
 
 /** Inferred rather than annotated with the `ports/git.ts` interface type:
  * `cli` may depend on `application`, never on `ports` directly (see
@@ -191,21 +195,51 @@ export function createContinuityCheckService(
  * shell-out here; the tests that cannot use a forge inject their own
  * RefDiscoveryPort into AcrossRefsViewService directly.
  *
- * QCLI-563 / S5: `onNote` receives the one `note: ` line a cache FAILURE
- * reports. The default is a no-op; Q568-INT's `acrossRefsListing` passes its
- * result-stderr sink here so the line joins the invocation's stderr (and
- * survives a thrown view). Until then, a failed cache stays silent in
- * production but the mechanism and tests are in place. */
+ * QCLI-568: the view is wrapped in the advisory common-directory lock so two
+ * runs from different worktrees of one clone serialise. The lock's common
+ * directory is resolved by the workspace port, which realpaths
+ * `git rev-parse --git-common-dir` against the worktree (F9) -- passing the
+ * raw relative value would create a stray `<wrong-root>/quest` in the main
+ * worktree.
+ *
+ * R4: `onNote` receives the one-line notes the invocation reports on stderr:
+ * the unlocked-path note of DEC-282 (a8), and (QCLI-563 / DEC-282 (a11)) the
+ * single note a read-cache FAILURE reports. The CLI passes a collector so the
+ * lines travel on `InvocationResult.stderr` (and, on a thrown view, ahead of
+ * the error envelope); omitting it falls back to the lock wrapper's own
+ * default sink, and a failed cache stays silent. */
 export function createAcrossRefsService(
   onNote?: (line: string) => void,
-): AcrossRefsViewService {
+): AcrossRefsView {
   const git = new LocalGitPort();
-  return new AcrossRefsViewService(
+  // One note per invocation across BOTH sinks. DEC-282 (a8) item 2 and (a11)
+  // each promise ONE stderr line; a broken common directory fails the lock and
+  // the cache for the same cause, and would otherwise report twice. The first
+  // note wins (the lock is attempted first); the second would only repeat the
+  // cause. A decision for the pair owner if the two lines should both appear.
+  let noted = false;
+  const once =
+    onNote === undefined
+      ? undefined
+      : (line: string) => {
+          if (noted) return;
+          noted = true;
+          onNote(line);
+        };
+  const view = new AcrossRefsViewService(
     git,
     new GhRefDiscovery(git),
     undefined,
     undefined,
     undefined,
-    onNote,
+    once,
+  );
+  const workspace = createWorkspacePort();
+  return new AcrossRefsLockedService(
+    view,
+    async (repositoryPath) => {
+      return (await workspace.inspect(repositoryPath)).commonDirectory;
+    },
+    once === undefined ? {} : { writeNote: once },
   );
 }
