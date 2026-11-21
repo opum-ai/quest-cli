@@ -94,6 +94,46 @@ function isPrefix(prefix: string, path: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
 
+/**
+ * QCLI-568 Q568-INT B nit 4: parse `git ls-tree -r` output STRICTLY.
+ *
+ * Each row is `<mode> <type> <oid>\t<path>`. A row that does not have the tab,
+ * or whose oid is not a 40-hex object name, used to be SKIPPED -- which turns a
+ * changed `ls-tree` format, a locale surprise, or a corrupted listing into a
+ * SILENTLY SHORTER record set. A reader that cannot say what it read must not
+ * answer as if it read everything, so an unparseable row throws and the caller
+ * reports the ref unreadable.
+ *
+ * Empty lines are the trailing newline and are ignored; only a row that carries
+ * content and cannot be parsed is a failure.
+ *
+ * The object name must be 40 hex digits (SHA-1). A SHA-256 object-format
+ * repository (64 hex) therefore reports every listing as unparseable: that is
+ * loud and the ref reads as unreadable, which is deliberate -- the old
+ * behaviour silently shortened or skipped such rows.
+ */
+export function parseBlobListing(
+  output: string,
+  context: string,
+): readonly { readonly path: string; readonly oid: string }[] {
+  const rows: { path: string; oid: string }[] = [];
+  for (const line of output.split("\n")) {
+    if (line.length === 0) continue;
+    const tab = line.indexOf("\t");
+    if (tab < 0)
+      throw new Error(
+        `${context} returned an unparseable row (no tab separator): ${JSON.stringify(line)}`,
+      );
+    const oid = line.slice(0, tab).split(" ")[2] ?? "";
+    if (!/^[0-9a-f]{40}$/u.test(oid))
+      throw new Error(
+        `${context} returned an unparseable row (no 40-hex object name): ${JSON.stringify(line)}`,
+      );
+    rows.push({ path: line.slice(tab + 1), oid });
+  }
+  return rows;
+}
+
 function assertSafePath(path: string): void {
   if (
     !path ||
@@ -253,16 +293,7 @@ export class LocalGitPort implements GitPort {
       revision,
       prefix,
     ]);
-    const rows: { path: string; oid: string }[] = [];
-    for (const line of output.split("\n")) {
-      if (line.length === 0) continue;
-      const tab = line.indexOf("\t");
-      if (tab < 0) continue;
-      const oid = line.slice(0, tab).split(" ")[2] ?? "";
-      if (!/^[0-9a-f]{40}$/u.test(oid)) continue;
-      rows.push({ path: line.slice(tab + 1), oid });
-    }
-    return rows;
+    return parseBlobListing(output, `git ls-tree -r ${revision} ${prefix}`);
   }
 
   async mergeBase(

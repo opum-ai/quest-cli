@@ -105,10 +105,13 @@ import {
   type TaskBindingReadModel,
 } from "../application/claims/opum-agent-workflow.ts";
 import { AcrossRefsViewService } from "../application/refs/across-refs.ts";
+import type { AcrossRefsCachePort } from "../application/refs/across-refs-cache.ts";
 import {
   AcrossRefsLockedService,
+  type AcrossRefsLockedOptions,
   type AcrossRefsView,
 } from "../application/refs/across-refs-locked.ts";
+import type { AcrossRefsResultsPort } from "../application/refs/across-refs-results.ts";
 
 /** Inferred rather than annotated with the `ports/git.ts` interface type:
  * `cli` may depend on `application`, never on `ports` directly (see
@@ -239,46 +242,111 @@ export async function resolveCanonicalCommonDir(
  * raw relative value would create a stray `<wrong-root>/quest` in the main
  * worktree.
  *
+ * QCLI-568 Q568-INT B item 2: the SAME resolver feeds the view's read cache, so
+ * the lock, the cache and the whole-result records are one spelling of one
+ * directory. (Before this, the cache used `LocalGitPort.commonDirectory`'s
+ * plain `resolve`, a second spelling of the same place.)
+ *
  * R4: `onNote` receives the one-line notes the invocation reports on stderr:
- * the unlocked-path note of DEC-282 (a8), and (QCLI-563 / DEC-282 (a11)) the
- * single note a read-cache FAILURE reports. The CLI passes a collector so the
- * lines travel on `InvocationResult.stderr` on the ORDINARY path. LIMIT: on a
- * THROWN view the CLI writes the collected notes to the REAL `process.stderr`
- * ahead of the error envelope (`src/cli/main.ts`, `acrossRefsListing`) because
- * that envelope is built outside this call -- so an in-process `runQuest`
- * caller sees those notes on the stream, NOT in `result.stderr`. Omitting
- * `onNote` falls back to the lock wrapper's own default sink, and a failed
- * cache stays silent. */
+ * the unlocked-path note of DEC-282 (a8), (QCLI-563 / DEC-282 (a11)) the single
+ * note a read-cache FAILURE reports, and (Q568-INT B) a failure to record a
+ * whole result plus the notes a replayed record carries. The CLI passes a
+ * collector so the lines travel on `InvocationResult.stderr` on the ORDINARY
+ * path. LIMIT: on a THROWN view the CLI writes the collected notes to the REAL
+ * `process.stderr` ahead of the error envelope (`src/cli/main.ts`,
+ * `acrossRefsListing`) because that envelope is built outside this call -- so
+ * an in-process `runQuest` caller sees those notes on the stream, NOT in
+ * `result.stderr`. Omitting `onNote` falls back to the lock wrapper's own
+ * default sink, and a failed cache stays silent.
+ *
+ * QCLI-568 Q568-INT B item 3: notes are guarded PER SOURCE. The lock may report
+ * one broken-mechanism or expiry line; the cache may report one failure; the
+ * result-record store may report one more; and the cache's line is SUPPRESSED
+ * only when the lock failed for the SAME CAUSE (a broken common directory
+ * breaks both, and one cause deserves one line).
+ * A lock EXPIRY is a different cause, so an expiry followed by an unrelated
+ * cache failure reports BOTH lines.
+ */
+export interface CreateAcrossRefsServiceOptions {
+  /** Test seam: lock options minus the sinks this composition root owns. */
+  readonly lock?: Omit<
+    AcrossRefsLockedOptions,
+    "writeNote" | "onRecordFailure" | "onReplayNote"
+  >;
+  /** Test seam: replace the whole-result store (e.g. an in-memory IO). `null`
+   *  disables recording and replay for the run. */
+  readonly results?: AcrossRefsResultsPort | null;
+  /** Test seam: an injected read cache. */
+  readonly cache?: AcrossRefsCachePort;
+}
+
 export function createAcrossRefsService(
   onNote?: (line: string) => void,
+  options: CreateAcrossRefsServiceOptions = {},
 ): AcrossRefsView {
   const git = new LocalGitPort();
-  // One note per invocation across BOTH sinks. DEC-282 (a8) item 2 and (a11)
-  // each promise ONE stderr line; a broken common directory fails the lock and
-  // the cache for the same cause, and would otherwise report twice. The first
-  // note wins (the lock is attempted first); the second would only repeat the
-  // cause. A decision for the pair owner if the two lines should both appear.
-  let noted = false;
-  const once =
+  const workspace = createWorkspacePort();
+  const canonicalDirectory = (repositoryPath: string) =>
+    resolveCanonicalCommonDir(repositoryPath, workspace);
+
+  // One guard PER SOURCE (item 3): the lock, the read cache and the
+  // result-record store each get their own, so none drops a different cause
+  // reported by another (a cache EACCES and a result store ENOTDIR are two
+  // facts, Opus round 2 on #777).
+  let lockNoted = false;
+  let cacheNoted = false;
+  let recordNoted = false;
+  // Set once the lock wrapper exists, and read only while a view is running.
+  let locked: AcrossRefsLockedService | undefined;
+  const lockSink =
     onNote === undefined
       ? undefined
       : (line: string) => {
-          if (noted) return;
-          noted = true;
+          if (lockNoted) return;
+          lockNoted = true;
           onNote(line);
         };
+  const cacheSink =
+    onNote === undefined
+      ? undefined
+      : (line: string) => {
+          if (cacheNoted) return;
+          cacheNoted = true;
+          onNote(line);
+        };
+  const recordSink =
+    onNote === undefined
+      ? undefined
+      : (line: string) => {
+          if (recordNoted) return;
+          recordNoted = true;
+          onNote(line);
+        };
+  // Suppress a cache note only for the lock's own broken-mechanism CAUSE. An
+  // expiry leaves `lastLockErrorSignature` null, so it never suppresses.
+  const suppressCacheNote = (signature: string): boolean => {
+    const lockSignature = locked?.lastLockErrorSignature;
+    return lockSignature !== null && lockSignature === signature;
+  };
   const view = new AcrossRefsViewService(
     git,
     new GhRefDiscovery(git),
     undefined,
     undefined,
-    undefined,
-    once,
+    options.cache,
+    cacheSink,
+    canonicalDirectory,
+    suppressCacheNote,
   );
-  const workspace = createWorkspacePort();
-  return new AcrossRefsLockedService(
-    view,
-    (repositoryPath) => resolveCanonicalCommonDir(repositoryPath, workspace),
-    once === undefined ? {} : { writeNote: once },
-  );
+  locked = new AcrossRefsLockedService(view, canonicalDirectory, {
+    ...(options.lock ?? {}),
+    ...(lockSink === undefined ? {} : { writeNote: lockSink }),
+    ...(cacheSink === undefined
+      ? {}
+      : { onRecordFailure: recordSink, onReplayNote: cacheSink }),
+    ...(options.results === undefined
+      ? {}
+      : { resultsFor: () => options.results ?? null }),
+  });
+  return locked;
 }

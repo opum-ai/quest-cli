@@ -1,3 +1,4 @@
+import { lstatSync } from "node:fs";
 import {
   mkdir,
   readdir,
@@ -8,9 +9,10 @@ import {
   utimes,
   writeFile,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import type { GitPort } from "../../ports/git.ts";
+import { CONTINUITY_TASK_LOCATIONS } from "../checks/continuity.ts";
 
 /**
  * QCLI-563 (DEC-282 (a13), option A): the two-level, content-addressed cache
@@ -182,6 +184,84 @@ export function cacheFailureCause(error: unknown): string {
   return first;
 }
 
+/**
+ * QCLI-568 Q568-INT B item 3: a stable identity for a failure CAUSE, comparable
+ * between two reporters that saw the SAME underlying failure.
+ *
+ * The lock and the read cache both reach `<git-common-dir>/quest`, and when
+ * that entry is a regular file both fail with `ENOTDIR` -- but each error names
+ * its OWN path, so the message text differs. "The same cause" is therefore the
+ * errno CODE plus WHERE it failed: the failing path's parent directory, or for
+ * ENOTDIR the nearest ancestor that is not a directory (the real culprit, which
+ * the leaf path being opened does not name). A broken `quest` entry therefore
+ * reads as one cause for the lock and the cache. A code alone is a CATEGORY, not
+ * a cause (Opus round 2 on #777): EACCES on the lock's `.break` and EACCES on a
+ * separately-permissioned cache file in a DIFFERENT directory share only the
+ * category, so their signatures differ and both notes appear.
+ *
+ * When no failing path can be recovered (a value with no `path` and no quoted
+ * path in its message) the signature falls back to the code alone, or to the
+ * first message line, and so equates fewer causes than it could -- the safe
+ * direction: it can only report MORE notes, never hide a different cause.
+ *
+ * Accepts either a thrown value or an already-formatted cause string (the
+ * shape the cache's note sink receives).
+ */
+export function failureSignature(value: unknown): string {
+  const head = failureHead(value);
+  const thrownCode = (value as { code?: unknown } | null)?.code;
+  const coded = /^([A-Z][A-Z0-9_]+):/u.exec(head);
+  const code =
+    typeof thrownCode === "string" && thrownCode !== ""
+      ? thrownCode
+      : (coded?.[1] ?? null);
+  const failingPath = failingPathOf(value, head);
+  if (code === null) return `message:${head}`;
+  if (failingPath === null) return `code:${code}`;
+  // ENOTDIR names the leaf that was being opened, but the cause is an ANCESTOR
+  // that is not a directory; two reporters that hit the same broken ancestor
+  // must compare equal, so name that ancestor when it can be found.
+  if (code === "ENOTDIR") {
+    const culprit = nonDirectoryAncestor(failingPath);
+    if (culprit !== null) return `code:${code}@${culprit}`;
+  }
+  return `code:${code}@${dirname(failingPath)}`;
+}
+
+/** The nearest ancestor of `path` (or `path` itself) that exists and is NOT a directory, or null
+ *  when none can be found (the walk is best-effort and only runs when a note is
+ *  about to be written). */
+function nonDirectoryAncestor(path: string): string | null {
+  // Start at the path ITSELF: an ENOTDIR from readdir or opendir names the
+  // non-directory as its own path.
+  let current = path;
+  for (let depth = 0; depth < 64; depth += 1) {
+    try {
+      if (!lstatSync(current).isDirectory()) return current;
+    } catch {
+      // ENOENT/ENOTDIR here: keep walking up.
+    }
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+  return null;
+}
+
+function failureHead(value: unknown): string {
+  const text = typeof value === "string" ? value : cacheFailureCause(value);
+  return text.split("\n")[0]?.trim() ?? "";
+}
+
+/** The path a filesystem error names: its `path` property, else the first
+ *  single-quoted absolute path in the message (`mkdir '/x/y'`). */
+function failingPathOf(value: unknown, head: string): string | null {
+  const own = (value as { path?: unknown } | null)?.path;
+  if (typeof own === "string" && own !== "") return own;
+  const quoted = /'((?:\/|[A-Za-z]:[\\/])[^']*)'/u.exec(head);
+  return quoted?.[1] ?? null;
+}
+
 function isMissing(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "ENOENT";
 }
@@ -235,6 +315,12 @@ function blobPath(blobsDirectory: string, oid: string): string {
   return join(blobsDirectory, oid);
 }
 
+/** A task location this cache is allowed to serve. The three names are the
+ *  domain's own list (QCLI-527), so a manifest written by any build names one
+ *  of them; anything else -- `__proto__`, `constructor`, a path, a typo -- is
+ *  not a location this cache wrote, and the document is corrupt. */
+const KNOWN_LOCATIONS: ReadonlySet<string> = new Set(CONTINUITY_TASK_LOCATIONS);
+
 /** Parse and validate a manifest. Returns null for anything that is not the
  *  expected shape (the caller treats that as a corrupt MISS). */
 function parseManifest(text: string, key: string): ManifestDocument | null {
@@ -245,7 +331,10 @@ function parseManifest(text: string, key: string): ManifestDocument | null {
       document.version !== CACHE_VERSION ||
       document.key !== key ||
       !Array.isArray(document.locations) ||
-      !document.locations.every((location) => typeof location === "string") ||
+      !document.locations.every(
+        (location) =>
+          typeof location === "string" && KNOWN_LOCATIONS.has(location),
+      ) ||
       !Array.isArray(document.entries)
     )
       return null;
@@ -257,7 +346,18 @@ function parseManifest(text: string, key: string): ManifestDocument | null {
         path?: unknown;
         blob?: unknown;
       };
-      if (typeof location !== "string" || typeof path !== "string") return null;
+      // QCLI-568 Q568-INT B nit 5: the location is a BUCKET KEY on the read
+      // path (`locations[entry.location]`), and a manifest is untrusted input
+      // from the shared directory. Only the domain's three location names are
+      // valid, so a hostile `__proto__`/`constructor` row is corrupt rather
+      // than a prototype write.
+      if (
+        typeof location !== "string" ||
+        !KNOWN_LOCATIONS.has(location) ||
+        !document.locations.includes(location) ||
+        typeof path !== "string"
+      )
+        return null;
       if (
         blob !== null &&
         (typeof blob !== "string" || !SHA_PATTERN.test(blob))
@@ -280,7 +380,9 @@ function parseManifest(text: string, key: string): ManifestDocument | null {
 export class AcrossRefsCache implements AcrossRefsCachePort {
   private readonly io: CacheIo;
   private readonly maxEntries: number;
-  private readonly onFailure: ((line: string) => void) | undefined;
+  private readonly onFailure:
+    | ((line: string, error: unknown) => void)
+    | undefined;
   private readonly manifestsDirectory: string;
   private readonly blobsDirectory: string;
   private failureNoted = false;
@@ -292,7 +394,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
     options: {
       readonly maxEntries?: number;
       readonly io?: Partial<CacheIo>;
-      readonly onFailure?: (line: string) => void;
+      readonly onFailure?: (line: string, error: unknown) => void;
     } = {},
   ) {
     this.io = { ...defaultIo, ...options.io };
@@ -303,11 +405,13 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
   }
 
   /** Report a FAILURE at most once per instance (once per process in the CLI's
-   *  one-view-per-invocation path). A miss never reaches here. */
-  private fail(cause: string): void {
+   *  one-view-per-invocation path). A miss never reaches here. The ORIGINAL
+   *  error travels to the sink as well, so a caller can compare its cause
+   *  signature with another reporter's (QCLI-568 Q568-INT B item 3). */
+  private fail(error: unknown): void {
     if (this.failureNoted) return;
     this.failureNoted = true;
-    this.onFailure?.(cacheFailureNote(cause));
+    this.onFailure?.(cacheFailureNote(cacheFailureCause(error)), error);
   }
 
   /** The cache rooted at the clone's shared directory. */
@@ -316,7 +420,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
     options: {
       readonly maxEntries?: number;
       readonly io?: Partial<CacheIo>;
-      readonly onFailure?: (line: string) => void;
+      readonly onFailure?: (line: string, error: unknown) => void;
     } = {},
   ): AcrossRefsCache {
     return new AcrossRefsCache(
@@ -335,12 +439,18 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
       text = await this.io.readFile(manifestPath(this.manifestsDirectory, key));
     } catch (error) {
       if (isMissing(error)) return { kind: "miss" };
-      this.fail(cacheFailureCause(error));
+      this.fail(error);
       return { kind: "corrupt" };
     }
     const manifest = parseManifest(text, key);
     if (manifest === null) return { kind: "corrupt" };
-    const locations: Record<string, AcrossRefsCachedFile[]> = {};
+    // QCLI-568 Q568-INT B nit 5: a NULL-PROTOTYPE map, so no location name --
+    // however hostile the manifest -- can reach Object.prototype through the
+    // bucket assignment below. `parseManifest` already refuses an unknown
+    // location; this is the second, independent guard.
+    const locations: Record<string, AcrossRefsCachedFile[]> = Object.create(
+      null,
+    ) as Record<string, AcrossRefsCachedFile[]>;
     for (const location of manifest.locations) locations[location] = [];
     for (const entry of manifest.entries) {
       let bucket = locations[entry.location];
@@ -362,7 +472,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
             );
           } catch (error) {
             if (isMissing(error)) return { kind: "corrupt" };
-            this.fail(cacheFailureCause(error));
+            this.fail(error);
             return { kind: "corrupt" };
           }
           this.blobText.set(entry.blob, fileText);

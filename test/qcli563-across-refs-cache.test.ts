@@ -1336,3 +1336,101 @@ test("a MISSING blob is a MISS that repairs, never a shorter set (S1)", async ()
   expect(existsSync(blobPath)).toBe(true);
   expect(JSON.stringify(second.entries)).toBe(JSON.stringify(first.entries));
 });
+
+// ---- QCLI-568 Q568-INT B, #763 round-5 nits ----
+
+test("prune SKIPS blob GC when a surviving manifest cannot be read (QCLI-568 nit 3)", async () => {
+  const directory = "/cache";
+  const memory = memoryIo();
+  const key = keyFor(3);
+  const orphan = "d".repeat(40);
+  memory.seed(manifestFile(directory, key), manifestJson(key), 1);
+  memory.seed(`${directory}/blobs/${orphan}`, "orphan", 0);
+  // The manifest survives the bound, but a non-ENOENT read failure means the
+  // prune cannot learn which blobs it references. Deleting "unreferenced"
+  // blobs then would delete a live one, so GC must be skipped wholesale.
+  const io: CacheIo = {
+    ...memory.io,
+    async readFile(path) {
+      if (path === manifestFile(directory, key))
+        throw Object.assign(new Error("EACCES: permission denied"), {
+          code: "EACCES",
+        });
+      return memory.io.readFile(path);
+    },
+  };
+  const cache = new AcrossRefsCache(directory, { io });
+
+  await cache.prune(new Set());
+
+  expect(memory.files.has(manifestFile(directory, key))).toBe(true);
+  expect(memory.files.has(`${directory}/blobs/${orphan}`)).toBe(true);
+});
+
+test("prune STILL GCs an unreferenced blob when every survivor is readable (control for nit 3)", async () => {
+  const directory = "/cache";
+  const memory = memoryIo();
+  const key = keyFor(4);
+  const orphan = "e".repeat(40);
+  memory.seed(manifestFile(directory, key), manifestJson(key), 1);
+  memory.seed(`${directory}/blobs/${orphan}`, "orphan", 0);
+  const cache = new AcrossRefsCache(directory, { io: memory.io });
+
+  await cache.prune(new Set());
+
+  expect(memory.files.has(manifestFile(directory, key))).toBe(true);
+  expect(memory.files.has(`${directory}/blobs/${orphan}`)).toBe(false);
+});
+
+test("a hostile manifest location is CORRUPT, never a prototype key (QCLI-568 nit 5)", async () => {
+  const directory = "/cache";
+  const memory = memoryIo();
+  const key = keyFor(5);
+  for (const hostile of ["__proto__", "constructor", "prototype"]) {
+    memory.seed(
+      manifestFile(directory, key),
+      JSON.stringify({
+        kind: "manifest",
+        version: 2,
+        key,
+        locations: [hostile],
+        entries: [
+          { location: hostile, path: ".quest/tasks/T-1.json", blob: null },
+        ],
+      }),
+      1,
+    );
+    const cache = new AcrossRefsCache(directory, { io: memory.io });
+    expect(await cache.read(key)).toEqual({ kind: "corrupt" });
+  }
+  // Nothing reached Object.prototype through the bucket assignment.
+  expect(Object.getPrototypeOf({})).toBe(Object.prototype);
+  expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+});
+
+test("a manifest row outside its declared locations is corrupt (QCLI-568 nit 5)", async () => {
+  const directory = "/cache";
+  const memory = memoryIo();
+  const key = keyFor(6);
+  memory.seed(
+    manifestFile(directory, key),
+    JSON.stringify({
+      kind: "manifest",
+      version: 2,
+      key,
+      locations: ["tasks", "completed"],
+      entries: [
+        // A known location, but one this manifest never declared it covered:
+        // the document contradicts itself, so it is not trustworthy raw text.
+        {
+          location: "archive/tasks",
+          path: ".quest/archive/tasks/T-1.json",
+          blob: null,
+        },
+      ],
+    }),
+    1,
+  );
+  const cache = new AcrossRefsCache(directory, { io: memory.io });
+  expect(await cache.read(key)).toEqual({ kind: "corrupt" });
+});
