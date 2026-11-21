@@ -10,6 +10,12 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ## Unreleased
 
+## 0.15.1
+
+**0.15.0 was a release candidate only.** It was published solely under the
+`0.15.0-rc.1` dist-tag and was never moved to `latest`; 0.15.1 is the first
+release of everything under `## 0.15.0` below, plus this section.
+
 ### Fixed
 
 - **The node wrapper no longer orphans the native `quest` child when it is
@@ -38,6 +44,28 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Changed
 
+- **`quest task list --across-refs` is serialised across the worktrees of one
+  clone by an advisory lock, and a waiter reuses the result the previous run
+  just recorded** (QCLI-568, opum-doc DEC-282 (a7) to (a16)). The lock lives at
+  `<git-common-dir>/quest/across-refs.lock`; the run that holds it records its
+  whole result under `<git-common-dir>/quest/across-refs-results/`, keyed by the
+  normalised request, and a waiter that acquires the lock replays that record,
+  stdout and stderr byte for byte, only when the plan identity matches (each
+  planned ref's sha), the record finished while the waiter waited, and the same
+  build wrote it. Anything else recomputes. **The cold run is as slow as before,
+  or slightly slower: 619 to 623 s measured at the 40-ref, 2,000-record shape
+  (allow about 650 s)**, because it is the run that fills the cache.
+  **How this lock differs from the 0.15.0 lock (the release candidate), which
+  broke any holder older than 10 minutes.** The holder re-stamps the lock every
+  30 seconds, and staleness is judged by silence since the last stamp,
+  never by the holder's age. A live holder on the same host is NEVER broken by
+  age (a wedged one is bounded by each waiter's 660 s wait, after which that
+  waiter runs unlocked and writes one `note: ` line on stderr); a dead same-host
+  pid is broken after 30 s, and a holder on another host after 10 minutes of
+  silence. The lock is advisory: it only saves duplicated work, and Git's
+  conditional ref update remains the ordering authority. A hand remedy for a
+  wedge is in the timeout message: remove the lock file once you have checked
+  the named pid is not a running quest process.
 - **`quest task list --across-refs` now caches each ref's records, keyed by that
   ref's `.quest` tree hash, so an unchanged ref is not re-read** (QCLI-563,
   opum-doc DEC-282 (a13), sibling of the QCLI-567 entry). The cache lives under
@@ -48,10 +76,13 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   re-read). It is bounded to the newest 64 manifests by last use, plus every key
   the current run itself used; pruning also garbage-collects blob files that no
   surviving manifest references. Writes are atomic. **The first run on a
-  repository is as slow as before** -- about 620 s at a 40-ref, 2,000-real-record
-  shape -- because it is the run that fills the cache; later runs are fast. The
+  repository is as slow as before** -- 619 to 623 s measured at a 40-ref,
+  2,000-real-record shape -- because it is the run that fills the cache; later runs are fast. The
   drift hint no longer says "Nothing was written -- the view is read-only"; it
-  now names the cache as the one thing the view writes. If the cache FAILS (an
+  now names what the view may have written: the read cache under
+  `across-refs-cache/` and the whole-result records under
+  `across-refs-results/` (the transient lock file `across-refs.lock` is not
+  named). If the cache FAILS (an
   unwritable directory, ENOSPC, an unreadable common dir), the command writes one
   `note: `-prefixed stderr line, at most once per process, naming the cause and
   saying the read ran uncached; it writes nothing to stdout and changes no exit

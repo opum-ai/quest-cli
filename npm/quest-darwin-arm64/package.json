@@ -1,6 +1,6 @@
 {
   "name": "@opum-ai/quest-darwin-arm64",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "Quest CLI binary for darwin-arm64.",
   "license": "MIT",
   "author": "Opum AI",
@@ -17,5 +17,5 @@
   "files": [
     "bin/quest"
   ],
-  "questBinarySha256": "0ed4bb0f64d85996759e2eae5a668f02f0862cd497f12c28dfe3749215c6599b"
+  "questBinarySha256": "4da982de8872fb73a1bcde3cd559811a6f8e61a6036142cfd06f04b462d4a008"
 }
