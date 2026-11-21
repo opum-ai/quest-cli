@@ -487,7 +487,15 @@ async function acrossRefsListing(
       // fresh envelope and never reaches finish() below. Write the notes now --
       // they precede that envelope, which is emitted last -- so the run is not
       // silent, then rethrow to the normal error mapping.
-      for (const line of notes) process.stderr.write(line);
+      //
+      // QCLI-568 NIT 4: a DESTROYED or unwritable stderr must not mask the
+      // view's own error. If the write throws, the caller still needs the
+      // rethrown error, so the note is lost rather than the failure replaced.
+      try {
+        for (const line of notes) process.stderr.write(line);
+      } catch {
+        // Fall through to `throw error`: the error is the load-bearing output.
+      }
       throw error;
     }
   })();
