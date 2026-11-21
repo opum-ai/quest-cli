@@ -9,6 +9,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
+import { hostname as osHostname } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
@@ -29,24 +30,32 @@ import { setTimeout as delay } from "node:timers/promises";
  * caller whose wait times out may proceed unlocked, and the caller decides
  * that (see {@link CommonDirLockTimeoutError}).
  *
- * A CRASHED HOLDER MUST NOT BLOCK FOREVER, AND A LIVE HOLDER MUST NOT BE
- * BROKEN BY AGE ALONE (QCLI-568 Q568-INT A, DEC-282 (a15)). The lock records
- * its owner and a LIVENESS STAMP; while it runs the holder refreshes that stamp
- * on an unref'd timer (see {@link DEFAULT_HEARTBEAT_MS}). A waiter judges
- * staleness by the SILENCE since the last stamp, never by the holder's
- * acquisition age:
+ * A CRASHED HOLDER MUST NOT BLOCK FOREVER, AND A LIVE SAME-HOST HOLDER MUST
+ * NOT BE BROKEN BY AGE ALONE (DEC-282 (a16), option A; lore-cli#746 F2). The
+ * lock records its owner and a LIVENESS STAMP; while it runs the holder
+ * refreshes that stamp on an unref'd timer (see {@link DEFAULT_HEARTBEAT_MS}).
+ * Staleness is judged by the SILENCE since that stamp, but ONLY for a holder
+ * whose liveness cannot be confirmed:
  *
- *  1. silence > `staleAfterMs` -> stale whatever the pid says (a starved or
- *     suspended holder: the age-only backstop, now measured from the beat);
- *  2. otherwise silence <= `pidGoneFloorMs` -> NOT stale (mid-write guard);
- *  3. otherwise stale when the pid is unreadable or provably gone.
+ *  1. SAME HOST (`host` matches) and the pid is ALIVE -> NEVER stale, however
+ *     long its silence (a starved or suspended-but-alive holder is bounded by
+ *     each waiter's (a8) wait and its one stderr line, not by a steal);
+ *  2. SAME HOST and the pid is DEAD -> stale once silence exceeds
+ *     `pidGoneFloorMs` (the dead-pid rule);
+ *  3. ANOTHER HOST -> liveness cannot be probed here, so stale once silence
+ *     exceeds `staleAfterMs`;
+ *  4. NO `host` on the record (written before this field existed), or an
+ *     unreadable body -> ALSO unconfirmable. lore-cli#746's record REQUIRES
+ *     `hostname`, so a record missing it parses as unreadable there; this
+ *     follows that choice and uses the `pidGoneFloorMs` bound.
  *
- * A holder that keeps beating therefore never reaches `staleAfterMs` of
- * silence, however long it legitimately runs. The measured cold run takes
- * 619-623 s against a 600 s bound, which the old acquisition-age rule broke at
- * the 10-minute mark while the holder was alive and reading -- the defect this
- * heartbeat closes. The exit hook below is only tidiness: a SIGKILL never runs
- * it, and stale detection is what makes that safe.
+ * A holder that keeps beating therefore never reaches either silence bound,
+ * and a same-host holder that merely stops beating while still alive is never
+ * stolen from. The measured cold run takes 619-623 s; under the earlier
+ * acquisition-age rule that live run was broken at the 10-minute mark, which is
+ * what the heartbeat, and (a16)'s same-host rule, close. The exit hook below is
+ * only tidiness: a SIGKILL never runs it, and stale detection is what makes that
+ * safe.
  *
  * BREAKING A STALE LOCK IS SERIALISED, and nothing is ever parked or restored.
  * Judging a lock stale and removing it are two steps, and anything between them
@@ -80,19 +89,25 @@ import { setTimeout as delay } from "node:timers/promises";
  *
  * STALENESS RESTS ON THE WALL CLOCK (N4). A backward jump can delay recovery
  * and a forward jump can hasten it; for an advisory lock whose worst cost is
- * duplicated work that is acceptable. The heartbeat bounds the exposure: a
- * backward jump can make a live holder read as silent for at most one
- * {@link DEFAULT_HEARTBEAT_MS} interval before the next beat re-stamps it.
+ * duplicated work that is acceptable. The heartbeat bounds the exposure for a
+ * waiter that CANNOT confirm liveness (another host, or a shared common
+ * directory): a backward jump can make a beating holder read as silent for at
+ * most one {@link DEFAULT_HEARTBEAT_MS} interval before the next beat re-stamps
+ * it. A same-host waiter is never fooled, because a live pid outranks silence.
  *
  * RECORD FORMAT AND COMPATIBILITY. The body is `{pid, startedAt, token,
- * updatedAt}`; `updatedAt` (the liveness stamp) is NEW here and optional. A
- * record written before this change has no `updatedAt`, and a reader falls back
- * to `startedAt`; an OLDER reader ignores the extra key and keeps using
- * `startedAt`, so both directions parse. The consequence of running two CLI
- * versions against one common directory is that an older waiter still measures
- * a new holder's age from its acquisition and can break it at `staleAfterMs`
- * of run time; that is the pre-existing behaviour, not a new one, and it is
- * bounded by the same advisory contract.
+ * updatedAt, host}`; `updatedAt` (the liveness stamp) and `host` (this process's
+ * `os.hostname()`) are NEW here and optional. A record written before this
+ * change has neither: a reader falls back to `startedAt` for the stamp and, for
+ * the missing host, to the unconfirmable branch described above (lore-cli#746's
+ * record requires a hostname, so a missing one parses as unreadable there and
+ * takes the `pidGoneFloorMs` bound). An OLDER reader ignores the extra keys and
+ * keeps using `startedAt`, so both directions parse. The consequence of running
+ * two CLI versions against one common directory: an old waiter still ages a new
+ * holder from `startedAt` and can break it at `staleAfterMs` of run time, and an
+ * old-format holder (no `host`) is unconfirmable to a new waiter and is broken
+ * once its silence passes `pidGoneFloorMs`. Both are bounded by the advisory
+ * contract.
  *
  * WAITER REUSE IS THE CALLER'S JOB, NOT THIS MODULE'S. Acquiring the lock only
  * serialises the read; it cannot tell a waiter whether the ref hashes it
@@ -109,21 +124,27 @@ import { setTimeout as delay } from "node:timers/promises";
 export const DEFAULT_COMMON_DIR_LOCK_NAME = "across-refs";
 
 /**
- * Silence-only backstop: a holder whose liveness stamp is older than this is
- * abandoned even if its pid still looks alive (a wedged or suspended process,
- * or a reused pid). Long enough that a real ref read never reaches it; the
- * measured cold run is 619-623 s, under this bound, and the holder now beats
- * every {@link DEFAULT_HEARTBEAT_MS} so its SILENCE never approaches it.
+ * Silence bound for a holder whose liveness CANNOT be confirmed here: one
+ * recorded on ANOTHER host (its pid is meaningless locally), and the `.break`
+ * age backstop. It is NOT the bound for a live same-host holder, which is never
+ * broken by age/silence (DEC-282 (a16)). Long enough that a real ref read never
+ * reaches it; the measured cold run is 619-623 s, under this bound, and a
+ * beating holder keeps its stamp fresh so its silence never approaches it.
+ *
+ * A record with NO `host` is treated like an unreadable body (lore-cli#746
+ * requires a hostname), so it takes {@link DEFAULT_PID_GONE_FLOOR_MS} instead.
  */
 export const DEFAULT_STALE_AFTER_MS = 10 * 60 * 1_000;
 
 /**
  * How often a live holder refreshes its liveness stamp. Well under
  * {@link DEFAULT_STALE_AFTER_MS} -- 30 s is one twentieth of the 10-minute
- * bound -- so several beats can be missed before a waiter could judge a live
- * holder stale. Cheap: one small file rewrite, serialised through the `.break`
- * file, every interval. Injectable via {@link CommonDirLockOptions.heartbeatMs}
- * for tests.
+ * bound -- so several beats can be missed before a waiter that CANNOT confirm
+ * liveness (another host, or a record read across a shared common directory)
+ * could judge a beating holder stale. A same-host waiter confirms liveness by
+ * pid and never breaks a live holder by age at all (DEC-282 (a16)). Cheap: one
+ * small file rewrite, serialised through the `.break` file, every interval.
+ * Injectable via {@link CommonDirLockOptions.heartbeatMs} for tests.
  */
 export const DEFAULT_HEARTBEAT_MS = 30_000;
 
@@ -162,6 +183,14 @@ export interface CommonDirLockOwner {
    * Q568-INT A has no such key; a reader then falls back to `startedAt`.
    */
   readonly updatedAt?: number;
+  /**
+   * `os.hostname()` of the holder (DEC-282 (a16)). Optional on read: a record
+   * written before this field existed has none, and is then treated as
+   * unconfirmable (lore-cli#746 requires a hostname, so a missing one parses as
+   * an unreadable body there). Written at acquire and preserved by heartbeat
+   * rewrites.
+   */
+  readonly host?: string;
 }
 
 export interface CommonDirLockOptions {
@@ -176,11 +205,12 @@ export interface CommonDirLockOptions {
    */
   readonly name?: string;
   /**
-   * Silence-only backstop, for both the lock and the `.break` file: past this
-   * much SILENCE (now minus the last liveness stamp) a file is stale regardless
-   * of what its pid says. Normally larger than {@link pidGoneFloorMs}; when it
-   * is smaller the backstop simply dominates, which is what the deterministic
-   * age tests rely on.
+   * Silence bound for a lock held on ANOTHER host (whose pid cannot be probed
+   * here), and the age-only backstop for the `.break` file. It is NOT the bound
+   * for a live same-host holder, which is never broken by silence/age
+   * (DEC-282 (a16)). Normally larger than {@link pidGoneFloorMs}; when it is
+   * smaller the backstop simply dominates, which is what the deterministic age
+   * tests rely on.
    */
   readonly staleAfterMs?: number;
   /**
@@ -192,8 +222,17 @@ export interface CommonDirLockOptions {
    */
   readonly heartbeatMs?: number;
   /**
+   * Identity written to the lock record and compared when judging a holder's
+   * liveness (DEC-282 (a16)). Defaults to `os.hostname()`; injected for
+   * deterministic tests. A holder whose `host` equals this one is probed by
+   * pid here; a different host (or a record with no host) cannot be confirmed.
+   */
+  readonly host?: string;
+  /**
    * The dead-pid rule requires the lock to be at least this old. A fresh
-   * dead-pid file is treated as mid-write, not abandoned.
+   * dead-pid file is treated as mid-write, not abandoned. Also the silence
+   * bound for an unreadable body or a record with no `host` (liveness
+   * unconfirmable; DEC-282 (a16)).
    */
   readonly pidGoneFloorMs?: number;
   /**
@@ -407,6 +446,7 @@ export async function acquireCommonDirLock(
       startedAt: stamp,
       token: randomUUID(),
       updatedAt: stamp,
+      host: opts.host,
     };
 
     let created = false;
@@ -481,6 +521,7 @@ interface ResolvedOptions {
   readonly lockPath: string;
   readonly staleAfterMs: number;
   readonly heartbeatMs: number;
+  readonly host: string;
   readonly pidGoneFloorMs: number;
   readonly breakStaleAfterMs: number;
   readonly waitTimeoutMs: number;
@@ -519,6 +560,7 @@ function resolveOptions(
       DEFAULT_HEARTBEAT_MS,
       "heartbeatMs",
     ),
+    host: options.host ?? osHostname(),
     pidGoneFloorMs: requirePositive(
       options.pidGoneFloorMs,
       DEFAULT_PID_GONE_FLOOR_MS,
@@ -595,18 +637,25 @@ function parseOwner(raw: string): CommonDirLockOwner | null {
   }
   if (typeof value !== "object" || value === null) return null;
   const record = value as Record<string, unknown>;
-  const { pid, startedAt, token, updatedAt } = record;
+  const { pid, startedAt, token, updatedAt, host } = record;
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) {
     return null;
   }
   if (typeof startedAt !== "number" || !Number.isFinite(startedAt)) return null;
   if (typeof token !== "string" || token.length === 0) return null;
-  // `updatedAt` is optional: a record written before the heartbeat existed has
-  // none, and a non-finite value is ignored (the owner is still usable and the
-  // stamp falls back to `startedAt`).
-  return typeof updatedAt === "number" && Number.isFinite(updatedAt)
-    ? { pid, startedAt, token, updatedAt }
-    : { pid, startedAt, token };
+  // `updatedAt` and `host` are optional: a record written before either existed
+  // has none. A non-finite `updatedAt` is ignored (the stamp falls back to
+  // `startedAt`); a missing/blank `host` is left undefined, which the stale rule
+  // treats as unconfirmable (DEC-282 (a16)).
+  return {
+    pid,
+    startedAt,
+    token,
+    ...(typeof updatedAt === "number" && Number.isFinite(updatedAt)
+      ? { updatedAt }
+      : {}),
+    ...(typeof host === "string" && host.length > 0 ? { host } : {}),
+  };
 }
 
 /**
@@ -703,26 +752,40 @@ async function timeoutError(
 }
 
 /**
- * The stale rule (QCLI-568 Q568-INT A, DEC-282 (a15)), ported from
- * `id-allocation.ts:433-434` but aged from the holder's LIVENESS STAMP rather
- * than its acquisition time:
+ * The stale rule (DEC-282 (a16), option A -- the same rule as lore-cli#746's
+ * `isLockSnapshotStale`). Silence is measured from the holder's LIVENESS STAMP,
+ * and it decides staleness ONLY where liveness cannot be confirmed:
  *
- *  1. SILENT for longer than `staleAfterMs` -> stale whatever the pid says
- *     (the age-only backstop, now measured from the last heartbeat, so a live
- *     holder that keeps beating never reaches it);
- *  2. otherwise silent for at most `pidGoneFloorMs` -> NOT stale (mid-write
- *     guard: a create interrupted between `open(wx)` and its body write);
- *  3. otherwise stale when the pid is unreadable or provably gone.
+ *  1. record on THIS host (`host` matches) and the pid is ALIVE -> NEVER stale,
+ *     however long its silence. A wedged-but-alive holder is bounded by each
+ *     waiter's (a8) wait and its one stderr line, never stolen from (lore's
+ *     F2; breaking a merely-stopped holder risks two writers if it resumes);
+ *  2. record on THIS host and the pid is DEAD -> stale once silence exceeds
+ *     `pidGoneFloorMs` (the mid-write guard folds into that floor);
+ *  3. record on ANOTHER host -> its pid cannot be probed here, so stale once
+ *     silence exceeds `staleAfterMs`;
+ *  4. an unreadable body, or a record with NO `host` (written before (a16)) ->
+ *     also unconfirmable. lore-cli#746's record parser REQUIRES a hostname, so
+ *     a missing one parses as an unreadable body there; this follows that and
+ *     uses the same `pidGoneFloorMs` bound.
  */
 function isSnapshotStale(
   snapshot: LockSnapshot,
   opts: ResolvedOptions,
 ): boolean {
   const silence = snapshotAge(snapshot, opts.now());
-  if (silence > opts.staleAfterMs) return true;
-  if (silence <= opts.pidGoneFloorMs) return false;
-  if (snapshot.owner === null) return true;
-  return !opts.isAlive(snapshot.owner.pid);
+  const owner = snapshot.owner;
+  // 4: unreadable body, or a pre-(a16) record with no host.
+  if (owner === null || owner.host === undefined)
+    return silence > opts.pidGoneFloorMs;
+  if (owner.host === opts.host) {
+    // 1 and 2: a same-host LIVE pid is never stale; a dead one waits the floor.
+    if (opts.isAlive(owner.pid)) return false;
+    return silence > opts.pidGoneFloorMs;
+  }
+  // 3: another host -- liveness cannot be confirmed, so the silence bound
+  // recovers it.
+  return silence > opts.staleAfterMs;
 }
 
 /**
@@ -764,6 +827,7 @@ async function takeBreakFile(
     pid: process.pid,
     startedAt: opts.now(),
     token: randomUUID(),
+    host: opts.host,
   };
   try {
     const handle = await open(breakPath, "wx");
@@ -878,11 +942,10 @@ async function heartbeatOnce(
   try {
     const current = await readSnapshot(opts.lockPath);
     if (current?.owner?.token !== owner.token) return;
+    // Preserve every field -- notably `host` (DEC-282 (a16)) -- and move only
+    // the liveness stamp.
     const refreshed: CommonDirLockOwner = {
-      pid: current.owner.pid,
-      // `startedAt` stays the acquisition stamp; only the liveness stamp moves.
-      startedAt: current.owner.startedAt,
-      token: current.owner.token,
+      ...current.owner,
       updatedAt: opts.now(),
     };
     // Temp-then-rename, so a waiter reads either the old body or the new one,

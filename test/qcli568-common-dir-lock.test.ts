@@ -10,7 +10,7 @@ import {
   utimes,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { hostname as osHostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -47,6 +47,8 @@ interface SeededOwner {
   readonly token: string;
   /** QCLI-568 Q568-INT A: the liveness stamp; absent on a pre-heartbeat record. */
   readonly updatedAt?: number;
+  /** DEC-282 (a16): the holder's host; absent on a record written before it. */
+  readonly host?: string;
 }
 
 /**
@@ -165,6 +167,7 @@ test("recovers a lock whose holder pid is dead", async () => {
     // Older than the dead-pid floor: a fresh dead pid is treated as mid-write.
     startedAt: Date.now() - 60_000,
     token: "dead-holder",
+    host: osHostname(),
   });
 
   const lock = await acquireCommonDirLock(commonDir, {
@@ -186,6 +189,7 @@ test("a lock replaced after the stale judgement is never removed", async () => {
     pid: 999_999,
     startedAt: frozenNow - 120_000,
     token: "judged-stale",
+    host: osHostname(),
   });
 
   // The contender is a REAL new holder: its pid is this process and it is
@@ -194,6 +198,7 @@ test("a lock replaced after the stale judgement is never removed", async () => {
     pid: process.pid,
     startedAt: frozenNow,
     token: "contender",
+    host: osHostname(),
   };
   const error = await acquireCommonDirLock(commonDir, {
     isAlive: (pid) => pid === process.pid,
@@ -225,6 +230,7 @@ test("the locked re-read runs exactly once with the lock path still occupied", a
     pid: 999_999,
     startedAt: frozenNow - 120_000,
     token: "judged-stale",
+    host: osHostname(),
   });
 
   let hookRuns = 0;
@@ -265,6 +271,7 @@ test("two waiters recovering one stale lock still serialize", async () => {
     pid: 999_999,
     startedAt: Date.now() - 60_000,
     token: "stale-holder",
+    host: osHostname(),
   });
 
   let inside = 0;
@@ -301,6 +308,7 @@ test("a fresh dead-pid lock is not broken before the floor", async () => {
     pid: 999_999,
     startedAt: Date.now(),
     token: "mid-write",
+    host: osHostname(),
   });
 
   const error = await acquireCommonDirLock(commonDir, {
@@ -323,6 +331,7 @@ test("a stale break file from a killed breaker is cleared", async () => {
     pid: 999_999,
     startedAt: Date.now() - 60_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(
@@ -347,6 +356,7 @@ test("a live break file serialises breakers", async () => {
     pid: 999_999,
     startedAt: Date.now() - 60_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   const liveBreaker = {
@@ -383,6 +393,7 @@ test("an aged unreadable break file is cleared by age alone", async () => {
     pid: 999_999,
     startedAt: frozenNow - 120_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(breakPath, "", "utf8");
@@ -410,6 +421,7 @@ test("an aged break file held by a live pid is cleared by age alone", async () =
     pid: 999_999,
     startedAt: frozenNow - 120_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(
@@ -438,6 +450,7 @@ test("a fresh unreadable break file is not cleared", async () => {
     pid: 999_999,
     startedAt: Date.now() - 60_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(breakPath, "", "utf8");
@@ -463,6 +476,7 @@ test("an unreadable break file younger than staleAfterMs is not cleared", async 
     pid: 999_999,
     startedAt: Date.now() - 60_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(breakPath, "", "utf8");
@@ -493,6 +507,7 @@ test("the timeout message reports a live break file and the remedy", async () =>
     pid: 999_999,
     startedAt: Date.now() - 60_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(
@@ -526,6 +541,7 @@ test("the timeout message reports an unreadable break file", async () => {
     pid: 999_999,
     startedAt: Date.now() - 60_000,
     token: "dead-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(breakPath, "", "utf8");
@@ -553,6 +569,7 @@ test("the timeout message reports no break file", async () => {
     pid: process.pid,
     startedAt: Date.now(),
     token: "live-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
 
@@ -579,6 +596,7 @@ test("the timeout message reports a break file held by a dead pid", async () => 
     pid: process.pid,
     startedAt: Date.now(),
     token: "live-holder",
+    host: osHostname(),
   });
   const breakPath = `${lockPath}.break`;
   await writeFile(
@@ -722,17 +740,20 @@ test("recovers the lock of a child killed with SIGKILL", async () => {
   expect(elapsed).toBeLessThan(1_000);
 }, 20_000);
 
-test("recovers a lock older than staleAfterMs even when its pid is alive", async () => {
+test("recovers a silent holder recorded on ANOTHER host after staleAfterMs (DEC-282 (a16))", async () => {
   const commonDir = await tempCommonDir();
   const frozenNow = 1_700_000_000_000;
   await seedLock(commonDir, {
     pid: process.pid,
     startedAt: frozenNow - 5_000,
-    token: "aged-holder",
+    updatedAt: frozenNow - 5_000,
+    token: "other-host-holder",
+    host: "elsewhere.example",
   });
 
-  // The clock is frozen, so only the age clause can make this holder stale; the
-  // real monotonic wait deadline is what keeps a recovery bug from hanging.
+  // The pid is THIS process's and probes alive, but the record names another
+  // host, so liveness cannot be confirmed here: silence past staleAfterMs
+  // (5 s > 1 s) recovers it. A same-host record with this pid would be KEPT.
   const lock = await acquireCommonDirLock(commonDir, {
     isAlive: () => true,
     now: () => frozenNow,
@@ -740,7 +761,9 @@ test("recovers a lock older than staleAfterMs even when its pid is alive", async
     pollMs: 5,
     waitTimeoutMs: 2_000,
   });
-  expect((await readSeededOwner(commonDir)).token).not.toBe("aged-holder");
+  expect((await readSeededOwner(commonDir)).token).not.toBe(
+    "other-host-holder",
+  );
   await lock.release();
 });
 
@@ -750,6 +773,7 @@ test("does not steal a live, unexpired holder", async () => {
     pid: process.pid,
     startedAt: Date.now(),
     token: "live-holder",
+    host: osHostname(),
   });
 
   const error = await acquireCommonDirLock(commonDir, {
@@ -773,6 +797,7 @@ test("a wait that exceeds waitTimeoutMs throws the typed timeout", async () => {
     pid: process.pid,
     startedAt: Date.now(),
     token: "busy-holder",
+    host: osHostname(),
   });
 
   let caught: unknown;
@@ -896,7 +921,10 @@ test("(a) a live holder older than staleAfterMs that keeps heartbeating is NOT b
       return current.updatedAt === clock.t;
     });
 
-    // A waiter judging by SILENCE sees a live holder and waits for it.
+    // A waiter here is SAME-HOST and the pid probes alive, so DEC-282 (a16)
+    // says never steal: it waits. (The positive control above keeps the
+    // heartbeat itself load-bearing, since a beatless same-host live holder is
+    // also never stale.)
     const error = await acquireCommonDirLock(commonDir, {
       now: () => clock.t,
       isAlive: () => true,
@@ -920,27 +948,84 @@ test("(a) a live holder older than staleAfterMs that keeps heartbeating is NOT b
   }
 });
 
-test("(b) a SILENT holder with a live-looking pid IS broken after staleAfterMs of silence", async () => {
+test("(b) a SILENT same-host holder with a LIVE-looking pid is NOT broken (DEC-282 (a16))", async () => {
   const commonDir = await tempCommonDir();
   const base = 1_700_000_000_000;
   await seedLock(commonDir, {
     pid: process.pid,
     startedAt: base,
     updatedAt: base,
-    token: "silent-holder",
+    token: "silent-same-host",
+    host: osHostname(),
   });
 
-  // Silence is 5 s against a 1 s bound, and the pid LOOKS alive. A rule that
-  // lets pid-liveness win over silence (lore-cli#746's F2 shape) leaves this
-  // holder in place forever; the DEC-282 (a15) invariant breaks it.
-  const lock = await acquireCommonDirLock(commonDir, {
+  // 5 s of silence against a 1 s bound, and the pid probes ALIVE on THIS host:
+  // (a16) says never steal by age -- the waiter times out and leaves the file.
+  const error = await acquireCommonDirLock(commonDir, {
     now: () => base + 5_000,
     isAlive: () => true,
     staleAfterMs: 1_000,
+    pidGoneFloorMs: 30_000,
+    pollMs: 5,
+    waitTimeoutMs: 100,
+  }).then(
+    () => null,
+    (thrown: unknown) => thrown,
+  );
+
+  expect(error).toBeInstanceOf(CommonDirLockTimeoutError);
+  expect((await readSeededOwner(commonDir)).token).toBe("silent-same-host");
+});
+
+test("a SILENT same-host holder with a DEAD pid IS broken past the floor (DEC-282 (a16))", async () => {
+  const commonDir = await tempCommonDir();
+  const base = 1_700_000_000_000;
+  await seedLock(commonDir, {
+    pid: 999_999,
+    startedAt: base,
+    updatedAt: base,
+    token: "silent-dead-pid",
+    host: osHostname(),
+  });
+
+  // Same host, but the pid is gone. staleAfterMs is left large so recovery can
+  // ONLY come from the dead-pid rule at pidGoneFloorMs (silence 5 s > 1 s).
+  const lock = await acquireCommonDirLock(commonDir, {
+    now: () => base + 5_000,
+    isAlive: (pid) => pid === process.pid,
+    staleAfterMs: 600_000,
+    pidGoneFloorMs: 1_000,
     pollMs: 5,
     waitTimeoutMs: 1_000,
   });
-  expect((await readSeededOwner(commonDir)).token).not.toBe("silent-holder");
+  expect((await readSeededOwner(commonDir)).token).not.toBe("silent-dead-pid");
+  await lock.release();
+});
+
+test("a record with NO host is unconfirmable and broken past the pid-gone floor (DEC-282 (a16))", async () => {
+  const commonDir = await tempCommonDir();
+  const base = 1_700_000_000_000;
+  // A record written before the `host` field existed: no host, and a dead pid.
+  await seedLock(commonDir, {
+    pid: 999_999,
+    startedAt: base,
+    updatedAt: base,
+    token: "legacy-no-host",
+  });
+
+  // (a16) follows lore-cli#746, whose record parser REQUIRES a hostname: a
+  // record missing it is unconfirmable and takes the pidGoneFloorMs bound, NOT
+  // the another-host staleAfterMs bound. staleAfterMs is left far above the
+  // silence, so this can only recover via the floor.
+  const lock = await acquireCommonDirLock(commonDir, {
+    now: () => base + 60_000,
+    isAlive: (pid) => pid === process.pid,
+    staleAfterMs: 600_000,
+    pidGoneFloorMs: 30_000,
+    pollMs: 5,
+    waitTimeoutMs: 1_000,
+  });
+  expect((await readSeededOwner(commonDir)).token).not.toBe("legacy-no-host");
   await lock.release();
 });
 
