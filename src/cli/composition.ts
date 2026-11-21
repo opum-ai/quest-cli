@@ -191,23 +191,64 @@ export function createContinuityCheckService(
   return new ContinuityCheckService(new LocalGitPort(), tasks, root);
 }
 
+/**
+ * QCLI-568 Q568-INT (A): the ONE canonical spelling of a clone's common git
+ * directory.
+ *
+ * Two call sites need it, and they spell it differently today:
+ *
+ *  - the `--across-refs` LOCK resolves it through the workspace port's
+ *    `inspect(...).commonDirectory`, which is OS-NATIVE realpath'd
+ *    (`src/adapters/workspaces/local-workspaces.ts`, R9/N1). This is the
+ *    CANONICAL form and must not be weakened;
+ *  - Part B's read CACHE resolves it through `LocalGitPort.commonDirectory`,
+ *    which is a plain `resolve` with NO realpath -- a second spelling of the
+ *    same directory (on Windows, an 8.3 short name vs the long name).
+ *
+ * One spelling is what makes every worktree of a clone share one lock AND one
+ * cache. Both call sites MUST route through here; the native realpath is the
+ * form returned.
+ *
+ * PART B MUST SWITCH EXACTLY ONE LINE. In `AcrossRefsViewService.resolveCache`
+ * (`src/application/refs/across-refs.ts`, the `#763` read-cache, landed as
+ * 518acf58), the call
+ *
+ *     resolved = AcrossRefsCache.underCommonDirectory(
+ *       await this.git.commonDirectory(repositoryPath),
+ *     );
+ *
+ * must become this resolver fed the same `repositoryPath`, i.e.
+ * `await resolveCanonicalCommonDir(repositoryPath, workspace)` with a
+ * `LocalWorkspacePort`. Nothing else in `#763` changes.
+ */
+export async function resolveCanonicalCommonDir(
+  repositoryPath: string,
+  workspace: ReturnType<typeof createWorkspacePort>,
+): Promise<string> {
+  return (await workspace.inspect(repositoryPath)).commonDirectory;
+}
+
 /** QCLI-417: the read-only across-refs view. The forge seam is the real `gh`
  * shell-out here; the tests that cannot use a forge inject their own
  * RefDiscoveryPort into AcrossRefsViewService directly.
  *
  * QCLI-568: the view is wrapped in the advisory common-directory lock so two
  * runs from different worktrees of one clone serialise. The lock's common
- * directory is resolved by the workspace port, which realpaths
- * `git rev-parse --git-common-dir` against the worktree (F9) -- passing the
+ * directory comes from {@link resolveCanonicalCommonDir}, i.e. the workspace
+ * port's native-realpath'd `inspect(...).commonDirectory` (F9) -- passing the
  * raw relative value would create a stray `<wrong-root>/quest` in the main
  * worktree.
  *
  * R4: `onNote` receives the one-line notes the invocation reports on stderr:
  * the unlocked-path note of DEC-282 (a8), and (QCLI-563 / DEC-282 (a11)) the
  * single note a read-cache FAILURE reports. The CLI passes a collector so the
- * lines travel on `InvocationResult.stderr` (and, on a thrown view, ahead of
- * the error envelope); omitting it falls back to the lock wrapper's own
- * default sink, and a failed cache stays silent. */
+ * lines travel on `InvocationResult.stderr` on the ORDINARY path. LIMIT: on a
+ * THROWN view the CLI writes the collected notes to the REAL `process.stderr`
+ * ahead of the error envelope (`src/cli/main.ts`, `acrossRefsListing`) because
+ * that envelope is built outside this call -- so an in-process `runQuest`
+ * caller sees those notes on the stream, NOT in `result.stderr`. Omitting
+ * `onNote` falls back to the lock wrapper's own default sink, and a failed
+ * cache stays silent. */
 export function createAcrossRefsService(
   onNote?: (line: string) => void,
 ): AcrossRefsView {
@@ -237,9 +278,7 @@ export function createAcrossRefsService(
   const workspace = createWorkspacePort();
   return new AcrossRefsLockedService(
     view,
-    async (repositoryPath) => {
-      return (await workspace.inspect(repositoryPath)).commonDirectory;
-    },
+    (repositoryPath) => resolveCanonicalCommonDir(repositoryPath, workspace),
     once === undefined ? {} : { writeNote: once },
   );
 }

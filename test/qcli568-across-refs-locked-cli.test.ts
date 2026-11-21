@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runQuest as runQuestInProcess } from "../src/cli/main.ts";
+import { resolveCanonicalCommonDir } from "../src/cli/composition.ts";
 import { LocalWorkspacePort } from "../src/adapters/workspaces/local-workspaces.ts";
 import { resolveCommonDirLockPath } from "../src/application/refs/common-dir-lock.ts";
 
@@ -131,6 +132,16 @@ test("the main checkout and a linked worktree resolve to one lock path (QCLI-568
     // It is the MAIN `.git`, realpath'd -- not either worktree's own root.
     expect(main.commonDirectory).toBe(await realpath(join(root, ".git")));
     expect(main.worktreePath).not.toBe(other.worktreePath);
+
+    // QCLI-568 Q568-INT A: the ONE shared resolver returns that same canonical
+    // (native-realpath'd) spelling, so the lock and Part B's cache key the same
+    // directory. It is NOT `LocalGitPort.commonDirectory`'s plain `resolve`.
+    expect(await resolveCanonicalCommonDir(root, port)).toBe(
+      main.commonDirectory,
+    );
+    expect(await resolveCanonicalCommonDir(linked, port)).toBe(
+      main.commonDirectory,
+    );
   } finally {
     await cleanup();
   }
@@ -263,6 +274,56 @@ test("the broken-file fixture is caught from the MAIN checkout too (QCLI-568 T1)
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatch(/^note: .*ran unlocked/u);
   } finally {
+    await cleanup();
+  }
+}, 120_000);
+
+test("a destroyed stderr cannot mask a thrown view's own error (QCLI-568 NIT 4)", async () => {
+  const { root, linked, cleanup } = await fixture();
+  const original = process.stderr.write;
+  try {
+    // Broken mechanism, as in T1: `<main>/.git/quest` is a FILE, so the lock
+    // writes one note and then the inner view THROWS on `--parent NOPE-1`.
+    const questPath = join(root, ".git", "quest");
+    await rm(questPath, { recursive: true, force: true });
+    await writeFile(questPath, "not a directory\n", "utf8");
+
+    // Make exactly the note write fail, as a destroyed/EPIPE stderr would.
+    process.stderr.write = ((chunk: unknown) => {
+      if (String(chunk).startsWith("note: "))
+        throw new Error("stderr destroyed");
+      return original.call(process.stderr, chunk as string);
+    }) as typeof process.stderr.write;
+
+    const result = await withTaskStore(linked, () =>
+      runQuestInProcess(
+        [
+          "task",
+          "list",
+          "--across-refs",
+          "--ref",
+          "HEAD",
+          "--parent",
+          "NOPE-1",
+          "--json",
+        ],
+        false,
+        false,
+      ),
+    );
+
+    // The view's own `not_found` error survives; the stderr write failure does
+    // not replace it. And the note is genuinely LOST, which proves the failing
+    // write path ran (a passing write would have reported `ran unlocked`).
+    expect(result.exitCode).toBe(3);
+    expect(result.stdout).toBe("");
+    const lines = result.stderr.split("\n").filter((line) => line.length > 0);
+    expect(JSON.parse(lines[lines.length - 1] ?? "").error_type).toBe(
+      "not_found",
+    );
+    expect(result.stderr).not.toContain("ran unlocked");
+  } finally {
+    process.stderr.write = original;
     await cleanup();
   }
 }, 120_000);
