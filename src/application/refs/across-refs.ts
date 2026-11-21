@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { aliasKey, RecordValidationError } from "../../domain/records.ts";
 import {
   compareTaskIds,
@@ -202,6 +204,148 @@ export type AcrossRefsOutcome =
     };
 
 /**
+ * What a run is about to read, BEFORE it reads it (QCLI-568 Q568-INT B).
+ *
+ * Planning is cheap next to a 620 s cold read -- it resolves refs and asks the
+ * forge for the open population -- so a waiter computes its OWN plan once it
+ * holds the lock, and compares that identity with the one recorded by the run
+ * it waited behind. An `absent` plan needs no recording: it is a refusal about
+ * a missing origin/dev, and rediscovering it costs one remote query.
+ */
+export type AcrossRefsPlan =
+  | {
+      readonly kind: "planned";
+      readonly population: AcrossRefsPopulation;
+      readonly refs: readonly AcrossRefsPlannedRef[];
+      readonly unreadable: readonly AcrossRefsUnreadable[];
+      readonly discoveredAt: string;
+    }
+  | Extract<AcrossRefsOutcome, { kind: "absent" }>;
+
+/**
+ * Bumped when the canonical request form or the plan identity changes shape:
+ * a record written by an older form must not be compared with a newer one.
+ */
+const RESULT_KEY_VERSION = 1;
+
+/** A JSON value with object keys in a fixed, sorted order, so two requests
+ *  that mean the same thing hash the same. Arrays are ALWAYS order-preserving
+ *  except where the caller passes a set-like list through `sorted`. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) => {
+    if (item === null || typeof item !== "object" || Array.isArray(item))
+      return item;
+    const record = item as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(record).sort()) sorted[key] = record[key];
+    return sorted;
+  });
+}
+
+/** A set-like list, canonicalised: duplicates dropped, values sorted. Filters
+ *  whose meaning is set membership are normalised so their input order cannot
+ *  create a second fingerprint for one question. Ref and PR lists are NOT
+ *  sorted: their order is the order of `refsRead` and of the states inside an
+ *  entry, so it genuinely changes the answer. */
+function setLike(
+  values: readonly string[] | undefined,
+): readonly string[] | undefined {
+  if (values === undefined) return undefined;
+  return [...new Set(values)].sort();
+}
+
+/**
+ * The normalised REQUEST FINGERPRINT a whole-result record is filed under
+ * (QCLI-568 Q568-INT B). Every input whose value can change the answer is in
+ * it: the explicit refs and pull requests IN ORDER (order is output), the
+ * filters (set-like ones normalised, scalar ones folded case-insensitively
+ * where the filter folds them), `allowPartial`, and `includeArchived`.
+ *
+ * `repositoryPath` is deliberately ABSENT. A record lives under one clone's
+ * git common directory, which is exactly the scope over which the path can
+ * differ while naming the same repository: the main checkout and every linked
+ * worktree must share records, or the whole reuse is defeated. Two different
+ * clones never share a common directory, so they never share a record.
+ *
+ * The result is a sha256 hex digest -- the only shape that is safe as a file
+ * name in the results directory.
+ */
+export function acrossRefsRequestFingerprint(
+  request: AcrossRefsRequest,
+): string {
+  const filter = request.filter;
+  const canonical = {
+    version: RESULT_KEY_VERSION,
+    refs: request.refs === undefined ? undefined : [...request.refs],
+    pullRequests:
+      request.pullRequests === undefined
+        ? undefined
+        : [...request.pullRequests],
+    allowPartial: request.allowPartial,
+    filter:
+      filter === undefined
+        ? undefined
+        : {
+            status: filter.status,
+            excludeStatuses: setLike(filter.excludeStatuses),
+            labels: setLike(filter.labels),
+            assignees: setLike(filter.assignees),
+            unassigned: filter.unassigned,
+            milestoneId: filter.milestoneId,
+            parentId: filter.parentId,
+            priority: filter.priority,
+            types: setLike(filter.types),
+            search: filter.search,
+            unresolvedAtCompletion: filter.unresolvedAtCompletion,
+            includeArchived: filter.includeArchived,
+            sort:
+              filter.sort === undefined
+                ? undefined
+                : {
+                    field: filter.sort.field,
+                    direction: filter.sort.direction,
+                  },
+            limit: filter.limit,
+          },
+  };
+  return createHash("sha256").update(canonicalJson(canonical)).digest("hex");
+}
+
+/**
+ * The PLAN IDENTITY of a planned run: the population plus, for every planned
+ * ref, its label and THE SHA IT WILL BE READ AT. The sha is load-bearing on its
+ * own -- a pull request's head can move without its `.quest` tree changing, so
+ * a ref name or tree hash would call two different answers the same question.
+ * A planned-but-unreadable ref contributes its failure reason, because that is
+ * the answer it will produce.
+ *
+ * `discoveredAt` is excluded: it is each run's own instant, and the record's
+ * coverage.discoversAt is the HOLDER's instant on a replay.
+ */
+export function acrossRefsPlanIdentity(plan: AcrossRefsPlan): string {
+  if (plan.kind === "absent") return `absent:${plan.detail}`;
+  return createHash("sha256")
+    .update(
+      canonicalJson({
+        version: RESULT_KEY_VERSION,
+        population: plan.population,
+        refs: plan.refs.map((ref) => ({
+          ref: ref.ref,
+          pullRequest: ref.pullRequest,
+          sha: ref.sha,
+          failure: ref.failure,
+        })),
+        unreadable: plan.unreadable.map((entry) => ({
+          ref: entry.ref,
+          pullRequest: entry.pullRequest,
+          reason: entry.reason,
+        })),
+      }),
+    )
+    .digest("hex");
+}
+
+/**
  * Git reports the remote it could not reach verbatim, and that text can name a
  * local path. Coverage reasons cross the JSON boundary into CI logs, so they
  * are held to one line with no absolute paths. A whitespace-delimited token
@@ -235,8 +379,13 @@ function describe(error: unknown): string {
 export const DEV_REF = "origin/dev";
 const DEV_SOURCE_REF = "refs/heads/dev";
 
-/** One planned ref: what to read, what to call it, and at which commit. */
-interface PlannedRef {
+/** One planned ref: what to read, what to call it, and at which commit.
+ *
+ * Exported because a run that holds the lock must hand its PLAN to a later
+ * step that decides whether a recorded whole result may be replayed
+ * (QCLI-568 Q568-INT B): the plan identity is built from exactly these fields.
+ */
+export interface AcrossRefsPlannedRef {
   readonly ref: string;
   readonly pullRequest: string | null;
   readonly sha: string;
@@ -410,6 +559,10 @@ export class AcrossRefsViewService {
   private locatedCache: AcrossRefsCachePort | null | undefined;
   /** S5: true once a cache-failure note has been delivered this process. */
   private cacheFailureNoted = false;
+  /** QCLI-568 Q568-INT B: the notes the CURRENT run delivered to its sink, so
+   *  the lock wrapper can record them with the whole result and a waiter can
+   *  replay them. Reset at the start of every `execute`. */
+  private emittedNotes: string[] = [];
 
   constructor(
     private readonly git: GitPort,
@@ -421,25 +574,27 @@ export class AcrossRefsViewService {
     private readonly cache?: AcrossRefsCachePort,
     /**
      * S5: the note sink. It receives the `note: ` line for a cache FAILURE at
-     * most once per process; the default is a no-op, so nothing is written until
-     * the CLI wires a sink (Q568-INT's `acrossRefsListing` collects notes and
-     * prepends them to the invocation's stderr, surviving a thrown view).
+     * most once per process, for one CAUSE; the default is a no-op, so nothing
+     * is written until the CLI wires a sink (Q568-INT's `acrossRefsListing`
+     * collects notes and prepends them to the invocation's stderr, surviving a
+     * thrown view).
      */
     private readonly onNote?: (line: string) => void,
   ) {}
 
   /** Deliver one cache-failure note for the whole process, never more. */
-  private deliverCacheFailure(cause: string): void {
+  private deliverCacheFailure(error: unknown): void {
     if (this.cacheFailureNoted) return;
     this.cacheFailureNoted = true;
-    this.onNote?.(cacheFailureNote(cause));
+    this.emitNote(cacheFailureNote(cacheFailureCause(error)));
   }
 
   /**
    * The cache this run reads and writes. An injected one wins; otherwise the
-   * shared directory under the clone's common dir. A repository with no Git
-   * behind it (or an unreadable common dir) simply disables caching -- a slower
-   * answer, never a failed one -- and reports ONE note naming why (S5).
+   * shared directory under the clone's CANONICAL common dir (item 2). A
+   * repository with no Git behind it (or an unreadable common dir) simply
+   * disables caching -- a slower answer, never a failed one -- and reports ONE
+   * note naming why (S5).
    */
   private async resolveCache(
     repositoryPath: string,
@@ -454,7 +609,7 @@ export class AcrossRefsViewService {
       );
     } catch (error) {
       resolved = null;
-      this.deliverCacheFailure(cacheFailureCause(error));
+      this.deliverCacheFailure(error);
     }
     this.locatedCache = resolved;
     return resolved;
@@ -462,13 +617,22 @@ export class AcrossRefsViewService {
 
   /**
    * Deliver an already-formatted note (from a constructed cache) at most once.
-   * The cache also guards per instance; the service guard covers the
-   * `resolveCache` failure that happens before any cache exists.
    */
   private deliverNote(line: string): void {
     if (this.cacheFailureNoted) return;
     this.cacheFailureNoted = true;
+    this.emitNote(line);
+  }
+
+  /** Add the line to this run's record AND hand it to the sink. */
+  private emitNote(line: string): void {
+    this.emittedNotes.push(line);
     this.onNote?.(line);
+  }
+
+  /** QCLI-568 Q568-INT B: the notes the run just delivered, for the record. */
+  takeNotes(): readonly string[] {
+    return [...this.emittedNotes];
   }
 
   /**
@@ -482,7 +646,7 @@ export class AcrossRefsViewService {
    */
   private async probePlannedRefs(
     repositoryPath: string,
-    refs: readonly PlannedRef[],
+    refs: readonly AcrossRefsPlannedRef[],
   ): Promise<ReadonlyMap<string, RefProbe>> {
     const probes = new Map<string, RefProbe>();
     const shas = [
@@ -530,7 +694,32 @@ export class AcrossRefsViewService {
   }
 
   async view(request: AcrossRefsRequest): Promise<AcrossRefsOutcome> {
-    const plan = await this.plan(request);
+    return this.execute(request, await this.plan(request));
+  }
+
+  /**
+   * QCLI-568 Q568-INT B: read a PLAN, without reading a single record.
+   *
+   * This is the seam the lock wrapper needs. A run that holds the lock computes
+   * its OWN plan (cheap: it resolves refs and lists the open population) and
+   * compares {@link acrossRefsPlanIdentity} with the identity recorded by the
+   * run it waited behind; the read itself is `execute`, which a matching waiter
+   * skips entirely. `view` is exactly `execute(request, plan(request))`, so an
+   * unwrapped caller is unchanged.
+   */
+  async plan(request: AcrossRefsRequest): Promise<AcrossRefsPlan> {
+    return this.planPopulation(request);
+  }
+
+  /**
+   * QCLI-568 Q568-INT B: perform the read a plan describes. `emittedNotes` is
+   * reset here, so {@link takeNotes} answers for THIS run only.
+   */
+  async execute(
+    request: AcrossRefsRequest,
+    plan: AcrossRefsPlan,
+  ): Promise<AcrossRefsOutcome> {
+    this.emittedNotes = [];
     if (plan.kind === "absent") return plan;
 
     const probes = await this.probePlannedRefs(
@@ -600,16 +789,9 @@ export class AcrossRefsViewService {
    * `dev-only` is emitted for exactly one reason, the degrade the caller asked
    * for, and it is never reported complete.
    */
-  private async plan(request: AcrossRefsRequest): Promise<
-    | {
-        readonly kind: "planned";
-        readonly population: AcrossRefsPopulation;
-        readonly refs: readonly PlannedRef[];
-        readonly unreadable: readonly AcrossRefsUnreadable[];
-        readonly discoveredAt: string;
-      }
-    | Extract<AcrossRefsOutcome, { kind: "absent" }>
-  > {
+  private async planPopulation(
+    request: AcrossRefsRequest,
+  ): Promise<AcrossRefsPlan> {
     const discoveredAt = this.now().toISOString();
     const explicitRefs = request.refs ?? [];
     const explicitPrs = request.pullRequests ?? [];
@@ -622,7 +804,7 @@ export class AcrossRefsViewService {
       // name still identifies the pull request exactly.
       const origin = await this.discovery.origin(request.repositoryPath);
       const slug = origin.kind === "github" ? origin.slug : null;
-      const refs: PlannedRef[] = [];
+      const refs: AcrossRefsPlannedRef[] = [];
       for (const ref of explicitRefs) {
         const sha = await this.resolveLocal(request.repositoryPath, ref);
         refs.push(
@@ -787,7 +969,7 @@ export class AcrossRefsViewService {
   private planDev(
     devSha: string | null,
     failure: string | undefined,
-  ): PlannedRef {
+  ): AcrossRefsPlannedRef {
     if (failure !== undefined || devSha === null)
       return {
         ref: DEV_REF,
@@ -833,7 +1015,7 @@ export class AcrossRefsViewService {
    */
   private async readRef(
     repositoryPath: string,
-    planned: PlannedRef,
+    planned: AcrossRefsPlannedRef,
     probe: RefProbe | undefined,
     cache: AcrossRefsCachePort | null,
     usedKeys: Set<string>,
