@@ -49,7 +49,10 @@ import {
  * its own wait start. Only a record finished WHILE IT WAITED is replayed, byte
  * for byte, including the holder's notes and its coverage.discoveredAt; every
  * other case recomputes and replaces the record. A replay releases the lock
- * immediately, so matching waiters do not queue behind each other.
+ * immediately. Matching waiters still QUEUE behind each other's PLAN: each
+ * plans after acquiring the lock, which for the default open-prs population is
+ * one `git ls-remote` plus one `gh pr list` (seconds). That is acceptable
+ * because it is not a recompute of the whole read, which is what replay avoids.
  *
  * READ-ONLY IS NOT "CREATES NOTHING". The view may create
  * `<git-common-dir>/quest/`, a transient lock file, the `#763` read cache, and
@@ -74,8 +77,8 @@ import {
  *
  *  2. A PATHOLOGICAL-BUT-REACHABLE EXPIRY -- the wait elapsed without acquiring
  *     while holders are still live. It is NOT unreachable behind a normal
- *     holder: waiters POLL and are not FIFO, and this wiring serialises without
- *     waiter reuse, so a QUEUE of live holders can in principle outlast one
+ *     holder: waiters POLL and are not FIFO, and a replay needs a MATCHING
+ *     record, so a QUEUE of live holders that each recompute can outlast one
  *     waiter's wait. The wait is bounded PER WAITER FROM ITS OWN START, not
  *     against a single holder: it is {@link DEFAULT_ACROSS_REFS_WAIT_TIMEOUT_MS},
  *     derived from the lock's own `staleAfterMs` (10 min) PLUS a margin. The
@@ -106,9 +109,13 @@ export interface AcrossRefsView {
 
 /**
  * Margin added to the lock's own `staleAfterMs` for the wiring's wait. A
- * normal 60-90 s read releases the lock far sooner; a crashed holder is broken
- * as stale at `staleAfterMs`. The margin only keeps a waiter from expiring in
- * the same instant the stale detector is about to break the lock. Derived from
+ * normal 60-90 s read releases the lock far sooner. Since DEC-282 (a16) the
+ * lock breaks a holder as follows: a DEAD same-host pid after the 30 s floor,
+ * a cross-host holder after `staleAfterMs` of SILENCE since its last heartbeat,
+ * and a LIVE same-host holder NEVER. So this wait is the ONLY limit on a live
+ * same-host holder (the measured cold run takes 619-623 s, under the 660 s
+ * bound); the margin keeps a waiter from expiring in the same instant a
+ * cross-host silence break is about to fire. Derived from
  * `DEFAULT_STALE_AFTER_MS` in one place so the two cannot drift.
  */
 export const ACROSS_REFS_WAIT_MARGIN_MS = 60_000;
@@ -225,7 +232,9 @@ export class AcrossRefsLockedService implements AcrossRefsView {
         this.note(
           `note: task list --across-refs ran unlocked:
 timed out after ${Math.round(error.waitedMs)}ms waiting for the
-common-directory lock at ${error.lockPath}.`,
+common-directory lock at ${error.lockPath}${error.holder === null ? "" : ` (held by pid ${error.holder.pid})`}.
+If that is not a running quest process, remove the lock file ${error.lockPath}
+(and ${error.breakPath} only if no breaker is running).`,
         );
         return proceedUnlocked();
       });
