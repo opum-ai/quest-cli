@@ -8,6 +8,8 @@ Each version heading is dated with the UTC day `@opum-ai/quest` reached npm, rea
 from the registry's `time` field. 0.6.1, 0.8.0 and 0.14.0 never reached npm, so
 each is dated by its own tag. No date here is inferred (QCLI-398).
 
+## Unreleased
+
 ## 0.15.1
 
 **0.15.0 was a release candidate only.** It was published solely under the
