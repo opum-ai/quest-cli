@@ -639,12 +639,16 @@ test.skipIf(IS_ROOT)(
  * barrier is a hold time, escalated on failure instead of guessed once: a replay
  * needs both CLIs waiting before the lock opens, and a cold spawn that was slower
  * than the hold just recomputes (a different `discoveredAt`). A real regression
- * -- no replay at all -- fails every attempt.
+ * -- no replay at all -- fails every attempt. The cost: this retry can also mask
+ * an INTERMITTENT replay regression that passes on a longer hold; a failure
+ * that only ever shows on the first attempt would not be seen.
  */
 const HOLD_ATTEMPTS_MS = [2_500, 6_000, 12_000] as const;
 
 for (const mode of ["json", "human"] as const) {
-  test(`two processes: the replaying waiter's stdout and stderr equal the holder's byte for byte (${mode})`, async () => {
+  test(mode === "json"
+    ? "two processes: the replaying waiter's stdout and stderr equal the holder's byte for byte (json; the equal discoveredAt proves the replay)"
+    : "two processes: both CLIs' stdout and stderr are byte-identical in human mode (does NOT itself prove a replay: human output has no timestamp; the json row does)", async () => {
     const args = [
       "task",
       "list",

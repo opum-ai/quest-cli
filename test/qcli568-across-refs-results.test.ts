@@ -740,6 +740,20 @@ test("a source-run identity covers src bytes, and a partial read can never share
   await writeFile(join(moduleDirectory, "a.ts"), "export const a = 3;\n");
   expect(await computeBuildIdentity(compiled)).toBe(compiledA);
 
+  // The measured compiled roots, POSIX and Windows, are recognised and stable.
+  for (const recognised of ["/$bunfs/root", "B:\\~BUN\\root"]) {
+    const input = { ...inputs, moduleDirectory: recognised };
+    expect(await computeBuildIdentity(input)).toBe(
+      await computeBuildIdentity(input),
+    );
+  }
+  // ANYTHING ELSE (an unpacked layout) is unrecognised: a nonce, so two calls
+  // differ. (The old two-way logic hashed the runtime alone and shared one.)
+  const unknown = { ...inputs, moduleDirectory: "/opt/dist/application/refs" };
+  expect(await computeBuildIdentity(unknown)).not.toBe(
+    await computeBuildIdentity(unknown),
+  );
+
   // An unreadable runtime folds in a per-process nonce: it matches nothing.
   const missing = { ...inputs, execPath: join(checkout, "absent") };
   expect(await computeBuildIdentity(missing)).not.toBe(

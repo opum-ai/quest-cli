@@ -24,16 +24,23 @@ import { QUEST_VERSION } from "../version.ts";
  *    `cli/main.ts`, and not under a `$bunfs` virtual root. A compiled binary has
  *    no such directory, so it never walks anything -- in particular never `/`.
  *
+ * THREE WAYS, not two. The module directory is either a positively detected
+ * SOURCE root (version + runtime + src bytes), a RECOGNISED compiled root
+ * (`/$bunfs/root` on POSIX, `B:\~BUN\root` on Windows: version + runtime bytes
+ * only), or ANYTHING ELSE -- a layout this code does not recognise, such as an
+ * unpacked `/opt/dist` -- which gets a per-process nonce, so it matches nothing.
+ *
  * FAIL-SAFE: it can only NARROW reuse. Any failure to read the runtime, or --
- * on a source run -- to list or read any source file, folds a per-process nonce
- * into the digest, so the identity then matches no other process and a partial
- * read can never produce a shared one.
+ * on a source run -- to list or read any source file, also folds a per-process
+ * nonce into the digest, so the identity then matches no other process and a
+ * partial read can never produce a shared one.
  *
  * LIMIT: a source-run identity covers `src/**` and the runtime, not
  * `node_modules` or `bun.lock`, so a dependency-only change shares an identity.
  *
- * It is computed once per process and costs tens of milliseconds (28-101 ms
- * measured for a 63 MB runtime), beside the minute-scale read it guards.
+ * It is computed once per process and costs tens of milliseconds, beside the
+ * minute-scale read it guards: 25-32 ms measured inside a compiled darwin-arm64
+ * binary (runtime bytes only), 28-101 ms for a source run on a 63 MB runtime.
  */
 let cached: Promise<string> | undefined;
 
@@ -48,8 +55,14 @@ export function currentBuildIdentity(): Promise<string> {
  * is not `<root>/src/<dir>/<file>` with `<root>/src/cli/main.ts` present).
  * `moduleDirectory` is this module's directory (`src/application/refs`).
  */
+/** A module directory that is a RECOGNISED compiled-binary virtual root:
+ *  `/$bunfs/root` (POSIX) or `B:\~BUN\root` (Windows). */
+export function isCompiledRoot(moduleDirectory: string): boolean {
+  return moduleDirectory.includes("$bunfs") || moduleDirectory.includes("~BUN");
+}
+
 export function resolveSourceRoot(moduleDirectory: string): string | null {
-  if (moduleDirectory.includes("$bunfs")) return null;
+  if (isCompiledRoot(moduleDirectory)) return null;
   const root = resolve(moduleDirectory, "..", "..");
   if (basename(root) !== "src") return null;
   return existsSync(join(root, "cli", "main.ts")) ? root : null;
@@ -76,7 +89,10 @@ export async function computeBuildIdentity(
   } catch {
     failed = true;
   }
-  const root = resolveSourceRoot(inputs.moduleDirectory ?? import.meta.dirname);
+  const moduleDirectory = inputs.moduleDirectory ?? import.meta.dirname;
+  const root = resolveSourceRoot(moduleDirectory);
+  // Neither a source root nor a recognised compiled root: unknown layout.
+  if (root === null && !isCompiledRoot(moduleDirectory)) failed = true;
   if (root !== null) {
     hash.update("\n--src--\n");
     try {
