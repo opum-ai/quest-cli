@@ -36,6 +36,22 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
   terminal, a plain SIGTERM, which is what Node `execFile` timeouts send, is
   fully handled.
 
+### Changed
+
+- **`quest task list --across-refs` now caches each ref's records, keyed by that
+  ref's `.quest` tree hash, so an unchanged ref is not re-read** (QCLI-563,
+  opum-doc DEC-282 sibling of the QCLI-567 entry). The cache lives under
+  `<git-common-dir>/quest/across-refs-cache/`, shared by every worktree of one
+  clone; it is safe to delete at any time (deleting it only costs a re-read).
+  It is bounded to the newest 64 entries by last use, plus every key the current
+  run itself used, and its writes are atomic. The drift hint no longer says
+  "Nothing was written -- the view is read-only"; it now names the cache as the
+  one thing the view writes. If the cache FAILS (an unwritable directory, ENOSPC,
+  an unreadable common dir), the command writes one `note: `-prefixed stderr
+  line, at most once per process, naming the cause and saying the read ran
+  uncached; it writes nothing to stdout and changes no exit code or JSON. A
+  plain cache miss (absent or corrupt entry) is normal and writes nothing.
+
 ### Known residual
 
 - **A caller that spawns the wrapper with stdout and stderr piped, as lore

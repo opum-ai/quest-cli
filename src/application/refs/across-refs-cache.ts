@@ -139,6 +139,35 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/u;
  *  shapes, so a key is always safe as a filename. */
 const KEY_PATTERN = /^(?:[0-9a-f]{40}|root-[0-9a-f]{40})$/u;
 
+/**
+ * QCLI-563 / S5: the one `note: `-prefixed stderr line a cache FAILURE reports.
+ * It names the cause and says the read ran uncached, so a broken cache cannot
+ * quietly remove the fix it is meant to provide. Callers route it through their
+ * own sink; this module never writes to a stream itself. A mere cache MISS
+ * (absent or corrupt entry) is normal operation and reports nothing.
+ */
+export function cacheFailureNote(cause: string): string {
+  const detail = cause.trim().split("\n")[0] ?? "";
+  const named = detail === "" ? "unknown error" : detail;
+  return `note: the across-refs read cache is unavailable (${named}); the read ran uncached.`;
+}
+
+/** A one-line cause for a thrown filesystem error: its `code` (EACCES, ENOSPC,
+ *  …) when present, then its first message line. */
+export function cacheFailureCause(error: unknown): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  const message =
+    error instanceof Error ? error.message : String(error ?? "unknown error");
+  const first = message.split("\n")[0]?.trim() ?? "";
+  if (typeof code === "string" && code !== "" && !first.includes(code))
+    return `${code}: ${first}`.trim();
+  return first;
+}
+
+function isMissing(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "ENOENT";
+}
+
 /** The on-disk document. `key` is repeated so a file that was moved or misnamed
  *  is recognised as not answering the key it was read under. */
 interface RecordDocument {
@@ -222,21 +251,44 @@ function locationsOf(value: unknown): AcrossRefsCachedLocations | null {
 export class AcrossRefsCache implements AcrossRefsCachePort {
   private readonly io: CacheIo;
   private readonly maxEntries: number;
+  /** S5: failure sink (a `note: ` line), and the once-per-instance guard. */
+  private readonly onFailure: ((line: string) => void) | undefined;
+  private failureNoted = false;
 
   constructor(
     private readonly directory: string,
     options: {
       readonly maxEntries?: number;
       readonly io?: Partial<CacheIo>;
+      readonly onFailure?: (line: string) => void;
     } = {},
   ) {
     this.io = { ...defaultIo, ...options.io };
     this.maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
+    this.onFailure = options.onFailure;
+  }
+
+  /** Report a FAILURE at most once per instance (once per process in the CLI's
+   *  one-view-per-invocation path). A miss never reaches here. */
+  private fail(cause: string): void {
+    if (this.failureNoted) return;
+    this.failureNoted = true;
+    this.onFailure?.(cacheFailureNote(cause));
   }
 
   /** The per-ref cache rooted at the clone's shared directory. */
-  static underCommonDirectory(commonDirectory: string): AcrossRefsCache {
-    return new AcrossRefsCache(acrossRefsCacheDirectory(commonDirectory));
+  static underCommonDirectory(
+    commonDirectory: string,
+    options: {
+      readonly maxEntries?: number;
+      readonly io?: Partial<CacheIo>;
+      readonly onFailure?: (line: string) => void;
+    } = {},
+  ): AcrossRefsCache {
+    return new AcrossRefsCache(
+      acrossRefsCacheDirectory(commonDirectory),
+      options,
+    );
   }
 
   async read(key: string): Promise<AcrossRefsCachedLocations | null> {
@@ -247,7 +299,10 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
     let text: string;
     try {
       text = await this.io.readFile(recordPath(this.directory, key));
-    } catch {
+    } catch (error) {
+      // A missing entry (ENOENT) is an ordinary miss; any other read error is a
+      // cache FAILURE worth one line. A corrupt document below is a miss too.
+      if (!isMissing(error)) this.fail(cacheFailureCause(error));
       return null;
     }
     try {
@@ -275,7 +330,11 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
       key,
       locations,
     };
-    await this.writeJsonAtomically(recordPath(this.directory, key), document);
+    const cause = await this.writeJsonAtomically(
+      recordPath(this.directory, key),
+      document,
+    );
+    if (cause !== null) this.fail(cause);
   }
 
   async touch(key: string): Promise<void> {
@@ -336,21 +395,21 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
       await this.io.unlink(stale.path).catch(() => undefined);
   }
 
-  /** Write atomically. Returns false (and reports nothing) on failure, after
-   *  unlinking whatever temp file the failed write may have left behind. */
+  /** Write atomically. Returns null on success, or the one-line cause on
+   *  failure, after unlinking whatever temp file the failed write left behind. */
   private async writeJsonAtomically(
     target: string,
     value: unknown,
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     const temporary = `${target}.${process.pid}.${Date.now().toString(36)}.${Math.random().toString(36).slice(2)}.tmp`;
     try {
       await this.io.mkdir(this.directory);
       await this.io.writeFile(temporary, JSON.stringify(value));
       await this.io.rename(temporary, target);
-      return true;
-    } catch {
+      return null;
+    } catch (error) {
       await this.io.unlink(temporary).catch(() => undefined);
-      return false;
+      return cacheFailureCause(error);
     }
   }
 }

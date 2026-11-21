@@ -189,8 +189,23 @@ export function createContinuityCheckService(
 
 /** QCLI-417: the read-only across-refs view. The forge seam is the real `gh`
  * shell-out here; the tests that cannot use a forge inject their own
- * RefDiscoveryPort into AcrossRefsViewService directly. */
-export function createAcrossRefsService(): AcrossRefsViewService {
+ * RefDiscoveryPort into AcrossRefsViewService directly.
+ *
+ * QCLI-563 / S5: `onNote` receives the one `note: ` line a cache FAILURE
+ * reports. The default is a no-op; Q568-INT's `acrossRefsListing` passes its
+ * result-stderr sink here so the line joins the invocation's stderr (and
+ * survives a thrown view). Until then, a failed cache stays silent in
+ * production but the mechanism and tests are in place. */
+export function createAcrossRefsService(
+  onNote?: (line: string) => void,
+): AcrossRefsViewService {
   const git = new LocalGitPort();
-  return new AcrossRefsViewService(git, new GhRefDiscovery(git));
+  return new AcrossRefsViewService(
+    git,
+    new GhRefDiscovery(git),
+    undefined,
+    undefined,
+    undefined,
+    onNote,
+  );
 }

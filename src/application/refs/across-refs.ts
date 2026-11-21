@@ -18,6 +18,8 @@ import {
   type AcrossRefsCachedLocations,
   AcrossRefsCache,
   acrossRefsRefKey,
+  cacheFailureCause,
+  cacheFailureNote,
 } from "./across-refs-cache.ts";
 
 /**
@@ -404,6 +406,8 @@ export class AcrossRefsViewService {
   private readonly materializedCache = new Map<string, readonly RefRecord[]>();
   /** undefined: not resolved yet; null: caching is unavailable here. */
   private locatedCache: AcrossRefsCachePort | null | undefined;
+  /** S5: true once a cache-failure note has been delivered this process. */
+  private cacheFailureNoted = false;
 
   constructor(
     private readonly git: GitPort,
@@ -413,13 +417,27 @@ export class AcrossRefsViewService {
     /** QCLI-563: an injected cache (tests); production falls back to the shared
      * directory under this repository's git common dir. */
     private readonly cache?: AcrossRefsCachePort,
+    /**
+     * S5: the note sink. It receives the `note: ` line for a cache FAILURE at
+     * most once per process; the default is a no-op, so nothing is written until
+     * the CLI wires a sink (Q568-INT's `acrossRefsListing` collects notes and
+     * prepends them to the invocation's stderr, surviving a thrown view).
+     */
+    private readonly onNote?: (line: string) => void,
   ) {}
+
+  /** Deliver one cache-failure note for the whole process, never more. */
+  private deliverCacheFailure(cause: string): void {
+    if (this.cacheFailureNoted) return;
+    this.cacheFailureNoted = true;
+    this.onNote?.(cacheFailureNote(cause));
+  }
 
   /**
    * The cache this run reads and writes. An injected one wins; otherwise the
    * shared directory under the clone's common dir. A repository with no Git
-   * behind it (or an unreadable common dir) simply disables caching -- that is
-   * a slower answer, never a failed one.
+   * behind it (or an unreadable common dir) simply disables caching -- a slower
+   * answer, never a failed one -- and reports ONE note naming why (S5).
    */
   private async resolveCache(
     repositoryPath: string,
@@ -430,12 +448,25 @@ export class AcrossRefsViewService {
     try {
       resolved = AcrossRefsCache.underCommonDirectory(
         await this.git.commonDirectory(repositoryPath),
+        { onFailure: (line) => this.deliverNote(line) },
       );
-    } catch {
+    } catch (error) {
       resolved = null;
+      this.deliverCacheFailure(cacheFailureCause(error));
     }
     this.locatedCache = resolved;
     return resolved;
+  }
+
+  /**
+   * Deliver an already-formatted note (from a constructed cache) at most once.
+   * The cache also guards per instance; the service guard covers the
+   * `resolveCache` failure that happens before any cache exists.
+   */
+  private deliverNote(line: string): void {
+    if (this.cacheFailureNoted) return;
+    this.cacheFailureNoted = true;
+    this.onNote?.(line);
   }
 
   /**
