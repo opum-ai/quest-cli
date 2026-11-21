@@ -8,7 +8,11 @@ Each version heading is dated with the UTC day `@opum-ai/quest` reached npm, rea
 from the registry's `time` field. 0.6.1, 0.8.0 and 0.14.0 never reached npm, so
 each is dated by its own tag. No date here is inferred (QCLI-398).
 
-## Unreleased
+## 0.15.1
+
+**0.15.0 was a release candidate only.** It was published solely under the
+`0.15.0-rc.1` dist-tag and was never moved to `latest`; 0.15.1 is the first
+release of everything under `## 0.15.0` below, plus this section.
 
 ### Fixed
 
@@ -38,6 +42,27 @@ each is dated by its own tag. No date here is inferred (QCLI-398).
 
 ### Changed
 
+- **`quest task list --across-refs` is serialised across the worktrees of one
+  clone by an advisory lock, and a waiter reuses the result the previous run
+  just recorded** (QCLI-568, opum-doc DEC-282 (a7) to (a16)). The lock lives at
+  `<git-common-dir>/quest/across-refs.lock`; the run that holds it records its
+  whole result under `<git-common-dir>/quest/across-refs-results/`, keyed by the
+  normalised request, and a waiter that acquires the lock replays that record,
+  stdout and stderr byte for byte, only when the plan identity matches (each
+  planned ref's sha), the record finished while the waiter waited, and the same
+  build wrote it. Anything else recomputes. **The cold run is as slow as before,
+  or slightly slower: about 650 s at the measured 40-ref, 2,000-record shape**,
+  because it is the run that fills the cache.
+  **How this lock differs from the one before it.** The holder re-stamps the lock
+  every few seconds, and staleness is judged by silence since the last stamp,
+  never by the holder's age. A live holder on the same host is NEVER broken by
+  age (a wedged one is bounded by each waiter's 660 s wait, after which that
+  waiter runs unlocked and writes one `note: ` line on stderr); a dead same-host
+  pid is broken after 30 s, and a holder on another host after 10 minutes of
+  silence. The lock is advisory: it only saves duplicated work, and Git's
+  conditional ref update remains the ordering authority. A hand remedy for a
+  wedge is in the timeout message: remove the lock file once you have checked
+  the named pid is not a running quest process.
 - **`quest task list --across-refs` now caches each ref's records, keyed by that
   ref's `.quest` tree hash, so an unchanged ref is not re-read** (QCLI-563,
   opum-doc DEC-282 (a13), sibling of the QCLI-567 entry). The cache lives under
