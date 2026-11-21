@@ -239,6 +239,11 @@ export async function resolveCanonicalCommonDir(
  * raw relative value would create a stray `<wrong-root>/quest` in the main
  * worktree.
  *
+ * QCLI-568 Q568-INT B item 2: the SAME resolver feeds the view's read cache, so
+ * the lock and the cache are one spelling of one directory. (Before this, the
+ * cache used `LocalGitPort.commonDirectory`'s plain `resolve`, a second
+ * spelling of the same place.)
+ *
  * R4: `onNote` receives the one-line notes the invocation reports on stderr:
  * the unlocked-path note of DEC-282 (a8), and (QCLI-563 / DEC-282 (a11)) the
  * single note a read-cache FAILURE reports. The CLI passes a collector so the
@@ -253,6 +258,9 @@ export function createAcrossRefsService(
   onNote?: (line: string) => void,
 ): AcrossRefsView {
   const git = new LocalGitPort();
+  const workspace = createWorkspacePort();
+  const canonicalDirectory = (repositoryPath: string) =>
+    resolveCanonicalCommonDir(repositoryPath, workspace);
   // One note per invocation across BOTH sinks. DEC-282 (a8) item 2 and (a11)
   // each promise ONE stderr line; a broken common directory fails the lock and
   // the cache for the same cause, and would otherwise report twice. The first
@@ -274,11 +282,11 @@ export function createAcrossRefsService(
     undefined,
     undefined,
     once,
+    canonicalDirectory,
   );
-  const workspace = createWorkspacePort();
   return new AcrossRefsLockedService(
     view,
-    (repositoryPath) => resolveCanonicalCommonDir(repositoryPath, workspace),
+    canonicalDirectory,
     once === undefined ? {} : { writeNote: once },
   );
 }

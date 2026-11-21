@@ -580,6 +580,18 @@ export class AcrossRefsViewService {
      * thrown view).
      */
     private readonly onNote?: (line: string) => void,
+    /**
+     * QCLI-568 Q568-INT B item 2: THE canonical spelling of this clone's common
+     * git directory. Production passes the composition root's
+     * `resolveCanonicalCommonDir` (the workspace port's native-realpath'd
+     * `inspect(...).commonDirectory`); the default keeps `#763`'s behaviour for
+     * a direct construction, which is the plain `resolve` of
+     * `git rev-parse --git-common-dir`. The lock and the read cache must agree
+     * on ONE spelling, or two worktrees of a clone key two caches.
+     */
+    private readonly canonicalCommonDirectory?: (
+      repositoryPath: string,
+    ) => Promise<string>,
   ) {}
 
   /** Deliver one cache-failure note for the whole process, never more. */
@@ -603,10 +615,13 @@ export class AcrossRefsViewService {
     if (this.locatedCache !== undefined) return this.locatedCache;
     let resolved: AcrossRefsCachePort | null;
     try {
-      resolved = AcrossRefsCache.underCommonDirectory(
-        await this.git.commonDirectory(repositoryPath),
-        { onFailure: (line) => this.deliverNote(line) },
-      );
+      const commonDirectory =
+        this.canonicalCommonDirectory === undefined
+          ? await this.git.commonDirectory(repositoryPath)
+          : await this.canonicalCommonDirectory(repositoryPath);
+      resolved = AcrossRefsCache.underCommonDirectory(commonDirectory, {
+        onFailure: (line) => this.deliverNote(line),
+      });
     } catch (error) {
       resolved = null;
       this.deliverCacheFailure(error);
