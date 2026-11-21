@@ -1,14 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync, unlinkSync } from "node:fs";
-import {
-  link,
-  mkdir,
-  open,
-  readFile,
-  rename,
-  stat,
-  unlink,
-} from "node:fs/promises";
+import { mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
@@ -29,12 +21,26 @@ import { setTimeout as delay } from "node:timers/promises";
  * caller whose wait times out may proceed unlocked, and the caller decides
  * that (see {@link CommonDirLockTimeoutError}).
  *
- * A CRASHED HOLDER MUST NOT BLOCK FOREVER, so the lock records its owner and
- * a waiter treats an owner as STALE when its pid is not alive OR its age
- * exceeds `staleAfterMs`. The age clause is the backstop for pid reuse and for
- * a holder that lost its pid but not its file. The exit hook below is only
+ * A CRASHED HOLDER MUST NOT BLOCK FOREVER, so the lock records its owner and a
+ * waiter treats an owner as STALE when it is older than `pidGoneFloorMs` AND
+ * its pid is gone, with a later age-only backstop (`staleAfterMs`) for a
+ * holder that merely looks alive for too long. The exit hook below is only
  * tidiness: a SIGKILL never runs it, and stale detection is what makes that
  * safe.
+ *
+ * BREAKING A STALE LOCK IS SERIALISED, and nothing is ever parked or restored.
+ * Judging a lock stale and removing it are two steps, and anything between them
+ * can replace what is at the lock path. An earlier version renamed the lock
+ * aside and restored it on a byte mismatch; that opened a window where the
+ * path was empty while a live holder owned it, so a third contender's create
+ * succeeded and the restore then dropped the live holder's body (QCLI-568
+ * review, F1). The shape here is ported from `src/application/tasks/
+ * id-allocation.ts`: breakers take a second exclusive file,
+ * `<lock>.break`, and under it re-read the lock and remove it only if it still
+ * matches the snapshot that was judged stale. While the stale lock exists
+ * nobody can `open(wx)` over it, and with breakers serialised nobody else can
+ * remove it, so there is no gap to race in and no moment the path is free
+ * while a live holder owns it.
  *
  * WAITER REUSE IS THE CALLER'S JOB, NOT THIS MODULE'S. Acquiring the lock only
  * serialises the read; it cannot tell a waiter whether the ref hashes it
@@ -51,12 +57,25 @@ import { setTimeout as delay } from "node:timers/promises";
 export const DEFAULT_COMMON_DIR_LOCK_NAME = "across-refs";
 
 /**
- * How long a holder may be considered live before a waiter recovers its lock.
- * Generous by design: too small steals a live holder's lock (advisory, but it
- * defeats the serialisation), too large delays recovery after a crash. Ten
- * minutes is far longer than a ref read and short enough to self-heal.
+ * Age-only backstop: a holder older than this is abandoned even if its pid
+ * still looks alive (a wedged or suspended process, or a reused pid). Long
+ * enough that a real ref read never reaches it.
  */
 export const DEFAULT_STALE_AFTER_MS = 10 * 60 * 1_000;
+
+/**
+ * Floor for the dead-pid rule, ported from `id-allocation.ts`: a pid is
+ * evidence of abandonment only after the lock has existed this long. Without
+ * it a create interrupted between `open(wx)` and its body write, or a pid
+ * reused by an unrelated process, is broken the instant it is seen.
+ */
+export const DEFAULT_PID_GONE_FLOOR_MS = 30_000;
+
+/**
+ * Age floor for clearing a break file left by a breaker that was killed. Same
+ * AND rule as the lock: older than this AND its pid is gone.
+ */
+export const DEFAULT_BREAK_STALE_AFTER_MS = 10_000;
 
 /** Longest a caller waits before it must decide whether to proceed unlocked. */
 export const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
@@ -64,7 +83,10 @@ export const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
 /** Poll interval while another holder owns the lock. */
 export const DEFAULT_POLL_MS = 50;
 
-/** The JSON body written to the lock file. `startedAt` is epoch milliseconds. */
+/** Suffix of the breaker-serialising file, as in `id-allocation.ts`. */
+const BREAK_FILE_SUFFIX = ".break";
+
+/** The JSON body written to a lock or break file. `startedAt` is epoch ms. */
 export interface CommonDirLockOwner {
   readonly pid: number;
   readonly startedAt: number;
@@ -77,8 +99,18 @@ export interface CommonDirLockOptions {
    * could escape the lock directory (no path separators, no leading dot).
    */
   readonly name?: string;
-  /** Age past which a holder is stale even if its pid is alive. */
+  /**
+   * Age-only backstop: past this age a holder is stale even if its pid is
+   * alive. Separate from and larger than {@link pidGoneFloorMs}.
+   */
   readonly staleAfterMs?: number;
+  /**
+   * The dead-pid rule requires the lock to be at least this old. A fresh
+   * dead-pid file is treated as mid-write, not abandoned.
+   */
+  readonly pidGoneFloorMs?: number;
+  /** Age floor for clearing a dead breaker's `.break` file. */
+  readonly breakStaleAfterMs?: number;
   /** Bound on the wait. On expiry a {@link CommonDirLockTimeoutError} is thrown. */
   readonly waitTimeoutMs?: number;
   /** Sleep between acquisition attempts. Must be greater than zero. */
@@ -96,6 +128,17 @@ export interface CommonDirLockOptions {
    * a bounded wait into an unbounded one.
    */
   readonly now?: () => number;
+  /**
+   * TEST SEAM: runs after a lock is judged stale and before anything is
+   * removed -- the window a competing breaker can act in (F2).
+   */
+  readonly afterStaleJudgement?: () => Promise<void>;
+  /**
+   * TEST SEAM: runs under the break file, after the lock was re-read and still
+   * matched, and before it is removed. The lock path must still be occupied
+   * here; a second breaker is refused by the break file and by nothing else.
+   */
+  readonly afterLockedReread?: () => Promise<void>;
 }
 
 /** A held lock. `release` is idempotent and token-checked. */
@@ -156,12 +199,11 @@ export function resolveCommonDirLockPath(
  *
  * The create is `O_EXCL` (`fs.open(..., "wx")`), so exactly one of any number
  * of racing processes writes the lock body. A waiter that judges the current
- * holder stale does not simply unlink it: it renames the file to a unique
- * quarantine name and verifies the bytes it captured are the bytes it moved,
- * so two waiters recovering one stale lock cannot both proceed to hold it --
- * whichever loses the following `O_EXCL` create waits for the winner like any
- * other contender. A token check on release means a handle whose file has
- * since been replaced never deletes the new holder's lock.
+ * holder stale does not touch the lock directly: it takes the `.break` file,
+ * re-reads the lock under it and unlinks only if the bytes still match the
+ * snapshot it judged stale (see {@link breakStaleLock}). The lock path is
+ * therefore never emptied while a live holder owns it, and a holder that
+ * replaced the stale one is left untouched.
  */
 export async function acquireCommonDirLock(
   commonDir: string,
@@ -196,9 +238,14 @@ export async function acquireCommonDirLock(
       const handle = await open(opts.lockPath, "wx");
       try {
         await handle.writeFile(`${JSON.stringify(owner)}\n`, "utf8");
-      } finally {
-        await handle.close();
+      } catch (error) {
+        // F4: an empty lock would block every create until the age backstop.
+        // We just created it exclusively, so removing it cannot hit a holder.
+        await handle.close().catch(() => undefined);
+        await unlinkIfPresent(opts.lockPath);
+        throw error;
       }
+      await handle.close();
       created = true;
     } catch (error) {
       if (errnoCode(error) !== "EEXIST") throw error;
@@ -213,12 +260,7 @@ export async function acquireCommonDirLock(
     }
     lastHolder = snapshot.owner;
 
-    if (isSnapshotStale(snapshot, opts)) {
-      const recovered = await recoverStaleSnapshot(opts.lockPath, snapshot);
-      if (recovered) continue;
-      // We displaced a lock that replaced the stale one; it has been put back
-      // (or a third lock now owns the path). Treat it as a live holder.
-    }
+    if (await breakStaleLock(opts, snapshot)) continue;
 
     const remaining =
       opts.waitTimeoutMs - (performance.now() - startedWaitingAt);
@@ -255,14 +297,18 @@ interface ResolvedOptions {
   readonly lockDir: string;
   readonly lockPath: string;
   readonly staleAfterMs: number;
+  readonly pidGoneFloorMs: number;
+  readonly breakStaleAfterMs: number;
   readonly waitTimeoutMs: number;
   readonly pollMs: number;
   readonly isAlive: (pid: number) => boolean;
   readonly now: () => number;
+  readonly afterStaleJudgement?: () => Promise<void>;
+  readonly afterLockedReread?: () => Promise<void>;
 }
 
 interface LockSnapshot {
-  /** The exact bytes read, used to verify which lock a rename captured. */
+  /** The exact bytes read, used to verify which lock the breaker judged. */
   readonly raw: string;
   /** Parsed owner, or null when the file is empty/partial/corrupt. */
   readonly owner: CommonDirLockOwner | null;
@@ -284,6 +330,16 @@ function resolveOptions(
       DEFAULT_STALE_AFTER_MS,
       "staleAfterMs",
     ),
+    pidGoneFloorMs: requirePositive(
+      options.pidGoneFloorMs,
+      DEFAULT_PID_GONE_FLOOR_MS,
+      "pidGoneFloorMs",
+    ),
+    breakStaleAfterMs: requirePositive(
+      options.breakStaleAfterMs,
+      DEFAULT_BREAK_STALE_AFTER_MS,
+      "breakStaleAfterMs",
+    ),
     waitTimeoutMs: requireNonNegative(
       options.waitTimeoutMs,
       DEFAULT_WAIT_TIMEOUT_MS,
@@ -292,6 +348,8 @@ function resolveOptions(
     pollMs: requirePositive(options.pollMs, DEFAULT_POLL_MS, "pollMs"),
     isAlive: options.isAlive ?? defaultIsAlive,
     now: options.now ?? Date.now,
+    afterStaleJudgement: options.afterStaleJudgement,
+    afterLockedReread: options.afterLockedReread,
   };
 }
 
@@ -338,7 +396,7 @@ function defaultIsAlive(pid: number): boolean {
   }
 }
 
-/** Parse a lock body, returning null for anything that is not a complete owner. */
+/** Parse a body, returning null for anything that is not a complete owner. */
 function parseOwner(raw: string): CommonDirLockOwner | null {
   let value: unknown;
   try {
@@ -349,8 +407,9 @@ function parseOwner(raw: string): CommonDirLockOwner | null {
   if (typeof value !== "object" || value === null) return null;
   const record = value as Record<string, unknown>;
   const { pid, startedAt, token } = record;
-  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
+  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) {
     return null;
+  }
   if (typeof startedAt !== "number" || !Number.isFinite(startedAt)) return null;
   if (typeof token !== "string" || token.length === 0) return null;
   return { pid, startedAt, token };
@@ -374,111 +433,122 @@ async function readSnapshot(lockPath: string): Promise<LockSnapshot | null> {
   return { raw, owner: parseOwner(raw), mtimeMs: info.mtimeMs };
 }
 
+function snapshotAge(snapshot: LockSnapshot, nowMs: number): number {
+  const at = snapshot.owner?.startedAt ?? snapshot.mtimeMs;
+  return nowMs - at;
+}
+
+/**
+ * The stale rule, ported from `id-allocation.ts:433-434` plus an age-only
+ * backstop:
+ *
+ *  1. older than `staleAfterMs` -> stale whatever the pid says;
+ *  2. otherwise, younger than `pidGoneFloorMs` -> NOT stale (mid-write guard);
+ *  3. otherwise stale when the pid is unreadable or provably gone.
+ */
 function isSnapshotStale(
   snapshot: LockSnapshot,
   opts: ResolvedOptions,
 ): boolean {
-  if (snapshot.owner !== null) {
-    if (opts.now() - snapshot.owner.startedAt > opts.staleAfterMs) return true;
-    return !opts.isAlive(snapshot.owner.pid);
-  }
-  // Partial or corrupt body (for example, killed between O_EXCL create and
-  // write). There is no pid to probe, so the file's age is the only evidence.
-  return opts.now() - snapshot.mtimeMs > opts.staleAfterMs;
+  const age = snapshotAge(snapshot, opts.now());
+  if (age > opts.staleAfterMs) return true;
+  if (age <= opts.pidGoneFloorMs) return false;
+  if (snapshot.owner === null) return true;
+  return !opts.isAlive(snapshot.owner.pid);
 }
 
 /**
- * Remove the stale lock at `lockPath` only if it is still the one observed.
- *
- * Rename-then-verify: the rename is atomic, and comparing the moved bytes with
- * the observed bytes decides whether we moved the stale lock or a holder that
- * replaced it in between. If we moved a live replacement, put it back without
- * clobbering anything newer. Returns true when the observed stale lock is gone
- * (whether by us or by another waiter), meaning the caller should retry the
- * O_EXCL create; false means the caller should keep waiting.
+ * A break file is cleared only when it is older than `breakStaleAfterMs` AND
+ * its pid is readable and gone. An unreadable holder is NEVER cleared: a
+ * breaker killed between `open(wx)` and its body write leaves exactly that,
+ * and clearing on age alone would let a live-but-paused breaker lose its
+ * serialisation. Ported from `id-allocation.ts:504-509`.
  */
-async function recoverStaleSnapshot(
-  lockPath: string,
-  observed: LockSnapshot,
-): Promise<boolean> {
-  const quarantinePath = `${lockPath}.stale-${randomUUID()}`;
-  try {
-    await rename(lockPath, quarantinePath);
-  } catch (error) {
-    // Another waiter recovered it first; our create attempt will race theirs.
-    if (errnoCode(error) === "ENOENT") return true;
-    throw error;
+function isBreakFileStale(
+  snapshot: LockSnapshot,
+  opts: ResolvedOptions,
+): boolean {
+  if (snapshot.owner === null) return false;
+  if (snapshotAge(snapshot, opts.now()) <= opts.breakStaleAfterMs) {
+    return false;
   }
-
-  let movedRaw: string | null = null;
-  try {
-    movedRaw = await readFile(quarantinePath, "utf8");
-  } catch (error) {
-    if (errnoCode(error) !== "ENOENT") throw error;
-  }
-
-  if (movedRaw === observed.raw) {
-    await unlinkIfPresent(quarantinePath);
-    return true;
-  }
-
-  await restoreQuarantined(quarantinePath, lockPath);
-  return false;
+  return !opts.isAlive(snapshot.owner.pid);
 }
 
 /**
- * Put a quarantined lock back at `lockPath` iff nothing newer owns the path.
- *
- * `link` is the atomic no-clobber restore: it fails with EEXIST rather than
- * replacing a third lock the way `rename` would. Filesystems without hardlinks
- * fall back to an existence-checked rename; the residual race there is a lock
- * file that has already been displaced, and release's token check is what
- * stops that from deleting the new holder's lock.
+ * Take `<lock>.break` exclusively. Returns its owner on success, or null when
+ * another breaker holds it (optionally clearing a dead breaker's file first).
  */
-async function restoreQuarantined(
-  quarantinePath: string,
-  lockPath: string,
-): Promise<void> {
+async function takeBreakFile(
+  breakPath: string,
+  opts: ResolvedOptions,
+): Promise<CommonDirLockOwner | null> {
+  const owner: CommonDirLockOwner = {
+    pid: process.pid,
+    startedAt: opts.now(),
+    token: randomUUID(),
+  };
   try {
-    await link(quarantinePath, lockPath);
-    await unlinkIfPresent(quarantinePath);
-    return;
-  } catch (error) {
-    const code = errnoCode(error);
-    if (code === "EEXIST") {
-      // A third lock owns the path; keep it and drop the copy we displaced.
-      await unlinkIfPresent(quarantinePath);
-      return;
-    }
-    if (
-      code !== "EPERM" &&
-      code !== "ENOSYS" &&
-      code !== "EXDEV" &&
-      code !== "EMLINK" &&
-      code !== "EOPNOTSUPP"
-    ) {
+    const handle = await open(breakPath, "wx");
+    try {
+      await handle.writeFile(`${JSON.stringify(owner)}\n`, "utf8");
+    } catch (error) {
+      // Same F4 guard as the lock: never leave an empty break file.
+      await handle.close().catch(() => undefined);
+      await unlinkIfPresent(breakPath);
       throw error;
     }
+    await handle.close();
+    return owner;
+  } catch (error) {
+    if (errnoCode(error) !== "EEXIST") throw error;
   }
 
-  const current = await statOrNull(lockPath);
-  if (current === null) {
-    try {
-      await rename(quarantinePath, lockPath);
-      return;
-    } catch (error) {
-      if (errnoCode(error) !== "EEXIST") throw error;
-    }
+  const existing = await readSnapshot(breakPath);
+  if (existing !== null && isBreakFileStale(existing, opts)) {
+    // Check-then-unlink residual, recorded not closed (as in id-allocation):
+    // two clearers can race for a dead breaker's file and a loser's unlink can
+    // hit the winner's fresh file. It needs a killed breaker, two clearers and
+    // a third breaker in the same instant, and the subsequent locked re-read
+    // must still match before anything is removed.
+    await unlinkIfPresent(breakPath);
   }
-  await unlinkIfPresent(quarantinePath);
+  return null;
 }
 
-async function statOrNull(path: string) {
+/**
+ * Break a stale lock, serialised through the break file. `observed` is the
+ * snapshot the caller already read and judged stale; it is re-read under the
+ * break file and removed only if the bytes still match, so a holder that
+ * replaced it in the meantime is never touched.
+ *
+ * Returns true only when this call removed the judged lock; the caller then
+ * loops back to the exclusive create. A false return means another breaker
+ * owns the file, the lock changed, or it is no longer stale -- the caller
+ * waits like any other contender.
+ */
+async function breakStaleLock(
+  opts: ResolvedOptions,
+  observed: LockSnapshot,
+): Promise<boolean> {
+  if (!isSnapshotStale(observed, opts)) return false;
+  await opts.afterStaleJudgement?.();
+
+  const breakPath = `${opts.lockPath}${BREAK_FILE_SUFFIX}`;
+  const mine = await takeBreakFile(breakPath, opts);
+  if (mine === null) return false;
+
   try {
-    return await stat(path);
-  } catch (error) {
-    if (errnoCode(error) === "ENOENT") return null;
-    throw error;
+    const current = await readSnapshot(opts.lockPath);
+    if (current === null || current.raw !== observed.raw) return false;
+    await opts.afterLockedReread?.();
+    await unlinkIfPresent(opts.lockPath);
+    return true;
+  } finally {
+    // Clear only a break file this call still owns: a release that read
+    // someone else's would take their serialisation with it.
+    const left = await readSnapshot(breakPath);
+    if (left?.owner?.token === mine.token) await unlinkIfPresent(breakPath);
   }
 }
 

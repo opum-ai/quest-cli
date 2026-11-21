@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import {
   mkdir,
   mkdtemp,
+  open,
   readFile,
   rm,
   stat,
@@ -139,7 +140,8 @@ test("recovers a lock whose holder pid is dead", async () => {
   const commonDir = await tempCommonDir();
   await seedLock(commonDir, {
     pid: 999_999,
-    startedAt: Date.now(),
+    // Older than the dead-pid floor: a fresh dead pid is treated as mid-write.
+    startedAt: Date.now() - 60_000,
     token: "dead-holder",
   });
 
@@ -155,11 +157,73 @@ test("recovers a lock whose holder pid is dead", async () => {
   await lock.release();
 });
 
+test("a lock replaced after the stale judgement is never removed, and no contender can create mid-recovery", async () => {
+  const commonDir = await tempCommonDir();
+  const frozenNow = 1_700_000_000_000;
+  const lockPath = await seedLock(commonDir, {
+    pid: 999_999,
+    startedAt: frozenNow - 120_000,
+    token: "judged-stale",
+  });
+
+  // The contender is a REAL new holder: its pid is this process and it is
+  // fresh, so the only correct recovery is to leave it alone.
+  const contender: SeededOwner = {
+    pid: process.pid,
+    startedAt: frozenNow,
+    token: "contender",
+  };
+  let midRecoveryCreateSucceeded = false;
+
+  const error = await acquireCommonDirLock(commonDir, {
+    isAlive: (pid) => pid === process.pid,
+    now: () => frozenNow,
+    staleAfterMs: 600_000,
+    pidGoneFloorMs: 30_000,
+    pollMs: 5,
+    waitTimeoutMs: 200,
+    afterStaleJudgement: async () => {
+      // F1: a competing breaker removes the judged-stale lock and a new
+      // holder acquires before this caller acts on its stale reading.
+      await unlink(lockPath);
+      await writeFile(lockPath, `${JSON.stringify(contender)}\n`, "utf8");
+    },
+    afterLockedReread: async () => {
+      // If recovery has emptied lockPath, a third contender creates here --
+      // the F1 window. In a correct recovery the path is still occupied.
+      try {
+        const handle = await open(lockPath, "wx");
+        midRecoveryCreateSucceeded = true;
+        await handle.writeFile(
+          `${JSON.stringify({ pid: process.pid, startedAt: frozenNow, token: "third" })}\n`,
+          "utf8",
+        );
+        await handle.close();
+      } catch (thrown) {
+        if ((thrown as { readonly code?: string }).code !== "EEXIST") {
+          throw thrown;
+        }
+      }
+    },
+  }).then(
+    () => null,
+    (thrown: unknown) => thrown,
+  );
+
+  // The contender is live, so this caller can only wait.
+  expect(error).toBeInstanceOf(CommonDirLockTimeoutError);
+  // RED against rename-and-restore recovery: the contender's lock is moved
+  // aside, a third lock is created in the gap, and the restore drops the
+  // contender's body.
+  expect(midRecoveryCreateSucceeded).toBe(false);
+  expect((await readSeededOwner(commonDir)).token).toBe("contender");
+});
+
 test("two waiters recovering one stale lock still serialize", async () => {
   const commonDir = await tempCommonDir();
   await seedLock(commonDir, {
     pid: 999_999,
-    startedAt: Date.now(),
+    startedAt: Date.now() - 60_000,
     token: "stale-holder",
   });
 
@@ -188,6 +252,140 @@ test("two waiters recovering one stale lock still serialize", async () => {
   await Promise.all([run(), run()]);
   expect(overlapped).toBe(false);
 });
+
+test("a fresh dead-pid lock is not broken before the floor", async () => {
+  const commonDir = await tempCommonDir();
+  // Age ~0: a create interrupted before its body write looks exactly like this
+  // and must be left alone until the floor passes.
+  const path = await seedLock(commonDir, {
+    pid: 999_999,
+    startedAt: Date.now(),
+    token: "mid-write",
+  });
+
+  const error = await acquireCommonDirLock(commonDir, {
+    isAlive: (pid) => pid === process.pid,
+    pollMs: 5,
+    waitTimeoutMs: 100,
+  }).then(
+    () => null,
+    (thrown: unknown) => thrown,
+  );
+
+  expect(error).toBeInstanceOf(CommonDirLockTimeoutError);
+  expect((await readSeededOwner(commonDir)).token).toBe("mid-write");
+  expect(await pathExists(path)).toBe(true);
+});
+
+test("a stale break file from a killed breaker is cleared", async () => {
+  const commonDir = await tempCommonDir();
+  const lockPath = await seedLock(commonDir, {
+    pid: 999_999,
+    startedAt: Date.now() - 60_000,
+    token: "dead-holder",
+  });
+  const breakPath = `${lockPath}.break`;
+  await writeFile(
+    breakPath,
+    `${JSON.stringify({ pid: 999_998, startedAt: Date.now() - 60_000, token: "dead-breaker" })}\n`,
+    "utf8",
+  );
+
+  const lock = await acquireCommonDirLock(commonDir, {
+    isAlive: (pid) => pid === process.pid,
+    pollMs: 5,
+    waitTimeoutMs: 1_000,
+  });
+  expect((await readSeededOwner(commonDir)).token).not.toBe("dead-holder");
+  await lock.release();
+  expect(await pathExists(breakPath)).toBe(false);
+});
+
+test("a live break file serialises breakers", async () => {
+  const commonDir = await tempCommonDir();
+  const lockPath = await seedLock(commonDir, {
+    pid: 999_999,
+    startedAt: Date.now() - 60_000,
+    token: "dead-holder",
+  });
+  const breakPath = `${lockPath}.break`;
+  const liveBreaker = {
+    pid: process.pid,
+    startedAt: Date.now(),
+    token: "live-breaker",
+  };
+  await writeFile(breakPath, `${JSON.stringify(liveBreaker)}\n`, "utf8");
+
+  const error = await acquireCommonDirLock(commonDir, {
+    isAlive: (pid) => pid === process.pid,
+    pollMs: 5,
+    waitTimeoutMs: 100,
+  }).then(
+    () => null,
+    (thrown: unknown) => thrown,
+  );
+
+  // A paused breaker must not lose its break file to a second breaker.
+  expect(error).toBeInstanceOf(CommonDirLockTimeoutError);
+  expect((await readSeededOwner(commonDir)).token).toBe("dead-holder");
+  expect(JSON.parse(await readFile(breakPath, "utf8")).token).toBe(
+    "live-breaker",
+  );
+});
+
+test("recovers the lock of a child killed with SIGKILL", async () => {
+  const commonDir = await tempCommonDir();
+  const scriptPath = join(commonDir, "holder.ts");
+  await writeFile(
+    scriptPath,
+    [
+      'import { mkdir, writeFile } from "node:fs/promises";',
+      'import { join } from "node:path";',
+      "const commonDir = process.argv[2];",
+      'const path = join(commonDir, "quest", "across-refs.lock");',
+      'await mkdir(join(commonDir, "quest"), { recursive: true });',
+      'await writeFile(path, JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "child" }) + "\\n");',
+      'process.stdout.write("held\\n");',
+      "setInterval(() => {}, 1_000);",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const child = Bun.spawn([process.execPath, scriptPath, commonDir], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const lockPath = resolveCommonDirLockPath(commonDir);
+  const readyBy = Date.now() + 5_000;
+  while (!(await pathExists(lockPath))) {
+    if (Date.now() > readyBy) {
+      child.kill(9);
+      throw new Error("child never created the lock");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  const childOwner = JSON.parse(await readFile(lockPath, "utf8"));
+  child.kill(9);
+  await child.exited;
+
+  // A real dead pid. A short floor keeps the test bounded; the age backstop
+  // is out of reach, so recovery can only come from the dead-pid rule.
+  const started = performance.now();
+  const lock = await acquireCommonDirLock(commonDir, {
+    pidGoneFloorMs: 100,
+    staleAfterMs: 60_000,
+    pollMs: 10,
+    waitTimeoutMs: 5_000,
+  });
+  const elapsed = performance.now() - started;
+  const recovered = await readSeededOwner(commonDir);
+  await lock.release();
+
+  expect(recovered.pid).toBe(process.pid);
+  expect(recovered.pid).not.toBe(childOwner.pid);
+  expect(elapsed).toBeLessThan(5_000);
+}, 20_000);
 
 test("recovers a lock older than staleAfterMs even when its pid is alive", async () => {
   const commonDir = await tempCommonDir();
