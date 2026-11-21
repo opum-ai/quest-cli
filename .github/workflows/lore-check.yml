@@ -145,7 +145,7 @@ jobs:
       # follow-up PR drops this variable and the npm install is again the only
       # path. The value is a lore-cli commit carrying this checkout's version; the
       # assertion step below fails loudly if it does not.
-      LORE_SOURCE_REF: eb13ece3ffa6ed2c3ad17362476e7045eecfafa1
+      LORE_SOURCE_REF: a58cdfbd4aec233c987c7c0da4d19ad2289b46d4
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -197,12 +197,12 @@ jobs:
         id: lore
         run: |
           set -euo pipefail
-          if npm install -g --ignore-scripts @opum-ai/lore@0.15.0; then
+          if npm install -g --ignore-scripts @opum-ai/lore@0.15.1; then
             echo "method=npm" >> "$GITHUB_OUTPUT"
-            echo "::notice::lore 0.15.0 installed from npm, exactly as before DEC-169"
+            echo "::notice::lore 0.15.1 installed from npm, exactly as before DEC-169"
           else
             echo "method=source" >> "$GITHUB_OUTPUT"
-            echo "::notice::lore 0.15.0 is not on npm; building opum-ai/lore-cli at $LORE_SOURCE_REF"
+            echo "::notice::lore 0.15.1 is not on npm; building opum-ai/lore-cli at $LORE_SOURCE_REF"
           fi
 
       - if: steps.lore.outputs.method == 'source'
