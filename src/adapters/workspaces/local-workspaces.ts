@@ -179,8 +179,8 @@ async function assertNoSymlinkEscape(
  * cache/reuse keyed on the string would miss. These three canonicalisation sites
  * feed EVERY `inspect()` caller -- `taskStoreRoot` (main.ts), the id-allocation
  * common directory, and composition's `repositoryId` -- not only `--across-refs`.
- * `realpathSync.native` asks the OS directly and is identical to the previous
- * behaviour on Linux/macOS.
+ * `realpathSync.native` asks the OS directly and is unchanged on the tested
+ * Linux/macOS inputs.
  */
 async function nativeRealpath(path: string): Promise<string> {
   return realpathSync.native(path);
