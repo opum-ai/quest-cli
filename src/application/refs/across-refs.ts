@@ -24,6 +24,7 @@ import {
   acrossRefsRefKey,
   cacheFailureCause,
   cacheFailureNote,
+  failureSignature,
 } from "./across-refs-cache.ts";
 
 /**
@@ -592,10 +593,21 @@ export class AcrossRefsViewService {
     private readonly canonicalCommonDirectory?: (
       repositoryPath: string,
     ) => Promise<string>,
+    /**
+     * QCLI-568 Q568-INT B item 3: suppress a cache-failure note whose CAUSE is
+     * the same one the lock already reported. The composition root wires this
+     * to the lock wrapper's broken-mechanism cause: a broken common directory
+     * fails the lock and the cache for one reason, and must read as one line.
+     * A lock EXPIRY is not a broken mechanism, so its cause is never equal and
+     * the cache note still appears.
+     */
+    private readonly suppressCacheNote?: (signature: string) => boolean,
   ) {}
 
-  /** Deliver one cache-failure note for the whole process, never more. */
+  /** Deliver one cache-failure note for the whole process, never more -- and
+   *  never for a cause the lock already reported (item 3). */
   private deliverCacheFailure(error: unknown): void {
+    if (this.suppressCacheNote?.(failureSignature(error)) === true) return;
     if (this.cacheFailureNoted) return;
     this.cacheFailureNoted = true;
     this.emitNote(cacheFailureNote(cacheFailureCause(error)));
@@ -620,7 +632,7 @@ export class AcrossRefsViewService {
           ? await this.git.commonDirectory(repositoryPath)
           : await this.canonicalCommonDirectory(repositoryPath);
       resolved = AcrossRefsCache.underCommonDirectory(commonDirectory, {
-        onFailure: (line) => this.deliverNote(line),
+        onFailure: (line, error) => this.deliverNote(line, error),
       });
     } catch (error) {
       resolved = null;
@@ -631,9 +643,15 @@ export class AcrossRefsViewService {
   }
 
   /**
-   * Deliver an already-formatted note (from a constructed cache) at most once.
+   * Deliver an already-formatted note (from a constructed cache) at most once,
+   * and never when its cause is the lock's own broken-mechanism cause.
    */
-  private deliverNote(line: string): void {
+  private deliverNote(line: string, error?: unknown): void {
+    if (
+      error !== undefined &&
+      this.suppressCacheNote?.(failureSignature(error)) === true
+    )
+      return;
     if (this.cacheFailureNoted) return;
     this.cacheFailureNoted = true;
     this.emitNote(line);

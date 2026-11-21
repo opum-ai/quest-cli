@@ -182,6 +182,30 @@ export function cacheFailureCause(error: unknown): string {
   return first;
 }
 
+/**
+ * QCLI-568 Q568-INT B item 3: a stable identity for a failure CAUSE, comparable
+ * between two reporters that saw the SAME underlying failure.
+ *
+ * The lock and the read cache both reach `<git-common-dir>/quest`, and when
+ * that entry is a regular file both fail with `ENOTDIR` -- but each error names
+ * its OWN path, so the message text differs and only the errno code is shared.
+ * Comparing codes first, and the first message line second, is therefore what
+ * "the same cause" means here. It NEVER equates two errors that merely share a
+ * category: an ENOSPC cache write beside an expired lock has no code on the
+ * lock side, so the signatures differ and both notes appear.
+ *
+ * Accepts either a thrown value or an already-formatted cause string (the
+ * shape the cache's note sink receives).
+ */
+export function failureSignature(value: unknown): string {
+  const code = (value as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && code !== "") return `code:${code}`;
+  const text = typeof value === "string" ? value : cacheFailureCause(value);
+  const head = text.split("\n")[0]?.trim() ?? "";
+  const coded = /^([A-Z][A-Z0-9_]+):/u.exec(head);
+  return coded === null ? `message:${head}` : `code:${coded[1]}`;
+}
+
 function isMissing(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "ENOENT";
 }
@@ -280,7 +304,9 @@ function parseManifest(text: string, key: string): ManifestDocument | null {
 export class AcrossRefsCache implements AcrossRefsCachePort {
   private readonly io: CacheIo;
   private readonly maxEntries: number;
-  private readonly onFailure: ((line: string) => void) | undefined;
+  private readonly onFailure:
+    | ((line: string, error: unknown) => void)
+    | undefined;
   private readonly manifestsDirectory: string;
   private readonly blobsDirectory: string;
   private failureNoted = false;
@@ -292,7 +318,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
     options: {
       readonly maxEntries?: number;
       readonly io?: Partial<CacheIo>;
-      readonly onFailure?: (line: string) => void;
+      readonly onFailure?: (line: string, error: unknown) => void;
     } = {},
   ) {
     this.io = { ...defaultIo, ...options.io };
@@ -303,11 +329,13 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
   }
 
   /** Report a FAILURE at most once per instance (once per process in the CLI's
-   *  one-view-per-invocation path). A miss never reaches here. */
-  private fail(cause: string): void {
+   *  one-view-per-invocation path). A miss never reaches here. The ORIGINAL
+   *  error travels to the sink as well, so a caller can compare its cause
+   *  signature with another reporter's (QCLI-568 Q568-INT B item 3). */
+  private fail(error: unknown): void {
     if (this.failureNoted) return;
     this.failureNoted = true;
-    this.onFailure?.(cacheFailureNote(cause));
+    this.onFailure?.(cacheFailureNote(cacheFailureCause(error)), error);
   }
 
   /** The cache rooted at the clone's shared directory. */
@@ -316,7 +344,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
     options: {
       readonly maxEntries?: number;
       readonly io?: Partial<CacheIo>;
-      readonly onFailure?: (line: string) => void;
+      readonly onFailure?: (line: string, error: unknown) => void;
     } = {},
   ): AcrossRefsCache {
     return new AcrossRefsCache(
@@ -335,7 +363,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
       text = await this.io.readFile(manifestPath(this.manifestsDirectory, key));
     } catch (error) {
       if (isMissing(error)) return { kind: "miss" };
-      this.fail(cacheFailureCause(error));
+      this.fail(error);
       return { kind: "corrupt" };
     }
     const manifest = parseManifest(text, key);
@@ -362,7 +390,7 @@ export class AcrossRefsCache implements AcrossRefsCachePort {
             );
           } catch (error) {
             if (isMissing(error)) return { kind: "corrupt" };
-            this.fail(cacheFailureCause(error));
+            this.fail(error);
             return { kind: "corrupt" };
           }
           this.blobText.set(entry.blob, fileText);

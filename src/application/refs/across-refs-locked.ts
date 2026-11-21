@@ -7,6 +7,7 @@ import {
   type AcrossRefsPlan,
   type AcrossRefsRequest,
 } from "./across-refs.ts";
+import { failureSignature } from "./across-refs-cache.ts";
 import {
   AcrossRefsResults,
   type AcrossRefsResultsPort,
@@ -185,6 +186,7 @@ export class AcrossRefsLockedService implements AcrossRefsView {
   private readonly onRecordFailure: (line: string) => void;
   private readonly onReplayNote: (line: string) => void;
   private swallowedLockError: unknown = null;
+  private lockErrorSignature: string | null = null;
   private recordFailureNoted = false;
 
   constructor(
@@ -240,10 +242,23 @@ common-directory lock at ${error.lockPath}.`,
     return this.swallowedLockError;
   }
 
+  /**
+   * QCLI-568 Q568-INT B item 3: the CAUSE SIGNATURE of {@link lastLockError},
+   * comparable with the read cache's own failure cause (see
+   * {@link failureSignature}). The composition root uses it to suppress a
+   * cache note that repeats the lock's broken-mechanism cause -- a broken
+   * common directory fails both for ONE reason. A timeout leaves this null, so
+   * an expiry never suppresses anything.
+   */
+  get lastLockErrorSignature(): string | null {
+    return this.lockErrorSignature;
+  }
+
   async view(request: AcrossRefsRequest): Promise<AcrossRefsOutcome> {
     // R5: reset per invocation so a reused service never reports a previous
     // run's swallowed error or note bookkeeping.
     this.swallowedLockError = null;
+    this.lockErrorSignature = null;
     this.recordFailureNoted = false;
     // The instant this run STARTED WAITING. A record is replayable only if it
     // was finished at or after this: that is what makes a replay a reuse of
@@ -257,6 +272,7 @@ common-directory lock at ${error.lockPath}.`,
     } catch (error) {
       // CANNOT RESOLVE THE COMMON DIRECTORY: there is no lock to wait on.
       this.swallowedLockError = error;
+      this.lockErrorSignature = failureSignature(error);
       this.note(brokenMechanismNote(error));
       return proceedUnlocked();
     }
@@ -275,6 +291,7 @@ common-directory lock at ${error.lockPath}.`,
       // BROKEN LOCK MECHANISM (EACCES/EISDIR/ENOTDIR/ENOSPC on the lock or
       // `.break`, an unreadable `.break`, ...): no lock to wait on.
       this.swallowedLockError = error;
+      this.lockErrorSignature = failureSignature(error);
       this.note(brokenMechanismNote(error));
       return proceedUnlocked();
     }

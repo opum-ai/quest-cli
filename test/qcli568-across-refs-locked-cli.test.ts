@@ -1,15 +1,29 @@
 import { expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runQuest as runQuestInProcess } from "../src/cli/main.ts";
-import { resolveCanonicalCommonDir } from "../src/cli/composition.ts";
+import {
+  createAcrossRefsService,
+  resolveCanonicalCommonDir,
+} from "../src/cli/composition.ts";
 import { LocalWorkspacePort } from "../src/adapters/workspaces/local-workspaces.ts";
 import { LocalGitPort } from "../src/adapters/git/local-git.ts";
 import { AcrossRefsViewService } from "../src/application/refs/across-refs.ts";
-import { resolveCommonDirLockPath } from "../src/application/refs/common-dir-lock.ts";
+import {
+  CommonDirLockTimeoutError,
+  DEFAULT_STALE_AFTER_MS,
+  resolveCommonDirLockPath,
+} from "../src/application/refs/common-dir-lock.ts";
 import type {
   DiscoveredPullRequest,
   OriginRemote,
@@ -424,6 +438,78 @@ test("in a linked worktree the lock and the cache are ONE canonical spelling (QC
     expect(lockPath.startsWith(`${join(canonical, "quest")}/`)).toBe(true);
     expect(cacheDir.startsWith(`${join(canonical, "quest")}/`)).toBe(true);
     expect(existsSync(join(cacheDir, "manifests"))).toBe(true);
+  } finally {
+    await cleanup();
+  }
+}, 120_000);
+
+function timeoutError(commonDir: string): CommonDirLockTimeoutError {
+  const lockPath = resolveCommonDirLockPath(commonDir);
+  return new CommonDirLockTimeoutError({
+    lockPath,
+    waitedMs: 1,
+    holder: null,
+    lockAgeMs: null,
+    breakPath: `${lockPath}.break`,
+    breakFilePresent: false,
+    breakHolderPid: null,
+    breakHolderAlive: false,
+    breakFileAgeMs: null,
+    breakReadError: null,
+    staleAfterMs: DEFAULT_STALE_AFTER_MS,
+    pidGoneFloorMs: 30_000,
+    breakStaleAfterMs: 10_000,
+  });
+}
+
+/**
+ * QCLI-568 Q568-INT B item 3: ONE note per SOURCE, not one per invocation.
+ *
+ * A lock EXPIRY and a cache failure are two different causes and must read as
+ * two lines; the old shared once-guard dropped the second. (The one-cause row
+ * -- a broken common directory, `<main>/.git/quest` as a FILE -- is the R1 row
+ * above, and still reads as exactly ONE line.)
+ */
+test("a lock expiry plus a cache failure gives TWO note lines (QCLI-568 B item 3)", async () => {
+  const { root, cleanup } = await fixture();
+  try {
+    const port = new LocalWorkspacePort();
+    const canonical = await resolveCanonicalCommonDir(root, port);
+    // Make the cache unusable WITHOUT breaking the lock path: the cache
+    // directory name is a regular FILE, so its manifests are ENOTDIR while the
+    // lock's own file beside it is fine.
+    await mkdir(join(canonical, "quest"), { recursive: true });
+    await writeFile(
+      join(canonical, "quest", "across-refs-cache"),
+      "not a directory\n",
+      "utf8",
+    );
+
+    const notes: string[] = [];
+    const service = createAcrossRefsService((line) => notes.push(line), {
+      lock: {
+        acquire: async (commonDir) => {
+          throw timeoutError(commonDir);
+        },
+      },
+    });
+    const outcome = await service.view({
+      repositoryPath: root,
+      refs: ["HEAD"],
+      allowPartial: false,
+    });
+
+    expect(outcome.kind).toBe("view");
+    const lines = notes
+      .join("")
+      .split("\n")
+      .filter((line) => line.length > 0);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^note: .*ran unlocked/u);
+    expect(lines[0]).toContain("timed out");
+    expect(lines[1]).toMatch(
+      /^note: the across-refs read cache is unavailable/u,
+    );
   } finally {
     await cleanup();
   }
