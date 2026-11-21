@@ -200,12 +200,23 @@ export function createContinuityCheckService(
  * directory is resolved by the workspace port, which realpaths
  * `git rev-parse --git-common-dir` against the worktree (F9) -- passing the
  * raw relative value would create a stray `<wrong-root>/quest` in the main
- * worktree. */
-export function createAcrossRefsService(): AcrossRefsView {
+ * worktree.
+ *
+ * R4: `onNote` receives the one-line unlocked-path note. The CLI passes a
+ * collector so the line travels on `InvocationResult.stderr` (never a direct
+ * `process.stderr` write); omitting it falls back to the wrapper's own default
+ * sink, which is what the unit tests use. */
+export function createAcrossRefsService(
+  onNote?: (line: string) => void,
+): AcrossRefsView {
   const git = new LocalGitPort();
   const view = new AcrossRefsViewService(git, new GhRefDiscovery(git));
   const workspace = createWorkspacePort();
-  return new AcrossRefsLockedService(view, async (repositoryPath) => {
-    return (await workspace.inspect(repositoryPath)).commonDirectory;
-  });
+  return new AcrossRefsLockedService(
+    view,
+    async (repositoryPath) => {
+      return (await workspace.inspect(repositoryPath)).commonDirectory;
+    },
+    onNote === undefined ? {} : { writeNote: onNote },
+  );
 }

@@ -3,6 +3,7 @@ import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runQuest as runQuestInProcess } from "../src/cli/main.ts";
 import { LocalWorkspacePort } from "../src/adapters/workspaces/local-workspaces.ts";
 import { resolveCommonDirLockPath } from "../src/application/refs/common-dir-lock.ts";
 
@@ -132,5 +133,73 @@ test("the main checkout and a linked worktree resolve to one lock path (QCLI-568
     expect(main.worktreePath).not.toBe(other.worktreePath);
   } finally {
     await cleanup();
+  }
+}, 120_000);
+
+/** Set QUEST_TASK_STORE for an in-process runQuest, restoring it afterwards. */
+async function withTaskStore<T>(
+  store: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  const previous = process.env.QUEST_TASK_STORE;
+  process.env.QUEST_TASK_STORE = store;
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) delete process.env.QUEST_TASK_STORE;
+    else process.env.QUEST_TASK_STORE = previous;
+  }
+}
+
+test("in-process runQuest captures the unlocked note on result.stderr (QCLI-568 R4 i)", async () => {
+  const { root, linked, cleanup } = await fixture();
+  try {
+    const questPath = join(root, ".git", "quest");
+    await rm(questPath, { recursive: true, force: true });
+    await writeFile(questPath, "not a directory\n", "utf8");
+
+    const result = await withTaskStore(linked, () =>
+      runQuestInProcess(
+        ["task", "list", "--across-refs", "--ref", "HEAD", "--json"],
+        false,
+        false,
+      ),
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).kind).toBe("task.list-across-refs");
+    const lines = result.stderr.split("\n").filter((line) => line.length > 0);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^note: .*ran unlocked/u);
+  } finally {
+    await cleanup();
+  }
+}, 120_000);
+
+test("outside a git repo the note precedes the envelope and the envelope stays last (QCLI-568 R4 ii)", async () => {
+  const nonGit = await realpath(
+    await mkdtemp(join(tmpdir(), "qcli568-nongit-")),
+  );
+  try {
+    const result = await withTaskStore(nonGit, () =>
+      runQuestInProcess(
+        ["task", "list", "--across-refs", "--ref", "HEAD", "--json"],
+        false,
+        false,
+      ),
+    );
+
+    // Measured before the note channel existed, and unchanged by it: the
+    // resolver throws (not a Git worktree), the view fails with drift, exit 6,
+    // and stdout stays empty.
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    const lines = result.stderr.split("\n").filter((line) => line.length > 0);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^note: .*ran unlocked/u);
+    // The JSON envelope is the LAST line.
+    expect(JSON.parse(lines[lines.length - 1] ?? "").error_type).toBe("drift");
+  } finally {
+    await rm(nonGit, { recursive: true, force: true });
   }
 }, 120_000);

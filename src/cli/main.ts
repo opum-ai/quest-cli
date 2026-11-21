@@ -466,17 +466,30 @@ async function acrossRefsListing(
     limit: limitValue(one(parsed, "--limit")),
   };
 
-  const outcome = await createAcrossRefsService().view({
+  // R4: the lock wrapper records any unlocked-path note here instead of
+  // writing process.stderr directly. Prepending it keeps the note BEFORE any
+  // error envelope, which must stay the LAST line of stderr; the normal locked
+  // path contributes nothing.
+  const notes: string[] = [];
+  const outcome = await createAcrossRefsService((line) =>
+    notes.push(line),
+  ).view({
     repositoryPath: root,
     refs: parsed.values.get("--ref"),
     pullRequests,
     allowPartial: parsed.values.has("--allow-partial"),
     filter,
   });
+  const finish = (result: InvocationResult): InvocationResult =>
+    notes.length === 0
+      ? result
+      : { ...result, stderr: `${notes.join("")}${result.stderr}` };
   if (outcome.kind === "absent")
-    return failure("not_found", outcome.message, {
-      hint: "`quest task list` without --across-refs answers about this checkout alone and still works.",
-    });
+    return finish(
+      failure("not_found", outcome.message, {
+        hint: "`quest task list` without --across-refs answers about this checkout alone and still works.",
+      }),
+    );
 
   const { entries, coverage } = outcome;
   const readZeroRefs = coverage.refsRead.length === 0;
@@ -488,17 +501,21 @@ async function acrossRefsListing(
     const message = readZeroRefs
       ? `task list --across-refs read 0 refs: ${unread.join(", ")}. An empty read is a failure, not a pass -- it cannot be told apart from a wrong repository, a wrong ref, or an unreachable remote.`
       : `task list --across-refs read ${coverage.refsRead.length} of ${coverage.refsRead.length + coverage.refsUnreadable.length} planned ref(s) and could not read ${unread.join(", ")}. Coverage is incomplete, so this is NOT a statement about the repository.`;
-    return failure("drift", message, {
-      input: { coverage },
-      hint: "Nothing was written -- the view is read-only. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
-    });
+    return finish(
+      failure("drift", message, {
+        input: { coverage },
+        hint: "Nothing was written -- the view is read-only. `--allow-partial` emits the partial view with coverage.complete false and the same refs named, for a caller that can act on a known-incomplete answer.",
+      }),
+    );
   }
 
-  return output(
-    { schemaVersion: 1, kind: "task.list-across-refs", data: entries },
-    mode,
-    [],
-    { coverage },
+  return finish(
+    output(
+      { schemaVersion: 1, kind: "task.list-across-refs", data: entries },
+      mode,
+      [],
+      { coverage },
+    ),
   );
 }
 
