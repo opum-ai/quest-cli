@@ -336,7 +336,7 @@ test("a stale break file from a killed breaker is cleared", async () => {
   const breakPath = `${lockPath}.break`;
   await writeFile(
     breakPath,
-    `${JSON.stringify({ pid: 999_998, startedAt: Date.now() - 60_000, token: "dead-breaker" })}\n`,
+    `${JSON.stringify({ pid: 999_998, startedAt: Date.now() - 60_000, token: "dead-breaker", host: osHostname() })}\n`,
     "utf8",
   );
 
@@ -426,7 +426,7 @@ test("an aged break file held by a live pid is cleared by age alone", async () =
   const breakPath = `${lockPath}.break`;
   await writeFile(
     breakPath,
-    `${JSON.stringify({ pid: process.pid, startedAt: frozenNow - 700_000, token: "live-but-aged" })}\n`,
+    `${JSON.stringify({ pid: process.pid, startedAt: frozenNow - 700_000, token: "live-but-aged", host: osHostname() })}\n`,
     "utf8",
   );
 
@@ -512,7 +512,7 @@ test("the timeout message reports a live break file and the remedy", async () =>
   const breakPath = `${lockPath}.break`;
   await writeFile(
     breakPath,
-    `${JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "live-breaker" })}\n`,
+    `${JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "live-breaker", host: osHostname() })}\n`,
     "utf8",
   );
 
@@ -588,6 +588,10 @@ test("the timeout message reports no break file", async () => {
   expect(timeout.breakFilePresent).toBe(false);
   expect(timeout.breakHolderPid).toBeNull();
   expect(timeout.message).toContain(`No break file exists at ${breakPath}.`);
+  // S4: the hand remedy names the holder pid and the LOCK file itself, not only
+  // the `.break`, since a live-pid wedge is cleared by removing the lock.
+  expect(timeout.message).toContain(`(pid ${process.pid})`);
+  expect(timeout.message).toContain(`remove the LOCK file ${lockPath}`);
 });
 
 test("the timeout message reports a break file held by a dead pid", async () => {
@@ -601,7 +605,7 @@ test("the timeout message reports a break file held by a dead pid", async () => 
   const breakPath = `${lockPath}.break`;
   await writeFile(
     breakPath,
-    `${JSON.stringify({ pid: 999_999, startedAt: Date.now(), token: "dead-breaker" })}\n`,
+    `${JSON.stringify({ pid: 999_999, startedAt: Date.now(), token: "dead-breaker", host: osHostname() })}\n`,
     "utf8",
   );
 
@@ -1057,38 +1061,22 @@ test("a SILENT same-host holder with a DEAD pid IS broken past the floor (DEC-28
   await lock.release();
 });
 
-test("a READABLE record with NO host is judged against staleAfterMs, not the floor (DEC-282 (a16), lore parity)", async () => {
+test("a record with NO host field is UNREADABLE and takes the pid-gone floor (DEC-282 (a16), lore isLockRecord)", async () => {
   const commonDir = await tempCommonDir();
-  const base = 1_700_000_000_000;
-  // A record written before the `host` field existed: readable, no host, and a
-  // dead pid. lore's isLockSnapshotStale ages a readable record that cannot prove
-  // a same-host identity against staleAfterMs; only an UNREADABLE body takes the
-  // 30 s floor.
+  // A record without a `host`: lore's parser requires a hostname, so it does
+  // not parse, and an unreadable body is aged by the FLOOR from the file's mtime.
   await seedLock(commonDir, {
     pid: 999_999,
-    startedAt: base,
-    updatedAt: base,
+    startedAt: Date.now(),
+    updatedAt: Date.now(),
     token: "legacy-no-host",
   });
 
-  // 60 s of silence is past the 30 s floor but inside staleAfterMs: NOT broken.
-  const error = await acquireCommonDirLock(commonDir, {
-    now: () => base + 60_000,
-    isAlive: (pid) => pid === process.pid,
-    staleAfterMs: 600_000,
-    pidGoneFloorMs: 30_000,
-    pollMs: 5,
-    waitTimeoutMs: 100,
-  }).then(
-    () => null,
-    (thrown: unknown) => thrown,
-  );
-  expect(error).toBeInstanceOf(CommonDirLockTimeoutError);
-  expect((await readSeededOwner(commonDir)).token).toBe("legacy-no-host");
-
-  // Past staleAfterMs it IS broken.
+  // mtime is "now"; the waiter's clock is 60 s ahead: past the 30 s floor, far
+  // inside staleAfterMs, so ONLY the floor can recover it (judged against
+  // staleAfterMs it would be kept).
   const lock = await acquireCommonDirLock(commonDir, {
-    now: () => base + 700_000,
+    now: () => Date.now() + 60_000,
     isAlive: (pid) => pid === process.pid,
     staleAfterMs: 600_000,
     pidGoneFloorMs: 30_000,
@@ -1098,6 +1086,58 @@ test("a READABLE record with NO host is judged against staleAfterMs, not the flo
   expect((await readSeededOwner(commonDir)).token).not.toBe("legacy-no-host");
   await lock.release();
 });
+
+const UNPROVABLE: readonly {
+  readonly name: string;
+  readonly owner: Partial<SeededOwner>;
+}[] = [
+  { name: "an empty host", owner: { host: "" } },
+  { name: "an empty token", owner: { token: "" } },
+  { name: "a non-positive pid", owner: { pid: 0 } },
+  { name: "a non-integer pid", owner: { pid: 4.5 } },
+];
+
+for (const { name, owner } of UNPROVABLE) {
+  test(`a PARSEABLE record that cannot prove a same-host identity (${name}) is judged against staleAfterMs (lore isLockSnapshotStale)`, async () => {
+    const commonDir = await tempCommonDir();
+    const base = 1_700_000_000_000;
+    await seedLock(commonDir, {
+      pid: 999_999,
+      startedAt: base,
+      updatedAt: base,
+      token: "unprovable",
+      host: osHostname(),
+      ...owner,
+    });
+    const options = {
+      isAlive: (pid: number) => pid === process.pid,
+      staleAfterMs: 600_000,
+      pidGoneFloorMs: 30_000,
+      pollMs: 5,
+    };
+
+    // 60 s of silence is past the floor but inside staleAfterMs: KEPT. (An
+    // unreadable body, or a rule that used the floor, would break it.)
+    const error = await acquireCommonDirLock(commonDir, {
+      ...options,
+      now: () => base + 60_000,
+      waitTimeoutMs: 100,
+    }).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+    expect(error).toBeInstanceOf(CommonDirLockTimeoutError);
+
+    // Past staleAfterMs it IS broken.
+    const lock = await acquireCommonDirLock(commonDir, {
+      ...options,
+      now: () => base + 700_000,
+      waitTimeoutMs: 1_000,
+    });
+    expect((await readSeededOwner(commonDir)).token).not.toBe("unprovable");
+    await lock.release();
+  });
+}
 
 test("an UNREADABLE lock body takes the pid-gone floor (DEC-282 (a16), lore parity)", async () => {
   const commonDir = await tempCommonDir();
@@ -1116,6 +1156,20 @@ test("an UNREADABLE lock body takes the pid-gone floor (DEC-282 (a16), lore pari
   });
   expect((await readSeededOwner(commonDir)).pid).toBe(process.pid);
   await lock.release();
+});
+
+test("a SUCCESSFUL release removes its exit hook (N-c)", async () => {
+  const commonDir = await tempCommonDir();
+  const before = new Set(process.listeners("exit"));
+  const holder = await acquireCommonDirLock(commonDir, {
+    heartbeatMs: 60_000,
+    pollMs: 5,
+  });
+  const during = process.listeners("exit").filter((l) => !before.has(l));
+  expect(during).toHaveLength(1);
+  await holder.release();
+  const leaked = process.listeners("exit").filter((l) => !before.has(l));
+  expect(leaked).toHaveLength(0);
 });
 
 test("(c1) the heartbeat timer is unref'd and stopped on release", async () => {
@@ -1253,7 +1307,7 @@ test("(d) a heartbeat never resurrects or clobbers a lock the holder no longer o
       try {
         const handle = await open(breakPath, "wx");
         await handle.writeFile(
-          `${JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "test-breaker" })}\n`,
+          `${JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "test-breaker", host: osHostname() })}\n`,
           "utf8",
         );
         await handle.close();
@@ -1370,7 +1424,7 @@ test("(g) a release that cannot take .break keeps the exit hook, which then unli
     // A fresh, LIVE breaker's file: release cannot take it, twice.
     await writeFile(
       breakPath,
-      `${JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "live-breaker" })}\n`,
+      `${JSON.stringify({ pid: process.pid, startedAt: Date.now(), token: "live-breaker", host: osHostname() })}\n`,
       "utf8",
     );
     await holder.release();
