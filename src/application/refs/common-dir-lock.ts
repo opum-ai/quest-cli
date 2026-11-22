@@ -110,7 +110,8 @@ import { setTimeout as delay } from "node:timers/promises";
  *
  * RECORD FORMAT AND COMPATIBILITY. The body is `{pid, startedAt, token,
  * updatedAt, host}`; `updatedAt` (the liveness stamp) and `host` (this process's
- * `os.hostname()`) are NEW here and optional. A record written before this
+ * `os.hostname()`) are NEW here. Only `updatedAt` is optional; `host` is
+ * required, and a record without it is UNREADABLE. A record written before this
  * change has neither: a reader falls back to `startedAt` for the stamp and, for
  * the missing host, to branch 4 above (a record with no `host` is UNREADABLE and
  * takes the `pidGoneFloorMs` bound, as in lore). No released quest wrote this
@@ -119,7 +120,9 @@ import { setTimeout as delay } from "node:timers/promises";
  * `updatedAt`, which is why `updatedAt` must stay optional): a hostless `.break`
  * is unreadable too, so one with a dead pid is kept until `staleAfterMs` rather
  * than cleared at `breakStaleAfterMs`, as lore keeps its own. An OLDER reader
- * ignores the extra keys and keeps using `startedAt`, so both directions parse. The consequence of running
+ * ignores the extra keys and keeps using `startedAt`, so an older reader still
+ * parses a new record. The other direction does not: a new reader does not parse
+ * an old, hostless record as readable (see above). The consequence of running
  * two CLI versions against one common directory: an old waiter still ages a new
  * holder from `startedAt` and can break it at `staleAfterMs` of run time, and an
  * old-format holder (no `host`, unreadable to a new waiter) is broken once its

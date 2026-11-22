@@ -902,8 +902,10 @@ test("withCommonDirLock lets a waiter reuse the result the previous holder wrote
 /* `.break`; the no-host test, `host` made optional in parseOwner (the record  */
 /* then reads as unprovable, not unreadable); the unprovable rows, a parseable */
 /* unprovable record judged at the floor; the unreadable-body test, an         */
-/* unreadable body judged at staleAfterMs.                                     */
-/* -------------------------------------------------------------------------- */
+/* unreadable body judged at staleAfterMs. The first four are the round-2      */
+/* mutants; the last three were added in round 3. No mutant is recorded here   */
+/* for the round-4 changes (S1-S3 and the 2 ** 60 row).                        */
+/* --------------------------------------------------------------------------  */
 
 test("(a) a live holder older than staleAfterMs that keeps heartbeating is NOT broken", async () => {
   const commonDir = await tempCommonDir();
