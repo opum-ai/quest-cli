@@ -283,49 +283,104 @@ export class LocalTaskRepository
     }
   }
 
+  /**
+   * QCLI-583 (DEC-282 (a19) item 2): reads one record file. A protected seam so
+   * a test can simulate a file that vanishes between `readdir` and `readFile`.
+   */
+  protected readRecordFile(path: string): Promise<string> {
+    return readFile(path, "utf8");
+  }
+
+  /**
+   * Reads every record in one directory. Two different ENOENTs live here and
+   * they must stay different (QCLI-583): the DIRECTORY being absent is an empty
+   * collection, but ONE listed file vanishing between `readdir` and `readFile`
+   * (a concurrent move or removal) is that file's problem only. Before this, any
+   * ENOENT emptied the whole directory, so a snapshot could report every record
+   * in it as absent and `findTask` then threw `task_not_found` for a record that
+   * exists. A vanished file is skipped and reported through `onVanished`, so
+   * {@link snapshot} can re-read once.
+   */
   private async recordsAt<T>(
     directory: string,
     decode: (value: unknown) => T,
+    onVanished: () => void,
   ): Promise<readonly T[]> {
+    let names: string[];
     try {
-      const names = await readdir(directory);
-      return await Promise.all(
-        names
-          // Journals live beside task records so recovery can acquire the same
-          // lock. They are operational metadata, never authored records.
-          .filter((name) => !name.startsWith(".") && name.endsWith(".json"))
-          .sort()
-          .map(async (name) =>
-            decode(JSON.parse(await readFile(join(directory, name), "utf8"))),
-          ),
-      );
+      names = await readdir(directory);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
       throw error;
     }
+    const records = await Promise.all(
+      names
+        // Journals live beside task records so recovery can acquire the same
+        // lock. They are operational metadata, never authored records.
+        .filter((name) => !name.startsWith(".") && name.endsWith(".json"))
+        .sort()
+        .map(async (name) => {
+          let text: string;
+          try {
+            text = await this.readRecordFile(join(directory, name));
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+              onVanished();
+              return undefined;
+            }
+            throw error;
+          }
+          return decode(JSON.parse(text));
+        }),
+    );
+    return records.filter(
+      (record): record is Awaited<T> => record !== undefined,
+    );
   }
 
   /** Protected (not private) so tests can instrument scan counts on a subclass. */
   protected async snapshot() {
     const root = this.root();
-    const [active, completed, archived, drafts, archivedDrafts] =
-      await Promise.all([
-        this.recordsAt(this.directory, (value) =>
-          taskState(value as TaskState),
+    // QCLI-583: one record vanishing mid-scan may be a move between two of the
+    // directories below (written to the new one, removed from the old), which a
+    // single pass can miss in BOTH. So a scan that skipped a vanished file is
+    // repeated once; a file that vanishes again on the repeat is skipped for
+    // good, never allowed to fail the read or empty its directory.
+    let vanished = 0;
+    const onVanished = () => {
+      vanished += 1;
+    };
+    const scan = () =>
+      Promise.all([
+        this.recordsAt(
+          this.directory,
+          (value) => taskState(value as TaskState),
+          onVanished,
         ),
-        this.recordsAt(join(root, "completed"), (value) =>
-          taskState(value as TaskState),
+        this.recordsAt(
+          join(root, "completed"),
+          (value) => taskState(value as TaskState),
+          onVanished,
         ),
-        this.recordsAt(join(root, "archive", "tasks"), (value) =>
-          taskState(value as TaskState),
+        this.recordsAt(
+          join(root, "archive", "tasks"),
+          (value) => taskState(value as TaskState),
+          onVanished,
         ),
-        this.recordsAt(join(root, "drafts"), (value) =>
-          draftState(value as DraftState),
+        this.recordsAt(
+          join(root, "drafts"),
+          (value) => draftState(value as DraftState),
+          onVanished,
         ),
-        this.recordsAt(join(root, "archive", "drafts"), (value) =>
-          draftState(value as DraftState),
+        this.recordsAt(
+          join(root, "archive", "drafts"),
+          (value) => draftState(value as DraftState),
+          onVanished,
         ),
       ]);
+    let scanned = await scan();
+    if (vanished > 0) scanned = await scan();
+    const [active, completed, archived, drafts, archivedDrafts] = scanned;
     const taskRecords = [
       ...active.map((task) => ({ task, location: "tasks" as const })),
       ...completed.map((task) => ({ task, location: "completed" as const })),
