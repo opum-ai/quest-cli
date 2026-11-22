@@ -418,7 +418,7 @@ changes step 1, which is required either way.
    **against that tag**:
 
    ```sh
-   git tag v<version> && git push origin v<version>
+   git tag -a v<version> -m "quest <version>" && git push origin v<version>
    gh workflow run prepublication-qualification.yml --ref v<version>
    ```
 
@@ -454,7 +454,18 @@ changes step 1, which is required either way.
 
 7. Publish the exact reviewed immutable artifacts only after the owner grants
    that authorization. Dispatch the release workflow against the tag, dry run
-   first:
+   first.
+
+   **Measured 2026-11-22 at 0.15.1: `release.yml` has never succeeded for this
+   repository, and the local route below is the one that works.** The 0.15.1
+   dry run (run 44982267511) was approved, then failed at "Gate on the
+   opum-cli-e2e qualification receipt" with a 404, because the
+   `E2E_RECEIPT_READ_TOKEN` secret is not set on quest-cli and the job's own
+   token cannot read private `opum-cli-e2e`. 0.13.0 and 0.14.1 were staged from
+   the operator's terminal with `scripts/publish-release.mjs`, as was 0.15.1.
+   Treat the workflow as the documented-but-unproven route until a run of it
+   succeeds, and read "Publishing locally when CI cannot" as the working
+   procedure, not as a fallback.
 
    ```sh
    gh workflow run release.yml --ref v<version> -f publish=false
@@ -633,7 +644,10 @@ by `.gitattributes`.
 
 ```sh
 node scripts/publish-release.mjs --receipt native-execution-receipt.json --qualification-run <run-id>
-node scripts/publish-release.mjs --publish --otp <code> --receipt native-execution-receipt.json --qualification-run <run-id>
+node scripts/publish-release.mjs --publish --receipt native-execution-receipt.json --qualification-run <run-id>
+# Only when the Auth: line reports no usable token (the npm-login fallback):
+#   add --otp <code> to the --publish line. On the stored-token route no OTP
+#   is required or sent.
 ```
 
 **Two auth mechanisms**, tried in this order, reported explicitly at the
