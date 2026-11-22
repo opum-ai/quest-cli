@@ -12,9 +12,13 @@ import { createTask } from "../src/domain/tasks/tasks.ts";
  * between `readdir` and `readFile` made every record in that directory read as
  * absent, and `findTask` threw `task_not_found` for a record that exists.
  *
- * Control (recorded in QCLI-583): the two "vanished file" tests below FAIL
- * against the pre-fix `recordsAt` (the sibling record is missing from the
- * snapshot) and pass with the fix.
+ * Control (recorded in QCLI-583): the sibling test below is the behavioural
+ * pre-fix control: it FAILS against the pre-fix `recordsAt` (the sibling record
+ * is missing from the snapshot) and passes with the fix. The retry test cannot
+ * run pre-fix at all, because the `readRecordFile` seam it overrides does not
+ * exist there; its control is the mutants M1 (the old whole-directory
+ * behaviour) and M2 (no repeat), recorded in QCLI-583. The tests use a dangling
+ * symlink and that seam, not a literal removal between `readdir` and `readFile`.
  */
 
 async function seed(root: string, id: string, title: string) {
@@ -87,6 +91,30 @@ test("a file that vanishes on the first pass and is present on the repeat is kep
     expect(repo.reads.filter((path) => path.endsWith("T-2.json"))).toHaveLength(
       2,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the repeat is bounded at exactly one: a persistently vanished file does not loop", async () => {
+  const root = await mkdtemp(join(tmpdir(), "quest-583-bound-"));
+  try {
+    await seed(root, "T-1", "Survivor");
+    await seed(root, "T-3", "Other survivor");
+    await dangling(root, "T-2");
+    // a counting subclass that delegates unchanged, so the real ENOENT of the
+    // dangling symlink fires on every pass
+    const repo = new VanishOnceRepository(
+      join(root, ".quest", "tasks"),
+      "no-such-file.json",
+    );
+    const read = await repo.readAll();
+    expect(read.tasks.map((task) => task.id)).toEqual(["T-1", "T-3"]);
+    for (const sibling of ["T-1.json", "T-3.json"]) {
+      expect(repo.reads.filter((path) => path.endsWith(sibling))).toHaveLength(
+        2,
+      );
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }
